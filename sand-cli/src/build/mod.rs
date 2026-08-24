@@ -1,5 +1,6 @@
 mod config;
 mod export;
+pub mod output_manifest;
 pub mod package;
 pub mod records;
 mod resourcepack;
@@ -17,11 +18,12 @@ use crate::pack_format::pack_format_for;
 
 use config::{cargo_target_dir, resolve_mc_version};
 use export::{ExportBuildPlan, Exporter, run_exporter};
+use output_manifest::OutputManifest;
 use package::zip_dir;
 use records::ComponentRecord;
 use resourcepack::{build_resourcepack, ensure_resource_export_source};
 use validate::validate_component_records_for_project;
-use write::{write_component, write_pack_mcmeta};
+use write::{component_output, pack_mcmeta_output};
 
 pub fn run(release: bool, resourcepack: bool) -> Result<()> {
     // 1. Read sand.toml
@@ -129,29 +131,36 @@ pub fn run(release: bool, resourcepack: bool) -> Result<()> {
     let dist = PathBuf::from("dist").join(config.pack.namespace.as_str());
     validate_component_records_for_project(&dist, &project_root, &records)?;
 
-    // 6. Write pack.mcmeta
+    // 6-7. Write pack.mcmeta and every component file through the output
+    //    manifest (issue #347 Phase 7): unchanged content is left untouched
+    //    (mtime included), changed content is rewritten atomically, and
+    //    anything the previous build wrote that this build no longer
+    //    produces is removed. See output_manifest.rs.
     std::fs::create_dir_all(&dist)?;
-    write_pack_mcmeta(
-        &dist,
-        config.pack.namespace.as_str(),
+    let mut manifest = OutputManifest::load(&dist);
+    let (mcmeta_path, mcmeta_bytes) = pack_mcmeta_output(
         &config.pack.description,
         pack_format,
         config.pack.supported_formats,
         &config.pack.overlays,
     )?;
-
-    // 7. Write each component file
+    manifest.write_if_changed(&mcmeta_path, &mcmeta_bytes)?;
     for record in &records {
-        write_component(&dist, &project_root, record)?;
+        let (rel_path, bytes) = component_output(&project_root, record)?;
+        manifest.write_if_changed(&rel_path, &bytes)?;
     }
+    let change_summary = manifest.finish()?;
 
     println!(
-        "{} {} component(s) written to {}",
+        "{} {} component(s) written to {} ({} written, {} unchanged, {} removed)",
         "Done!".green().bold(),
         records.len().to_string().white().bold(),
         format!("dist/{}/", config.pack.namespace.as_str())
             .white()
-            .bold()
+            .bold(),
+        change_summary.written,
+        change_summary.unchanged,
+        change_summary.removed
     );
 
     // 8. Zip if --release, otherwise hint how to install manually.

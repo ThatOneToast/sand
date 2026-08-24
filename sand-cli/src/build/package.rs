@@ -15,6 +15,14 @@ pub fn zip_dir(dist: &Path, name: &str) -> Result<PathBuf> {
         let entry = entry?;
         let abs = entry.path();
         if abs.is_file() {
+            // Sand's own output manifest (issue #347 Phase 7) is bookkeeping
+            // for incremental writes, not part of the datapack: the release
+            // zip must contain exactly the canonical current output.
+            if abs.file_name().and_then(|n| n.to_str())
+                == Some(super::output_manifest::MANIFEST_FILE_NAME)
+            {
+                continue;
+            }
             // Strip dist itself so pack.mcmeta and assets/ sit at the zip root,
             // which is what Minecraft requires.
             let rel = abs.strip_prefix(dist)?;

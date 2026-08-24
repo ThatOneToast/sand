@@ -36,6 +36,7 @@ mod cache;
 mod codegen;
 mod download;
 mod error;
+pub mod fingerprint;
 mod manifest;
 mod registry_fixture;
 mod registry_id_contracts;

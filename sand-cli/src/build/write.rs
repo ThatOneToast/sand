@@ -34,15 +34,16 @@ fn build_mcmeta(
     mcmeta
 }
 
-pub fn write_pack_mcmeta(
-    dist: &Path,
-    namespace: &str,
+/// Computes `pack.mcmeta`'s bytes without writing anything, so both the
+/// unconditional writer below and the content-hash-based
+/// [`super::output_manifest::OutputManifest`] path can share one
+/// implementation instead of two copies that could drift apart.
+fn pack_mcmeta_bytes(
     description: &str,
     pack_format: u32,
     supported_formats: Option<PackSupportedFormats>,
     overlays: &[PackOverlay],
-) -> Result<()> {
-    let _ = namespace; // available for future use
+) -> Result<Vec<u8>> {
     let mut pack_body = build_mcmeta(description, pack_format, supported_formats, overlays);
     // Vanilla requires explicit supported-format bounds for modern packs.
     // Retain pack_format for older tooling while pinning this generated pack
@@ -52,23 +53,55 @@ pub fn write_pack_mcmeta(
         pack_body["pack"]["min_format"] = pack_format.into();
         pack_body["pack"]["max_format"] = pack_format.into();
     }
-    std::fs::write(
-        dist.join("pack.mcmeta"),
-        serde_json::to_string_pretty(&pack_body)?,
-    )?;
+    Ok(serde_json::to_string_pretty(&pack_body)?.into_bytes())
+}
+
+pub fn write_pack_mcmeta(
+    dist: &Path,
+    namespace: &str,
+    description: &str,
+    pack_format: u32,
+    supported_formats: Option<PackSupportedFormats>,
+    overlays: &[PackOverlay],
+) -> Result<()> {
+    let _ = namespace; // available for future use
+    let bytes = pack_mcmeta_bytes(description, pack_format, supported_formats, overlays)?;
+    std::fs::write(dist.join("pack.mcmeta"), bytes)?;
     Ok(())
 }
 
-pub fn write_component(dist: &Path, project_root: &Path, record: &ComponentRecord) -> Result<()> {
+/// Computes `pack.mcmeta`'s pack-root-relative path and bytes for use with
+/// [`super::output_manifest::OutputManifest`].
+pub fn pack_mcmeta_output(
+    description: &str,
+    pack_format: u32,
+    supported_formats: Option<PackSupportedFormats>,
+    overlays: &[PackOverlay],
+) -> Result<(String, Vec<u8>)> {
+    Ok((
+        "pack.mcmeta".to_string(),
+        pack_mcmeta_bytes(description, pack_format, supported_formats, overlays)?,
+    ))
+}
+
+/// Computes a component record's pack-root-relative output path and final
+/// bytes, without writing anything. Shared by the unconditional writer
+/// below (used directly by golden-output tests and anywhere byte-identical
+/// unconditional writes are wanted) and by the content-hash-based
+/// [`super::output_manifest::OutputManifest`] path used by `sand build`.
+pub fn component_output(
+    project_root: &Path,
+    record: &ComponentRecord,
+) -> Result<(String, Vec<u8>)> {
     // path inside the datapack: data/<namespace>/<dir>/<path>.<ext>
-    let file_path = dist
-        .join("data")
-        .join(record.namespace.as_str())
-        .join(record.dir.as_str())
-        .join(format!("{}.{}", record.path.as_str(), record.ext.as_str()));
-    std::fs::create_dir_all(file_path.parent().unwrap())
-        .with_context(|| format!("failed to create dir for '{}'", file_path.display()))?;
-    match record.content_type {
+    let rel_path = format!(
+        "data/{}/{}/{}.{}",
+        record.namespace.as_str(),
+        record.dir.as_str(),
+        record.path.as_str(),
+        record.ext.as_str()
+    );
+    let bytes = match record.content_type {
         ComponentContentType::Text => {
             // Minecraft accepts LF on every supported platform. Normalizing here makes
             // generated functions deterministic and follows the validation contract.
@@ -77,8 +110,7 @@ pub fn write_component(dist: &Path, project_root: &Path, record: &ComponentRecor
             } else {
                 record.content.clone()
             };
-            std::fs::write(&file_path, content)
-                .with_context(|| format!("failed to write '{}'", file_path.display()))?;
+            content.into_bytes()
         }
         ComponentContentType::Copy => {
             let src = project_root.join(&record.content);
@@ -89,23 +121,19 @@ pub fn write_component(dist: &Path, project_root: &Path, record: &ComponentRecor
                     src.display()
                 );
             }
-            let mut input = std::io::BufReader::new(
-                std::fs::File::open(&src)
-                    .with_context(|| format!("failed to open '{}'", src.display()))?,
-            );
-            let mut output = std::io::BufWriter::new(
-                std::fs::File::create(&file_path)
-                    .with_context(|| format!("failed to create '{}'", file_path.display()))?,
-            );
-            std::io::copy(&mut input, &mut output).with_context(|| {
-                format!(
-                    "failed to copy '{}' → '{}'",
-                    src.display(),
-                    file_path.display()
-                )
-            })?;
+            std::fs::read(&src).with_context(|| format!("failed to read '{}'", src.display()))?
         }
-    }
+    };
+    Ok((rel_path, bytes))
+}
+
+pub fn write_component(dist: &Path, project_root: &Path, record: &ComponentRecord) -> Result<()> {
+    let (rel_path, bytes) = component_output(project_root, record)?;
+    let file_path = dist.join(&rel_path);
+    std::fs::create_dir_all(file_path.parent().unwrap())
+        .with_context(|| format!("failed to create dir for '{}'", file_path.display()))?;
+    std::fs::write(&file_path, &bytes)
+        .with_context(|| format!("failed to write '{}'", file_path.display()))?;
     Ok(())
 }
 

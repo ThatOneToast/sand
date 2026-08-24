@@ -195,6 +195,15 @@ pub fn sync_dir(src: &Path, dest: &Path) -> Result<SyncStats> {
     std::fs::create_dir_all(dest)?;
     for entry in walkdir::WalkDir::new(src) {
         let entry = entry?;
+        // Sand's own output-manifest bookkeeping file (issue #347 Phase 7) is
+        // not part of the datapack/resource-pack; don't mirror it into the
+        // live server's world.
+        if entry.file_type().is_file()
+            && entry.path().file_name().and_then(|n| n.to_str())
+                == Some(crate::build::output_manifest::MANIFEST_FILE_NAME)
+        {
+            continue;
+        }
         let rel = entry.path().strip_prefix(src)?;
         let target = dest.join(rel);
         if entry.file_type().is_dir() {

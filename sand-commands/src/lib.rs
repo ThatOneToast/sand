@@ -84,6 +84,7 @@ pub use text::{
 
 // ── Build trait ───────────────────────────────────────────────────────────────
 
+#[doc = "**API Contract:** Run `sand api show sand::command::Build` for the canonical contract."]
 /// Compatibility serialization trait for Minecraft command builders.
 ///
 /// Existing builders use this infallible trait to preserve stable output.
@@ -131,6 +132,7 @@ pub use text::{
 /// ```
 pub trait Build: Clone {
     /// Serialize this command to its Minecraft string representation.
+    #[doc = "**API Contract:** Run `sand api show sand::command::Build::build` for the canonical contract."]
     fn build(&self) -> String;
 }
 
@@ -141,6 +143,24 @@ pub trait Build: Clone {
 impl<T: Build> Build for &T {
     fn build(&self) -> String {
         (*self).build()
+    }
+}
+
+/// Cross-crate compiler wiring that is deliberately excluded from Sand's
+/// supported author API.
+#[doc(hidden)]
+pub mod __private {
+    /// Appends one compiler-produced execute operation.
+    pub fn execute_with_operation(
+        execute: crate::Execute,
+        operation: crate::ExecuteOp,
+    ) -> crate::Execute {
+        execute.with_operation(operation)
+    }
+
+    /// Converts a legacy score-holder string at Sand's internal compatibility boundary.
+    pub fn score_holder_compat(value: String) -> crate::ScoreHolder {
+        crate::ScoreHolder::compat(value)
     }
 }
 // NOTE: a blanket `impl<T: Build> From<&T> for String` is not possible —

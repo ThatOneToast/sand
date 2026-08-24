@@ -67,6 +67,7 @@ pub(super) fn validate_single_holder(
 
 // ── Flag ──────────────────────────────────────────────────────────────────────
 
+#[doc = "**API Contract:** Run `sand api show sand::state::Flag` for the canonical contract."]
 /// A boolean scoreboard flag (score = 1 means `true`, score = 0 means `false`).
 ///
 /// Declare once as a `static` and use throughout your datapack:
@@ -87,16 +88,19 @@ pub struct Flag {
 
 impl Flag {
     /// Create a new flag with the given objective name.
+    #[doc = "**API Contract:** Run `sand api show sand::state::Flag::new` for the canonical contract."]
     pub const fn new(name: &'static str) -> Self {
         Self { name }
     }
 
     /// Return the actual scoreboard objective name used in commands.
+    #[doc = "**API Contract:** Run `sand api show sand::state::Flag::objective_name` for the canonical contract."]
     pub fn objective_name(&self) -> String {
         objective_name(self.name)
     }
 
     /// `scoreboard objectives add <obj> dummy` — register the objective.
+    #[doc = "**API Contract:** Run `sand api show sand::state::Flag::define` for the canonical contract."]
     pub fn define(&self) -> String {
         format!("scoreboard objectives add {} dummy", self.objective_name())
     }
@@ -107,6 +111,7 @@ impl Flag {
     /// interpolated directly into generated commands. Prefer
     /// [`Flag::try_enable`] in new code — see
     /// [#146](https://github.com/ThatOneToast/sand/issues/146).
+    #[doc = "**API Contract:** Run `sand api show sand::state::Flag::enable` for the canonical contract."]
     pub fn enable(&self, selector: impl std::fmt::Display) -> String {
         format!(
             "scoreboard players set {} {} 1",
@@ -136,6 +141,7 @@ impl Flag {
     /// );
     /// assert!(CASTING.try_enable(ScoreHolder::fake("bad holder")).is_err());
     /// ```
+    #[doc = "**API Contract:** Run `sand api show sand::state::Flag::try_enable` for the canonical contract."]
     pub fn try_enable(&self, holder: impl Into<ScoreHolder>) -> CommandResult<String> {
         let holder = holder.into();
         validate_holder(&holder, "Flag::try_enable")?;
@@ -145,6 +151,7 @@ impl Flag {
     /// `scoreboard players set <selector> <obj> 0` — set flag to `false`.
     ///
     /// Raw compatibility escape hatch — prefer [`Flag::try_disable`].
+    #[doc = "**API Contract:** Run `sand api show sand::state::Flag::disable` for the canonical contract."]
     pub fn disable(&self, selector: impl std::fmt::Display) -> String {
         format!(
             "scoreboard players set {} {} 0",
@@ -166,6 +173,7 @@ impl Flag {
     ///     "scoreboard players set Notch casting 0"
     /// );
     /// ```
+    #[doc = "**API Contract:** Run `sand api show sand::state::Flag::try_disable` for the canonical contract."]
     pub fn try_disable(&self, holder: impl Into<ScoreHolder>) -> CommandResult<String> {
         let holder = holder.into();
         validate_holder(&holder, "Flag::try_disable")?;
@@ -182,6 +190,7 @@ impl Flag {
     /// execute if score <selector> <obj> matches 0 run scoreboard players set <selector> <obj> 1
     /// execute if score <selector> <obj> matches 1.. run scoreboard players set <selector> <obj> 0
     /// ```
+    #[doc = "**API Contract:** Run `sand api show sand::state::Flag::toggle` for the canonical contract."]
     pub fn toggle(&self, selector: impl std::fmt::Display) -> Vec<String> {
         let selector = selector.to_string();
         let obj = self.objective_name();
@@ -201,6 +210,7 @@ impl Flag {
     /// exactly one score holder, so the holder is validated with
     /// [`sand_commands::ScoreHolder::validate_single`]: the `*` wildcard and
     /// multi-entity selectors are rejected.
+    #[doc = "**API Contract:** Run `sand api show sand::state::Flag::try_toggle` for the canonical contract."]
     pub fn try_toggle(&self, holder: impl Into<ScoreHolder>) -> CommandResult<Vec<String>> {
         let holder = holder.into();
         validate_single_holder(&holder, "Flag::try_toggle")?;
@@ -216,6 +226,7 @@ impl Flag {
     /// ```rust,ignore
     /// let cond = CASTING.of("@s").is_true();
     /// ```
+    #[doc = "**API Contract:** Run `sand api show sand::state::Flag::of` for the canonical contract."]
     pub fn of<'a>(&'a self, selector: &str) -> FlagRef<'a> {
         FlagRef {
             objective: self.name,
@@ -241,6 +252,7 @@ impl Flag {
     /// let cond = CASTING.try_of(ScoreHolder::self_()).unwrap().is_true();
     /// assert!(CASTING.try_of(ScoreHolder::wildcard()).is_err());
     /// ```
+    #[doc = "**API Contract:** Run `sand api show sand::state::Flag::try_of` for the canonical contract."]
     pub fn try_of<'a>(&'a self, holder: impl Into<ScoreHolder>) -> CommandResult<FlagRef<'a>> {
         let holder = holder.into();
         validate_single_holder(&holder, "Flag::try_of")?;
@@ -255,6 +267,7 @@ impl Flag {
     /// Equivalent to `enable` when `true` and `disable` when `false`.
     ///
     /// Raw compatibility escape hatch — prefer [`Flag::try_set`].
+    #[doc = "**API Contract:** Run `sand api show sand::state::Flag::set` for the canonical contract."]
     pub fn set(&self, selector: impl std::fmt::Display, value: bool) -> String {
         if value {
             self.enable(selector)
@@ -276,6 +289,7 @@ impl Flag {
     ///     CASTING.try_enable(ScoreHolder::self_()).unwrap()
     /// );
     /// ```
+    #[doc = "**API Contract:** Run `sand api show sand::state::Flag::try_set` for the canonical contract."]
     pub fn try_set(&self, holder: impl Into<ScoreHolder>, value: bool) -> CommandResult<String> {
         let holder = holder.into();
         validate_holder(&holder, "Flag::try_set")?;
@@ -285,11 +299,13 @@ impl Flag {
     /// Alias for [`disable`](Flag::disable) — sets the flag to `false`.
     ///
     /// Raw compatibility escape hatch — prefer [`Flag::try_clear`].
+    #[doc = "**API Contract:** Run `sand api show sand::state::Flag::clear` for the canonical contract."]
     pub fn clear(&self, selector: impl std::fmt::Display) -> String {
         self.disable(selector)
     }
 
     /// Validated counterpart to [`Flag::clear`] — see [`Flag::try_enable`].
+    #[doc = "**API Contract:** Run `sand api show sand::state::Flag::try_clear` for the canonical contract."]
     pub fn try_clear(&self, holder: impl Into<ScoreHolder>) -> CommandResult<String> {
         let holder = holder.into();
         validate_holder(&holder, "Flag::try_clear")?;
@@ -306,6 +322,7 @@ impl Flag {
     /// ```text
     /// execute unless score <selector> <obj> matches -2147483648.. run scoreboard players set <selector> <obj> 0
     /// ```
+    #[doc = "**API Contract:** Run `sand api show sand::state::Flag::init_false` for the canonical contract."]
     pub fn init_false(&self, selector: impl std::fmt::Display) -> String {
         let obj = self.objective_name();
         format!(
@@ -332,6 +349,7 @@ impl Flag {
     /// );
     /// assert!(CASTING.try_init_false(ScoreHolder::wildcard()).is_err());
     /// ```
+    #[doc = "**API Contract:** Run `sand api show sand::state::Flag::try_init_false` for the canonical contract."]
     pub fn try_init_false(&self, holder: impl Into<ScoreHolder>) -> CommandResult<String> {
         let holder = holder.into();
         validate_single_holder(&holder, "Flag::try_init_false")?;
@@ -346,6 +364,7 @@ impl Flag {
     /// ```text
     /// execute unless score <selector> <obj> matches -2147483648.. run scoreboard players set <selector> <obj> 1
     /// ```
+    #[doc = "**API Contract:** Run `sand api show sand::state::Flag::init_true` for the canonical contract."]
     pub fn init_true(&self, selector: impl std::fmt::Display) -> String {
         let obj = self.objective_name();
         format!(
@@ -356,6 +375,7 @@ impl Flag {
     /// Validated counterpart to [`Flag::init_true`] — see
     /// [`Flag::try_init_false`]; the holder must resolve to exactly one score
     /// holder.
+    #[doc = "**API Contract:** Run `sand api show sand::state::Flag::try_init_true` for the canonical contract."]
     pub fn try_init_true(&self, holder: impl Into<ScoreHolder>) -> CommandResult<String> {
         let holder = holder.into();
         validate_single_holder(&holder, "Flag::try_init_true")?;
@@ -365,6 +385,7 @@ impl Flag {
     /// Condition shorthand: flag is true. Equivalent to `self.of(selector).is_true()`.
     ///
     /// Raw compatibility escape hatch — prefer [`Flag::try_when_true`].
+    #[doc = "**API Contract:** Run `sand api show sand::state::Flag::when_true` for the canonical contract."]
     pub fn when_true(&self, selector: &str) -> Condition {
         self.of(selector).is_true()
     }
@@ -386,6 +407,7 @@ impl Flag {
     ///     vec!["execute if score @s casting matches 1 run say ok"]
     /// );
     /// ```
+    #[doc = "**API Contract:** Run `sand api show sand::state::Flag::try_when_true` for the canonical contract."]
     pub fn try_when_true(&self, holder: impl Into<ScoreHolder>) -> CommandResult<Condition> {
         let holder = holder.into();
         validate_single_holder(&holder, "Flag::try_when_true")?;
@@ -397,6 +419,7 @@ impl Flag {
     /// See [`FlagRef::is_false`] for the difference between this and [`unless_true`](Flag::unless_true).
     ///
     /// Raw compatibility escape hatch — prefer [`Flag::try_when_false`].
+    #[doc = "**API Contract:** Run `sand api show sand::state::Flag::when_false` for the canonical contract."]
     pub fn when_false(&self, selector: &str) -> Condition {
         self.of(selector).is_false()
     }
@@ -404,6 +427,7 @@ impl Flag {
     /// Validated counterpart to [`Flag::when_false`] — see
     /// [`Flag::try_when_true`]; the holder must resolve to exactly one score
     /// holder.
+    #[doc = "**API Contract:** Run `sand api show sand::state::Flag::try_when_false` for the canonical contract."]
     pub fn try_when_false(&self, holder: impl Into<ScoreHolder>) -> CommandResult<Condition> {
         let holder = holder.into();
         validate_single_holder(&holder, "Flag::try_when_false")?;
@@ -416,6 +440,7 @@ impl Flag {
     /// when you mean "player does not have this yet".
     ///
     /// Raw compatibility escape hatch — prefer [`Flag::try_unless_true`].
+    #[doc = "**API Contract:** Run `sand api show sand::state::Flag::unless_true` for the canonical contract."]
     pub fn unless_true(&self, selector: &str) -> Condition {
         self.of(selector).is_not_true()
     }
@@ -423,6 +448,7 @@ impl Flag {
     /// Validated counterpart to [`Flag::unless_true`] — see
     /// [`Flag::try_when_true`]; the holder must resolve to exactly one score
     /// holder.
+    #[doc = "**API Contract:** Run `sand api show sand::state::Flag::try_unless_true` for the canonical contract."]
     pub fn try_unless_true(&self, holder: impl Into<ScoreHolder>) -> CommandResult<Condition> {
         let holder = holder.into();
         validate_single_holder(&holder, "Flag::try_unless_true")?;
@@ -432,6 +458,7 @@ impl Flag {
 
 // ── FlagRef ───────────────────────────────────────────────────────────────────
 
+#[doc = "**API Contract:** Run `sand api show sand::state::FlagRef` for the canonical contract."]
 /// A [`Flag`] bound to a selector — used to build [`Condition`]s.
 ///
 /// Produced by [`Flag::try_of`] (typed path — the bound holder is a validated
@@ -450,18 +477,21 @@ impl<'a> FlagRef<'a> {
     }
 
     /// `if score <sel> <obj> matches 1` — flag is `true`.
+    #[doc = "**API Contract:** Run `sand api show sand::state::FlagRef::is_true` for the canonical contract."]
     pub fn is_true(self) -> Condition {
         let objective = self.obj();
         Condition::flag(self.selector, objective, true)
     }
 
     /// `if score <sel> <obj> matches 0` — flag is `false`.
+    #[doc = "**API Contract:** Run `sand api show sand::state::FlagRef::is_false` for the canonical contract."]
     pub fn is_false(self) -> Condition {
         let objective = self.obj();
         Condition::flag(self.selector, objective, false)
     }
 
     /// Alias for [`is_true`](FlagRef::is_true).
+    #[doc = "**API Contract:** Run `sand api show sand::state::FlagRef::is_set` for the canonical contract."]
     pub fn is_set(self) -> Condition {
         self.is_true()
     }
@@ -471,6 +501,7 @@ impl<'a> FlagRef<'a> {
     /// This is **not** equivalent to "the flag was never set". A player whose flag score
     /// has never been touched has *no* score entry, so `is_unset()` returns `false` for
     /// them. Use [`is_not_true`](FlagRef::is_not_true) for "player does not have this yet".
+    #[doc = "**API Contract:** Run `sand api show sand::state::FlagRef::is_unset` for the canonical contract."]
     pub fn is_unset(self) -> Condition {
         self.is_false()
     }
@@ -486,6 +517,7 @@ impl<'a> FlagRef<'a> {
     /// when(HAS_CELLS.of("@s").is_not_true()).then_all([...]);
     /// unless(HAS_CELLS.of("@s").is_true()).then_all([...]);  // equivalent
     /// ```
+    #[doc = "**API Contract:** Run `sand api show sand::state::FlagRef::is_not_true` for the canonical contract."]
     pub fn is_not_true(self) -> Condition {
         !self.is_true()
     }

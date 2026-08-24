@@ -34,37 +34,46 @@ use crate::entity::state::{
 use crate::resource_ref::FunctionId;
 use crate::state::Ticks;
 
+#[doc = "**API Contract:** Run `sand api show sand::entity::AdoptionSource` for the canonical contract."]
 /// Which externally existing entities an adoption scan may initialize.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[non_exhaustive]
 pub enum AdoptionSource {
+    #[doc = "**API Contract:** Run `sand api show sand::entity::AdoptionSource::Natural` for the canonical contract."]
     /// Unmarked entities not carrying this archetype's external provenance tag.
     ///
     /// Vanilla exposes no general spawn-provenance predicate, so commands
     /// from other packs that omit the explicit external tag are
     /// indistinguishable from natural spawns.
     Natural,
+    #[doc = "**API Contract:** Run `sand api show sand::entity::AdoptionSource::External` for the canonical contract."]
     /// Entities carrying the archetype's Sand-owned external provenance tag.
     ///
     /// Other datapacks can obtain the tag from
     /// [`EntityArchetype::external_adoption_tag`].
     External,
+    #[doc = "**API Contract:** Run `sand api show sand::entity::AdoptionSource::NaturalAndExternal` for the canonical contract."]
     /// Both natural and externally created entities.
     NaturalAndExternal,
 }
 
+#[doc = "**API Contract:** Run `sand api show sand::entity::SpecialEntityPolicy` for the canonical contract."]
 /// Treatment of named, tamed, owned, or otherwise special entities.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[non_exhaustive]
 pub enum SpecialEntityPolicy {
+    #[doc = "**API Contract:** Run `sand api show sand::entity::SpecialEntityPolicy::Exclude` for the canonical contract."]
     /// Exclude special entities from automatic adoption.
     Exclude,
+    #[doc = "**API Contract:** Run `sand api show sand::entity::SpecialEntityPolicy::Preserve` for the canonical contract."]
     /// Adopt them while preserving unrelated name/owner/taming state.
     Preserve,
+    #[doc = "**API Contract:** Run `sand api show sand::entity::SpecialEntityPolicy::Include` for the canonical contract."]
     /// Include them and allow explicitly owned properties to reconcile.
     Include,
 }
 
+#[doc = "**API Contract:** Run `sand api show sand::entity::Adoption` for the canonical contract."]
 /// A typed adoption scan.
 ///
 /// The entity type comes from the archetype's `K`; callers cannot create an
@@ -83,6 +92,7 @@ pub struct Adoption {
 
 impl Adoption {
     /// Adopt natural and external entities once per tick.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::Adoption::natural_and_external` for the canonical contract."]
     #[must_use]
     pub fn natural_and_external() -> Self {
         Self {
@@ -97,6 +107,7 @@ impl Adoption {
     }
 
     /// Restrict adoption to the natural-spawn policy.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::Adoption::natural` for the canonical contract."]
     #[must_use]
     pub fn natural() -> Self {
         Self {
@@ -106,6 +117,7 @@ impl Adoption {
     }
 
     /// Restrict adoption to externally summoned entities.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::Adoption::external` for the canonical contract."]
     #[must_use]
     pub fn external() -> Self {
         Self {
@@ -117,6 +129,7 @@ impl Adoption {
     /// Set the scan cadence.
     ///
     /// A zero interval is rejected during archetype compilation.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::Adoption::every` for the canonical contract."]
     #[must_use]
     pub fn every(mut self, ticks: Ticks) -> Self {
         self.every = ticks;
@@ -127,6 +140,7 @@ impl Adoption {
     ///
     /// Global type-constrained scans remain supported; this option is useful
     /// for packs that deliberately run the coordinator at player positions.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::Adoption::within_blocks` for the canonical contract."]
     #[must_use]
     pub fn within_blocks(mut self, blocks: f64) -> Self {
         self.max_distance = Some(blocks);
@@ -134,6 +148,7 @@ impl Adoption {
     }
 
     /// Choose how named/tamed/owned entities are treated.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::Adoption::special_entities` for the canonical contract."]
     #[must_use]
     pub fn special_entities(mut self, policy: SpecialEntityPolicy) -> Self {
         self.special = policy;
@@ -141,6 +156,7 @@ impl Adoption {
     }
 
     /// Require a validated entity tag in addition to the typed entity kind.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::Adoption::requiring_tag` for the canonical contract."]
     #[must_use]
     pub fn requiring_tag(mut self, tag: crate::entity::property::EntityTag) -> Self {
         self.required_tags.push(tag);
@@ -148,6 +164,7 @@ impl Adoption {
     }
 
     /// Exclude a validated entity tag from adoption.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::Adoption::excluding_tag` for the canonical contract."]
     #[must_use]
     pub fn excluding_tag(mut self, tag: crate::entity::property::EntityTag) -> Self {
         self.excluded_tags.push(tag);
@@ -158,6 +175,7 @@ impl Adoption {
     ///
     /// Multiple fields are merged into one selector `scores` map, avoiding
     /// handwritten score syntax and additional outer scans.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::Adoption::where_state` for the canonical contract."]
     #[must_use]
     pub fn where_state(mut self, predicate: crate::entity::state::StatePredicate) -> Self {
         self.state_predicates.push(predicate);
@@ -165,35 +183,50 @@ impl Adoption {
     }
 }
 
+#[doc = "**API Contract:** Run `sand api show sand::entity::ReconcilePolicy` for the canonical contract."]
 /// When an initialized entity is checked against its archetype.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[non_exhaustive]
 pub enum ReconcilePolicy {
+    #[doc = "**API Contract:** Run `sand api show sand::entity::ReconcilePolicy::InitializeOnly` for the canonical contract."]
     /// Initialize once and never automatically reapply owned properties.
     InitializeOnly,
+    #[doc = "**API Contract:** Run `sand api show sand::entity::ReconcilePolicy::WhenSchemaChanges` for the canonical contract."]
     /// Reconcile after a schema/archetype version changes.
     WhenSchemaChanges,
+    #[doc = "**API Contract:** Run `sand api show sand::entity::ReconcilePolicy::WhenDirty` for the canonical contract."]
     /// Reconcile only when a state dependency is dirty.
     WhenDirty,
+    #[doc = "**API Contract:** Run `sand api show sand::entity::ReconcilePolicy::Every` for the canonical contract."]
     /// Reconcile at an explicit interval.
-    Every(Ticks),
+    Every(
+        #[doc = "The `Every` variant carries the value described by its variant semantics: Reconcile at an explicit interval."]
+        #[doc = "**API Contract:** Run `sand api show sand::entity::ReconcilePolicy::Every::0` for the canonical contract."]
+        Ticks,
+    ),
+    #[doc = "**API Contract:** Run `sand api show sand::entity::ReconcilePolicy::Manual` for the canonical contract."]
     /// Reconciliation occurs only through a generated manual function.
     Manual,
 }
 
+#[doc = "**API Contract:** Run `sand api show sand::entity::Migration` for the canonical contract."]
 /// One contiguous ordered archetype migration.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Migration {
+    #[doc = "**API Contract:** Run `sand api show sand::entity::Migration::from` for the canonical contract."]
     /// Version this step accepts.
     pub from: u32,
+    #[doc = "**API Contract:** Run `sand api show sand::entity::Migration::to` for the canonical contract."]
     /// Version written only after the callback completes.
     pub to: u32,
+    #[doc = "**API Contract:** Run `sand api show sand::entity::Migration::action` for the canonical contract."]
     /// Canonical typed migration function.
     pub action: FunctionId,
 }
 
 impl Migration {
     /// Construct a migration step.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::Migration::new` for the canonical contract."]
     #[must_use]
     pub fn new(from: u32, to: u32, action: FunctionId) -> Self {
         Self { from, to, action }
@@ -202,7 +235,7 @@ impl Migration {
 
 /// Cost and generated-resource summary for one archetype.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct EntityRuntimeReport {
+pub(crate) struct EntityRuntimeReport {
     /// Archetype identifier.
     pub archetype: String,
     /// Generated objectives, sorted.
@@ -227,6 +260,10 @@ pub(crate) struct CompiledArchetype {
 }
 
 /// Reusable lifecycle definition for entity kind `K` and state schema `S`.
+///
+/// # API Contract
+///
+/// `sand api show sand::entity::EntityArchetype`
 #[derive(Debug, Clone)]
 pub struct EntityArchetype<K, S> {
     id: ResourceLocation,
@@ -253,6 +290,31 @@ where
     /// The identifier namespaces every generated objective, marker, storage
     /// path, and helper function. The default version is the state schema
     /// version and reconciliation is version-driven.
+    ///
+    /// `id` is the stable resource location used to derive those generated
+    /// names. Renaming it after release creates a distinct archetype identity.
+    ///
+    /// Returns a new archetype builder using the state schema's current
+    /// version and schema-change reconciliation policy.
+    ///
+    /// Use this constructor when declaring the canonical lifecycle policy for
+    /// one entity kind and state schema.
+    ///
+    /// Avoid creating multiple archetypes with the same identifier; their
+    /// generated Minecraft objectives and helper functions would collide.
+    ///
+    /// Minecraft receives the resulting objectives, marker tags, storage
+    /// paths, migration functions, and reconciliation commands at export.
+    ///
+    /// ```rust,ignore
+    /// let archetype = EntityArchetype::<Zombie, MyState>::new(
+    ///     "demo:managed_zombie".parse()?,
+    /// );
+    /// ```
+    ///
+    /// # API Contract
+    ///
+    /// `sand api show sand::entity::EntityArchetype::new`
     #[must_use]
     pub fn new(id: ResourceLocation) -> Self {
         let version = S::schema().version;
@@ -273,6 +335,7 @@ where
     }
 
     /// Override the archetype version independently of the schema version.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::EntityArchetype::version` for the canonical contract."]
     #[must_use]
     pub fn version(mut self, version: u32) -> Self {
         self.version = version;
@@ -280,6 +343,7 @@ where
     }
 
     /// Discover and initialize existing loaded entities.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::EntityArchetype::adopt` for the canonical contract."]
     #[must_use]
     pub fn adopt(mut self, adoption: Adoption) -> Self {
         self.adoption = Some(adoption);
@@ -287,6 +351,7 @@ where
     }
 
     /// Choose automatic reconciliation behavior.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::EntityArchetype::reconcile` for the canonical contract."]
     #[must_use]
     pub fn reconcile(mut self, policy: ReconcilePolicy) -> Self {
         self.reconcile = policy;
@@ -294,6 +359,7 @@ where
     }
 
     /// Run a typed function after state/native setup and before completion is marked.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::EntityArchetype::initialize_with` for the canonical contract."]
     #[must_use]
     pub fn initialize_with(mut self, function: FunctionId) -> Self {
         self.initialize = Some(function);
@@ -305,6 +371,7 @@ where
     /// Vanilla provides no reliable callback for every external removal or
     /// unloaded entity. This callback is guaranteed only when the generated
     /// cleanup function is explicitly invoked while the entity is loaded.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::EntityArchetype::cleanup_with` for the canonical contract."]
     #[must_use]
     pub fn cleanup_with(mut self, function: FunctionId) -> Self {
         self.cleanup = Some(function);
@@ -312,6 +379,7 @@ where
     }
 
     /// Add one ordered migration.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::EntityArchetype::migration` for the canonical contract."]
     #[must_use]
     pub fn migration(mut self, migration: Migration) -> Self {
         self.migrations.push(migration);
@@ -323,6 +391,7 @@ where
     /// The exporter lowers the curve to entity-scoped scoreboard arithmetic
     /// and marks the result dirty only when one of its source scores changes.
     /// Cycles among derived targets are rejected before resources are written.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::EntityArchetype::derive` for the canonical contract."]
     #[must_use]
     pub fn derive(mut self, derivation: EntityDerivation) -> Self {
         self.derivations.push(derivation);
@@ -330,6 +399,7 @@ where
     }
 
     /// Run a typed action when entity-bound state crosses a declared boundary.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::EntityArchetype::on` for the canonical contract."]
     #[must_use]
     pub fn on(mut self, transition: EntityTransition, action: EntityAction) -> Self {
         self.transitions
@@ -338,6 +408,7 @@ where
     }
 
     /// Add an archetype-owned tag while preserving unrelated tags.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::EntityArchetype::tag` for the canonical contract."]
     #[must_use]
     pub fn tag(mut self, binding: TagBinding) -> Self {
         self.properties.push(ArchetypeProperty::Tag(binding));
@@ -345,6 +416,7 @@ where
     }
 
     /// Add/remove an owned tag when a typed flag changes.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::EntityArchetype::tag_when` for the canonical contract."]
     #[must_use]
     pub fn tag_when(mut self, flag: EntityFlag, binding: TagBinding) -> Self {
         let binding = binding.refresh(RefreshPolicy::WhenSourceChanges);
@@ -354,6 +426,7 @@ where
     }
 
     /// Add typed team membership while leaving team configuration external.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::EntityArchetype::team` for the canonical contract."]
     #[must_use]
     pub fn team(mut self, binding: TeamBinding) -> Self {
         self.properties.push(ArchetypeProperty::Team(binding));
@@ -361,6 +434,7 @@ where
     }
 
     /// Join/leave an owned team when a typed flag changes.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::EntityArchetype::team_when` for the canonical contract."]
     #[must_use]
     pub fn team_when(mut self, flag: EntityFlag, binding: TeamBinding) -> Self {
         let binding = binding.refresh(RefreshPolicy::WhenSourceChanges);
@@ -370,12 +444,14 @@ where
     }
 
     /// Archetype identifier.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::EntityArchetype::id` for the canonical contract."]
     #[must_use]
     pub fn id(&self) -> &ResourceLocation {
         &self.id
     }
 
     /// Sand-owned initialized marker, deterministic across exports.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::EntityArchetype::initialized_tag` for the canonical contract."]
     #[must_use]
     pub fn initialized_tag(&self) -> String {
         initialized_tag(&self.id.to_string())
@@ -383,6 +459,7 @@ where
 
     /// Sand-owned tag used to opt an externally summoned entity into an
     /// [`Adoption::external`] scan.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::EntityArchetype::external_adoption_tag` for the canonical contract."]
     #[must_use]
     pub fn external_adoption_tag(&self) -> crate::entity::property::EntityTag {
         crate::entity::property::EntityTag::generated(external_tag(&self.id.to_string()))
@@ -392,6 +469,7 @@ where
     ///
     /// This command is execution-scoped. It does not create or return a
     /// persistent entity reference.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::EntityArchetype::attach` for the canonical contract."]
     #[must_use]
     pub fn attach(&self) -> String {
         format!(
@@ -405,6 +483,7 @@ where
     ///
     /// Vanilla's `execute summon` binds the new entity directly to `@s`, so
     /// no selector, temporary tag, or global scratch identity is required.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::EntityArchetype::summon` for the canonical contract."]
     #[must_use]
     pub fn summon(&self) -> Vec<String> {
         let entity_type = K::entity_type();
@@ -414,18 +493,10 @@ where
         )]
     }
 
-    /// Compile this definition directly for tests, diagnostics, or custom exporters.
-    pub fn compile(
-        &self,
-        profile: &crate::version::VersionProfile,
-    ) -> Result<EntityRuntimeReport, EntityDiagnostic> {
-        Ok(compile_definition(&self.definition(), profile)?.report)
-    }
-
     /// Erase Rust marker types for inventory-based exporter registration.
     #[doc(hidden)]
     #[must_use]
-    pub fn definition(&self) -> ArchetypeDefinition {
+    pub(crate) fn definition(&self) -> ArchetypeDefinition {
         ArchetypeDefinition {
             id: self.id.clone(),
             version: self.version,
@@ -446,12 +517,26 @@ where
     }
 }
 
+/// Erases an archetype's marker types for proc-macro registration.
+///
+/// This is public only so generated code can cross the crate boundary through
+/// `sand::__private`; it is not part of the author-facing entity API.
+#[doc(hidden)]
+pub fn registered_definition<K, S>(archetype: &EntityArchetype<K, S>) -> ArchetypeDefinition
+where
+    K: KnownEntityKind,
+    S: EntityState,
+{
+    archetype.definition()
+}
+
 impl<K, S> EntityArchetype<K, S>
 where
     K: KnownEntityKind + SafeEntityDataWriteKind,
     S: EntityState,
 {
     /// Bind a state-aware custom name and visibility.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::EntityArchetype::name` for the canonical contract."]
     #[must_use]
     pub fn name(mut self, binding: NameBinding) -> Self {
         self.properties.push(ArchetypeProperty::Name(binding));
@@ -459,6 +544,7 @@ where
     }
 
     /// Bind a stable typed native-NBT field.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::EntityArchetype::native_data` for the canonical contract."]
     #[must_use]
     pub fn native_data(mut self, binding: EntityNbtBinding) -> Self {
         self.properties.push(ArchetypeProperty::Nbt(binding));
@@ -472,6 +558,7 @@ where
     S: EntityState,
 {
     /// Synchronize current/max health according to an explicit resize policy.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::EntityArchetype::health` for the canonical contract."]
     #[must_use]
     pub fn health(mut self, binding: HealthBinding) -> Self {
         self.properties.push(ArchetypeProperty::Health(binding));
@@ -479,6 +566,7 @@ where
     }
 
     /// Bind an attribute base value.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::EntityArchetype::attribute` for the canonical contract."]
     #[must_use]
     pub fn attribute(mut self, binding: AttributeBinding) -> Self {
         self.properties.push(ArchetypeProperty::Attribute(binding));
@@ -486,6 +574,7 @@ where
     }
 
     /// Bind one idempotent namespaced attribute modifier.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::EntityArchetype::attribute_modifier` for the canonical contract."]
     #[must_use]
     pub fn attribute_modifier(mut self, binding: AttributeModifierBinding) -> Self {
         self.properties
@@ -494,6 +583,7 @@ where
     }
 
     /// Apply an archetype-owned status effect on refresh.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::EntityArchetype::effect` for the canonical contract."]
     #[must_use]
     pub fn effect(mut self, binding: EffectBinding) -> Self {
         self.properties.push(ArchetypeProperty::Effect(binding));
@@ -501,6 +591,7 @@ where
     }
 
     /// Apply/remove an effect only when `flag` is enabled/disabled.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::EntityArchetype::effect_when` for the canonical contract."]
     #[must_use]
     pub fn effect_when(mut self, flag: EntityFlag, binding: EffectBinding) -> Self {
         self.properties
@@ -509,6 +600,7 @@ where
     }
 
     /// Own one typed equipment slot using Sand's canonical item stack model.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::EntityArchetype::equipment` for the canonical contract."]
     #[must_use]
     pub fn equipment(mut self, binding: EquipmentBinding) -> Self {
         self.properties
@@ -517,6 +609,7 @@ where
     }
 
     /// Equip/clear one owned slot when a typed flag changes.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::EntityArchetype::equipment_when` for the canonical contract."]
     #[must_use]
     pub fn equipment_when(mut self, flag: EntityFlag, binding: EquipmentBinding) -> Self {
         let binding = binding.refresh(RefreshPolicy::WhenSourceChanges);
@@ -626,6 +719,7 @@ pub struct ArchetypeDefinition {
     pub properties: Vec<ArchetypeProperty>,
 }
 
+#[doc = "**API Contract:** Run `sand api show sand::entity::EntityDerivation` for the canonical contract."]
 /// A named numeric derivation cached in a typed entity score.
 ///
 /// Curves use integer fixed-point arithmetic. For native properties whose
@@ -640,69 +734,114 @@ pub struct EntityDerivation {
     output: DerivedScoreEncoding,
 }
 
+#[doc = "**API Contract:** Run `sand api show sand::entity::DerivedScoreEncoding` for the canonical contract."]
 /// Representation written to a derivation's target score.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[non_exhaustive]
 pub enum DerivedScoreEncoding {
+    #[doc = "**API Contract:** Run `sand api show sand::entity::DerivedScoreEncoding::Whole` for the canonical contract."]
     /// Divide the fixed-point result by its scale before caching it.
     Whole,
+    #[doc = "**API Contract:** Run `sand api show sand::entity::DerivedScoreEncoding::FixedPoint` for the canonical contract."]
     /// Keep scaled fixed-point units in the target score.
     FixedPoint,
 }
 
+#[doc = "**API Contract:** Run `sand api show sand::entity::ThresholdDirection` for the canonical contract."]
 /// Direction used by threshold-crossing transitions.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[non_exhaustive]
 pub enum ThresholdDirection {
+    #[doc = "**API Contract:** Run `sand api show sand::entity::ThresholdDirection::Rising` for the canonical contract."]
     /// Fire when the score moves from below to at least the threshold.
     Rising,
+    #[doc = "**API Contract:** Run `sand api show sand::entity::ThresholdDirection::Falling` for the canonical contract."]
     /// Fire when the score moves from above to at most the threshold.
     Falling,
 }
 
+#[doc = "**API Contract:** Run `sand api show sand::entity::EntityTransition` for the canonical contract."]
 /// A state change observed for one loaded archetyped entity.
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[non_exhaustive]
 pub enum EntityTransition {
+    #[doc = "**API Contract:** Run `sand api show sand::entity::EntityTransition::Changed` for the canonical contract."]
     /// Any numeric, enum, or flag value change.
-    Changed(EntityTransitionField),
+    Changed(
+        #[doc = "The `Changed` variant carries the value described by its variant semantics: Any numeric, enum, or flag value change."]
+        #[doc = "**API Contract:** Run `sand api show sand::entity::EntityTransition::Changed::0` for the canonical contract."]
+        EntityTransitionField,
+    ),
+    #[doc = "**API Contract:** Run `sand api show sand::entity::EntityTransition::FlagEnabled` for the canonical contract."]
     /// A flag changed from disabled to enabled.
-    FlagEnabled(EntityTransitionField),
+    FlagEnabled(
+        #[doc = "The `FlagEnabled` variant carries the value described by its variant semantics: A flag changed from disabled to enabled."]
+        #[doc = "**API Contract:** Run `sand api show sand::entity::EntityTransition::FlagEnabled::0` for the canonical contract."]
+        EntityTransitionField,
+    ),
+    #[doc = "**API Contract:** Run `sand api show sand::entity::EntityTransition::FlagDisabled` for the canonical contract."]
     /// A flag changed from enabled to disabled.
-    FlagDisabled(EntityTransitionField),
+    FlagDisabled(
+        #[doc = "The `FlagDisabled` variant carries the value described by its variant semantics: A flag changed from enabled to disabled."]
+        #[doc = "**API Contract:** Run `sand api show sand::entity::EntityTransition::FlagDisabled::0` for the canonical contract."]
+        EntityTransitionField,
+    ),
+    #[doc = "**API Contract:** Run `sand api show sand::entity::EntityTransition::EnumChangedTo` for the canonical contract."]
     /// An enum changed to one stable encoding.
     EnumChangedTo {
+        #[doc = "**API Contract:** Run `sand api show sand::entity::EntityTransition::EnumChangedTo::field` for the canonical contract."]
         /// Enum score field.
         field: EntityTransitionField,
+        #[doc = "**API Contract:** Run `sand api show sand::entity::EntityTransition::EnumChangedTo::encoding` for the canonical contract."]
         /// Stable enum encoding.
         encoding: i32,
     },
+    #[doc = "**API Contract:** Run `sand api show sand::entity::EntityTransition::Threshold` for the canonical contract."]
     /// A whole-score threshold was crossed.
     Threshold {
+        #[doc = "**API Contract:** Run `sand api show sand::entity::EntityTransition::Threshold::field` for the canonical contract."]
         /// Source score.
         field: EntityTransitionField,
+        #[doc = "**API Contract:** Run `sand api show sand::entity::EntityTransition::Threshold::value` for the canonical contract."]
         /// Inclusive boundary.
         value: i32,
+        #[doc = "**API Contract:** Run `sand api show sand::entity::EntityTransition::Threshold::direction` for the canonical contract."]
         /// Crossing direction.
         direction: ThresholdDirection,
     },
+    #[doc = "**API Contract:** Run `sand api show sand::entity::EntityTransition::HealthPercentage` for the canonical contract."]
     /// A current/max-health percentage boundary was crossed.
     HealthPercentage {
+        #[doc = "**API Contract:** Run `sand api show sand::entity::EntityTransition::HealthPercentage::current` for the canonical contract."]
         /// Current-health score.
         current: EntityTransitionField,
+        #[doc = "**API Contract:** Run `sand api show sand::entity::EntityTransition::HealthPercentage::maximum` for the canonical contract."]
         /// Maximum-health score.
         maximum: EntityTransitionField,
+        #[doc = "**API Contract:** Run `sand api show sand::entity::EntityTransition::HealthPercentage::basis_points` for the canonical contract."]
         /// Inclusive percentage in basis points (`10_000 == 100%`).
         basis_points: u16,
+        #[doc = "**API Contract:** Run `sand api show sand::entity::EntityTransition::HealthPercentage::direction` for the canonical contract."]
         /// Crossing direction.
         direction: ThresholdDirection,
     },
+    #[doc = "**API Contract:** Run `sand api show sand::entity::EntityTransition::TimerElapsed` for the canonical contract."]
     /// A timer reached zero from a positive value.
-    TimerElapsed(EntityTransitionField),
+    TimerElapsed(
+        #[doc = "The `TimerElapsed` variant carries the value described by its variant semantics: A timer reached zero from a positive value."]
+        #[doc = "**API Contract:** Run `sand api show sand::entity::EntityTransition::TimerElapsed::0` for the canonical contract."]
+        EntityTransitionField,
+    ),
+    #[doc = "**API Contract:** Run `sand api show sand::entity::EntityTransition::CooldownReady` for the canonical contract."]
     /// A cooldown reached its ready state.
-    CooldownReady(EntityTransitionField),
+    CooldownReady(
+        #[doc = "The `CooldownReady` variant carries the value described by its variant semantics: A cooldown reached its ready state."]
+        #[doc = "**API Contract:** Run `sand api show sand::entity::EntityTransition::CooldownReady::0` for the canonical contract."]
+        EntityTransitionField,
+    ),
 }
 
+#[doc = "**API Contract:** Run `sand api show sand::entity::EntityTransitionField` for the canonical contract."]
 /// Type-erased identity of a typed state field used by a transition plan.
 ///
 /// Construct this through [`EntityTransition`] helpers; the stored objective
@@ -726,24 +865,28 @@ impl EntityTransitionField {
 
 impl EntityTransition {
     /// Observe any change to a typed field.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::EntityTransition::changed` for the canonical contract."]
     #[must_use]
     pub fn changed<F: EntityStateField>(field: F) -> Self {
         Self::Changed(EntityTransitionField::typed(field))
     }
 
     /// Observe a flag becoming enabled.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::EntityTransition::flag_enabled` for the canonical contract."]
     #[must_use]
     pub fn flag_enabled(field: EntityFlag) -> Self {
         Self::FlagEnabled(EntityTransitionField::typed(field))
     }
 
     /// Observe a flag becoming disabled.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::EntityTransition::flag_disabled` for the canonical contract."]
     #[must_use]
     pub fn flag_disabled(field: EntityFlag) -> Self {
         Self::FlagDisabled(EntityTransitionField::typed(field))
     }
 
     /// Observe a typed enum becoming one variant.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::EntityTransition::enum_changed_to` for the canonical contract."]
     #[must_use]
     pub fn enum_changed_to<T: crate::entity::state::EntityEnumValue>(
         field: crate::entity::state::EntityEnum<T>,
@@ -756,6 +899,7 @@ impl EntityTransition {
     }
 
     /// Observe an inclusive threshold crossing.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::EntityTransition::threshold` for the canonical contract."]
     #[must_use]
     pub fn threshold(
         field: impl EntityStateField,
@@ -770,6 +914,7 @@ impl EntityTransition {
     }
 
     /// Observe a health-ratio crossing in basis points.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::EntityTransition::health_percentage` for the canonical contract."]
     #[must_use]
     pub fn health_percentage(
         current: impl EntityStateField,
@@ -786,12 +931,14 @@ impl EntityTransition {
     }
 
     /// Observe a timer reaching zero.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::EntityTransition::timer_elapsed` for the canonical contract."]
     #[must_use]
     pub fn timer_elapsed(field: crate::entity::state::EntityTimer) -> Self {
         Self::TimerElapsed(EntityTransitionField::typed(field))
     }
 
     /// Observe a cooldown becoming ready.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::EntityTransition::cooldown_ready` for the canonical contract."]
     #[must_use]
     pub fn cooldown_ready(field: crate::entity::state::EntityCooldown) -> Self {
         Self::CooldownReady(EntityTransitionField::typed(field))
@@ -810,6 +957,7 @@ impl EntityTransition {
     }
 }
 
+#[doc = "**API Contract:** Run `sand api show sand::entity::EntityAction` for the canonical contract."]
 /// Typed work dispatched by an entity transition.
 ///
 /// [`Self::Run`] composes with the existing event/function infrastructure:
@@ -819,18 +967,49 @@ impl EntityTransition {
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[non_exhaustive]
 pub enum EntityAction {
+    #[doc = "**API Contract:** Run `sand api show sand::entity::EntityAction::Run` for the canonical contract."]
     /// Call a canonical registered datapack function.
-    Run(FunctionId),
+    Run(
+        #[doc = "The `Run` variant carries the value described by its variant semantics: Call a canonical registered datapack function."]
+        #[doc = "**API Contract:** Run `sand api show sand::entity::EntityAction::Run::0` for the canonical contract."]
+        FunctionId,
+    ),
+    #[doc = "**API Contract:** Run `sand api show sand::entity::EntityAction::Dispatch` for the canonical contract."]
     /// Dispatch a typed event function.
-    Dispatch(crate::entity::property::EntityEventId),
+    Dispatch(
+        #[doc = "The `Dispatch` variant carries the value described by its variant semantics: Dispatch a typed event function."]
+        #[doc = "**API Contract:** Run `sand api show sand::entity::EntityAction::Dispatch::0` for the canonical contract."]
+        crate::entity::property::EntityEventId,
+    ),
+    #[doc = "**API Contract:** Run `sand api show sand::entity::EntityAction::ApplyEffect` for the canonical contract."]
     /// Add or refresh a typed status effect.
-    ApplyEffect(EffectBinding),
+    ApplyEffect(
+        #[doc = "The `ApplyEffect` variant carries the value described by its variant semantics: Add or refresh a typed status effect."]
+        #[doc = "**API Contract:** Run `sand api show sand::entity::EntityAction::ApplyEffect::0` for the canonical contract."]
+        EffectBinding,
+    ),
+    #[doc = "**API Contract:** Run `sand api show sand::entity::EntityAction::RemoveEffect` for the canonical contract."]
     /// Remove a typed status effect.
-    RemoveEffect(sand_components::StatusEffectId),
+    RemoveEffect(
+        #[doc = "The `RemoveEffect` variant carries the value described by its variant semantics: Remove a typed status effect."]
+        #[doc = "**API Contract:** Run `sand api show sand::entity::EntityAction::RemoveEffect::0` for the canonical contract."]
+        sand_components::StatusEffectId,
+    ),
+    #[doc = "**API Contract:** Run `sand api show sand::entity::EntityAction::AddTag` for the canonical contract."]
     /// Add a validated entity tag.
-    AddTag(crate::entity::property::EntityTag),
+    AddTag(
+        #[doc = "The `AddTag` variant carries the value described by its variant semantics: Add a validated entity tag."]
+        #[doc = "**API Contract:** Run `sand api show sand::entity::EntityAction::AddTag::0` for the canonical contract."]
+        crate::entity::property::EntityTag,
+    ),
+    #[doc = "**API Contract:** Run `sand api show sand::entity::EntityAction::RemoveTag` for the canonical contract."]
     /// Remove a validated entity tag.
-    RemoveTag(crate::entity::property::EntityTag),
+    RemoveTag(
+        #[doc = "The `RemoveTag` variant carries the value described by its variant semantics: Remove a validated entity tag."]
+        #[doc = "**API Contract:** Run `sand api show sand::entity::EntityAction::RemoveTag::0` for the canonical contract."]
+        crate::entity::property::EntityTag,
+    ),
+    #[doc = "**API Contract:** Run `sand api show sand::entity::EntityAction::Despawn` for the canonical contract."]
     /// Remove the current non-player entity.
     Despawn,
 }
@@ -843,6 +1022,7 @@ struct EntityTransitionRule {
 
 impl EntityDerivation {
     /// Create a derivation using Sand's default scale of 1000.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::EntityDerivation::new` for the canonical contract."]
     #[must_use]
     pub fn new(
         name: impl Into<String>,
@@ -859,6 +1039,7 @@ impl EntityDerivation {
     }
 
     /// Select fixed-point scale, rounding, and overflow semantics.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::EntityDerivation::fixed_point` for the canonical contract."]
     #[must_use]
     pub fn fixed_point(mut self, fixed: FixedPoint) -> Self {
         self.fixed = fixed;
@@ -867,6 +1048,7 @@ impl EntityDerivation {
 
     /// Keep fixed-point units instead of converting the cached target to a
     /// whole scoreboard value.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::EntityDerivation::store_fixed_point` for the canonical contract."]
     #[must_use]
     pub fn store_fixed_point(mut self) -> Self {
         self.output = DerivedScoreEncoding::FixedPoint;
@@ -874,30 +1056,35 @@ impl EntityDerivation {
     }
 
     /// Stable diagnostic/resource name.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::EntityDerivation::name` for the canonical contract."]
     #[must_use]
     pub fn name(&self) -> &str {
         &self.name
     }
 
     /// Typed score receiving the cached value.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::EntityDerivation::target` for the canonical contract."]
     #[must_use]
     pub const fn target(&self) -> crate::entity::state::EntityScore<i32> {
         self.target
     }
 
     /// Curve expression.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::EntityDerivation::curve` for the canonical contract."]
     #[must_use]
     pub fn curve(&self) -> &StatCurve {
         &self.curve
     }
 
     /// Fixed-point representation.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::EntityDerivation::fixed` for the canonical contract."]
     #[must_use]
     pub const fn fixed(&self) -> FixedPoint {
         self.fixed
     }
 
     /// Target score representation.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::EntityDerivation::output_encoding` for the canonical contract."]
     #[must_use]
     pub const fn output_encoding(&self) -> DerivedScoreEncoding {
         self.output

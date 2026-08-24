@@ -14,13 +14,16 @@ use crate::validate;
 ///
 /// Implemented for `&str`/`String` (the untyped escape hatch — no validation
 /// beyond what the selector/command syntax itself enforces) and for Sand's
-/// typed vanilla/custom entity-type identifiers: `sand_core::generated::EntityType`
-/// (generated vanilla entity types, e.g. `Marker`) and
-/// `sand_components::registry::EntityTypeId` (validated custom/modded IDs).
+/// typed vanilla/custom entity-type identifiers: the generated vanilla
+/// entity-type enum when the selected Minecraft profile provides one, and
+/// `EntityTypeId` (validated custom/modded IDs).
 /// Prefer the typed identifiers in normal code; the string forms remain for
 /// compatibility and cases with no typed representation yet.
+///
+/// **API Contract:** Run `sand api show sand::command::IntoEntityType` for the canonical contract.
 pub trait IntoEntityType {
     /// Convert to the entity type's resource location, e.g. `"minecraft:marker"`.
+    #[doc = "**API Contract:** Run `sand api show sand::command::IntoEntityType::into_entity_type` for the canonical contract."]
     fn into_entity_type(self) -> String;
 }
 
@@ -44,6 +47,7 @@ impl IntoEntityType for &String {
 
 // ── Public types ──────────────────────────────────────────────────────────────
 
+#[doc = "**API Contract:** Run `sand api show sand::command::Selector` for the canonical contract."]
 /// An entity/player selector for use in Minecraft commands.
 ///
 /// Selectors target entities in the world. Construct with a base selector (e.g., `all_players()`)
@@ -87,27 +91,52 @@ impl From<&Selector> for String {
     }
 }
 
+#[doc = "**API Contract:** Run `sand api show sand::command::TargetBase` for the canonical contract."]
 /// The base target variant of a selector.
 #[derive(Debug, Clone, PartialEq)]
 pub enum TargetBase {
+    #[doc = "Selects the all players form of the target base Minecraft command value."]
+    #[doc = "**API Contract:** Run `sand api show sand::command::TargetBase::AllPlayers` for the canonical contract."]
     AllPlayers,
+    #[doc = "Selects the all entities form of the target base Minecraft command value."]
+    #[doc = "**API Contract:** Run `sand api show sand::command::TargetBase::AllEntities` for the canonical contract."]
     AllEntities,
+    #[doc = "Selects the nearest player form of the target base Minecraft command value."]
+    #[doc = "**API Contract:** Run `sand api show sand::command::TargetBase::NearestPlayer` for the canonical contract."]
     NearestPlayer,
+    #[doc = "Selects the self  form of the target base Minecraft command value."]
+    #[doc = "**API Contract:** Run `sand api show sand::command::TargetBase::Self_` for the canonical contract."]
     Self_,
+    #[doc = "Selects the random player form of the target base Minecraft command value."]
+    #[doc = "**API Contract:** Run `sand api show sand::command::TargetBase::RandomPlayer` for the canonical contract."]
     RandomPlayer,
-    Player(String),
+    #[doc = "Selects the player form of the target base Minecraft command value."]
+    #[doc = "**API Contract:** Run `sand api show sand::command::TargetBase::Player` for the canonical contract."]
+    Player(
+        #[doc = "The `Player` variant carries the value described by its variant semantics: Selects the player form of the target base Minecraft command value."]
+        #[doc = "**API Contract:** Run `sand api show sand::command::TargetBase::Player::0` for the canonical contract."]
+        String,
+    ),
+    #[doc = "**API Contract:** Run `sand api show sand::command::TargetBase::Raw` for the canonical contract."]
     /// Explicit unchecked selector syntax for advanced/modded grammar.
-    Raw(String),
+    Raw(
+        #[doc = "The `Raw` variant carries the value described by its variant semantics: Explicit unchecked selector syntax for advanced/modded grammar."]
+        #[doc = "**API Contract:** Run `sand api show sand::command::TargetBase::Raw::0` for the canonical contract."]
+        String,
+    ),
 }
 
+#[doc = "**API Contract:** Run `sand api show sand::command::One` for the canonical contract."]
 /// Marker for selector wrappers that are statically known to select one target.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum One {}
 
+#[doc = "**API Contract:** Run `sand api show sand::command::Many` for the canonical contract."]
 /// Marker for selector wrappers that may select multiple targets.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Many {}
 
+#[doc = "**API Contract:** Run `sand api show sand::command::EntityTarget` for the canonical contract."]
 /// Entity selector with statically modeled arity.
 #[derive(Debug, Clone)]
 #[must_use = "targets do nothing until passed to a command"]
@@ -116,6 +145,7 @@ pub struct EntityTarget<A> {
     _arity: PhantomData<A>,
 }
 
+#[doc = "**API Contract:** Run `sand api show sand::command::PlayerTarget` for the canonical contract."]
 /// Player selector with statically modeled arity.
 #[derive(Debug, Clone)]
 #[must_use = "targets do nothing until passed to a command"]
@@ -124,54 +154,65 @@ pub struct PlayerTarget<A> {
     _arity: PhantomData<A>,
 }
 
+#[doc = "**API Contract:** Run `sand api show sand::command::SingleEntity` for the canonical contract."]
 /// An entity target that resolves to at most one entity.
 pub type SingleEntity = EntityTarget<One>;
 
+#[doc = "**API Contract:** Run `sand api show sand::command::EntityTargets` for the canonical contract."]
 /// An entity target that may resolve to zero or more entities.
 pub type EntityTargets = EntityTarget<Many>;
 
+#[doc = "**API Contract:** Run `sand api show sand::command::SinglePlayer` for the canonical contract."]
 /// A player target that resolves to at most one player.
 pub type SinglePlayer = PlayerTarget<One>;
 
+#[doc = "**API Contract:** Run `sand api show sand::command::PlayerTargets` for the canonical contract."]
 /// A player target that may resolve to zero or more players.
 pub type PlayerTargets = PlayerTarget<Many>;
 
 impl<A> EntityTarget<A> {
     /// Access the underlying selector.
+    #[doc = "**API Contract:** Run `sand api show sand::command::EntityTarget::selector` for the canonical contract."]
     pub fn selector(&self) -> &Selector {
         &self.raw
     }
 
     /// Convert this typed target into the underlying selector.
+    #[doc = "**API Contract:** Run `sand api show sand::command::EntityTarget::into_selector` for the canonical contract."]
     pub fn into_selector(self) -> Selector {
         self.raw
     }
 
     /// `tag=<tag>` — select only entities that have the given tag.
+    #[doc = "**API Contract:** Run `sand api show sand::command::EntityTarget::tag` for the canonical contract."]
     pub fn tag(mut self, tag: impl Into<String>) -> Self {
         self.raw = self.raw.tag(tag);
         self
     }
 
     /// `tag=!<tag>` — select only entities that do NOT have the given tag.
+    #[doc = "**API Contract:** Run `sand api show sand::command::EntityTarget::not_tag` for the canonical contract."]
     pub fn not_tag(mut self, tag: impl Into<String>) -> Self {
         self.raw = self.raw.not_tag(tag);
         self
     }
 
     /// `type=<entity_type>` — select only entities of the given type.
+    #[doc = "**API Contract:** Run `sand api show sand::command::EntityTarget::entity_type` for the canonical contract."]
     pub fn entity_type(mut self, ty: impl IntoEntityType) -> Self {
         self.raw = self.raw.entity_type(ty);
         self
     }
 
     /// `type=!<entity_type>` — select only entities NOT of the given type.
+    #[doc = "**API Contract:** Run `sand api show sand::command::EntityTarget::not_type` for the canonical contract."]
     pub fn not_type(mut self, ty: impl IntoEntityType) -> Self {
         self.raw = self.raw.not_type(ty);
         self
     }
 
     /// `type=!minecraft:player` — exclude players from the target set.
+    #[doc = "**API Contract:** Run `sand api show sand::command::EntityTarget::excluding_players` for the canonical contract."]
     pub fn excluding_players(self) -> Self {
         self.not_type("minecraft:player")
     }
@@ -187,6 +228,7 @@ impl<A> EntityTarget<A> {
     ///     .unwrap();
     /// assert_eq!(targets.to_string(), "@e[scores={threat=5..}]");
     /// ```
+    #[doc = "**API Contract:** Run `sand api show sand::command::EntityTarget::score` for the canonical contract."]
     pub fn score(
         mut self,
         objective: crate::ObjectiveName,
@@ -197,30 +239,35 @@ impl<A> EntityTarget<A> {
     }
 
     /// `distance=0.1..` — exclude the current executor when centered at `@s`.
+    #[doc = "**API Contract:** Run `sand api show sand::command::EntityTarget::excluding_self` for the canonical contract."]
     pub fn excluding_self(mut self) -> Self {
         self.raw = self.raw.exclude_self_distance();
         self
     }
 
     /// `distance=..<max>` — select targets within `max` blocks.
+    #[doc = "**API Contract:** Run `sand api show sand::command::EntityTarget::within_blocks` for the canonical contract."]
     pub fn within_blocks(mut self, max: f64) -> Self {
         self.raw = self.raw.distance_max(max);
         self
     }
 
     /// `distance=<range>` — select only entities within a distance range.
+    #[doc = "**API Contract:** Run `sand api show sand::command::EntityTarget::distance` for the canonical contract."]
     pub fn distance(mut self, range: impl Into<String>) -> Self {
         self.raw = self.raw.distance(range);
         self
     }
 
     /// `distance=<min>..<max>` — select only entities between `min` and `max`.
+    #[doc = "**API Contract:** Run `sand api show sand::command::EntityTarget::distance_range` for the canonical contract."]
     pub fn distance_range(mut self, min: f64, max: f64) -> Self {
         self.raw = self.raw.distance_range(min, max);
         self
     }
 
     /// `distance=<min>..` — select only entities at least `min` blocks away.
+    #[doc = "**API Contract:** Run `sand api show sand::command::EntityTarget::distance_min` for the canonical contract."]
     pub fn distance_min(mut self, min: f64) -> Self {
         self.raw = self.raw.distance_min(min);
         self
@@ -235,6 +282,7 @@ impl<A> EntityTarget<A> {
     /// let targets = EntityTargets::all().distance_typed(SelectorRange::at_most(16.0));
     /// assert_eq!(targets.to_string(), "@e[distance=..16]");
     /// ```
+    #[doc = "**API Contract:** Run `sand api show sand::command::EntityTarget::distance_typed` for the canonical contract."]
     pub fn distance_typed(mut self, range: SelectorRange) -> Self {
         self.raw = self.raw.distance_typed(range);
         self
@@ -242,18 +290,21 @@ impl<A> EntityTarget<A> {
 
     /// `tag=<tag>` — select only entities with the given tag, using a typed
     /// [`EntityTag`] instead of a raw string.
+    #[doc = "**API Contract:** Run `sand api show sand::command::EntityTarget::tag_typed` for the canonical contract."]
     pub fn tag_typed(mut self, tag: EntityTag) -> Self {
         self.raw = self.raw.tag_typed(tag);
         self
     }
 
     /// `team=<team>` — select only entities on the given team.
+    #[doc = "**API Contract:** Run `sand api show sand::command::EntityTarget::team` for the canonical contract."]
     pub fn team(mut self, team: impl Into<String>) -> Self {
         self.raw = self.raw.team(team);
         self
     }
 
     /// `team=!<team>` — select only entities NOT on the given team.
+    #[doc = "**API Contract:** Run `sand api show sand::command::EntityTarget::not_team` for the canonical contract."]
     pub fn not_team(mut self, team: impl Into<String>) -> Self {
         self.raw = self.raw.not_team(team);
         self
@@ -261,18 +312,21 @@ impl<A> EntityTarget<A> {
 
     /// `team=<team>` — select only entities on the given team, using a typed
     /// [`TeamName`] instead of a raw string.
+    #[doc = "**API Contract:** Run `sand api show sand::command::EntityTarget::team_typed` for the canonical contract."]
     pub fn team_typed(mut self, team: TeamName) -> Self {
         self.raw = self.raw.team_typed(team);
         self
     }
 
     /// `name=<name>` — select only entities with the exact display name.
+    #[doc = "**API Contract:** Run `sand api show sand::command::EntityTarget::name` for the canonical contract."]
     pub fn name(mut self, name: impl Into<String>) -> Self {
         self.raw = self.raw.name(name);
         self
     }
 
     /// `name=!<name>` — select only entities WITHOUT the given display name.
+    #[doc = "**API Contract:** Run `sand api show sand::command::EntityTarget::not_name` for the canonical contract."]
     pub fn not_name(mut self, name: impl Into<String>) -> Self {
         self.raw = self.raw.not_name(name);
         self
@@ -292,6 +346,7 @@ impl<A> EntityTarget<A> {
     /// );
     /// assert_eq!(targets.to_string(), "@e[scores={threat=5..,kills=0}]");
     /// ```
+    #[doc = "**API Contract:** Run `sand api show sand::command::EntityTarget::scores_typed` for the canonical contract."]
     pub fn scores_typed(mut self, scores: SelectorScores) -> Self {
         self.raw = self.raw.scores_typed(scores);
         self
@@ -306,18 +361,21 @@ impl<A> EntityTarget<A> {
     /// let targets = EntityTargets::all().predicate_id(PredicateId::new("my_pack:is_burning"));
     /// assert_eq!(targets.to_string(), "@e[predicate=my_pack:is_burning]");
     /// ```
+    #[doc = "**API Contract:** Run `sand api show sand::command::EntityTarget::predicate_id` for the canonical contract."]
     pub fn predicate_id(mut self, id: PredicateId) -> Self {
         self.raw = self.raw.predicate_id(id);
         self
     }
 
     /// `dx/dy/dz` — set a bounding box volume filter.
+    #[doc = "**API Contract:** Run `sand api show sand::command::EntityTarget::volume` for the canonical contract."]
     pub fn volume(mut self, dx: f64, dy: f64, dz: f64) -> Self {
         self.raw = self.raw.volume(dx, dy, dz);
         self
     }
 
     /// `x/y/z` — set the origin point for distance and volume checks.
+    #[doc = "**API Contract:** Run `sand api show sand::command::EntityTarget::at_pos` for the canonical contract."]
     pub fn at_pos(mut self, x: f64, y: f64, z: f64) -> Self {
         self.raw = self.raw.at_pos(x, y, z);
         self
@@ -330,6 +388,7 @@ impl<A> EntityTarget<A> {
     /// shape at [`Selector::try_build`] time. Prefer
     /// [`EntityTarget::scores_typed`] in normal code; use this only for score
     /// syntax Sand cannot model yet. Delegates to [`Selector::scores_raw`].
+    #[doc = "**API Contract:** Run `sand api show sand::command::EntityTarget::scores_raw` for the canonical contract."]
     pub fn scores_raw(mut self, scores: impl Into<String>) -> Self {
         self.raw = self.raw.scores_raw(scores);
         self
@@ -341,6 +400,7 @@ impl<A> EntityTarget<A> {
     /// normal path for NBT filters — the compound is passed through verbatim
     /// and only balance-checked at [`Selector::try_build`] time. Delegates to
     /// [`Selector::nbt_raw`].
+    #[doc = "**API Contract:** Run `sand api show sand::command::EntityTarget::nbt_raw` for the canonical contract."]
     pub fn nbt_raw(mut self, nbt: impl Into<String>) -> Self {
         self.raw = self.raw.nbt_raw(nbt);
         self
@@ -353,6 +413,7 @@ impl<A> EntityTarget<A> {
     /// [`Selector::try_build`] time. Prefer
     /// [`EntityTarget::predicate_id`] in normal code. Delegates to
     /// [`Selector::predicate_raw`].
+    #[doc = "**API Contract:** Run `sand api show sand::command::EntityTarget::predicate_raw` for the canonical contract."]
     pub fn predicate_raw(mut self, predicate: impl Into<String>) -> Self {
         self.raw = self.raw.predicate_raw(predicate);
         self
@@ -373,16 +434,19 @@ impl<A> RenderCommand for EntityTarget<A> {
 
 impl EntityTargets {
     /// `@e` — all entities.
+    #[doc = "**API Contract:** Run `sand api show sand::command::EntityTarget::all` for the canonical contract."]
     pub fn all() -> Self {
         Self::from_selector(Selector::all_entities())
     }
 
     /// `@e[distance=..<radius>]` — all entities within a radius of the executor.
+    #[doc = "**API Contract:** Run `sand api show sand::command::EntityTarget::nearby` for the canonical contract."]
     pub fn nearby(radius: f64) -> Self {
         Self::all().within_blocks(radius)
     }
 
     /// Add `limit=1` and convert to a single-entity target.
+    #[doc = "**API Contract:** Run `sand api show sand::command::EntityTarget::limit` for the canonical contract."]
     pub fn limit(mut self, n: i32) -> CommandResult<SingleEntity> {
         if n != 1 {
             return Err(CommandError::new(
@@ -396,6 +460,7 @@ impl EntityTargets {
     }
 
     /// Pick the nearest matching entity as a single target.
+    #[doc = "**API Contract:** Run `sand api show sand::command::EntityTarget::nearest` for the canonical contract."]
     pub fn nearest(mut self) -> SingleEntity {
         self.raw = self.raw.sort(SortOrder::Nearest).limit(1);
         SingleEntity::from_selector(self.raw)
@@ -404,6 +469,7 @@ impl EntityTargets {
 
 impl SingleEntity {
     /// `@s` — the current executor as a single entity.
+    #[doc = "**API Contract:** Run `sand api show sand::command::EntityTarget::self_` for the canonical contract."]
     pub fn self_() -> Self {
         Self::from_selector(Selector::self_())
     }
@@ -412,6 +478,7 @@ impl SingleEntity {
     ///
     /// This opts out of Sand's cardinality proof. Use only when advanced or
     /// modded syntax guarantees zero or one result.
+    #[doc = "**API Contract:** Run `sand api show sand::command::EntityTarget::raw` for the canonical contract."]
     pub fn raw(selector: impl Into<String>) -> Self {
         Self::from_selector(Selector::raw(selector))
     }
@@ -419,46 +486,54 @@ impl SingleEntity {
 
 impl<A> PlayerTarget<A> {
     /// Access the underlying selector.
+    #[doc = "**API Contract:** Run `sand api show sand::command::PlayerTarget::selector` for the canonical contract."]
     pub fn selector(&self) -> &Selector {
         &self.raw
     }
 
     /// Convert this typed target into the underlying selector.
+    #[doc = "**API Contract:** Run `sand api show sand::command::PlayerTarget::into_selector` for the canonical contract."]
     pub fn into_selector(self) -> Selector {
         self.raw
     }
 
     /// `tag=<tag>` — select only players that have the given tag.
+    #[doc = "**API Contract:** Run `sand api show sand::command::PlayerTarget::tag` for the canonical contract."]
     pub fn tag(mut self, tag: impl Into<String>) -> Self {
         self.raw = self.raw.tag(tag);
         self
     }
 
     /// `tag=!<tag>` — select only players that do NOT have the given tag.
+    #[doc = "**API Contract:** Run `sand api show sand::command::PlayerTarget::not_tag` for the canonical contract."]
     pub fn not_tag(mut self, tag: impl Into<String>) -> Self {
         self.raw = self.raw.not_tag(tag);
         self
     }
 
     /// `distance=..<max>` — select players within `max` blocks.
+    #[doc = "**API Contract:** Run `sand api show sand::command::PlayerTarget::within_blocks` for the canonical contract."]
     pub fn within_blocks(mut self, max: f64) -> Self {
         self.raw = self.raw.distance_max(max);
         self
     }
 
     /// `distance=<min>..<max>` — select only players between `min` and `max`.
+    #[doc = "**API Contract:** Run `sand api show sand::command::PlayerTarget::distance_range` for the canonical contract."]
     pub fn distance_range(mut self, min: f64, max: f64) -> Self {
         self.raw = self.raw.distance_range(min, max);
         self
     }
 
     /// `distance=<min>..` — select only players at least `min` blocks away.
+    #[doc = "**API Contract:** Run `sand api show sand::command::PlayerTarget::distance_min` for the canonical contract."]
     pub fn distance_min(mut self, min: f64) -> Self {
         self.raw = self.raw.distance_min(min);
         self
     }
 
     /// `distance=<range>` — select only players within a distance range.
+    #[doc = "**API Contract:** Run `sand api show sand::command::PlayerTarget::distance` for the canonical contract."]
     pub fn distance(mut self, range: impl Into<String>) -> Self {
         self.raw = self.raw.distance(range);
         self
@@ -473,12 +548,14 @@ impl<A> PlayerTarget<A> {
     /// let targets = PlayerTargets::all().distance_typed(SelectorRange::between(0.5, 10.0));
     /// assert_eq!(targets.to_string(), "@a[distance=0.5..10]");
     /// ```
+    #[doc = "**API Contract:** Run `sand api show sand::command::PlayerTarget::distance_typed` for the canonical contract."]
     pub fn distance_typed(mut self, range: SelectorRange) -> Self {
         self.raw = self.raw.distance_typed(range);
         self
     }
 
     /// `distance=0.1..` — exclude the current executor when centered at `@s`.
+    #[doc = "**API Contract:** Run `sand api show sand::command::PlayerTarget::excluding_self` for the canonical contract."]
     pub fn excluding_self(mut self) -> Self {
         self.raw = self.raw.exclude_self_distance();
         self
@@ -486,18 +563,21 @@ impl<A> PlayerTarget<A> {
 
     /// `tag=<tag>` — select only players with the given tag, using a typed
     /// [`EntityTag`] instead of a raw string.
+    #[doc = "**API Contract:** Run `sand api show sand::command::PlayerTarget::tag_typed` for the canonical contract."]
     pub fn tag_typed(mut self, tag: EntityTag) -> Self {
         self.raw = self.raw.tag_typed(tag);
         self
     }
 
     /// `team=<team>` — select only players on the given team.
+    #[doc = "**API Contract:** Run `sand api show sand::command::PlayerTarget::team` for the canonical contract."]
     pub fn team(mut self, team: impl Into<String>) -> Self {
         self.raw = self.raw.team(team);
         self
     }
 
     /// `team=!<team>` — select only players NOT on the given team.
+    #[doc = "**API Contract:** Run `sand api show sand::command::PlayerTarget::not_team` for the canonical contract."]
     pub fn not_team(mut self, team: impl Into<String>) -> Self {
         self.raw = self.raw.not_team(team);
         self
@@ -505,18 +585,21 @@ impl<A> PlayerTarget<A> {
 
     /// `team=<team>` — select only players on the given team, using a typed
     /// [`TeamName`] instead of a raw string.
+    #[doc = "**API Contract:** Run `sand api show sand::command::PlayerTarget::team_typed` for the canonical contract."]
     pub fn team_typed(mut self, team: TeamName) -> Self {
         self.raw = self.raw.team_typed(team);
         self
     }
 
     /// `name=<name>` — select only players with the exact display name.
+    #[doc = "**API Contract:** Run `sand api show sand::command::PlayerTarget::name` for the canonical contract."]
     pub fn name(mut self, name: impl Into<String>) -> Self {
         self.raw = self.raw.name(name);
         self
     }
 
     /// `name=!<name>` — select only players WITHOUT the given display name.
+    #[doc = "**API Contract:** Run `sand api show sand::command::PlayerTarget::not_name` for the canonical contract."]
     pub fn not_name(mut self, name: impl Into<String>) -> Self {
         self.raw = self.raw.not_name(name);
         self
@@ -533,6 +616,7 @@ impl<A> PlayerTarget<A> {
     ///     .unwrap();
     /// assert_eq!(targets.to_string(), "@a[scores={kills=1..}]");
     /// ```
+    #[doc = "**API Contract:** Run `sand api show sand::command::PlayerTarget::score` for the canonical contract."]
     pub fn score(
         mut self,
         objective: crate::ObjectiveName,
@@ -556,6 +640,7 @@ impl<A> PlayerTarget<A> {
     /// );
     /// assert_eq!(targets.to_string(), "@a[scores={kills=1..10,deaths=0}]");
     /// ```
+    #[doc = "**API Contract:** Run `sand api show sand::command::PlayerTarget::scores_typed` for the canonical contract."]
     pub fn scores_typed(mut self, scores: SelectorScores) -> Self {
         self.raw = self.raw.scores_typed(scores);
         self
@@ -570,6 +655,7 @@ impl<A> PlayerTarget<A> {
     /// let targets = PlayerTargets::all().predicate_id(PredicateId::new("my_pack:is_sneaking"));
     /// assert_eq!(targets.to_string(), "@a[predicate=my_pack:is_sneaking]");
     /// ```
+    #[doc = "**API Contract:** Run `sand api show sand::command::PlayerTarget::predicate_id` for the canonical contract."]
     pub fn predicate_id(mut self, id: PredicateId) -> Self {
         self.raw = self.raw.predicate_id(id);
         self
@@ -579,6 +665,7 @@ impl<A> PlayerTarget<A> {
     ///
     /// Raw/compatibility: `range` is a hand-formatted string, validated at
     /// [`Selector::try_build`] time. Prefer [`PlayerTarget::level_typed`].
+    #[doc = "**API Contract:** Run `sand api show sand::command::PlayerTarget::level` for the canonical contract."]
     pub fn level(mut self, range: impl Into<String>) -> Self {
         self.raw = self.raw.level(range);
         self
@@ -593,6 +680,7 @@ impl<A> PlayerTarget<A> {
     /// let targets = PlayerTargets::all().level_typed(SelectorRange::between(10.0, 30.0));
     /// assert_eq!(targets.to_string(), "@a[level=10..30]");
     /// ```
+    #[doc = "**API Contract:** Run `sand api show sand::command::PlayerTarget::level_typed` for the canonical contract."]
     pub fn level_typed(mut self, range: SelectorRange) -> Self {
         self.raw = self.raw.level_typed(range);
         self
@@ -603,6 +691,7 @@ impl<A> PlayerTarget<A> {
     /// Raw/compatibility: `mode` is a string, validated against the vanilla
     /// gamemode set at [`Selector::try_build`] time rather than at the type
     /// level. Prefer [`PlayerTarget::gamemode_typed`] in normal code.
+    #[doc = "**API Contract:** Run `sand api show sand::command::PlayerTarget::gamemode` for the canonical contract."]
     pub fn gamemode(mut self, mode: impl Into<String>) -> Self {
         self.raw = self.raw.gamemode(mode);
         self
@@ -617,24 +706,28 @@ impl<A> PlayerTarget<A> {
     /// let targets = PlayerTargets::all().gamemode_typed(GameMode::Adventure);
     /// assert_eq!(targets.to_string(), "@a[gamemode=adventure]");
     /// ```
+    #[doc = "**API Contract:** Run `sand api show sand::command::PlayerTarget::gamemode_typed` for the canonical contract."]
     pub fn gamemode_typed(mut self, mode: GameMode) -> Self {
         self.raw = self.raw.gamemode_typed(mode);
         self
     }
 
     /// `gamemode=!<mode>` — exclude players in the given gamemode.
+    #[doc = "**API Contract:** Run `sand api show sand::command::PlayerTarget::not_gamemode_typed` for the canonical contract."]
     pub fn not_gamemode_typed(mut self, mode: GameMode) -> Self {
         self.raw = self.raw.not_gamemode_typed(mode);
         self
     }
 
     /// `dx/dy/dz` — set a bounding box volume filter.
+    #[doc = "**API Contract:** Run `sand api show sand::command::PlayerTarget::volume` for the canonical contract."]
     pub fn volume(mut self, dx: f64, dy: f64, dz: f64) -> Self {
         self.raw = self.raw.volume(dx, dy, dz);
         self
     }
 
     /// `x/y/z` — set the origin point for distance and volume checks.
+    #[doc = "**API Contract:** Run `sand api show sand::command::PlayerTarget::at_pos` for the canonical contract."]
     pub fn at_pos(mut self, x: f64, y: f64, z: f64) -> Self {
         self.raw = self.raw.at_pos(x, y, z);
         self
@@ -647,6 +740,7 @@ impl<A> PlayerTarget<A> {
     /// shape at [`Selector::try_build`] time. Prefer
     /// [`PlayerTarget::scores_typed`] in normal code; use this only for score
     /// syntax Sand cannot model yet. Delegates to [`Selector::scores_raw`].
+    #[doc = "**API Contract:** Run `sand api show sand::command::PlayerTarget::scores_raw` for the canonical contract."]
     pub fn scores_raw(mut self, scores: impl Into<String>) -> Self {
         self.raw = self.raw.scores_raw(scores);
         self
@@ -658,6 +752,7 @@ impl<A> PlayerTarget<A> {
     /// normal path for NBT filters — the compound is passed through verbatim
     /// and only balance-checked at [`Selector::try_build`] time. Delegates to
     /// [`Selector::nbt_raw`].
+    #[doc = "**API Contract:** Run `sand api show sand::command::PlayerTarget::nbt_raw` for the canonical contract."]
     pub fn nbt_raw(mut self, nbt: impl Into<String>) -> Self {
         self.raw = self.raw.nbt_raw(nbt);
         self
@@ -669,6 +764,7 @@ impl<A> PlayerTarget<A> {
     /// passed through verbatim and only resource-location-shape checked at
     /// [`Selector::try_build`] time. Prefer [`PlayerTarget::predicate_id`] in
     /// normal code. Delegates to [`Selector::predicate_raw`].
+    #[doc = "**API Contract:** Run `sand api show sand::command::PlayerTarget::predicate_raw` for the canonical contract."]
     pub fn predicate_raw(mut self, predicate: impl Into<String>) -> Self {
         self.raw = self.raw.predicate_raw(predicate);
         self
@@ -689,11 +785,13 @@ impl<A> RenderCommand for PlayerTarget<A> {
 
 impl PlayerTargets {
     /// `@a` — all players.
+    #[doc = "**API Contract:** Run `sand api show sand::command::PlayerTarget::all` for the canonical contract."]
     pub fn all() -> Self {
         Self::from_selector(Selector::all_players())
     }
 
     /// Add `limit=1` and convert to a single-player target.
+    #[doc = "**API Contract:** Run `sand api show sand::command::PlayerTarget::limit` for the canonical contract."]
     pub fn limit(mut self, n: i32) -> CommandResult<SinglePlayer> {
         if n != 1 {
             return Err(CommandError::new(
@@ -715,16 +813,19 @@ impl PlayerTargets {
 
 impl SinglePlayer {
     /// `@s` — the current executor as a single player.
+    #[doc = "**API Contract:** Run `sand api show sand::command::PlayerTarget::self_` for the canonical contract."]
     pub fn self_() -> Self {
         Self::from_selector(Selector::self_())
     }
 
     /// `@p` — the nearest player.
+    #[doc = "**API Contract:** Run `sand api show sand::command::PlayerTarget::nearest` for the canonical contract."]
     pub fn nearest() -> Self {
         Self::from_selector(Selector::nearest_player())
     }
 
     /// Explicit unchecked single-player selector syntax.
+    #[doc = "**API Contract:** Run `sand api show sand::command::PlayerTarget::raw` for the canonical contract."]
     pub fn raw(selector: impl Into<String>) -> Self {
         Self::from_selector(Selector::raw(selector))
     }
@@ -823,17 +924,22 @@ impl<A> fmt::Display for PlayerTarget<A> {
     }
 }
 
+#[doc = "**API Contract:** Run `sand api show sand::command::SortOrder` for the canonical contract."]
 /// Sort order for entity selection in `@a`/`@e` selectors.
 ///
 /// Determines the order entities are iterated when using commands like `execute as`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum SortOrder {
+    #[doc = "**API Contract:** Run `sand api show sand::command::SortOrder::Nearest` for the canonical contract."]
     /// Sort by distance from executor (nearest first).
     Nearest,
+    #[doc = "**API Contract:** Run `sand api show sand::command::SortOrder::Furthest` for the canonical contract."]
     /// Sort by distance from executor (furthest first).
     Furthest,
+    #[doc = "**API Contract:** Run `sand api show sand::command::SortOrder::Random` for the canonical contract."]
     /// Randomize the order.
     Random,
+    #[doc = "**API Contract:** Run `sand api show sand::command::SortOrder::Arbitrary` for the canonical contract."]
     /// No specific order (performance optimized).
     Arbitrary,
 }
@@ -914,6 +1020,7 @@ impl fmt::Display for SelectorArg {
 
 impl Selector {
     /// `@a` — all players currently connected to the server.
+    #[doc = "**API Contract:** Run `sand api show sand::command::Selector::all_players` for the canonical contract."]
     pub fn all_players() -> Self {
         Self {
             base: TargetBase::AllPlayers,
@@ -922,6 +1029,7 @@ impl Selector {
     }
 
     /// `@e` — all entities in the world.
+    #[doc = "**API Contract:** Run `sand api show sand::command::Selector::all_entities` for the canonical contract."]
     pub fn all_entities() -> Self {
         Self {
             base: TargetBase::AllEntities,
@@ -930,6 +1038,7 @@ impl Selector {
     }
 
     /// `@p` — the nearest player to the command executor.
+    #[doc = "**API Contract:** Run `sand api show sand::command::Selector::nearest_player` for the canonical contract."]
     pub fn nearest_player() -> Self {
         Self {
             base: TargetBase::NearestPlayer,
@@ -938,6 +1047,7 @@ impl Selector {
     }
 
     /// `@s` — the entity currently executing the command.
+    #[doc = "**API Contract:** Run `sand api show sand::command::Selector::self_` for the canonical contract."]
     pub fn self_() -> Self {
         Self {
             base: TargetBase::Self_,
@@ -946,6 +1056,7 @@ impl Selector {
     }
 
     /// `@r` — a random player from the current players.
+    #[doc = "**API Contract:** Run `sand api show sand::command::Selector::random_player` for the canonical contract."]
     pub fn random_player() -> Self {
         Self {
             base: TargetBase::RandomPlayer,
@@ -954,6 +1065,7 @@ impl Selector {
     }
 
     /// A specific player by exact name.
+    #[doc = "**API Contract:** Run `sand api show sand::command::Selector::player` for the canonical contract."]
     pub fn player(name: impl Into<String>) -> Self {
         Self {
             base: TargetBase::Player(name.into()),
@@ -966,6 +1078,7 @@ impl Selector {
     /// Prefer the typed builder methods for normal selectors. Raw selectors
     /// are preserved verbatim and should be limited to syntax Sand cannot yet
     /// model.
+    #[doc = "**API Contract:** Run `sand api show sand::command::Selector::raw` for the canonical contract."]
     pub fn raw(selector: impl Into<String>) -> Self {
         Self {
             base: TargetBase::Raw(selector.into()),
@@ -978,84 +1091,98 @@ impl Selector {
 
 impl Selector {
     /// `tag=<tag>` — select only entities that have the given tag.
+    #[doc = "**API Contract:** Run `sand api show sand::command::Selector::tag` for the canonical contract."]
     pub fn tag(mut self, tag: impl Into<String>) -> Self {
         self.args.push(SelectorArg::Tag(tag.into()));
         self
     }
 
     /// `tag=!<tag>` — select only entities that do NOT have the given tag.
+    #[doc = "**API Contract:** Run `sand api show sand::command::Selector::not_tag` for the canonical contract."]
     pub fn not_tag(mut self, tag: impl Into<String>) -> Self {
         self.args.push(SelectorArg::NotTag(tag.into()));
         self
     }
 
     /// `team=<team>` — select only entities on the given team.
+    #[doc = "**API Contract:** Run `sand api show sand::command::Selector::team` for the canonical contract."]
     pub fn team(mut self, team: impl Into<String>) -> Self {
         self.args.push(SelectorArg::Team(team.into()));
         self
     }
 
     /// `team=!<team>` — select only entities NOT on the given team.
+    #[doc = "**API Contract:** Run `sand api show sand::command::Selector::not_team` for the canonical contract."]
     pub fn not_team(mut self, team: impl Into<String>) -> Self {
         self.args.push(SelectorArg::NotTeam(team.into()));
         self
     }
 
     /// `name=<name>` — select only entities with the exact display name.
+    #[doc = "**API Contract:** Run `sand api show sand::command::Selector::name` for the canonical contract."]
     pub fn name(mut self, name: impl Into<String>) -> Self {
         self.args.push(SelectorArg::Name(name.into()));
         self
     }
 
     /// `name=!<name>` — select only entities WITHOUT the given display name.
+    #[doc = "**API Contract:** Run `sand api show sand::command::Selector::not_name` for the canonical contract."]
     pub fn not_name(mut self, name: impl Into<String>) -> Self {
         self.args.push(SelectorArg::NotName(name.into()));
         self
     }
 
     /// `type=<entity_type>` — select only entities of the given type.
+    #[doc = "**API Contract:** Run `sand api show sand::command::Selector::entity_type` for the canonical contract."]
     pub fn entity_type(mut self, ty: impl IntoEntityType) -> Self {
         self.args.push(SelectorArg::Type(ty.into_entity_type()));
         self
     }
 
     /// `type=!<entity_type>` — select only entities NOT of the given type.
+    #[doc = "**API Contract:** Run `sand api show sand::command::Selector::not_type` for the canonical contract."]
     pub fn not_type(mut self, ty: impl IntoEntityType) -> Self {
         self.args.push(SelectorArg::NotType(ty.into_entity_type()));
         self
     }
 
     /// `limit=<n>` — select at most `n` entities.
+    #[doc = "**API Contract:** Run `sand api show sand::command::Selector::limit` for the canonical contract."]
     pub fn limit(mut self, n: i32) -> Self {
         self.args.push(SelectorArg::Limit(n));
         self
     }
 
     /// `sort=<order>` — set the sort order before applying limit.
+    #[doc = "**API Contract:** Run `sand api show sand::command::Selector::sort` for the canonical contract."]
     pub fn sort(mut self, order: SortOrder) -> Self {
         self.args.push(SelectorArg::Sort(order));
         self
     }
 
     /// `distance=<range>` — select only entities within a distance range.
+    #[doc = "**API Contract:** Run `sand api show sand::command::Selector::distance` for the canonical contract."]
     pub fn distance(mut self, range: impl Into<String>) -> Self {
         self.args.push(SelectorArg::Distance(range.into()));
         self
     }
 
     /// `distance=..<max>` — select only entities at most `max` blocks away.
+    #[doc = "**API Contract:** Run `sand api show sand::command::Selector::distance_max` for the canonical contract."]
     pub fn distance_max(mut self, max: f64) -> Self {
         self.args.push(SelectorArg::Distance(format!("..{max}")));
         self
     }
 
     /// `distance=<min>..` — select only entities at least `min` blocks away.
+    #[doc = "**API Contract:** Run `sand api show sand::command::Selector::distance_min` for the canonical contract."]
     pub fn distance_min(mut self, min: f64) -> Self {
         self.args.push(SelectorArg::Distance(format!("{min}..")));
         self
     }
 
     /// `distance=<min>..<max>` — select only entities between `min` and `max` blocks away.
+    #[doc = "**API Contract:** Run `sand api show sand::command::Selector::distance_range` for the canonical contract."]
     pub fn distance_range(mut self, min: f64, max: f64) -> Self {
         self.args
             .push(SelectorArg::Distance(format!("{min}..{max}")));
@@ -1063,6 +1190,7 @@ impl Selector {
     }
 
     /// `type=!minecraft:player` — exclude all players from the selection.
+    #[doc = "**API Contract:** Run `sand api show sand::command::Selector::not_player` for the canonical contract."]
     pub fn not_player(mut self) -> Self {
         self.args
             .push(SelectorArg::NotType("minecraft:player".into()));
@@ -1070,6 +1198,7 @@ impl Selector {
     }
 
     /// `level=<range>` — select only players within the given XP level range.
+    #[doc = "**API Contract:** Run `sand api show sand::command::Selector::level` for the canonical contract."]
     pub fn level(mut self, range: impl Into<String>) -> Self {
         self.args.push(SelectorArg::Level(range.into()));
         self
@@ -1081,6 +1210,7 @@ impl Selector {
     /// gamemode set at [`Selector::try_build`] time rather than at the type
     /// level. Prefer [`Selector::gamemode_typed`] in normal code — see
     /// [#173](https://github.com/ThatOneToast/sand/issues/173).
+    #[doc = "**API Contract:** Run `sand api show sand::command::Selector::gamemode` for the canonical contract."]
     pub fn gamemode(mut self, mode: impl Into<String>) -> Self {
         self.args.push(SelectorArg::Gamemode(mode.into()));
         self
@@ -1088,12 +1218,14 @@ impl Selector {
 
     /// `gamemode=<mode>` — select only players in the given gamemode, using
     /// the canonical typed [`GameMode`] enum instead of a validated string.
+    #[doc = "**API Contract:** Run `sand api show sand::command::Selector::gamemode_typed` for the canonical contract."]
     pub fn gamemode_typed(mut self, mode: GameMode) -> Self {
         self.args.push(SelectorArg::Gamemode(mode.to_string()));
         self
     }
 
     /// `gamemode=!<mode>` — exclude players in the given gamemode.
+    #[doc = "**API Contract:** Run `sand api show sand::command::Selector::not_gamemode_typed` for the canonical contract."]
     pub fn not_gamemode_typed(mut self, mode: GameMode) -> Self {
         self.args.push(SelectorArg::Gamemode(format!("!{mode}")));
         self
@@ -1106,6 +1238,7 @@ impl Selector {
     /// rather than at the type level. Prefer [`Selector::scores_typed`] in
     /// normal code — see [#200](https://github.com/ThatOneToast/sand/issues/200).
     /// Equivalent to [`Selector::scores_raw`].
+    #[doc = "**API Contract:** Run `sand api show sand::command::Selector::scores` for the canonical contract."]
     pub fn scores(mut self, scores: impl Into<String>) -> Self {
         self.args.push(SelectorArg::Scores(scores.into()));
         self
@@ -1115,6 +1248,7 @@ impl Selector {
     /// fragments this crate has no typed representation for yet. Equivalent
     /// to [`Selector::scores`] — use whichever name best documents intent at
     /// the call site.
+    #[doc = "**API Contract:** Run `sand api show sand::command::Selector::scores_raw` for the canonical contract."]
     pub fn scores_raw(self, scores: impl Into<String>) -> Self {
         self.scores(scores)
     }
@@ -1133,6 +1267,7 @@ impl Selector {
     /// );
     /// assert_eq!(sel.to_string(), "@a[scores={kills=1..10,deaths=0}]");
     /// ```
+    #[doc = "**API Contract:** Run `sand api show sand::command::Selector::scores_typed` for the canonical contract."]
     pub fn scores_typed(mut self, scores: SelectorScores) -> Self {
         self.args.push(SelectorArg::Scores(scores.to_string()));
         self
@@ -1143,6 +1278,7 @@ impl Selector {
     /// Repeated calls merge into one `scores={...}` argument. Reusing an
     /// objective is rejected so higher-level typed state queries cannot emit
     /// ambiguous filters.
+    #[doc = "**API Contract:** Run `sand api show sand::command::Selector::score_typed` for the canonical contract."]
     pub fn score_typed(
         mut self,
         objective: crate::ObjectiveName,
@@ -1184,6 +1320,7 @@ impl Selector {
     /// crate, so this remains the normal path for NBT filters. Equivalent to
     /// [`Selector::nbt_raw`], kept for readability at call sites that prefer
     /// the shorter name.
+    #[doc = "**API Contract:** Run `sand api show sand::command::Selector::nbt` for the canonical contract."]
     pub fn nbt(mut self, nbt: impl Into<String>) -> Self {
         self.args.push(SelectorArg::Nbt(nbt.into()));
         self
@@ -1191,6 +1328,7 @@ impl Selector {
 
     /// Explicit raw escape hatch for `nbt=...` syntax. Equivalent to
     /// [`Selector::nbt`].
+    #[doc = "**API Contract:** Run `sand api show sand::command::Selector::nbt_raw` for the canonical contract."]
     pub fn nbt_raw(self, nbt: impl Into<String>) -> Self {
         self.nbt(nbt)
     }
@@ -1202,6 +1340,7 @@ impl Selector {
     /// [`Selector::predicate_id`] in normal code — see
     /// [#200](https://github.com/ThatOneToast/sand/issues/200). Equivalent to
     /// [`Selector::predicate_raw`].
+    #[doc = "**API Contract:** Run `sand api show sand::command::Selector::predicate` for the canonical contract."]
     pub fn predicate(mut self, predicate: impl Into<String>) -> Self {
         self.args.push(SelectorArg::Predicate(predicate.into()));
         self
@@ -1209,6 +1348,7 @@ impl Selector {
 
     /// Explicit raw escape hatch for `predicate=...` syntax. Equivalent to
     /// [`Selector::predicate`].
+    #[doc = "**API Contract:** Run `sand api show sand::command::Selector::predicate_raw` for the canonical contract."]
     pub fn predicate_raw(self, predicate: impl Into<String>) -> Self {
         self.predicate(predicate)
     }
@@ -1222,6 +1362,7 @@ impl Selector {
     /// let sel = Selector::all_players().predicate_id(PredicateId::new("my_pack:is_sneaking"));
     /// assert_eq!(sel.to_string(), "@a[predicate=my_pack:is_sneaking]");
     /// ```
+    #[doc = "**API Contract:** Run `sand api show sand::command::Selector::predicate_id` for the canonical contract."]
     pub fn predicate_id(mut self, id: PredicateId) -> Self {
         self.args.push(SelectorArg::Predicate(id.to_string()));
         self
@@ -1236,6 +1377,7 @@ impl Selector {
     /// let sel = Selector::all_entities().distance_typed(SelectorRange::at_most(16.0));
     /// assert_eq!(sel.to_string(), "@e[distance=..16]");
     /// ```
+    #[doc = "**API Contract:** Run `sand api show sand::command::Selector::distance_typed` for the canonical contract."]
     pub fn distance_typed(mut self, range: SelectorRange) -> Self {
         self.args.push(SelectorArg::Distance(range.to_string()));
         self
@@ -1250,6 +1392,7 @@ impl Selector {
     /// let sel = Selector::all_players().level_typed(SelectorRange::between(10.0, 30.0));
     /// assert_eq!(sel.to_string(), "@a[level=10..30]");
     /// ```
+    #[doc = "**API Contract:** Run `sand api show sand::command::Selector::level_typed` for the canonical contract."]
     pub fn level_typed(mut self, range: SelectorRange) -> Self {
         self.args.push(SelectorArg::Level(range.to_string()));
         self
@@ -1257,6 +1400,7 @@ impl Selector {
 
     /// `tag=<tag>` — select only entities with the given tag, using a typed
     /// [`EntityTag`] instead of a raw string.
+    #[doc = "**API Contract:** Run `sand api show sand::command::Selector::tag_typed` for the canonical contract."]
     pub fn tag_typed(mut self, tag: EntityTag) -> Self {
         self.args.push(SelectorArg::Tag(tag.into_inner()));
         self
@@ -1264,12 +1408,14 @@ impl Selector {
 
     /// `team=<team>` — select only entities on the given team, using a typed
     /// [`TeamName`] instead of a raw string.
+    #[doc = "**API Contract:** Run `sand api show sand::command::Selector::team_typed` for the canonical contract."]
     pub fn team_typed(mut self, team: TeamName) -> Self {
         self.args.push(SelectorArg::Team(team.into_inner()));
         self
     }
 
     /// `dx/dy/dz` — set a bounding box volume filter.
+    #[doc = "**API Contract:** Run `sand api show sand::command::Selector::volume` for the canonical contract."]
     pub fn volume(mut self, dx: f64, dy: f64, dz: f64) -> Self {
         self.args.push(SelectorArg::Dx(dx));
         self.args.push(SelectorArg::Dy(dy));
@@ -1278,6 +1424,7 @@ impl Selector {
     }
 
     /// `x/y/z` — set the origin point for distance and volume checks.
+    #[doc = "**API Contract:** Run `sand api show sand::command::Selector::at_pos` for the canonical contract."]
     pub fn at_pos(mut self, x: f64, y: f64, z: f64) -> Self {
         self.args.push(SelectorArg::X(x));
         self.args.push(SelectorArg::Y(y));
@@ -1811,6 +1958,7 @@ impl fmt::Display for SelectorRange {
 /// type here at the API boundary makes a fractional score range a compile
 /// error instead of a malformed-selector diagnostic discovered at
 /// `try_build` time.
+#[doc = "**API Contract:** Run `sand api show sand::command::ScoreRange` for the canonical contract."]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct ScoreRange {
     min: Option<i32>,
@@ -1819,6 +1967,7 @@ pub struct ScoreRange {
 
 impl ScoreRange {
     /// An exact value: `n..n`, rendered as `n`.
+    #[doc = "**API Contract:** Run `sand api show sand::command::ScoreRange::exact` for the canonical contract."]
     pub fn exact(n: i32) -> Self {
         Self {
             min: Some(n),
@@ -1827,6 +1976,7 @@ impl ScoreRange {
     }
 
     /// `n..` — at least `n`.
+    #[doc = "**API Contract:** Run `sand api show sand::command::ScoreRange::at_least` for the canonical contract."]
     pub fn at_least(n: i32) -> Self {
         Self {
             min: Some(n),
@@ -1835,6 +1985,7 @@ impl ScoreRange {
     }
 
     /// `..n` — at most `n`.
+    #[doc = "**API Contract:** Run `sand api show sand::command::ScoreRange::at_most` for the canonical contract."]
     pub fn at_most(n: i32) -> Self {
         Self {
             min: None,
@@ -1843,6 +1994,7 @@ impl ScoreRange {
     }
 
     /// `min..max` — an inclusive range.
+    #[doc = "**API Contract:** Run `sand api show sand::command::ScoreRange::between` for the canonical contract."]
     pub fn between(min: i32, max: i32) -> Self {
         Self {
             min: Some(min),
@@ -1958,10 +2110,12 @@ impl fmt::Display for PredicateId {
 /// control-character validity is checked at [`Selector::try_build`] time,
 /// matching [`Selector::tag`]'s existing validation.
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[doc = "**API Contract:** Run `sand api show sand::command::EntityTag` for the canonical contract."]
 pub struct EntityTag(String);
 
 impl EntityTag {
     /// Wrap a tag value.
+    #[doc = "**API Contract:** Run `sand api show sand::command::EntityTag::new` for the canonical contract."]
     pub fn new(tag: impl Into<String>) -> Self {
         Self(tag.into())
     }
@@ -1979,11 +2133,13 @@ impl fmt::Display for EntityTag {
 
 /// A typed selector `team` value (see
 /// [#200](https://github.com/ThatOneToast/sand/issues/200)).
+#[doc = "**API Contract:** Run `sand api show sand::command::TeamName` for the canonical contract."]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct TeamName(String);
 
 impl TeamName {
     /// Wrap a team name.
+    #[doc = "**API Contract:** Run `sand api show sand::command::TeamName::new` for the canonical contract."]
     pub fn new(team: impl Into<String>) -> Self {
         Self(team.into())
     }
@@ -2001,15 +2157,20 @@ impl fmt::Display for TeamName {
 
 // ── GameMode ──────────────────────────────────────────────────────────────────
 
+#[doc = "**API Contract:** Run `sand api show sand::command::GameMode` for the canonical contract."]
 /// Minecraft player game mode.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum GameMode {
+    #[doc = "**API Contract:** Run `sand api show sand::command::GameMode::Survival` for the canonical contract."]
     /// `survival` — normal gameplay.
     Survival,
+    #[doc = "**API Contract:** Run `sand api show sand::command::GameMode::Creative` for the canonical contract."]
     /// `creative` — infinite resources and flight.
     Creative,
+    #[doc = "**API Contract:** Run `sand api show sand::command::GameMode::Adventure` for the canonical contract."]
     /// `adventure` — survival-like with block-break restrictions.
     Adventure,
+    #[doc = "**API Contract:** Run `sand api show sand::command::GameMode::Spectator` for the canonical contract."]
     /// `spectator` — observe-only mode.
     Spectator,
 }

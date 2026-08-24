@@ -66,17 +66,21 @@ use crate::validation;
 
 // ── EnchantmentCost ───────────────────────────────────────────────────────────
 
+#[doc = "**API Contract:** Run `sand api show sand::component::EnchantmentCost` for the canonical contract."]
 /// The level cost configuration for enchanting (min or max enchanting-table cost).
 #[derive(Clone)]
 pub struct EnchantmentCost {
+    #[doc = "**API Contract:** Run `sand api show sand::component::EnchantmentCost::base` for the canonical contract."]
     /// Base cost at enchantment level 1.
     pub base: u32,
+    #[doc = "**API Contract:** Run `sand api show sand::component::EnchantmentCost::per_level_above_first` for the canonical contract."]
     /// Additional cost added per enchantment level above 1.
     pub per_level_above_first: u32,
 }
 
 impl EnchantmentCost {
     /// Creates a new cost with the given base and per-level values.
+    #[doc = "**API Contract:** Run `sand api show sand::component::EnchantmentCost::new` for the canonical contract."]
     pub fn new(base: u32, per_level_above_first: u32) -> Self {
         Self {
             base,
@@ -94,6 +98,7 @@ impl EnchantmentCost {
 
 // ── ItemOrTag / EnchantmentOrTag ─────────────────────────────────────────────
 
+#[doc = "**API Contract:** Run `sand api show sand::component::ItemOrTag` for the canonical contract."]
 /// A typed reference to a single item or an item tag, used by
 /// [`Enchantment::supported_items`] and [`Enchantment::primary_items`].
 ///
@@ -129,6 +134,7 @@ impl ItemOrTag {
     }
 }
 
+#[doc = "**API Contract:** Run `sand api show sand::component::EnchantmentOrTag` for the canonical contract."]
 /// A typed reference to a single enchantment or an enchantment tag, used by
 /// [`Enchantment::exclusive_set`].
 ///
@@ -199,6 +205,7 @@ impl EnchantmentDescription {
 
 // ── EnchantmentValueOperation / LevelBasedValue ──────────────────────────────
 
+#[doc = "**API Contract:** Run `sand api show sand::component::EnchantmentValueOperation` for the canonical contract."]
 /// How a typed value effect combines with any existing value for the same
 /// effect component (Minecraft's `ValueEffect` operation kinds).
 ///
@@ -206,8 +213,10 @@ impl EnchantmentDescription {
 /// are not modelled yet; use [`Enchantment::raw_effect_component`] for those.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum EnchantmentValueOperation {
+    #[doc = "**API Contract:** Run `sand api show sand::component::EnchantmentValueOperation::Add` for the canonical contract."]
     /// `minecraft:add` — adds the level-based value to the existing value.
     Add,
+    #[doc = "**API Contract:** Run `sand api show sand::component::EnchantmentValueOperation::Set` for the canonical contract."]
     /// `minecraft:set` — overwrites the existing value.
     Set,
 }
@@ -221,16 +230,27 @@ impl EnchantmentValueOperation {
     }
 }
 
+#[doc = "**API Contract:** Run `sand api show sand::component::LevelBasedValue` for the canonical contract."]
 /// A level-scaled numeric value used by typed enchantment value effects
 /// (Minecraft's `LevelBasedValue`).
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum LevelBasedValue {
+    #[doc = "**API Contract:** Run `sand api show sand::component::LevelBasedValue::Constant` for the canonical contract."]
     /// A value that does not depend on enchantment level. Serializes as a
     /// bare JSON number (Minecraft's documented shorthand).
-    Constant(f64),
+    Constant(
+        #[doc = "The `Constant` variant carries the value described by its variant semantics: A value that does not depend on enchantment level. Serializes as a bare JSON number (Minecraft's documented shorthand)."]
+        #[doc = "**API Contract:** Run `sand api show sand::component::LevelBasedValue::Constant::0` for the canonical contract."]
+        f64,
+    ),
+    #[doc = "**API Contract:** Run `sand api show sand::component::LevelBasedValue::Linear` for the canonical contract."]
     /// `minecraft:linear` — `base + per_level_above_first * (level - 1)`.
     Linear {
+        /// `base` provides the base when `minecraft:linear` — `base + per_level_above_first * (level - 1)`.
+        #[doc = "**API Contract:** Run `sand api show sand::component::LevelBasedValue::Linear::base` for the canonical contract."]
         base: f64,
+        /// `per_level_above_first` provides the per level above first when `minecraft:linear` — `base + per_level_above_first * (level - 1)`.
+        #[doc = "**API Contract:** Run `sand api show sand::component::LevelBasedValue::Linear::per_level_above_first` for the canonical contract."]
         per_level_above_first: f64,
     },
 }
@@ -359,6 +379,7 @@ impl SlotEntry {
     }
 }
 
+#[doc = "**API Contract:** Run `sand api show sand::component::Enchantment` for the canonical contract."]
 /// An enchantment definition (`data/<namespace>/enchantment/<id>.json`).
 pub struct Enchantment {
     location: ResourceLocation,
@@ -378,6 +399,7 @@ pub struct Enchantment {
 
 impl Enchantment {
     /// Creates a new enchantment with sensible defaults.
+    #[doc = "**API Contract:** Run `sand api show sand::component::Enchantment::new` for the canonical contract."]
     pub fn new(location: ResourceLocation) -> Self {
         Self {
             location,
@@ -397,12 +419,14 @@ impl Enchantment {
     }
 
     /// Sets the description as a typed text component.
+    #[doc = "**API Contract:** Run `sand api show sand::component::Enchantment::description` for the canonical contract."]
     pub fn description(mut self, desc: TextComponent) -> Self {
         self.description = Some(EnchantmentDescription::Typed(Box::new(desc)));
         self
     }
 
     /// Convenience: sets the description as a plain translation key.
+    #[doc = "**API Contract:** Run `sand api show sand::component::Enchantment::description_translate` for the canonical contract."]
     pub fn description_translate(mut self, key: impl Into<String>) -> Self {
         self.description = Some(EnchantmentDescription::Typed(Box::new(
             TextComponent::translate(key),
@@ -411,6 +435,7 @@ impl Enchantment {
     }
 
     /// Use a raw JSON text component when the typed text API cannot represent it.
+    #[doc = "**API Contract:** Run `sand api show sand::component::Enchantment::raw_description` for the canonical contract."]
     pub fn raw_description(mut self, desc: RawJson) -> Self {
         self.description = Some(EnchantmentDescription::Raw(desc));
         self
@@ -419,6 +444,7 @@ impl Enchantment {
     /// Sets the supported items — the items this enchantment can be applied
     /// to (e.g. any sword, or a specific item). Accepts an [`ItemId`] or a
     /// `TagId<ItemId>`.
+    #[doc = "**API Contract:** Run `sand api show sand::component::Enchantment::supported_items` for the canonical contract."]
     pub fn supported_items(mut self, items: impl Into<ItemOrTag>) -> Self {
         self.supported_items = Some(items.into());
         self
@@ -427,6 +453,7 @@ impl Enchantment {
     /// Sets the primary items — the subset of supported items this
     /// enchantment appears for at an enchanting table. Accepts an [`ItemId`]
     /// or a `TagId<ItemId>`.
+    #[doc = "**API Contract:** Run `sand api show sand::component::Enchantment::primary_items` for the canonical contract."]
     pub fn primary_items(mut self, items: impl Into<ItemOrTag>) -> Self {
         self.primary_items = Some(items.into());
         self
@@ -435,48 +462,56 @@ impl Enchantment {
     /// Sets the exclusive set — enchantments sharing this set (or tag) are
     /// mutually exclusive. Accepts an [`EnchantmentId`] or a
     /// `TagId<EnchantmentId>`.
+    #[doc = "**API Contract:** Run `sand api show sand::component::Enchantment::exclusive_set` for the canonical contract."]
     pub fn exclusive_set(mut self, tag: impl Into<EnchantmentOrTag>) -> Self {
         self.exclusive_set = Some(tag.into());
         self
     }
 
     /// Sets the enchantment weight (higher = more common, 1–1024).
+    #[doc = "**API Contract:** Run `sand api show sand::component::Enchantment::weight` for the canonical contract."]
     pub fn weight(mut self, w: u32) -> Self {
         self.weight = w;
         self
     }
 
     /// Sets the maximum enchantment level (1–255).
+    #[doc = "**API Contract:** Run `sand api show sand::component::Enchantment::max_level` for the canonical contract."]
     pub fn max_level(mut self, lvl: u32) -> Self {
         self.max_level = lvl;
         self
     }
 
     /// Sets the minimum enchanting-table cost.
+    #[doc = "**API Contract:** Run `sand api show sand::component::Enchantment::min_cost` for the canonical contract."]
     pub fn min_cost(mut self, cost: EnchantmentCost) -> Self {
         self.min_cost = cost;
         self
     }
 
     /// Sets the maximum enchanting-table cost.
+    #[doc = "**API Contract:** Run `sand api show sand::component::Enchantment::max_cost` for the canonical contract."]
     pub fn max_cost(mut self, cost: EnchantmentCost) -> Self {
         self.max_cost = cost;
         self
     }
 
     /// Sets the anvil cost (XP levels).
+    #[doc = "**API Contract:** Run `sand api show sand::component::Enchantment::anvil_cost` for the canonical contract."]
     pub fn anvil_cost(mut self, cost: u32) -> Self {
         self.anvil_cost = cost;
         self
     }
 
     /// Adds a typed equipment slot this enchantment is active in.
+    #[doc = "**API Contract:** Run `sand api show sand::component::Enchantment::slot` for the canonical contract."]
     pub fn slot(mut self, slot: EquipmentSlotGroup) -> Self {
         self.slots.push(SlotEntry::Typed(slot));
         self
     }
 
     /// Sets all active equipment slots from typed values.
+    #[doc = "**API Contract:** Run `sand api show sand::component::Enchantment::slots` for the canonical contract."]
     pub fn slots(mut self, slots: impl IntoIterator<Item = EquipmentSlotGroup>) -> Self {
         self.slots = slots.into_iter().map(SlotEntry::Typed).collect();
         self
@@ -484,6 +519,7 @@ impl Enchantment {
 
     /// Adds a raw equipment slot name — an escape hatch for slot groups not
     /// yet represented by [`EquipmentSlotGroup`].
+    #[doc = "**API Contract:** Run `sand api show sand::component::Enchantment::raw_slot` for the canonical contract."]
     pub fn raw_slot(mut self, slot: impl Into<String>) -> Self {
         self.slots.push(SlotEntry::Raw(slot.into()));
         self
@@ -491,6 +527,7 @@ impl Enchantment {
 
     /// Sets all active equipment slots from raw names — an escape hatch for
     /// slot groups not yet represented by [`EquipmentSlotGroup`].
+    #[doc = "**API Contract:** Run `sand api show sand::component::Enchantment::raw_slots` for the canonical contract."]
     pub fn raw_slots(mut self, slots: impl IntoIterator<Item = impl Into<String>>) -> Self {
         self.slots = slots
             .into_iter()
@@ -501,6 +538,7 @@ impl Enchantment {
 
     /// Adds a typed `minecraft:damage` value effect (used by Sharpness,
     /// Smite, Bane of Arthropods, Impaling, Power).
+    #[doc = "**API Contract:** Run `sand api show sand::component::Enchantment::damage_effect` for the canonical contract."]
     pub fn damage_effect(
         self,
         operation: EnchantmentValueOperation,
@@ -511,6 +549,7 @@ impl Enchantment {
 
     /// Adds a typed `minecraft:knockback` value effect (used by Knockback,
     /// Punch).
+    #[doc = "**API Contract:** Run `sand api show sand::component::Enchantment::knockback_effect` for the canonical contract."]
     pub fn knockback_effect(
         self,
         operation: EnchantmentValueOperation,
@@ -521,6 +560,7 @@ impl Enchantment {
 
     /// Adds a typed `minecraft:armor_effectiveness` value effect (used by
     /// Breach).
+    #[doc = "**API Contract:** Run `sand api show sand::component::Enchantment::armor_effectiveness_effect` for the canonical contract."]
     pub fn armor_effectiveness_effect(
         self,
         operation: EnchantmentValueOperation,
@@ -537,6 +577,7 @@ impl Enchantment {
     /// Prefer the dedicated `*_effect` helpers for the well-known vanilla
     /// value effects; use this for custom namespaced components that share
     /// the same `{"effect": {"type": ..., "value": ...}}` shape.
+    #[doc = "**API Contract:** Run `sand api show sand::component::Enchantment::value_effect` for the canonical contract."]
     pub fn value_effect(
         mut self,
         component: EnchantmentEffectComponentId,
@@ -553,6 +594,7 @@ impl Enchantment {
     /// Adds a raw JSON effect entry under a typed effect component ID — an
     /// escape hatch for effect shapes Sand does not yet model (e.g.
     /// `minecraft:attributes`, `minecraft:all_of`, or custom/modded effects).
+    #[doc = "**API Contract:** Run `sand api show sand::component::Enchantment::raw_effect_component` for the canonical contract."]
     pub fn raw_effect_component(
         mut self,
         component: EnchantmentEffectComponentId,
@@ -568,6 +610,7 @@ impl Enchantment {
     /// Sets the entire effects map as raw JSON, replacing any typed or
     /// per-component raw entries added so far. An escape hatch for whole
     /// custom effect maps.
+    #[doc = "**API Contract:** Run `sand api show sand::component::Enchantment::raw_effects` for the canonical contract."]
     pub fn raw_effects(mut self, effects: RawJson) -> Self {
         self.raw_effects = Some(effects);
         self

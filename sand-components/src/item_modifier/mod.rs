@@ -6,6 +6,7 @@ use crate::resource_location::ResourceLocation;
 
 use crate::loot_table::LootFunction;
 
+#[doc = "**API Contract:** Run `sand api show sand::component::ItemModifier` for the canonical contract."]
 /// An item modifier that applies loot functions to transform items in Minecraft.
 ///
 /// Normal fallible export rejects modifiers without functions. Construction is
@@ -13,14 +14,17 @@ use crate::loot_table::LootFunction;
 /// rather than by [`new`](Self::new). Direct legacy [`to_json`](Self::to_json)
 /// calls retain their historical empty-array behavior.
 pub struct ItemModifier {
+    #[doc = "**API Contract:** Run `sand api show sand::component::ItemModifier::location` for the canonical contract."]
     /// The resource location for this item modifier.
     pub location: ResourceLocation,
+    #[doc = "**API Contract:** Run `sand api show sand::component::ItemModifier::functions` for the canonical contract."]
     /// List of loot functions to apply to items.
     pub functions: Vec<LootFunction>,
 }
 
 impl ItemModifier {
     /// Create a new item modifier with the given resource location.
+    #[doc = "**API Contract:** Run `sand api show sand::component::ItemModifier::new` for the canonical contract."]
     pub fn new(location: ResourceLocation) -> Self {
         Self {
             location,
@@ -29,6 +33,7 @@ impl ItemModifier {
     }
 
     /// Add a loot function to this item modifier.
+    #[doc = "**API Contract:** Run `sand api show sand::component::ItemModifier::function` for the canonical contract."]
     pub fn function(mut self, f: LootFunction) -> Self {
         self.functions.push(f);
         self

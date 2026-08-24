@@ -33,8 +33,11 @@ use sand_commands::Selector;
 use crate::condition::Condition;
 use crate::state::{GameState, GameStateRef, Ticks, TypedGameState};
 
+#[doc = "**API Contract:** Run `sand api show sand::state::IntoStateCommands` for the canonical contract."]
 /// Convert hook commands into one deterministic command list.
 pub trait IntoStateCommands {
+    /// Converts a hook body into the deterministic command sequence emitted for a state transition.
+    #[doc = "**API Contract:** Run `sand api show sand::state::IntoStateCommands::into_state_commands` for the canonical contract."]
     fn into_state_commands(self) -> Vec<String>;
 }
 
@@ -81,6 +84,7 @@ struct FlowHook {
     order: usize,
 }
 
+#[doc = "**API Contract:** Run `sand api show sand::state::StateFlow` for the canonical contract."]
 /// One cohesive state machine registration.
 pub struct StateFlow<S: TypedGameState> {
     id: String,
@@ -97,11 +101,13 @@ pub struct StateFlow<S: TypedGameState> {
 impl<S: TypedGameState> StateFlow<S> {
     /// Create a player-scoped flow. The generated tick entry scans `@a`, binds
     /// each subject to `@s`, and evaluates that subject independently.
+    #[doc = "**API Contract:** Run `sand api show sand::state::StateFlow::players` for the canonical contract."]
     pub fn players(state: &GameState<S>) -> Self {
         Self::for_subjects(state, Selector::all_players())
     }
 
     /// Create a flow for an explicit selector.
+    #[doc = "**API Contract:** Run `sand api show sand::state::StateFlow::for_subjects` for the canonical contract."]
     pub fn for_subjects(state: &GameState<S>, subjects: Selector) -> Self {
         let objective = state.objective_name();
         let state_type = type_name::<S>();
@@ -120,12 +126,15 @@ impl<S: TypedGameState> StateFlow<S> {
     }
 
     /// Add a stable user label to the generated identity.
+    #[doc = "**API Contract:** Run `sand api show sand::state::StateFlow::named` for the canonical contract."]
     pub fn named(mut self, name: impl Into<String>) -> Self {
         self.id.push(':');
         self.id.push_str(&name.into());
         self
     }
 
+    /// Starts a transition from one typed state variant to another.
+    #[doc = "**API Contract:** Run `sand api show sand::state::StateFlow::transition` for the canonical contract."]
     pub fn transition(self, from: S, to: S) -> FlowTransitionBuilder<S> {
         FlowTransitionBuilder {
             flow: self,
@@ -136,17 +145,22 @@ impl<S: TypedGameState> StateFlow<S> {
         }
     }
 
+    /// Registers commands that run whenever the selected state is entered.
+    #[doc = "**API Contract:** Run `sand api show sand::state::StateFlow::on_enter` for the canonical contract."]
     pub fn on_enter(mut self, state: S, commands: impl IntoStateCommands) -> Self {
         self.push_hook(HookKind::Enter, state, 1, commands);
         self
     }
 
+    /// Registers commands that run whenever the selected state is exited.
+    #[doc = "**API Contract:** Run `sand api show sand::state::StateFlow::on_exit` for the canonical contract."]
     pub fn on_exit(mut self, state: S, commands: impl IntoStateCommands) -> Self {
         self.push_hook(HookKind::Exit, state, 1, commands);
         self
     }
 
     /// Run every server tick while the subject remains in `state`.
+    #[doc = "**API Contract:** Run `sand api show sand::state::StateFlow::on_tick` for the canonical contract."]
     pub fn on_tick(mut self, state: S, commands: impl IntoStateCommands) -> Self {
         self.push_hook(HookKind::Tick, state, 1, commands);
         self
@@ -154,6 +168,7 @@ impl<S: TypedGameState> StateFlow<S> {
 
     /// Run every `cadence` matching ticks. The counter resets when the subject
     /// leaves the state; cadence zero is diagnosed during export.
+    #[doc = "**API Contract:** Run `sand api show sand::state::StateFlow::on_tick_every` for the canonical contract."]
     pub fn on_tick_every(
         mut self,
         state: S,
@@ -191,6 +206,7 @@ impl<S: TypedGameState> StateFlow<S> {
 
     /// Register this flow for the current export. Returns an empty command list
     /// so it composes naturally inside `#[datapack_component(Load)]`.
+    #[doc = "**API Contract:** Run `sand api show sand::state::StateFlow::register` for the canonical contract."]
     pub fn register(self) -> Vec<String> {
         register_flow(self.erase());
         Vec::new()
@@ -209,6 +225,7 @@ impl<S: TypedGameState> StateFlow<S> {
     }
 }
 
+#[doc = "**API Contract:** Run `sand api show sand::state::FlowTransitionBuilder` for the canonical contract."]
 /// Nested builder for one transition.
 pub struct FlowTransitionBuilder<S: TypedGameState> {
     flow: StateFlow<S>,
@@ -219,16 +236,22 @@ pub struct FlowTransitionBuilder<S: TypedGameState> {
 }
 
 impl<S: TypedGameState> FlowTransitionBuilder<S> {
+    /// Restricts this transition to invocations where the guard holds.
+    #[doc = "**API Contract:** Run `sand api show sand::state::FlowTransitionBuilder::when` for the canonical contract."]
     pub fn when(mut self, guard: Condition) -> Self {
         self.guard = Some(guard);
         self
     }
 
+    /// Sets this transition's ordering priority relative to competing transitions.
+    #[doc = "**API Contract:** Run `sand api show sand::state::FlowTransitionBuilder::priority` for the canonical contract."]
     pub fn priority(mut self, priority: i32) -> Self {
         self.priority = priority;
         self
     }
 
+    /// Commits this transition and returns the completed state-flow definition.
+    #[doc = "**API Contract:** Run `sand api show sand::state::FlowTransitionBuilder::done` for the canonical contract."]
     pub fn done(mut self) -> StateFlow<S> {
         let guard_plans = match self.guard {
             Some(guard) => guard
@@ -258,6 +281,7 @@ impl<S: TypedGameState> FlowTransitionBuilder<S> {
     }
 }
 
+#[doc = "**API Contract:** Run `sand api show sand::state::StateTransitionBuilder` for the canonical contract."]
 /// Compact one-off guarded transition builder on [`GameStateRef`].
 pub struct StateTransitionBuilder<'a, S: TypedGameState> {
     state: &'a GameStateRef<'a, S>,
@@ -274,11 +298,15 @@ impl<'a, S: TypedGameState> StateTransitionBuilder<'a, S> {
         }
     }
 
+    /// Restricts the transition builder to a specific source state.
+    #[doc = "**API Contract:** Run `sand api show sand::state::StateTransitionBuilder::from` for the canonical contract."]
     pub fn from(mut self, state: S) -> Self {
         self.from = Some(state);
         self
     }
 
+    /// Restricts this state transition to invocations where the guard holds.
+    #[doc = "**API Contract:** Run `sand api show sand::state::StateTransitionBuilder::when` for the canonical contract."]
     pub fn when(mut self, guard: Condition) -> Self {
         self.guard = Some(guard);
         self
@@ -286,6 +314,7 @@ impl<'a, S: TypedGameState> StateTransitionBuilder<'a, S> {
 
     /// Emit deterministic guarded write commands using the same low-level
     /// `GameStateRef::set` representation as manual state writes.
+    #[doc = "**API Contract:** Run `sand api show sand::state::StateTransitionBuilder::to` for the canonical contract."]
     pub fn to(self, state: S) -> Vec<String> {
         let mut condition = self
             .from

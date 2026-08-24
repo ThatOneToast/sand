@@ -30,16 +30,10 @@ macro_rules! submit_handler {
     ($event:ty, $path:literal, $body:literal) => {
         const _: () = {
             fn chain() -> Option<ChainEventDispatch> {
-                match <$event as SandEvent>::dispatch().into() {
-                    SandEventDispatch::Chain(chain) => Some(chain),
-                    _ => None,
-                }
+                sand_core::__private::event_dispatch_chain(<$event as SandEvent>::dispatch().into())
             }
             fn tick() -> Option<TickEventDispatch> {
-                match <$event as SandEvent>::dispatch().into() {
-                    SandEventDispatch::Tick(tick) => Some(tick),
-                    _ => None,
-                }
+                sand_core::__private::event_dispatch_tick(<$event as SandEvent>::dispatch().into())
             }
             fn type_id() -> TypeId {
                 TypeId::of::<$event>()

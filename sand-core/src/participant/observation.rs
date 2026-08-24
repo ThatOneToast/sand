@@ -126,32 +126,41 @@ use crate::participant::role::EntityParticipantRole;
 use crate::version::VersionProfile;
 use sand_commands::selector::SingleEntity;
 
+#[doc = "**API Contract:** Run `sand api show sand::participant::CorrelationSource` for the canonical contract."]
 /// The vanilla mechanism an observation's evidence comes from.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum CorrelationSource {
+    #[doc = "**API Contract:** Run `sand api show sand::participant::CorrelationSource::AttackerRelation` for the canonical contract."]
     /// `execute on attacker` — vanilla's own "last entity that damaged me"
     /// relation. The only source this phase implements.
     AttackerRelation,
 }
 
+#[doc = "**API Contract:** Run `sand api show sand::participant::CorrelationEvidence` for the canonical contract."]
 /// The evidence backing a correlated participant, exposed alongside the
 /// participant itself so callers (and diagnostics) can see *why* something
 /// is `Correlated` rather than treating the label as unexplained.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct CorrelationEvidence {
+    /// `source` provides the source when the evidence backing a correlated participant, exposed alongside the participant itself so callers (and diagnostics) can see *why* something is `Correlated` rather than treating the label as unexplained.
+    #[doc = "**API Contract:** Run `sand api show sand::participant::CorrelationEvidence::source` for the canonical contract."]
     pub source: CorrelationSource,
+    #[doc = "**API Contract:** Run `sand api show sand::participant::CorrelationEvidence::min_version` for the canonical contract."]
     /// `(major, minor, patch)` — the vanilla version this evidence source
     /// requires. `execute on attacker` requires 1.20.2+.
     pub min_version: (u32, u32, u32),
 }
 
 impl CorrelationEvidence {
+    #[doc = "Selects the attacker relation participant semantic."]
+    #[doc = "**API Contract:** Run `sand api show sand::participant::CorrelationEvidence::ATTACKER_RELATION` for the canonical contract."]
     pub const ATTACKER_RELATION: CorrelationEvidence = CorrelationEvidence {
         source: CorrelationSource::AttackerRelation,
         min_version: (1, 20, 2),
     };
 }
 
+#[doc = "**API Contract:** Run `sand api show sand::participant::ObservationSchema` for the canonical contract."]
 /// Deterministic identity for one observation's generated storage path and
 /// temporary tag, derived from a caller-supplied event label the same way
 /// [`crate::item::snapshot::SnapshotSchema`] derives its own key.
@@ -162,6 +171,8 @@ pub struct ObservationSchema {
 }
 
 impl ObservationSchema {
+    /// Creates the storage schema used to correlate participant observations for an event.
+    #[doc = "**API Contract:** Run `sand api show sand::participant::ObservationSchema::new` for the canonical contract."]
     pub fn new(storage: impl Into<String>, event_label: &str) -> Self {
         Self {
             storage: storage.into(),
@@ -169,6 +180,8 @@ impl ObservationSchema {
         }
     }
 
+    /// Returns the command-storage resource used for observation snapshots.
+    #[doc = "**API Contract:** Run `sand api show sand::participant::ObservationSchema::storage` for the canonical contract."]
     pub fn storage(&self) -> &str {
         &self.storage
     }
@@ -186,6 +199,7 @@ impl ObservationSchema {
     }
 }
 
+#[doc = "**API Contract:** Run `sand api show sand::participant::ObservationError` for the canonical contract."]
 /// An observation that failed to construct — never a runtime "no candidate
 /// found" outcome (that is represented by
 /// [`CorrelatedEntityObservation::is_absent`] at generated-command time,
@@ -193,11 +207,18 @@ impl ObservationSchema {
 /// attacker). This is a build-time/version diagnostic only.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ObservationError {
+    #[doc = "**API Contract:** Run `sand api show sand::participant::ObservationError::UnsupportedVersion` for the canonical contract."]
     /// The active `VersionProfile` predates the evidence source's minimum
     /// version.
     UnsupportedVersion {
+        /// `role` provides the role when the active `VersionProfile` predates the evidence source's minimum version.
+        #[doc = "**API Contract:** Run `sand api show sand::participant::ObservationError::UnsupportedVersion::role` for the canonical contract."]
         role: EntityParticipantRole,
+        /// `evidence` provides the evidence identifier when the active `VersionProfile` predates the evidence source's minimum version.
+        #[doc = "**API Contract:** Run `sand api show sand::participant::ObservationError::UnsupportedVersion::evidence` for the canonical contract."]
         evidence: CorrelationEvidence,
+        /// `target_version` provides the target version when the active `VersionProfile` predates the evidence source's minimum version.
+        #[doc = "**API Contract:** Run `sand api show sand::participant::ObservationError::UnsupportedVersion::target_version` for the canonical contract."]
         target_version: String,
     },
 }
@@ -223,6 +244,7 @@ impl std::fmt::Display for ObservationError {
 
 impl std::error::Error for ObservationError {}
 
+#[doc = "**API Contract:** Run `sand api show sand::participant::CorrelatedEntityObservation` for the canonical contract."]
 /// A correlated entity observation embedded into a generated command
 /// sequence: an immutable handle describing generated storage/tag identity,
 /// not a live runtime value.
@@ -236,6 +258,7 @@ pub struct CorrelatedEntityObservation {
 impl CorrelatedEntityObservation {
     /// A `Condition` true exactly when the underlying relation resolved to
     /// an entity for this invocation.
+    #[doc = "**API Contract:** Run `sand api show sand::participant::CorrelatedEntityObservation::is_present` for the canonical contract."]
     pub fn is_present(&self) -> Condition {
         Condition::nbt_exists(
             sand_commands::DataTarget::storage(self.schema.storage().to_string()),
@@ -244,6 +267,7 @@ impl CorrelatedEntityObservation {
     }
 
     /// The negation of [`Self::is_present`].
+    #[doc = "**API Contract:** Run `sand api show sand::participant::CorrelatedEntityObservation::is_absent` for the canonical contract."]
     pub fn is_absent(&self) -> Condition {
         Condition::negate(self.is_present())
     }
@@ -255,6 +279,7 @@ impl CorrelatedEntityObservation {
     /// responsible for guarding its use accordingly (Sand cannot express
     /// "this Rust value only exists when true" for a runtime-only fact —
     /// the same honest limitation `ItemSnapshot` documents).
+    #[doc = "**API Contract:** Run `sand api show sand::participant::CorrelatedEntityObservation::participant` for the canonical contract."]
     pub fn participant(&self) -> EntityParticipant {
         EntityParticipant::correlated(
             SingleEntity::raw(format!("@e[tag={},limit=1]", self.schema.tag())),
@@ -263,10 +288,14 @@ impl CorrelatedEntityObservation {
         )
     }
 
+    /// Returns the correlation evidence that established this observation.
+    #[doc = "**API Contract:** Run `sand api show sand::participant::CorrelatedEntityObservation::evidence` for the canonical contract."]
     pub fn evidence(&self) -> CorrelationEvidence {
         self.evidence
     }
 
+    /// Returns the semantic event role assigned to the observed entity.
+    #[doc = "**API Contract:** Run `sand api show sand::participant::CorrelatedEntityObservation::role` for the canonical contract."]
     pub fn role(&self) -> EntityParticipantRole {
         self.role
     }
@@ -277,6 +306,7 @@ impl CorrelatedEntityObservation {
     /// [`observe_correlated_attacker`]'s generated sequence — exposed
     /// separately only so a caller building a non-linear composition can
     /// place it explicitly.
+    #[doc = "**API Contract:** Run `sand api show sand::participant::CorrelatedEntityObservation::cleanup_commands` for the canonical contract."]
     pub fn cleanup_commands(&self) -> Vec<String> {
         vec![sand_commands::builtins::tag_remove(
             sand_commands::selector::Selector::all_entities().tag(self.schema.tag()),
@@ -310,6 +340,7 @@ impl CorrelatedEntityObservation {
 /// point where `@s` is a known [`EntityContext`], the same
 /// documentation-only-parameter convention
 /// [`EntityScope::bind`](crate::entity::EntityScope::bind) already uses.
+#[doc = "**API Contract:** Run `sand api show sand::participant::observe_correlated_attacker` for the canonical contract."]
 pub fn observe_correlated_attacker<K: EntityKind>(
     _ctx: &EntityContext<K>,
     profile: &VersionProfile,

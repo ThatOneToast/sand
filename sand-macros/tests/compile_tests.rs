@@ -27,6 +27,7 @@ fn compile_tests() {
     t.compile_fail("tests/cases/fail_sand_event_after_all_non_event.rs");
     t.compile_fail("tests/cases/fail_sand_event_after_any_arity_nine.rs");
     t.compile_fail("tests/cases/fail_sand_event_within_non_sand_event_parent.rs");
+    t.compile_fail("tests/cases/fail_sand_event_transport_private.rs");
     t.compile_fail("tests/cases/fail_with_params.rs");
     t.compile_fail("tests/cases/fail_empty_body.rs");
     t.compile_fail("tests/cases/fail_raw_string.rs");

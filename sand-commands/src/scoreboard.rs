@@ -49,12 +49,15 @@ enum ScoreHolderKind {
     Compat(String),
 }
 
+#[doc = "Builds or represents the typed score holder Minecraft command value."]
+#[doc = "**API Contract:** Run `sand api show sand::command::ScoreHolder` for the canonical contract."]
 #[derive(Debug, Clone)]
 #[must_use = "score holders do nothing until passed to a scoreboard command"]
 pub struct ScoreHolder(ScoreHolderKind);
 
 impl ScoreHolder {
     /// Create a score holder from an entity selector.
+    #[doc = "**API Contract:** Run `sand api show sand::command::ScoreHolder::entity` for the canonical contract."]
     pub fn entity(selector: Selector) -> Self {
         ScoreHolder(ScoreHolderKind::Entity(selector))
     }
@@ -63,11 +66,13 @@ impl ScoreHolder {
     ///
     /// Convention: prefix with `#` (e.g. `"#const"`, `"#zero"`) to distinguish
     /// from real player names.
+    #[doc = "**API Contract:** Run `sand api show sand::command::ScoreHolder::fake` for the canonical contract."]
     pub fn fake(name: impl Into<String>) -> Self {
         ScoreHolder(ScoreHolderKind::Fake(name.into()))
     }
 
     /// `*` — all score holders with any score in this objective.
+    #[doc = "**API Contract:** Run `sand api show sand::command::ScoreHolder::all` for the canonical contract."]
     pub fn all() -> Self {
         ScoreHolder(ScoreHolderKind::All)
     }
@@ -75,6 +80,7 @@ impl ScoreHolder {
     /// Alias for [`ScoreHolder::all`]: `*`, every score holder with any score
     /// in the objective. Named to match #146's requested canonical
     /// constructor set (`entity`/`player`/`fake`/`wildcard`/`raw`).
+    #[doc = "**API Contract:** Run `sand api show sand::command::ScoreHolder::wildcard` for the canonical contract."]
     pub fn wildcard() -> Self {
         Self::all()
     }
@@ -87,16 +93,19 @@ impl ScoreHolder {
     /// literal player-name score holder, kept distinct from
     /// [`ScoreHolder::fake`] so a real player name and a `#`-prefixed fake
     /// player are never confused.
+    #[doc = "**API Contract:** Run `sand api show sand::command::ScoreHolder::player` for the canonical contract."]
     pub fn player(name: impl Into<String>) -> Self {
         ScoreHolder::entity(Selector::player(name))
     }
 
     /// `@s` — score holder for the entity executing the command.
+    #[doc = "**API Contract:** Run `sand api show sand::command::ScoreHolder::self_` for the canonical contract."]
     pub fn self_() -> Self {
         ScoreHolder::entity(Selector::self_())
     }
 
     /// Explicit unchecked score-holder syntax.
+    #[doc = "**API Contract:** Run `sand api show sand::command::ScoreHolder::raw` for the canonical contract."]
     pub fn raw(value: impl Into<String>) -> Self {
         ScoreHolder(ScoreHolderKind::Raw(value.into()))
     }
@@ -122,6 +131,7 @@ impl ScoreHolder {
     /// building those command shapes (in this crate or downstream, e.g.
     /// `sand-core`'s `ScoreVar::try_of`/`PlayerSchema::try_init_player`)
     /// should use this instead of [`ScoreHolder::validate`].
+    #[doc = "**API Contract:** Run `sand api show sand::command::ScoreHolder::validate_single` for the canonical contract."]
     pub fn validate_single(&self, profile: &CommandProfile) -> CommandResult<()> {
         self.validate(profile)?;
         if self.is_single() {
@@ -136,8 +146,7 @@ impl ScoreHolder {
     }
 
     /// Convert a compatibility string boundary into the closest canonical holder.
-    #[doc(hidden)]
-    pub fn compat(value: String) -> Self {
+    pub(crate) fn compat(value: String) -> Self {
         match value.as_str() {
             "@s" => Self::entity(Selector::self_()),
             "@p" => Self::entity(Selector::nearest_player()),
@@ -219,6 +228,7 @@ impl From<Selector> for ScoreHolder {
     }
 }
 
+#[doc = "**API Contract:** Run `sand api show sand::command::ObjectiveName` for the canonical contract."]
 /// Validated Minecraft scoreboard objective name.
 ///
 /// This is the single canonical objective-name type for Sand (see
@@ -253,6 +263,7 @@ pub struct ObjectiveName {
 impl ObjectiveName {
     /// Const-compatible name used by static objectives. Validation occurs at
     /// the fallible render/export boundary.
+    #[doc = "**API Contract:** Run `sand api show sand::command::ObjectiveName::new` for the canonical contract."]
     pub const fn new(name: &'static str) -> Self {
         Self {
             emitted: Cow::Borrowed(name),
@@ -261,6 +272,7 @@ impl ObjectiveName {
     }
 
     /// Alias for [`ObjectiveName::new`]: an already-valid emitted name.
+    #[doc = "**API Contract:** Run `sand api show sand::command::ObjectiveName::minecraft` for the canonical contract."]
     pub const fn minecraft(name: &'static str) -> Self {
         Self::new(name)
     }
@@ -271,6 +283,7 @@ impl ObjectiveName {
     /// an invalid name is rejected outright, per #146's requirement that
     /// "invalid short exact names are rejected rather than silently treated
     /// as logical names."
+    #[doc = "**API Contract:** Run `sand api show sand::command::ObjectiveName::try_dynamic` for the canonical contract."]
     pub fn try_dynamic(name: impl Into<String>) -> CommandResult<Self> {
         let name = Self {
             emitted: Cow::Owned(name.into()),
@@ -289,6 +302,7 @@ impl ObjectiveName {
     /// [`hash_objective_name`] to a stable, always-valid ≤16-character
     /// token. The result of [`ObjectiveName::validate`] is always `Ok` for a
     /// value constructed this way.
+    #[doc = "**API Contract:** Run `sand api show sand::command::ObjectiveName::logical` for the canonical contract."]
     pub fn logical(name: impl Into<String>) -> Self {
         let name = name.into();
         let direct = Self {
@@ -307,6 +321,7 @@ impl ObjectiveName {
     }
 
     /// The name actually emitted into `scoreboard` command text.
+    #[doc = "**API Contract:** Run `sand api show sand::command::ObjectiveName::as_str` for the canonical contract."]
     pub fn as_str(&self) -> &str {
         &self.emitted
     }
@@ -315,6 +330,7 @@ impl ObjectiveName {
     /// diagnostics. Returns the emitted name itself for
     /// [`ObjectiveName::new`]/[`ObjectiveName::try_dynamic`] values, which
     /// have no separate logical identifier.
+    #[doc = "**API Contract:** Run `sand api show sand::command::ObjectiveName::logical_name` for the canonical contract."]
     pub fn logical_name(&self) -> &str {
         self.logical.as_deref().unwrap_or(&self.emitted)
     }
@@ -322,6 +338,7 @@ impl ObjectiveName {
     /// `true` if this name was constructed via [`ObjectiveName::logical`]
     /// and its logical identifier differs from its emitted name (i.e. it
     /// was hashed rather than used verbatim).
+    #[doc = "**API Contract:** Run `sand api show sand::command::ObjectiveName::is_hashed` for the canonical contract."]
     pub fn is_hashed(&self) -> bool {
         self.logical.as_deref().is_some_and(|l| l != self.emitted)
     }
@@ -390,6 +407,7 @@ impl RenderCommand for ObjectiveName {
 
 // ── ScoreOp ───────────────────────────────────────────────────────────────────
 
+#[doc = "**API Contract:** Run `sand api show sand::command::ScoreOp` for the canonical contract."]
 /// Arithmetic operation for `scoreboard players operation`.
 ///
 /// # Examples
@@ -402,22 +420,31 @@ impl RenderCommand for ObjectiveName {
 /// ```
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ScoreOp {
+    #[doc = "**API Contract:** Run `sand api show sand::command::ScoreOp::Add` for the canonical contract."]
     /// `+=` — add source to target.
     Add,
+    #[doc = "**API Contract:** Run `sand api show sand::command::ScoreOp::Sub` for the canonical contract."]
     /// `-=` — subtract source from target.
     Sub,
+    #[doc = "**API Contract:** Run `sand api show sand::command::ScoreOp::Mul` for the canonical contract."]
     /// `*=` — multiply target by source. Truncates toward zero.
     Mul,
+    #[doc = "**API Contract:** Run `sand api show sand::command::ScoreOp::Div` for the canonical contract."]
     /// `/=` — divide target by source. Truncates toward zero.
     Div,
+    #[doc = "**API Contract:** Run `sand api show sand::command::ScoreOp::Mod` for the canonical contract."]
     /// `%=` — target becomes `target mod source`.
     Mod,
+    #[doc = "**API Contract:** Run `sand api show sand::command::ScoreOp::Set` for the canonical contract."]
     /// `=` — assign source's value to target.
     Set,
+    #[doc = "**API Contract:** Run `sand api show sand::command::ScoreOp::Min` for the canonical contract."]
     /// `<` — target becomes `min(target, source)`.
     Min,
+    #[doc = "**API Contract:** Run `sand api show sand::command::ScoreOp::Max` for the canonical contract."]
     /// `>` — target becomes `max(target, source)`.
     Max,
+    #[doc = "**API Contract:** Run `sand api show sand::command::ScoreOp::Swap` for the canonical contract."]
     /// `><` — swap: exchange the values of target and source.
     Swap,
 }
@@ -441,6 +468,7 @@ impl fmt::Display for ScoreOp {
 
 // ── ScoreCmp ──────────────────────────────────────────────────────────────────
 
+#[doc = "**API Contract:** Run `sand api show sand::command::ScoreCmp` for the canonical contract."]
 /// Comparison operator for `execute if score <a> <obj> <cmp> <b> <obj>`.
 ///
 /// # Examples
@@ -453,14 +481,19 @@ impl fmt::Display for ScoreOp {
 /// ```
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ScoreCmp {
+    #[doc = "**API Contract:** Run `sand api show sand::command::ScoreCmp::Eq` for the canonical contract."]
     /// `=` — left equals right.
     Eq,
+    #[doc = "**API Contract:** Run `sand api show sand::command::ScoreCmp::Lt` for the canonical contract."]
     /// `<` — left is strictly less than right.
     Lt,
+    #[doc = "**API Contract:** Run `sand api show sand::command::ScoreCmp::Le` for the canonical contract."]
     /// `<=` — left is less than or equal to right.
     Le,
+    #[doc = "**API Contract:** Run `sand api show sand::command::ScoreCmp::Gt` for the canonical contract."]
     /// `>` — left is strictly greater than right.
     Gt,
+    #[doc = "**API Contract:** Run `sand api show sand::command::ScoreCmp::Ge` for the canonical contract."]
     /// `>=` — left is greater than or equal to right.
     Ge,
 }
@@ -480,6 +513,7 @@ impl fmt::Display for ScoreCmp {
 
 // ── ScoreboardPlayersOperation ────────────────────────────────────────────────
 
+#[doc = "**API Contract:** Run `sand api show sand::command::ScoreboardPlayersOperation` for the canonical contract."]
 /// Result of [`scoreboard_players_operation`]. Implements [`Build`].
 #[derive(Debug, Clone)]
 #[must_use = "command builders must be rendered or collected"]
@@ -550,6 +584,7 @@ impl From<ScoreboardPlayersOperation> for String {
 /// address multiple score holders, but vanilla requires `source` to resolve to
 /// exactly one holder. For per-player copies or arithmetic, execute as the
 /// player set and use `@s` for both operands.
+#[doc = "**API Contract:** Run `sand api show sand::command::scoreboard_players_operation` for the canonical contract."]
 pub fn scoreboard_players_operation(
     targets: ScoreHolder,
     target_objective: ObjectiveName,
@@ -568,17 +603,26 @@ pub fn scoreboard_players_operation(
 
 // ── DisplaySlot ───────────────────────────────────────────────────────────────
 
+#[doc = "**API Contract:** Run `sand api show sand::command::DisplaySlot` for the canonical contract."]
 /// The display slot for `scoreboard objectives setdisplay`.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum DisplaySlot {
+    #[doc = "**API Contract:** Run `sand api show sand::command::DisplaySlot::List` for the canonical contract."]
     /// `list` — player tab-list.
     List,
+    #[doc = "**API Contract:** Run `sand api show sand::command::DisplaySlot::Sidebar` for the canonical contract."]
     /// `sidebar` — right-hand scoreboard sidebar.
     Sidebar,
+    #[doc = "**API Contract:** Run `sand api show sand::command::DisplaySlot::BelowName` for the canonical contract."]
     /// `belowname` — shown below the player name tag.
     BelowName,
+    #[doc = "**API Contract:** Run `sand api show sand::command::DisplaySlot::TeamSidebar` for the canonical contract."]
     /// `sidebar.team.<color>` — team-colored sidebar.
-    TeamSidebar(String),
+    TeamSidebar(
+        #[doc = "The `TeamSidebar` variant carries the value described by its variant semantics: `sidebar.team.<color>` — team-colored sidebar."]
+        #[doc = "**API Contract:** Run `sand api show sand::command::DisplaySlot::TeamSidebar::0` for the canonical contract."]
+        String,
+    ),
 }
 
 impl fmt::Display for DisplaySlot {
@@ -594,6 +638,7 @@ impl fmt::Display for DisplaySlot {
 
 // ── Objective ─────────────────────────────────────────────────────────────────
 
+#[doc = "**API Contract:** Run `sand api show sand::command::Objective` for the canonical contract."]
 /// A named Minecraft scoreboard objective.
 ///
 /// # Declaration
@@ -610,6 +655,7 @@ pub struct Objective {
 
 impl Objective {
     /// Const-compatible constructor for `static`/`const` declarations.
+    #[doc = "**API Contract:** Run `sand api show sand::command::Objective::new` for the canonical contract."]
     pub const fn new(name: &'static str) -> Self {
         Self {
             name: ObjectiveName::new(name),
@@ -620,6 +666,7 @@ impl Objective {
     ///
     /// Validation is deferred until fallible rendering/export. Prefer
     /// [`try_dynamic`](Self::try_dynamic) when handling user input.
+    #[doc = "**API Contract:** Run `sand api show sand::command::Objective::dynamic` for the canonical contract."]
     pub fn dynamic(name: impl Into<String>) -> Self {
         Self {
             name: ObjectiveName {
@@ -630,6 +677,7 @@ impl Objective {
     }
 
     /// Fallible runtime constructor for normal user-provided objective names.
+    #[doc = "**API Contract:** Run `sand api show sand::command::Objective::try_dynamic` for the canonical contract."]
     pub fn try_dynamic(name: impl Into<String>) -> CommandResult<Self> {
         Ok(Self {
             name: ObjectiveName::try_dynamic(name)?,
@@ -637,12 +685,14 @@ impl Objective {
     }
 
     /// Return the objective name as a string.
+    #[doc = "**API Contract:** Run `sand api show sand::command::Objective::name` for the canonical contract."]
     pub fn name(&self) -> &str {
         self.name.as_str()
     }
 
     /// Validate this objective's name against Minecraft's scoreboard-objective
     /// grammar (non-empty, no whitespace/control characters, ≤16 characters).
+    #[doc = "**API Contract:** Run `sand api show sand::command::Objective::try_validate` for the canonical contract."]
     pub fn try_validate(&self) -> CommandResult<()> {
         self.name.validate(&CommandProfile::unprofiled())
     }
@@ -655,12 +705,14 @@ impl Objective {
     // callers with already-trusted, statically valid names/holders.
 
     /// Validated `scoreboard objectives add <name> <criterion>`.
+    #[doc = "**API Contract:** Run `sand api show sand::command::Objective::try_create` for the canonical contract."]
     pub fn try_create(&self, criterion: impl Into<String>) -> CommandResult<String> {
         self.try_validate()?;
         Ok(self.create(criterion))
     }
 
     /// Validated `scoreboard players set <holder> <obj> <value>`.
+    #[doc = "**API Contract:** Run `sand api show sand::command::Objective::try_set` for the canonical contract."]
     pub fn try_set(&self, holder: ScoreHolder, value: i32) -> CommandResult<String> {
         self.try_validate()?;
         holder.validate(&CommandProfile::unprofiled())?;
@@ -668,6 +720,7 @@ impl Objective {
     }
 
     /// Validated `scoreboard players get <holder> <obj>`.
+    #[doc = "**API Contract:** Run `sand api show sand::command::Objective::try_get` for the canonical contract."]
     pub fn try_get(&self, holder: ScoreHolder) -> CommandResult<String> {
         self.try_validate()?;
         holder.validate(&CommandProfile::unprofiled())?;
@@ -675,6 +728,7 @@ impl Objective {
     }
 
     /// Validated `scoreboard players add <holder> <obj> <amount>`.
+    #[doc = "**API Contract:** Run `sand api show sand::command::Objective::try_add` for the canonical contract."]
     pub fn try_add(&self, holder: ScoreHolder, amount: i32) -> CommandResult<String> {
         self.try_validate()?;
         holder.validate(&CommandProfile::unprofiled())?;
@@ -682,6 +736,7 @@ impl Objective {
     }
 
     /// Validated `scoreboard players remove <holder> <obj> <amount>`.
+    #[doc = "**API Contract:** Run `sand api show sand::command::Objective::try_subtract` for the canonical contract."]
     pub fn try_subtract(&self, holder: ScoreHolder, amount: i32) -> CommandResult<String> {
         self.try_validate()?;
         holder.validate(&CommandProfile::unprofiled())?;
@@ -689,6 +744,7 @@ impl Objective {
     }
 
     /// Validated `scoreboard players reset <holder> <obj>`.
+    #[doc = "**API Contract:** Run `sand api show sand::command::Objective::try_reset` for the canonical contract."]
     pub fn try_reset(&self, holder: ScoreHolder) -> CommandResult<String> {
         self.try_validate()?;
         holder.validate(&CommandProfile::unprofiled())?;
@@ -699,6 +755,7 @@ impl Objective {
     ///
     /// Reuses [`ScoreboardPlayersOperation::validate`], which additionally
     /// requires `rhs` to resolve to exactly one score holder.
+    #[doc = "**API Contract:** Run `sand api show sand::command::Objective::try_operation` for the canonical contract."]
     pub fn try_operation(
         &self,
         lhs: ScoreHolder,
@@ -715,6 +772,7 @@ impl Objective {
     /// `execute store result score <holder> <obj> run data get storage <storage_id> <key>`
     ///
     /// Load an integer value from a storage namespace into this objective.
+    #[doc = "**API Contract:** Run `sand api show sand::command::Objective::load_from` for the canonical contract."]
     pub fn load_from(
         &self,
         holder: ScoreHolder,
@@ -733,6 +791,7 @@ impl Objective {
     /// `execute store result score <holder> <obj> run data get storage <storage_id> <key> <scale>`
     ///
     /// Load a float NBT value, multiplied by `scale`, into this objective.
+    #[doc = "**API Contract:** Run `sand api show sand::command::Objective::load_from_scaled` for the canonical contract."]
     pub fn load_from_scaled(
         &self,
         holder: ScoreHolder,
@@ -752,6 +811,7 @@ impl Objective {
     // ── Objective lifecycle ────────────────────────────────────────────────
 
     /// `scoreboard objectives add <name> <criterion>` — create this objective.
+    #[doc = "**API Contract:** Run `sand api show sand::command::Objective::create` for the canonical contract."]
     pub fn create(&self, criterion: impl Into<String>) -> String {
         format!(
             "scoreboard objectives add {} {}",
@@ -761,6 +821,7 @@ impl Objective {
     }
 
     /// `scoreboard objectives add <name> <criterion> <displayName>` — create with a display name.
+    #[doc = "**API Contract:** Run `sand api show sand::command::Objective::create_with_display` for the canonical contract."]
     pub fn create_with_display(
         &self,
         criterion: impl Into<String>,
@@ -775,21 +836,25 @@ impl Objective {
     }
 
     /// `scoreboard objectives remove <name>` — delete this objective.
+    #[doc = "**API Contract:** Run `sand api show sand::command::Objective::remove` for the canonical contract."]
     pub fn remove(&self) -> String {
         format!("scoreboard objectives remove {}", self.name)
     }
 
     /// `scoreboard objectives setdisplay <slot> <name>` — show in a display slot.
+    #[doc = "**API Contract:** Run `sand api show sand::command::Objective::set_display` for the canonical contract."]
     pub fn set_display(&self, slot: DisplaySlot) -> String {
         format!("scoreboard objectives setdisplay {slot} {}", self.name)
     }
 
     /// `scoreboard objectives setdisplay <slot>` — clear the given display slot.
+    #[doc = "**API Contract:** Run `sand api show sand::command::Objective::clear_display` for the canonical contract."]
     pub fn clear_display(slot: DisplaySlot) -> String {
         format!("scoreboard objectives setdisplay {slot}")
     }
 
     /// `scoreboard objectives modify <name> displayname <text>` — change the display name.
+    #[doc = "**API Contract:** Run `sand api show sand::command::Objective::modify_display_name` for the canonical contract."]
     pub fn modify_display_name(&self, display: impl Into<String>) -> String {
         format!(
             "scoreboard objectives modify {} displayname {}",
@@ -799,6 +864,7 @@ impl Objective {
     }
 
     /// `scoreboard objectives modify <name> rendertype <type>` — change render type.
+    #[doc = "**API Contract:** Run `sand api show sand::command::Objective::modify_render_type` for the canonical contract."]
     pub fn modify_render_type(&self, render_type: impl Into<String>) -> String {
         format!(
             "scoreboard objectives modify {} rendertype {}",
@@ -810,21 +876,25 @@ impl Objective {
     // ── Direct manipulation ────────────────────────────────────────────────
 
     /// `scoreboard players set <holder> <obj> <value>`
+    #[doc = "**API Contract:** Run `sand api show sand::command::Objective::set` for the canonical contract."]
     pub fn set(&self, holder: ScoreHolder, value: i32) -> String {
         format!("scoreboard players set {} {} {}", holder, self.name, value)
     }
 
     /// `scoreboard players get <holder> <obj>`
+    #[doc = "**API Contract:** Run `sand api show sand::command::Objective::get` for the canonical contract."]
     pub fn get(&self, holder: ScoreHolder) -> String {
         format!("scoreboard players get {} {}", holder, self.name)
     }
 
     /// `scoreboard players add <holder> <obj> <amount>`
+    #[doc = "**API Contract:** Run `sand api show sand::command::Objective::add` for the canonical contract."]
     pub fn add(&self, holder: ScoreHolder, amount: i32) -> String {
         format!("scoreboard players add {} {} {}", holder, self.name, amount)
     }
 
     /// `scoreboard players remove <holder> <obj> <amount>`
+    #[doc = "**API Contract:** Run `sand api show sand::command::Objective::subtract` for the canonical contract."]
     pub fn subtract(&self, holder: ScoreHolder, amount: i32) -> String {
         format!(
             "scoreboard players remove {} {} {}",
@@ -833,6 +903,7 @@ impl Objective {
     }
 
     /// `scoreboard players reset <holder> <obj>`
+    #[doc = "**API Contract:** Run `sand api show sand::command::Objective::reset` for the canonical contract."]
     pub fn reset(&self, holder: ScoreHolder) -> String {
         format!("scoreboard players reset {} {}", holder, self.name)
     }
@@ -840,6 +911,7 @@ impl Objective {
     // ── Arithmetic ────────────────────────────────────────────────────────
 
     /// `scoreboard players operation <lhs> <obj> <op> <rhs> <rhs_obj>`
+    #[doc = "**API Contract:** Run `sand api show sand::command::Objective::operation` for the canonical contract."]
     pub fn operation(
         &self,
         lhs: ScoreHolder,
@@ -854,16 +926,19 @@ impl Objective {
     }
 
     /// `scoreboard players enable <holder> <obj>` — enable a trigger objective.
+    #[doc = "**API Contract:** Run `sand api show sand::command::Objective::enable` for the canonical contract."]
     pub fn enable(&self, holder: ScoreHolder) -> String {
         format!("scoreboard players enable {} {}", holder, self.name)
     }
 
     /// `scoreboard players set * <obj> <value>` — set score for ALL tracked players.
+    #[doc = "**API Contract:** Run `sand api show sand::command::Objective::set_all` for the canonical contract."]
     pub fn set_all(&self, value: i32) -> String {
         format!("scoreboard players set * {} {}", self.name, value)
     }
 
     /// `scoreboard players reset * <obj>` — reset scores for ALL tracked players.
+    #[doc = "**API Contract:** Run `sand api show sand::command::Objective::reset_all` for the canonical contract."]
     pub fn reset_all(&self) -> String {
         format!("scoreboard players reset * {}", self.name)
     }
@@ -871,46 +946,55 @@ impl Objective {
     // ── Named operation shortcuts ──────────────────────────────────────────
 
     /// `scoreboard players operation <lhs> <obj> += <rhs> <rhs_obj>`
+    #[doc = "**API Contract:** Run `sand api show sand::command::Objective::add_from` for the canonical contract."]
     pub fn add_from(&self, lhs: ScoreHolder, rhs: ScoreHolder, rhs_obj: &Objective) -> String {
         self.operation(lhs, ScoreOp::Add, rhs, rhs_obj)
     }
 
     /// `scoreboard players operation <lhs> <obj> -= <rhs> <rhs_obj>`
+    #[doc = "**API Contract:** Run `sand api show sand::command::Objective::sub_from` for the canonical contract."]
     pub fn sub_from(&self, lhs: ScoreHolder, rhs: ScoreHolder, rhs_obj: &Objective) -> String {
         self.operation(lhs, ScoreOp::Sub, rhs, rhs_obj)
     }
 
     /// `scoreboard players operation <lhs> <obj> *= <rhs> <rhs_obj>`
+    #[doc = "**API Contract:** Run `sand api show sand::command::Objective::mul_from` for the canonical contract."]
     pub fn mul_from(&self, lhs: ScoreHolder, rhs: ScoreHolder, rhs_obj: &Objective) -> String {
         self.operation(lhs, ScoreOp::Mul, rhs, rhs_obj)
     }
 
     /// `scoreboard players operation <lhs> <obj> /= <rhs> <rhs_obj>`
+    #[doc = "**API Contract:** Run `sand api show sand::command::Objective::div_from` for the canonical contract."]
     pub fn div_from(&self, lhs: ScoreHolder, rhs: ScoreHolder, rhs_obj: &Objective) -> String {
         self.operation(lhs, ScoreOp::Div, rhs, rhs_obj)
     }
 
     /// `scoreboard players operation <lhs> <obj> %= <rhs> <rhs_obj>`
+    #[doc = "**API Contract:** Run `sand api show sand::command::Objective::mod_from` for the canonical contract."]
     pub fn mod_from(&self, lhs: ScoreHolder, rhs: ScoreHolder, rhs_obj: &Objective) -> String {
         self.operation(lhs, ScoreOp::Mod, rhs, rhs_obj)
     }
 
     /// `scoreboard players operation <lhs> <obj> = <rhs> <rhs_obj>`
+    #[doc = "**API Contract:** Run `sand api show sand::command::Objective::copy_from` for the canonical contract."]
     pub fn copy_from(&self, lhs: ScoreHolder, rhs: ScoreHolder, rhs_obj: &Objective) -> String {
         self.operation(lhs, ScoreOp::Set, rhs, rhs_obj)
     }
 
     /// `scoreboard players operation <lhs> <obj> < <rhs> <rhs_obj>`
+    #[doc = "**API Contract:** Run `sand api show sand::command::Objective::min_from` for the canonical contract."]
     pub fn min_from(&self, lhs: ScoreHolder, rhs: ScoreHolder, rhs_obj: &Objective) -> String {
         self.operation(lhs, ScoreOp::Min, rhs, rhs_obj)
     }
 
     /// `scoreboard players operation <lhs> <obj> > <rhs> <rhs_obj>`
+    #[doc = "**API Contract:** Run `sand api show sand::command::Objective::max_from` for the canonical contract."]
     pub fn max_from(&self, lhs: ScoreHolder, rhs: ScoreHolder, rhs_obj: &Objective) -> String {
         self.operation(lhs, ScoreOp::Max, rhs, rhs_obj)
     }
 
     /// `scoreboard players operation <lhs> <obj> >< <rhs> <rhs_obj>`
+    #[doc = "**API Contract:** Run `sand api show sand::command::Objective::swap_with` for the canonical contract."]
     pub fn swap_with(&self, lhs: ScoreHolder, rhs: ScoreHolder, rhs_obj: &Objective) -> String {
         self.operation(lhs, ScoreOp::Swap, rhs, rhs_obj)
     }
@@ -918,11 +1002,13 @@ impl Objective {
     // ── Execute conditions ─────────────────────────────────────────────────
 
     /// Return a condition fragment `if score <holder> <obj> matches <range>`.
+    #[doc = "**API Contract:** Run `sand api show sand::command::Objective::if_matches` for the canonical contract."]
     pub fn if_matches(&self, holder: ScoreHolder, range: impl Into<String>) -> String {
         format!("if score {} {} matches {}", holder, self.name, range.into())
     }
 
     /// Return a condition fragment `unless score <holder> <obj> matches <range>`.
+    #[doc = "**API Contract:** Run `sand api show sand::command::Objective::unless_matches` for the canonical contract."]
     pub fn unless_matches(&self, holder: ScoreHolder, range: impl Into<String>) -> String {
         format!(
             "unless score {} {} matches {}",
@@ -935,11 +1021,13 @@ impl Objective {
     // ── Display ───────────────────────────────────────────────────────────
 
     /// Create a `TextComponent` displaying this objective's value for an entity selector.
+    #[doc = "**API Contract:** Run `sand api show sand::command::Objective::as_text` for the canonical contract."]
     pub fn as_text(&self, selector: Selector) -> TextComponent {
         TextComponent::score(selector.to_string(), self.name())
     }
 
     /// Create a `TextComponent` displaying a fake player's score in this objective.
+    #[doc = "**API Contract:** Run `sand api show sand::command::Objective::as_text_fake` for the canonical contract."]
     pub fn as_text_fake(&self, fake_player: impl Into<String>) -> TextComponent {
         TextComponent::score(fake_player, self.name())
     }

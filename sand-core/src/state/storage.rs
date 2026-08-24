@@ -15,6 +15,7 @@ pub use sand_commands::{
 
 // ── Storage locations ────────────────────────────────────────────────────────
 
+#[doc = "**API Contract:** Run `sand api show sand::data::StorageLocation` for the canonical contract."]
 /// A typed `data storage <id>` target.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct StorageLocation {
@@ -22,14 +23,20 @@ pub struct StorageLocation {
 }
 
 impl StorageLocation {
+    /// Creates a command-storage location from a validated resource identifier.
+    #[doc = "**API Contract:** Run `sand api show sand::data::StorageLocation::new` for the canonical contract."]
     pub fn new(id: ResourceLocation) -> Self {
         Self { id }
     }
 
+    /// Parses and validates a namespaced command-storage identifier.
+    #[doc = "**API Contract:** Run `sand api show sand::data::StorageLocation::parse` for the canonical contract."]
     pub fn parse(id: impl AsRef<str>) -> sand_components::Result<Self> {
         Ok(Self::new(id.as_ref().parse()?))
     }
 
+    /// Borrows the validated resource identifier for this storage location.
+    #[doc = "**API Contract:** Run `sand api show sand::data::StorageLocation::as_resource_location` for the canonical contract."]
     pub fn as_resource_location(&self) -> &ResourceLocation {
         &self.id
     }
@@ -47,6 +54,7 @@ impl From<StorageLocation> for String {
     }
 }
 
+#[doc = "**API Contract:** Run `sand api show sand::data::EntityNbt` for the canonical contract."]
 /// A typed entity NBT target.
 #[derive(Debug, Clone)]
 pub struct EntityNbt {
@@ -54,15 +62,20 @@ pub struct EntityNbt {
 }
 
 impl EntityNbt {
+    /// Creates an entity NBT root bound to the supplied selector.
+    #[doc = "**API Contract:** Run `sand api show sand::data::EntityNbt::target` for the canonical contract."]
     pub fn target(target: Selector) -> Self {
         Self { target }
     }
 
+    /// Extends this typed NBT reference with the supplied path selector.
+    #[doc = "**API Contract:** Run `sand api show sand::data::EntityNbt::path` for the canonical contract."]
     pub fn path<T>(&self, path: impl Into<NbtPath>) -> NbtRef<T> {
         NbtRef::new(DataTarget::entity(self.target.clone()), path.into())
     }
 }
 
+#[doc = "**API Contract:** Run `sand api show sand::data::BlockNbt` for the canonical contract."]
 /// A typed block entity NBT target.
 #[derive(Debug, Clone)]
 pub struct BlockNbt {
@@ -70,20 +83,26 @@ pub struct BlockNbt {
 }
 
 impl BlockNbt {
+    /// Creates a block NBT root bound to the supplied coordinates.
+    #[doc = "**API Contract:** Run `sand api show sand::data::BlockNbt::pos` for the canonical contract."]
     pub fn pos(pos: BlockPos) -> Self {
         Self { pos }
     }
 
+    /// Extends this typed NBT reference with the supplied path selector.
+    #[doc = "**API Contract:** Run `sand api show sand::data::BlockNbt::path` for the canonical contract."]
     pub fn path<T>(&self, path: impl Into<NbtPath>) -> NbtRef<T> {
         NbtRef::new(DataTarget::block(self.pos.clone()), path.into())
     }
 }
 
+#[doc = "**API Contract:** Run `sand api show sand::data::NbtLocation` for the canonical contract."]
 /// Compatibility name for the canonical command-layer [`DataTarget`].
 pub type NbtLocation = DataTarget;
 
 // ── StorageSchema / StorageField ─────────────────────────────────────────────
 
+#[doc = "**API Contract:** Run `sand api show sand::data::StorageSchema` for the canonical contract."]
 /// A typed schema rooted at a datapack storage location and NBT path.
 #[derive(Debug)]
 pub struct StorageSchema<T> {
@@ -101,6 +120,8 @@ impl<T> Clone for StorageSchema<T> {
 impl<T> Copy for StorageSchema<T> {}
 
 impl<T> StorageSchema<T> {
+    /// Defines a typed schema at a command-storage resource and root NBT path.
+    #[doc = "**API Contract:** Run `sand api show sand::data::StorageSchema::new` for the canonical contract."]
     pub const fn new(storage: &'static str, root: &'static str) -> Self {
         Self {
             storage,
@@ -109,14 +130,20 @@ impl<T> StorageSchema<T> {
         }
     }
 
+    /// Returns the namespaced command-storage identifier used by this schema.
+    #[doc = "**API Contract:** Run `sand api show sand::data::StorageSchema::storage` for the canonical contract."]
     pub const fn storage(&self) -> &'static str {
         self.storage
     }
 
+    /// Returns the schema's root NBT path.
+    #[doc = "**API Contract:** Run `sand api show sand::data::StorageSchema::root_path` for the canonical contract."]
     pub const fn root_path(&self) -> &'static str {
         self.root
     }
 
+    /// Extends this typed NBT reference with the supplied field selector.
+    #[doc = "**API Contract:** Run `sand api show sand::data::StorageSchema::field` for the canonical contract."]
     pub const fn field<U>(&self, field: &'static str) -> StorageField<T, U> {
         StorageField {
             storage: self.storage,
@@ -127,40 +154,57 @@ impl<T> StorageSchema<T> {
         }
     }
 
+    /// Extends this typed NBT reference with the supplied path selector.
+    #[doc = "**API Contract:** Run `sand api show sand::data::StorageSchema::path` for the canonical contract."]
     pub fn path(&self) -> NbtRef<T> {
         Nbt::storage(self.storage).typed_path(self.root)
     }
 
+    /// Returns the typed NBT location targeted by this reference.
+    #[doc = "**API Contract:** Run `sand api show sand::data::StorageSchema::location` for the canonical contract."]
     pub fn location(&self) -> StorageLocation {
         StorageLocation::parse(self.storage)
             .expect("StorageSchema::new requires a valid storage resource location")
     }
 
+    /// Builds the typed Minecraft data query for get.
+    #[doc = "**API Contract:** Run `sand api show sand::data::StorageSchema::get` for the canonical contract."]
     pub fn get(&self) -> String {
         self.path().get().to_string()
     }
 
+    /// Builds the typed Minecraft data modification for set.
+    #[doc = "**API Contract:** Run `sand api show sand::data::StorageSchema::set` for the canonical contract."]
     pub fn set(&self, value: impl Into<SnbtValue>) -> String {
         self.path().set(value).to_string()
     }
 
+    /// Provides the explicit raw SNBT escape hatch after the caller accepts validation responsibility.
+    #[doc = "**API Contract:** Run `sand api show sand::data::StorageSchema::set_raw_snbt` for the canonical contract."]
     pub fn set_raw_snbt(&self, raw: RawSnbt) -> String {
         self.path().set_raw(raw.to_string()).to_string()
     }
 
+    /// Builds the typed Minecraft data modification for merge.
+    #[doc = "**API Contract:** Run `sand api show sand::data::StorageSchema::merge` for the canonical contract."]
     pub fn merge(&self, value: impl Into<SnbtValue>) -> String {
         self.path().merge(value).to_string()
     }
 
+    /// Builds the typed Minecraft data modification for remove.
+    #[doc = "**API Contract:** Run `sand api show sand::data::StorageSchema::remove` for the canonical contract."]
     pub fn remove(&self) -> String {
         self.path().remove().to_string()
     }
 
+    /// Builds the typed Minecraft data query for exists.
+    #[doc = "**API Contract:** Run `sand api show sand::data::StorageSchema::exists` for the canonical contract."]
     pub fn exists(&self) -> Condition {
         Condition::nbt_exists(DataTarget::storage(self.storage), NbtPath::new(self.root))
     }
 }
 
+#[doc = "**API Contract:** Run `sand api show sand::data::StorageField` for the canonical contract."]
 /// A typed field inside a [`StorageSchema`].
 #[derive(Debug)]
 pub struct StorageField<Schema, T> {
@@ -180,28 +224,40 @@ impl<Schema, T> Clone for StorageField<Schema, T> {
 impl<Schema, T> Copy for StorageField<Schema, T> {}
 
 impl<Schema, T> StorageField<Schema, T> {
+    /// Creates a typed field belonging to the supplied storage schema.
+    #[doc = "**API Contract:** Run `sand api show sand::data::StorageField::new` for the canonical contract."]
     pub const fn new(schema: &StorageSchema<Schema>, field: &'static str) -> Self {
         schema.field(field)
     }
 
+    /// Returns the namespaced command-storage identifier containing this field.
+    #[doc = "**API Contract:** Run `sand api show sand::data::StorageField::storage` for the canonical contract."]
     pub const fn storage(&self) -> &'static str {
         self.storage
     }
 
+    /// Returns the containing schema's root NBT path.
+    #[doc = "**API Contract:** Run `sand api show sand::data::StorageField::root_path` for the canonical contract."]
     pub const fn root_path(&self) -> &'static str {
         self.root
     }
 
+    /// Returns this field's name relative to its schema root.
+    #[doc = "**API Contract:** Run `sand api show sand::data::StorageField::field_name` for the canonical contract."]
     pub const fn field_name(&self) -> &'static str {
         self.field
     }
 
+    /// Extends this typed NBT reference with the supplied path selector.
+    #[doc = "**API Contract:** Run `sand api show sand::data::StorageField::path` for the canonical contract."]
     pub fn path(&self) -> NbtRef<T> {
         Nbt::storage(self.storage)
             .typed_path::<T>(self.root)
             .field(self.field)
     }
 
+    /// Returns the complete rendered NBT path to this field.
+    #[doc = "**API Contract:** Run `sand api show sand::data::StorageField::full_path` for the canonical contract."]
     pub fn full_path(&self) -> String {
         self.path().path_value().as_str().to_string()
     }
@@ -217,39 +273,56 @@ impl<Schema, T> StorageField<Schema, T> {
     /// let path = PlayerMagic::mana().field_path();
     /// let cmd  = format!("data modify storage powers:players {path} set value 100");
     /// ```
+    #[doc = "**API Contract:** Run `sand api show sand::data::StorageField::field_path` for the canonical contract."]
     pub fn field_path(&self) -> String {
         self.full_path()
     }
 
+    /// Returns the typed NBT location targeted by this reference.
+    #[doc = "**API Contract:** Run `sand api show sand::data::StorageField::location` for the canonical contract."]
     pub fn location(&self) -> StorageLocation {
         StorageLocation::parse(self.storage)
             .expect("StorageField requires a valid storage resource location")
     }
 
+    /// Builds the typed Minecraft data query for get.
+    #[doc = "**API Contract:** Run `sand api show sand::data::StorageField::get` for the canonical contract."]
     pub fn get(&self) -> String {
         self.path().get().to_string()
     }
 
+    /// Builds the typed Minecraft data query for get scaled.
+    #[doc = "**API Contract:** Run `sand api show sand::data::StorageField::get_scaled` for the canonical contract."]
     pub fn get_scaled(&self, scale: f64) -> String {
         self.path().get_scaled(scale).to_string()
     }
 
+    /// Builds the typed Minecraft data modification for set.
+    #[doc = "**API Contract:** Run `sand api show sand::data::StorageField::set` for the canonical contract."]
     pub fn set(&self, value: impl Into<SnbtValue>) -> String {
         self.set_value(value.into())
     }
 
+    /// Builds the typed Minecraft data modification for set value.
+    #[doc = "**API Contract:** Run `sand api show sand::data::StorageField::set_value` for the canonical contract."]
     pub fn set_value(&self, value: SnbtValue) -> String {
         self.path().set(value).to_string()
     }
 
+    /// Provides the explicit raw SNBT escape hatch after the caller accepts validation responsibility.
+    #[doc = "**API Contract:** Run `sand api show sand::data::StorageField::set_raw_snbt` for the canonical contract."]
     pub fn set_raw_snbt(&self, raw: RawSnbt) -> String {
         self.path().set_raw(raw.to_string()).to_string()
     }
 
+    /// Builds the typed Minecraft data modification for remove.
+    #[doc = "**API Contract:** Run `sand api show sand::data::StorageField::remove` for the canonical contract."]
     pub fn remove(&self) -> String {
         self.path().remove().to_string()
     }
 
+    /// Builds the typed Minecraft data query for exists.
+    #[doc = "**API Contract:** Run `sand api show sand::data::StorageField::exists` for the canonical contract."]
     pub fn exists(&self) -> Condition {
         Condition::nbt_exists(
             DataTarget::storage(self.storage),
@@ -257,6 +330,8 @@ impl<Schema, T> StorageField<Schema, T> {
         )
     }
 
+    /// Builds the typed Minecraft data modification for copy from.
+    #[doc = "**API Contract:** Run `sand api show sand::data::StorageField::copy_from` for the canonical contract."]
     pub fn copy_from<OtherSchema, U>(&self, source: StorageField<OtherSchema, U>) -> String {
         self.path().copy_from(&source.path()).to_string()
     }
@@ -268,20 +343,27 @@ impl<Schema, T> StorageField<Schema, T> {
     /// yourself; pass [`Selector::self_()`] from inside an
     /// [`crate::participant::EntityParticipant::execute_at`] callback (or any
     /// other typed selector) instead.
+    #[doc = "**API Contract:** Run `sand api show sand::data::StorageField::copy_from_entity` for the canonical contract."]
     pub fn copy_from_entity(&self, entity: Selector, src_path: impl Into<String>) -> String {
         let source = Nbt::entity(entity).path(src_path.into());
         self.path().copy_from(&source).to_string()
     }
 
+    /// Builds the typed Minecraft data modification for copy from path.
+    #[doc = "**API Contract:** Run `sand api show sand::data::StorageField::copy_from_path` for the canonical contract."]
     pub fn copy_from_path(&self, source_storage: StorageLocation, source_path: NbtPath) -> String {
         let source = Nbt::storage(source_storage.to_string()).path(source_path);
         self.path().copy_from(&source).to_string()
     }
 
+    /// Builds the typed Minecraft data modification for append.
+    #[doc = "**API Contract:** Run `sand api show sand::data::StorageField::append` for the canonical contract."]
     pub fn append(&self, value: impl Into<SnbtValue>) -> String {
         self.path().append(value).to_string()
     }
 
+    /// Builds the typed Minecraft data modification for merge.
+    #[doc = "**API Contract:** Run `sand api show sand::data::StorageField::merge` for the canonical contract."]
     pub fn merge(&self, value: impl Into<SnbtValue>) -> String {
         self.path().merge(value).to_string()
     }
@@ -289,6 +371,7 @@ impl<Schema, T> StorageField<Schema, T> {
 
 // ── StorageVar ────────────────────────────────────────────────────────────────
 
+#[doc = "**API Contract:** Run `sand api show sand::data::StorageVar` for the canonical contract."]
 /// A typed NBT storage variable.
 ///
 /// Declare once as a `static` and use throughout your datapack. The type
@@ -318,6 +401,7 @@ pub struct StorageVar<T = serde_json::Value> {
 
 impl<T> StorageVar<T> {
     /// Create a new `StorageVar` pointing at `<storage> <path>`.
+    #[doc = "**API Contract:** Run `sand api show sand::data::StorageVar::new` for the canonical contract."]
     pub const fn new(storage: &'static str, path: &'static str) -> Self {
         Self {
             storage,
@@ -327,16 +411,19 @@ impl<T> StorageVar<T> {
     }
 
     /// The storage namespace string (e.g. `"sand:data"`).
+    #[doc = "**API Contract:** Run `sand api show sand::data::StorageVar::storage` for the canonical contract."]
     pub fn storage(&self) -> &'static str {
         self.storage
     }
 
     /// The path string (e.g. `"player.mana"`).
+    #[doc = "**API Contract:** Run `sand api show sand::data::StorageVar::path` for the canonical contract."]
     pub fn path(&self) -> &'static str {
         self.path
     }
 
     /// Build an [`NbtPath`] for this variable.
+    #[doc = "**API Contract:** Run `sand api show sand::data::StorageVar::as_path` for the canonical contract."]
     pub fn as_path(&self) -> NbtRef<T> {
         Nbt::storage(self.storage).typed_path(self.path)
     }
@@ -344,11 +431,13 @@ impl<T> StorageVar<T> {
     // ── Read ──────────────────────────────────────────────────────────────────
 
     /// `data get storage <storage> <path>` — read the value.
+    #[doc = "**API Contract:** Run `sand api show sand::data::StorageVar::get` for the canonical contract."]
     pub fn get(&self) -> String {
         self.as_path().get().to_string()
     }
 
     /// `data get storage <storage> <path> <scale>` — read a numeric value with scale.
+    #[doc = "**API Contract:** Run `sand api show sand::data::StorageVar::get_scaled` for the canonical contract."]
     pub fn get_scaled(&self, scale: f64) -> String {
         self.as_path().get_scaled(scale).to_string()
     }
@@ -356,46 +445,55 @@ impl<T> StorageVar<T> {
     // ── Write ─────────────────────────────────────────────────────────────────
 
     /// `data modify storage <storage> <path> set value <snbt>`.
+    #[doc = "**API Contract:** Run `sand api show sand::data::StorageVar::set_value` for the canonical contract."]
     pub fn set_value(&self, value: impl Into<SnbtValue>) -> String {
         self.as_path().set(value).to_string()
     }
 
     /// `data modify storage <storage> <path> set value <snbt>` — raw SNBT escape hatch.
+    #[doc = "**API Contract:** Run `sand api show sand::data::StorageVar::set_raw_snbt` for the canonical contract."]
     pub fn set_raw_snbt(&self, snbt: RawSnbt) -> String {
         self.as_path().set_raw(snbt.to_string()).to_string()
     }
 
     /// Set an integer value.
+    #[doc = "**API Contract:** Run `sand api show sand::data::StorageVar::set_int` for the canonical contract."]
     pub fn set_int(&self, v: i32) -> String {
         self.set_value(v)
     }
 
     /// Set a long value (`<v>L` SNBT).
+    #[doc = "**API Contract:** Run `sand api show sand::data::StorageVar::set_long` for the canonical contract."]
     pub fn set_long(&self, v: i64) -> String {
         self.set_value(v)
     }
 
     /// Set a float value (`<v>f` SNBT).
+    #[doc = "**API Contract:** Run `sand api show sand::data::StorageVar::set_float` for the canonical contract."]
     pub fn set_float(&self, v: f32) -> String {
         self.set_value(v)
     }
 
     /// Set a double value (`<v>d` SNBT).
+    #[doc = "**API Contract:** Run `sand api show sand::data::StorageVar::set_double` for the canonical contract."]
     pub fn set_double(&self, v: f64) -> String {
         self.set_value(v)
     }
 
     /// Set a string value (auto-quoted, backslash-escaping inner quotes).
+    #[doc = "**API Contract:** Run `sand api show sand::data::StorageVar::set_string` for the canonical contract."]
     pub fn set_string(&self, v: &str) -> String {
         self.set_value(v)
     }
 
     /// Set a boolean as a byte (0b or 1b SNBT).
+    #[doc = "**API Contract:** Run `sand api show sand::data::StorageVar::set_bool` for the canonical contract."]
     pub fn set_bool(&self, v: bool) -> String {
         self.set_value(v)
     }
 
     /// `data modify storage <storage> <path> set from storage <src> <src_path>` — copy.
+    #[doc = "**API Contract:** Run `sand api show sand::data::StorageVar::copy_from` for the canonical contract."]
     pub fn copy_from(&self, src_storage: &str, src_path: &str) -> String {
         let source = Nbt::storage(src_storage).path(src_path);
         self.as_path().copy_from(&source).to_string()
@@ -404,11 +502,13 @@ impl<T> StorageVar<T> {
     // ── Delete / exists ───────────────────────────────────────────────────────
 
     /// `data remove storage <storage> <path>` — remove the tag.
+    #[doc = "**API Contract:** Run `sand api show sand::data::StorageVar::remove` for the canonical contract."]
     pub fn remove(&self) -> String {
         self.as_path().remove().to_string()
     }
 
     /// Build a `Condition` that checks `if data storage <storage> <path>`.
+    #[doc = "**API Contract:** Run `sand api show sand::data::StorageVar::exists` for the canonical contract."]
     pub fn exists(&self) -> Condition {
         Condition::nbt_exists(DataTarget::storage(self.storage), NbtPath::new(self.path))
     }

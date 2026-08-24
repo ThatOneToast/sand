@@ -54,10 +54,7 @@ fn revoke_true() -> bool {
 }
 
 fn on_held_item_check_tick() -> Option<sand_core::events::TickEventDispatch> {
-    match OnHeldItemCheck::dispatch().into() {
-        SandEventDispatch::Tick(tick) => Some(tick),
-        _ => None,
-    }
+    sand_core::__private::event_dispatch_tick(OnHeldItemCheck::dispatch().into())
 }
 fn type_id() -> TypeId {
     TypeId::of::<OnHeldItemCheck>()

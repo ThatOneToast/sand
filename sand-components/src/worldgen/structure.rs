@@ -34,28 +34,51 @@ const TYPED_FIELDS: &[&str] = &[
     "use_expansion_hack",
 ];
 
+#[doc = "**API Contract:** Run `sand api show sand::component::GenerationStep` for the canonical contract."]
 /// The world-generation step a structure starts in.
 ///
 /// This is vanilla's shared `GenerationStep.Decoration` enum: the same
-/// ordered steps also bucket a biome's per-step `features` list-of-lists
-/// (see [`crate::worldgen::biome::Biome::feature`]).
+/// ordered steps also bucket a biome's per-step `features` list-of-lists.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum GenerationStep {
+    #[doc = "Selects the raw generation form in this typed Minecraft component schema."]
+    #[doc = "**API Contract:** Run `sand api show sand::component::GenerationStep::RawGeneration` for the canonical contract."]
     RawGeneration,
+    #[doc = "Selects the lakes form in this typed Minecraft component schema."]
+    #[doc = "**API Contract:** Run `sand api show sand::component::GenerationStep::Lakes` for the canonical contract."]
     Lakes,
+    #[doc = "Selects the local modifications form in this typed Minecraft component schema."]
+    #[doc = "**API Contract:** Run `sand api show sand::component::GenerationStep::LocalModifications` for the canonical contract."]
     LocalModifications,
+    #[doc = "Selects the underground structures form in this typed Minecraft component schema."]
+    #[doc = "**API Contract:** Run `sand api show sand::component::GenerationStep::UndergroundStructures` for the canonical contract."]
     UndergroundStructures,
+    #[doc = "Selects the surface structures form in this typed Minecraft component schema."]
+    #[doc = "**API Contract:** Run `sand api show sand::component::GenerationStep::SurfaceStructures` for the canonical contract."]
     SurfaceStructures,
+    #[doc = "Selects the strongholds form in this typed Minecraft component schema."]
+    #[doc = "**API Contract:** Run `sand api show sand::component::GenerationStep::Strongholds` for the canonical contract."]
     Strongholds,
+    #[doc = "Selects the underground ores form in this typed Minecraft component schema."]
+    #[doc = "**API Contract:** Run `sand api show sand::component::GenerationStep::UndergroundOres` for the canonical contract."]
     UndergroundOres,
+    #[doc = "Selects the underground decoration form in this typed Minecraft component schema."]
+    #[doc = "**API Contract:** Run `sand api show sand::component::GenerationStep::UndergroundDecoration` for the canonical contract."]
     UndergroundDecoration,
+    #[doc = "Selects the fluid springs form in this typed Minecraft component schema."]
+    #[doc = "**API Contract:** Run `sand api show sand::component::GenerationStep::FluidSprings` for the canonical contract."]
     FluidSprings,
+    #[doc = "Selects the vegetal decoration form in this typed Minecraft component schema."]
+    #[doc = "**API Contract:** Run `sand api show sand::component::GenerationStep::VegetalDecoration` for the canonical contract."]
     VegetalDecoration,
+    #[doc = "Selects the top layer modification form in this typed Minecraft component schema."]
+    #[doc = "**API Contract:** Run `sand api show sand::component::GenerationStep::TopLayerModification` for the canonical contract."]
     TopLayerModification,
 }
 
 impl GenerationStep {
     /// The vanilla string written into datapack JSON.
+    #[doc = "**API Contract:** Run `sand api show sand::component::GenerationStep::as_str` for the canonical contract."]
     pub fn as_str(&self) -> &'static str {
         match self {
             Self::RawGeneration => "raw_generation",
@@ -91,18 +114,30 @@ impl GenerationStep {
     }
 }
 
+#[doc = "**API Contract:** Run `sand api show sand::component::TerrainAdaptation` for the canonical contract."]
 /// How terrain is modified around a generated structure.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum TerrainAdaptation {
+    #[doc = "Selects the none form in this typed Minecraft component schema."]
+    #[doc = "**API Contract:** Run `sand api show sand::component::TerrainAdaptation::None` for the canonical contract."]
     None,
+    #[doc = "Selects the beard thin form in this typed Minecraft component schema."]
+    #[doc = "**API Contract:** Run `sand api show sand::component::TerrainAdaptation::BeardThin` for the canonical contract."]
     BeardThin,
+    #[doc = "Selects the beard box form in this typed Minecraft component schema."]
+    #[doc = "**API Contract:** Run `sand api show sand::component::TerrainAdaptation::BeardBox` for the canonical contract."]
     BeardBox,
+    #[doc = "Selects the bury form in this typed Minecraft component schema."]
+    #[doc = "**API Contract:** Run `sand api show sand::component::TerrainAdaptation::Bury` for the canonical contract."]
     Bury,
+    #[doc = "Selects the encapsulate form in this typed Minecraft component schema."]
+    #[doc = "**API Contract:** Run `sand api show sand::component::TerrainAdaptation::Encapsulate` for the canonical contract."]
     Encapsulate,
 }
 
 impl TerrainAdaptation {
     /// The vanilla string written into datapack JSON.
+    #[doc = "**API Contract:** Run `sand api show sand::component::TerrainAdaptation::as_str` for the canonical contract."]
     pub fn as_str(&self) -> &'static str {
         match self {
             Self::None => "none",
@@ -114,21 +149,39 @@ impl TerrainAdaptation {
     }
 }
 
+#[doc = "**API Contract:** Run `sand api show sand::component::MobCategory` for the canonical contract."]
 /// A vanilla mob category used as a spawn-override key.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub enum MobCategory {
+    #[doc = "Selects the monster form in this typed Minecraft component schema."]
+    #[doc = "**API Contract:** Run `sand api show sand::component::MobCategory::Monster` for the canonical contract."]
     Monster,
+    #[doc = "Selects the creature form in this typed Minecraft component schema."]
+    #[doc = "**API Contract:** Run `sand api show sand::component::MobCategory::Creature` for the canonical contract."]
     Creature,
+    #[doc = "Selects the ambient form in this typed Minecraft component schema."]
+    #[doc = "**API Contract:** Run `sand api show sand::component::MobCategory::Ambient` for the canonical contract."]
     Ambient,
+    #[doc = "Selects the axolotls form in this typed Minecraft component schema."]
+    #[doc = "**API Contract:** Run `sand api show sand::component::MobCategory::Axolotls` for the canonical contract."]
     Axolotls,
+    #[doc = "Selects the underground water creature form in this typed Minecraft component schema."]
+    #[doc = "**API Contract:** Run `sand api show sand::component::MobCategory::UndergroundWaterCreature` for the canonical contract."]
     UndergroundWaterCreature,
+    #[doc = "Selects the water creature form in this typed Minecraft component schema."]
+    #[doc = "**API Contract:** Run `sand api show sand::component::MobCategory::WaterCreature` for the canonical contract."]
     WaterCreature,
+    #[doc = "Selects the water ambient form in this typed Minecraft component schema."]
+    #[doc = "**API Contract:** Run `sand api show sand::component::MobCategory::WaterAmbient` for the canonical contract."]
     WaterAmbient,
+    #[doc = "Selects the misc form in this typed Minecraft component schema."]
+    #[doc = "**API Contract:** Run `sand api show sand::component::MobCategory::Misc` for the canonical contract."]
     Misc,
 }
 
 impl MobCategory {
     /// The vanilla string written into datapack JSON.
+    #[doc = "**API Contract:** Run `sand api show sand::component::MobCategory::as_str` for the canonical contract."]
     pub fn as_str(&self) -> &'static str {
         match self {
             Self::Monster => "monster",
@@ -143,17 +196,21 @@ impl MobCategory {
     }
 }
 
+#[doc = "**API Contract:** Run `sand api show sand::component::SpawnBoundingBox` for the canonical contract."]
 /// Which part of a structure a spawn override applies to.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum SpawnBoundingBox {
+    #[doc = "**API Contract:** Run `sand api show sand::component::SpawnBoundingBox::Piece` for the canonical contract."]
     /// Only inside individual structure pieces.
     Piece,
+    #[doc = "**API Contract:** Run `sand api show sand::component::SpawnBoundingBox::Full` for the canonical contract."]
     /// The structure's full bounding box.
     Full,
 }
 
 impl SpawnBoundingBox {
     /// The vanilla string written into datapack JSON.
+    #[doc = "**API Contract:** Run `sand api show sand::component::SpawnBoundingBox::as_str` for the canonical contract."]
     pub fn as_str(&self) -> &'static str {
         match self {
             Self::Piece => "piece",
@@ -162,6 +219,7 @@ impl SpawnBoundingBox {
     }
 }
 
+#[doc = "**API Contract:** Run `sand api show sand::component::SpawnEntry` for the canonical contract."]
 /// One weighted mob-spawn entry inside a [`SpawnOverride`].
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SpawnEntry {
@@ -174,6 +232,7 @@ pub struct SpawnEntry {
 impl SpawnEntry {
     /// Create a spawn entry. `weight` and `min_count` must be at least 1 and
     /// `max_count` must be at least `min_count`; both are checked on export.
+    #[doc = "**API Contract:** Run `sand api show sand::component::SpawnEntry::new` for the canonical contract."]
     pub fn new(entity_type: EntityTypeId, weight: u32, min_count: u32, max_count: u32) -> Self {
         Self {
             entity_type,
@@ -230,6 +289,7 @@ impl SpawnEntry {
     }
 }
 
+#[doc = "**API Contract:** Run `sand api show sand::component::SpawnOverride` for the canonical contract."]
 /// A per-mob-category spawn override for a structure.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SpawnOverride {
@@ -239,6 +299,7 @@ pub struct SpawnOverride {
 
 impl SpawnOverride {
     /// An override that suppresses all spawns of its category.
+    #[doc = "**API Contract:** Run `sand api show sand::component::SpawnOverride::none` for the canonical contract."]
     pub fn none(bounding_box: SpawnBoundingBox) -> Self {
         Self {
             bounding_box,
@@ -247,6 +308,7 @@ impl SpawnOverride {
     }
 
     /// An override with an explicit spawn list.
+    #[doc = "**API Contract:** Run `sand api show sand::component::SpawnOverride::new` for the canonical contract."]
     pub fn new(
         bounding_box: SpawnBoundingBox,
         spawns: impl IntoIterator<Item = SpawnEntry>,
@@ -258,6 +320,7 @@ impl SpawnOverride {
     }
 
     /// Append a spawn entry.
+    #[doc = "**API Contract:** Run `sand api show sand::component::SpawnOverride::spawn` for the canonical contract."]
     pub fn spawn(mut self, entry: SpawnEntry) -> Self {
         self.spawns.push(entry);
         self
@@ -278,13 +341,24 @@ impl SpawnOverride {
     }
 }
 
+#[doc = "**API Contract:** Run `sand api show sand::component::BiomeSelector` for the canonical contract."]
 /// The biome constraint of a structure: a biome tag or an explicit list.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum BiomeSelector {
+    #[doc = "**API Contract:** Run `sand api show sand::component::BiomeSelector::Tag` for the canonical contract."]
     /// A biome tag reference, emitted as `#namespace:path`.
-    Tag(TagId<BiomeId>),
+    Tag(
+        #[doc = "The `Tag` variant carries the value described by its variant semantics: A biome tag reference, emitted as `#namespace:path`."]
+        #[doc = "**API Contract:** Run `sand api show sand::component::BiomeSelector::Tag::0` for the canonical contract."]
+        TagId<BiomeId>,
+    ),
+    #[doc = "**API Contract:** Run `sand api show sand::component::BiomeSelector::Entries` for the canonical contract."]
     /// An explicit list of biome IDs.
-    Entries(Vec<BiomeId>),
+    Entries(
+        #[doc = "The `Entries` variant carries the value described by its variant semantics: An explicit list of biome IDs."]
+        #[doc = "**API Contract:** Run `sand api show sand::component::BiomeSelector::Entries::0` for the canonical contract."]
+        Vec<BiomeId>,
+    ),
 }
 
 impl BiomeSelector {
@@ -324,6 +398,7 @@ impl BiomeSelector {
     }
 }
 
+#[doc = "**API Contract:** Run `sand api show sand::component::JigsawConfig` for the canonical contract."]
 /// The jigsaw-specific configuration of a `minecraft:jigsaw` structure.
 #[derive(Debug, Clone, PartialEq)]
 pub struct JigsawConfig {
@@ -338,6 +413,7 @@ pub struct JigsawConfig {
 
 impl JigsawConfig {
     /// A jigsaw config with vanilla village-like defaults.
+    #[doc = "**API Contract:** Run `sand api show sand::component::JigsawConfig::new` for the canonical contract."]
     pub fn new(start_pool: TemplatePoolId) -> Self {
         Self {
             start_pool,
@@ -351,32 +427,42 @@ impl JigsawConfig {
     }
 
     /// Jigsaw expansion depth (`0..=20`).
+    #[doc = "**API Contract:** Run `sand api show sand::component::JigsawConfig::size` for the canonical contract."]
     pub fn size(mut self, size: u32) -> Self {
         self.size = size;
         self
     }
 
+    /// Sets the Minecraft start height property on this typed jigsaw config definition and returns the updated builder.
+    #[doc = "**API Contract:** Run `sand api show sand::component::JigsawConfig::start_height` for the canonical contract."]
     pub fn start_height(mut self, start_height: HeightProvider) -> Self {
         self.start_height = start_height;
         self
     }
 
+    /// Sets the Minecraft start jigsaw name property on this typed jigsaw config definition and returns the updated builder.
+    #[doc = "**API Contract:** Run `sand api show sand::component::JigsawConfig::start_jigsaw_name` for the canonical contract."]
     pub fn start_jigsaw_name(mut self, name: impl Into<String>) -> Self {
         self.start_jigsaw_name = Some(name.into());
         self
     }
 
+    /// Sets the Minecraft project start to heightmap property on this typed jigsaw config definition and returns the updated builder.
+    #[doc = "**API Contract:** Run `sand api show sand::component::JigsawConfig::project_start_to_heightmap` for the canonical contract."]
     pub fn project_start_to_heightmap(mut self, heightmap: Heightmap) -> Self {
         self.project_start_to_heightmap = Some(heightmap);
         self
     }
 
     /// Maximum horizontal distance pieces may extend from the start (`1..=128`).
+    #[doc = "**API Contract:** Run `sand api show sand::component::JigsawConfig::max_distance_from_center` for the canonical contract."]
     pub fn max_distance_from_center(mut self, blocks: u32) -> Self {
         self.max_distance_from_center = blocks;
         self
     }
 
+    /// Sets the Minecraft use expansion hack property on this typed jigsaw config definition and returns the updated builder.
+    #[doc = "**API Contract:** Run `sand api show sand::component::JigsawConfig::use_expansion_hack` for the canonical contract."]
     pub fn use_expansion_hack(mut self, value: bool) -> Self {
         self.use_expansion_hack = value;
         self
@@ -431,6 +517,7 @@ impl JigsawConfig {
     }
 }
 
+#[doc = "**API Contract:** Run `sand api show sand::component::Structure` for the canonical contract."]
 /// A structure definition (`data/<namespace>/worldgen/structure/<id>.json`).
 ///
 /// ```
@@ -462,6 +549,7 @@ impl Structure {
     ///
     /// Non-jigsaw vanilla structure types carry type-specific fields that Sand
     /// does not model; supply those through [`Structure::raw_field`].
+    #[doc = "**API Contract:** Run `sand api show sand::component::Structure::new` for the canonical contract."]
     pub fn new(
         location: ResourceLocation,
         structure_type: StructureTypeId,
@@ -480,6 +568,7 @@ impl Structure {
     }
 
     /// Create a complete `minecraft:jigsaw` structure with vanilla-like defaults.
+    #[doc = "**API Contract:** Run `sand api show sand::component::Structure::jigsaw` for the canonical contract."]
     pub fn jigsaw(
         location: ResourceLocation,
         start_pool: TemplatePoolId,
@@ -489,39 +578,50 @@ impl Structure {
             .jigsaw_config(JigsawConfig::new(start_pool))
     }
 
+    /// Sets the Minecraft structure type property on this typed structure definition and returns the updated builder.
+    #[doc = "**API Contract:** Run `sand api show sand::component::Structure::structure_type` for the canonical contract."]
     pub fn structure_type(mut self, structure_type: StructureTypeId) -> Self {
         self.structure_type = structure_type;
         self
     }
 
+    /// Sets the Minecraft biomes property on this typed structure definition and returns the updated builder.
+    #[doc = "**API Contract:** Run `sand api show sand::component::Structure::biomes` for the canonical contract."]
     pub fn biomes(mut self, biomes: BiomeSelector) -> Self {
         self.biomes = biomes;
         self
     }
 
+    /// Sets the Minecraft step property on this typed structure definition and returns the updated builder.
+    #[doc = "**API Contract:** Run `sand api show sand::component::Structure::step` for the canonical contract."]
     pub fn step(mut self, step: GenerationStep) -> Self {
         self.step = step;
         self
     }
 
+    /// Sets the Minecraft terrain adaptation property on this typed structure definition and returns the updated builder.
+    #[doc = "**API Contract:** Run `sand api show sand::component::Structure::terrain_adaptation` for the canonical contract."]
     pub fn terrain_adaptation(mut self, adaptation: TerrainAdaptation) -> Self {
         self.terrain_adaptation = Some(adaptation);
         self
     }
 
     /// Replace the jigsaw configuration.
+    #[doc = "**API Contract:** Run `sand api show sand::component::Structure::jigsaw_config` for the canonical contract."]
     pub fn jigsaw_config(mut self, config: JigsawConfig) -> Self {
         self.jigsaw = Some(config);
         self
     }
 
     /// Modify the jigsaw configuration in place, if one is present.
+    #[doc = "**API Contract:** Run `sand api show sand::component::Structure::map_jigsaw_config` for the canonical contract."]
     pub fn map_jigsaw_config(mut self, f: impl FnOnce(JigsawConfig) -> JigsawConfig) -> Self {
         self.jigsaw = self.jigsaw.map(f);
         self
     }
 
     /// Add or replace a spawn override for one mob category.
+    #[doc = "**API Contract:** Run `sand api show sand::component::Structure::spawn_override` for the canonical contract."]
     pub fn spawn_override(mut self, category: MobCategory, spawns: SpawnOverride) -> Self {
         self.spawn_overrides.insert(category, spawns);
         self
@@ -530,6 +630,7 @@ impl Structure {
     /// Add a modded or version-specific field not represented by the typed API.
     ///
     /// Typed field names cannot be overridden through this escape hatch.
+    #[doc = "**API Contract:** Run `sand api show sand::component::Structure::raw_field` for the canonical contract."]
     pub fn raw_field(mut self, key: impl Into<String>, value: RawJson) -> Self {
         self.raw_fields.insert(key.into(), value);
         self

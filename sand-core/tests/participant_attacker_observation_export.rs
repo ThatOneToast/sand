@@ -68,10 +68,7 @@ fn revoke_true() -> bool {
     true
 }
 fn on_player_hurt_check_tick() -> Option<sand_core::events::TickEventDispatch> {
-    match OnPlayerHurtCheck::dispatch().into() {
-        SandEventDispatch::Tick(tick) => Some(tick),
-        _ => None,
-    }
+    sand_core::__private::event_dispatch_tick(OnPlayerHurtCheck::dispatch().into())
 }
 fn type_id() -> TypeId {
     TypeId::of::<OnPlayerHurtCheck>()

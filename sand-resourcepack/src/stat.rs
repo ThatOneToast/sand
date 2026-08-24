@@ -51,6 +51,7 @@ enum StatSource {
 
 // ── BarStat ────────────────────────────────────────────────────────────────────
 
+#[doc = "**API Contract:** Run `sand api show sand::resourcepack::BarStat` for the canonical contract."]
 /// Combines a [`BarHandle`] with auto-managed scoreboard objectives and
 /// per-tick update math.
 ///
@@ -94,8 +95,10 @@ enum StatSource {
 /// }
 /// ```
 pub struct BarStat {
+    #[doc = "**API Contract:** Run `sand api show sand::resourcepack::BarStat::handle` for the canonical contract."]
     /// The bar this stat drives.
     pub handle: BarHandle,
+    #[doc = "**API Contract:** Run `sand api show sand::resourcepack::BarStat::frame_obj` for the canonical contract."]
     /// Scoreboard objective that stores the current frame index.
     ///
     /// Pass this directly to [`BarHandle::broadcast_commands`] if you are not
@@ -115,6 +118,7 @@ impl BarStat {
     /// - `<name>_frame` — frame index
     /// - `_<name>_hp`   — current HP ×100 (hidden; prefixed with `_`)
     /// - `_<name>_maxhp` — max HP ×100 (hidden)
+    #[doc = "**API Contract:** Run `sand api show sand::resourcepack::BarStat::health` for the canonical contract."]
     pub fn health(handle: BarHandle) -> Self {
         let n = handle.name;
         Self {
@@ -137,6 +141,7 @@ impl BarStat {
     ///
     /// (The source objective is **not** created automatically — it is assumed
     /// to already exist and be populated by your own commands.)
+    #[doc = "**API Contract:** Run `sand api show sand::resourcepack::BarStat::score` for the canonical contract."]
     pub fn score(handle: BarHandle, source_objective: impl Into<String>, max_val: i32) -> Self {
         let n = handle.name;
         Self {
@@ -152,6 +157,7 @@ impl BarStat {
     /// Return the commands that create all required scoreboard objectives.
     ///
     /// Call this from your `#[datapack_component(Load)]` function.
+    #[doc = "**API Contract:** Run `sand api show sand::resourcepack::BarStat::setup` for the canonical contract."]
     pub fn setup(&self) -> Vec<String> {
         let mut cmds = Vec::new();
         let frame = &self.frame_obj;
@@ -177,6 +183,7 @@ impl BarStat {
     /// [`HudLayout`](crate::HudLayout) commands.
     ///
     /// `executor` is typically `"@a"`.
+    #[doc = "**API Contract:** Run `sand api show sand::resourcepack::BarStat::update` for the canonical contract."]
     pub fn update(&self, executor: &str) -> Vec<String> {
         let mut cmds = Vec::new();
         let frame = &self.frame_obj;

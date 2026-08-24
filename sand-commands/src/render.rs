@@ -474,12 +474,15 @@ fn required_token<'a>(
     })
 }
 
+#[doc = "**API Contract:** Run `sand api show sand::command::Validate` for the canonical contract."]
 /// Validate a typed command value against the active Minecraft profile.
 pub trait Validate {
     /// Reject invalid state before it can become command text.
+    #[doc = "**API Contract:** Run `sand api show sand::command::Validate::validate` for the canonical contract."]
     fn validate(&self, profile: &CommandProfile) -> CommandResult<()>;
 }
 
+#[doc = "**API Contract:** Run `sand api show sand::command::RenderCommand` for the canonical contract."]
 /// Deterministically render a validated Minecraft command or command fragment.
 ///
 /// [`render`](Self::render) is the normal path. `render_unchecked` exists so
@@ -487,15 +490,18 @@ pub trait Validate {
 /// output while exporters and new APIs use the fallible boundary.
 pub trait RenderCommand: Validate {
     /// Render without validation. Normal callers should use [`render`](Self::render).
+    #[doc = "**API Contract:** Run `sand api show sand::command::RenderCommand::render_unchecked` for the canonical contract."]
     fn render_unchecked(&self, profile: &CommandProfile) -> String;
 
     /// Validate, then render with the active Minecraft profile.
+    #[doc = "**API Contract:** Run `sand api show sand::command::RenderCommand::render` for the canonical contract."]
     fn render(&self, profile: &CommandProfile) -> CommandResult<String> {
         self.validate(profile)?;
         Ok(self.render_unchecked(profile))
     }
 
     /// Validate and render using the unprofiled compatibility target.
+    #[doc = "**API Contract:** Run `sand api show sand::command::RenderCommand::try_build` for the canonical contract."]
     fn try_build(&self) -> CommandResult<String> {
         self.render(&CommandProfile::unprofiled())
     }

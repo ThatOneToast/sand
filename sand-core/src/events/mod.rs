@@ -166,14 +166,19 @@
 //!
 //! Simple advancement-backed or single-fragment tick-poll `SandEvent` impls
 //! remain supported via [`SandEventDispatch::AdvancementTrigger`] and
-//! [`SandEventDispatch::TickCondition`] — both lower into the same normalized
-//! IR as [`SandEventDispatch::tick()`] (see [`SandEventDispatch::normalize`]).
+//! [`SandEventDispatch::TickCondition`] — both lower into the same internal
+//! representation as [`SandEventDispatch::tick()`].
 
 /// Event dependency graph construction for same-cycle chained dispatch (#240).
-pub mod graph;
+///
+/// The graph is exporter wiring. Authors compose public `SandEventDispatch`
+/// builders instead of depending on graph nodes or edge records directly.
+#[allow(dead_code)]
+pub(crate) mod graph;
 
 // ── Custom event API ──────────────────────────────────────────────────────────
 
+#[doc = "**API Contract:** Run `sand api show sand::events::TickScope` for the canonical contract."]
 /// Execution scope for a structured [`TickEventDispatch`], or (as of #240
 /// Phase 6) the graph execution-context capability a parent provides.
 ///
@@ -183,9 +188,11 @@ pub mod graph;
 /// remain a natural future extension point.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
 pub enum TickScope {
+    #[doc = "**API Contract:** Run `sand api show sand::events::TickScope::Players` for the canonical contract."]
     /// Evaluated as each online player (`execute as @a ... at @s run ...`).
     #[default]
     Players,
+    #[doc = "**API Contract:** Run `sand api show sand::events::TickScope::AdvancementPlayer` for the canonical contract."]
     /// A single exact player subject bound to `@s`, provided synchronously
     /// inside a vanilla advancement reward function rather than polled by
     /// `minecraft:tick` — see [`ChainEventDispatch::after`] on an
@@ -209,11 +216,13 @@ impl TickScope {
     /// reward-triggered). Used to validate that a child's inherited-player
     /// requirement is satisfiable by a candidate parent's scope, independent
     /// of *how* that parent is detected.
+    #[doc = "**API Contract:** Run `sand api show sand::events::TickScope::has_player_subject` for the canonical contract."]
     pub fn has_player_subject(self) -> bool {
         matches!(self, Self::Players | Self::AdvancementPlayer)
     }
 }
 
+#[doc = "**API Contract:** Run `sand api show sand::events::PersistentEventCondition` for the canonical contract."]
 /// A directly queryable persistent event condition.
 ///
 /// Unlike [`TickEventDispatch`], this value describes current truth, not an
@@ -233,6 +242,7 @@ impl PersistentEventCondition {
     /// A [`Condition::raw`](crate::condition::Condition::raw) value remains an
     /// explicit compatibility escape hatch whose target-version semantics are
     /// user-owned when Sand cannot validate the fragment.
+    #[doc = "**API Contract:** Run `sand api show sand::events::PersistentEventCondition::players` for the canonical contract."]
     pub fn players(condition: impl Into<crate::condition::Condition>) -> Self {
         Self {
             scope: TickScope::Players,
@@ -241,11 +251,13 @@ impl PersistentEventCondition {
     }
 
     /// The execution scope required by this condition.
+    #[doc = "**API Contract:** Run `sand api show sand::events::PersistentEventCondition::scope` for the canonical contract."]
     pub fn scope(&self) -> TickScope {
         self.scope
     }
 }
 
+#[doc = "**API Contract:** Run `sand api show sand::events::PersistentSandEvent` for the canonical contract."]
 /// Explicit opt-in contract for event types that represent persistent state.
 ///
 /// Implementing [`SandEvent`] alone is intentionally insufficient: a tick
@@ -265,9 +277,11 @@ impl PersistentEventCondition {
 )]
 pub trait PersistentSandEvent: SandEvent {
     /// Return the current-state condition for this event type.
+    #[doc = "**API Contract:** Run `sand api show sand::events::PersistentSandEvent::persistent_condition` for the canonical contract."]
     fn persistent_condition() -> PersistentEventCondition;
 }
 
+#[doc = "**API Contract:** Run `sand api show sand::events::TickWindow` for the canonical contract."]
 /// A validated bounded cross-tick correlation window for
 /// [`ChainEventDispatch::within`].
 ///
@@ -292,19 +306,22 @@ pub trait PersistentSandEvent: SandEvent {
 pub struct TickWindow(u32);
 
 impl TickWindow {
+    #[doc = "**API Contract:** Run `sand api show sand::events::TickWindow::MIN_TICKS` for the canonical contract."]
     /// The smallest representable window: current-cycle occurrence only.
     pub const MIN_TICKS: u32 = 1;
+    #[doc = "**API Contract:** Run `sand api show sand::events::TickWindow::MAX_TICKS` for the canonical contract."]
     /// The largest representable window (20 minutes at 20 ticks/second).
     ///
     /// Bounded correlation is meant for short cross-tick coordination
     /// windows, not long-lived session state — use durable per-player state
-    /// (e.g. `sand_core::state`) instead.
+    /// (e.g. `sand::state`) instead.
     pub const MAX_TICKS: u32 = 24_000;
 
     /// Validate `ticks` as a bounded correlation window.
     ///
     /// Returns [`TickWindowError::Zero`] for `0` and
     /// [`TickWindowError::TooLarge`] above [`TickWindow::MAX_TICKS`].
+    #[doc = "**API Contract:** Run `sand api show sand::events::TickWindow::new` for the canonical contract."]
     pub fn new(ticks: u32) -> Result<Self, TickWindowError> {
         if ticks < Self::MIN_TICKS {
             return Err(TickWindowError::Zero);
@@ -319,18 +336,29 @@ impl TickWindow {
     }
 
     /// The validated window width, in ticks.
+    #[doc = "**API Contract:** Run `sand api show sand::events::TickWindow::ticks` for the canonical contract."]
     pub fn ticks(self) -> u32 {
         self.0
     }
 }
 
+#[doc = "**API Contract:** Run `sand api show sand::events::TickWindowError` for the canonical contract."]
 /// [`TickWindow::new`] validation failure.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum TickWindowError {
+    #[doc = "**API Contract:** Run `sand api show sand::events::TickWindowError::Zero` for the canonical contract."]
     /// A window must cover at least the current cycle (`N >= 1`).
     Zero,
+    #[doc = "**API Contract:** Run `sand api show sand::events::TickWindowError::TooLarge` for the canonical contract."]
     /// `requested` exceeds [`TickWindow::MAX_TICKS`].
-    TooLarge { requested: u32, max: u32 },
+    TooLarge {
+        #[doc = "The rejected requested window length."]
+        #[doc = "**API Contract:** Run `sand api show sand::events::TickWindowError::TooLarge::requested` for the canonical contract."]
+        requested: u32,
+        #[doc = "The largest window Sand accepts."]
+        #[doc = "**API Contract:** Run `sand api show sand::events::TickWindowError::TooLarge::max` for the canonical contract."]
+        max: u32,
+    },
 }
 
 impl std::fmt::Display for TickWindowError {
@@ -352,44 +380,44 @@ impl std::error::Error for TickWindowError {}
 
 /// One typed bounded cross-tick correlation dependency attached to a chained
 /// event. See [`ChainEventDispatch::within`].
-pub struct BoundedEventDependency {
+pub(crate) struct BoundedEventDependency {
     #[doc(hidden)]
-    pub event_type_id: fn() -> std::any::TypeId,
+    pub(crate) event_type_id: fn() -> std::any::TypeId,
     #[doc(hidden)]
-    pub event_type_name: fn() -> &'static str,
+    pub(crate) event_type_name: fn() -> &'static str,
     #[doc(hidden)]
-    pub event_dispatch: fn() -> SandEventDispatch,
+    pub(crate) event_dispatch: fn() -> SandEventDispatch,
     #[doc(hidden)]
-    pub event_setup: fn() -> EventSetup,
+    pub(crate) event_setup: fn() -> EventSetup,
     #[doc(hidden)]
-    pub window: TickWindow,
+    pub(crate) window: TickWindow,
 }
 
 /// One typed persistent-state dependency attached to a chained event.
-pub struct PersistentEventDependency {
+pub(crate) struct PersistentEventDependency {
     #[doc(hidden)]
-    pub event_type_id: fn() -> std::any::TypeId,
+    pub(crate) event_type_id: fn() -> std::any::TypeId,
     #[doc(hidden)]
-    pub event_type_name: fn() -> &'static str,
+    pub(crate) event_type_name: fn() -> &'static str,
     #[doc(hidden)]
-    pub event_dispatch: fn() -> SandEventDispatch,
+    pub(crate) event_dispatch: fn() -> SandEventDispatch,
     #[doc(hidden)]
-    pub event_setup: fn() -> EventSetup,
+    pub(crate) event_setup: fn() -> EventSetup,
     #[doc(hidden)]
-    pub make_condition: fn() -> PersistentEventCondition,
+    pub(crate) make_condition: fn() -> PersistentEventCondition,
 }
 
 /// One typed same-cycle event occurrence dependency.
 #[derive(Clone, Copy)]
-pub struct SameCycleEventDependency {
+pub(crate) struct SameCycleEventDependency {
     #[doc(hidden)]
-    pub event_type_id: fn() -> std::any::TypeId,
+    pub(crate) event_type_id: fn() -> std::any::TypeId,
     #[doc(hidden)]
-    pub event_type_name: fn() -> &'static str,
+    pub(crate) event_type_name: fn() -> &'static str,
     #[doc(hidden)]
-    pub event_dispatch: fn() -> SandEventDispatch,
+    pub(crate) event_dispatch: fn() -> SandEventDispatch,
     #[doc(hidden)]
-    pub event_setup: fn() -> EventSetup,
+    pub(crate) event_setup: fn() -> EventSetup,
     /// `E::setup()` called directly, with no participant-plan merge — unlike
     /// `event_setup` (which is `dependency_setup`, crate-private, the
     /// participants-merged view a same-cycle child's own recursively-discovered `EventSetup`
@@ -401,19 +429,18 @@ pub struct SameCycleEventDependency {
     /// `sand-core/src/events/graph.rs`'s bridge-eligibility check and
     /// `sand-core/src/compiler/export/pipeline.rs`'s bridge loop).
     #[doc(hidden)]
-    pub event_raw_setup: fn() -> EventSetup,
-    /// `E::participants()` called directly — the raw plan factory
-    /// [`AdvancementBridge`](crate::events::graph::AdvancementBridge) carries
+    pub(crate) event_raw_setup: fn() -> EventSetup,
+    /// `E::participants()` called directly — the raw plan factory carried
     /// forward so the export pipeline can apply a bridge parent's own plan
     /// (#269).
     #[doc(hidden)]
-    pub event_participants: fn() -> crate::participant::EventParticipantPlan,
+    pub(crate) event_participants: fn() -> crate::participant::EventParticipantPlan,
     /// Whether this parent's advancement is revoked after firing —
     /// [`SandEvent::revoke`]. Only meaningful when the parent resolves to
     /// advancement-backed dispatch (#240 Phase 6); ignored for tick-backed
     /// parents, which have no advancement to revoke.
     #[doc(hidden)]
-    pub event_revoke: fn() -> bool,
+    pub(crate) event_revoke: fn() -> bool,
 }
 
 /// `E::setup()` with `E::participants()` merged in exactly the same way the
@@ -463,7 +490,7 @@ impl SameCycleEventDependency {
 }
 
 /// One explicit same-cycle occurrence clause in a composed event definition.
-pub enum SameCycleEventRequirement {
+pub(crate) enum SameCycleEventRequirement {
     /// One concrete parent must have fired.
     After(SameCycleEventDependency),
     /// At least one parent in the group must have fired.
@@ -473,9 +500,14 @@ pub enum SameCycleEventRequirement {
 }
 
 mod event_group_private {
-    pub trait Sealed {}
+    use super::ChainEventDispatch;
+
+    pub trait Sealed {
+        fn apply(dispatch: ChainEventDispatch, all: bool) -> ChainEventDispatch;
+    }
 }
 
+#[doc = "**API Contract:** Run `sand api show sand::events::SameCycleEventGroup` for the canonical contract."]
 /// A typed tuple of two through eight concrete [`SandEvent`] parent types.
 ///
 /// This trait is implemented by Sand for supported tuple arities and is not
@@ -485,55 +517,77 @@ mod event_group_private {
     label = "expected a tuple of 2 through 8 concrete `SandEvent` types",
     note = "use `after::<E>()` for one parent, or `after_any::<(A, B)>()` / `after_all::<(A, B)>()` for 2 through 8 parents"
 )]
-pub trait SameCycleEventGroup: event_group_private::Sealed {
-    #[doc(hidden)]
-    fn dependencies() -> Vec<SameCycleEventDependency>;
+pub trait SameCycleEventGroup: event_group_private::Sealed {}
+
+fn apply_event_group(
+    mut dispatch: ChainEventDispatch,
+    all: bool,
+    dependencies: Vec<SameCycleEventDependency>,
+) -> ChainEventDispatch {
+    dispatch.occurrence.push(if all {
+        SameCycleEventRequirement::AfterAll(dependencies)
+    } else {
+        SameCycleEventRequirement::AfterAny(dependencies)
+    });
+    dispatch
 }
 
-impl<A: SandEvent + 'static, B: SandEvent + 'static> event_group_private::Sealed for (A, B) {}
-
-impl<A: SandEvent + 'static, B: SandEvent + 'static> SameCycleEventGroup for (A, B) {
-    fn dependencies() -> Vec<SameCycleEventDependency> {
-        vec![
-            SameCycleEventDependency::of::<A>(),
-            SameCycleEventDependency::of::<B>(),
-        ]
+impl<A: SandEvent + 'static, B: SandEvent + 'static> event_group_private::Sealed for (A, B) {
+    fn apply(dispatch: ChainEventDispatch, all: bool) -> ChainEventDispatch {
+        apply_event_group(
+            dispatch,
+            all,
+            vec![
+                SameCycleEventDependency::of::<A>(),
+                SameCycleEventDependency::of::<B>(),
+            ],
+        )
     }
 }
+
+impl<A: SandEvent + 'static, B: SandEvent + 'static> SameCycleEventGroup for (A, B) {}
 
 impl<A: SandEvent + 'static, B: SandEvent + 'static, C: SandEvent + 'static>
     event_group_private::Sealed for (A, B, C)
 {
+    fn apply(dispatch: ChainEventDispatch, all: bool) -> ChainEventDispatch {
+        apply_event_group(
+            dispatch,
+            all,
+            vec![
+                SameCycleEventDependency::of::<A>(),
+                SameCycleEventDependency::of::<B>(),
+                SameCycleEventDependency::of::<C>(),
+            ],
+        )
+    }
 }
 
 impl<A: SandEvent + 'static, B: SandEvent + 'static, C: SandEvent + 'static> SameCycleEventGroup
     for (A, B, C)
 {
-    fn dependencies() -> Vec<SameCycleEventDependency> {
-        vec![
-            SameCycleEventDependency::of::<A>(),
-            SameCycleEventDependency::of::<B>(),
-            SameCycleEventDependency::of::<C>(),
-        ]
-    }
 }
 
 impl<A: SandEvent + 'static, B: SandEvent + 'static, C: SandEvent + 'static, D: SandEvent + 'static>
     event_group_private::Sealed for (A, B, C, D)
 {
+    fn apply(dispatch: ChainEventDispatch, all: bool) -> ChainEventDispatch {
+        apply_event_group(
+            dispatch,
+            all,
+            vec![
+                SameCycleEventDependency::of::<A>(),
+                SameCycleEventDependency::of::<B>(),
+                SameCycleEventDependency::of::<C>(),
+                SameCycleEventDependency::of::<D>(),
+            ],
+        )
+    }
 }
 
 impl<A: SandEvent + 'static, B: SandEvent + 'static, C: SandEvent + 'static, D: SandEvent + 'static>
     SameCycleEventGroup for (A, B, C, D)
 {
-    fn dependencies() -> Vec<SameCycleEventDependency> {
-        vec![
-            SameCycleEventDependency::of::<A>(),
-            SameCycleEventDependency::of::<B>(),
-            SameCycleEventDependency::of::<C>(),
-            SameCycleEventDependency::of::<D>(),
-        ]
-    }
 }
 
 impl<
@@ -544,6 +598,19 @@ impl<
     E: SandEvent + 'static,
 > event_group_private::Sealed for (A, B, C, D, E)
 {
+    fn apply(dispatch: ChainEventDispatch, all: bool) -> ChainEventDispatch {
+        apply_event_group(
+            dispatch,
+            all,
+            vec![
+                SameCycleEventDependency::of::<A>(),
+                SameCycleEventDependency::of::<B>(),
+                SameCycleEventDependency::of::<C>(),
+                SameCycleEventDependency::of::<D>(),
+                SameCycleEventDependency::of::<E>(),
+            ],
+        )
+    }
 }
 
 impl<
@@ -554,15 +621,6 @@ impl<
     E: SandEvent + 'static,
 > SameCycleEventGroup for (A, B, C, D, E)
 {
-    fn dependencies() -> Vec<SameCycleEventDependency> {
-        vec![
-            SameCycleEventDependency::of::<A>(),
-            SameCycleEventDependency::of::<B>(),
-            SameCycleEventDependency::of::<C>(),
-            SameCycleEventDependency::of::<D>(),
-            SameCycleEventDependency::of::<E>(),
-        ]
-    }
 }
 
 impl<
@@ -574,6 +632,20 @@ impl<
     F: SandEvent + 'static,
 > event_group_private::Sealed for (A, B, C, D, E, F)
 {
+    fn apply(dispatch: ChainEventDispatch, all: bool) -> ChainEventDispatch {
+        apply_event_group(
+            dispatch,
+            all,
+            vec![
+                SameCycleEventDependency::of::<A>(),
+                SameCycleEventDependency::of::<B>(),
+                SameCycleEventDependency::of::<C>(),
+                SameCycleEventDependency::of::<D>(),
+                SameCycleEventDependency::of::<E>(),
+                SameCycleEventDependency::of::<F>(),
+            ],
+        )
+    }
 }
 
 impl<
@@ -585,16 +657,6 @@ impl<
     F: SandEvent + 'static,
 > SameCycleEventGroup for (A, B, C, D, E, F)
 {
-    fn dependencies() -> Vec<SameCycleEventDependency> {
-        vec![
-            SameCycleEventDependency::of::<A>(),
-            SameCycleEventDependency::of::<B>(),
-            SameCycleEventDependency::of::<C>(),
-            SameCycleEventDependency::of::<D>(),
-            SameCycleEventDependency::of::<E>(),
-            SameCycleEventDependency::of::<F>(),
-        ]
-    }
 }
 
 impl<
@@ -607,6 +669,21 @@ impl<
     G: SandEvent + 'static,
 > event_group_private::Sealed for (A, B, C, D, E, F, G)
 {
+    fn apply(dispatch: ChainEventDispatch, all: bool) -> ChainEventDispatch {
+        apply_event_group(
+            dispatch,
+            all,
+            vec![
+                SameCycleEventDependency::of::<A>(),
+                SameCycleEventDependency::of::<B>(),
+                SameCycleEventDependency::of::<C>(),
+                SameCycleEventDependency::of::<D>(),
+                SameCycleEventDependency::of::<E>(),
+                SameCycleEventDependency::of::<F>(),
+                SameCycleEventDependency::of::<G>(),
+            ],
+        )
+    }
 }
 
 impl<
@@ -619,17 +696,6 @@ impl<
     G: SandEvent + 'static,
 > SameCycleEventGroup for (A, B, C, D, E, F, G)
 {
-    fn dependencies() -> Vec<SameCycleEventDependency> {
-        vec![
-            SameCycleEventDependency::of::<A>(),
-            SameCycleEventDependency::of::<B>(),
-            SameCycleEventDependency::of::<C>(),
-            SameCycleEventDependency::of::<D>(),
-            SameCycleEventDependency::of::<E>(),
-            SameCycleEventDependency::of::<F>(),
-            SameCycleEventDependency::of::<G>(),
-        ]
-    }
 }
 
 impl<
@@ -643,6 +709,22 @@ impl<
     H: SandEvent + 'static,
 > event_group_private::Sealed for (A, B, C, D, E, F, G, H)
 {
+    fn apply(dispatch: ChainEventDispatch, all: bool) -> ChainEventDispatch {
+        apply_event_group(
+            dispatch,
+            all,
+            vec![
+                SameCycleEventDependency::of::<A>(),
+                SameCycleEventDependency::of::<B>(),
+                SameCycleEventDependency::of::<C>(),
+                SameCycleEventDependency::of::<D>(),
+                SameCycleEventDependency::of::<E>(),
+                SameCycleEventDependency::of::<F>(),
+                SameCycleEventDependency::of::<G>(),
+                SameCycleEventDependency::of::<H>(),
+            ],
+        )
+    }
 }
 
 impl<
@@ -656,20 +738,9 @@ impl<
     H: SandEvent + 'static,
 > SameCycleEventGroup for (A, B, C, D, E, F, G, H)
 {
-    fn dependencies() -> Vec<SameCycleEventDependency> {
-        vec![
-            SameCycleEventDependency::of::<A>(),
-            SameCycleEventDependency::of::<B>(),
-            SameCycleEventDependency::of::<C>(),
-            SameCycleEventDependency::of::<D>(),
-            SameCycleEventDependency::of::<E>(),
-            SameCycleEventDependency::of::<F>(),
-            SameCycleEventDependency::of::<G>(),
-            SameCycleEventDependency::of::<H>(),
-        ]
-    }
 }
 
+#[doc = "**API Contract:** Run `sand api show sand::events::EventSetup` for the canonical contract."]
 /// Lifecycle resources a [`SandEvent`] owns: objectives to create at load time,
 /// commands to run before each observation, and commands to run after a
 /// successful observation (e.g. synchronizing a delta-tracking score).
@@ -679,12 +750,15 @@ impl<
 /// objectives and detector/synchronization functions are emitted once.
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct EventSetup {
+    #[doc = "**API Contract:** Run `sand api show sand::events::EventSetup::objectives` for the canonical contract."]
     /// `scoreboard objectives add …` (or other init) commands, run once from
     /// `minecraft:load`.
     pub objectives: Vec<String>,
+    #[doc = "**API Contract:** Run `sand api show sand::events::EventSetup::pre_observation` for the canonical contract."]
     /// Commands that must run before the observation/detection check each
     /// tick (e.g. snapshotting a value).
     pub pre_observation: Vec<String>,
+    #[doc = "**API Contract:** Run `sand api show sand::events::EventSetup::post_observation` for the canonical contract."]
     /// Commands that must run after a successful or completed observation
     /// each tick (e.g. copying the current score into a synchronized score).
     ///
@@ -696,6 +770,7 @@ pub struct EventSetup {
 
 impl EventSetup {
     /// An empty setup — no objectives or lifecycle commands.
+    #[doc = "**API Contract:** Run `sand api show sand::events::EventSetup::none` for the canonical contract."]
     pub fn none() -> Self {
         Self::default()
     }
@@ -706,6 +781,7 @@ impl EventSetup {
     /// than re-listing them, so a future field addition to `EventSetup`
     /// cannot silently bypass this check the way an independently
     /// maintained per-field comparison could.
+    #[doc = "**API Contract:** Run `sand api show sand::events::EventSetup::is_empty` for the canonical contract."]
     pub fn is_empty(&self) -> bool {
         self == &Self::none()
     }
@@ -716,6 +792,7 @@ impl EventSetup {
     /// Intended for diagnostics that need to name which category blocked an
     /// operation — not a substitute for [`is_empty`](Self::is_empty), which
     /// remains the authoritative full-coverage check.
+    #[doc = "**API Contract:** Run `sand api show sand::events::EventSetup::first_non_empty_category` for the canonical contract."]
     pub fn first_non_empty_category(&self) -> Option<&'static str> {
         if !self.objectives.is_empty() {
             Some("objectives")
@@ -736,8 +813,9 @@ impl EventSetup {
 /// condition expands into more than one OR-alternative execute plan" can
 /// never be conflated into a single `None` — every caller must handle both
 /// cases explicitly.
+#[allow(dead_code)]
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub enum TickExecutionPlans {
+pub(crate) enum TickExecutionPlans {
     /// No `when`/`unless` conditions were declared. The event dispatches
     /// unconditionally every tick — no `if`/`unless` clauses at all, e.g.
     /// `execute as @a at @s run function ...`.
@@ -777,15 +855,16 @@ impl TickExecutionIrPlans {
     }
 }
 
+#[allow(dead_code)]
 impl TickExecutionPlans {
     /// `true` if this is [`Unconditional`](Self::Unconditional).
-    pub fn is_unconditional(&self) -> bool {
+    pub(crate) fn is_unconditional(&self) -> bool {
         matches!(self, Self::Unconditional)
     }
 
     /// The OR-alternative plans, or an empty slice for
     /// [`Unconditional`](Self::Unconditional).
-    pub fn plans(&self) -> &[Vec<String>] {
+    pub(crate) fn plans(&self) -> &[Vec<String>] {
         match self {
             Self::Unconditional => &[],
             Self::Plans(p) => p,
@@ -793,6 +872,7 @@ impl TickExecutionPlans {
     }
 }
 
+#[doc = "**API Contract:** Run `sand api show sand::events::TickEventDispatch` for the canonical contract."]
 /// Structured, typed tick-poll dispatch definition.
 ///
 /// Built via [`SandEventDispatch::tick`]. Conditions are composed from the
@@ -821,16 +901,17 @@ impl TickExecutionPlans {
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct TickEventDispatch {
     /// The execution scope handlers are dispatched under.
-    pub scope: TickScope,
+    pub(crate) scope: TickScope,
     /// Positive conditions — all must hold (ANDed).
-    pub when: Vec<crate::condition::Condition>,
+    pub(crate) when: Vec<crate::condition::Condition>,
     /// Negative conditions — none may hold (ANDed as `unless`).
-    pub unless: Vec<crate::condition::Condition>,
+    pub(crate) unless: Vec<crate::condition::Condition>,
 }
 
 impl TickEventDispatch {
     /// Evaluate as each online player. Currently the only supported scope;
     /// present for API clarity and forward-compatibility with future scopes.
+    #[doc = "**API Contract:** Run `sand api show sand::events::TickEventDispatch::as_players` for the canonical contract."]
     pub fn as_players(mut self) -> Self {
         self.scope = TickScope::Players;
         self
@@ -839,12 +920,14 @@ impl TickEventDispatch {
     /// Add a positive condition — the event fires only while this holds.
     ///
     /// Multiple calls are ANDed together.
+    #[doc = "**API Contract:** Run `sand api show sand::events::TickEventDispatch::when` for the canonical contract."]
     pub fn when(mut self, condition: impl Into<crate::condition::Condition>) -> Self {
         self.when.push(condition.into());
         self
     }
 
     /// Ergonomic alias for [`when`](Self::when).
+    #[doc = "**API Contract:** Run `sand api show sand::events::TickEventDispatch::if_` for the canonical contract."]
     pub fn if_(self, condition: impl Into<crate::condition::Condition>) -> Self {
         self.when(condition)
     }
@@ -853,6 +936,7 @@ impl TickEventDispatch {
     ///
     /// Multiple calls are ANDed together (i.e. every `unless` condition must
     /// fail to hold).
+    #[doc = "**API Contract:** Run `sand api show sand::events::TickEventDispatch::unless` for the canonical contract."]
     pub fn unless(mut self, condition: impl Into<crate::condition::Condition>) -> Self {
         self.unless.push(condition.into());
         self
@@ -862,12 +946,14 @@ impl TickEventDispatch {
     ///
     /// Present so dispatch definitions can be explicit about cadence; there
     /// is currently no other supported cadence.
+    #[doc = "**API Contract:** Run `sand api show sand::events::TickEventDispatch::every_tick` for the canonical contract."]
     pub fn every_tick(self) -> Self {
         self
     }
 
     /// Combine `when`/`unless` into a single [`Condition`](crate::condition::Condition),
     /// or `None` if no conditions were declared (dispatch is unconditional).
+    #[doc = "**API Contract:** Run `sand api show sand::events::TickEventDispatch::combined_condition` for the canonical contract."]
     pub fn combined_condition(&self) -> Option<crate::condition::Condition> {
         if self.when.is_empty() && self.unless.is_empty() {
             return None;
@@ -890,7 +976,8 @@ impl TickEventDispatch {
     /// one OR-alternative execute plan." Callers must handle both
     /// [`TickExecutionPlans::Unconditional`] and every entry of
     /// [`TickExecutionPlans::Plans`] explicitly.
-    pub fn execution_plans(&self) -> TickExecutionPlans {
+    #[allow(dead_code)]
+    pub(crate) fn execution_plans(&self) -> TickExecutionPlans {
         self.execution_ir_plans().render_compat()
     }
 
@@ -908,6 +995,7 @@ impl From<TickEventDispatch> for SandEventDispatch {
     }
 }
 
+#[doc = "**API Contract:** Run `sand api show sand::events::ChainEventDispatch` for the canonical contract."]
 /// Structured, typed same-cycle chained dispatch definition.
 ///
 /// Built via [`SandEventDispatch::chain`]. Declares that this event is
@@ -940,24 +1028,25 @@ impl From<TickEventDispatch> for SandEventDispatch {
 pub struct ChainEventDispatch {
     /// Explicit same-cycle occurrence clauses. Clauses are conjunctive;
     /// `AfterAny` is disjunctive only within its own parent group.
-    pub occurrence: Vec<SameCycleEventRequirement>,
+    pub(crate) occurrence: Vec<SameCycleEventRequirement>,
     /// Persistent current-state requirements, kept distinct from the
     /// same-cycle occurrence parent and from ordinary anonymous conditions.
-    pub persistent: Vec<PersistentEventDependency>,
+    pub(crate) persistent: Vec<PersistentEventDependency>,
     /// Bounded cross-tick correlation requirements. Distinct from `occurrence`
     /// (same-cycle only) and `persistent` (current state, no occurrence). See
     /// [`ChainEventDispatch::within`].
-    pub bounded: Vec<BoundedEventDependency>,
+    pub(crate) bounded: Vec<BoundedEventDependency>,
     /// Positive conditions — all must hold (ANDed) for this child to fire
     /// once its occurrence requirements are satisfied.
-    pub when: Vec<crate::condition::Condition>,
+    pub(crate) conditions: Vec<crate::condition::Condition>,
     /// Negative conditions — none may hold.
-    pub unless: Vec<crate::condition::Condition>,
+    pub(crate) excluded_conditions: Vec<crate::condition::Condition>,
 }
 
 impl ChainEventDispatch {
     /// Require one additional event to have fired for the same subject during
     /// the current event cycle.
+    #[doc = "**API Contract:** Run `sand api show sand::events::ChainEventDispatch::after` for the canonical contract."]
     pub fn after<E: SandEvent + 'static>(mut self) -> Self {
         self.occurrence.push(SameCycleEventRequirement::After(
             SameCycleEventDependency::of::<E>(),
@@ -971,10 +1060,9 @@ impl ChainEventDispatch {
     /// `G` is a tuple of two through eight concrete [`SandEvent`] types.
     /// Multiple `after_any` groups in one definition are rejected at export
     /// because their coalescing boundary would otherwise be ambiguous.
-    pub fn after_any<G: SameCycleEventGroup>(mut self) -> Self {
-        self.occurrence
-            .push(SameCycleEventRequirement::AfterAny(G::dependencies()));
-        self
+    #[doc = "**API Contract:** Run `sand api show sand::events::ChainEventDispatch::after_any` for the canonical contract."]
+    pub fn after_any<G: SameCycleEventGroup>(self) -> Self {
+        <G as event_group_private::Sealed>::apply(self, false)
     }
 
     /// Require every event in `G` to have fired for the same subject during
@@ -982,10 +1070,9 @@ impl ChainEventDispatch {
     ///
     /// `G` is a tuple of two through eight concrete [`SandEvent`] types.
     /// Multiple `after_all` groups in one definition are rejected at export.
-    pub fn after_all<G: SameCycleEventGroup>(mut self) -> Self {
-        self.occurrence
-            .push(SameCycleEventRequirement::AfterAll(G::dependencies()));
-        self
+    #[doc = "**API Contract:** Run `sand api show sand::events::ChainEventDispatch::after_all` for the canonical contract."]
+    pub fn after_all<G: SameCycleEventGroup>(self) -> Self {
+        <G as event_group_private::Sealed>::apply(self, true)
     }
 
     /// Require `E`'s persistent state to be true when this child is considered.
@@ -1010,6 +1097,7 @@ impl ChainEventDispatch {
     ///     .while_::<PlayerSneakEvent>();
     /// # let _: SandEventDispatch = child.into();
     /// ```
+    #[doc = "**API Contract:** Run `sand api show sand::events::ChainEventDispatch::while_` for the canonical contract."]
     pub fn while_<E: PersistentSandEvent + 'static>(mut self) -> Self {
         self.persistent.push(PersistentEventDependency {
             event_type_id: std::any::TypeId::of::<E>,
@@ -1059,6 +1147,7 @@ impl ChainEventDispatch {
     ///     .within::<PriorEvent>(TickWindow::new(20).expect("nonzero, in range"));
     /// # let _: SandEventDispatch = child.into();
     /// ```
+    #[doc = "**API Contract:** Run `sand api show sand::events::ChainEventDispatch::within` for the canonical contract."]
     pub fn within<E: SandEvent + 'static>(mut self, window: TickWindow) -> Self {
         self.bounded.push(BoundedEventDependency {
             event_type_id: std::any::TypeId::of::<E>,
@@ -1074,12 +1163,14 @@ impl ChainEventDispatch {
     /// addition to the parent having fired this cycle.
     ///
     /// Multiple calls are ANDed together.
+    #[doc = "**API Contract:** Run `sand api show sand::events::ChainEventDispatch::when` for the canonical contract."]
     pub fn when(mut self, condition: impl Into<crate::condition::Condition>) -> Self {
-        self.when.push(condition.into());
+        self.conditions.push(condition.into());
         self
     }
 
     /// Ergonomic alias for [`when`](Self::when).
+    #[doc = "**API Contract:** Run `sand api show sand::events::ChainEventDispatch::if_` for the canonical contract."]
     pub fn if_(self, condition: impl Into<crate::condition::Condition>) -> Self {
         self.when(condition)
     }
@@ -1088,24 +1179,26 @@ impl ChainEventDispatch {
     ///
     /// Multiple calls are ANDed together (i.e. every `unless` condition must
     /// fail to hold).
+    #[doc = "**API Contract:** Run `sand api show sand::events::ChainEventDispatch::unless` for the canonical contract."]
     pub fn unless(mut self, condition: impl Into<crate::condition::Condition>) -> Self {
-        self.unless.push(condition.into());
+        self.excluded_conditions.push(condition.into());
         self
     }
 
     /// Combine `when`/`unless` into a single [`Condition`](crate::condition::Condition),
     /// or `None` if no conditions were declared (the child fires
     /// unconditionally whenever its parent fires).
+    #[doc = "**API Contract:** Run `sand api show sand::events::ChainEventDispatch::combined_condition` for the canonical contract."]
     pub fn combined_condition(&self) -> Option<crate::condition::Condition> {
-        if self.when.is_empty() && self.unless.is_empty() {
+        if self.conditions.is_empty() && self.excluded_conditions.is_empty() {
             return None;
         }
-        let mut combined = if self.when.is_empty() {
+        let mut combined = if self.conditions.is_empty() {
             crate::condition::Condition::all([])
         } else {
-            crate::condition::Condition::all(self.when.clone())
+            crate::condition::Condition::all(self.conditions.clone())
         };
-        for u in &self.unless {
+        for u in &self.excluded_conditions {
             combined = combined.and_not(u.clone());
         }
         Some(combined)
@@ -1113,10 +1206,12 @@ impl ChainEventDispatch {
 
     /// Expand this child's conditions into explicit [`TickExecutionPlans`],
     /// same shape as [`TickEventDispatch::execution_plans`].
-    pub fn execution_plans(&self) -> TickExecutionPlans {
+    #[allow(dead_code)]
+    pub(crate) fn execution_plans(&self) -> TickExecutionPlans {
         self.execution_ir_plans().render_compat()
     }
 
+    #[allow(dead_code)]
     pub(crate) fn execution_ir_plans(&self) -> TickExecutionIrPlans {
         match self.combined_condition() {
             None => TickExecutionIrPlans::Unconditional,
@@ -1131,67 +1226,30 @@ impl From<ChainEventDispatch> for SandEventDispatch {
     }
 }
 
+#[allow(clippy::large_enum_variant)]
+pub(crate) enum EventDispatchRepresentation {
+    AdvancementTrigger(crate::AdvancementTrigger),
+    TickCondition(String),
+    Tick(TickEventDispatch),
+    Chain(ChainEventDispatch),
+    Tracked(crate::TrackedTransition),
+}
+
+#[doc = "**API Contract:** Run `sand api show sand::events::SandEventDispatch` for the canonical contract."]
 /// How a custom [`SandEvent`] is dispatched at runtime.
 ///
 /// Returned by [`SandEvent::dispatch`]. Sand inspects this at build time to
 /// generate the correct detection mechanism (advancement JSON or tick loop).
-#[allow(clippy::large_enum_variant)]
-pub enum SandEventDispatch {
-    /// The event fires when the given advancement trigger criteria are met.
-    ///
-    /// Sand generates an advancement JSON file and wires the handler function
-    /// as its reward. The advancement is revoked after firing (by default) so
-    /// it can trigger again next time.
-    AdvancementTrigger(crate::AdvancementTrigger),
-
-    /// The event fires every tick an `execute if <condition>` is satisfied,
-    /// evaluated as each online player.
-    ///
-    /// The string must be a valid Minecraft `execute if` sub-command, e.g.:
-    ///
-    /// - `"items entity @s mainhand minecraft:diamond_sword"` — holding a sword
-    /// - `"score @s my_flag matches 1"` — scoreboard flag is set
-    /// - `"predicate my_pack:some_predicate"` — custom predicate
-    ///
-    /// This is the simple, single-fragment form. Prefer
-    /// [`SandEventDispatch::tick`] for typed conditions built from Sand's
-    /// [`Condition`](crate::condition::Condition) IR, or when the event needs
-    /// owned lifecycle resources via [`SandEvent::setup`].
-    TickCondition(String),
-
-    /// Structured, typed tick-poll dispatch. See [`TickEventDispatch`].
-    Tick(TickEventDispatch),
-
-    /// Structured, same-cycle chained dispatch. See [`ChainEventDispatch`]
-    /// and [`SandEventDispatch::chain`].
-    Chain(ChainEventDispatch),
-
-    /// Reusable tracked-transition dispatch (#49): a previous/current
-    /// baseline shared by every handler with the same
-    /// `TrackedTransition::tracker_id`, generated once regardless of how
-    /// many handlers subscribe.
-    ///
-    /// This is the mechanism `PlayerStartSneakingEvent` uses internally
-    /// (via macro-level dispatch), generalized here so arbitrary — including
-    /// generic — `SandEvent` types can declare their own tracked
-    /// transitions, e.g.:
-    ///
-    /// ```rust,ignore
-    /// impl SandEvent for PlayerStartSprintingEvent {
-    ///     fn dispatch() -> SandEventDispatch {
-    ///         SandEventDispatch::Tracked(TrackedTransition::new(
-    ///             "player_sprinting",
-    ///             PLAYER_SPRINTING_TRACKED_SOURCE,
-    ///             TransitionKind::BecameTrue,
-    ///         ))
-    ///     }
-    /// }
-    /// ```
-    ///
-    /// Not yet a supported same-cycle chain/compose parent — see
-    /// `NormalizedEventDispatch::Tracked`.
-    Tracked(crate::TrackedTransition),
-}
+/// Its transport representation is intentionally private; authors select a
+/// semantic constructor or return one of the typed builders instead.
+///
+/// ```compile_fail
+/// use sand_core::events::SandEventDispatch;
+///
+/// let dispatch: SandEventDispatch = SandEventDispatch::tick().as_players().into();
+/// let SandEventDispatch(_) = dispatch;
+/// ```
+pub struct SandEventDispatch(EventDispatchRepresentation);
 
 /// Normalized internal representation of a [`SandEventDispatch`], used by the
 /// export pipeline and by tests asserting on lowering behavior.
@@ -1200,8 +1258,8 @@ pub enum SandEventDispatch {
 /// and `TickCondition` compatibility constructors — lowers into one of these
 /// shapes, so the exporter has a single normalized IR to consume rather
 /// than juggling multiple representations.
-#[allow(clippy::large_enum_variant)]
-pub enum NormalizedEventDispatch {
+#[allow(clippy::large_enum_variant, dead_code)]
+pub(crate) enum NormalizedEventDispatch {
     /// Advancement-backed dispatch.
     Advancement(crate::AdvancementTrigger),
     /// Tick-poll dispatch, always in the structured [`TickEventDispatch`] shape.
@@ -1219,6 +1277,42 @@ pub enum NormalizedEventDispatch {
 }
 
 impl SandEventDispatch {
+    /// Dispatch from one typed advancement trigger.
+    ///
+    /// Sand generates an advancement JSON file and wires the handler function
+    /// as its reward. The advancement is revoked after firing by default so it
+    /// can trigger again.
+    #[allow(non_snake_case)]
+    #[doc = "**API Contract:** Run `sand api show sand::events::SandEventDispatch::AdvancementTrigger` for the canonical contract."]
+    pub fn AdvancementTrigger(trigger: crate::AdvancementTrigger) -> Self {
+        Self(EventDispatchRepresentation::AdvancementTrigger(trigger))
+    }
+
+    /// Dispatch by polling one explicit `execute if` condition for each player.
+    ///
+    /// Prefer [`SandEventDispatch::tick`] for typed conditions and lifecycle
+    /// resources. This compatibility constructor preserves the raw-condition
+    /// escape hatch without exposing Sand's dispatch representation.
+    #[allow(non_snake_case)]
+    #[doc = "**API Contract:** Run `sand api show sand::events::SandEventDispatch::TickCondition` for the canonical contract."]
+    pub fn TickCondition(condition: String) -> Self {
+        Self(EventDispatchRepresentation::TickCondition(condition))
+    }
+
+    /// Wrap a structured typed tick-poll dispatch.
+    #[allow(non_snake_case)]
+    #[doc = "**API Contract:** Run `sand api show sand::events::SandEventDispatch::Tick` for the canonical contract."]
+    pub fn Tick(tick: TickEventDispatch) -> Self {
+        Self(EventDispatchRepresentation::Tick(tick))
+    }
+
+    /// Wrap a structured event-composition dispatch.
+    #[allow(non_snake_case)]
+    #[doc = "**API Contract:** Run `sand api show sand::events::SandEventDispatch::Chain` for the canonical contract."]
+    pub fn Chain(chain: ChainEventDispatch) -> Self {
+        Self(EventDispatchRepresentation::Chain(chain))
+    }
+
     /// Construct a structured, typed tick-poll dispatch builder.
     ///
     /// ```rust,ignore
@@ -1226,6 +1320,7 @@ impl SandEventDispatch {
     ///     .as_players()
     ///     .when(SYNC_JUMPS.of("@s").lt_score(JUMPS.of("@s")))
     /// ```
+    #[doc = "**API Contract:** Run `sand api show sand::events::SandEventDispatch::tick` for the canonical contract."]
     pub fn tick() -> TickEventDispatch {
         TickEventDispatch::default()
     }
@@ -1242,6 +1337,7 @@ impl SandEventDispatch {
     /// SandEventDispatch::chain::<PlayerJumpEvent>()
     ///     .when(Condition::raw("block ~ ~-1 ~ minecraft:white_wool"))
     /// ```
+    #[doc = "**API Contract:** Run `sand api show sand::events::SandEventDispatch::chain` for the canonical contract."]
     pub fn chain<P: SandEvent + 'static>() -> ChainEventDispatch {
         Self::compose().after::<P>()
     }
@@ -1252,24 +1348,66 @@ impl SandEventDispatch {
     /// [`ChainEventDispatch::after_any`], or
     /// [`ChainEventDispatch::after_all`] clause before returning it from
     /// [`SandEvent::dispatch`]. Empty compositions are rejected at export.
+    #[doc = "**API Contract:** Run `sand api show sand::events::SandEventDispatch::compose` for the canonical contract."]
     pub fn compose() -> ChainEventDispatch {
         ChainEventDispatch {
             occurrence: Vec::new(),
             persistent: Vec::new(),
             bounded: Vec::new(),
-            when: Vec::new(),
-            unless: Vec::new(),
+            conditions: Vec::new(),
+            excluded_conditions: Vec::new(),
         }
     }
 
     /// Start a typed any-parent same-cycle composition.
+    #[doc = "**API Contract:** Run `sand api show sand::events::SandEventDispatch::after_any` for the canonical contract."]
     pub fn after_any<G: SameCycleEventGroup>() -> ChainEventDispatch {
         Self::compose().after_any::<G>()
     }
 
     /// Start a typed all-parent same-cycle composition.
+    #[doc = "**API Contract:** Run `sand api show sand::events::SandEventDispatch::after_all` for the canonical contract."]
     pub fn after_all<G: SameCycleEventGroup>() -> ChainEventDispatch {
         Self::compose().after_all::<G>()
+    }
+
+    pub(crate) fn tracked(transition: crate::TrackedTransition) -> Self {
+        Self(EventDispatchRepresentation::Tracked(transition))
+    }
+
+    pub(crate) fn into_advancement(self) -> Option<crate::AdvancementTrigger> {
+        match self.0 {
+            EventDispatchRepresentation::AdvancementTrigger(trigger) => Some(trigger),
+            _ => None,
+        }
+    }
+
+    pub(crate) fn into_tick_condition(self) -> Option<String> {
+        match self.0 {
+            EventDispatchRepresentation::TickCondition(condition) => Some(condition),
+            _ => None,
+        }
+    }
+
+    pub(crate) fn into_tick(self) -> Option<TickEventDispatch> {
+        match self.0 {
+            EventDispatchRepresentation::Tick(tick) => Some(tick),
+            _ => None,
+        }
+    }
+
+    pub(crate) fn into_chain(self) -> Option<ChainEventDispatch> {
+        match self.0 {
+            EventDispatchRepresentation::Chain(chain) => Some(chain),
+            _ => None,
+        }
+    }
+
+    pub(crate) fn into_tracked(self) -> Option<crate::TrackedTransition> {
+        match self.0 {
+            EventDispatchRepresentation::Tracked(transition) => Some(transition),
+            _ => None,
+        }
     }
 
     /// Lower this dispatch into the normalized internal IR.
@@ -1279,19 +1417,22 @@ impl SandEventDispatch {
     ///   [`Condition::raw`](crate::condition::Condition::raw) `when` clause.
     /// - `Tick(t)` → `Tick(t)` unchanged.
     /// - `Chain(c)` → `Chain(c)` unchanged.
-    pub fn normalize(self) -> NormalizedEventDispatch {
-        match self {
-            SandEventDispatch::AdvancementTrigger(t) => NormalizedEventDispatch::Advancement(t),
-            SandEventDispatch::TickCondition(s) => NormalizedEventDispatch::Tick(
+    pub(crate) fn normalize(self) -> NormalizedEventDispatch {
+        match self.0 {
+            EventDispatchRepresentation::AdvancementTrigger(t) => {
+                NormalizedEventDispatch::Advancement(t)
+            }
+            EventDispatchRepresentation::TickCondition(s) => NormalizedEventDispatch::Tick(
                 TickEventDispatch::default().when(crate::condition::Condition::raw(s)),
             ),
-            SandEventDispatch::Tick(t) => NormalizedEventDispatch::Tick(t),
-            SandEventDispatch::Chain(c) => NormalizedEventDispatch::Chain(c),
-            SandEventDispatch::Tracked(t) => NormalizedEventDispatch::Tracked(t),
+            EventDispatchRepresentation::Tick(t) => NormalizedEventDispatch::Tick(t),
+            EventDispatchRepresentation::Chain(c) => NormalizedEventDispatch::Chain(c),
+            EventDispatchRepresentation::Tracked(t) => NormalizedEventDispatch::Tracked(t),
         }
     }
 }
 
+#[doc = "**API Contract:** Run `sand api show sand::events::SandEvent` for the canonical contract."]
 /// Implement this trait on your own type to define a custom Sand event.
 ///
 /// Your concrete type is the single parameter of a custom `#[on_event]` handler.
@@ -1340,6 +1481,7 @@ pub trait SandEvent {
     /// typed [`SandEventDispatch::tick()`] builder chain (which yields a bare
     /// [`TickEventDispatch`]) can be returned directly, without an explicit
     /// `.into()` at every call site.
+    #[doc = "**API Contract:** Run `sand api show sand::events::SandEvent::dispatch` for the canonical contract."]
     fn dispatch() -> impl Into<SandEventDispatch>;
 
     /// Lifecycle resources this event owns: objectives, pre-observation, and
@@ -1353,6 +1495,7 @@ pub trait SandEvent {
     /// When several `#[on_event]` handlers subscribe to the same event type,
     /// Sand deduplicates setup by the event's in-process type identity so
     /// objectives and detector functions are only emitted once.
+    #[doc = "**API Contract:** Run `sand api show sand::events::SandEvent::setup` for the canonical contract."]
     fn setup() -> EventSetup {
         EventSetup::none()
     }
@@ -1371,6 +1514,7 @@ pub trait SandEvent {
     /// unless you are hand-assembling an `EventSetup` outside the normal
     /// `#[on_event]` path. See `sand-core/src/participant/plan.rs`'s module doc
     /// for the exact lifecycle ordering per backend.
+    #[doc = "**API Contract:** Run `sand api show sand::events::SandEvent::participants` for the canonical contract."]
     fn participants() -> crate::participant::EventParticipantPlan {
         crate::participant::EventParticipantPlan::none()
     }
@@ -1385,11 +1529,13 @@ pub trait SandEvent {
     ///
     /// Only relevant when [`dispatch`](Self::dispatch) returns
     /// [`SandEventDispatch::AdvancementTrigger`].
+    #[doc = "**API Contract:** Run `sand api show sand::events::SandEvent::revoke` for the canonical contract."]
     fn revoke() -> bool {
         true
     }
 }
 
+#[doc = "**API Contract:** Run `sand api show sand::events::SandEventParticipants` for the canonical contract."]
 /// Infallible participant accessors for bare `SandEvent`-backed `#[on_event]`
 /// handlers (`fn handler(event: MarkerType)`), mirroring
 /// [`crate::event::Event`]'s `AdvancementEvent`-backed accessor sugar
@@ -1418,6 +1564,7 @@ pub trait SandEventParticipants: SandEvent + Sized + 'static {
     /// Access a declared entity participant by role. See
     /// [`crate::event::Event::entity`] for the identical infallible
     /// contract this mirrors.
+    #[doc = "**API Contract:** Run `sand api show sand::events::SandEventParticipants::entity` for the canonical contract."]
     fn entity(
         &self,
         role: crate::participant::EntityParticipantRole,
@@ -1426,31 +1573,37 @@ pub trait SandEventParticipants: SandEvent + Sized + 'static {
     }
 
     /// Access a declared item participant by role. See [`Self::entity`].
+    #[doc = "**API Contract:** Run `sand api show sand::events::SandEventParticipants::item` for the canonical contract."]
     fn item(&self, role: crate::participant::ItemParticipantRole) -> crate::item::ItemSnapshot {
         Self::participants().require_item(std::any::type_name::<Self>(), role)
     }
 
     /// The entity that caused this event, when declared.
+    #[doc = "**API Contract:** Run `sand api show sand::events::SandEventParticipants::attacker` for the canonical contract."]
     fn attacker(&self) -> crate::participant::EntityParticipant {
         self.entity(crate::participant::EntityParticipantRole::Attacker)
     }
 
     /// The entity that landed the killing blow, when declared.
+    #[doc = "**API Contract:** Run `sand api show sand::events::SandEventParticipants::killer` for the canonical contract."]
     fn killer(&self) -> crate::participant::EntityParticipant {
         self.entity(crate::participant::EntityParticipantRole::Killer)
     }
 
     /// The entity that received damage/an effect, when declared.
+    #[doc = "**API Contract:** Run `sand api show sand::events::SandEventParticipants::victim` for the canonical contract."]
     fn victim(&self) -> crate::participant::EntityParticipant {
         self.entity(crate::participant::EntityParticipantRole::Victim)
     }
 
     /// The entity this player directly interacted with, when declared.
+    #[doc = "**API Contract:** Run `sand api show sand::events::SandEventParticipants::interacted_entity` for the canonical contract."]
     fn interacted_entity(&self) -> crate::participant::EntityParticipant {
         self.entity(crate::participant::EntityParticipantRole::InteractedEntity)
     }
 
     /// The weapon item snapshot, when declared.
+    #[doc = "**API Contract:** Run `sand api show sand::events::SandEventParticipants::weapon` for the canonical contract."]
     fn weapon(&self) -> crate::item::ItemSnapshot {
         self.item(crate::participant::ItemParticipantRole::Weapon)
     }
@@ -1460,6 +1613,7 @@ pub trait SandEventParticipants: SandEvent + Sized + 'static {
     /// [`crate::participant::EventParticipantPlan::inherit_item_within`]
     /// instead of a same-cycle capture; see that method's doc for the full
     /// replacement/expiry/absence contract.
+    #[doc = "**API Contract:** Run `sand api show sand::events::SandEventParticipants::bounded_item` for the canonical contract."]
     fn bounded_item(
         &self,
         role: crate::participant::ItemParticipantRole,
@@ -1472,10 +1626,11 @@ impl<T: SandEvent + Sized + 'static> SandEventParticipants for T {}
 
 // ── Built-in event marker types ───────────────────────────────────────────────
 
+#[doc = "**API Contract:** Run `sand api show sand::events::OnJoinEvent` for the canonical contract."]
 /// Fires on the first tick after a server start, `/reload`, or when a new
 /// player joins mid-session.
 ///
-/// The preferred short name is [`sand_core::event::vanilla::OnJoin`](crate::event::vanilla::OnJoin).
+/// The supported author-facing identity is `sand::events::OnJoinEvent`.
 ///
 /// Implemented as a `JoinTick` scoreboard check: the `__sand_join` scoreboard
 /// objective is created and reset on `minecraft:load`; players whose score is
@@ -1498,9 +1653,10 @@ impl<T: SandEvent + Sized + 'static> SandEventParticipants for T {}
 /// ```
 pub struct OnJoinEvent;
 
+#[doc = "**API Contract:** Run `sand api show sand::events::FirstJoinEvent` for the canonical contract."]
 /// Fires the very first time a player ever joins. Never fires again.
 ///
-/// The preferred short name is [`sand_core::event::vanilla::FirstJoin`](crate::event::vanilla::FirstJoin).
+/// The supported author-facing identity is `sand::events::FirstJoinEvent`.
 ///
 /// Implemented as an `Advancement + Tick` trigger **without** revocation.
 /// Once the advancement is granted it stays, so the event fires exactly once
@@ -1520,9 +1676,10 @@ pub struct OnJoinEvent;
 /// ```
 pub struct FirstJoinEvent;
 
+#[doc = "**API Contract:** Run `sand api show sand::events::OnDeathEvent` for the canonical contract."]
 /// Fires on the tick a player dies (any cause: mob, fall, void, `/kill`, …).
 ///
-/// The preferred short name is [`sand_core::event::vanilla::OnDeath`](crate::event::vanilla::OnDeath).
+/// The supported author-facing identity is `sand::events::OnDeathEvent`.
 ///
 /// Implemented via the `deathCount` scoreboard criterion. The handler runs as
 /// `@s` = the dying player.
@@ -1539,9 +1696,10 @@ pub struct FirstJoinEvent;
 /// ```
 pub struct OnDeathEvent;
 
+#[doc = "**API Contract:** Run `sand api show sand::events::OnRespawnEvent` for the canonical contract."]
 /// Fires on the first Sand tick that observes the player active after death.
 ///
-/// The preferred short name is [`sand_core::event::vanilla::OnRespawn`](crate::event::vanilla::OnRespawn).
+/// The supported author-facing identity is `sand::events::OnRespawnEvent`.
 ///
 /// Sand records a per-player waiting phase when `deathCount` observes a death.
 /// Vanilla resets `minecraft.custom:minecraft.time_since_death` to zero on
@@ -1574,6 +1732,7 @@ pub struct OnDeathEvent;
 /// ```
 pub struct OnRespawnEvent;
 
+#[doc = "**API Contract:** Run `sand api show sand::events::ArmorEquipEvent` for the canonical contract."]
 /// Fires on the tick a player **equips** an item in an equipment slot.
 ///
 /// Uses tick-based state tracking via entity tags — no advancement required.
@@ -1607,6 +1766,7 @@ pub struct OnRespawnEvent;
 /// ```
 pub struct ArmorEquipEvent;
 
+#[doc = "**API Contract:** Run `sand api show sand::events::ArmorUnequipEvent` for the canonical contract."]
 /// Fires on the tick a player **removes** an item from an equipment slot.
 ///
 /// Same filter syntax as [`ArmorEquipEvent`].
@@ -1623,6 +1783,7 @@ pub struct ArmorEquipEvent;
 /// ```
 pub struct ArmorUnequipEvent;
 
+#[doc = "**API Contract:** Run `sand api show sand::events::HoldingItemEvent` for the canonical contract."]
 /// Fires every tick a player is **holding** a specific item.
 ///
 /// Uses `execute if items entity @s <slot> <item>` per tick.
@@ -1653,6 +1814,7 @@ pub struct ArmorUnequipEvent;
 /// ```
 pub struct HoldingItemEvent;
 
+#[doc = "**API Contract:** Run `sand api show sand::events::CurrentlyWearingEvent` for the canonical contract."]
 /// Fires every tick a player is **wearing** a specific item in an armor slot.
 ///
 /// Uses `execute if items entity @s armor.<slot> <item>` per tick.
@@ -1688,6 +1850,7 @@ pub struct CurrentlyWearingEvent;
 
 // ── Kill / combat ─────────────────────────────────────────────────────────
 
+#[doc = "**API Contract:** Run `sand api show sand::events::EntityKillEvent` for the canonical contract."]
 /// Fires when the player kills any entity.
 ///
 /// Maps to `minecraft:player_killed_entity` with no conditions.
@@ -1716,6 +1879,7 @@ impl SandEvent for EntityKillEvent {
     }
 }
 
+#[doc = "**API Contract:** Run `sand api show sand::events::PlayerKillEvent` for the canonical contract."]
 /// Fires when any entity kills the player.
 ///
 /// Maps to `minecraft:entity_killed_player` with no conditions.
@@ -1743,6 +1907,7 @@ impl SandEvent for PlayerKillEvent {
     }
 }
 
+#[doc = "**API Contract:** Run `sand api show sand::events::PlayerDamageEntityEvent` for the canonical contract."]
 /// Fires when the player deals damage to any entity.
 ///
 /// Maps to `minecraft:player_hurt_entity`.
@@ -1759,6 +1924,7 @@ impl SandEvent for PlayerDamageEntityEvent {
     }
 }
 
+#[doc = "**API Contract:** Run `sand api show sand::events::EntityDamagePlayerEvent` for the canonical contract."]
 /// Fires when any entity deals damage to the player.
 ///
 /// Maps to `minecraft:entity_hurt_player`.
@@ -1775,6 +1941,7 @@ impl SandEvent for EntityDamagePlayerEvent {
     }
 }
 
+#[doc = "**API Contract:** Run `sand api show sand::events::ShotCrossbowEvent` for the canonical contract."]
 /// Fires when the player shoots a crossbow.
 pub struct ShotCrossbowEvent;
 impl SandEvent for ShotCrossbowEvent {
@@ -1785,6 +1952,7 @@ impl SandEvent for ShotCrossbowEvent {
     }
 }
 
+#[doc = "**API Contract:** Run `sand api show sand::events::ChanneledLightningEvent` for the canonical contract."]
 /// Fires when the player channels a trident's lightning at an entity.
 pub struct ChanneledLightningEvent;
 impl SandEvent for ChanneledLightningEvent {
@@ -1797,6 +1965,7 @@ impl SandEvent for ChanneledLightningEvent {
 
 // ── Items ─────────────────────────────────────────────────────────────────
 
+#[doc = "**API Contract:** Run `sand api show sand::events::ItemConsumeEvent` for the canonical contract."]
 /// Fires when the player consumes any item (food, potion, etc.).
 ///
 /// Maps to `minecraft:consume_item`.
@@ -1815,6 +1984,7 @@ impl SandEvent for ItemConsumeEvent {
     }
 }
 
+#[doc = "**API Contract:** Run `sand api show sand::events::ItemCraftEvent` for the canonical contract."]
 /// Compatibility marker for the removed `minecraft:crafted_item` trigger.
 /// Target-aware export rejects it with a migration diagnostic because current
 /// vanilla's `minecraft:recipe_crafted` requires a concrete recipe ID.
@@ -1825,6 +1995,7 @@ impl SandEvent for ItemCraftEvent {
     }
 }
 
+#[doc = "**API Contract:** Run `sand api show sand::events::ItemEnchantEvent` for the canonical contract."]
 /// Fires when the player enchants any item.
 ///
 /// Maps to `minecraft:enchanted_item`.
@@ -1838,6 +2009,7 @@ impl SandEvent for ItemEnchantEvent {
     }
 }
 
+#[doc = "**API Contract:** Run `sand api show sand::events::BucketFillEvent` for the canonical contract."]
 /// Fires when the player fills any bucket.
 ///
 /// Maps to `minecraft:filled_bucket`.
@@ -1850,6 +2022,7 @@ impl SandEvent for BucketFillEvent {
     }
 }
 
+#[doc = "**API Contract:** Run `sand api show sand::events::BucketEmptyEvent` for the canonical contract."]
 /// Legacy compatibility marker for bucket-empty detection.
 ///
 /// The historical `minecraft:emptied_bucket` ID is absent from Sand's
@@ -1867,6 +2040,7 @@ impl SandEvent for BucketEmptyEvent {
     }
 }
 
+#[doc = "**API Contract:** Run `sand api show sand::events::FishingEvent` for the canonical contract."]
 /// Fires when the player uses a fishing rod and it hooks something.
 ///
 /// Maps to `minecraft:fishing_rod_hooked`.
@@ -1881,6 +2055,7 @@ impl SandEvent for FishingEvent {
     }
 }
 
+#[doc = "**API Contract:** Run `sand api show sand::events::ItemPickedUpEvent` for the canonical contract."]
 /// Fires when the player picks up a thrown item.
 ///
 /// Maps to `minecraft:thrown_item_picked_up_by_player`. Use the typed trigger
@@ -1897,6 +2072,7 @@ impl SandEvent for ItemPickedUpEvent {
     }
 }
 
+#[doc = "**API Contract:** Run `sand api show sand::events::ItemDurabilityChangeEvent` for the canonical contract."]
 /// Fires when an item in the player's inventory loses durability.
 ///
 /// Maps to `minecraft:item_durability_changed`.
@@ -1911,6 +2087,7 @@ impl SandEvent for ItemDurabilityChangeEvent {
     }
 }
 
+#[doc = "**API Contract:** Run `sand api show sand::events::BrewPotionEvent` for the canonical contract."]
 /// Fires when the player brews a potion.
 ///
 /// Maps to `minecraft:brewed_potion`.
@@ -1921,6 +2098,7 @@ impl SandEvent for BrewPotionEvent {
     }
 }
 
+#[doc = "**API Contract:** Run `sand api show sand::events::TotemActivateEvent` for the canonical contract."]
 /// Fires when the player activates a totem of undying.
 ///
 /// Maps to `minecraft:used_totem`.
@@ -1931,6 +2109,7 @@ impl SandEvent for TotemActivateEvent {
     }
 }
 
+#[doc = "**API Contract:** Run `sand api show sand::events::RecipeUnlockEvent` for the canonical contract."]
 /// Fires when the player unlocks a recipe.
 ///
 /// Maps to `minecraft:recipe_unlocked` with no recipe filter.
@@ -1948,6 +2127,7 @@ impl SandEvent for RecipeUnlockEvent {
 
 // ── World / blocks ────────────────────────────────────────────────────────
 
+#[doc = "**API Contract:** Run `sand api show sand::events::BlockPlaceEvent` for the canonical contract."]
 /// Fires when the player places any block.
 ///
 /// Maps to `minecraft:placed_block` with no filters.
@@ -1970,6 +2150,7 @@ impl SandEvent for BlockPlaceEvent {
     }
 }
 
+#[doc = "**API Contract:** Run `sand api show sand::events::EnterBlockEvent` for the canonical contract."]
 /// Fires when the player enters a block (e.g. water, honey).
 ///
 /// Maps to `minecraft:enter_block` with no block filter.
@@ -1980,6 +2161,7 @@ impl SandEvent for EnterBlockEvent {
     }
 }
 
+#[doc = "**API Contract:** Run `sand api show sand::events::SlideDownBlockEvent` for the canonical contract."]
 /// Fires when the player slides down a block (e.g. honey block wall).
 ///
 /// Maps to `minecraft:slide_down_block`.
@@ -1990,6 +2172,7 @@ impl SandEvent for SlideDownBlockEvent {
     }
 }
 
+#[doc = "**API Contract:** Run `sand api show sand::events::TargetHitEvent` for the canonical contract."]
 /// Fires when a target block is hit by a projectile near the player.
 ///
 /// Maps to `minecraft:target_hit`.
@@ -2003,6 +2186,7 @@ impl SandEvent for TargetHitEvent {
     }
 }
 
+#[doc = "**API Contract:** Run `sand api show sand::events::BeeNestDestroyedEvent` for the canonical contract."]
 /// Fires when the player destroys a bee nest or beehive.
 ///
 /// Maps to `minecraft:bee_nest_destroyed`.
@@ -2017,6 +2201,7 @@ impl SandEvent for BeeNestDestroyedEvent {
 
 // ── Player state ──────────────────────────────────────────────────────────
 
+#[doc = "**API Contract:** Run `sand api show sand::events::ChangeDimensionEvent` for the canonical contract."]
 /// Fires when the player changes dimension (e.g. entering the Nether or End).
 ///
 /// Maps to `minecraft:changed_dimension`.
@@ -2037,6 +2222,7 @@ impl SandEvent for ChangeDimensionEvent {
     }
 }
 
+#[doc = "**API Contract:** Run `sand api show sand::events::PlayerSleepEvent` for the canonical contract."]
 /// Fires when the player sleeps in a bed.
 ///
 /// Maps to `minecraft:slept_in_bed`.
@@ -2049,6 +2235,7 @@ impl SandEvent for PlayerSleepEvent {
     }
 }
 
+#[doc = "**API Contract:** Run `sand api show sand::events::FallFromHeightEvent` for the canonical contract."]
 /// Fires when the player falls from a height and lands.
 ///
 /// Maps to `minecraft:fall_from_height`.
@@ -2073,10 +2260,10 @@ impl SandEvent for FallFromHeightEvent {
     }
 }
 
+#[doc = "**API Contract:** Run `sand api show sand::events::PlayerLevelUpEvent` for the canonical contract."]
 /// Fires when a player's XP level increases (gains one or more levels in a tick).
 ///
-/// The preferred short name is
-/// [`sand_core::event::vanilla::PlayerLevelsUp`](crate::event::vanilla::PlayerLevelsUp).
+/// The supported author-facing identity is `sand::events::PlayerLevelUpEvent`.
 ///
 /// Implemented as a Sand-generated tick-backed system — not an advancement.
 /// Vanilla Minecraft has no `minecraft:leveled_up` advancement trigger.
@@ -2094,7 +2281,6 @@ impl SandEvent for FallFromHeightEvent {
 /// # Example
 ///
 /// ```rust,ignore
-/// use sand_core::event::vanilla::PlayerLevelsUp;
 /// use sand_core::events::PlayerLevelUpEvent;
 /// use sand_core::prelude::*;
 /// use sand_macros::on_event;
@@ -2135,6 +2321,7 @@ impl PlayerLevelUpEvent {
     /// ```
     ///
     /// [`ScoreRef`]: crate::state::score::ScoreRef
+    #[doc = "**API Contract:** Run `sand api show sand::events::PlayerLevelUpEvent::current_level` for the canonical contract."]
     pub fn current_level(selector: &str) -> crate::state::score::ScoreRef<'static, i32> {
         SAND_XP_LVL.of(selector)
     }
@@ -2144,6 +2331,7 @@ impl PlayerLevelUpEvent {
     /// The objective `__sand_xp_prev` holds the level from the preceding tick.
     ///
     /// [`ScoreRef`]: crate::state::score::ScoreRef
+    #[doc = "**API Contract:** Run `sand api show sand::events::PlayerLevelUpEvent::previous_level` for the canonical contract."]
     pub fn previous_level(selector: &str) -> crate::state::score::ScoreRef<'static, i32> {
         SAND_XP_PREV.of(selector)
     }
@@ -2154,11 +2342,13 @@ impl PlayerLevelUpEvent {
     /// since the handler only runs when the delta is positive.
     ///
     /// [`ScoreRef`]: crate::state::score::ScoreRef
+    #[doc = "**API Contract:** Run `sand api show sand::events::PlayerLevelUpEvent::level_delta` for the canonical contract."]
     pub fn level_delta(selector: &str) -> crate::state::score::ScoreRef<'static, i32> {
         SAND_XP_DELTA.of(selector)
     }
 }
 
+#[doc = "**API Contract:** Run `sand api show sand::events::EffectsChangedEvent` for the canonical contract."]
 /// Fires when the player's status effects change.
 ///
 /// Maps to `minecraft:effects_changed`.
@@ -2169,6 +2359,7 @@ impl SandEvent for EffectsChangedEvent {
     }
 }
 
+#[doc = "**API Contract:** Run `sand api show sand::events::StartRidingEvent` for the canonical contract."]
 /// Fires when the player starts riding an entity (horse, boat, etc.).
 ///
 /// Maps to `minecraft:started_riding`.
@@ -2179,6 +2370,7 @@ impl SandEvent for StartRidingEvent {
     }
 }
 
+#[doc = "**API Contract:** Run `sand api show sand::events::UseEnderEyeEvent` for the canonical contract."]
 /// Fires when the player uses an ender eye (to locate a stronghold).
 ///
 /// Maps to `minecraft:used_ender_eye`.
@@ -2191,6 +2383,7 @@ impl SandEvent for UseEnderEyeEvent {
     }
 }
 
+#[doc = "**API Contract:** Run `sand api show sand::events::TameAnimalEvent` for the canonical contract."]
 /// Fires when the player tames an animal.
 ///
 /// Maps to `minecraft:tame_animal`.
@@ -2203,6 +2396,7 @@ impl SandEvent for TameAnimalEvent {
     }
 }
 
+#[doc = "**API Contract:** Run `sand api show sand::events::BreedAnimalsEvent` for the canonical contract."]
 /// Fires when the player breeds two animals.
 ///
 /// Maps to `minecraft:bred_animals`.
@@ -2217,6 +2411,7 @@ impl SandEvent for BreedAnimalsEvent {
     }
 }
 
+#[doc = "**API Contract:** Run `sand api show sand::events::SummonEntityEvent` for the canonical contract."]
 /// Fires when the player summons an entity (e.g. Iron Golem, Snow Golem, Wither).
 ///
 /// Maps to `minecraft:summoned_entity`.
@@ -2229,6 +2424,7 @@ impl SandEvent for SummonEntityEvent {
     }
 }
 
+#[doc = "**API Contract:** Run `sand api show sand::events::InteractWithEntityEvent` for the canonical contract."]
 /// Fires when the player interacts with any entity (right-click).
 ///
 /// Maps to `minecraft:player_interacted_with_entity`.
@@ -2244,6 +2440,7 @@ impl SandEvent for InteractWithEntityEvent {
     }
 }
 
+#[doc = "**API Contract:** Run `sand api show sand::events::VillagerTradeEvent` for the canonical contract."]
 /// Fires when the player trades with a villager.
 ///
 /// Maps to `minecraft:villager_trade`.
@@ -2257,6 +2454,7 @@ impl SandEvent for VillagerTradeEvent {
     }
 }
 
+#[doc = "**API Contract:** Run `sand api show sand::events::ConstructBeaconEvent` for the canonical contract."]
 /// Fires when the player constructs or upgrades a beacon.
 ///
 /// Maps to `minecraft:construct_beacon`.
@@ -2269,6 +2467,7 @@ impl SandEvent for ConstructBeaconEvent {
     }
 }
 
+#[doc = "**API Contract:** Run `sand api show sand::events::CureZombieVillagerEvent` for the canonical contract."]
 /// Fires when the player cures a zombie villager.
 ///
 /// Maps to `minecraft:cured_zombie_villager`.
@@ -2282,6 +2481,7 @@ impl SandEvent for CureZombieVillagerEvent {
     }
 }
 
+#[doc = "**API Contract:** Run `sand api show sand::events::LootContainerOpenEvent` for the canonical contract."]
 /// Fires when the player opens a container that generates loot.
 ///
 /// Maps to `minecraft:player_generates_container_loot`.
@@ -2294,6 +2494,7 @@ impl SandEvent for LootContainerOpenEvent {
     }
 }
 
+#[doc = "**API Contract:** Run `sand api show sand::events::HeroOfTheVillageEvent` for the canonical contract."]
 /// Fires when the player achieves Hero of the Village.
 ///
 /// Maps to `minecraft:hero_of_the_village`. Fires once per raid victory.
@@ -2306,6 +2507,7 @@ impl SandEvent for HeroOfTheVillageEvent {
     }
 }
 
+#[doc = "**API Contract:** Run `sand api show sand::events::LightningStrikeEvent` for the canonical contract."]
 /// Fires when a lightning bolt strikes near the player.
 ///
 /// Maps to `minecraft:lightning_strike`.
@@ -2335,7 +2537,6 @@ macro_rules! adv_event {
                 dispatch.into_trigger().unwrap()
             }
         }
-        impl crate::event::EventPlayer for $ty {}
     };
     // Same as above, plus a declared participant plan (#230) — the export
     // pipeline applies it automatically to this event's generated body; see
@@ -2351,7 +2552,6 @@ macro_rules! adv_event {
                 $plan
             }
         }
-        impl crate::event::EventPlayer for $ty {}
     };
 }
 
@@ -2359,12 +2559,11 @@ impl SandEventDispatch {
     /// Extract the advancement trigger from this dispatch, panicking if it's
     /// a tick-condition dispatch.
     fn into_trigger(self) -> Option<crate::AdvancementTrigger> {
-        match self {
-            SandEventDispatch::AdvancementTrigger(t) => Some(t),
-            SandEventDispatch::TickCondition(_) => None,
-            SandEventDispatch::Tick(_) => None,
-            SandEventDispatch::Chain(_) => None,
-            SandEventDispatch::Tracked(_) => None,
+        match self.normalize() {
+            NormalizedEventDispatch::Advancement(t) => Some(t),
+            NormalizedEventDispatch::Tick(_)
+            | NormalizedEventDispatch::Chain(_)
+            | NormalizedEventDispatch::Tracked(_) => None,
         }
     }
 }
@@ -2436,7 +2635,6 @@ impl crate::event::AdvancementEvent for PlayerLevelUpEvent {
         crate::AdvancementTrigger::Tick
     }
 }
-impl crate::event::EventPlayer for PlayerLevelUpEvent {}
 adv_event!(EffectsChangedEvent);
 adv_event!(StartRidingEvent);
 adv_event!(UseEnderEyeEvent);
@@ -2459,12 +2657,14 @@ adv_event!(LightningStrikeEvent);
 // These use Sand-owned entity predicates. Predicate flags are stable datapack
 // schema, unlike raw player NBT selector fields.
 
+#[doc = "**API Contract:** Run `sand api show sand::events::PlayerStartSneakingEvent` for the canonical contract."]
 /// Fires once when a player changes from not sneaking to sneaking.
 ///
 /// This is tick-polled from vanilla's `flags.is_sneaking` entity predicate.
 /// The first observed state establishes a baseline and does not fire.
 pub struct PlayerStartSneakingEvent;
 
+#[doc = "**API Contract:** Run `sand api show sand::events::PlayerStopSneakingEvent` for the canonical contract."]
 /// Fires once when a player changes from sneaking to not sneaking.
 ///
 /// Uses the same shared tracker as [`PlayerStartSneakingEvent`].
@@ -2473,12 +2673,13 @@ pub struct PlayerStopSneakingEvent;
 /// Shared current-state source used by both sneaking transitions and
 /// persistent composition. Kept public only for proc-macro expansion.
 #[doc(hidden)]
-pub const PLAYER_SNEAKING_TRACKED_SOURCE: crate::TrackedSource =
+pub(crate) const PLAYER_SNEAKING_TRACKED_SOURCE: crate::TrackedSource =
     crate::TrackedSource::BooleanCondition {
         description: "vanilla entity predicate flags.is_sneaking",
         condition: "predicate __sand_local:__sand/player_sneaking",
     };
 
+#[doc = "**API Contract:** Run `sand api show sand::events::PlayerSneakEvent` for the canonical contract."]
 /// Fires every tick the player is sneaking / crouching (Shift held).
 ///
 /// Uses a generated `flags.is_sneaking` predicate.
@@ -2522,12 +2723,13 @@ impl PersistentSandEvent for PlayerSneakEvent {
 /// Shared current-state source for sprinting transitions and persistent
 /// composition. Kept public only for proc-macro expansion.
 #[doc(hidden)]
-pub const PLAYER_SPRINTING_TRACKED_SOURCE: crate::TrackedSource =
+pub(crate) const PLAYER_SPRINTING_TRACKED_SOURCE: crate::TrackedSource =
     crate::TrackedSource::BooleanCondition {
         description: "vanilla entity predicate flags.is_sprinting",
         condition: "predicate __sand_local:__sand/player_sprinting",
     };
 
+#[doc = "**API Contract:** Run `sand api show sand::events::PlayerSprintEvent` for the canonical contract."]
 /// Fires every tick the player is sprinting.
 ///
 /// Uses a generated `flags.is_sprinting` predicate.
@@ -2545,6 +2747,7 @@ impl PersistentSandEvent for PlayerSprintEvent {
     }
 }
 
+#[doc = "**API Contract:** Run `sand api show sand::events::PlayerStartSprintingEvent` for the canonical contract."]
 /// Fires once when a player changes from not sprinting to sprinting.
 ///
 /// Shares the `player_sprinting` tracker with [`PlayerStopSprintingEvent`] —
@@ -2553,7 +2756,7 @@ impl PersistentSandEvent for PlayerSprintEvent {
 pub struct PlayerStartSprintingEvent;
 impl SandEvent for PlayerStartSprintingEvent {
     fn dispatch() -> SandEventDispatch {
-        SandEventDispatch::Tracked(crate::TrackedTransition::new(
+        SandEventDispatch::tracked(crate::TrackedTransition::new(
             "player_sprinting",
             PLAYER_SPRINTING_TRACKED_SOURCE,
             crate::TransitionKind::BecameTrue,
@@ -2561,13 +2764,14 @@ impl SandEvent for PlayerStartSprintingEvent {
     }
 }
 
+#[doc = "**API Contract:** Run `sand api show sand::events::PlayerStopSprintingEvent` for the canonical contract."]
 /// Fires once when a player changes from sprinting to not sprinting.
 ///
 /// Uses the same shared tracker as [`PlayerStartSprintingEvent`].
 pub struct PlayerStopSprintingEvent;
 impl SandEvent for PlayerStopSprintingEvent {
     fn dispatch() -> SandEventDispatch {
-        SandEventDispatch::Tracked(crate::TrackedTransition::new(
+        SandEventDispatch::tracked(crate::TrackedTransition::new(
             "player_sprinting",
             PLAYER_SPRINTING_TRACKED_SOURCE,
             crate::TransitionKind::BecameFalse,
@@ -2578,12 +2782,13 @@ impl SandEvent for PlayerStopSprintingEvent {
 /// Shared current-state source for swimming transitions and persistent
 /// composition. Kept public only for proc-macro expansion.
 #[doc(hidden)]
-pub const PLAYER_SWIMMING_TRACKED_SOURCE: crate::TrackedSource =
+pub(crate) const PLAYER_SWIMMING_TRACKED_SOURCE: crate::TrackedSource =
     crate::TrackedSource::BooleanCondition {
         description: "vanilla entity predicate flags.is_swimming",
         condition: "predicate __sand_local:__sand/player_swimming",
     };
 
+#[doc = "**API Contract:** Run `sand api show sand::events::PlayerSwimmingEvent` for the canonical contract."]
 /// Fires every tick the player is swimming (swimming animation active, 1.13+).
 ///
 /// Uses a generated `flags.is_swimming` predicate.
@@ -2601,6 +2806,7 @@ impl PersistentSandEvent for PlayerSwimmingEvent {
     }
 }
 
+#[doc = "**API Contract:** Run `sand api show sand::events::PlayerStartSwimmingEvent` for the canonical contract."]
 /// Fires once when a player changes from not swimming to swimming.
 ///
 /// Shares the `player_swimming` tracker with [`PlayerStopSwimmingEvent`].
@@ -2608,7 +2814,7 @@ impl PersistentSandEvent for PlayerSwimmingEvent {
 pub struct PlayerStartSwimmingEvent;
 impl SandEvent for PlayerStartSwimmingEvent {
     fn dispatch() -> SandEventDispatch {
-        SandEventDispatch::Tracked(crate::TrackedTransition::new(
+        SandEventDispatch::tracked(crate::TrackedTransition::new(
             "player_swimming",
             PLAYER_SWIMMING_TRACKED_SOURCE,
             crate::TransitionKind::BecameTrue,
@@ -2616,13 +2822,14 @@ impl SandEvent for PlayerStartSwimmingEvent {
     }
 }
 
+#[doc = "**API Contract:** Run `sand api show sand::events::PlayerStopSwimmingEvent` for the canonical contract."]
 /// Fires once when a player changes from swimming to not swimming.
 ///
 /// Uses the same shared tracker as [`PlayerStartSwimmingEvent`].
 pub struct PlayerStopSwimmingEvent;
 impl SandEvent for PlayerStopSwimmingEvent {
     fn dispatch() -> SandEventDispatch {
-        SandEventDispatch::Tracked(crate::TrackedTransition::new(
+        SandEventDispatch::tracked(crate::TrackedTransition::new(
             "player_swimming",
             PLAYER_SWIMMING_TRACKED_SOURCE,
             crate::TransitionKind::BecameFalse,
@@ -2633,12 +2840,13 @@ impl SandEvent for PlayerStopSwimmingEvent {
 /// Shared current-state source for flying transitions and persistent
 /// composition. Kept public only for proc-macro expansion.
 #[doc(hidden)]
-pub const PLAYER_FLYING_TRACKED_SOURCE: crate::TrackedSource =
+pub(crate) const PLAYER_FLYING_TRACKED_SOURCE: crate::TrackedSource =
     crate::TrackedSource::BooleanCondition {
         description: "vanilla entity NBT abilities.flying",
         condition: "entity @s[nbt={abilities:{flying:1b}}]",
     };
 
+#[doc = "**API Contract:** Run `sand api show sand::events::PlayerFlyingEvent` for the canonical contract."]
 /// Fires every tick the player is actively flying (Creative/Spectator flight).
 ///
 /// Uses `entity @s[nbt={abilities:{flying:1b}}]`.
@@ -2656,6 +2864,7 @@ impl PersistentSandEvent for PlayerFlyingEvent {
     }
 }
 
+#[doc = "**API Contract:** Run `sand api show sand::events::PlayerStartFlyingEvent` for the canonical contract."]
 /// Fires once when a player starts actively flying (Creative/Spectator flight).
 ///
 /// Shares the `player_flying` tracker with [`PlayerStopFlyingEvent`]. The
@@ -2664,7 +2873,7 @@ impl PersistentSandEvent for PlayerFlyingEvent {
 pub struct PlayerStartFlyingEvent;
 impl SandEvent for PlayerStartFlyingEvent {
     fn dispatch() -> SandEventDispatch {
-        SandEventDispatch::Tracked(crate::TrackedTransition::new(
+        SandEventDispatch::tracked(crate::TrackedTransition::new(
             "player_flying",
             PLAYER_FLYING_TRACKED_SOURCE,
             crate::TransitionKind::BecameTrue,
@@ -2672,13 +2881,14 @@ impl SandEvent for PlayerStartFlyingEvent {
     }
 }
 
+#[doc = "**API Contract:** Run `sand api show sand::events::PlayerStopFlyingEvent` for the canonical contract."]
 /// Fires once when a player stops actively flying.
 ///
 /// Uses the same shared tracker as [`PlayerStartFlyingEvent`].
 pub struct PlayerStopFlyingEvent;
 impl SandEvent for PlayerStopFlyingEvent {
     fn dispatch() -> SandEventDispatch {
-        SandEventDispatch::Tracked(crate::TrackedTransition::new(
+        SandEventDispatch::tracked(crate::TrackedTransition::new(
             "player_flying",
             PLAYER_FLYING_TRACKED_SOURCE,
             crate::TransitionKind::BecameFalse,
@@ -2689,12 +2899,13 @@ impl SandEvent for PlayerStopFlyingEvent {
 /// Shared current-state source for on-fire transitions and persistent
 /// composition. Kept public only for proc-macro expansion.
 #[doc(hidden)]
-pub const PLAYER_ON_FIRE_TRACKED_SOURCE: crate::TrackedSource =
+pub(crate) const PLAYER_ON_FIRE_TRACKED_SOURCE: crate::TrackedSource =
     crate::TrackedSource::BooleanCondition {
         description: "vanilla entity predicate flags.is_on_fire",
         condition: "predicate __sand_local:__sand/player_on_fire",
     };
 
+#[doc = "**API Contract:** Run `sand api show sand::events::PlayerOnFireEvent` for the canonical contract."]
 /// Fires every tick the player is on fire.
 ///
 /// Uses a generated `flags.is_on_fire` predicate.
@@ -2712,6 +2923,7 @@ impl PersistentSandEvent for PlayerOnFireEvent {
     }
 }
 
+#[doc = "**API Contract:** Run `sand api show sand::events::PlayerCaughtFireEvent` for the canonical contract."]
 /// Fires once when a player catches fire.
 ///
 /// Shares the `player_on_fire` tracker with [`PlayerExtinguishedEvent`]. The
@@ -2732,7 +2944,7 @@ impl PersistentSandEvent for PlayerOnFireEvent {
 pub struct PlayerCaughtFireEvent;
 impl SandEvent for PlayerCaughtFireEvent {
     fn dispatch() -> SandEventDispatch {
-        SandEventDispatch::Tracked(crate::TrackedTransition::new(
+        SandEventDispatch::tracked(crate::TrackedTransition::new(
             "player_on_fire",
             PLAYER_ON_FIRE_TRACKED_SOURCE,
             crate::TransitionKind::BecameTrue,
@@ -2740,13 +2952,14 @@ impl SandEvent for PlayerCaughtFireEvent {
     }
 }
 
+#[doc = "**API Contract:** Run `sand api show sand::events::PlayerExtinguishedEvent` for the canonical contract."]
 /// Fires once when a player stops being on fire.
 ///
 /// Uses the same shared tracker as [`PlayerCaughtFireEvent`].
 pub struct PlayerExtinguishedEvent;
 impl SandEvent for PlayerExtinguishedEvent {
     fn dispatch() -> SandEventDispatch {
-        SandEventDispatch::Tracked(crate::TrackedTransition::new(
+        SandEventDispatch::tracked(crate::TrackedTransition::new(
             "player_on_fire",
             PLAYER_ON_FIRE_TRACKED_SOURCE,
             crate::TransitionKind::BecameFalse,
@@ -2754,6 +2967,7 @@ impl SandEvent for PlayerExtinguishedEvent {
     }
 }
 
+#[doc = "**API Contract:** Run `sand api show sand::events::PlayerInCreativeEvent` for the canonical contract."]
 /// Fires every tick the player is in a Creative-mode gamemode.
 pub struct PlayerInCreativeEvent;
 impl SandEvent for PlayerInCreativeEvent {
@@ -2769,6 +2983,7 @@ impl PersistentSandEvent for PlayerInCreativeEvent {
     }
 }
 
+#[doc = "**API Contract:** Run `sand api show sand::events::PlayerInAdventureEvent` for the canonical contract."]
 /// Fires every tick the player is in Adventure mode.
 pub struct PlayerInAdventureEvent;
 impl SandEvent for PlayerInAdventureEvent {
@@ -2784,6 +2999,7 @@ impl PersistentSandEvent for PlayerInAdventureEvent {
     }
 }
 
+#[doc = "**API Contract:** Run `sand api show sand::events::PlayerInSpectatorEvent` for the canonical contract."]
 /// Fires every tick the player is in Spectator mode.
 pub struct PlayerInSpectatorEvent;
 impl SandEvent for PlayerInSpectatorEvent {
@@ -2814,9 +3030,27 @@ macro_rules! gamemode_transition {
     ($mode:literal, $tracker:literal, $enter:ident, $exit:ident) => {
         #[doc = concat!("Fires once when a player switches into ", $mode, " mode.")]
         pub struct $enter;
+        ::sand_api_contract::inventory::submit! {
+            ::sand_api_contract::ApiRegistration {
+                canonical_path: concat!("sand::events::", stringify!($enter)),
+                aliases: &[],
+                canonical_module: "sand::events",
+                kind: ::sand_api_contract::ApiKind::Struct,
+                signature: concat!("pub struct ", stringify!($enter), ";"),
+                summary: concat!("Marks the transition into Minecraft's ", $mode, " game mode."),
+                context: "This generated zero-sized event marker lets an on_event handler react once per player transition without polling or maintaining its own prior-state tracker.",
+                minecraft: concat!("Tracks each player against @s[gamemode=", $mode, "] and dispatches when the condition becomes true."),
+                use_when: &["Handling the moment a player enters this game mode"],
+                avoid_when: &["Checking a player's current game mode continuously"],
+                parameters: &[],
+                returns: None,
+                example: concat!("use sand::events::", stringify!($enter), ";"),
+                availability: &[],
+            }
+        }
         impl SandEvent for $enter {
             fn dispatch() -> SandEventDispatch {
-                SandEventDispatch::Tracked(crate::TrackedTransition::new(
+        SandEventDispatch::tracked(crate::TrackedTransition::new(
                     $tracker,
                     crate::TrackedSource::BooleanCondition {
                         description: concat!("vanilla gamemode selector: ", $mode),
@@ -2830,9 +3064,27 @@ macro_rules! gamemode_transition {
         #[doc = concat!("Fires once when a player switches out of ", $mode, " mode.")]
         #[doc = concat!("Uses the same shared tracker as [`", stringify!($enter), "`].")]
         pub struct $exit;
+        ::sand_api_contract::inventory::submit! {
+            ::sand_api_contract::ApiRegistration {
+                canonical_path: concat!("sand::events::", stringify!($exit)),
+                aliases: &[],
+                canonical_module: "sand::events",
+                kind: ::sand_api_contract::ApiKind::Struct,
+                signature: concat!("pub struct ", stringify!($exit), ";"),
+                summary: concat!("Marks the transition out of Minecraft's ", $mode, " game mode."),
+                context: "This generated zero-sized event marker shares the enter marker's tracker so a handler runs once when a player leaves this mode.",
+                minecraft: concat!("Tracks each player against @s[gamemode=", $mode, "] and dispatches when the condition becomes false."),
+                use_when: &["Handling the moment a player leaves this game mode"],
+                avoid_when: &["Checking a player's current game mode continuously"],
+                parameters: &[],
+                returns: None,
+                example: concat!("use sand::events::", stringify!($exit), ";"),
+                availability: &[],
+            }
+        }
         impl SandEvent for $exit {
             fn dispatch() -> SandEventDispatch {
-                SandEventDispatch::Tracked(crate::TrackedTransition::new(
+        SandEventDispatch::tracked(crate::TrackedTransition::new(
                     $tracker,
                     crate::TrackedSource::BooleanCondition {
                         description: concat!("vanilla gamemode selector: ", $mode),
@@ -2884,12 +3136,13 @@ gamemode_transition!(
 /// Shared current-state source for health-change transitions. Kept public
 /// only for proc-macro expansion.
 #[doc(hidden)]
-pub const PLAYER_HEALTH_TRACKED_SOURCE: crate::TrackedSource = crate::TrackedSource::Score {
+pub(crate) const PLAYER_HEALTH_TRACKED_SOURCE: crate::TrackedSource = crate::TrackedSource::Score {
     description: "vanilla health scoreboard criterion (integer, excludes absorption)",
     objective: "sand_health",
     criterion: "health",
 };
 
+#[doc = "**API Contract:** Run `sand api show sand::events::PlayerHealthChangedEvent` for the canonical contract."]
 /// Fires once whenever a player's health value changes (gain or loss).
 ///
 /// Backed by vanilla's `health` scoreboard criterion — an integer value,
@@ -2898,7 +3151,7 @@ pub const PLAYER_HEALTH_TRACKED_SOURCE: crate::TrackedSource = crate::TrackedSou
 pub struct PlayerHealthChangedEvent;
 impl SandEvent for PlayerHealthChangedEvent {
     fn dispatch() -> SandEventDispatch {
-        SandEventDispatch::Tracked(crate::TrackedTransition::new(
+        SandEventDispatch::tracked(crate::TrackedTransition::new(
             "player_health",
             PLAYER_HEALTH_TRACKED_SOURCE,
             crate::TransitionKind::ScoreChanged,
@@ -2906,6 +3159,7 @@ impl SandEvent for PlayerHealthChangedEvent {
     }
 }
 
+#[doc = "**API Contract:** Run `sand api show sand::events::PlayerHealthLostEvent` for the canonical contract."]
 /// Fires once whenever a player's health value decreases.
 ///
 /// Shares the `player_health` tracker with [`PlayerHealthChangedEvent`] and
@@ -2913,7 +3167,7 @@ impl SandEvent for PlayerHealthChangedEvent {
 pub struct PlayerHealthLostEvent;
 impl SandEvent for PlayerHealthLostEvent {
     fn dispatch() -> SandEventDispatch {
-        SandEventDispatch::Tracked(crate::TrackedTransition::new(
+        SandEventDispatch::tracked(crate::TrackedTransition::new(
             "player_health",
             PLAYER_HEALTH_TRACKED_SOURCE,
             crate::TransitionKind::ScoreDecreased,
@@ -2921,6 +3175,7 @@ impl SandEvent for PlayerHealthLostEvent {
     }
 }
 
+#[doc = "**API Contract:** Run `sand api show sand::events::PlayerHealthGainedEvent` for the canonical contract."]
 /// Fires once whenever a player's health value increases.
 ///
 /// Shares the `player_health` tracker with [`PlayerHealthChangedEvent`] and
@@ -2928,7 +3183,7 @@ impl SandEvent for PlayerHealthLostEvent {
 pub struct PlayerHealthGainedEvent;
 impl SandEvent for PlayerHealthGainedEvent {
     fn dispatch() -> SandEventDispatch {
-        SandEventDispatch::Tracked(crate::TrackedTransition::new(
+        SandEventDispatch::tracked(crate::TrackedTransition::new(
             "player_health",
             PLAYER_HEALTH_TRACKED_SOURCE,
             crate::TransitionKind::ScoreIncreased,
@@ -2936,6 +3191,7 @@ impl SandEvent for PlayerHealthGainedEvent {
     }
 }
 
+#[doc = "**API Contract:** Run `sand api show sand::events::PlayerLowHealthEvent` for the canonical contract."]
 /// Fires once when a player's health drops to or below a threshold, and its
 /// counterpart [`PlayerRecoveredHealthEvent`] fires once when it rises back
 /// above that threshold.
@@ -2965,7 +3221,7 @@ impl SandEvent for PlayerHealthGainedEvent {
 pub struct PlayerLowHealthEvent<const HALF_HEARTS: i32>;
 impl<const HALF_HEARTS: i32> SandEvent for PlayerLowHealthEvent<HALF_HEARTS> {
     fn dispatch() -> SandEventDispatch {
-        SandEventDispatch::Tracked(crate::TrackedTransition::new(
+        SandEventDispatch::tracked(crate::TrackedTransition::new(
             "player_low_health",
             crate::TrackedSource::ScoreThreshold {
                 description: "vanilla health scoreboard criterion, low-health threshold",
@@ -2978,6 +3234,7 @@ impl<const HALF_HEARTS: i32> SandEvent for PlayerLowHealthEvent<HALF_HEARTS> {
     }
 }
 
+#[doc = "**API Contract:** Run `sand api show sand::events::PlayerRecoveredHealthEvent` for the canonical contract."]
 /// Fires once when a player's health rises back above
 /// [`PlayerLowHealthEvent`]'s threshold. `HALF_HEARTS` must match the
 /// corresponding `PlayerLowHealthEvent<HALF_HEARTS>` exactly — they share
@@ -2985,7 +3242,7 @@ impl<const HALF_HEARTS: i32> SandEvent for PlayerLowHealthEvent<HALF_HEARTS> {
 pub struct PlayerRecoveredHealthEvent<const HALF_HEARTS: i32>;
 impl<const HALF_HEARTS: i32> SandEvent for PlayerRecoveredHealthEvent<HALF_HEARTS> {
     fn dispatch() -> SandEventDispatch {
-        SandEventDispatch::Tracked(crate::TrackedTransition::new(
+        SandEventDispatch::tracked(crate::TrackedTransition::new(
             "player_low_health",
             crate::TrackedSource::ScoreThreshold {
                 description: "vanilla health scoreboard criterion, low-health threshold",
@@ -3007,6 +3264,7 @@ impl<const HALF_HEARTS: i32> SandEvent for PlayerRecoveredHealthEvent<HALF_HEART
 // instead of entity flags. Only effects with a registered `#[on_event]`
 // handler generate a predicate + tracker; the other markers cost nothing.
 
+#[doc = "**API Contract:** Run `sand api show sand::events::StatusEffectMarker` for the canonical contract."]
 /// Implemented by zero-sized status-effect marker types (e.g. [`Speed`]) so
 /// [`EffectStarted<E>`]/[`EffectStopped<E>`] can be generic over which
 /// vanilla effect they observe, without a hand-written detection type per
@@ -3015,10 +3273,16 @@ impl<const HALF_HEARTS: i32> SandEvent for PlayerRecoveredHealthEvent<HALF_HEART
 /// Not intended for manual implementation — implemented internally by
 /// `status_effect_marker!` for every supported effect.
 pub trait StatusEffectMarker: 'static {
+    #[doc = "The vanilla status-effect resource identifier."]
+    #[doc = "**API Contract:** Run `sand api show sand::events::StatusEffectMarker::EFFECT_ID` for the canonical contract."]
     #[doc(hidden)]
     const EFFECT_ID: &'static str;
+    #[doc = "The stable Sand tracker identity for this status effect."]
+    #[doc = "**API Contract:** Run `sand api show sand::events::StatusEffectMarker::TRACKER_ID` for the canonical contract."]
     #[doc(hidden)]
     const TRACKER_ID: &'static str;
+    #[doc = "The typed condition fragment that observes this status effect."]
+    #[doc = "**API Contract:** Run `sand api show sand::events::StatusEffectMarker::CONDITION` for the canonical contract."]
     #[doc(hidden)]
     const CONDITION: &'static str;
 }
@@ -3029,6 +3293,24 @@ macro_rules! status_effect_marker {
         #[doc = ""]
         #[doc = concat!("Use with [`EffectStarted<", stringify!($ty), ">`] / [`EffectStopped<", stringify!($ty), ">`].")]
         pub struct $ty;
+        ::sand_api_contract::inventory::submit! {
+            ::sand_api_contract::ApiRegistration {
+                canonical_path: concat!("sand::events::", stringify!($ty)),
+                aliases: &[],
+                canonical_module: "sand::events",
+                kind: ::sand_api_contract::ApiKind::Struct,
+                signature: concat!("pub struct ", stringify!($ty), ";"),
+                summary: concat!("Marks Minecraft's `", $id, "` status effect for typed transition events."),
+                context: "This generated zero-sized marker selects one vanilla effect for EffectStarted and EffectStopped without requiring stringly typed effect names.",
+                minecraft: concat!("Uses a generated entity-properties predicate for ", $id, " and a shared transition tracker."),
+                use_when: &["Subscribing to this effect starting or stopping on a player"],
+                avoid_when: &["Applying, removing, or representing an arbitrary status effect"],
+                parameters: &[],
+                returns: None,
+                example: concat!("use sand::events::{EffectStarted, ", stringify!($ty), "};\n\nfn typed_event(_: EffectStarted<", stringify!($ty), ">) {}"),
+                availability: &[],
+            }
+        }
         impl StatusEffectMarker for $ty {
             const EFFECT_ID: &'static str = $id;
             const TRACKER_ID: &'static str = $tracker;
@@ -3140,6 +3422,7 @@ status_effect_marker!(
     "predicate __sand_local:__sand/effect_invisibility"
 );
 
+#[doc = "**API Contract:** Run `sand api show sand::events::EffectStarted` for the canonical contract."]
 /// Fires once when a player gains status effect `E` (was not active, is now
 /// active). See [`StatusEffectMarker`] for the supported markers (e.g.
 /// [`Speed`], [`Poison`]).
@@ -3157,7 +3440,7 @@ status_effect_marker!(
 pub struct EffectStarted<E: StatusEffectMarker>(std::marker::PhantomData<E>);
 impl<E: StatusEffectMarker> SandEvent for EffectStarted<E> {
     fn dispatch() -> SandEventDispatch {
-        SandEventDispatch::Tracked(crate::TrackedTransition::new(
+        SandEventDispatch::tracked(crate::TrackedTransition::new(
             E::TRACKER_ID,
             crate::TrackedSource::BooleanCondition {
                 description: "vanilla entity_properties effects predicate",
@@ -3168,13 +3451,14 @@ impl<E: StatusEffectMarker> SandEvent for EffectStarted<E> {
     }
 }
 
+#[doc = "**API Contract:** Run `sand api show sand::events::EffectStopped` for the canonical contract."]
 /// Fires once when a player loses status effect `E` (was active, is now not
 /// active — either it expired or was removed). Shares the tracker with
 /// [`EffectStarted<E>`].
 pub struct EffectStopped<E: StatusEffectMarker>(std::marker::PhantomData<E>);
 impl<E: StatusEffectMarker> SandEvent for EffectStopped<E> {
     fn dispatch() -> SandEventDispatch {
-        SandEventDispatch::Tracked(crate::TrackedTransition::new(
+        SandEventDispatch::tracked(crate::TrackedTransition::new(
             E::TRACKER_ID,
             crate::TrackedSource::BooleanCondition {
                 description: "vanilla entity_properties effects predicate",
@@ -3185,55 +3469,6 @@ impl<E: StatusEffectMarker> SandEvent for EffectStopped<E> {
     }
 }
 
-// ════════════════════════════════════════════════════════════════════════════
-// ── EventPlayer impls for all event types ──────────────────────────────────
-// ════════════════════════════════════════════════════════════════════════════
-// (Advancement-backed types are covered by the adv_event! macro above.)
-
-macro_rules! player_event {
-    ($ty:ty) => {
-        impl crate::event::EventPlayer for $ty {}
-    };
-}
-
-player_event!(OnJoinEvent);
-player_event!(FirstJoinEvent);
-player_event!(OnDeathEvent);
-player_event!(OnRespawnEvent);
-player_event!(ArmorEquipEvent);
-player_event!(ArmorUnequipEvent);
-player_event!(HoldingItemEvent);
-player_event!(CurrentlyWearingEvent);
-player_event!(PlayerStartSneakingEvent);
-player_event!(PlayerStopSneakingEvent);
-player_event!(PlayerSneakEvent);
-player_event!(PlayerSprintEvent);
-player_event!(PlayerStartSprintingEvent);
-player_event!(PlayerStopSprintingEvent);
-player_event!(PlayerSwimmingEvent);
-player_event!(PlayerStartSwimmingEvent);
-player_event!(PlayerStopSwimmingEvent);
-player_event!(PlayerFlyingEvent);
-player_event!(PlayerStartFlyingEvent);
-player_event!(PlayerStopFlyingEvent);
-player_event!(PlayerOnFireEvent);
-player_event!(PlayerCaughtFireEvent);
-player_event!(PlayerExtinguishedEvent);
-player_event!(PlayerInCreativeEvent);
-player_event!(PlayerInAdventureEvent);
-player_event!(PlayerInSpectatorEvent);
-player_event!(PlayerEnteredSurvivalEvent);
-player_event!(PlayerExitedSurvivalEvent);
-player_event!(PlayerEnteredCreativeEvent);
-player_event!(PlayerExitedCreativeEvent);
-player_event!(PlayerEnteredAdventureEvent);
-player_event!(PlayerExitedAdventureEvent);
-player_event!(PlayerEnteredSpectatorEvent);
-player_event!(PlayerExitedSpectatorEvent);
-player_event!(PlayerHealthChangedEvent);
-player_event!(PlayerHealthLostEvent);
-player_event!(PlayerHealthGainedEvent);
-
 // ── Doc-coverage registry ────────────────────────────────────────────────────
 //
 // Every public built-in event type exported from this module must appear in
@@ -3243,7 +3478,8 @@ player_event!(PlayerHealthGainedEvent);
 //
 // `SandEvent` and `SandEventDispatch` are excluded: they are traits/enums,
 // not callable event types.
-pub const BUILTIN_EVENT_NAMES: &[&str] = &[
+#[allow(dead_code)]
+pub(crate) const BUILTIN_EVENT_NAMES: &[&str] = &[
     // Session
     "OnJoinEvent",
     "FirstJoinEvent",
@@ -3340,6 +3576,18 @@ mod tests {
     use crate::event::AdvancementEvent;
 
     #[test]
+    fn semantic_dispatch_builders_produce_opaque_dispatch_values() {
+        let tick: SandEventDispatch = SandEventDispatch::tick().as_players().into();
+        assert!(matches!(tick.normalize(), NormalizedEventDispatch::Tick(_)));
+
+        let advancement = SandEventDispatch::AdvancementTrigger(crate::AdvancementTrigger::Tick);
+        assert!(matches!(
+            advancement.normalize(),
+            NormalizedEventDispatch::Advancement(crate::AdvancementTrigger::Tick)
+        ));
+    }
+
+    #[test]
     fn player_level_up_event_is_not_deprecated() {
         // Compile-time: just instantiating the type confirms no deprecated attr.
         let _: PlayerLevelUpEvent = PlayerLevelUpEvent;
@@ -3417,6 +3665,24 @@ mod tests {
     #[test]
     fn builtin_event_names_is_non_empty() {
         assert!(!super::BUILTIN_EVENT_NAMES.is_empty());
+    }
+
+    #[test]
+    fn all_builtin_events_are_covered_in_the_reference_matrix() {
+        let matrix_path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../book/src/reference/event-trigger-matrix.md");
+        let matrix = std::fs::read_to_string(&matrix_path)
+            .unwrap_or_else(|err| panic!("failed to read {}: {err}", matrix_path.display()));
+        let missing = super::BUILTIN_EVENT_NAMES
+            .iter()
+            .copied()
+            .filter(|name| !matrix.contains(name))
+            .collect::<Vec<_>>();
+        assert!(
+            missing.is_empty(),
+            "built-in events missing from {}: {missing:?}",
+            matrix_path.display()
+        );
     }
 
     // ── TickEventDispatch / EventSetup lifecycle ──────────────────────────────

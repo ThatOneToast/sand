@@ -58,7 +58,9 @@ pub fn ashen_shrub_placement() -> PlacedFeature {
         ResourceLocation::new("example", "ashen_shrub").expect("static ID is valid"),
         ashen_shrub_feature().id(),
     )
-    .placement_modifier(serde_json::json!({ "type": "minecraft:count", "count": 3 }))
+    .placement_modifier(RawJson::new(
+        serde_json::json!({ "type": "minecraft:count", "count": 3 }),
+    ))
 }
 
 #[datapack_component]

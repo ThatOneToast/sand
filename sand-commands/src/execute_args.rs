@@ -16,14 +16,17 @@ use crate::render::{CommandProfile, RenderCommand, Validate};
 
 // ── Anchor ────────────────────────────────────────────────────────────────────
 
+#[doc = "**API Contract:** Run `sand api show sand::command::Anchor` for the canonical contract."]
 /// Entity anchor point for `execute anchored` and `execute facing entity`.
 ///
 /// Controls whether position calculations are relative to the entity's
 /// **eye level** or **foot level**.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Anchor {
+    #[doc = "**API Contract:** Run `sand api show sand::command::Anchor::Eyes` for the canonical contract."]
     /// `eyes` — the entity's eye/head level.
     Eyes,
+    #[doc = "**API Contract:** Run `sand api show sand::command::Anchor::Feet` for the canonical contract."]
     /// `feet` — the entity's foot level (bottom of their bounding box).
     Feet,
 }
@@ -39,6 +42,7 @@ impl fmt::Display for Anchor {
 
 // ── Swizzle ───────────────────────────────────────────────────────────────────
 
+#[doc = "**API Contract:** Run `sand api show sand::command::Swizzle` for the canonical contract."]
 /// Axis combination for `execute align` — specifies which coordinate axes to
 /// floor to block boundaries.
 #[derive(Debug, Clone)]
@@ -46,30 +50,37 @@ pub struct Swizzle(String);
 
 impl Swizzle {
     /// `x` — floor the X coordinate only.
+    #[doc = "**API Contract:** Run `sand api show sand::command::Swizzle::x` for the canonical contract."]
     pub fn x() -> Self {
         Swizzle("x".into())
     }
     /// `y` — floor the Y coordinate only.
+    #[doc = "**API Contract:** Run `sand api show sand::command::Swizzle::y` for the canonical contract."]
     pub fn y() -> Self {
         Swizzle("y".into())
     }
     /// `z` — floor the Z coordinate only.
+    #[doc = "**API Contract:** Run `sand api show sand::command::Swizzle::z` for the canonical contract."]
     pub fn z() -> Self {
         Swizzle("z".into())
     }
     /// `xy` — floor both X and Y coordinates.
+    #[doc = "**API Contract:** Run `sand api show sand::command::Swizzle::xy` for the canonical contract."]
     pub fn xy() -> Self {
         Swizzle("xy".into())
     }
     /// `xz` — floor both X and Z coordinates.
+    #[doc = "**API Contract:** Run `sand api show sand::command::Swizzle::xz` for the canonical contract."]
     pub fn xz() -> Self {
         Swizzle("xz".into())
     }
     /// `yz` — floor both Y and Z coordinates.
+    #[doc = "**API Contract:** Run `sand api show sand::command::Swizzle::yz` for the canonical contract."]
     pub fn yz() -> Self {
         Swizzle("yz".into())
     }
     /// `xyz` — floor all three coordinates.
+    #[doc = "**API Contract:** Run `sand api show sand::command::Swizzle::xyz` for the canonical contract."]
     pub fn xyz() -> Self {
         Swizzle("xyz".into())
     }
@@ -83,19 +94,26 @@ impl fmt::Display for Swizzle {
 
 // ── NbtStoreKind ──────────────────────────────────────────────────────────────
 
+#[doc = "**API Contract:** Run `sand api show sand::command::NbtStoreKind` for the canonical contract."]
 /// The NBT data type used when writing a value via `execute store result/success … nbt`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum NbtStoreKind {
+    #[doc = "**API Contract:** Run `sand api show sand::command::NbtStoreKind::Byte` for the canonical contract."]
     /// `byte` — 8-bit signed integer.
     Byte,
+    #[doc = "**API Contract:** Run `sand api show sand::command::NbtStoreKind::Short` for the canonical contract."]
     /// `short` — 16-bit signed integer.
     Short,
+    #[doc = "**API Contract:** Run `sand api show sand::command::NbtStoreKind::Int` for the canonical contract."]
     /// `int` — 32-bit signed integer.
     Int,
+    #[doc = "**API Contract:** Run `sand api show sand::command::NbtStoreKind::Long` for the canonical contract."]
     /// `long` — 64-bit signed integer.
     Long,
+    #[doc = "**API Contract:** Run `sand api show sand::command::NbtStoreKind::Float` for the canonical contract."]
     /// `float` — 32-bit floating-point.
     Float,
+    #[doc = "**API Contract:** Run `sand api show sand::command::NbtStoreKind::Double` for the canonical contract."]
     /// `double` — 64-bit floating-point.
     Double,
 }
@@ -116,6 +134,7 @@ impl fmt::Display for NbtStoreKind {
 
 // ── ItemSlot ──────────────────────────────────────────────────────────────────
 
+#[doc = "**API Contract:** Run `sand api show sand::command::ItemSlot` for the canonical contract."]
 /// An inventory slot specifier for `execute if items entity/block`.
 ///
 /// `ItemSlot` supports
@@ -124,60 +143,96 @@ impl fmt::Display for NbtStoreKind {
 #[must_use = "slots do nothing until passed to a command"]
 pub enum ItemSlot {
     // ── Armor ─────────────────────────────────────────────────────────────────
+    #[doc = "**API Contract:** Run `sand api show sand::command::ItemSlot::Head` for the canonical contract."]
     /// `armor.head` — the helmet slot.
     Head,
+    #[doc = "**API Contract:** Run `sand api show sand::command::ItemSlot::Chest` for the canonical contract."]
     /// `armor.chest` — the chestplate slot.
     Chest,
+    #[doc = "**API Contract:** Run `sand api show sand::command::ItemSlot::Legs` for the canonical contract."]
     /// `armor.legs` — the leggings slot.
     Legs,
+    #[doc = "**API Contract:** Run `sand api show sand::command::ItemSlot::Feet` for the canonical contract."]
     /// `armor.feet` — the boots slot.
     Feet,
+    #[doc = "**API Contract:** Run `sand api show sand::command::ItemSlot::AnyArmor` for the canonical contract."]
     /// `armor.*` — any one of the four armor slots.
     AnyArmor,
 
     // ── Weapon ────────────────────────────────────────────────────────────────
+    #[doc = "**API Contract:** Run `sand api show sand::command::ItemSlot::MainHand` for the canonical contract."]
     /// `weapon.mainhand` — the main hand slot.
     MainHand,
+    #[doc = "**API Contract:** Run `sand api show sand::command::ItemSlot::OffHand` for the canonical contract."]
     /// `weapon.offhand` — the off-hand slot.
     OffHand,
+    #[doc = "**API Contract:** Run `sand api show sand::command::ItemSlot::AnyWeapon` for the canonical contract."]
     /// `weapon.*` — either the main hand or off-hand slot.
     AnyWeapon,
 
     // ── Hotbar ────────────────────────────────────────────────────────────────
+    #[doc = "**API Contract:** Run `sand api show sand::command::ItemSlot::Hotbar` for the canonical contract."]
     /// `hotbar.<n>` — a specific hotbar slot (0 … 8).
-    Hotbar(u8),
+    Hotbar(
+        #[doc = "The `Hotbar` variant carries the value described by its variant semantics: `hotbar.<n>` — a specific hotbar slot (0 … 8)."]
+        #[doc = "**API Contract:** Run `sand api show sand::command::ItemSlot::Hotbar::0` for the canonical contract."]
+        u8,
+    ),
+    #[doc = "**API Contract:** Run `sand api show sand::command::ItemSlot::AnyHotbar` for the canonical contract."]
     /// `hotbar.*` — any of the 9 hotbar slots.
     AnyHotbar,
 
     // ── Main inventory ────────────────────────────────────────────────────────
+    #[doc = "**API Contract:** Run `sand api show sand::command::ItemSlot::Inventory` for the canonical contract."]
     /// `inventory.<n>` — a specific main inventory slot (0 … 26).
-    Inventory(u8),
+    Inventory(
+        #[doc = "The `Inventory` variant carries the value described by its variant semantics: `inventory.<n>` — a specific main inventory slot (0 … 26)."]
+        #[doc = "**API Contract:** Run `sand api show sand::command::ItemSlot::Inventory::0` for the canonical contract."]
+        u8,
+    ),
+    #[doc = "**API Contract:** Run `sand api show sand::command::ItemSlot::AnyInventory` for the canonical contract."]
     /// `inventory.*` — any main inventory slot.
     AnyInventory,
 
     // ── Container ─────────────────────────────────────────────────────────────
+    #[doc = "**API Contract:** Run `sand api show sand::command::ItemSlot::Container` for the canonical contract."]
     /// `container.<n>` — a container slot by index (0 … 53).
-    Container(u8),
+    Container(
+        #[doc = "The `Container` variant carries the value described by its variant semantics: `container.<n>` — a container slot by index (0 … 53)."]
+        #[doc = "**API Contract:** Run `sand api show sand::command::ItemSlot::Container::0` for the canonical contract."]
+        u8,
+    ),
+    #[doc = "**API Contract:** Run `sand api show sand::command::ItemSlot::AnyContainer` for the canonical contract."]
     /// `container.*` — any slot in a container.
     AnyContainer,
 
     // ── Mount equipment ────────────────────────────────────────────────────────
+    #[doc = "**API Contract:** Run `sand api show sand::command::ItemSlot::HorseSaddle` for the canonical contract."]
     /// `horse.saddle` — saddle slot on rideable mobs.
     HorseSaddle,
+    #[doc = "**API Contract:** Run `sand api show sand::command::ItemSlot::HorseChest` for the canonical contract."]
     /// `horse.chest` — chest slot on donkeys and llamas.
     HorseChest,
+    #[doc = "**API Contract:** Run `sand api show sand::command::ItemSlot::HorseArmor` for the canonical contract."]
     /// `horse.armor` — armor slot on horses.
     HorseArmor,
+    #[doc = "**API Contract:** Run `sand api show sand::command::ItemSlot::AnyHorse` for the canonical contract."]
     /// `horse.*` — any horse equipment slot.
     AnyHorse,
 
     // ── Villager ──────────────────────────────────────────────────────────────
+    #[doc = "**API Contract:** Run `sand api show sand::command::ItemSlot::AnyVillager` for the canonical contract."]
     /// `villager.*` — any villager trade slot.
     AnyVillager,
 
     // ── Raw ───────────────────────────────────────────────────────────────────
+    #[doc = "**API Contract:** Run `sand api show sand::command::ItemSlot::Raw` for the canonical contract."]
     /// An unchecked raw slot string for slots not covered by the above variants.
-    Raw(String),
+    Raw(
+        #[doc = "The `Raw` variant carries the value described by its variant semantics: An unchecked raw slot string for slots not covered by the above variants."]
+        #[doc = "**API Contract:** Run `sand api show sand::command::ItemSlot::Raw::0` for the canonical contract."]
+        String,
+    ),
 }
 
 impl fmt::Display for ItemSlot {
@@ -210,6 +265,7 @@ impl fmt::Display for ItemSlot {
 
 impl ItemSlot {
     /// Explicit raw slot syntax for modded or future slot families.
+    #[doc = "**API Contract:** Run `sand api show sand::command::ItemSlot::raw` for the canonical contract."]
     pub fn raw(value: impl Into<String>) -> Self {
         Self::Raw(value.into())
     }
@@ -222,6 +278,7 @@ impl ItemSlot {
     /// `execute if items`, but Minecraft's single-slot write grammar
     /// (`item replace`/`item modify`) requires exactly one resolved slot.
     /// See [`Inventory`](crate::inventory::Inventory)'s write-slot validation.
+    #[doc = "**API Contract:** Run `sand api show sand::command::ItemSlot::is_wildcard` for the canonical contract."]
     pub fn is_wildcard(&self) -> bool {
         match self {
             Self::AnyArmor

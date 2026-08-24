@@ -33,6 +33,7 @@ use sand_components::predicates::{DamagePredicate, EntityPredicate, IntRange, It
 
 // ── TickTrigger ─────────────────────────────────────────────────────────────
 
+#[doc = "**API Contract:** Run `sand api show sand::event::trigger::TickTrigger` for the canonical contract."]
 /// Fires every tick (20 times per second).
 ///
 /// Commonly used for join detection (with revoke) or per-tick checks.
@@ -40,10 +41,14 @@ use sand_components::predicates::{DamagePredicate, EntityPredicate, IntRange, It
 pub struct TickTrigger;
 
 impl TickTrigger {
+    /// Starts an unconstrained tick trigger builder.
+    #[doc = "**API Contract:** Run `sand api show sand::event::trigger::TickTrigger::new` for the canonical contract."]
     pub fn new() -> Self {
         Self
     }
 
+    /// Converts this tick builder into an advancement criterion.
+    #[doc = "**API Contract:** Run `sand api show sand::event::trigger::TickTrigger::build` for the canonical contract."]
     pub fn build(self) -> AdvancementTrigger {
         AdvancementTrigger::Tick
     }
@@ -57,15 +62,20 @@ impl From<TickTrigger> for AdvancementTrigger {
 
 // ── ImpossibleTrigger ───────────────────────────────────────────────────────
 
+#[doc = "**API Contract:** Run `sand api show sand::event::trigger::ImpossibleTrigger` for the canonical contract."]
 /// Never fires. Useful for placeholder or parent-only advancements.
 #[derive(Clone, Debug, Default)]
 pub struct ImpossibleTrigger;
 
 impl ImpossibleTrigger {
+    /// Starts a never-matching trigger builder.
+    #[doc = "**API Contract:** Run `sand api show sand::event::trigger::ImpossibleTrigger::new` for the canonical contract."]
     pub fn new() -> Self {
         Self
     }
 
+    /// Converts this never-matching builder into an advancement criterion.
+    #[doc = "**API Contract:** Run `sand api show sand::event::trigger::ImpossibleTrigger::build` for the canonical contract."]
     pub fn build(self) -> AdvancementTrigger {
         AdvancementTrigger::Impossible
     }
@@ -79,6 +89,7 @@ impl From<ImpossibleTrigger> for AdvancementTrigger {
 
 // ── ConsumeItemTrigger ──────────────────────────────────────────────────────
 
+#[doc = "**API Contract:** Run `sand api show sand::event::trigger::ConsumeItemTrigger` for the canonical contract."]
 /// Fires when the player consumes an item (food, potion, honey bottle, etc.).
 #[derive(Clone, Debug, Default)]
 pub struct ConsumeItemTrigger {
@@ -86,16 +97,21 @@ pub struct ConsumeItemTrigger {
 }
 
 impl ConsumeItemTrigger {
+    /// Starts an unconstrained consume-item criterion.
+    #[doc = "**API Contract:** Run `sand api show sand::event::trigger::ConsumeItemTrigger::new` for the canonical contract."]
     pub fn new() -> Self {
         Self { item: None }
     }
 
     /// Filter by the consumed item.
+    #[doc = "**API Contract:** Run `sand api show sand::event::trigger::ConsumeItemTrigger::item` for the canonical contract."]
     pub fn item(mut self, predicate: ItemPredicate) -> Self {
         self.item = Some(predicate);
         self
     }
 
+    /// Converts the consume-item builder into an advancement criterion.
+    #[doc = "**API Contract:** Run `sand api show sand::event::trigger::ConsumeItemTrigger::build` for the canonical contract."]
     pub fn build(self) -> AdvancementTrigger {
         AdvancementTrigger::ConsumeItem { item: self.item }
     }
@@ -109,6 +125,7 @@ impl From<ConsumeItemTrigger> for AdvancementTrigger {
 
 // ── PlayerKilledEntityTrigger ───────────────────────────────────────────────
 
+#[doc = "**API Contract:** Run `sand api show sand::event::trigger::PlayerKilledEntityTrigger` for the canonical contract."]
 /// Fires when the player kills any entity.
 #[derive(Clone, Debug, Default)]
 pub struct PlayerKilledEntityTrigger {
@@ -117,6 +134,8 @@ pub struct PlayerKilledEntityTrigger {
 }
 
 impl PlayerKilledEntityTrigger {
+    /// Starts an unconstrained player-killed-entity criterion.
+    #[doc = "**API Contract:** Run `sand api show sand::event::trigger::PlayerKilledEntityTrigger::new` for the canonical contract."]
     pub fn new() -> Self {
         Self {
             entity: None,
@@ -125,17 +144,21 @@ impl PlayerKilledEntityTrigger {
     }
 
     /// Filter by the killed entity's properties.
+    #[doc = "**API Contract:** Run `sand api show sand::event::trigger::PlayerKilledEntityTrigger::entity` for the canonical contract."]
     pub fn entity(mut self, predicate: EntityPredicate) -> Self {
         self.entity = Some(predicate);
         self
     }
 
     /// Filter by how the entity was killed (damage type, etc.).
+    #[doc = "**API Contract:** Run `sand api show sand::event::trigger::PlayerKilledEntityTrigger::killing_blow` for the canonical contract."]
     pub fn killing_blow(mut self, predicate: DamagePredicate) -> Self {
         self.killing_blow = Some(predicate);
         self
     }
 
+    /// Converts the player-kill builder into an advancement criterion.
+    #[doc = "**API Contract:** Run `sand api show sand::event::trigger::PlayerKilledEntityTrigger::build` for the canonical contract."]
     pub fn build(self) -> AdvancementTrigger {
         AdvancementTrigger::PlayerKilledEntity {
             entity: self.entity,
@@ -152,6 +175,7 @@ impl From<PlayerKilledEntityTrigger> for AdvancementTrigger {
 
 // ── EntityKilledPlayerTrigger ───────────────────────────────────────────────
 
+#[doc = "**API Contract:** Run `sand api show sand::event::trigger::EntityKilledPlayerTrigger` for the canonical contract."]
 /// Fires when any entity kills the player.
 #[derive(Clone, Debug, Default)]
 pub struct EntityKilledPlayerTrigger {
@@ -160,6 +184,8 @@ pub struct EntityKilledPlayerTrigger {
 }
 
 impl EntityKilledPlayerTrigger {
+    /// Starts an unconstrained entity-killed-player criterion.
+    #[doc = "**API Contract:** Run `sand api show sand::event::trigger::EntityKilledPlayerTrigger::new` for the canonical contract."]
     pub fn new() -> Self {
         Self {
             entity: None,
@@ -168,17 +194,21 @@ impl EntityKilledPlayerTrigger {
     }
 
     /// Filter by the attacking entity's properties.
+    #[doc = "**API Contract:** Run `sand api show sand::event::trigger::EntityKilledPlayerTrigger::entity` for the canonical contract."]
     pub fn entity(mut self, predicate: EntityPredicate) -> Self {
         self.entity = Some(predicate);
         self
     }
 
     /// Filter by the killing blow (damage type, etc.).
+    #[doc = "**API Contract:** Run `sand api show sand::event::trigger::EntityKilledPlayerTrigger::killing_blow` for the canonical contract."]
     pub fn killing_blow(mut self, predicate: DamagePredicate) -> Self {
         self.killing_blow = Some(predicate);
         self
     }
 
+    /// Converts the entity-killed-player builder into an advancement criterion.
+    #[doc = "**API Contract:** Run `sand api show sand::event::trigger::EntityKilledPlayerTrigger::build` for the canonical contract."]
     pub fn build(self) -> AdvancementTrigger {
         AdvancementTrigger::EntityKilledPlayer {
             entity: self.entity,
@@ -195,6 +225,7 @@ impl From<EntityKilledPlayerTrigger> for AdvancementTrigger {
 
 // ── RecipeUnlockedTrigger ───────────────────────────────────────────────────
 
+#[doc = "**API Contract:** Run `sand api show sand::event::trigger::RecipeUnlockedTrigger` for the canonical contract."]
 /// Fires when the player unlocks a specific recipe.
 #[derive(Clone, Debug)]
 pub struct RecipeUnlockedTrigger {
@@ -206,6 +237,7 @@ impl RecipeUnlockedTrigger {
     ///
     /// Prefer [`Self::from_id`] for new code so malformed IDs fail before a
     /// trigger value is constructed.
+    #[doc = "**API Contract:** Run `sand api show sand::event::trigger::RecipeUnlockedTrigger::new` for the canonical contract."]
     pub fn new(recipe: impl Into<String>) -> Self {
         Self {
             recipe: recipe.into(),
@@ -213,12 +245,15 @@ impl RecipeUnlockedTrigger {
     }
 
     /// Create a recipe-unlocked trigger builder from a validated recipe ID.
+    #[doc = "**API Contract:** Run `sand api show sand::event::trigger::RecipeUnlockedTrigger::from_id` for the canonical contract."]
     pub fn from_id(recipe: crate::ResourceLocation) -> Self {
         Self {
             recipe: recipe.to_string(),
         }
     }
 
+    /// Converts the recipe-unlocked builder into an advancement criterion.
+    #[doc = "**API Contract:** Run `sand api show sand::event::trigger::RecipeUnlockedTrigger::build` for the canonical contract."]
     pub fn build(self) -> AdvancementTrigger {
         // `from_id` validates at construction; `new` remains a raw compatibility
         // path and is protected by Advancement's fallible export validation.
@@ -236,6 +271,7 @@ impl From<RecipeUnlockedTrigger> for AdvancementTrigger {
 
 // ─── InventoryChangedTrigger ────────────────────────────────────────────────
 
+#[doc = "**API Contract:** Run `sand api show sand::event::trigger::InventoryChangedTrigger` for the canonical contract."]
 /// Fires when the player's inventory changes.
 #[derive(Clone, Debug, Default)]
 pub struct InventoryChangedTrigger {
@@ -244,6 +280,8 @@ pub struct InventoryChangedTrigger {
 }
 
 impl InventoryChangedTrigger {
+    /// Starts an unconstrained inventory-change criterion.
+    #[doc = "**API Contract:** Run `sand api show sand::event::trigger::InventoryChangedTrigger::new` for the canonical contract."]
     pub fn new() -> Self {
         Self {
             slots: None,
@@ -252,17 +290,21 @@ impl InventoryChangedTrigger {
     }
 
     /// Filter by occupied/empty slot ranges.
+    #[doc = "**API Contract:** Run `sand api show sand::event::trigger::InventoryChangedTrigger::slots` for the canonical contract."]
     pub fn slots(mut self, slots: InventorySlotsPredicate) -> Self {
         self.slots = Some(slots);
         self
     }
 
     /// Add an item filter. Can be called multiple times.
+    #[doc = "**API Contract:** Run `sand api show sand::event::trigger::InventoryChangedTrigger::item` for the canonical contract."]
     pub fn item(mut self, predicate: ItemPredicate) -> Self {
         self.items.push(predicate);
         self
     }
 
+    /// Converts the inventory-change builder into an advancement criterion.
+    #[doc = "**API Contract:** Run `sand api show sand::event::trigger::InventoryChangedTrigger::build` for the canonical contract."]
     pub fn build(self) -> AdvancementTrigger {
         AdvancementTrigger::InventoryChanged {
             slots: self.slots,
@@ -279,6 +321,7 @@ impl From<InventoryChangedTrigger> for AdvancementTrigger {
 
 // ─── ItemObtainedTrigger (legacy crafted-result filter) ─────────────────────
 
+#[doc = "**API Contract:** Run `sand api show sand::event::trigger::ItemObtainedTrigger` for the canonical contract."]
 /// Source-compatibility builder for the removed `minecraft:crafted_item`
 /// trigger. Both filtered and unfiltered forms fail target-aware export on
 /// verified current profiles. Use [`AdvancementTrigger::RecipeCrafted`] with
@@ -289,16 +332,21 @@ pub struct ItemObtainedTrigger {
 }
 
 impl ItemObtainedTrigger {
+    /// Starts an unconstrained item-obtained criterion.
+    #[doc = "**API Contract:** Run `sand api show sand::event::trigger::ItemObtainedTrigger::new` for the canonical contract."]
     pub fn new() -> Self {
         Self { item: None }
     }
 
     /// Filter by the crafted item.
+    #[doc = "**API Contract:** Run `sand api show sand::event::trigger::ItemObtainedTrigger::item` for the canonical contract."]
     pub fn item(mut self, predicate: ItemPredicate) -> Self {
         self.item = Some(predicate);
         self
     }
 
+    /// Converts the item-obtained builder into an advancement criterion.
+    #[doc = "**API Contract:** Run `sand api show sand::event::trigger::ItemObtainedTrigger::build` for the canonical contract."]
     pub fn build(self) -> AdvancementTrigger {
         match self.item {
             None => AdvancementTrigger::CraftedItem { item: None },
@@ -315,6 +363,7 @@ impl From<ItemObtainedTrigger> for AdvancementTrigger {
 
 // ─── ItemEnchantTrigger ─────────────────────────────────────────────────────
 
+#[doc = "**API Contract:** Run `sand api show sand::event::trigger::ItemEnchantTrigger` for the canonical contract."]
 /// Fires when the player enchants an item.
 #[derive(Clone, Debug, Default)]
 pub struct ItemEnchantTrigger {
@@ -323,6 +372,8 @@ pub struct ItemEnchantTrigger {
 }
 
 impl ItemEnchantTrigger {
+    /// Starts an unconstrained item-enchantment criterion.
+    #[doc = "**API Contract:** Run `sand api show sand::event::trigger::ItemEnchantTrigger::new` for the canonical contract."]
     pub fn new() -> Self {
         Self {
             item: None,
@@ -331,17 +382,21 @@ impl ItemEnchantTrigger {
     }
 
     /// Filter by the enchanted item.
+    #[doc = "**API Contract:** Run `sand api show sand::event::trigger::ItemEnchantTrigger::item` for the canonical contract."]
     pub fn item(mut self, predicate: ItemPredicate) -> Self {
         self.item = Some(predicate);
         self
     }
 
     /// Filter by experience levels spent.
+    #[doc = "**API Contract:** Run `sand api show sand::event::trigger::ItemEnchantTrigger::levels` for the canonical contract."]
     pub fn levels(mut self, levels: IntRange) -> Self {
         self.levels = Some(levels);
         self
     }
 
+    /// Converts the enchantment builder into an advancement criterion.
+    #[doc = "**API Contract:** Run `sand api show sand::event::trigger::ItemEnchantTrigger::build` for the canonical contract."]
     pub fn build(self) -> AdvancementTrigger {
         AdvancementTrigger::EnchantedItem {
             item: self.item,
@@ -358,6 +413,7 @@ impl From<ItemEnchantTrigger> for AdvancementTrigger {
 
 // ─── UsingItemTrigger ─────────────────────────────────────────────────────
 
+#[doc = "**API Contract:** Run `sand api show sand::event::trigger::UsingItemTrigger` for the canonical contract."]
 /// Fires when the player is actively using (holding right-click) an item.
 #[derive(Clone, Debug, Default)]
 pub struct UsingItemTrigger {
@@ -365,16 +421,21 @@ pub struct UsingItemTrigger {
 }
 
 impl UsingItemTrigger {
+    /// Starts an unconstrained using-item criterion.
+    #[doc = "**API Contract:** Run `sand api show sand::event::trigger::UsingItemTrigger::new` for the canonical contract."]
     pub fn new() -> Self {
         Self { item: None }
     }
 
     /// Filter by the item being used.
+    #[doc = "**API Contract:** Run `sand api show sand::event::trigger::UsingItemTrigger::item` for the canonical contract."]
     pub fn item(mut self, predicate: ItemPredicate) -> Self {
         self.item = Some(predicate);
         self
     }
 
+    /// Converts the using-item builder into an advancement criterion.
+    #[doc = "**API Contract:** Run `sand api show sand::event::trigger::UsingItemTrigger::build` for the canonical contract."]
     pub fn build(self) -> AdvancementTrigger {
         AdvancementTrigger::UsingItem { item: self.item }
     }
@@ -388,6 +449,7 @@ impl From<UsingItemTrigger> for AdvancementTrigger {
 
 // ─── MultiKillTrigger (KilledByArrow) ───────────────────────────────────────
 
+#[doc = "**API Contract:** Run `sand api show sand::event::trigger::MultiKillTrigger` for the canonical contract."]
 /// Fires when the player kills multiple unique entity types with a crossbow.
 #[derive(Clone, Debug, Default)]
 pub struct MultiKillTrigger {
@@ -396,6 +458,8 @@ pub struct MultiKillTrigger {
 }
 
 impl MultiKillTrigger {
+    /// Starts an unconstrained multi-kill criterion.
+    #[doc = "**API Contract:** Run `sand api show sand::event::trigger::MultiKillTrigger::new` for the canonical contract."]
     pub fn new() -> Self {
         Self {
             unique_entity_types: None,
@@ -404,17 +468,21 @@ impl MultiKillTrigger {
     }
 
     /// Number of unique entity types that must be killed.
+    #[doc = "**API Contract:** Run `sand api show sand::event::trigger::MultiKillTrigger::unique_entity_types` for the canonical contract."]
     pub fn unique_entity_types(mut self, count: IntRange) -> Self {
         self.unique_entity_types = Some(count);
         self
     }
 
     /// Filter by victim entity predicates.
+    #[doc = "**API Contract:** Run `sand api show sand::event::trigger::MultiKillTrigger::victim` for the canonical contract."]
     pub fn victim(mut self, predicate: EntityPredicate) -> Self {
         self.victims.get_or_insert_with(Vec::new).push(predicate);
         self
     }
 
+    /// Converts the multi-kill builder into an advancement criterion.
+    #[doc = "**API Contract:** Run `sand api show sand::event::trigger::MultiKillTrigger::build` for the canonical contract."]
     pub fn build(self) -> AdvancementTrigger {
         AdvancementTrigger::KilledByArrow {
             unique_entity_types: self.unique_entity_types,
@@ -434,6 +502,7 @@ impl From<MultiKillTrigger> for AdvancementTrigger {
 
 // ── PlayerInteractedWithEntityTrigger ─────────────────────────────────────────
 
+#[doc = "**API Contract:** Run `sand api show sand::event::trigger::PlayerInteractedWithEntityTrigger` for the canonical contract."]
 /// Fires when the player right-clicks an entity.
 ///
 /// Use this with `interaction` entities for custom clickable objects.
@@ -444,22 +513,28 @@ pub struct PlayerInteractedWithEntityTrigger {
 }
 
 impl PlayerInteractedWithEntityTrigger {
+    /// Starts an unconstrained player-interaction criterion.
+    #[doc = "**API Contract:** Run `sand api show sand::event::trigger::PlayerInteractedWithEntityTrigger::new` for the canonical contract."]
     pub fn new() -> Self {
         Self::default()
     }
 
     /// Filter by the item held during the interaction.
+    #[doc = "**API Contract:** Run `sand api show sand::event::trigger::PlayerInteractedWithEntityTrigger::item` for the canonical contract."]
     pub fn item(mut self, predicate: ItemPredicate) -> Self {
         self.item = Some(predicate);
         self
     }
 
     /// Filter by the entity that was interacted with.
+    #[doc = "**API Contract:** Run `sand api show sand::event::trigger::PlayerInteractedWithEntityTrigger::entity` for the canonical contract."]
     pub fn entity(mut self, predicate: EntityPredicate) -> Self {
         self.entity = Some(predicate);
         self
     }
 
+    /// Converts the interaction builder into an advancement criterion.
+    #[doc = "**API Contract:** Run `sand api show sand::event::trigger::PlayerInteractedWithEntityTrigger::build` for the canonical contract."]
     pub fn build(self) -> AdvancementTrigger {
         AdvancementTrigger::PlayerInteractedWithEntity {
             item: self.item,
@@ -476,6 +551,7 @@ impl From<PlayerInteractedWithEntityTrigger> for AdvancementTrigger {
 
 // ── SummonedEntityTrigger ─────────────────────────────────────────────────────
 
+#[doc = "**API Contract:** Run `sand api show sand::event::trigger::SummonedEntityTrigger` for the canonical contract."]
 /// Fires when the player summons an entity (via a spawn egg, totem, etc.).
 #[derive(Clone, Debug, Default)]
 pub struct SummonedEntityTrigger {
@@ -483,16 +559,21 @@ pub struct SummonedEntityTrigger {
 }
 
 impl SummonedEntityTrigger {
+    /// Starts an unconstrained summoned-entity criterion.
+    #[doc = "**API Contract:** Run `sand api show sand::event::trigger::SummonedEntityTrigger::new` for the canonical contract."]
     pub fn new() -> Self {
         Self::default()
     }
 
     /// Filter by the summoned entity's properties.
+    #[doc = "**API Contract:** Run `sand api show sand::event::trigger::SummonedEntityTrigger::entity` for the canonical contract."]
     pub fn entity(mut self, predicate: EntityPredicate) -> Self {
         self.entity = Some(predicate);
         self
     }
 
+    /// Converts the summoned-entity builder into an advancement criterion.
+    #[doc = "**API Contract:** Run `sand api show sand::event::trigger::SummonedEntityTrigger::build` for the canonical contract."]
     pub fn build(self) -> AdvancementTrigger {
         AdvancementTrigger::SummonedEntity {
             entity: self.entity,

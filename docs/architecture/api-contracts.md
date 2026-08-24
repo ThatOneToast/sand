@@ -1,10 +1,11 @@
 # Sand public API contracts
 
-Status: phased migration in progress ([#327](https://github.com/ThatOneToast/sand/issues/327))
+Status: complete first-class contract foundation ([#327](https://github.com/ThatOneToast/sand/issues/327))
 
-Sand's API contract work is an umbrella migration. The infrastructure may be
-merged before every API is contracted, but partial coverage must remain
-machine-visible and must never be described as complete.
+Sand's API contract work was completed as an umbrella migration. All supported
+static scopes are enforced, and input-dependent generated APIs are enforced in
+isolated consumer builds. The ratchet remains capable of representing partial
+coverage, but the checked-in profiles have zero pending scopes and items.
 
 ## Supported boundary
 
@@ -49,30 +50,48 @@ observe re-exports or arbitrary generated code. Sand therefore uses a hybrid:
    `cargo check` and `cargo build`, regardless of the build's selected facade
    features. It consumes generated command/registry artifacts, discovers
    checked-in macro families, resolves contracts from the mapped source
-   crates, partitions all 11,521 static identities in the latest profile, and byte-compares the
+   crates, partitions all 11,014 static identities in the latest profile, and byte-compares the
    deterministic aggregate baseline. A migration may mark a scope enforced
    only in the same change that supplies every contract for that scope.
 
 Static installed generators are connected now: command and vanilla-registry
 providers emit deterministic JSON beside their Rust, while checked-in
 declarative families derive their shape from the generator body and
-invocations. Input-dependent procedural macros and derives use
-`consumer_build` scopes. Those scopes cannot be marked enforced until their
-consumer-side provider audit is explicitly connected; zero-item enforcement
-is rejected rather than passing vacuously. The real `SandStorage` fixture
-shares its generated-member model between macro expansion and the build
-provider and proves a missing generated accessor fails ordinary `cargo check`.
+invocations. Input-dependent procedural macros and derives are not represented
+as vacuous zero-item static scopes: their output has no finite installed
+identity set. API-producing proc macros self-audit their real expansion during
+ordinary downstream compilation, while fixtures exercise those expansion
+guards. The `State` derive, for example, rejects extra public sibling items,
+bound-view members, missing per-item contract Rustdoc, and owner members that
+do not match its shared generated-surface model.
 Producer connections are declaration-specific and exact: the provider must
 claim the same owner and the complete `(identity, kind)` set derived from that
 source declaration. A partial, wrong-owner, or wrong-kind claim is rejected.
 Unknown, qualified-untrusted, or suspiciously aliased custom attributes and
 derives on reachable declarations, modules, re-exports, traits, and impls fail
 closed. Qualified macro roots are checked for local-module, import, and extern
-alias shadowing. Unsupported producer templates remain pending consumer-build
-work rather than accepting a fabricated family claim.
+alias shadowing. Unsupported producer templates fail rather than accepting a
+fabricated family claim; supported input-dependent producers are exercised by
+their enforced consumer-build fixtures.
 
 Rustdoc JSON is useful as an independent audit oracle, but it is not the build
 gate because its JSON format is not a stable Rust interface.
+
+Catalog schema 3 separates mandatory structural facts from proportional,
+source-authored detail. Parameter names/types and return types always come from
+the reachable Rust declaration. Context, Minecraft behavior, use/avoid
+guidance, parameter meaning, return explanation, and examples are serialized
+only when the defining Rustdoc or explicit generator input supplies them; the
+catalog never substitutes module-, identifier-, or type-derived prose or an
+invocation containing undefined variables. CLI rendering omits absent
+semantic sections while retaining the exact structural signature and the
+item's source-authored summary. Direct `#[api]` and explicit generator inputs
+remain strict; proportional omission applies only when resolving independently
+discovered family members from their defining source documentation. A trivial
+named field or enum payload with no source prose omits `summary`; the catalog
+never turns its identifier or Rust type into invented semantics. Constants,
+variants, callables, and other nontrivial items remain fail-closed on a
+substantive source-authored summary.
 
 ## Migration ratchet
 
@@ -105,8 +124,8 @@ Minecraft profile's complete vanilla-registry provider (4,867 identities for
 same versioned entry that emits its enum variant, and the facade build requires
 exact identity/kind parity with the generated Rust. A dedicated normal-build
 fixture proves that an unreported generated variant stops `cargo check`.
-Parametric `consumer_build` boundaries
-additionally require their named provider-audit connection.
+Parametric consumer output is deliberately outside this static report and is
+validated by the producing macro at expansion time.
 
 `#[api]` defaults to the facade's hidden registration transport. Definitions
 in lower implementation crates use `registry = ::sand_api_contract`, which
@@ -153,7 +172,7 @@ closed during ordinary compilation.
 
 The explicitly opted-in codegen-failure path emits empty, marked provider
 catalogs from the same helper that emits its placeholder Rust. Those catalogs
-select a separate exact 5,399-item source-plus-checked-in-generator profile; they cannot be mixed
+select a separate exact 4,914-item source-plus-checked-in-generator profile; they cannot be mixed
 with real catalogs or contain declarations. The facade's source and checked-in
 generator scopes remain fully audited in this recovery mode, while unavailable
 vanilla re-exports are cfg-disabled. This is a compile-only recovery mode:
@@ -187,9 +206,10 @@ and `129206c` supplied the reusable schema/parser core. `e91e4de` and
 `c416770` remain focused fixtures. `9f142b5` contains useful predicate prose
 but its surface allowlist and complete-enforcement claim are invalid.
 
-## Completion criteria
+## Completed state
 
-The installed catalog becomes authoritative only when every supported scope is
-enforced, every generated family has a provider, all aliases resolve to one
-canonical identity, and the pending-scope count is zero. Until then, foundation
-and migration pull requests reference #327 without closing it.
+Every supported scope is enforced, every generated family has an explicit
+provider or consumer-build audit, aliases resolve to one canonical identity,
+and all checked-in profiles report zero pending scopes and items. The installed
+catalog is therefore authoritative for its declared Minecraft profile and Cargo
+feature configuration.

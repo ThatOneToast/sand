@@ -9,17 +9,21 @@ use crate::resource_location::ResourceLocation;
 use super::types::{Ingredient, RecipeResult};
 use sand_version::ComponentFeature;
 
+#[doc = "**API Contract:** Run `sand api show sand::component::StonecuttingRecipe` for the canonical contract."]
 /// Represents a stonecutter recipe for cutting stone blocks into other shapes.
 pub struct StonecuttingRecipe {
+    /// `location` provides the location identifier when the variant represents a stonecutter recipe for cutting stone blocks into other shapes.
+    #[doc = "**API Contract:** Run `sand api show sand::component::StonecuttingRecipe::location` for the canonical contract."]
     pub location: ResourceLocation,
-    pub group: Option<String>,
-    pub ingredient: Ingredient,
-    pub result: RecipeResult,
-    pub count: u32,
+    group: Option<String>,
+    ingredient: Ingredient,
+    result: RecipeResult,
+    count: u32,
 }
 
 impl StonecuttingRecipe {
     /// Creates a new stonecutter recipe with the given resource location.
+    #[doc = "**API Contract:** Run `sand api show sand::component::StonecuttingRecipe::new` for the canonical contract."]
     pub fn new(location: ResourceLocation) -> Self {
         Self {
             location,
@@ -31,24 +35,28 @@ impl StonecuttingRecipe {
     }
 
     /// Sets the ingredient to be cut by the stonecutter.
+    #[doc = "**API Contract:** Run `sand api show sand::component::StonecuttingRecipe::ingredient` for the canonical contract."]
     pub fn ingredient(mut self, ingredient: Ingredient) -> Self {
         self.ingredient = ingredient;
         self
     }
 
     /// Sets the result item and quantity produced by this recipe.
+    #[doc = "**API Contract:** Run `sand api show sand::component::StonecuttingRecipe::result` for the canonical contract."]
     pub fn result(mut self, result: RecipeResult) -> Self {
         self.result = result;
         self
     }
 
     /// Sets the quantity of the result produced.
+    #[doc = "**API Contract:** Run `sand api show sand::component::StonecuttingRecipe::count` for the canonical contract."]
     pub fn count(mut self, count: u32) -> Self {
         self.count = count;
         self
     }
 
     /// Sets the recipe group for organization.
+    #[doc = "**API Contract:** Run `sand api show sand::component::StonecuttingRecipe::group` for the canonical contract."]
     pub fn group(mut self, g: impl Into<String>) -> Self {
         self.group = Some(g.into());
         self

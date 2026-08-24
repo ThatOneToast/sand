@@ -8,6 +8,7 @@
 //! instead, the same way [`ItemSnapshot`](crate::item::ItemSnapshot)'s
 //! module doc documents its own (execution-scoped) lifetime.
 
+#[doc = "**API Contract:** Run `sand api show sand::participant::ParticipantLifetime` for the canonical contract."]
 /// How long a participant reference remains valid, in terms of generated
 /// command execution rather than Rust scoping.
 ///
@@ -16,20 +17,24 @@
 /// `captured.covers(needed)` is `captured >= needed`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum ParticipantLifetime {
+    #[doc = "**API Contract:** Run `sand api show sand::participant::ParticipantLifetime::Invocation` for the canonical contract."]
     /// Valid only within the generated function call that captured/bound
     /// it — e.g. `@s` inside the handler body that receives it directly.
     Invocation,
+    #[doc = "**API Contract:** Run `sand api show sand::participant::ParticipantLifetime::SynchronousDescendants` for the canonical contract."]
     /// Valid through the capturing invocation and any same-cycle
     /// synchronous descendant graph calls it makes (direct handlers, and
     /// same-cycle chained children reached from within that call tree).
     /// This is the lifetime [`ItemSnapshot::capture`](crate::item::ItemSnapshot::capture)
     /// documents for its own storage-backed captures.
     SynchronousDescendants,
+    #[doc = "**API Contract:** Run `sand api show sand::participant::ParticipantLifetime::EventCycle` for the canonical contract."]
     /// Valid for the current event-cycle coordinator pass (e.g. a bounded
     /// `.within(...)` window's tracked state) — not a Rust-owned value, and
     /// not the same as a snapshot the user has explicitly copied into their
     /// own durable storage.
     EventCycle,
+    #[doc = "**API Contract:** Run `sand api show sand::participant::ParticipantLifetime::BoundedWindow` for the canonical contract."]
     /// Valid across multiple event cycles, for exactly as long as a bounded
     /// `.within(...)` correlation window remains unexpired (#272) — wider
     /// than [`EventCycle`](Self::EventCycle) (which covers only the single
@@ -51,6 +56,7 @@ impl ParticipantLifetime {
     /// [`SynchronousDescendants`](Self::SynchronousDescendants) — it never
     /// promised to survive a descendant call. A reference captured at
     /// [`EventCycle`](Self::EventCycle) covers any narrower use.
+    #[doc = "**API Contract:** Run `sand api show sand::participant::ParticipantLifetime::covers` for the canonical contract."]
     pub fn covers(self, needed: ParticipantLifetime) -> bool {
         self >= needed
     }

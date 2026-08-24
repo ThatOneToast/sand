@@ -11,7 +11,7 @@ fn typed_custom_name_lore_model_rarity_and_give_command() {
             Text::new("Forged below the world").gray(),
         ]))
         .component(ItemComponent::custom_model_data(1001))
-        .component(ItemComponent::rarity(Rarity::Epic));
+        .component(ItemComponent::rarity(ItemRarity::Epic));
 
     assert_eq!(
         item.to_string(),
@@ -49,7 +49,7 @@ fn typed_enchantments_and_attribute_modifiers() {
             5,
         ))
         .component(ItemComponent::attribute_modifier(
-            AttributeModifier::new(AttributeId::AttackDamage)
+            AttributeModifier::new(AttributeType::AttackDamage)
                 .amount(10.0)
                 .operation(AttributeOperation::AddValue)
                 .slot(EquipmentSlotGroup::Mainhand),
@@ -71,7 +71,7 @@ fn parser_oriented_complex_item_keeps_components_flat() {
         .damage(0)
         .typed_enchantment(EnchantmentId::minecraft("sharpness").unwrap(), 5)
         .attribute_modifier(
-            AttributeModifier::new(AttributeId::AttackDamage)
+            AttributeModifier::new(AttributeType::AttackDamage)
                 .amount(10.0)
                 .operation(AttributeOperation::AddValue)
                 .slot(EquipmentSlotGroup::Mainhand),

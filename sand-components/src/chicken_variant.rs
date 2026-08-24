@@ -29,6 +29,7 @@ use crate::validation;
 
 const TYPED_FIELDS: &[&str] = &["asset_id", "spawn_conditions"];
 
+#[doc = "**API Contract:** Run `sand api show sand::component::ChickenVariant` for the canonical contract."]
 /// A chicken variant definition (`data/<namespace>/chicken_variant/<id>.json`).
 ///
 /// Chicken variants select the texture used when a chicken spawns, based on
@@ -42,6 +43,7 @@ pub struct ChickenVariant {
 
 impl ChickenVariant {
     /// Create a new chicken variant with the given resource location.
+    #[doc = "**API Contract:** Run `sand api show sand::component::ChickenVariant::new` for the canonical contract."]
     pub fn new(location: ResourceLocation) -> Self {
         Self {
             location,
@@ -52,18 +54,21 @@ impl ChickenVariant {
     }
 
     /// Set the texture asset ID (e.g. `"minecraft:entity/chicken/cold_chicken"`).
+    #[doc = "**API Contract:** Run `sand api show sand::component::ChickenVariant::asset_id` for the canonical contract."]
     pub fn asset_id(mut self, id: impl Into<String>) -> Self {
         self.asset_id = id.into();
         self
     }
 
     /// Add one prioritized biome spawn condition.
+    #[doc = "**API Contract:** Run `sand api show sand::component::ChickenVariant::spawn_condition` for the canonical contract."]
     pub fn spawn_condition(mut self, condition: SpawnCondition) -> Self {
         self.spawn_conditions.push(condition);
         self
     }
 
     /// Replace the full ordered list of biome spawn conditions.
+    #[doc = "**API Contract:** Run `sand api show sand::component::ChickenVariant::spawn_conditions` for the canonical contract."]
     pub fn spawn_conditions(
         mut self,
         conditions: impl IntoIterator<Item = SpawnCondition>,
@@ -75,6 +80,7 @@ impl ChickenVariant {
     /// Add a modded or version-specific field not represented by the typed API.
     ///
     /// Typed field names cannot be overridden through this escape hatch.
+    #[doc = "**API Contract:** Run `sand api show sand::component::ChickenVariant::raw_field` for the canonical contract."]
     pub fn raw_field(mut self, key: impl Into<String>, value: RawJson) -> Self {
         self.raw_fields.insert(key.into(), value);
         self

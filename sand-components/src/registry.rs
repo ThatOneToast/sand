@@ -401,6 +401,7 @@ registry_id! {
 
 // ── TagId<T> ─────────────────────────────────────────────────────────────────
 
+#[doc = "**API Contract:** Run `sand api show sand::component::TagId` for the canonical contract."]
 /// A typed tag identifier scoped to a specific registry kind `T`.
 ///
 /// The phantom `T` marker allows you to distinguish `TagId<ItemId>` from
@@ -428,6 +429,7 @@ pub struct TagId<T> {
 
 impl<T> TagId<T> {
     /// Construct a `minecraft:<path>` tag.  Returns an error if `path` is invalid.
+    #[doc = "**API Contract:** Run `sand api show sand::component::TagId::minecraft` for the canonical contract."]
     pub fn minecraft(path: impl AsRef<str>) -> Result<Self> {
         Ok(Self {
             rl: ResourceLocation::minecraft(path)?,
@@ -436,6 +438,7 @@ impl<T> TagId<T> {
     }
 
     /// Wrap any [`ResourceLocation`] as a tag ID.
+    #[doc = "**API Contract:** Run `sand api show sand::component::TagId::custom` for the canonical contract."]
     pub fn custom(rl: ResourceLocation) -> Self {
         Self {
             rl,
@@ -444,11 +447,13 @@ impl<T> TagId<T> {
     }
 
     /// Returns the `#namespace:path` form used in item predicates and ingredients.
+    #[doc = "**API Contract:** Run `sand api show sand::component::TagId::to_tag_string` for the canonical contract."]
     pub fn to_tag_string(&self) -> String {
         format!("#{}", self.rl)
     }
 
     /// Access the inner [`ResourceLocation`].
+    #[doc = "**API Contract:** Run `sand api show sand::component::TagId::as_resource_location` for the canonical contract."]
     pub fn as_resource_location(&self) -> &ResourceLocation {
         &self.rl
     }

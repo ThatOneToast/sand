@@ -16,6 +16,7 @@ use crate::resource_location::ResourceLocation;
 /// Vanilla's maximum stack size for any single item.
 pub const MAX_STACK_SIZE: u32 = 99;
 
+#[doc = "**API Contract:** Run `sand api show sand::component::ItemStack` for the canonical contract."]
 /// A concrete item stack: a typed item ID, a validated count, and zero or
 /// more data components.
 ///
@@ -49,6 +50,7 @@ pub struct ItemStack {
 
 impl ItemStack {
     /// Create a stack of `1` of the given item, with no components.
+    #[doc = "**API Contract:** Run `sand api show sand::component::ItemStack::new` for the canonical contract."]
     pub fn new(id: ItemId) -> Self {
         let item = CustomItem::new(id.to_string());
         Self { id, count: 1, item }
@@ -60,12 +62,14 @@ impl ItemStack {
     /// APIs, out-of-range counts (`0` or greater than [`MAX_STACK_SIZE`])
     /// are reported clearly by [`ItemStack::validate`]/[`ItemStack::stack_components`]
     /// rather than by this setter.
+    #[doc = "**API Contract:** Run `sand api show sand::component::ItemStack::count` for the canonical contract."]
     pub fn count(mut self, count: u32) -> Self {
         self.count = count;
         self
     }
 
     /// Add or merge a typed item component. See [`ItemComponent`].
+    #[doc = "**API Contract:** Run `sand api show sand::component::ItemStack::component` for the canonical contract."]
     pub fn component(mut self, component: ItemComponent) -> Self {
         self.item = self.item.component(component);
         self
@@ -73,23 +77,27 @@ impl ItemStack {
 
     /// Add a raw item component escape hatch for components not covered by
     /// the typed [`ItemComponent`] API. See [`CustomItem::with_raw_component`].
+    #[doc = "**API Contract:** Run `sand api show sand::component::ItemStack::raw_component` for the canonical contract."]
     pub fn raw_component(mut self, component: RawComponent) -> Self {
         self.item = self.item.with_raw_component(component);
         self
     }
 
     /// The typed item ID this stack is built on.
+    #[doc = "**API Contract:** Run `sand api show sand::component::ItemStack::id` for the canonical contract."]
     pub fn id(&self) -> &ItemId {
         &self.id
     }
 
     /// The current stack count.
+    #[doc = "**API Contract:** Run `sand api show sand::component::ItemStack::count_value` for the canonical contract."]
     pub fn count_value(&self) -> u32 {
         self.count
     }
 
     /// Read-only access to the underlying [`CustomItem`] component model, for
     /// reusing existing helpers (e.g. [`CustomItem::item_predicate`]).
+    #[doc = "**API Contract:** Run `sand api show sand::component::ItemStack::custom_item` for the canonical contract."]
     pub fn custom_item(&self) -> &CustomItem {
         &self.item
     }
@@ -98,6 +106,7 @@ impl ItemStack {
     ///
     /// Checks the count is in `1..=`[`MAX_STACK_SIZE`], then delegates
     /// component validation to [`CustomItem::validate`].
+    #[doc = "**API Contract:** Run `sand api show sand::component::ItemStack::validate` for the canonical contract."]
     pub fn validate(&self) -> SandResult<()> {
         if self.count == 0 || self.count > MAX_STACK_SIZE {
             return Err(SandError::ComponentValidation {
@@ -117,6 +126,7 @@ impl ItemStack {
     /// Structured `(base_item, components)` form used by conversions that
     /// need JSON-shaped output (recipe results, loot results). Validates
     /// first — see [`ItemStack::validate`].
+    #[doc = "**API Contract:** Run `sand api show sand::component::ItemStack::stack_components` for the canonical contract."]
     pub fn stack_components(&self) -> SandResult<ItemStackComponents> {
         self.validate()?;
         self.item.stack_components()
@@ -137,11 +147,14 @@ fn item_stack_location() -> ResourceLocation {
     ResourceLocation::new("sand", "item_stack").expect("static resource location is always valid")
 }
 
+#[doc = "**API Contract:** Run `sand api show sand::component::IntoItemStack` for the canonical contract."]
 /// Converts a value into a concrete [`ItemStack`].
 ///
 /// Implemented for `ItemStack` itself so APIs that accept `impl IntoItemStack`
 /// can also accept an already-built stack directly.
 pub trait IntoItemStack {
+    /// Converts the value through the into item stack component authoring contract.
+    #[doc = "**API Contract:** Run `sand api show sand::component::IntoItemStack::into_item_stack` for the canonical contract."]
     fn into_item_stack(self) -> ItemStack;
 }
 

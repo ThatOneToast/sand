@@ -8,9 +8,9 @@
 //!
 //! Normal decoration parameters are authored through [`ChatDecorationParameter`]
 //! and normal style overrides through [`ChatStyle`] — both are validated before
-//! export. Raw `serde_json::Value` style objects remain available through the
-//! explicit [`ChatDecoration::style_raw`] escape hatch for shapes typed helpers
-//! don't cover yet.
+//! export. [`RawJson`] style objects remain available through the explicit
+//! [`ChatDecoration::style_raw`] escape hatch for shapes typed helpers don't
+//! cover yet.
 //!
 //! ```
 //! use sand_components::chat_type::{ChatDecoration, ChatDecorationParameter, ChatStyle, ChatType};
@@ -34,10 +34,12 @@ use serde_json::Value;
 
 use crate::component::DatapackComponent;
 use crate::error::SandError;
+use crate::raw::RawJson;
 use crate::resource_location::ResourceLocation;
 
 // ── ChatDecorationParameter ────────────────────────────────────────────────────
 
+#[doc = "**API Contract:** Run `sand api show sand::component::ChatDecorationParameter` for the canonical contract."]
 /// A parameter substituted into a chat decoration's translation format string.
 ///
 /// Vanilla only recognizes `sender`, `target`, and `content`. Use
@@ -47,18 +49,27 @@ use crate::resource_location::ResourceLocation;
 /// vanilla parameter, since Minecraft itself only understands the three above.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ChatDecorationParameter {
+    #[doc = "**API Contract:** Run `sand api show sand::component::ChatDecorationParameter::Sender` for the canonical contract."]
     /// The message sender's display name.
     Sender,
+    #[doc = "**API Contract:** Run `sand api show sand::component::ChatDecorationParameter::Target` for the canonical contract."]
     /// The message target (used by e.g. `/msg`-style decorations).
     Target,
+    #[doc = "**API Contract:** Run `sand api show sand::component::ChatDecorationParameter::Content` for the canonical contract."]
     /// The message content itself.
     Content,
+    #[doc = "**API Contract:** Run `sand api show sand::component::ChatDecorationParameter::Custom` for the canonical contract."]
     /// Escape hatch for a raw/unknown parameter name.
-    Custom(String),
+    Custom(
+        #[doc = "The `Custom` variant carries the value described by its variant semantics: Escape hatch for a raw/unknown parameter name."]
+        #[doc = "**API Contract:** Run `sand api show sand::component::ChatDecorationParameter::Custom::0` for the canonical contract."]
+        String,
+    ),
 }
 
 impl ChatDecorationParameter {
     /// The vanilla wire string for this parameter.
+    #[doc = "**API Contract:** Run `sand api show sand::component::ChatDecorationParameter::as_str` for the canonical contract."]
     pub fn as_str(&self) -> &str {
         match self {
             Self::Sender => "sender",
@@ -106,6 +117,7 @@ enum ChatStyleColor {
     Hex(String),
 }
 
+#[doc = "**API Contract:** Run `sand api show sand::component::ChatStyle` for the canonical contract."]
 /// Typed style overrides for a [`ChatDecoration`].
 ///
 /// Covers the common text-style fields accepted in chat type JSON without
@@ -131,53 +143,62 @@ pub struct ChatStyle {
 
 impl ChatStyle {
     /// Creates an empty style with no overrides set.
+    #[doc = "**API Contract:** Run `sand api show sand::component::ChatStyle::new` for the canonical contract."]
     pub fn new() -> Self {
         Self::default()
     }
 
     /// Sets a named vanilla text color.
+    #[doc = "**API Contract:** Run `sand api show sand::component::ChatStyle::color` for the canonical contract."]
     pub fn color(mut self, color: sand_commands::ChatColor) -> Self {
         self.color = Some(ChatStyleColor::Named(color));
         self
     }
 
     /// Sets a raw `#RRGGBB` hex color (validated before export).
+    #[doc = "**API Contract:** Run `sand api show sand::component::ChatStyle::color_hex` for the canonical contract."]
     pub fn color_hex(mut self, hex: impl Into<String>) -> Self {
         self.color = Some(ChatStyleColor::Hex(hex.into()));
         self
     }
 
     /// Sets whether the decorated text is bold.
+    #[doc = "**API Contract:** Run `sand api show sand::component::ChatStyle::bold` for the canonical contract."]
     pub fn bold(mut self, value: bool) -> Self {
         self.bold = Some(value);
         self
     }
 
     /// Sets whether the decorated text is italic.
+    #[doc = "**API Contract:** Run `sand api show sand::component::ChatStyle::italic` for the canonical contract."]
     pub fn italic(mut self, value: bool) -> Self {
         self.italic = Some(value);
         self
     }
 
     /// Sets whether the decorated text is underlined.
+    #[doc = "**API Contract:** Run `sand api show sand::component::ChatStyle::underlined` for the canonical contract."]
     pub fn underlined(mut self, value: bool) -> Self {
         self.underlined = Some(value);
         self
     }
 
     /// Sets whether the decorated text is struck through.
+    #[doc = "**API Contract:** Run `sand api show sand::component::ChatStyle::strikethrough` for the canonical contract."]
     pub fn strikethrough(mut self, value: bool) -> Self {
         self.strikethrough = Some(value);
         self
     }
 
     /// Sets whether the decorated text is obfuscated (matrix effect).
+    #[doc = "**API Contract:** Run `sand api show sand::component::ChatStyle::obfuscated` for the canonical contract."]
     pub fn obfuscated(mut self, value: bool) -> Self {
         self.obfuscated = Some(value);
         self
     }
 
     /// Sets the shift-click chat insertion text.
+    #[doc = "**API Contract:** Run `sand api show sand::component::ChatStyle::insertion` for the canonical contract."]
     pub fn insertion(mut self, text: impl Into<String>) -> Self {
         self.insertion = Some(text.into());
         self
@@ -244,6 +265,7 @@ enum ChatDecorationStyle {
 
 // ── ChatDecoration ────────────────────────────────────────────────────────────
 
+#[doc = "**API Contract:** Run `sand api show sand::component::ChatDecoration` for the canonical contract."]
 /// Controls how a chat message is decorated (wrapped with sender/target text).
 ///
 /// The `translation_key` maps to a format string in the language file.
@@ -253,6 +275,7 @@ enum ChatDecorationStyle {
 /// [`ChatDecorationParameter::Custom`] and fail validation, same as before).
 #[derive(Clone)]
 pub struct ChatDecoration {
+    #[doc = "**API Contract:** Run `sand api show sand::component::ChatDecoration::translation_key` for the canonical contract."]
     /// The translation key for the format string.
     pub translation_key: String,
     style: Option<ChatDecorationStyle>,
@@ -261,6 +284,7 @@ pub struct ChatDecoration {
 
 impl ChatDecoration {
     /// Creates a new decoration with the given translation key.
+    #[doc = "**API Contract:** Run `sand api show sand::component::ChatDecoration::new` for the canonical contract."]
     pub fn new(translation_key: impl Into<String>) -> Self {
         Self {
             translation_key: translation_key.into(),
@@ -275,12 +299,14 @@ impl ChatDecoration {
     /// use sand_components::chat_type::{ChatDecoration, ChatDecorationParameter};
     /// let deco = ChatDecoration::new("chat.type.text").parameter(ChatDecorationParameter::Sender);
     /// ```
+    #[doc = "**API Contract:** Run `sand api show sand::component::ChatDecoration::parameter` for the canonical contract."]
     pub fn parameter(mut self, param: impl Into<ChatDecorationParameter>) -> Self {
         self.parameters.push(param.into());
         self
     }
 
     /// Sets multiple parameters at once.
+    #[doc = "**API Contract:** Run `sand api show sand::component::ChatDecoration::parameters` for the canonical contract."]
     pub fn parameters(
         mut self,
         params: impl IntoIterator<Item = impl Into<ChatDecorationParameter>>,
@@ -298,6 +324,7 @@ impl ChatDecoration {
     /// let deco = ChatDecoration::new("chat.type.text")
     ///     .style(ChatStyle::new().color(ChatColor::Yellow).bold(true));
     /// ```
+    #[doc = "**API Contract:** Run `sand api show sand::component::ChatDecoration::style` for the canonical contract."]
     pub fn style(mut self, style: ChatStyle) -> Self {
         self.style = Some(ChatDecorationStyle::Typed(style));
         self
@@ -307,8 +334,9 @@ impl ChatDecoration {
     ///
     /// Escape hatch for style shapes [`ChatStyle`] doesn't cover. Prefer
     /// [`ChatDecoration::style`] for normal authoring.
-    pub fn style_raw(mut self, style: Value) -> Self {
-        self.style = Some(ChatDecorationStyle::Raw(style));
+    #[doc = "**API Contract:** Run `sand api show sand::component::ChatDecoration::style_raw` for the canonical contract."]
+    pub fn style_raw(mut self, style: RawJson) -> Self {
+        self.style = Some(ChatDecorationStyle::Raw(style.into_value()));
         self
     }
 
@@ -401,6 +429,7 @@ impl ChatDecoration {
 
 // ── ChatType ──────────────────────────────────────────────────────────────────
 
+#[doc = "**API Contract:** Run `sand api show sand::component::ChatType` for the canonical contract."]
 /// A chat type definition (`data/<namespace>/chat_type/<id>.json`).
 ///
 /// Chat types control how player and system messages appear in the chat box
@@ -415,6 +444,7 @@ pub struct ChatType {
 
 impl ChatType {
     /// Creates a new chat type with the given resource location and chat decoration.
+    #[doc = "**API Contract:** Run `sand api show sand::component::ChatType::new` for the canonical contract."]
     pub fn new(location: ResourceLocation, chat: ChatDecoration) -> Self {
         Self {
             location,
@@ -424,6 +454,7 @@ impl ChatType {
     }
 
     /// Sets the narration decoration (used by the narrator / screen readers).
+    #[doc = "**API Contract:** Run `sand api show sand::component::ChatType::narration` for the canonical contract."]
     pub fn narration(mut self, narration: ChatDecoration) -> Self {
         self.narration = Some(narration);
         self
@@ -565,23 +596,25 @@ mod tests {
 
     #[test]
     fn style_raw_object_accepted() {
-        let deco = ChatDecoration::new("chat.type.text")
-            .style_raw(serde_json::json!({"color": "yellow", "bold": true}));
+        let deco = ChatDecoration::new("chat.type.text").style_raw(RawJson::new(
+            serde_json::json!({"color": "yellow", "bold": true}),
+        ));
         assert!(deco.validate(&loc(), "chat").is_ok());
         assert_eq!(deco.to_json()["style"]["color"], "yellow");
     }
 
     #[test]
     fn style_raw_non_object_rejected() {
-        let deco = ChatDecoration::new("chat.type.text").style_raw(serde_json::json!(["array"]));
+        let deco = ChatDecoration::new("chat.type.text")
+            .style_raw(RawJson::new(serde_json::json!(["array"])));
         let err = deco.validate(&loc(), "chat").unwrap_err().to_string();
         assert!(err.contains("must be a JSON object"), "{err}");
     }
 
     #[test]
     fn style_raw_invalid_named_color_rejected() {
-        let deco =
-            ChatDecoration::new("chat.type.text").style_raw(serde_json::json!({"color": "nope"}));
+        let deco = ChatDecoration::new("chat.type.text")
+            .style_raw(RawJson::new(serde_json::json!({"color": "nope"})));
         assert!(deco.validate(&loc(), "chat").is_err());
     }
 

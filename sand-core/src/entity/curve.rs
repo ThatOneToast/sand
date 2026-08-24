@@ -1,4 +1,4 @@
-//! Deterministic derived-stat curves and dirty dependency planning.
+//! Deterministic derived-stat curves.
 //!
 //! Curves in this module are a pure intermediate representation. They neither
 //! inspect Minecraft nor emit commands. An archetype compiler can validate and
@@ -10,11 +10,6 @@
 //! configured [`RoundingPolicy`], and every conversion and arithmetic operation
 //! applies the configured [`OverflowPolicy`]. This makes results independent of
 //! the host platform and avoids floating-point work in generated functions.
-//!
-//! [`DependencyGraph`] complements the curve IR. Edges point from a state
-//! source to an output that consumes it. A [`DirtyPlan`] first identifies all
-//! transitively dirty outputs, then lists each output once in deterministic
-//! topological recomputation order.
 //!
 //! # Level-derived health
 //!
@@ -45,9 +40,11 @@ use thiserror::Error;
 
 use super::{EntityDiagnostic, EntityStateField};
 
+#[doc = "**API Contract:** Run `sand api show sand::entity::DEFAULT_FIXED_POINT_SCALE` for the canonical contract."]
 /// Default number of fixed-point units in one whole value.
 pub const DEFAULT_FIXED_POINT_SCALE: i64 = 1_000;
 
+#[doc = "**API Contract:** Run `sand api show sand::entity::FixedPoint` for the canonical contract."]
 /// Fixed-point representation settings used by a curve.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct FixedPoint {
@@ -71,6 +68,7 @@ impl FixedPoint {
     ///
     /// A scale of `1000` stores three decimal places. A zero or negative scale
     /// returns an [`EntityDiagnostic::InvalidRange`] before export.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::FixedPoint::new` for the canonical contract."]
     pub fn new(
         scale: i64,
         rounding: RoundingPolicy,
@@ -91,18 +89,21 @@ impl FixedPoint {
     }
 
     /// Returns the number of stored units representing `1.0`.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::FixedPoint::scale` for the canonical contract."]
     #[must_use]
     pub const fn scale(self) -> i64 {
         self.scale
     }
 
     /// Returns the rounding rule for lossy operations.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::FixedPoint::rounding` for the canonical contract."]
     #[must_use]
     pub const fn rounding(self) -> RoundingPolicy {
         self.rounding
     }
 
     /// Returns the overflow behavior for conversion and arithmetic.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::FixedPoint::overflow` for the canonical contract."]
     #[must_use]
     pub const fn overflow(self) -> OverflowPolicy {
         self.overflow
@@ -112,6 +113,7 @@ impl FixedPoint {
     ///
     /// Floating point is accepted only at definition time. Runtime evaluation
     /// and generated Minecraft arithmetic use the resulting integer.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::FixedPoint::encode` for the canonical contract."]
     pub fn encode(
         self,
         value: f64,
@@ -140,6 +142,7 @@ impl FixedPoint {
     }
 
     /// Converts a whole scoreboard value to fixed-point units.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::FixedPoint::encode_score` for the canonical contract."]
     pub fn encode_score(
         self,
         value: i64,
@@ -156,6 +159,7 @@ impl FixedPoint {
     }
 
     /// Converts fixed-point units to a whole scoreboard value.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::FixedPoint::decode_score` for the canonical contract."]
     pub fn decode_score(
         self,
         value: FixedValue,
@@ -174,33 +178,43 @@ impl FixedPoint {
     }
 }
 
+#[doc = "**API Contract:** Run `sand api show sand::entity::RoundingPolicy` for the canonical contract."]
 /// Rounding applied when fixed-point multiplication or division loses a
 /// fractional remainder.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[non_exhaustive]
 pub enum RoundingPolicy {
+    #[doc = "**API Contract:** Run `sand api show sand::entity::RoundingPolicy::TowardZero` for the canonical contract."]
     /// Discard the remainder toward zero.
     TowardZero,
+    #[doc = "**API Contract:** Run `sand api show sand::entity::RoundingPolicy::Floor` for the canonical contract."]
     /// Round toward negative infinity.
     Floor,
+    #[doc = "**API Contract:** Run `sand api show sand::entity::RoundingPolicy::Ceiling` for the canonical contract."]
     /// Round toward positive infinity.
     Ceiling,
+    #[doc = "**API Contract:** Run `sand api show sand::entity::RoundingPolicy::NearestTiesAwayFromZero` for the canonical contract."]
     /// Round to the nearest integer, with exact halves away from zero.
     NearestTiesAwayFromZero,
+    #[doc = "**API Contract:** Run `sand api show sand::entity::RoundingPolicy::NearestTiesToEven` for the canonical contract."]
     /// Round to the nearest integer, with exact halves to an even integer.
     NearestTiesToEven,
 }
 
+#[doc = "**API Contract:** Run `sand api show sand::entity::OverflowPolicy` for the canonical contract."]
 /// Behavior when a fixed-point result does not fit in a signed 64-bit value.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[non_exhaustive]
 pub enum OverflowPolicy {
+    #[doc = "**API Contract:** Run `sand api show sand::entity::OverflowPolicy::Error` for the canonical contract."]
     /// Stop validation/evaluation with a structured diagnostic.
     Error,
+    #[doc = "**API Contract:** Run `sand api show sand::entity::OverflowPolicy::Saturate` for the canonical contract."]
     /// Clamp the result to [`i64::MIN`] or [`i64::MAX`].
     Saturate,
 }
 
+#[doc = "**API Contract:** Run `sand api show sand::entity::FixedValue` for the canonical contract."]
 /// A signed fixed-point value.
 ///
 /// The scale is supplied by [`FixedPoint`]. Keeping the raw representation
@@ -210,12 +224,14 @@ pub struct FixedValue(i64);
 
 impl FixedValue {
     /// Creates a value from already-scaled integer units.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::FixedValue::from_units` for the canonical contract."]
     #[must_use]
     pub const fn from_units(units: i64) -> Self {
         Self(units)
     }
 
     /// Returns the already-scaled integer representation.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::FixedValue::units` for the canonical contract."]
     #[must_use]
     pub const fn units(self) -> i64 {
         self.0
@@ -224,12 +240,14 @@ impl FixedValue {
     /// Returns this value as a host floating-point number for inspection.
     ///
     /// Exported arithmetic should use [`Self::units`] instead.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::FixedValue::as_f64` for the canonical contract."]
     #[must_use]
     pub fn as_f64(self, fixed: FixedPoint) -> f64 {
         self.0 as f64 / fixed.scale as f64
     }
 }
 
+#[doc = "**API Contract:** Run `sand api show sand::entity::CurveInputs` for the canonical contract."]
 /// Deterministic named values supplied to [`StatCurve::evaluate`].
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct CurveInputs {
@@ -238,6 +256,7 @@ pub struct CurveInputs {
 
 impl CurveInputs {
     /// Creates an empty input set.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::CurveInputs::new` for the canonical contract."]
     #[must_use]
     pub const fn new() -> Self {
         Self {
@@ -246,11 +265,13 @@ impl CurveInputs {
     }
 
     /// Inserts an already-scaled value, replacing a value with the same name.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::CurveInputs::insert` for the canonical contract."]
     pub fn insert(&mut self, name: impl Into<String>, value: FixedValue) -> Option<FixedValue> {
         self.values.insert(name.into(), value)
     }
 
     /// Inserts a whole scoreboard value after applying `fixed`'s scale.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::CurveInputs::insert_score` for the canonical contract."]
     pub fn insert_score(
         &mut self,
         name: impl Into<String>,
@@ -263,13 +284,15 @@ impl CurveInputs {
         Ok(self.insert(name, value))
     }
 
-    /// Returns a named value.
+    /// Returns the fixed curve input registered under `name`, when present.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::CurveInputs::get` for the canonical contract."]
     #[must_use]
     pub fn get(&self, name: &str) -> Option<FixedValue> {
         self.values.get(name).copied()
     }
 
     /// Iterates in lexical key order.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::CurveInputs::iter` for the canonical contract."]
     pub fn iter(&self) -> impl Iterator<Item = (&str, FixedValue)> {
         self.values
             .iter()
@@ -277,36 +300,53 @@ impl CurveInputs {
     }
 }
 
+#[doc = "**API Contract:** Run `sand api show sand::entity::CurveEvaluationError` for the canonical contract."]
 /// Failure while evaluating an otherwise structurally valid curve.
 #[derive(Debug, Clone, PartialEq, Error)]
 #[non_exhaustive]
 pub enum CurveEvaluationError {
+    #[doc = "**API Contract:** Run `sand api show sand::entity::CurveEvaluationError::MissingInput` for the canonical contract."]
     /// A referenced state input was not supplied.
     #[error("curve `{derivation}` for `{archetype}` is missing input `{input}`")]
     MissingInput {
+        #[doc = "**API Contract:** Run `sand api show sand::entity::CurveEvaluationError::MissingInput::archetype` for the canonical contract."]
         /// Archetype resource identifier.
         archetype: String,
+        #[doc = "**API Contract:** Run `sand api show sand::entity::CurveEvaluationError::MissingInput::derivation` for the canonical contract."]
         /// Derivation identifier.
         derivation: String,
+        #[doc = "**API Contract:** Run `sand api show sand::entity::CurveEvaluationError::MissingInput::input` for the canonical contract."]
         /// Missing state/input name.
         input: String,
     },
+    #[doc = "**API Contract:** Run `sand api show sand::entity::CurveEvaluationError::DivisionByZero` for the canonical contract."]
     /// A ratio attempted to divide by zero.
     #[error("curve `{derivation}` for `{archetype}` divided by zero")]
     DivisionByZero {
+        #[doc = "**API Contract:** Run `sand api show sand::entity::CurveEvaluationError::DivisionByZero::archetype` for the canonical contract."]
         /// Archetype resource identifier.
         archetype: String,
+        #[doc = "**API Contract:** Run `sand api show sand::entity::CurveEvaluationError::DivisionByZero::derivation` for the canonical contract."]
         /// Derivation identifier.
         derivation: String,
     },
+    #[doc = "**API Contract:** Run `sand api show sand::entity::CurveEvaluationError::Diagnostic` for the canonical contract."]
     /// A standard entity compilation diagnostic.
     #[error(transparent)]
-    Diagnostic(#[from] EntityDiagnostic),
+    Diagnostic(
+        #[doc = "The `Diagnostic` variant carries the value described by its variant semantics: A standard entity compilation diagnostic."]
+        #[doc = "**API Contract:** Run `sand api show sand::entity::CurveEvaluationError::Diagnostic::0` for the canonical contract."]
+        #[from]
+        EntityDiagnostic,
+    ),
+    #[doc = "**API Contract:** Run `sand api show sand::entity::CurveEvaluationError::Custom` for the canonical contract."]
     /// A custom callback rejected its inputs.
     #[error("custom curve `{callback}` failed: {message}")]
     Custom {
+        #[doc = "**API Contract:** Run `sand api show sand::entity::CurveEvaluationError::Custom::callback` for the canonical contract."]
         /// Stable registered callback identifier.
         callback: String,
+        #[doc = "**API Contract:** Run `sand api show sand::entity::CurveEvaluationError::Custom::message` for the canonical contract."]
         /// Callback-provided failure detail.
         message: String,
     },
@@ -318,7 +358,7 @@ pub enum CurveEvaluationError {
 /// already been generated.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[non_exhaustive]
-pub enum LoweringStrategy {
+pub(crate) enum LoweringStrategy {
     /// Direct scoreboard constants and arithmetic.
     ScoreboardArithmetic,
     /// A balanced decision tree for ranges or discrete mappings.
@@ -338,7 +378,7 @@ pub enum LoweringStrategy {
 /// instead of baking host arithmetic into command strings.
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[non_exhaustive]
-pub enum LoweredCurveOperation {
+pub(crate) enum LoweredCurveOperation {
     /// Set an objective to an already-scaled fixed-point constant.
     SetConstant {
         /// Destination score objective.
@@ -491,7 +531,7 @@ pub enum LoweredCurveOperation {
 /// ordered operations execute as the entity bound to `@s`; no global scratch
 /// score holder or storage compound is shared between entities.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct LoweredCurve {
+pub(crate) struct LoweredCurve {
     target_objective: String,
     scratch_objectives: Vec<String>,
     operations: Vec<LoweredCurveOperation>,
@@ -501,26 +541,20 @@ pub struct LoweredCurve {
 impl LoweredCurve {
     /// Existing objective that receives the final fixed-point result.
     #[must_use]
-    pub fn target_objective(&self) -> &str {
+    pub(crate) fn target_objective(&self) -> &str {
         &self.target_objective
     }
 
     /// Generated dummy objectives required at load, in lexical order.
     #[must_use]
-    pub fn scratch_objectives(&self) -> &[String] {
+    pub(crate) fn scratch_objectives(&self) -> &[String] {
         &self.scratch_objectives
     }
 
     /// Ordered entity-scoped operations.
     #[must_use]
-    pub fn operations(&self) -> &[LoweredCurveOperation] {
+    pub(crate) fn operations(&self) -> &[LoweredCurveOperation] {
         &self.operations
-    }
-
-    /// Most capable backend family needed by this plan.
-    #[must_use]
-    pub const fn strategy(&self) -> LoweringStrategy {
-        self.strategy
     }
 }
 
@@ -543,11 +577,12 @@ impl fmt::Debug for CustomCurve {
     }
 }
 
+#[doc = "**API Contract:** Run `sand api show sand::entity::StatCurve` for the canonical contract."]
 /// Pure typed IR for a derived numeric or discrete entity property.
 ///
 /// Constructors intentionally accept typed curves and fixed-point constants,
-/// rather than command strings. Call [`Self::validate`] before export and
-/// [`Self::lowering_strategy`] to choose a compact backend.
+/// rather than command strings. Call [`Self::validate`] before export; Sand
+/// chooses the compact Minecraft backend internally.
 #[derive(Clone, Debug)]
 pub struct StatCurve {
     kind: CurveKind,
@@ -599,6 +634,7 @@ enum CurveKind {
 
 impl StatCurve {
     /// Creates a fixed derived value.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::StatCurve::constant` for the canonical contract."]
     #[must_use]
     pub fn constant(value: f64) -> Self {
         Self {
@@ -607,6 +643,7 @@ impl StatCurve {
     }
 
     /// References a typed entity-state input.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::StatCurve::state` for the canonical contract."]
     #[must_use]
     pub fn state(field: impl super::EntityStateField) -> Self {
         Self {
@@ -617,6 +654,7 @@ impl StatCurve {
     /// References an explicitly raw objective name.
     ///
     /// Prefer [`Self::state`] for schema fields.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::StatCurve::input_raw` for the canonical contract."]
     #[must_use]
     pub fn input_raw(name: &str) -> Self {
         Self {
@@ -625,6 +663,7 @@ impl StatCurve {
     }
 
     /// Creates `input × slope + intercept`.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::StatCurve::linear` for the canonical contract."]
     #[must_use]
     pub fn linear(input: Self, slope: f64, intercept: f64) -> Self {
         Self {
@@ -640,6 +679,7 @@ impl StatCurve {
     /// Creates an affine curve clamped to the inclusive `[minimum, maximum]`.
     ///
     /// [`Self::validate`] rejects inverted bounds.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::StatCurve::clamped_linear` for the canonical contract."]
     #[must_use]
     pub fn clamped_linear(
         input: Self,
@@ -659,6 +699,7 @@ impl StatCurve {
     }
 
     /// Adds all modifiers. An empty sum evaluates to zero.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::StatCurve::add` for the canonical contract."]
     #[must_use]
     pub fn add(terms: impl IntoIterator<Item = Self>) -> Self {
         Self {
@@ -667,6 +708,7 @@ impl StatCurve {
     }
 
     /// Multiplies fixed-point factors. An empty product evaluates to one.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::StatCurve::multiply` for the canonical contract."]
     #[must_use]
     pub fn multiply(factors: impl IntoIterator<Item = Self>) -> Self {
         Self {
@@ -675,6 +717,7 @@ impl StatCurve {
     }
 
     /// Divides one fixed-point curve by another while preserving the scale.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::StatCurve::ratio` for the canonical contract."]
     #[must_use]
     pub fn ratio(numerator: Self, denominator: Self) -> Self {
         Self {
@@ -690,6 +733,7 @@ impl StatCurve {
     /// Each pair is `(inclusive minimum input, output)` in strictly increasing
     /// order. [`Self::validate`] rejects duplicate or descending bounds.
     /// `below` is used before the first band.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::StatCurve::stepped` for the canonical contract."]
     #[must_use]
     pub fn stepped(input: Self, bands: Vec<(f64, f64)>, below: f64) -> Self {
         Self {
@@ -705,6 +749,7 @@ impl StatCurve {
     ///
     /// Each pair is `(maximum input, branch)`. The fallback handles values
     /// above the final bound.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::StatCurve::piecewise` for the canonical contract."]
     #[must_use]
     pub fn piecewise(input: Self, branches: Vec<(f64, Self)>, fallback: Self) -> Self {
         Self {
@@ -717,6 +762,7 @@ impl StatCurve {
     }
 
     /// Creates a table keyed by whole scoreboard values.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::StatCurve::lookup` for the canonical contract."]
     #[must_use]
     pub fn lookup(
         input: impl super::EntityStateField,
@@ -727,6 +773,7 @@ impl StatCurve {
     }
 
     /// Creates a lookup table from an explicitly raw objective.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::StatCurve::lookup_raw` for the canonical contract."]
     #[must_use]
     pub fn lookup_raw(
         input: &str,
@@ -745,6 +792,7 @@ impl StatCurve {
     }
 
     /// Maps a stable [`super::EntityEnum`] integer encoding to a numeric value.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::StatCurve::enum_mapping` for the canonical contract."]
     #[must_use]
     pub fn enum_mapping<T: super::EntityEnumValue>(
         input: super::EntityEnum<T>,
@@ -761,6 +809,7 @@ impl StatCurve {
     }
 
     /// Maps raw enum encodings from an explicitly raw objective.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::StatCurve::enum_mapping_raw` for the canonical contract."]
     #[must_use]
     pub fn enum_mapping_raw(
         input: &str,
@@ -779,12 +828,14 @@ impl StatCurve {
     }
 
     /// Maps a zero/one [`super::EntityFlag`] input to numeric values.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::StatCurve::flag_mapping` for the canonical contract."]
     #[must_use]
     pub fn flag_mapping(input: super::EntityFlag, disabled: f64, enabled: f64) -> Self {
         Self::flag_mapping_raw(&input.objective(), disabled, enabled)
     }
 
     /// Maps a flag stored in an explicitly raw objective.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::StatCurve::flag_mapping_raw` for the canonical contract."]
     #[must_use]
     pub fn flag_mapping_raw(input: &str, disabled: f64, enabled: f64) -> Self {
         Self {
@@ -798,10 +849,11 @@ impl StatCurve {
 
     /// Creates a typed custom evaluator with a stable registration identifier.
     ///
-    /// Custom callbacks run while compiling/testing the definition. An
-    /// exporter must register a matching generated function and reports
-    /// [`LoweringStrategy::CustomCallback`]. The identifier, not a function
-    /// pointer address, supplies deterministic identity.
+    /// Custom callbacks run while compiling/testing the definition. Sand
+    /// registers a matching generated function during lowering. The
+    /// identifier, not a function pointer address, supplies deterministic
+    /// identity.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::StatCurve::custom` for the canonical contract."]
     #[must_use]
     pub fn custom(
         function: crate::resource_ref::FunctionId,
@@ -818,6 +870,7 @@ impl StatCurve {
     /// Declaring input objective names lets dirty propagation and exporter
     /// lowering provision the callback deterministically. Use [`Self::custom`]
     /// only for callbacks that genuinely have no state inputs.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::StatCurve::custom_with_raw_inputs` for the canonical contract."]
     #[must_use]
     pub fn custom_with_raw_inputs(
         function: crate::resource_ref::FunctionId,
@@ -838,6 +891,7 @@ impl StatCurve {
 
     /// Validates finite constants, ordered bounds, and fixed-point
     /// representability.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::StatCurve::validate` for the canonical contract."]
     pub fn validate(
         &self,
         fixed: FixedPoint,
@@ -848,6 +902,30 @@ impl StatCurve {
     }
 
     /// Evaluates the curve using deterministic integer fixed-point arithmetic.
+    ///
+    /// `inputs` supplies the named state values referenced by the curve, while
+    /// `fixed` selects the scale, rounding, and overflow policy. `archetype`
+    /// and `derivation` name the owning definition and derived stat in any
+    /// validation or evaluation diagnostic.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use sand_core::entity::{CurveInputs, FixedPoint, StatCurve};
+    ///
+    /// let fixed = FixedPoint::default();
+    /// let curve = StatCurve::linear(StatCurve::input_raw("level"), 2.0, 10.0);
+    /// let mut inputs = CurveInputs::new();
+    /// inputs.insert_score("level", 5, fixed, "rpg:mob", "health")?;
+    /// let value = curve.evaluate(&inputs, fixed, "rpg:mob", "health")?;
+    /// assert_eq!(value.as_f64(fixed), 20.0);
+    /// # Ok::<(), Box<dyn std::error::Error>>(())
+    /// ```
+    ///
+    /// # API Contract
+    ///
+    /// Inspect the complete contract with
+    /// `sand api show sand::entity::StatCurve::evaluate`.
     pub fn evaluate(
         &self,
         inputs: &CurveInputs,
@@ -861,7 +939,7 @@ impl StatCurve {
 
     /// Returns the most capable lowering backend required by this curve.
     #[must_use]
-    pub fn lowering_strategy(&self) -> LoweringStrategy {
+    pub(crate) fn lowering_strategy(&self) -> LoweringStrategy {
         self.strategy_inner()
     }
 
@@ -875,7 +953,7 @@ impl StatCurve {
     ///
     /// The returned plan is execution-scoped to the entity at `@s`. It does
     /// not allocate global score holders or persistent selector references.
-    pub fn lower_scoreboard(
+    pub(crate) fn lower_scoreboard(
         &self,
         target_objective: &str,
         scratch_prefix: &str,
@@ -910,6 +988,7 @@ impl StatCurve {
     }
 
     /// Returns all referenced named inputs in lexical order.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::StatCurve::inputs` for the canonical contract."]
     #[must_use]
     pub fn inputs(&self) -> BTreeSet<String> {
         let mut inputs = BTreeSet::new();
@@ -1559,21 +1638,21 @@ impl CurveLoweringBuilder<'_> {
 /// registry is used. All traversal uses sorted collections, so independent
 /// exports and Rust tests produce the same order.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
-pub struct DependencyGraph {
+pub(crate) struct DependencyGraph {
     edges: BTreeMap<String, BTreeSet<String>>,
 }
 
 impl DependencyGraph {
     /// Creates an empty graph.
     #[must_use]
-    pub const fn new() -> Self {
+    pub(crate) const fn new() -> Self {
         Self {
             edges: BTreeMap::new(),
         }
     }
 
     /// Registers a source or output even when it has no edges.
-    pub fn add_node(&mut self, node: impl Into<String>) {
+    pub(crate) fn add_node(&mut self, node: impl Into<String>) {
         self.edges.entry(node.into()).or_default();
     }
 
@@ -1581,49 +1660,25 @@ impl DependencyGraph {
     ///
     /// Duplicate edges are ignored, which deduplicates shared observations
     /// before refresh scheduling.
-    pub fn add_dependency(&mut self, source: impl Into<String>, dependent: impl Into<String>) {
+    pub(crate) fn add_dependency(
+        &mut self,
+        source: impl Into<String>,
+        dependent: impl Into<String>,
+    ) {
         let source = source.into();
         let dependent = dependent.into();
         self.edges.entry(dependent.clone()).or_default();
         self.edges.entry(source).or_default().insert(dependent);
     }
 
-    /// Returns every registered node in lexical order.
-    pub fn nodes(&self) -> impl Iterator<Item = &str> {
-        self.edges.keys().map(String::as_str)
-    }
-
-    /// Returns direct dependents in lexical order.
-    pub fn direct_dependents(&self, source: &str) -> impl Iterator<Item = &str> {
-        self.edges
-            .get(source)
-            .into_iter()
-            .flat_map(|values| values.iter().map(String::as_str))
-    }
-
-    /// Returns all transitive dependents, excluding `source`.
-    #[must_use]
-    pub fn transitive_dependents(&self, source: &str) -> BTreeSet<String> {
-        let mut found = BTreeSet::new();
-        let mut pending = vec![source.to_string()];
-        while let Some(node) = pending.pop() {
-            if let Some(dependents) = self.edges.get(&node) {
-                for dependent in dependents.iter().rev() {
-                    if found.insert(dependent.clone()) {
-                        pending.push(dependent.clone());
-                    }
-                }
-            }
-        }
-        found.remove(source);
-        found
-    }
-
     /// Computes a stable source-before-dependent order.
     ///
     /// Cycles return [`EntityDiagnostic::DerivationCycle`] with a deterministic
     /// closed path suitable for an export diagnostic.
-    pub fn topological_order(&self, archetype: &str) -> Result<Vec<String>, EntityDiagnostic> {
+    pub(crate) fn topological_order(
+        &self,
+        archetype: &str,
+    ) -> Result<Vec<String>, EntityDiagnostic> {
         if let Some(cycle) = self.find_cycle() {
             return Err(EntityDiagnostic::DerivationCycle {
                 archetype: archetype.into(),
@@ -1657,34 +1712,6 @@ impl DependencyGraph {
             }
         }
         Ok(order)
-    }
-
-    /// Builds a two-phase dirty/recompute plan for changed sources.
-    ///
-    /// Sources can overlap and share dependents; each dirty output appears
-    /// exactly once. The recomputation order contains only dirty outputs.
-    pub fn dirty_plan(
-        &self,
-        changed_sources: impl IntoIterator<Item = impl AsRef<str>>,
-        archetype: &str,
-    ) -> Result<DirtyPlan, EntityDiagnostic> {
-        let mut sources = BTreeSet::new();
-        let mut dirty = BTreeSet::new();
-        for source in changed_sources {
-            let source = source.as_ref().to_string();
-            dirty.extend(self.transitive_dependents(&source));
-            sources.insert(source);
-        }
-        let recompute = self
-            .topological_order(archetype)?
-            .into_iter()
-            .filter(|node| dirty.contains(node))
-            .collect();
-        Ok(DirtyPlan {
-            changed_sources: sources,
-            dirty_outputs: dirty,
-            recompute,
-        })
     }
 
     fn find_cycle(&self) -> Option<Vec<String>> {
@@ -1738,34 +1765,6 @@ impl DependencyGraph {
             }
         }
         None
-    }
-}
-
-/// Two-phase result of propagating one or more changed state sources.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct DirtyPlan {
-    changed_sources: BTreeSet<String>,
-    dirty_outputs: BTreeSet<String>,
-    recompute: Vec<String>,
-}
-
-impl DirtyPlan {
-    /// Changed source names in lexical order.
-    #[must_use]
-    pub fn changed_sources(&self) -> &BTreeSet<String> {
-        &self.changed_sources
-    }
-
-    /// Outputs whose generated dirty bits should be set.
-    #[must_use]
-    pub fn dirty_outputs(&self) -> &BTreeSet<String> {
-        &self.dirty_outputs
-    }
-
-    /// Dirty outputs in source-before-dependent recomputation order.
-    #[must_use]
-    pub fn recompute_order(&self) -> &[String] {
-        &self.recompute
     }
 }
 
@@ -2207,7 +2206,7 @@ mod tests {
             .lower_scoreboard("rpg_health", "rpg:mob.health", fixed())
             .unwrap();
         assert_eq!(first, second);
-        assert_eq!(first.strategy(), LoweringStrategy::ScoreboardArithmetic);
+        assert_eq!(first.strategy, LoweringStrategy::ScoreboardArithmetic);
         assert!(
             first
                 .scratch_objectives()
@@ -2245,7 +2244,7 @@ mod tests {
         let table = StatCurve::lookup_raw("rpg_level", [(1, 2.0), (100, 40.0)], 1.0)
             .lower_scoreboard("rpg_loot", "rpg:mob.loot", fixed())
             .unwrap();
-        assert_eq!(table.strategy(), LoweringStrategy::StorageLookupTable);
+        assert_eq!(table.strategy, LoweringStrategy::StorageLookupTable);
         assert!(table.operations().iter().any(|operation| matches!(
             operation,
             LoweredCurveOperation::LookupTable { entries, .. } if entries.len() == 2
@@ -2253,7 +2252,7 @@ mod tests {
     }
 
     #[test]
-    fn graph_order_transitive_dependencies_and_dedup_are_stable() {
+    fn graph_order_is_stable_and_deduplicated() {
         let mut graph = DependencyGraph::new();
         graph.add_dependency("level", "health");
         graph.add_dependency("level", "damage");
@@ -2262,20 +2261,9 @@ mod tests {
         graph.add_dependency("level", "health");
 
         assert_eq!(
-            graph.transitive_dependents("level"),
-            BTreeSet::from([
-                "damage".to_string(),
-                "health".to_string(),
-                "name".to_string()
-            ])
-        );
-        assert_eq!(
             graph.topological_order("rpg:mob").unwrap(),
             ["level", "health", "name", "rarity", "damage"]
         );
-        let plan = graph.dirty_plan(["level", "rarity"], "rpg:mob").unwrap();
-        assert_eq!(plan.dirty_outputs().len(), 3);
-        assert_eq!(plan.recompute_order(), ["health", "name", "damage"]);
     }
 
     #[test]

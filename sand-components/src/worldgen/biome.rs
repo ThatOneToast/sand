@@ -5,7 +5,7 @@
 //! list-of-lists, and the step-grouped `carvers` map — see
 //! [`BiomeEffects::ambient_sound`], [`Biome::temperature_modifier`],
 //! [`Biome::feature`], and [`Biome::carver_step`]. `spawners` and
-//! `spawn_costs` remain raw `Value` fields; their typing is deferred future
+//! `spawn_costs` remain raw JSON fields; their typing is deferred future
 //! scope (#182).
 
 use std::collections::BTreeMap;
@@ -14,6 +14,7 @@ use serde_json::Value;
 
 use crate::component::DatapackComponent;
 use crate::error::Result as SandResult;
+use crate::raw::RawJson;
 use crate::registry::{ConfiguredCarverId, ConfiguredFeatureId, SoundEventId};
 use crate::resource_location::ResourceLocation;
 use crate::validation;
@@ -64,10 +65,14 @@ enum FeaturesValue {
 /// Vanilla currently only accepts `"none"` and `"frozen"`; use
 /// [`Biome::raw_temperature_modifier`] if a future Minecraft version adds
 /// more accepted values before Sand's typed enum is updated.
+///
+/// **API Contract:** Run `sand api show sand::component::TemperatureModifier` for the canonical contract.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum TemperatureModifier {
+    #[doc = "**API Contract:** Run `sand api show sand::component::TemperatureModifier::None` for the canonical contract."]
     /// `"none"` — no modification (the default).
     None,
+    #[doc = "**API Contract:** Run `sand api show sand::component::TemperatureModifier::Frozen` for the canonical contract."]
     /// `"frozen"` — used by biomes like frozen ocean.
     Frozen,
 }
@@ -100,34 +105,37 @@ impl TemperatureModifierValue {
 // ── BiomeEffects ──────────────────────────────────────────────────────────────
 
 /// Visual and audio effects for a biome.
+///
+/// **API Contract:** Run `sand api show sand::component::BiomeEffects` for the canonical contract.
 #[derive(Clone)]
 pub struct BiomeEffects {
     /// Fog color (RGB integer, e.g. `0xC0D8FF`).
-    pub fog_color: u32,
+    fog_color: u32,
     /// Water color (RGB integer).
-    pub water_color: u32,
+    water_color: u32,
     /// Water fog color (RGB integer).
-    pub water_fog_color: u32,
+    water_fog_color: u32,
     /// Sky color (RGB integer).
-    pub sky_color: u32,
+    sky_color: u32,
     /// Optional grass color override (RGB integer).
-    pub grass_color: Option<u32>,
+    grass_color: Option<u32>,
     /// Optional foliage color override (RGB integer).
-    pub foliage_color: Option<u32>,
+    foliage_color: Option<u32>,
     /// Ambient particle effect (raw JSON, optional).
-    pub particle: Option<Value>,
+    particle: Option<Value>,
     /// Ambient sound event reference (optional).
     ambient_sound: Option<AmbientSoundReference>,
     /// Mood sound (raw JSON, optional).
-    pub mood_sound: Option<Value>,
+    mood_sound: Option<Value>,
     /// Additions sound (raw JSON, optional).
-    pub additions_sound: Option<Value>,
+    additions_sound: Option<Value>,
     /// Background music (raw JSON, optional).
-    pub music: Option<Value>,
+    music: Option<Value>,
 }
 
 impl BiomeEffects {
     /// Creates effects with the minimum required colors.
+    #[doc = "**API Contract:** Run `sand api show sand::component::BiomeEffects::new` for the canonical contract."]
     pub fn new(fog_color: u32, water_color: u32, water_fog_color: u32, sky_color: u32) -> Self {
         Self {
             fog_color,
@@ -145,24 +153,28 @@ impl BiomeEffects {
     }
 
     /// Overrides the grass color.
+    #[doc = "**API Contract:** Run `sand api show sand::component::BiomeEffects::grass_color` for the canonical contract."]
     pub fn grass_color(mut self, color: u32) -> Self {
         self.grass_color = Some(color);
         self
     }
 
     /// Overrides the foliage color.
+    #[doc = "**API Contract:** Run `sand api show sand::component::BiomeEffects::foliage_color` for the canonical contract."]
     pub fn foliage_color(mut self, color: u32) -> Self {
         self.foliage_color = Some(color);
         self
     }
 
-    /// Sets the ambient particle effect as raw JSON.
-    pub fn particle(mut self, particle: Value) -> Self {
-        self.particle = Some(particle);
+    /// Sets the ambient particle effect through the explicit raw JSON escape hatch.
+    #[doc = "**API Contract:** Run `sand api show sand::component::BiomeEffects::particle` for the canonical contract."]
+    pub fn particle(mut self, particle: RawJson) -> Self {
+        self.particle = Some(particle.into_value());
         self
     }
 
     /// Sets the ambient loop sound to a typed [`SoundEventId`].
+    #[doc = "**API Contract:** Run `sand api show sand::component::BiomeEffects::ambient_sound` for the canonical contract."]
     pub fn ambient_sound(mut self, sound: SoundEventId) -> Self {
         self.ambient_sound = Some(AmbientSoundReference::Typed(sound));
         self
@@ -173,26 +185,30 @@ impl BiomeEffects {
     ///
     /// Prefer [`BiomeEffects::ambient_sound`] with a [`SoundEventId`]. This
     /// escape hatch exists for modded or version-specific sound references.
+    #[doc = "**API Contract:** Run `sand api show sand::component::BiomeEffects::raw_ambient_sound` for the canonical contract."]
     pub fn raw_ambient_sound(mut self, sound: impl Into<String>) -> Self {
         self.ambient_sound = Some(AmbientSoundReference::Raw(sound.into()));
         self
     }
 
-    /// Sets the mood sound as raw JSON.
-    pub fn mood_sound(mut self, sound: Value) -> Self {
-        self.mood_sound = Some(sound);
+    /// Sets the mood sound through the explicit raw JSON escape hatch.
+    #[doc = "**API Contract:** Run `sand api show sand::component::BiomeEffects::mood_sound` for the canonical contract."]
+    pub fn mood_sound(mut self, sound: RawJson) -> Self {
+        self.mood_sound = Some(sound.into_value());
         self
     }
 
-    /// Sets the additions sound as raw JSON.
-    pub fn additions_sound(mut self, sound: Value) -> Self {
-        self.additions_sound = Some(sound);
+    /// Sets the additions sound through the explicit raw JSON escape hatch.
+    #[doc = "**API Contract:** Run `sand api show sand::component::BiomeEffects::additions_sound` for the canonical contract."]
+    pub fn additions_sound(mut self, sound: RawJson) -> Self {
+        self.additions_sound = Some(sound.into_value());
         self
     }
 
-    /// Sets the background music as raw JSON.
-    pub fn music(mut self, music: Value) -> Self {
-        self.music = Some(music);
+    /// Sets the background music through the explicit raw JSON escape hatch.
+    #[doc = "**API Contract:** Run `sand api show sand::component::BiomeEffects::music` for the canonical contract."]
+    pub fn music(mut self, music: RawJson) -> Self {
+        self.music = Some(music.into_value());
         self
     }
 
@@ -305,12 +321,15 @@ impl BiomeEffects {
 
 // ── CarvingStep ──────────────────────────────────────────────────────────────
 
+#[doc = "**API Contract:** Run `sand api show sand::component::CarvingStep` for the canonical contract."]
 /// A vanilla carving step. Biomes group configured carvers by the step in
 /// which they run.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub enum CarvingStep {
+    #[doc = "**API Contract:** Run `sand api show sand::component::CarvingStep::Air` for the canonical contract."]
     /// Carvers that run before surface decoration (most caves and ravines).
     Air,
+    #[doc = "**API Contract:** Run `sand api show sand::component::CarvingStep::Liquid` for the canonical contract."]
     /// Carvers that run after surface decoration and only affect liquids
     /// (underwater caves).
     Liquid,
@@ -318,6 +337,7 @@ pub enum CarvingStep {
 
 impl CarvingStep {
     /// The vanilla lowercase key written into biome JSON (`"air"`/`"liquid"`).
+    #[doc = "**API Contract:** Run `sand api show sand::component::CarvingStep::as_str` for the canonical contract."]
     pub fn as_str(&self) -> &'static str {
         match self {
             Self::Air => "air",
@@ -329,6 +349,8 @@ impl CarvingStep {
 // ── Biome ─────────────────────────────────────────────────────────────────────
 
 /// A biome definition (`data/<namespace>/worldgen/biome/<id>.json`).
+///
+/// **API Contract:** Run `sand api show sand::component::Biome` for the canonical contract.
 pub struct Biome {
     location: ResourceLocation,
     /// Whether it rains (false = snows if cold enough).
@@ -356,6 +378,7 @@ pub struct Biome {
 
 impl Biome {
     /// Creates a new biome with required base fields.
+    #[doc = "**API Contract:** Run `sand api show sand::component::Biome::new` for the canonical contract."]
     pub fn new(location: ResourceLocation, effects: BiomeEffects) -> Self {
         Self {
             location,
@@ -373,18 +396,21 @@ impl Biome {
     }
 
     /// Sets whether the biome has precipitation (rain/snow).
+    #[doc = "**API Contract:** Run `sand api show sand::component::Biome::has_precipitation` for the canonical contract."]
     pub fn has_precipitation(mut self, v: bool) -> Self {
         self.has_precipitation = v;
         self
     }
 
     /// Sets the biome temperature.
+    #[doc = "**API Contract:** Run `sand api show sand::component::Biome::temperature` for the canonical contract."]
     pub fn temperature(mut self, temp: f32) -> Self {
         self.temperature = temp;
         self
     }
 
     /// Sets the temperature modifier to a typed [`TemperatureModifier`].
+    #[doc = "**API Contract:** Run `sand api show sand::component::Biome::temperature_modifier` for the canonical contract."]
     pub fn temperature_modifier(mut self, modifier: TemperatureModifier) -> Self {
         self.temperature_modifier = TemperatureModifierValue::Typed(modifier);
         self
@@ -398,18 +424,20 @@ impl Biome {
     /// hatch is retained in case a future Minecraft version adds more
     /// accepted values before Sand's typed enum is updated, but export-time
     /// validation still rejects anything else today.
+    #[doc = "**API Contract:** Run `sand api show sand::component::Biome::raw_temperature_modifier` for the canonical contract."]
     pub fn raw_temperature_modifier(mut self, modifier: impl Into<String>) -> Self {
         self.temperature_modifier = TemperatureModifierValue::Raw(modifier.into());
         self
     }
 
     /// Sets the downfall value (0.0–1.0).
+    #[doc = "**API Contract:** Run `sand api show sand::component::Biome::downfall` for the canonical contract."]
     pub fn downfall(mut self, downfall: f32) -> Self {
         self.downfall = downfall;
         self
     }
 
-    /// Sets the carvers list as raw JSON.
+    /// Sets the carvers list through the explicit raw JSON escape hatch.
     ///
     /// Prefer [`Biome::carver_step`] with a typed
     /// [`ConfiguredCarverId`] (obtained
@@ -417,8 +445,9 @@ impl Biome {
     /// This escape hatch exists for modded carver references or shapes
     /// outside the typed carving-step map. Mutually exclusive with
     /// [`Biome::carver_step`].
-    pub fn raw_carvers(mut self, carvers: Value) -> Self {
-        self.carvers = Some(carvers);
+    #[doc = "**API Contract:** Run `sand api show sand::component::Biome::raw_carvers` for the canonical contract."]
+    pub fn raw_carvers(mut self, carvers: RawJson) -> Self {
+        self.carvers = Some(carvers.into_value());
         self
     }
 
@@ -430,6 +459,7 @@ impl Biome {
     /// [`ConfiguredCarver`](crate::worldgen::ConfiguredCarver) and pass
     /// [`ConfiguredCarver::id`](crate::worldgen::ConfiguredCarver::id) here.
     /// Mutually exclusive with [`Biome::raw_carvers`].
+    #[doc = "**API Contract:** Run `sand api show sand::component::Biome::carver_step` for the canonical contract."]
     pub fn carver_step(mut self, step: CarvingStep, carver: ConfiguredCarverId) -> Self {
         self.typed_carvers.entry(step).or_default().push(carver);
         self
@@ -441,6 +471,7 @@ impl Biome {
     /// Repeated calls append to the same step and accumulate across steps.
     /// If [`Biome::raw_features`] was used previously, this replaces it with
     /// a fresh typed feature map (typed and raw features are not merged).
+    #[doc = "**API Contract:** Run `sand api show sand::component::Biome::feature` for the canonical contract."]
     pub fn feature(mut self, step: GenerationStep, feature: ConfiguredFeatureId) -> Self {
         let mut steps = match self.features {
             Some(FeaturesValue::Typed(steps)) => steps,
@@ -457,20 +488,23 @@ impl Biome {
     /// Prefer [`Biome::feature`] with a [`GenerationStep`] and
     /// [`ConfiguredFeatureId`]. This escape hatch exists for modded or
     /// version-specific feature shapes.
-    pub fn raw_features(mut self, features: Value) -> Self {
-        self.features = Some(FeaturesValue::Raw(features));
+    #[doc = "**API Contract:** Run `sand api show sand::component::Biome::raw_features` for the canonical contract."]
+    pub fn raw_features(mut self, features: RawJson) -> Self {
+        self.features = Some(FeaturesValue::Raw(features.into_value()));
         self
     }
 
-    /// Sets the spawners object as raw JSON.
-    pub fn spawners(mut self, spawners: Value) -> Self {
-        self.spawners = Some(spawners);
+    /// Sets the spawners object through the explicit raw JSON escape hatch.
+    #[doc = "**API Contract:** Run `sand api show sand::component::Biome::spawners` for the canonical contract."]
+    pub fn spawners(mut self, spawners: RawJson) -> Self {
+        self.spawners = Some(spawners.into_value());
         self
     }
 
-    /// Sets the spawn costs object as raw JSON.
-    pub fn spawn_costs(mut self, costs: Value) -> Self {
-        self.spawn_costs = Some(costs);
+    /// Sets the spawn costs object through the explicit raw JSON escape hatch.
+    #[doc = "**API Contract:** Run `sand api show sand::component::Biome::spawn_costs` for the canonical contract."]
+    pub fn spawn_costs(mut self, costs: RawJson) -> Self {
+        self.spawn_costs = Some(costs.into_value());
         self
     }
 }
@@ -601,10 +635,10 @@ mod tests {
             .temperature(0.5)
             .downfall(0.5)
             .temperature_modifier(TemperatureModifier::Frozen)
-            .raw_carvers(serde_json::json!(["minecraft:cave"]))
-            .raw_features(serde_json::json!([["minecraft:ore_iron"]]))
-            .spawners(serde_json::json!({"monster": []}))
-            .spawn_costs(serde_json::json!({}));
+            .raw_carvers(RawJson::new(serde_json::json!(["minecraft:cave"])))
+            .raw_features(RawJson::new(serde_json::json!([["minecraft:ore_iron"]])))
+            .spawners(RawJson::new(serde_json::json!({"monster": []})))
+            .spawn_costs(RawJson::new(serde_json::json!({})));
         assert!(biome.validate().is_ok());
         let json = biome.to_json();
         assert_eq!(json["temperature_modifier"], "frozen");
@@ -702,14 +736,16 @@ mod tests {
 
     #[test]
     fn carvers_wrong_shape_rejected() {
-        let biome = Biome::new(location(), effects()).raw_carvers(serde_json::json!({"a": 1}));
+        let biome = Biome::new(location(), effects())
+            .raw_carvers(RawJson::new(serde_json::json!({"a": 1})));
         let err = biome.validate().unwrap_err().to_string();
         assert!(err.contains("carvers"), "{err}");
     }
 
     #[test]
     fn features_wrong_shape_rejected() {
-        let biome = Biome::new(location(), effects()).raw_features(serde_json::json!({"a": 1}));
+        let biome = Biome::new(location(), effects())
+            .raw_features(RawJson::new(serde_json::json!({"a": 1})));
         assert!(biome.validate().is_err());
     }
 
@@ -746,7 +782,7 @@ mod tests {
     #[test]
     fn raw_features_escape_hatch_still_works() {
         let biome = Biome::new(location(), effects())
-            .raw_features(serde_json::json!([["modded:custom_feature"]]));
+            .raw_features(RawJson::new(serde_json::json!([["modded:custom_feature"]])));
         assert!(biome.validate().is_ok());
         assert_eq!(
             biome.to_json()["features"],
@@ -756,20 +792,22 @@ mod tests {
 
     #[test]
     fn spawners_wrong_shape_rejected() {
-        let biome = Biome::new(location(), effects()).spawners(serde_json::json!(["a"]));
+        let biome =
+            Biome::new(location(), effects()).spawners(RawJson::new(serde_json::json!(["a"])));
         assert!(biome.validate().is_err());
     }
 
     #[test]
     fn spawn_costs_wrong_shape_rejected() {
-        let biome = Biome::new(location(), effects()).spawn_costs(serde_json::json!(["a"]));
+        let biome =
+            Biome::new(location(), effects()).spawn_costs(RawJson::new(serde_json::json!(["a"])));
         assert!(biome.validate().is_err());
     }
 
     #[test]
     fn raw_carvers_array_escape_hatch_still_works() {
         let biome = Biome::new(location(), effects())
-            .raw_carvers(serde_json::json!(["modded:custom_carver"]));
+            .raw_carvers(RawJson::new(serde_json::json!(["modded:custom_carver"])));
         assert!(biome.validate().is_ok());
         assert_eq!(
             biome.to_json()["carvers"],
@@ -797,7 +835,7 @@ mod tests {
     #[test]
     fn mixing_raw_carvers_and_typed_carver_step_is_rejected() {
         let biome = Biome::new(location(), effects())
-            .raw_carvers(serde_json::json!(["minecraft:cave"]))
+            .raw_carvers(RawJson::new(serde_json::json!(["minecraft:cave"])))
             .carver_step(
                 CarvingStep::Air,
                 ConfiguredCarverId::minecraft("cave").unwrap(),

@@ -186,7 +186,7 @@
 //!   if you need that today.
 //! - A tracked-transition [`SandEvent`](crate::events::SandEvent) cannot be a same-cycle chain/compose
 //!   parent (it can still own and apply its own direct participant plan,
-//!   #270) — see [`crate::events::graph`]'s `discover()` diagnostic.
+//!   #270); export reports this unsupported graph shape.
 //!
 //! # Failure behavior
 //!
@@ -239,6 +239,7 @@
 use crate::participant::plan::{DuplicateParticipantRole, EventParticipantPlan};
 use crate::participant::role::{EntityParticipantRole, ItemParticipantRole, ParticipantHand};
 
+#[doc = "**API Contract:** Run `sand api show sand::participant::ParticipantBuilder` for the canonical contract."]
 /// Builds an immutable [`EventParticipantPlan`] from ordinary typed method
 /// calls — the normal-Rust replacement for attribute-macro-parameter-style
 /// participant declarations. See the [module doc](self) for the full model.
@@ -249,6 +250,7 @@ pub struct ParticipantBuilder {
 
 impl ParticipantBuilder {
     /// Start building an empty plan.
+    #[doc = "**API Contract:** Run `sand api show sand::participant::ParticipantBuilder::new` for the canonical contract."]
     pub fn new() -> Self {
         Self {
             plan: EventParticipantPlan::new(),
@@ -280,6 +282,7 @@ impl ParticipantBuilder {
     ///     .build();
     /// assert!(!plan.is_empty());
     /// ```
+    #[doc = "**API Contract:** Run `sand api show sand::participant::ParticipantBuilder::observe_entity` for the canonical contract."]
     pub fn observe_entity(mut self, role: EntityParticipantRole) -> Self {
         if !matches!(
             role,
@@ -309,6 +312,7 @@ impl ParticipantBuilder {
     ///     .build();
     /// assert!(!plan.is_empty());
     /// ```
+    #[doc = "**API Contract:** Run `sand api show sand::participant::ParticipantBuilder::observe_item` for the canonical contract."]
     pub fn observe_item(mut self, role: ItemParticipantRole, hand: ParticipantHand) -> Self {
         self.plan = self.plan.observe_held_item(role, hand);
         self
@@ -347,6 +351,7 @@ impl ParticipantBuilder {
     ///     .build();
     /// assert!(!plan.is_empty());
     /// ```
+    #[doc = "**API Contract:** Run `sand api show sand::participant::ParticipantBuilder::inherit_entity` for the canonical contract."]
     pub fn inherit_entity<Source: crate::events::SandEvent + 'static>(
         mut self,
         role: EntityParticipantRole,
@@ -358,6 +363,7 @@ impl ParticipantBuilder {
     /// The item-snapshot counterpart to [`Self::inherit_entity`]. `hand`
     /// must match the hand `Source`'s own declaration captured from — this
     /// builder does not look `Source`'s declaration up for you.
+    #[doc = "**API Contract:** Run `sand api show sand::participant::ParticipantBuilder::inherit_item` for the canonical contract."]
     pub fn inherit_item<Source: crate::events::SandEvent + 'static>(
         mut self,
         role: ItemParticipantRole,
@@ -377,6 +383,7 @@ impl ParticipantBuilder {
     /// invariant (it depends only on this builder's own declarations, never
     /// on the event graph), so it is checked here rather than deferred to
     /// `sand build`.
+    #[doc = "**API Contract:** Run `sand api show sand::participant::ParticipantBuilder::build` for the canonical contract."]
     pub fn build(self) -> EventParticipantPlan {
         match self.plan.validate() {
             Ok(()) => {}

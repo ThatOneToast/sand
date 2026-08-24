@@ -13,36 +13,57 @@ use crate::validate;
 
 // ── Coord ─────────────────────────────────────────────────────────────────────
 
+#[doc = "**API Contract:** Run `sand api show sand::command::Coord` for the canonical contract."]
 /// A single coordinate value: absolute, relative (`~`), or local (`^`).
 #[derive(Debug, Clone, PartialEq)]
 #[must_use = "coordinates do nothing until passed to a command"]
 pub enum Coord {
+    #[doc = "**API Contract:** Run `sand api show sand::command::Coord::Absolute` for the canonical contract."]
     /// Absolute world coordinate.
-    Absolute(f64),
+    Absolute(
+        #[doc = "The `Absolute` variant carries the value described by its variant semantics: Absolute world coordinate."]
+        #[doc = "**API Contract:** Run `sand api show sand::command::Coord::Absolute::0` for the canonical contract."]
+        f64,
+    ),
+    #[doc = "**API Contract:** Run `sand api show sand::command::Coord::Relative` for the canonical contract."]
     /// Relative (`~`) coordinate. `0.0` renders as `~`, otherwise `~N`.
-    Relative(f64),
+    Relative(
+        #[doc = "The `Relative` variant carries the value described by its variant semantics: Relative (`~`) coordinate. `0.0` renders as `~`, otherwise `~N`."]
+        #[doc = "**API Contract:** Run `sand api show sand::command::Coord::Relative::0` for the canonical contract."]
+        f64,
+    ),
+    #[doc = "**API Contract:** Run `sand api show sand::command::Coord::Local` for the canonical contract."]
     /// Local (`^`) coordinate. `0.0` renders as `^`, otherwise `^N`.
-    Local(f64),
+    Local(
+        #[doc = "The `Local` variant carries the value described by its variant semantics: Local (`^`) coordinate. `0.0` renders as `^`, otherwise `^N`."]
+        #[doc = "**API Contract:** Run `sand api show sand::command::Coord::Local::0` for the canonical contract."]
+        f64,
+    ),
 }
 
 impl Coord {
     /// Absolute coordinate.
+    #[doc = "**API Contract:** Run `sand api show sand::command::Coord::abs` for the canonical contract."]
     pub fn abs(v: impl Into<f64>) -> Self {
         Coord::Absolute(v.into())
     }
     /// Relative coordinate at the executor's position (`~`).
+    #[doc = "**API Contract:** Run `sand api show sand::command::Coord::rel` for the canonical contract."]
     pub fn rel() -> Self {
         Coord::Relative(0.0)
     }
     /// Relative coordinate with an offset (`~N`).
+    #[doc = "**API Contract:** Run `sand api show sand::command::Coord::rel_n` for the canonical contract."]
     pub fn rel_n(v: impl Into<f64>) -> Self {
         Coord::Relative(v.into())
     }
     /// Local coordinate (along executor's facing direction, `^`).
+    #[doc = "**API Contract:** Run `sand api show sand::command::Coord::local` for the canonical contract."]
     pub fn local() -> Self {
         Coord::Local(0.0)
     }
     /// Local coordinate with an offset (`^N`).
+    #[doc = "**API Contract:** Run `sand api show sand::command::Coord::local_n` for the canonical contract."]
     pub fn local_n(v: impl Into<f64>) -> Self {
         Coord::Local(v.into())
     }
@@ -106,6 +127,7 @@ impl RenderCommand for Coord {
 
 // ── BlockPos ──────────────────────────────────────────────────────────────────
 
+#[doc = "**API Contract:** Run `sand api show sand::command::BlockPos` for the canonical contract."]
 /// Integer/relative block position used in commands like `setblock`, `fill`,
 /// `clone`, and block-targeted `data`.
 ///
@@ -137,8 +159,14 @@ impl RenderCommand for Coord {
 #[derive(Debug, Clone)]
 #[must_use = "positions do nothing until passed to a command"]
 pub struct BlockPos {
+    /// `x` provides the x coordinate when integer/relative block position used in commands like `setblock`, `fill`, `clone`, and block-targeted `data`.
+    #[doc = "**API Contract:** Run `sand api show sand::command::BlockPos::x` for the canonical contract."]
     pub x: Coord,
+    /// `y` provides the y coordinate when integer/relative block position used in commands like `setblock`, `fill`, `clone`, and block-targeted `data`.
+    #[doc = "**API Contract:** Run `sand api show sand::command::BlockPos::y` for the canonical contract."]
     pub y: Coord,
+    /// `z` provides the z coordinate when integer/relative block position used in commands like `setblock`, `fill`, `clone`, and block-targeted `data`.
+    #[doc = "**API Contract:** Run `sand api show sand::command::BlockPos::z` for the canonical contract."]
     pub z: Coord,
 }
 
@@ -152,6 +180,7 @@ impl Eq for BlockPos {}
 
 impl BlockPos {
     /// Create a block position from three coordinates.
+    #[doc = "**API Contract:** Run `sand api show sand::command::BlockPos::new` for the canonical contract."]
     pub fn new(x: impl Into<Coord>, y: impl Into<Coord>, z: impl Into<Coord>) -> Self {
         Self {
             x: x.into(),
@@ -160,18 +189,22 @@ impl BlockPos {
         }
     }
     /// Current position (`~ ~ ~`).
+    #[doc = "**API Contract:** Run `sand api show sand::command::BlockPos::here` for the canonical contract."]
     pub fn here() -> Self {
         Self::new(Coord::rel(), Coord::rel(), Coord::rel())
     }
     /// Exact block coordinates (`X Y Z`).
+    #[doc = "**API Contract:** Run `sand api show sand::command::BlockPos::absolute` for the canonical contract."]
     pub fn absolute(x: i32, y: i32, z: i32) -> Self {
         Self::new(Coord::abs(x), Coord::abs(y), Coord::abs(z))
     }
     /// Position N blocks above current (`~ ~N ~`).
+    #[doc = "**API Contract:** Run `sand api show sand::command::BlockPos::above` for the canonical contract."]
     pub fn above(n: i32) -> Self {
         Self::new(Coord::rel(), Coord::rel_n(n), Coord::rel())
     }
     /// Position N blocks below current (`~ ~-N ~`).
+    #[doc = "**API Contract:** Run `sand api show sand::command::BlockPos::below` for the canonical contract."]
     pub fn below(n: i32) -> Self {
         Self::new(Coord::rel(), Coord::rel_n(-n), Coord::rel())
     }
@@ -217,16 +250,30 @@ impl RenderCommand for BlockPos {
 // ── Vec3 ──────────────────────────────────────────────────────────────────────
 
 /// Floating-point position used in commands like `tp`, `summon`, `particle`.
+///
+/// # API Contract
+///
+/// `sand api show sand::command::Vec3`
 #[derive(Debug, Clone)]
 #[must_use = "positions do nothing until passed to a command"]
 pub struct Vec3 {
+    /// `x` provides the x coordinate when floating-point position used in commands like `tp`, `summon`, `particle`.
+    #[doc = "**API Contract:** Run `sand api show sand::command::Vec3::x` for the canonical contract."]
     pub x: Coord,
+    /// `y` provides the y coordinate when floating-point position used in commands like `tp`, `summon`, `particle`.
+    #[doc = "**API Contract:** Run `sand api show sand::command::Vec3::y` for the canonical contract."]
     pub y: Coord,
+    /// `z` provides the z coordinate when floating-point position used in commands like `tp`, `summon`, `particle`.
+    #[doc = "**API Contract:** Run `sand api show sand::command::Vec3::z` for the canonical contract."]
     pub z: Coord,
 }
 
 impl Vec3 {
     /// Create a 3D position from three coordinates.
+    ///
+    /// # API Contract
+    ///
+    /// `sand api show sand::command::Vec3::new`
     pub fn new(x: impl Into<Coord>, y: impl Into<Coord>, z: impl Into<Coord>) -> Self {
         Self {
             x: x.into(),
@@ -235,10 +282,12 @@ impl Vec3 {
         }
     }
     /// Current position (`~ ~ ~`).
+    #[doc = "**API Contract:** Run `sand api show sand::command::Vec3::here` for the canonical contract."]
     pub fn here() -> Self {
         Self::new(Coord::rel(), Coord::rel(), Coord::rel())
     }
     /// Exact world coordinates (`X Y Z`).
+    #[doc = "**API Contract:** Run `sand api show sand::command::Vec3::absolute` for the canonical contract."]
     pub fn absolute(x: f64, y: f64, z: f64) -> Self {
         Self::new(Coord::abs(x), Coord::abs(y), Coord::abs(z))
     }
@@ -264,16 +313,22 @@ impl RenderCommand for Vec3 {
 
 // ── Vec2 ──────────────────────────────────────────────────────────────────────
 
+#[doc = "**API Contract:** Run `sand api show sand::command::Vec2` for the canonical contract."]
 /// 2D column position (X Z), used in `locatebiome` etc.
 #[derive(Debug, Clone)]
 #[must_use = "positions do nothing until passed to a command"]
 pub struct Vec2 {
+    /// `x` provides the x coordinate when 2D column position (X Z), used in `locatebiome` etc.
+    #[doc = "**API Contract:** Run `sand api show sand::command::Vec2::x` for the canonical contract."]
     pub x: Coord,
+    /// `z` provides the z coordinate when 2D column position (X Z), used in `locatebiome` etc.
+    #[doc = "**API Contract:** Run `sand api show sand::command::Vec2::z` for the canonical contract."]
     pub z: Coord,
 }
 
 impl Vec2 {
     /// Create a 2D position (column) from X and Z coordinates.
+    #[doc = "**API Contract:** Run `sand api show sand::command::Vec2::new` for the canonical contract."]
     pub fn new(x: impl Into<Coord>, z: impl Into<Coord>) -> Self {
         Self {
             x: x.into(),
@@ -315,16 +370,22 @@ impl RenderCommand for Vec2 {
 
 // ── Rotation ──────────────────────────────────────────────────────────────────
 
+#[doc = "**API Contract:** Run `sand api show sand::command::Rotation` for the canonical contract."]
 /// Yaw + pitch rotation (`yaw pitch`), used in `tp` and `execute rotated`.
 #[derive(Debug, Clone)]
 #[must_use = "rotations do nothing until passed to a command"]
 pub struct Rotation {
+    /// `yaw` provides the yaw rotation when yaw + pitch rotation (`yaw pitch`), used in `tp` and `execute rotated`.
+    #[doc = "**API Contract:** Run `sand api show sand::command::Rotation::yaw` for the canonical contract."]
     pub yaw: Coord,
+    /// `pitch` provides the pitch rotation when yaw + pitch rotation (`yaw pitch`), used in `tp` and `execute rotated`.
+    #[doc = "**API Contract:** Run `sand api show sand::command::Rotation::pitch` for the canonical contract."]
     pub pitch: Coord,
 }
 
 impl Rotation {
     /// Create a rotation from yaw and pitch coordinates.
+    #[doc = "**API Contract:** Run `sand api show sand::command::Rotation::new` for the canonical contract."]
     pub fn new(yaw: impl Into<Coord>, pitch: impl Into<Coord>) -> Self {
         Self {
             yaw: yaw.into(),
@@ -332,10 +393,12 @@ impl Rotation {
         }
     }
     /// Current rotation (`~ ~`).
+    #[doc = "**API Contract:** Run `sand api show sand::command::Rotation::here` for the canonical contract."]
     pub fn here() -> Self {
         Self::new(Coord::rel(), Coord::rel())
     }
     /// Absolute yaw and pitch angles.
+    #[doc = "**API Contract:** Run `sand api show sand::command::Rotation::absolute` for the canonical contract."]
     pub fn absolute(yaw: f64, pitch: f64) -> Self {
         Self::new(Coord::abs(yaw), Coord::abs(pitch))
     }

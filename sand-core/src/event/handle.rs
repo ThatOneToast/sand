@@ -6,6 +6,7 @@ use std::any::TypeId;
 use std::marker::PhantomData;
 use std::sync::OnceLock;
 
+#[doc = "**API Contract:** Run `sand api show sand::event::handle::EventHandle` for the canonical contract."]
 /// Runtime handle for enabling, disabling, and resetting an advancement-backed event.
 ///
 /// The generic parameter `E` is a marker that binds the handle to a specific
@@ -36,8 +37,6 @@ use std::sync::OnceLock;
 /// the fully-qualified Rust type name of `E` (e.g.
 /// `arcane_pack::events::AteGoldenAppleEvent`).  This is stable within a
 /// compilation but may change if the type is moved to a different module.
-/// When migrating from [`RawEventHandle`], issue a one-time scoreboard rename
-/// in your load function.
 pub struct EventHandle<E> {
     /// Lazily-initialised scoreboard objective name.
     objective: OnceLock<String>,
@@ -53,6 +52,7 @@ impl<E> EventHandle<E> {
     ///
     /// The scoreboard objective name is derived from the Rust type name of `E`
     /// the first time any method on this handle is called — no string required.
+    #[doc = "**API Contract:** Run `sand api show sand::event::handle::EventHandle::new` for the canonical contract."]
     pub const fn new() -> Self {
         Self {
             objective: OnceLock::new(),
@@ -64,6 +64,7 @@ impl<E> EventHandle<E> {
     /// `scoreboard objectives add <obj> dummy` — register the objective.
     ///
     /// Call this in your `#[datapack_component(Load)]` function.
+    #[doc = "**API Contract:** Run `sand api show sand::event::handle::EventHandle::define` for the canonical contract."]
     pub fn define(&self) -> String {
         format!("scoreboard objectives add {} dummy", self.objective_name())
     }
@@ -77,6 +78,7 @@ impl<E> EventHandle<E> {
     ///     Some(GOLDEN_APPLE.condition().and(MANA.of("@s").lt(100)))
     /// }
     /// ```
+    #[doc = "**API Contract:** Run `sand api show sand::event::handle::EventHandle::condition` for the canonical contract."]
     pub fn condition(&self) -> Condition {
         Condition::score(
             "@s".into(),
@@ -86,6 +88,7 @@ impl<E> EventHandle<E> {
     }
 
     /// Command to enable this event for the given selector.
+    #[doc = "**API Contract:** Run `sand api show sand::event::handle::EventHandle::enable` for the canonical contract."]
     pub fn enable(&self, selector: impl std::fmt::Display) -> String {
         format!(
             "scoreboard players set {selector} {} 1",
@@ -94,6 +97,7 @@ impl<E> EventHandle<E> {
     }
 
     /// Command to disable this event for the given selector.
+    #[doc = "**API Contract:** Run `sand api show sand::event::handle::EventHandle::disable` for the canonical contract."]
     pub fn disable(&self, selector: impl std::fmt::Display) -> String {
         format!(
             "scoreboard players set {selector} {} 0",
@@ -104,11 +108,12 @@ impl<E> EventHandle<E> {
     /// Revoke (re-arm) the advancement for this event.
     ///
     /// Emits `advancement revoke <selector> only <ns>:<path>`.  The advancement
-    /// resource location is resolved from the [`EventPathEntry`](crate::function::EventPathEntry) registry
-    /// populated by the `#[on_event]` macro; the namespace sentinel is replaced at
-    /// export time by [`crate::component::export_components_json`].
+    /// resource location comes from the event registration produced by
+    /// `#[on_event]`; Sand replaces its project-namespace sentinel while
+    /// exporting the datapack.
     ///
     /// Requires `E: 'static` for the `TypeId` lookup.
+    #[doc = "**API Contract:** Run `sand api show sand::event::handle::EventHandle::revoke` for the canonical contract."]
     pub fn revoke(&self, selector: impl std::fmt::Display) -> String
     where
         E: 'static,
@@ -120,6 +125,7 @@ impl<E> EventHandle<E> {
     }
 
     /// Alias for [`revoke`](EventHandle::revoke).
+    #[doc = "**API Contract:** Run `sand api show sand::event::handle::EventHandle::reset` for the canonical contract."]
     pub fn reset(&self, selector: impl std::fmt::Display) -> String
     where
         E: 'static,
@@ -130,6 +136,7 @@ impl<E> EventHandle<E> {
     /// Grant the advancement for this event (manually fire the trigger logic).
     ///
     /// Emits `advancement grant <selector> only <ns>:<path>`.
+    #[doc = "**API Contract:** Run `sand api show sand::event::handle::EventHandle::grant` for the canonical contract."]
     pub fn grant(&self, selector: impl std::fmt::Display) -> String
     where
         E: 'static,
@@ -177,71 +184,6 @@ impl<E> Default for EventHandle<E> {
 // SAFETY: EventHandle<E> never stores an E value; the OnceLock<String> is
 // inherently Sync.  The PhantomData<fn() -> E> is Sync regardless of E.
 unsafe impl<E> Sync for EventHandle<E> {}
-
-// ── Backward-compat: stringly-typed handle ────────────────────────────────────
-
-/// Stringly-typed event handle — prefer [`EventHandle<E>`] for new code.
-///
-/// Accepts an explicit string key used to derive the objective name.  Useful
-/// when the event type isn't in scope or when migrating existing packs.
-///
-/// ```rust,ignore
-/// static MY_HANDLE: RawEventHandle = RawEventHandle::new("my_pack:on_kill");
-/// ```
-pub struct RawEventHandle {
-    event_key: &'static str,
-    objective: OnceLock<String>,
-}
-
-impl RawEventHandle {
-    pub const fn new(event_key: &'static str) -> Self {
-        Self {
-            event_key,
-            objective: OnceLock::new(),
-        }
-    }
-
-    pub fn define(&self) -> String {
-        format!("scoreboard objectives add {} dummy", self.objective_name())
-    }
-
-    pub fn condition(&self) -> Condition {
-        Condition::score(
-            "@s".into(),
-            self.objective_name().to_string(),
-            ScoreRange::Eq(1),
-        )
-    }
-
-    pub fn enable(&self, selector: impl std::fmt::Display) -> String {
-        format!(
-            "scoreboard players set {selector} {} 1",
-            self.objective_name()
-        )
-    }
-
-    pub fn disable(&self, selector: impl std::fmt::Display) -> String {
-        format!(
-            "scoreboard players set {selector} {} 0",
-            self.objective_name()
-        )
-    }
-
-    pub fn reset(&self, advancement_id: &str, selector: impl std::fmt::Display) -> String {
-        format!("advancement revoke {selector} only {advancement_id}")
-    }
-
-    pub fn grant(&self, advancement_id: &str, selector: impl std::fmt::Display) -> String {
-        format!("advancement grant {selector} only {advancement_id}")
-    }
-
-    fn objective_name(&self) -> &str {
-        self.objective.get_or_init(|| {
-            let h = stable_hash(self.event_key);
-            format!("__ev_{h}")
-        })
-    }
-}
 
 // ── Shared helpers ────────────────────────────────────────────────────────────
 
@@ -291,16 +233,6 @@ mod tests {
         let cond = handle.condition();
         let cmd_str = format!("{cond:?}");
         assert!(cmd_str.contains("__ev_"), "{cmd_str}");
-    }
-
-    #[test]
-    fn raw_handle_backward_compat() {
-        let raw = RawEventHandle::new("arcane:on_ate_golden_apple");
-        let define = raw.define();
-        assert!(
-            define.starts_with("scoreboard objectives add __ev_"),
-            "{define}"
-        );
     }
 
     #[test]

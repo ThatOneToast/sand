@@ -71,47 +71,62 @@ mod typed_execute;
 // ── Re-exports from sand-commands ─────────────────────────────────────────────
 
 /// Command construction and the shared profile-aware validation boundary.
+#[doc = include_str!("../api_contract_rustdoc.md")]
 pub use sand_commands::{
-    Build, CommandProfile, EffectCommand, EffectDuration, RawCommand, RenderCommand, Validate,
+    Build, CommandError, CommandProfile, CommandResult, EffectCommand, EffectDuration,
+    IntoDamageTargets, IntoEntityType, RawCommand, RenderCommand, Validate,
 };
 
 /// Trait for types resolving to a `function <id>` command.
+#[doc = include_str!("../api_contract_rustdoc.md")]
 pub use crate::function::IntoFunctionRef;
 
 // Block placement
+#[doc = include_str!("../api_contract_rustdoc.md")]
 pub use sand_commands::{
     BlockState, CloneBlocks, CloneMaskMode, CloneMode, Fill, FillMode, SetBlock, SetBlockMode,
 };
 // Coordinate types
+#[doc = include_str!("../api_contract_rustdoc.md")]
 pub use sand_commands::{BlockPos, Coord, Rotation, Vec2, Vec3};
 // Player display commands
+#[doc = include_str!("../api_contract_rustdoc.md")]
 pub use sand_commands::{
     Actionbar, Bossbar, BossbarColor, BossbarCommand, BossbarId, BossbarStyle, IntoBossbarId,
     Title, TitleTimes,
 };
 // Execute builder
+#[doc = include_str!("../api_contract_rustdoc.md")]
 pub use sand_commands::Execute;
 // Execute argument types
+#[doc = include_str!("../api_contract_rustdoc.md")]
 pub use sand_commands::{Anchor, ItemSlot, NbtStoreKind, Swizzle};
 // Inventory manipulation
+#[doc = include_str!("../api_contract_rustdoc.md")]
 pub use sand_commands::Inventory;
 // Particle effects
+#[doc = include_str!("../api_contract_rustdoc.md")]
 pub use sand_commands::{
     IntoParticleId, Particle, ParticleBuilder, ParticleCommand, ParticleEffect, ParticleSpread,
 };
 // Entity/player targeting
+#[doc = include_str!("../api_contract_rustdoc.md")]
 pub use sand_commands::{
-    Damage as DamageBuilder, DamageAmount, DamageKind, EntityTarget, EntityTargets, GameMode, Many,
-    One, PlayerTarget, PlayerTargets, Selector, SingleEntity, SinglePlayer, SortOrder, TargetBase,
+    Damage as DamageBuilder, DamageAmount, DamageKind, EntityTag, EntityTarget, EntityTargets,
+    GameMode, Many, One, PlayerTarget, PlayerTargets, ScoreRange, Selector, SingleEntity,
+    SinglePlayer, SortOrder, TargetBase, TeamName,
 };
 // Sound
+#[doc = include_str!("../api_contract_rustdoc.md")]
 pub use sand_commands::{IntoSoundEvent, Sound, SoundSource, StopSoundCommand};
 // Text components
+#[doc = include_str!("../api_contract_rustdoc.md")]
 pub use sand_commands::{
     ChatColor, ClickEvent, EntityHoverId, HoverEvent, IntoTextEntityType, Text, TextCommand,
     TextComponent,
 };
 // NBT types — owned by sand-commands
+#[doc = include_str!("../api_contract_rustdoc.md")]
 pub use sand_commands::{
     DataCommand, DataModify, DataModifyOperation, DataSource, DataTarget, Nbt, NbtCompound,
     NbtPath, NbtRef, NbtTarget, NbtValue, UntypedNbt, data_modify,
@@ -119,6 +134,7 @@ pub use sand_commands::{
 // Scoreboard types — owned by sand-commands
 // Note: &Storage satisfies Objective::load_from's `impl Into<String>` parameter
 // via the `From<&Storage> for String` impl in mod data.
+#[doc = include_str!("../api_contract_rustdoc.md")]
 pub use sand_commands::{
     DisplaySlot, Objective, ObjectiveName, ScoreCmp, ScoreHolder, ScoreOp,
     ScoreboardPlayersOperation, scoreboard_players_operation,
@@ -129,16 +145,22 @@ pub use sand_commands::{
 
 // ── Re-exports from internal modules ─────────────────────────────────────────
 
+#[doc = include_str!("../api_contract_rustdoc.md")]
 pub use cooldown::Cooldown;
 // Storage and StorageKind are datapack concepts defined only in sand-core.
 // All other NBT/scoreboard types come from sand-commands above.
+#[doc = include_str!("../api_contract_rustdoc.md")]
 pub use crate::vfx::{Vfx, VfxParticle, VfxParticleVisibility, VfxSound, VfxStep};
+#[doc = include_str!("../api_contract_rustdoc.md")]
 pub use data::{Storage, StorageKind};
+#[doc = include_str!("../api_contract_rustdoc.md")]
 pub use effect::{EffectGive, effect_clear, effect_clear_effect, effect_give, effect_give_raw};
+#[doc = include_str!("../api_contract_rustdoc.md")]
 pub use fn_macros::{
     FunctionMacroArg, FunctionMacroArgs, call_with, function_with, macro_line, macro_var,
     try_call_with, try_function_with, try_macro_var,
 };
+#[doc = include_str!("../api_contract_rustdoc.md")]
 pub use typed_execute::{ConditionedExecute, ExecuteExt, TypedExecute};
 
 /// Call a function by resolved reference.
@@ -160,6 +182,7 @@ pub use typed_execute::{ConditionedExecute, ExecuteExt, TypedExecute};
 /// // Resource location
 /// cmd::call(ResourceLocation::new("my_pack", "my_func").unwrap());
 /// ```
+#[doc = "**API Contract:** Run `sand api show sand::command::call` for the canonical contract."]
 pub fn call(id: impl crate::function::IntoFunctionRef) -> String {
     id.into_function_command()
 }
@@ -172,6 +195,7 @@ pub fn call(id: impl crate::function::IntoFunctionRef) -> String {
 /// is not — this validates the resolved `namespace:path` resource location
 /// (or the `__sand_local:path` sentinel used for not-yet-namespaced local
 /// function pointers) before returning command text.
+#[doc = "**API Contract:** Run `sand api show sand::command::try_call` for the canonical contract."]
 pub fn try_call(id: impl crate::function::IntoFunctionRef) -> sand_commands::CommandResult<String> {
     let function_id = try_function_id(id)?;
     Ok(format!("function {function_id}"))
@@ -185,6 +209,7 @@ pub fn try_call(id: impl crate::function::IntoFunctionRef) -> sand_commands::Com
 /// in a local/CI build. Prefer [`call`] (registered typed function
 /// references) or [`try_function`] (validated resource-location string) in
 /// normal code — see [#175](https://github.com/ThatOneToast/sand/issues/175).
+#[doc = "**API Contract:** Run `sand api show sand::command::function` for the canonical contract."]
 pub fn function(id: impl std::fmt::Display) -> String {
     format!("function {id}")
 }
@@ -192,6 +217,7 @@ pub fn function(id: impl std::fmt::Display) -> String {
 /// Validated counterpart to [`function`]: rejects an `id` that is not a
 /// syntactically valid `namespace:path` resource location before returning
 /// command text.
+#[doc = "**API Contract:** Run `sand api show sand::command::try_function` for the canonical contract."]
 pub fn try_function(id: impl std::fmt::Display) -> sand_commands::CommandResult<String> {
     let id = id.to_string();
     sand_commands::validate::resource_location_shape(&id, "cmd::try_function", "id")
@@ -207,6 +233,7 @@ pub fn try_function(id: impl std::fmt::Display) -> sand_commands::CommandResult<
 /// let loc = cmd::function_id(ate_golden_apple);
 /// assert_eq!(loc, "powers:ate_golden_apple");
 /// ```
+#[doc = "**API Contract:** Run `sand api show sand::command::function_id` for the canonical contract."]
 pub fn function_id(id: impl crate::function::IntoFunctionRef) -> String {
     id.into_function_id()
 }
@@ -222,6 +249,7 @@ pub fn function_id(id: impl crate::function::IntoFunctionRef) -> String {
 /// `function_id` noted in [#175](https://github.com/ThatOneToast/sand/issues/175)
 /// (identified during the #287 review as the same shape of bypass as
 /// [`try_call`]/[`try_function`]).
+#[doc = "**API Contract:** Run `sand api show sand::command::try_function_id` for the canonical contract."]
 pub fn try_function_id(
     id: impl crate::function::IntoFunctionRef,
 ) -> sand_commands::CommandResult<String> {
@@ -247,6 +275,7 @@ pub fn try_function_id(
 ///     DialogId::custom("other_pack:settings".parse().unwrap()),
 /// );
 /// ```
+#[doc = "**API Contract:** Run `sand api show sand::command::show_dialog` for the canonical contract."]
 pub fn show_dialog(
     selector: Selector,
     dialog: impl sand_components::dialog::IntoDialogRef,
@@ -257,6 +286,7 @@ pub fn show_dialog(
 /// Validated counterpart to [`show_dialog`] — validates `selector` through
 /// [`Selector`]'s normal validation before returning command text. `dialog`
 /// resolution is already typed via [`IntoDialogRef`](sand_components::dialog::IntoDialogRef).
+#[doc = "**API Contract:** Run `sand api show sand::command::try_show_dialog` for the canonical contract."]
 pub fn try_show_dialog(
     selector: Selector,
     dialog: impl sand_components::dialog::IntoDialogRef,
@@ -266,6 +296,7 @@ pub fn try_show_dialog(
 }
 
 /// `tellraw <target> <json>` — send a rich JSON text component to a target.
+#[doc = "**API Contract:** Run `sand api show sand::command::tellraw` for the canonical contract."]
 pub fn tellraw(target: Selector, text: TextComponent) -> String {
     TextCommand::tellraw(target, text).build()
 }
@@ -277,6 +308,7 @@ pub fn tellraw(target: Selector, text: TextComponent) -> String {
 /// [`TextComponent`]) or [`try_tellraw_raw`] (validates the target selector
 /// and that `json` is at least syntactically valid JSON) in normal code —
 /// see [#175](https://github.com/ThatOneToast/sand/issues/175).
+#[doc = "**API Contract:** Run `sand api show sand::command::tellraw_raw` for the canonical contract."]
 pub fn tellraw_raw(target: impl std::fmt::Display, json: impl Into<String>) -> String {
     format!("tellraw {target} {}", json.into())
 }
@@ -287,6 +319,7 @@ pub fn tellraw_raw(target: impl std::fmt::Display, json: impl Into<String>) -> S
 /// `json` as JSON syntax (it does not validate it against the text-component
 /// schema the way [`TextComponent`] does — that would duplicate the
 /// component-level validation `Text`/`TextComponent` already own).
+#[doc = "**API Contract:** Run `sand api show sand::command::try_tellraw_raw` for the canonical contract."]
 pub fn try_tellraw_raw(
     target: Selector,
     json: impl Into<String>,
@@ -300,19 +333,21 @@ pub fn try_tellraw_raw(
     Ok(format!("tellraw {target} {json}"))
 }
 
+#[doc = "**API Contract:** Run `sand api show sand::command::IntoGiveItem` for the canonical contract."]
 /// Conversion accepted by [`give`]'s `item` parameter.
 ///
 /// Implemented for:
 /// - `&str`/`String` — the untyped escape hatch; no validation beyond what
 ///   the `give` command syntax itself enforces.
-/// - [`sand_core::generated::Item`](crate::generated::Item) — generated
-///   vanilla item identifiers (e.g. `vanilla::Item::Diamond`).
+/// - Sand's profile-generated vanilla item enum, when available (e.g.
+///   `vanilla::Item::Diamond`).
 /// - [`sand_components::registry::ItemId`] (and `&ItemId`) — validated
 ///   custom/modded item identifiers (`ItemId::minecraft`/`::custom`).
 ///
 /// Prefer the typed forms in normal code.
 pub trait IntoGiveItem {
     /// Convert to the item's resource location, e.g. `"minecraft:diamond"`.
+    #[doc = "**API Contract:** Run `sand api show sand::command::IntoGiveItem::into_give_item` for the canonical contract."]
     fn into_give_item(self) -> String;
 }
 
@@ -369,25 +404,30 @@ impl IntoGiveItem for &sand_components::CustomItem {
 /// # Examples
 /// ```
 /// use sand_core::cmd;
-/// use sand_core::generated::Item;
+/// use sand_components::ItemId;
 /// use sand_commands::Selector;
 ///
-/// cmd::give(Selector::all_players(), Item::Diamond);
+/// cmd::give(
+///     Selector::all_players(),
+///     ItemId::minecraft("diamond").unwrap(),
+/// );
 /// cmd::give(Selector::self_(), "minecraft:diamond_sword");
 /// ```
+#[doc = "**API Contract:** Run `sand api show sand::command::give` for the canonical contract."]
 pub fn give(selector: Selector, item: impl IntoGiveItem) -> String {
     format!("give {selector} {}", item.into_give_item())
 }
 
 /// Validated counterpart to [`give`].
 ///
-/// Typed [`IntoGiveItem`] implementors ([`crate::generated::Item`],
-/// [`sand_components::registry::ItemId`], [`sand_components::CustomItem`])
+/// Typed [`IntoGiveItem`] implementors (the profile-generated vanilla item
+/// enum, [`sand_components::registry::ItemId`], and [`sand_components::CustomItem`])
 /// are already well-formed by construction, but the `&str`/`String` raw
 /// escape hatch is not — this validates the leading `namespace:path` item ID
 /// (any trailing `[...]`/`{...}` item-component/NBT payload is preserved
-/// verbatim, matching `sand_commands::Inventory`'s item validation) and the
+/// verbatim, matching `sand::command::Inventory`'s item validation) and the
 /// target `selector` before returning command text.
+#[doc = "**API Contract:** Run `sand api show sand::command::try_give` for the canonical contract."]
 pub fn try_give(
     selector: Selector,
     item: impl IntoGiveItem,
@@ -411,6 +451,7 @@ pub fn try_give(
 ///     cmd::return_fail(),
 /// ]);
 /// ```
+#[doc = "**API Contract:** Run `sand api show sand::command::return_fail` for the canonical contract."]
 pub fn return_fail() -> String {
     "return fail".to_string()
 }
@@ -429,6 +470,7 @@ pub fn return_fail() -> String {
 ///     cmd::return_cmd(0),
 /// ]);
 /// ```
+#[doc = "**API Contract:** Run `sand api show sand::command::return_cmd` for the canonical contract."]
 pub fn return_cmd(value: i32) -> String {
     format!("return {value}")
 }
@@ -438,10 +480,12 @@ pub fn return_cmd(value: i32) -> String {
 /// Prefer typed builders for normal datapack code. Use this for interop with
 /// other datapacks, modded commands, snapshot-only syntax, future features not
 /// modeled by Sand yet, or focused debugging.
+#[doc = "**API Contract:** Run `sand api show sand::command::raw` for the canonical contract."]
 pub fn raw(command: impl Into<String>) -> sand_commands::RawCommand {
     sand_commands::RawCommand::new(command)
 }
 
+#[doc = "**API Contract:** Run `sand api show sand::command::Command` for the canonical contract."]
 /// A typed Minecraft command that can be serialized to a command string.
 ///
 /// All command builders generated from the Minecraft command tree implement
@@ -545,14 +589,12 @@ mod tests {
         for generated_symbol in [
             "pub struct Say",
             "pub fn say(",
-            "pub struct Tellraw",
-            "pub fn tellraw(",
-            "pub struct Give",
-            "pub fn give(",
-            "pub struct Function",
-            "pub fn function(",
             "pub struct Damage",
             "pub fn damage(",
+            "pub struct Summon",
+            "pub fn summon(",
+            "pub struct Teleport",
+            "pub fn teleport(",
         ] {
             assert!(
                 GENERATED_COMMANDS.contains(generated_symbol),
@@ -576,7 +618,7 @@ mod tests {
             })
             .count();
         assert_eq!(command_entries.len(), command_rust_items);
-        assert_eq!(command_entries.len(), 1_255);
+        assert_eq!(command_entries.len(), 1_233);
 
         assert_eq!(registry_entries.len(), 4_867);
         assert!(registry_entries.iter().any(|entry| {

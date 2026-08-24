@@ -46,13 +46,142 @@
 
 use proc_macro::TokenStream;
 use quote::quote;
+use sand_api_contract::syntax::{
+    GeneratedApiContract, GeneratedApiKind, validate_generated_expansion,
+};
 use syn::{ItemFn, LitStr, parse_macro_input, token};
 
 mod api_contract;
 mod entity_state;
 
+/// Capability policy for macros which replace one author declaration or emit
+/// only registration plumbing. The annotated public function may remain, but
+/// a future implementation change cannot silently add another public Rust API.
+fn validate_preserved_public_surface(
+    expansion: &proc_macro2::TokenStream,
+    expected_function: Option<String>,
+) -> syn::Result<()> {
+    let file: syn::File = syn::parse2(expansion.clone())?;
+    let mut actual = Vec::new();
+    collect_exported_macro_surface(&file.items, &mut actual);
+    for item in &file.items {
+        if let syn::Item::Impl(item_impl) = item
+            && item_impl.trait_.is_none()
+        {
+            for impl_item in &item_impl.items {
+                let identity = match impl_item {
+                    syn::ImplItem::Const(item)
+                        if matches!(item.vis, syn::Visibility::Public(_)) =>
+                    {
+                        Some(format!("associated const {}", item.ident))
+                    }
+                    syn::ImplItem::Fn(item) if matches!(item.vis, syn::Visibility::Public(_)) => {
+                        Some(format!("associated fn {}", item.sig.ident))
+                    }
+                    syn::ImplItem::Type(item) if matches!(item.vis, syn::Visibility::Public(_)) => {
+                        Some(format!("associated type {}", item.ident))
+                    }
+                    _ => None,
+                };
+                if let Some(identity) = identity {
+                    actual.push(identity);
+                }
+            }
+        }
+        let identity = match item {
+            syn::Item::Const(item) if matches!(item.vis, syn::Visibility::Public(_)) => {
+                Some(format!("const {}", item.ident))
+            }
+            syn::Item::Enum(item) if matches!(item.vis, syn::Visibility::Public(_)) => {
+                Some(format!("enum {}", item.ident))
+            }
+            syn::Item::ExternCrate(item) if matches!(item.vis, syn::Visibility::Public(_)) => {
+                Some(format!("extern crate {}", item.ident))
+            }
+            syn::Item::Fn(item) if matches!(item.vis, syn::Visibility::Public(_)) => {
+                Some(format!("fn {}", item.sig.ident))
+            }
+            syn::Item::Mod(item) if matches!(item.vis, syn::Visibility::Public(_)) => {
+                Some(format!("mod {}", item.ident))
+            }
+            syn::Item::Static(item) if matches!(item.vis, syn::Visibility::Public(_)) => {
+                Some(format!("static {}", item.ident))
+            }
+            syn::Item::Struct(item) if matches!(item.vis, syn::Visibility::Public(_)) => {
+                Some(format!("struct {}", item.ident))
+            }
+            syn::Item::Trait(item) if matches!(item.vis, syn::Visibility::Public(_)) => {
+                Some(format!("trait {}", item.ident))
+            }
+            syn::Item::TraitAlias(item) if matches!(item.vis, syn::Visibility::Public(_)) => {
+                Some(format!("trait alias {}", item.ident))
+            }
+            syn::Item::Type(item) if matches!(item.vis, syn::Visibility::Public(_)) => {
+                Some(format!("type {}", item.ident))
+            }
+            syn::Item::Union(item) if matches!(item.vis, syn::Visibility::Public(_)) => {
+                Some(format!("union {}", item.ident))
+            }
+            syn::Item::Use(item) if matches!(item.vis, syn::Visibility::Public(_)) => {
+                Some("use declaration".to_owned())
+            }
+            _ => None,
+        };
+        if let Some(identity) = identity {
+            actual.push(identity);
+        }
+    }
+    let expected = expected_function
+        .into_iter()
+        .map(|name| format!("fn {name}"))
+        .collect::<Vec<_>>();
+    if actual != expected {
+        return Err(syn::Error::new(
+            proc_macro2::Span::call_site(),
+            format!(
+                "shape-preserving macro public-surface drift: expected {expected:?}, emitted {actual:?}; add first-class generated API contracts before exposing new declarations"
+            ),
+        ));
+    }
+    Ok(())
+}
+
+fn collect_exported_macro_surface(items: &[syn::Item], actual: &mut Vec<String>) {
+    for item in items {
+        match item {
+            syn::Item::Macro(item)
+                if item
+                    .attrs
+                    .iter()
+                    .any(|attr| attr.path().is_ident("macro_export")) =>
+            {
+                actual.push(format!(
+                    "exported macro {}",
+                    item.ident
+                        .as_ref()
+                        .map_or_else(|| "<anonymous>".to_owned(), ToString::to_string)
+                ));
+            }
+            syn::Item::Mod(module) => {
+                if let Some((_, items)) = &module.content {
+                    collect_exported_macro_surface(items, actual);
+                }
+            }
+            _ => {}
+        }
+    }
+}
+
+fn expected_public_function(function: &ItemFn) -> Option<String> {
+    matches!(function.vis, syn::Visibility::Public(_)).then(|| function.sig.ident.to_string())
+}
+
 /// Defines and registers the authoritative public contract for a supported
 /// Sand API item.
+///
+/// # API Contract
+///
+/// `sand api show sand::api`
 #[proc_macro_attribute]
 pub fn api(attr: TokenStream, item: TokenStream) -> TokenStream {
     api_contract::expand(attr.into(), item.into())
@@ -77,6 +206,10 @@ pub fn registry_id(input: TokenStream) -> TokenStream {
 /// Entity/living schemas retain dirty writes for archetype reconciliation and
 /// require archetype-provisioned objectives; owner-aware metadata and ticking
 /// remain later #298 work.
+///
+/// # API Contract
+///
+/// `sand api show sand::State`
 #[proc_macro_derive(State, attributes(state))]
 pub fn derive_state(input: TokenStream) -> TokenStream {
     entity_state::derive_state(parse_macro_input!(input as syn::DeriveInput))
@@ -88,6 +221,7 @@ pub fn derive_state(input: TokenStream) -> TokenStream {
 #[proc_macro_derive(EntityStateEnum)]
 pub fn derive_entity_state_enum(input: TokenStream) -> TokenStream {
     entity_state::derive_enum(parse_macro_input!(input as syn::DeriveInput))
+        .and_then(|tokens| validate_preserved_public_surface(&tokens, None).map(|()| tokens))
         .unwrap_or_else(syn::Error::into_compile_error)
         .into()
 }
@@ -108,7 +242,9 @@ pub fn entity_archetype(attr: TokenStream, item: TokenStream) -> TokenStream {
         .into();
     }
     let function = parse_macro_input!(item as ItemFn);
+    let expected = expected_public_function(&function);
     expand_entity_archetype(function)
+        .and_then(|tokens| validate_preserved_public_surface(&tokens, expected).map(|()| tokens))
         .unwrap_or_else(syn::Error::into_compile_error)
         .into()
 }
@@ -151,7 +287,9 @@ fn expand_entity_archetype(function: ItemFn) -> syn::Result<proc_macro2::TokenSt
             ::sand::__private::entity::ArchetypeDefinition,
             ::sand::__private::entity::EntityDiagnostic,
         > {
-            ::std::result::Result::Ok(#name().definition())
+            ::std::result::Result::Ok(
+                ::sand::__private::entity::archetype::registered_definition(&#name())
+            )
         }
 
         ::sand::__private::inventory::submit!(
@@ -292,12 +430,20 @@ fn build_cmd_body(block: &syn::Block) -> syn::Result<proc_macro2::TokenStream> {
 /// rules: namespace `[a-z0-9_.-]+`, path `[a-z0-9_./-]+`. Empty strings,
 /// uppercase letters, whitespace, and multiple colons are rejected at compile
 /// time with a diagnostic pointing at the offending literal.
+///
+/// # API Contract
+///
+/// `sand api show sand::function`
 #[proc_macro_attribute]
 pub fn function(attr: TokenStream, item: TokenStream) -> TokenStream {
     let attr = parse_function_attr(attr);
     let func = parse_macro_input!(item as ItemFn);
+    let expected = expected_public_function(&func);
 
-    match attr.and_then(|path| expand_function(func, path)) {
+    match attr
+        .and_then(|path| expand_function(func, path))
+        .and_then(|tokens| validate_preserved_public_surface(&tokens, expected).map(|()| tokens))
+    {
         Ok(tokens) => tokens.into(),
         Err(e) => e.to_compile_error().into(),
     }
@@ -548,7 +694,11 @@ fn expand_function(
 #[proc_macro_attribute]
 pub fn datapack_component(attr: TokenStream, item: TokenStream) -> TokenStream {
     let func = parse_macro_input!(item as ItemFn);
-    match parse_component_flag(attr).and_then(|flag| expand_component(func, flag)) {
+    let expected = expected_public_function(&func);
+    match parse_component_flag(attr)
+        .and_then(|flag| expand_component(func, flag))
+        .and_then(|tokens| validate_preserved_public_surface(&tokens, expected).map(|()| tokens))
+    {
         Ok(tokens) => tokens.into(),
         Err(e) => e.to_compile_error().into(),
     }
@@ -842,7 +992,10 @@ fn expand_component_tag(func: ItemFn, tag: &str) -> syn::Result<proc_macro2::Tok
 #[proc_macro_attribute]
 pub fn on_event(attr: TokenStream, item: TokenStream) -> TokenStream {
     let func = parse_macro_input!(item as ItemFn);
-    match expand_event(attr, func) {
+    let expected = expected_public_function(&func);
+    match expand_event(attr, func)
+        .and_then(|tokens| validate_preserved_public_surface(&tokens, expected).map(|()| tokens))
+    {
         Ok(tokens) => tokens.into(),
         Err(e) => e.to_compile_error().into(),
     }
@@ -1212,7 +1365,7 @@ fn expand_event(attr: TokenStream, func: ItemFn) -> syn::Result<proc_macro2::Tok
                     dispatch: ::sand::__private::EventDispatch::Tracked(
                         ::sand::__private::TrackedTransition::new(
                             "player_sneaking",
-                            ::sand::__private::events::PLAYER_SNEAKING_TRACKED_SOURCE,
+                            ::sand::__private::player_sneaking_tracked_source(),
                             ::sand::__private::TransitionKind::BecameTrue,
                         )
                     ),
@@ -1231,7 +1384,7 @@ fn expand_event(attr: TokenStream, func: ItemFn) -> syn::Result<proc_macro2::Tok
                     dispatch: ::sand::__private::EventDispatch::Tracked(
                         ::sand::__private::TrackedTransition::new(
                             "player_sneaking",
-                            ::sand::__private::events::PLAYER_SNEAKING_TRACKED_SOURCE,
+                            ::sand::__private::player_sneaking_tracked_source(),
                             ::sand::__private::TransitionKind::BecameFalse,
                         )
                     ),
@@ -1657,17 +1810,7 @@ fn expand_event(attr: TokenStream, func: ItemFn) -> syn::Result<proc_macro2::Tok
                 fn #trigger_ident() -> ::std::option::Option<::sand::__private::AdvancementTrigger> {
                     let dispatch: ::sand::__private::events::SandEventDispatch =
                         <#dispatch_type_tokens as ::sand::__private::events::SandEvent>::dispatch().into();
-                    match dispatch {
-                        ::sand::__private::events::SandEventDispatch::AdvancementTrigger(t) => {
-                            ::std::option::Option::Some(t)
-                        }
-                        ::sand::__private::events::SandEventDispatch::TickCondition(_)
-                        | ::sand::__private::events::SandEventDispatch::Tick(_)
-                        | ::sand::__private::events::SandEventDispatch::Chain(_)
-                        | ::sand::__private::events::SandEventDispatch::Tracked(_) => {
-                            ::std::option::Option::None
-                        }
-                    }
+                    ::sand::__private::event_dispatch_advancement(dispatch)
                 }
 
                 #[doc(hidden)]
@@ -1675,17 +1818,7 @@ fn expand_event(attr: TokenStream, func: ItemFn) -> syn::Result<proc_macro2::Tok
                 fn #cond_ident() -> ::std::option::Option<::std::string::String> {
                     let dispatch: ::sand::__private::events::SandEventDispatch =
                         <#dispatch_type_tokens as ::sand::__private::events::SandEvent>::dispatch().into();
-                    match dispatch {
-                        ::sand::__private::events::SandEventDispatch::TickCondition(s) => {
-                            ::std::option::Option::Some(s)
-                        }
-                        ::sand::__private::events::SandEventDispatch::AdvancementTrigger(_)
-                        | ::sand::__private::events::SandEventDispatch::Tick(_)
-                        | ::sand::__private::events::SandEventDispatch::Chain(_)
-                        | ::sand::__private::events::SandEventDispatch::Tracked(_) => {
-                            ::std::option::Option::None
-                        }
-                    }
+                    ::sand::__private::event_dispatch_tick_condition(dispatch)
                 }
 
                 #[doc(hidden)]
@@ -1693,17 +1826,7 @@ fn expand_event(attr: TokenStream, func: ItemFn) -> syn::Result<proc_macro2::Tok
                 fn #tick_ident() -> ::std::option::Option<::sand::__private::events::TickEventDispatch> {
                     let dispatch: ::sand::__private::events::SandEventDispatch =
                         <#dispatch_type_tokens as ::sand::__private::events::SandEvent>::dispatch().into();
-                    match dispatch {
-                        ::sand::__private::events::SandEventDispatch::Tick(t) => {
-                            ::std::option::Option::Some(t)
-                        }
-                        ::sand::__private::events::SandEventDispatch::AdvancementTrigger(_)
-                        | ::sand::__private::events::SandEventDispatch::TickCondition(_)
-                        | ::sand::__private::events::SandEventDispatch::Chain(_)
-                        | ::sand::__private::events::SandEventDispatch::Tracked(_) => {
-                            ::std::option::Option::None
-                        }
-                    }
+                    ::sand::__private::event_dispatch_tick(dispatch)
                 }
 
                 #[doc(hidden)]
@@ -1711,17 +1834,7 @@ fn expand_event(attr: TokenStream, func: ItemFn) -> syn::Result<proc_macro2::Tok
                 fn #chain_ident() -> ::std::option::Option<::sand::__private::events::ChainEventDispatch> {
                     let dispatch: ::sand::__private::events::SandEventDispatch =
                         <#dispatch_type_tokens as ::sand::__private::events::SandEvent>::dispatch().into();
-                    match dispatch {
-                        ::sand::__private::events::SandEventDispatch::Chain(c) => {
-                            ::std::option::Option::Some(c)
-                        }
-                        ::sand::__private::events::SandEventDispatch::AdvancementTrigger(_)
-                        | ::sand::__private::events::SandEventDispatch::TickCondition(_)
-                        | ::sand::__private::events::SandEventDispatch::Tick(_)
-                        | ::sand::__private::events::SandEventDispatch::Tracked(_) => {
-                            ::std::option::Option::None
-                        }
-                    }
+                    ::sand::__private::event_dispatch_chain(dispatch)
                 }
 
                 #[doc(hidden)]
@@ -1729,17 +1842,7 @@ fn expand_event(attr: TokenStream, func: ItemFn) -> syn::Result<proc_macro2::Tok
                 fn #tracked_ident() -> ::std::option::Option<::sand::__private::TrackedTransition> {
                     let dispatch: ::sand::__private::events::SandEventDispatch =
                         <#dispatch_type_tokens as ::sand::__private::events::SandEvent>::dispatch().into();
-                    match dispatch {
-                        ::sand::__private::events::SandEventDispatch::Tracked(t) => {
-                            ::std::option::Option::Some(t)
-                        }
-                        ::sand::__private::events::SandEventDispatch::AdvancementTrigger(_)
-                        | ::sand::__private::events::SandEventDispatch::TickCondition(_)
-                        | ::sand::__private::events::SandEventDispatch::Tick(_)
-                        | ::sand::__private::events::SandEventDispatch::Chain(_) => {
-                            ::std::option::Option::None
-                        }
-                    }
+                    ::sand::__private::event_dispatch_tracked(dispatch)
                 }
 
                 #[doc(hidden)]
@@ -2090,7 +2193,9 @@ pub fn hud_element(input: TokenStream) -> TokenStream {
 #[cfg(feature = "resourcepack")]
 #[proc_macro]
 pub fn texture(input: TokenStream) -> TokenStream {
-    match expand_texture(input) {
+    match expand_texture(input)
+        .and_then(|tokens| validate_preserved_public_surface(&tokens, None).map(|()| tokens))
+    {
         Ok(ts) => ts.into(),
         Err(e) => e.to_compile_error().into(),
     }
@@ -2273,6 +2378,19 @@ fn expand_hud_bar(input: TokenStream) -> syn::Result<proc_macro2::TokenStream> {
         &name_str.to_uppercase().replace(['-', ' '], "_"),
         proc_macro2::Span::call_site(),
     );
+    let handle_contract = generated_api_contract(
+        handle_ident.to_string(),
+        GeneratedApiKind::Constant,
+        format!("Controls the `{name_str}` generated HUD bar."),
+        "The generated handle selects frames from the registered bitmap-font bar and builds display commands.",
+        "At resource-pack export, Sand writes the bar texture and font provider; datapack commands render its assigned glyphs.",
+        &["Render or update this named HUD bar from author code."],
+        &["Do not guess the assigned Unicode glyphs or rebuild the font component manually."],
+        &[],
+        Some("A BarHandle configured from this hud_bar invocation."),
+        format!("{handle_ident}.show(\"@a\", 0, \"my_pack\");"),
+    );
+    let handle_docs = generated_api_contract_docs(&handle_contract);
 
     // Optional unicode_start override.
     let uni_start_ts = match opt_lit_char(&fields, "unicode_start") {
@@ -2329,7 +2447,7 @@ fn expand_hud_bar(input: TokenStream) -> syn::Result<proc_macro2::TokenStream> {
         let frame_width_ts = proc_macro2::Literal::u32_suffixed(frame_width_num);
         let effective_fw_lit = proc_macro2::Literal::u32_suffixed(effective_fw);
 
-        Ok(quote! {
+        let expansion = quote! {
             #[doc(hidden)]
             #[allow(dead_code)]
             fn #factory_ident() -> ::std::boxed::Box<dyn ::sand::__private::rp::ResourcePackComponent> {
@@ -2347,6 +2465,7 @@ fn expand_hud_bar(input: TokenStream) -> syn::Result<proc_macro2::TokenStream> {
                 })
             }
 
+            #handle_docs
             pub const #handle_ident: ::sand::__private::rp::BarHandle = ::sand::__private::rp::BarHandle {
                 name:        #name,
                 steps:       #steps,
@@ -2360,11 +2479,17 @@ fn expand_hud_bar(input: TokenStream) -> syn::Result<proc_macro2::TokenStream> {
                     make: #factory_ident,
                 }
             );
-        })
+        };
+        validate_generated_expansion(
+            expansion.clone(),
+            std::iter::empty(),
+            std::slice::from_ref(&handle_contract),
+        )?;
+        Ok(expansion)
     } else {
         let texture = require_lit_str(&fields, "texture", "hud_bar")?;
 
-        Ok(quote! {
+        let expansion = quote! {
             #[doc(hidden)]
             #[allow(dead_code)]
             fn #factory_ident() -> ::std::boxed::Box<dyn ::sand::__private::rp::ResourcePackComponent> {
@@ -2380,6 +2505,7 @@ fn expand_hud_bar(input: TokenStream) -> syn::Result<proc_macro2::TokenStream> {
                 })
             }
 
+            #handle_docs
             pub const #handle_ident: ::sand::__private::rp::BarHandle = ::sand::__private::rp::BarHandle {
                 name:        #name,
                 steps:       #steps,
@@ -2393,7 +2519,13 @@ fn expand_hud_bar(input: TokenStream) -> syn::Result<proc_macro2::TokenStream> {
                     make: #factory_ident,
                 }
             );
-        })
+        };
+        validate_generated_expansion(
+            expansion.clone(),
+            std::iter::empty(),
+            std::slice::from_ref(&handle_contract),
+        )?;
+        Ok(expansion)
     }
 }
 
@@ -2430,6 +2562,19 @@ fn expand_hud_element(input: TokenStream) -> syn::Result<proc_macro2::TokenStrea
         &name_str.to_uppercase().replace(['-', ' '], "_"),
         proc_macro2::Span::call_site(),
     );
+    let handle_contract = generated_api_contract(
+        handle_ident.to_string(),
+        GeneratedApiKind::Constant,
+        format!("Controls the `{name_str}` generated HUD element."),
+        "The generated handle represents one bitmap-font glyph and builds commands that display it.",
+        "At resource-pack export, Sand writes the element texture and font provider; datapack commands render its assigned glyph.",
+        &["Render this named HUD element from author code."],
+        &["Do not guess the assigned Unicode glyph or rebuild the font component manually."],
+        &[],
+        Some("An ElementHandle configured from this hud_element invocation."),
+        format!("{handle_ident}.show(\"@a\", \"my_pack\");"),
+    );
+    let handle_docs = generated_api_contract_docs(&handle_contract);
 
     // Optional unicode override.
     let unicode_ts = match opt_lit_char(&fields, "unicode") {
@@ -2484,7 +2629,7 @@ fn expand_hud_element(input: TokenStream) -> syn::Result<proc_macro2::TokenStrea
         let width_ts = proc_macro2::Literal::u32_suffixed(width_num);
         let effective_cw_lit = proc_macro2::Literal::u32_suffixed(effective_cw);
 
-        Ok(quote! {
+        let expansion = quote! {
             #[doc(hidden)]
             #[allow(dead_code)]
             fn #factory_ident() -> ::std::boxed::Box<dyn ::sand::__private::rp::ResourcePackComponent> {
@@ -2500,6 +2645,7 @@ fn expand_hud_element(input: TokenStream) -> syn::Result<proc_macro2::TokenStrea
                 })
             }
 
+            #handle_docs
             pub const #handle_ident: ::sand::__private::rp::ElementHandle = ::sand::__private::rp::ElementHandle {
                 name:       #name,
                 font:       #font_ts,
@@ -2512,11 +2658,17 @@ fn expand_hud_element(input: TokenStream) -> syn::Result<proc_macro2::TokenStrea
                     make: #factory_ident,
                 }
             );
-        })
+        };
+        validate_generated_expansion(
+            expansion.clone(),
+            std::iter::empty(),
+            std::slice::from_ref(&handle_contract),
+        )?;
+        Ok(expansion)
     } else {
         let texture = require_lit_str(&fields, "texture", "hud_element")?;
 
-        Ok(quote! {
+        let expansion = quote! {
             #[doc(hidden)]
             #[allow(dead_code)]
             fn #factory_ident() -> ::std::boxed::Box<dyn ::sand::__private::rp::ResourcePackComponent> {
@@ -2531,6 +2683,7 @@ fn expand_hud_element(input: TokenStream) -> syn::Result<proc_macro2::TokenStrea
                 })
             }
 
+            #handle_docs
             pub const #handle_ident: ::sand::__private::rp::ElementHandle = ::sand::__private::rp::ElementHandle {
                 name:       #name,
                 font:       #font_ts,
@@ -2543,7 +2696,13 @@ fn expand_hud_element(input: TokenStream) -> syn::Result<proc_macro2::TokenStrea
                     make: #factory_ident,
                 }
             );
-        })
+        };
+        validate_generated_expansion(
+            expansion.clone(),
+            std::iter::empty(),
+            std::slice::from_ref(&handle_contract),
+        )?;
+        Ok(expansion)
     }
 }
 
@@ -2744,8 +2903,11 @@ impl syn::parse::Parse for ArmorEventAttr {
 pub fn armor_event(attr: TokenStream, item: TokenStream) -> TokenStream {
     let parsed_attr = parse_macro_input!(attr as ArmorEventAttr);
     let func = parse_macro_input!(item as ItemFn);
+    let expected = expected_public_function(&func);
 
-    match expand_armor_event(parsed_attr, func) {
+    match expand_armor_event(parsed_attr, func)
+        .and_then(|tokens| validate_preserved_public_surface(&tokens, expected).map(|()| tokens))
+    {
         Ok(tokens) => tokens.into(),
         Err(e) => e.to_compile_error().into(),
     }
@@ -3017,7 +3179,11 @@ fn expand_run_fn(input: TokenStream) -> syn::Result<proc_macro2::TokenStream> {
 #[proc_macro_attribute]
 pub fn schedule(attr: TokenStream, item: TokenStream) -> TokenStream {
     let func = parse_macro_input!(item as ItemFn);
-    match parse_schedule_attr(attr).and_then(|sa| expand_schedule(func, sa)) {
+    let expected = expected_public_function(&func);
+    match parse_schedule_attr(attr)
+        .and_then(|sa| expand_schedule(func, sa))
+        .and_then(|tokens| validate_preserved_public_surface(&tokens, expected).map(|()| tokens))
+    {
         Ok(ts) => ts.into(),
         Err(e) => e.to_compile_error().into(),
     }
@@ -3391,15 +3557,49 @@ fn expand_item(attr: TokenStream, func: ItemFn) -> syn::Result<proc_macro2::Toke
         None => base.clone(),
     };
 
+    let custom_data_contracts = if custom_data.is_some() {
+        vec![
+            generated_api_contract(
+                format!("{struct_ident}::CUSTOM_DATA_KEY"),
+                GeneratedApiKind::AssociatedConst,
+                "Names the custom-data marker that uniquely identifies this item.",
+                "The generated item reference keeps its identity marker available for integrations that need the raw key.",
+                "This is the key stored with byte value `1b` in the item's `minecraft:custom_data` component.",
+                &[
+                    "Refer to the marker key when integrating with APIs that cannot consume the complete item predicate.",
+                ],
+                &[
+                    "Use PREDICATE for normal equipment tests instead of rebuilding the component predicate.",
+                ],
+                &[],
+                Some("The unqualified custom-data key."),
+                format!("let key = {struct_ident}::CUSTOM_DATA_KEY;"),
+            ),
+            generated_api_contract(
+                format!("{struct_ident}::CUSTOM_DATA_SNBT"),
+                GeneratedApiKind::AssociatedConst,
+                "Provides the custom-data marker in SNBT object form.",
+                "Armor-event filters accept this representation when selecting the generated custom item.",
+                "The SNBT object stores the generated marker key with byte value `1b`.",
+                &["Pass the marker to an API that explicitly requires custom-data SNBT."],
+                &["Do not use this fragment as a complete item predicate; use PREDICATE instead."],
+                &[],
+                Some("An SNBT compound fragment containing the marker."),
+                format!("let marker = {struct_ident}::CUSTOM_DATA_SNBT;"),
+            ),
+        ]
+    } else {
+        Vec::new()
+    };
     let custom_data_const = if let Some(ref key) = custom_data {
         let snbt = format!("{{{key}:1b}}");
+        let key_docs = generated_api_contract_docs(&custom_data_contracts[0]);
+        let snbt_docs = generated_api_contract_docs(&custom_data_contracts[1]);
         quote! {
-            /// The raw `custom_data` key (e.g. `"mana_boots"`).
+            #key_docs
             pub const CUSTOM_DATA_KEY: &'static str = #key;
 
-            /// SNBT form of the `custom_data` tag (e.g. `"{mana_boots:1b}"`).
-            ///
-            /// Use this with `#[armor_event(..., custom_data = MyItem::CUSTOM_DATA_SNBT)]`.
+            #snbt_docs
             pub const CUSTOM_DATA_SNBT: &'static str = #snbt;
         }
     } else {
@@ -3407,48 +3607,171 @@ fn expand_item(attr: TokenStream, func: ItemFn) -> syn::Result<proc_macro2::Toke
     };
 
     // ── User-defined data consts ──────────────────────────────────────────────
-    let data_consts = item_attr.data.iter().map(|c| {
-        let const_name = &c.name;
-        let ty = &c.ty;
-        let val = &c.value;
-        quote! { pub const #const_name: #ty = #val; }
-    });
+    let data_contracts = item_attr
+        .data
+        .iter()
+        .map(|c| {
+            let const_name = &c.name;
+            generated_api_contract(
+                format!("{struct_ident}::{const_name}"),
+                GeneratedApiKind::AssociatedConst,
+                format!("Exposes the author-declared `{const_name}` metadata for this custom item."),
+                "This constant is declared in the custom_item attribute and names item-specific author metadata.",
+                "Sand does not interpret this value; it remains available to the datapack's Rust authoring code.",
+                &["Share item-specific immutable metadata with code that uses the generated item reference."],
+                &["Do not treat the value as Sand-validated Minecraft data unless its declared type provides that validation."],
+                &[],
+                Some("The value and type supplied in the custom_item data declaration."),
+                format!("let value = {struct_ident}::{const_name};"),
+            )
+        })
+        .collect::<Vec<_>>();
+    let data_consts = item_attr
+        .data
+        .iter()
+        .zip(&data_contracts)
+        .map(|(c, contract)| {
+            let const_name = &c.name;
+            let ty = &c.ty;
+            let val = &c.value;
+            let docs = generated_api_contract_docs(contract);
+            quote! { #docs pub const #const_name: #ty = #val; }
+        })
+        .collect::<Vec<_>>();
 
-    Ok(quote! {
-        #(#fn_attrs)*
-        #func
+    let mut contracts = vec![
+        generated_api_contract(
+            struct_ident.to_string(),
+            GeneratedApiKind::Struct,
+            format!("Identifies the `{struct_ident}` custom item in author code."),
+            "The generated zero-sized type groups the item's canonical predicate, construction helper, and item-specific metadata.",
+            format!(
+                "Its predicate selects the Minecraft base item `{base}` together with this definition's custom-data marker."
+            ),
+            &[
+                "Reference this custom item from equipment conditions, events, or code that needs its definition.",
+            ],
+            &[
+                "Do not construct raw predicates when the generated reference already represents the item.",
+            ],
+            &[],
+            None,
+            format!("let item = {struct_ident}::item();"),
+        ),
+        generated_api_contract(
+            format!("{struct_ident}::BASE"),
+            GeneratedApiKind::AssociatedConst,
+            "Names the vanilla item ID used as this custom item's base.",
+            "The custom item definition adds components and identity data to this base item.",
+            "The value is the Minecraft resource location supplied to CustomItem::new by the annotated factory.",
+            &["Inspect or reuse the base identifier without constructing the complete item."],
+            &[
+                "Use PREDICATE when testing for the custom item, because BASE alone does not distinguish it.",
+            ],
+            &[],
+            Some("The base item resource location as a string."),
+            format!("let base = {struct_ident}::BASE;"),
+        ),
+        generated_api_contract(
+            format!("{struct_ident}::PREDICATE"),
+            GeneratedApiKind::AssociatedConst,
+            "Provides the complete item-stack predicate for this custom item.",
+            "The predicate combines the base item with the generated identity marker when one is configured.",
+            "It is formatted for Minecraft `execute if items` and `execute unless items` matching.",
+            &["Test whether an entity or container slot contains this exact custom item."],
+            &["Do not use BASE alone when another item can share the same vanilla base."],
+            &[],
+            Some("A Minecraft item predicate string."),
+            format!("let predicate = {struct_ident}::PREDICATE;"),
+        ),
+        generated_api_contract(
+            format!("{struct_ident}::if_wearing"),
+            GeneratedApiKind::Method,
+            "Builds a command that runs only while the current entity wears this item.",
+            "This helper applies the generated item predicate to one equipment slot on `@s`.",
+            "It emits `execute if items entity @s <slot> <predicate> run <command>`.",
+            &[
+                "Condition one command on the current entity wearing this custom item in a known slot.",
+            ],
+            &[
+                "Use a selector-aware command builder when the tested entity is not the current executor.",
+            ],
+            &[
+                (
+                    "slot",
+                    "The equipment slot to inspect on the current entity.",
+                ),
+                ("cmd", "The command to run when the item predicate matches."),
+            ],
+            Some("The rendered Minecraft execute command."),
+            format!("let command = {struct_ident}::if_wearing(ItemSlot::Feet, \"say equipped\");"),
+        ),
+        generated_api_contract(
+            format!("{struct_ident}::unless_wearing"),
+            GeneratedApiKind::Method,
+            "Builds a command that runs only while the current entity does not wear this item.",
+            "This helper negates the generated item predicate for one equipment slot on `@s`.",
+            "It emits `execute unless items entity @s <slot> <predicate> run <command>`.",
+            &[
+                "Condition one command on the current entity not wearing this custom item in a known slot.",
+            ],
+            &["Use if_wearing when the command should run on a positive match."],
+            &[
+                (
+                    "slot",
+                    "The equipment slot to inspect on the current entity.",
+                ),
+                (
+                    "cmd",
+                    "The command to run when the item predicate does not match.",
+                ),
+            ],
+            Some("The rendered Minecraft execute command."),
+            format!(
+                "let command = {struct_ident}::unless_wearing(ItemSlot::Feet, \"say missing\");"
+            ),
+        ),
+        generated_api_contract(
+            format!("{struct_ident}::item"),
+            GeneratedApiKind::Method,
+            "Constructs this custom item's complete Sand definition.",
+            "The helper invokes the annotated factory that owns the item's components and identity data.",
+            "The returned definition serializes to the configured Minecraft item stack when used by Sand commands or components.",
+            &["Obtain the reusable typed definition of this custom item."],
+            &["Use PREDICATE instead when only an item-stack condition is needed."],
+            &[],
+            Some("The CustomItem value produced by the annotated factory."),
+            format!("let item = {struct_ident}::item();"),
+        ),
+    ];
+    contracts.extend(custom_data_contracts);
+    contracts.extend(data_contracts);
 
-        /// Auto-generated item reference type produced by `#[custom_item]`.
-        ///
-        /// Use [`PREDICATE`](Self::PREDICATE) with
-        /// [`Execute::if_items_entity`] to detect this item in any slot, and
-        /// [`item()`](Self::item) to obtain the [`CustomItem`] definition.
+    let struct_docs = generated_api_contract_docs(&contracts[0]);
+    let base_docs = generated_api_contract_docs(&contracts[1]);
+    let predicate_docs = generated_api_contract_docs(&contracts[2]);
+    let if_wearing_docs = generated_api_contract_docs(&contracts[3]);
+    let unless_wearing_docs = generated_api_contract_docs(&contracts[4]);
+    let item_docs = generated_api_contract_docs(&contracts[5]);
+
+    let generated = quote! {
+
+        #struct_docs
         #[derive(Debug, Clone, Copy, PartialEq, Eq)]
         #vis struct #struct_ident;
 
         impl #struct_ident {
-            /// The base Minecraft item ID (e.g. `"minecraft:leather_boots"`).
+            #base_docs
             pub const BASE: &'static str = #base;
 
-            /// Full item predicate for `execute if items`.
-            ///
-            /// Includes the `custom_data` component when set, making this
-            /// predicate uniquely identify this item.
+            #predicate_docs
             pub const PREDICATE: &'static str = #predicate_lit;
 
             #custom_data_const
 
             #(#data_consts)*
 
-            /// Returns an `execute if items entity @s <slot> <predicate> run <cmd>` command
-            /// that runs `cmd` only when `@s` has this item equipped in `slot`.
-            ///
-            /// # Example
-            /// ```rust,ignore
-            /// mcfunction! {
-            ///     ManaBoots::if_wearing(ItemSlot::Feet, run_fn! { … });
-            /// }
-            /// ```
+            #if_wearing_docs
             pub fn if_wearing(
                 slot: ::sand::__private::cmd::ItemSlot,
                 cmd: impl ::std::fmt::Display,
@@ -3459,8 +3782,7 @@ fn expand_item(attr: TokenStream, func: ItemFn) -> syn::Result<proc_macro2::Toke
                 )
             }
 
-            /// Returns an `execute unless items entity @s <slot> <predicate> run <cmd>` command
-            /// that runs `cmd` only when `@s` does NOT have this item in `slot`.
+            #unless_wearing_docs
             pub fn unless_wearing(
                 slot: ::sand::__private::cmd::ItemSlot,
                 cmd: impl ::std::fmt::Display,
@@ -3471,11 +3793,21 @@ fn expand_item(attr: TokenStream, func: ItemFn) -> syn::Result<proc_macro2::Toke
                 )
             }
 
-            /// Construct the [`CustomItem`] definition for this item.
+            #item_docs
             pub fn item() -> ::sand::__private::CustomItem {
                 #fn_ident()
             }
         }
+    };
+
+    if matches!(vis, syn::Visibility::Public(_)) {
+        validate_generated_expansion(generated.clone(), std::iter::empty(), &contracts)?;
+    }
+
+    Ok(quote! {
+        #(#fn_attrs)*
+        #func
+        #generated
     })
 }
 
@@ -3620,6 +3952,7 @@ fn sand_storage_derive_impl(input: syn::DeriveInput) -> Result<TokenStream, syn:
 
     // ── Build field accessor methods ─────────────────────────────────────────
     let mut methods = Vec::new();
+    let mut contracts = Vec::new();
 
     for (field, generated_name) in fields.iter().zip(generated_member_names.iter().skip(1)) {
         let field_ident = syn::Ident::new(
@@ -3653,7 +3986,26 @@ fn sand_storage_derive_impl(input: syn::DeriveInput) -> Result<TokenStream, syn:
         let field_name_str = field_ident.to_string();
         let key_str: &str = path_override.as_deref().unwrap_or(field_name_str.as_str());
 
+        let contract = generated_api_contract(
+            format!("{struct_name}::{field_ident}"),
+            GeneratedApiKind::Method,
+            format!("Returns the typed storage field for `{key_str}`."),
+            "This accessor belongs to the derived storage schema and preserves the Rust field type while selecting its configured NBT path.",
+            format!(
+                "Commands built from this field address `{key_str}` below the schema root in Minecraft command storage."
+            ),
+            &["Read, write, or modify this schema field through Sand's typed storage API."],
+            &[
+                "Avoid raw data commands when the generated typed field expresses the same operation.",
+            ],
+            &[],
+            Some("A typed storage-field handle bound to this schema and field value type."),
+            format!("let field = {struct_name}::{field_ident}();"),
+        );
+        let docs = generated_api_contract_docs(&contract);
+        contracts.push(contract);
         methods.push(quote! {
+            #docs
             pub fn #field_ident() -> ::sand::__private::state::StorageField<#struct_name, #field_ty> {
                 Self::#schema_ident.field(#key_str)
             }
@@ -3663,8 +4015,26 @@ fn sand_storage_derive_impl(input: syn::DeriveInput) -> Result<TokenStream, syn:
     let storage_lit = storage.as_str();
     let root_lit = root.as_str();
 
+    let schema_contract = generated_api_contract(
+        format!("{struct_name}::{schema_ident}"),
+        GeneratedApiKind::AssociatedConst,
+        "Describes the Minecraft command-storage location owned by this schema.",
+        "The derived schema constant is the canonical root used by all generated field accessors.",
+        format!("It addresses storage `{storage_lit}` below NBT root `{root_lit}`."),
+        &[
+            "Pass the whole schema to APIs that operate on its root, or use a generated field accessor for one value.",
+        ],
+        &["Avoid duplicating the storage ID or root as raw strings in author code."],
+        &[],
+        Some("A typed storage-schema descriptor for the derived Rust type."),
+        format!("let schema = {struct_name}::{schema_ident};"),
+    );
+    let schema_docs = generated_api_contract_docs(&schema_contract);
+    contracts.insert(0, schema_contract);
+
     let expanded = quote! {
         impl #struct_name {
+            #schema_docs
             pub const #schema_ident: ::sand::__private::state::StorageSchema<#struct_name> =
                 ::sand::__private::state::StorageSchema::new(#storage_lit, #root_lit);
 
@@ -3672,5 +4042,223 @@ fn sand_storage_derive_impl(input: syn::DeriveInput) -> Result<TokenStream, syn:
         }
     };
 
+    validate_generated_expansion(expanded.clone(), [struct_name.to_string()], &contracts)?;
+
     Ok(expanded.into())
+}
+
+#[allow(clippy::too_many_arguments)]
+fn generated_api_contract(
+    target: String,
+    kind: GeneratedApiKind,
+    summary: impl Into<String>,
+    context: impl Into<String>,
+    minecraft: impl Into<String>,
+    use_when: &[&str],
+    avoid_when: &[&str],
+    parameters: &[(&str, &str)],
+    returns: Option<&str>,
+    example: String,
+) -> GeneratedApiContract {
+    GeneratedApiContract {
+        target,
+        kind,
+        summary: summary.into(),
+        context: context.into(),
+        minecraft: minecraft.into(),
+        use_when: use_when.iter().map(|value| (*value).to_owned()).collect(),
+        avoid_when: avoid_when.iter().map(|value| (*value).to_owned()).collect(),
+        parameters: parameters
+            .iter()
+            .map(|(name, description)| ((*name).to_owned(), (*description).to_owned()))
+            .collect(),
+        returns: returns.map(ToOwned::to_owned),
+        example,
+    }
+}
+
+fn generated_api_contract_docs(contract: &GeneratedApiContract) -> proc_macro2::TokenStream {
+    let summary = LitStr::new(&contract.summary, proc_macro2::Span::call_site());
+    let context = LitStr::new(
+        &format!("**Context:** {}", contract.context),
+        proc_macro2::Span::call_site(),
+    );
+    let minecraft = LitStr::new(
+        &format!("**Minecraft behavior:** {}", contract.minecraft),
+        proc_macro2::Span::call_site(),
+    );
+    let use_when = LitStr::new(
+        &format!("**Use when:** {}", contract.use_when.join("; ")),
+        proc_macro2::Span::call_site(),
+    );
+    let avoid_when = LitStr::new(
+        &format!("**Avoid when:** {}", contract.avoid_when.join("; ")),
+        proc_macro2::Span::call_site(),
+    );
+    let parameters = (!contract.parameters.is_empty()).then(|| {
+        LitStr::new(
+            &format!(
+                "**Parameters:** {}",
+                contract
+                    .parameters
+                    .iter()
+                    .map(|(name, description)| format!("`{name}` — {description}"))
+                    .collect::<Vec<_>>()
+                    .join("; ")
+            ),
+            proc_macro2::Span::call_site(),
+        )
+    });
+    let returns = contract.returns.as_ref().map(|value| {
+        LitStr::new(
+            &format!("**Returns:** {value}"),
+            proc_macro2::Span::call_site(),
+        )
+    });
+    let example = LitStr::new(
+        &format!("**Example:** `{}`", contract.example),
+        proc_macro2::Span::call_site(),
+    );
+    let parameter_doc = parameters
+        .map(|value| quote!(#[doc = #value]))
+        .unwrap_or_default();
+    let return_doc = returns
+        .map(|value| quote!(#[doc = #value]))
+        .unwrap_or_default();
+    quote! {
+        #[doc = #summary]
+        #[doc = ""]
+        #[doc = "# API Contract"]
+        #[doc = ""]
+        #[doc = #context]
+        #[doc = #minecraft]
+        #[doc = #use_when]
+        #[doc = #avoid_when]
+        #parameter_doc
+        #return_doc
+        #[doc = #example]
+    }
+}
+
+#[cfg(test)]
+mod consumer_surface_policy_tests {
+    use super::validate_preserved_public_surface;
+    use quote::quote;
+
+    #[test]
+    fn preserved_function_allows_only_the_author_owned_public_identity() {
+        validate_preserved_public_surface(
+            &quote! {
+                pub fn tick() -> Vec<String> { Vec::new() }
+                #[doc(hidden)]
+                fn __sand_tick_make() -> Vec<String> { tick() }
+                inventory::submit! { Descriptor { make: __sand_tick_make } }
+            },
+            Some("tick".to_owned()),
+        )
+        .unwrap();
+    }
+
+    #[test]
+    fn output_free_derive_allows_private_trait_plumbing() {
+        validate_preserved_public_surface(
+            &quote! {
+                impl Encoding for Subject {
+                    fn encode(&self) -> i32 { 0 }
+                }
+            },
+            None,
+        )
+        .unwrap();
+    }
+
+    #[test]
+    fn output_free_derive_rejects_public_inherent_members() {
+        for expansion in [
+            quote! {
+                impl Subject {
+                    pub const GENERATED: i32 = 1;
+                }
+            },
+            quote! {
+                impl Subject {
+                    pub fn generated() {}
+                }
+            },
+        ] {
+            let error = validate_preserved_public_surface(&expansion, None).unwrap_err();
+            let rendered = error.to_string();
+            assert!(rendered.contains("public-surface drift"), "{rendered}");
+            assert!(rendered.contains("associated"), "{rendered}");
+        }
+    }
+
+    #[test]
+    fn texture_style_output_rejects_a_public_item() {
+        let expansion = quote! {
+            fn __sand_rp_tex_demo_make() {}
+            inventory::submit! { Descriptor { make: __sand_rp_tex_demo_make } }
+            pub struct TextureHandle;
+        };
+        let error = validate_preserved_public_surface(&expansion, None).unwrap_err();
+        let rendered = error.to_string();
+        assert!(rendered.contains("public-surface drift"), "{rendered}");
+        assert!(rendered.contains("struct TextureHandle"), "{rendered}");
+    }
+
+    #[test]
+    fn output_free_expansion_rejects_exported_declarative_macros() {
+        for expansion in [
+            quote! {
+                #[macro_export]
+                macro_rules! generated_api { () => {}; }
+            },
+            quote! {
+                mod private_plumbing {
+                    #[macro_export]
+                    macro_rules! generated_api { () => {}; }
+                }
+            },
+        ] {
+            let error = validate_preserved_public_surface(&expansion, None).unwrap_err();
+            let rendered = error.to_string();
+            assert!(rendered.contains("public-surface drift"), "{rendered}");
+            assert!(
+                rendered.contains("exported macro generated_api"),
+                "{rendered}"
+            );
+        }
+    }
+
+    #[test]
+    fn future_public_sibling_fails_closed() {
+        let error = validate_preserved_public_surface(
+            &quote! {
+                pub fn tick() -> Vec<String> { Vec::new() }
+                pub struct GeneratedHandle;
+            },
+            Some("tick".to_owned()),
+        )
+        .unwrap_err();
+        let rendered = error.to_string();
+        assert!(rendered.contains("public-surface drift"), "{rendered}");
+        assert!(rendered.contains("struct GeneratedHandle"), "{rendered}");
+    }
+
+    #[test]
+    fn renamed_or_duplicate_public_function_fails_closed() {
+        for expansion in [
+            quote!(
+                pub fn renamed() {}
+            ),
+            quote!(
+                pub fn tick() {}
+                pub fn tick_alias() {}
+            ),
+        ] {
+            let error =
+                validate_preserved_public_surface(&expansion, Some("tick".to_owned())).unwrap_err();
+            assert!(error.to_string().contains("public-surface drift"));
+        }
+    }
 }

@@ -1,3 +1,4 @@
+#[doc = "**API Contract:** Run `sand api show sand::resourcepack::BarHandle` for the canonical contract."]
 /// A lightweight handle to a registered `hud_bar!`
 /// component, generated automatically by the macro.
 ///
@@ -87,14 +88,18 @@
 /// [`broadcast_commands`]: BarHandle::broadcast_commands
 #[derive(Copy, Clone)]
 pub struct BarHandle {
+    #[doc = "**API Contract:** Run `sand api show sand::resourcepack::BarHandle::name` for the canonical contract."]
     /// Name passed to `hud_bar!` — used for auto-unicode derivation.
     pub name: &'static str,
+    #[doc = "**API Contract:** Run `sand api show sand::resourcepack::BarHandle::steps` for the canonical contract."]
     /// Number of frames in the sprite strip (and number of unicode characters
     /// assigned to this bar). Frame indices run from `0` (empty) to
     /// `steps - 1` (full).
     pub steps: u32,
+    #[doc = "**API Contract:** Run `sand api show sand::resourcepack::BarHandle::font` for the canonical contract."]
     /// Font file name (without extension) this bar is registered under.
     pub font: &'static str,
+    #[doc = "**API Contract:** Run `sand api show sand::resourcepack::BarHandle::frame_width` for the canonical contract."]
     /// Pixel width of one frame in the sprite strip texture.
     ///
     /// Minecraft renders each glyph with an advance of `frame_width + 1`
@@ -112,6 +117,7 @@ impl BarHandle {
     /// The unicode character assigned to `frame`.
     ///
     /// Frame `0` is the empty state; frame `self.steps - 1` is fully filled.
+    #[doc = "**API Contract:** Run `sand api show sand::resourcepack::BarHandle::char` for the canonical contract."]
     pub fn char(&self, frame: u32) -> char {
         crate::unicode::bar_char(self.name, frame)
     }
@@ -120,6 +126,7 @@ impl BarHandle {
     ///
     /// Encodes the Private Use Area character together with the font identifier.
     /// Can be passed directly to `title`, `actionbar`, or `tellraw`.
+    #[doc = "**API Contract:** Run `sand api show sand::resourcepack::BarHandle::text_json` for the canonical contract."]
     pub fn text_json(&self, frame: u32, namespace: &str) -> String {
         crate::unicode::bar_text_json(self.name, frame, namespace, self.font)
     }
@@ -174,6 +181,7 @@ impl BarHandle {
     /// bars that change at runtime, use [`broadcast_commands`] instead.
     ///
     /// [`broadcast_commands`]: BarHandle::broadcast_commands
+    #[doc = "**API Contract:** Run `sand api show sand::resourcepack::BarHandle::show` for the canonical contract."]
     pub fn show(&self, target: &str, frame: u32, namespace: &str) -> String {
         let json = self.text_json(frame, namespace);
         format!("title {target} actionbar {json}")
@@ -193,6 +201,7 @@ impl BarHandle {
     /// ```
     ///
     /// [`show`]: BarHandle::show
+    #[doc = "**API Contract:** Run `sand api show sand::resourcepack::BarHandle::show_at` for the canonical contract."]
     pub fn show_at(&self, target: &str, frame: u32, namespace: &str, x_offset: i32) -> String {
         let json = self.positioned_json(frame, namespace, x_offset);
         format!("title {target} actionbar {json}")
@@ -212,6 +221,7 @@ impl BarHandle {
     /// ```
     ///
     /// [`show_at`]: BarHandle::show_at
+    #[doc = "**API Contract:** Run `sand api show sand::resourcepack::BarHandle::show_at_canvas` for the canonical contract."]
     pub fn show_at_canvas(
         &self,
         target: &str,
@@ -231,6 +241,7 @@ impl BarHandle {
     /// context so `@s` is undefined there.
     ///
     /// [`broadcast_commands`]: BarHandle::broadcast_commands
+    #[doc = "**API Contract:** Run `sand api show sand::resourcepack::BarHandle::display_commands` for the canonical contract."]
     pub fn display_commands(&self, holder: &str, objective: &str, namespace: &str) -> Vec<String> {
         (0..self.steps)
             .map(|frame| {
@@ -245,6 +256,7 @@ impl BarHandle {
     /// Like [`display_commands`], but shifts each frame by `x_offset` pixels.
     ///
     /// [`display_commands`]: BarHandle::display_commands
+    #[doc = "**API Contract:** Run `sand api show sand::resourcepack::BarHandle::display_commands_at` for the canonical contract."]
     pub fn display_commands_at(
         &self,
         holder: &str,
@@ -267,6 +279,7 @@ impl BarHandle {
     ///
     /// [`display_commands`]: BarHandle::display_commands
     /// [`show_at_canvas`]: BarHandle::show_at_canvas
+    #[doc = "**API Contract:** Run `sand api show sand::resourcepack::BarHandle::display_commands_at_canvas` for the canonical contract."]
     pub fn display_commands_at_canvas(
         &self,
         holder: &str,
@@ -301,6 +314,7 @@ impl BarHandle {
     ///     }
     /// }
     /// ```
+    #[doc = "**API Contract:** Run `sand api show sand::resourcepack::BarHandle::broadcast_commands` for the canonical contract."]
     pub fn broadcast_commands(
         &self,
         executor: &str,
@@ -320,6 +334,7 @@ impl BarHandle {
     /// Like [`broadcast_commands`], but shifts each frame by `x_offset` font pixels.
     ///
     /// [`broadcast_commands`]: BarHandle::broadcast_commands
+    #[doc = "**API Contract:** Run `sand api show sand::resourcepack::BarHandle::broadcast_commands_at` for the canonical contract."]
     pub fn broadcast_commands_at(
         &self,
         executor: &str,
@@ -340,6 +355,7 @@ impl BarHandle {
     /// Like [`broadcast_commands`], but positions using a virtual canvas coordinate.
     ///
     /// [`broadcast_commands`]: BarHandle::broadcast_commands
+    #[doc = "**API Contract:** Run `sand api show sand::resourcepack::BarHandle::broadcast_commands_at_canvas` for the canonical contract."]
     pub fn broadcast_commands_at_canvas(
         &self,
         executor: &str,
@@ -352,6 +368,7 @@ impl BarHandle {
     }
 }
 
+#[doc = "**API Contract:** Run `sand api show sand::resourcepack::ElementHandle` for the canonical contract."]
 /// A lightweight handle to a registered `hud_element!`
 /// component, generated automatically by the macro.
 ///
@@ -380,10 +397,13 @@ impl BarHandle {
 /// ```
 #[derive(Copy, Clone)]
 pub struct ElementHandle {
+    #[doc = "**API Contract:** Run `sand api show sand::resourcepack::ElementHandle::name` for the canonical contract."]
     /// Name passed to `hud_element!` — used for auto-unicode derivation.
     pub name: &'static str,
+    #[doc = "**API Contract:** Run `sand api show sand::resourcepack::ElementHandle::font` for the canonical contract."]
     /// Font file name (without extension) this element is registered under.
     pub font: &'static str,
+    #[doc = "**API Contract:** Run `sand api show sand::resourcepack::ElementHandle::char_width` for the canonical contract."]
     /// Pixel width of the element texture.
     ///
     /// Minecraft renders the glyph with an advance of `char_width + 1`.
@@ -396,11 +416,13 @@ pub struct ElementHandle {
 
 impl ElementHandle {
     /// The unicode character assigned to this element.
+    #[doc = "**API Contract:** Run `sand api show sand::resourcepack::ElementHandle::char` for the canonical contract."]
     pub fn char(&self) -> char {
         crate::unicode::element_char(self.name)
     }
 
     /// Minecraft JSON text component string for this element.
+    #[doc = "**API Contract:** Run `sand api show sand::resourcepack::ElementHandle::text_json` for the canonical contract."]
     pub fn text_json(&self, namespace: &str) -> String {
         crate::unicode::element_text_json(self.name, namespace, self.font)
     }
@@ -433,6 +455,7 @@ impl ElementHandle {
     }
 
     /// Returns a single `title <target> actionbar …` command.
+    #[doc = "**API Contract:** Run `sand api show sand::resourcepack::ElementHandle::show` for the canonical contract."]
     pub fn show(&self, target: &str, namespace: &str) -> String {
         let json = self.text_json(namespace);
         format!("title {target} actionbar {json}")
@@ -441,6 +464,7 @@ impl ElementHandle {
     /// Like [`show`], but shifts the element by `x_offset` font pixels from center.
     ///
     /// [`show`]: ElementHandle::show
+    #[doc = "**API Contract:** Run `sand api show sand::resourcepack::ElementHandle::show_at` for the canonical contract."]
     pub fn show_at(&self, target: &str, namespace: &str, x_offset: i32) -> String {
         let json = self.positioned_json(namespace, x_offset);
         format!("title {target} actionbar {json}")
@@ -449,6 +473,7 @@ impl ElementHandle {
     /// Like [`show`], but positions the element using a virtual canvas coordinate.
     ///
     /// [`show`]: ElementHandle::show
+    #[doc = "**API Contract:** Run `sand api show sand::resourcepack::ElementHandle::show_at_canvas` for the canonical contract."]
     pub fn show_at_canvas(
         &self,
         target: &str,

@@ -48,10 +48,7 @@ fn empty_setup() -> EventSetup {
 }
 
 fn child_chain() -> Option<sand_core::events::ChainEventDispatch> {
-    match Child::dispatch().into() {
-        SandEventDispatch::Chain(chain) => Some(chain),
-        _ => None,
-    }
+    sand_core::__private::event_dispatch_chain(Child::dispatch().into())
 }
 fn child_type_id() -> TypeId {
     TypeId::of::<Child>()

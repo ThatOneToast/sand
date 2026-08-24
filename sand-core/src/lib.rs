@@ -112,22 +112,10 @@ pub use component::{
     IntoDatapack,
 };
 pub use error::{Result, SandError};
-pub use event::handle::{EventHandle, RawEventHandle};
+pub use event::handle::EventHandle;
 pub use event::{
-    AdvancementEvent,
-    DamageAdvancementEvent,
-    DamageEvent,
-    Event,
-    // Kept for backward compat; prefer Event<E> as handler context
-    EventAdvancement,
-    EventBuilder,
-    EventConfig,
-    EventId,
-    EventPlayer,
-    EventReset,
-    EventVisibility,
-    IntoEventAdvancement,
-    IntoEventId,
+    AdvancementEvent, DamageAdvancementEvent, DamageEvent, Event, EventId, EventReset,
+    EventVisibility, IntoEventId,
 };
 pub use events::{
     // Equipment events
@@ -167,7 +155,6 @@ pub use events::{
     ItemPickedUpEvent,
     LightningStrikeEvent,
     LootContainerOpenEvent,
-    NormalizedEventDispatch,
     OnDeathEvent,
     // Session events
     OnJoinEvent,
@@ -512,7 +499,7 @@ macro_rules! mcfunction {
     ($($cmd:expr);* $(;)?) => {{
         let mut _commands: Vec<String> = Vec::new();
         $(
-            _commands.extend($crate::components::mc_function::IntoCommands::into_commands($cmd));
+            _commands.extend($crate::IntoCommands::into_commands($cmd));
         )*
         _commands
     }};
@@ -595,6 +582,46 @@ impl sand_commands::selector::IntoEntityType for generated::EntityType {
 /// author-facing API surface.
 #[doc(hidden)]
 pub mod __private {
+    /// Extracts an advancement trigger for generated proc-macro wiring.
+    #[doc(hidden)]
+    pub fn event_dispatch_advancement(
+        dispatch: crate::events::SandEventDispatch,
+    ) -> Option<crate::AdvancementTrigger> {
+        dispatch.into_advancement()
+    }
+
+    /// Extracts a legacy raw tick condition for generated proc-macro wiring.
+    #[doc(hidden)]
+    pub fn event_dispatch_tick_condition(
+        dispatch: crate::events::SandEventDispatch,
+    ) -> Option<String> {
+        dispatch.into_tick_condition()
+    }
+
+    /// Extracts a typed tick dispatch for generated proc-macro wiring.
+    #[doc(hidden)]
+    pub fn event_dispatch_tick(
+        dispatch: crate::events::SandEventDispatch,
+    ) -> Option<crate::events::TickEventDispatch> {
+        dispatch.into_tick()
+    }
+
+    /// Extracts a chain dispatch for generated proc-macro wiring.
+    #[doc(hidden)]
+    pub fn event_dispatch_chain(
+        dispatch: crate::events::SandEventDispatch,
+    ) -> Option<crate::events::ChainEventDispatch> {
+        dispatch.into_chain()
+    }
+
+    /// Extracts compiler-owned tracked dispatch state for proc-macro wiring.
+    #[doc(hidden)]
+    pub fn event_dispatch_tracked(
+        dispatch: crate::events::SandEventDispatch,
+    ) -> Option<crate::TrackedTransition> {
+        dispatch.into_tracked()
+    }
+
     /// Exact generated contract providers selected by this `sand-core` build.
     ///
     /// Keeping these as embedded build outputs lets the installed CLI inspect
@@ -605,6 +632,25 @@ pub mod __private {
         include_str!(concat!(env!("OUT_DIR"), "/registries.api.json")),
         include_str!(concat!(env!("OUT_DIR"), "/registry_ids.api.json")),
     ];
+
+    /// Proc-macro bridge for the built-in sneaking transition source.
+    #[doc(hidden)]
+    pub const fn player_sneaking_tracked_source() -> crate::TrackedSource {
+        crate::events::PLAYER_SNEAKING_TRACKED_SOURCE
+    }
+
+    /// Constructs compiler-owned version and dirty entity-score fields for
+    /// Sand's entity-state derive expansion.
+    pub const fn entity_score_new<T: 'static>(
+        namespace: &'static str,
+        schema: &'static str,
+        name: &'static str,
+        kind: crate::entity::StateFieldKind,
+        default: i32,
+        bounds: Option<(i32, i32)>,
+    ) -> crate::entity::EntityScore<T> {
+        crate::entity::EntityScore::__new(namespace, schema, name, kind, default, bounds)
+    }
 }
 
 impl From<generated::Item> for sand_components::registry::ItemId {

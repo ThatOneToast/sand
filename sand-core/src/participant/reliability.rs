@@ -2,6 +2,7 @@
 
 use crate::item::SnapshotReliability;
 
+#[doc = "**API Contract:** Run `sand api show sand::participant::ParticipantReliability` for the canonical contract."]
 /// How strong the evidence is for a captured/referenced event participant.
 ///
 /// Variants are declared weakest-first so the derived [`Ord`] doubles as a
@@ -38,10 +39,20 @@ use crate::item::SnapshotReliability;
 /// was true at capture time").
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum ParticipantReliability {
+    #[doc = "Selects the unavailable participant semantic."]
+    #[doc = "**API Contract:** Run `sand api show sand::participant::ParticipantReliability::Unavailable` for the canonical contract."]
     Unavailable,
+    #[doc = "Selects the inferred participant semantic."]
+    #[doc = "**API Contract:** Run `sand api show sand::participant::ParticipantReliability::Inferred` for the canonical contract."]
     Inferred,
+    #[doc = "Selects the correlated participant semantic."]
+    #[doc = "**API Contract:** Run `sand api show sand::participant::ParticipantReliability::Correlated` for the canonical contract."]
     Correlated,
+    #[doc = "Selects the exact snapshot participant semantic."]
+    #[doc = "**API Contract:** Run `sand api show sand::participant::ParticipantReliability::ExactSnapshot` for the canonical contract."]
     ExactSnapshot,
+    #[doc = "Selects the exact participant semantic."]
+    #[doc = "**API Contract:** Run `sand api show sand::participant::ParticipantReliability::Exact` for the canonical contract."]
     Exact,
 }
 
@@ -52,19 +63,23 @@ impl ParticipantReliability {
     /// `true`. This is the check behind
     /// [`PlayerParticipant::require_exact`](super::reference::PlayerParticipant::require_exact)
     /// and its siblings.
+    #[doc = "**API Contract:** Run `sand api show sand::participant::ParticipantReliability::meets` for the canonical contract."]
     pub fn meets(self, required: ParticipantReliability) -> bool {
         self >= required
     }
 }
 
+#[doc = "**API Contract:** Run `sand api show sand::participant::ItemEvidenceQualifier` for the canonical contract."]
 /// Finer-grained evidence for an item participant's [`ExactSnapshot`](ParticipantReliability::ExactSnapshot)
 /// reliability, preserving the distinction Phase 7's `SnapshotReliability`
 /// draws between its two "exact" levels rather than flattening them.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum ItemEvidenceQualifier {
+    #[doc = "**API Contract:** Run `sand api show sand::participant::ItemEvidenceQualifier::CapturedBeforeVanillaMutation` for the canonical contract."]
     /// Copied before any vanilla-side mutation window Sand knows of —
     /// [`SnapshotReliability::Exact`].
     CapturedBeforeVanillaMutation,
+    #[doc = "**API Contract:** Run `sand api show sand::participant::ItemEvidenceQualifier::CapturedAtFirstSandControl` for the canonical contract."]
     /// Copied at the first point Sand's own generated code ran, but vanilla
     /// may already have mutated the source before the triggering criterion
     /// fired at all — [`SnapshotReliability::ExactPostTrigger`].
@@ -81,6 +96,7 @@ impl SnapshotReliability {
     /// into storage, never referenced live, so neither ever qualifies for
     /// [`ParticipantReliability::Exact`]. The distinction between them is
     /// not lost: see [`SnapshotReliability::item_evidence_qualifier`].
+    #[sand_macros::api(kind = "method", registry = sand_api_contract, path = "sand::item::SnapshotReliability::as_participant_reliability", summary = "Maps item-capture evidence into the shared participant reliability vocabulary.", context = "Participant plans compare a common reliability type while this mapping preserves that snapshots are stored evidence rather than live entity observations.", minecraft = "Emits no command; it describes how generated observation evidence may be consumed.", use_when = ["Passing snapshot evidence into a participant-aware event API"], avoid_when = ["Discarding the finer exact-capture qualifier when it matters"], returns = "The corresponding shared participant reliability level.", example = "let reliability = SnapshotReliability::Exact.as_participant_reliability();")]
     pub fn as_participant_reliability(self) -> ParticipantReliability {
         match self {
             SnapshotReliability::Exact | SnapshotReliability::ExactPostTrigger => {
@@ -93,6 +109,7 @@ impl SnapshotReliability {
 
     /// The finer-grained item capture evidence behind an `ExactSnapshot`
     /// mapping, or `None` for levels that don't carry this distinction.
+    #[sand_macros::api(kind = "method", registry = sand_api_contract, path = "sand::item::SnapshotReliability::item_evidence_qualifier", summary = "Returns the finer distinction behind exact snapshot evidence when one exists.", context = "Exact and exact-post-trigger snapshots share a participant reliability level but differ in whether vanilla could have changed the item before Sand gained control.", minecraft = "Emits no command.", use_when = ["Reporting whether an exact snapshot preceded known vanilla mutation windows"], avoid_when = ["Treating correlated or unavailable evidence as an exact capture"], returns = "A qualifier for exact evidence, or None for non-exact levels.", example = "let qualifier = SnapshotReliability::Exact.item_evidence_qualifier();")]
     pub fn item_evidence_qualifier(self) -> Option<ItemEvidenceQualifier> {
         match self {
             SnapshotReliability::Exact => {

@@ -11,18 +11,22 @@ use sand_version::ComponentFeature;
 
 // ── SmithingTransformRecipe ───────────────────────────────────────────────────
 
+#[doc = "**API Contract:** Run `sand api show sand::component::SmithingTransformRecipe` for the canonical contract."]
 /// Represents a smithing table recipe that transforms items using a template, base, and addition.
 pub struct SmithingTransformRecipe {
+    /// `location` provides the location identifier when the variant represents a smithing table recipe that transforms items using a template, base, and addition.
+    #[doc = "**API Contract:** Run `sand api show sand::component::SmithingTransformRecipe::location` for the canonical contract."]
     pub location: ResourceLocation,
-    pub group: Option<String>,
-    pub template: Ingredient,
-    pub base: Ingredient,
-    pub addition: Ingredient,
-    pub result: RecipeResult,
+    group: Option<String>,
+    template: Ingredient,
+    base: Ingredient,
+    addition: Ingredient,
+    result: RecipeResult,
 }
 
 impl SmithingTransformRecipe {
     /// Creates a new smithing transform recipe with the given resource location.
+    #[doc = "**API Contract:** Run `sand api show sand::component::SmithingTransformRecipe::new` for the canonical contract."]
     pub fn new(location: ResourceLocation) -> Self {
         Self {
             location,
@@ -35,30 +39,35 @@ impl SmithingTransformRecipe {
     }
 
     /// Sets the template ingredient (e.g., netherite upgrade template).
+    #[doc = "**API Contract:** Run `sand api show sand::component::SmithingTransformRecipe::template` for the canonical contract."]
     pub fn template(mut self, template: Ingredient) -> Self {
         self.template = template;
         self
     }
 
     /// Sets the base ingredient to be upgraded.
+    #[doc = "**API Contract:** Run `sand api show sand::component::SmithingTransformRecipe::base` for the canonical contract."]
     pub fn base(mut self, base: Ingredient) -> Self {
         self.base = base;
         self
     }
 
     /// Sets the addition ingredient (e.g., netherite ingot).
+    #[doc = "**API Contract:** Run `sand api show sand::component::SmithingTransformRecipe::addition` for the canonical contract."]
     pub fn addition(mut self, addition: Ingredient) -> Self {
         self.addition = addition;
         self
     }
 
     /// Sets the result item and quantity produced by this recipe.
+    #[doc = "**API Contract:** Run `sand api show sand::component::SmithingTransformRecipe::result` for the canonical contract."]
     pub fn result(mut self, result: RecipeResult) -> Self {
         self.result = result;
         self
     }
 
     /// Sets the recipe group for organization.
+    #[doc = "**API Contract:** Run `sand api show sand::component::SmithingTransformRecipe::group` for the canonical contract."]
     pub fn group(mut self, g: impl Into<String>) -> Self {
         self.group = Some(g.into());
         self
@@ -117,17 +126,21 @@ impl DatapackComponent for SmithingTransformRecipe {
 
 // ── SmithingTrimRecipe ────────────────────────────────────────────────────────
 
+#[doc = "**API Contract:** Run `sand api show sand::component::SmithingTrimRecipe` for the canonical contract."]
 /// Represents a smithing table recipe that applies decorative trim to armor.
 pub struct SmithingTrimRecipe {
+    /// `location` provides the location identifier when the variant represents a smithing table recipe that applies decorative trim to armor.
+    #[doc = "**API Contract:** Run `sand api show sand::component::SmithingTrimRecipe::location` for the canonical contract."]
     pub location: ResourceLocation,
-    pub group: Option<String>,
-    pub template: Ingredient,
-    pub base: Ingredient,
-    pub addition: Ingredient,
+    group: Option<String>,
+    template: Ingredient,
+    base: Ingredient,
+    addition: Ingredient,
 }
 
 impl SmithingTrimRecipe {
     /// Creates a new smithing trim recipe with the given resource location.
+    #[doc = "**API Contract:** Run `sand api show sand::component::SmithingTrimRecipe::new` for the canonical contract."]
     pub fn new(location: ResourceLocation) -> Self {
         Self {
             location,
@@ -139,24 +152,28 @@ impl SmithingTrimRecipe {
     }
 
     /// Sets the trim template ingredient.
+    #[doc = "**API Contract:** Run `sand api show sand::component::SmithingTrimRecipe::template` for the canonical contract."]
     pub fn template(mut self, template: Ingredient) -> Self {
         self.template = template;
         self
     }
 
     /// Sets the armor piece to be trimmed.
+    #[doc = "**API Contract:** Run `sand api show sand::component::SmithingTrimRecipe::base` for the canonical contract."]
     pub fn base(mut self, base: Ingredient) -> Self {
         self.base = base;
         self
     }
 
     /// Sets the trim material ingredient (e.g., amethyst shard).
+    #[doc = "**API Contract:** Run `sand api show sand::component::SmithingTrimRecipe::addition` for the canonical contract."]
     pub fn addition(mut self, addition: Ingredient) -> Self {
         self.addition = addition;
         self
     }
 
     /// Sets the recipe group for organization.
+    #[doc = "**API Contract:** Run `sand api show sand::component::SmithingTrimRecipe::group` for the canonical contract."]
     pub fn group(mut self, g: impl Into<String>) -> Self {
         self.group = Some(g.into());
         self

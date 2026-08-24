@@ -27,6 +27,7 @@ use crate::condition::ConditionKind;
 use crate::condition::{Condition, ScoreCompareOp, ScoreRange};
 use crate::execute_when::Conditional;
 
+#[doc = "**API Contract:** Run `sand api show sand::state::ScoreOperand` for the canonical contract."]
 /// One owned scoreboard entry used by score operations and comparisons.
 ///
 /// Callers normally obtain an operand from [`ScoreRef::operand`] or
@@ -66,22 +67,42 @@ fn fnv1a(s: &str) -> u64 {
     h
 }
 
+#[doc = "**API Contract:** Run `sand api show sand::state::ScoreOperation` for the canonical contract."]
 /// Vanilla scoreboard-player operations.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ScoreOperation {
+    #[doc = "Selects the assign operation or policy for typed gameplay state."]
+    #[doc = "**API Contract:** Run `sand api show sand::state::ScoreOperation::Assign` for the canonical contract."]
     Assign,
+    #[doc = "Selects the add operation or policy for typed gameplay state."]
+    #[doc = "**API Contract:** Run `sand api show sand::state::ScoreOperation::Add` for the canonical contract."]
     Add,
+    #[doc = "Selects the sub operation or policy for typed gameplay state."]
+    #[doc = "**API Contract:** Run `sand api show sand::state::ScoreOperation::Sub` for the canonical contract."]
     Sub,
+    #[doc = "Selects the mul operation or policy for typed gameplay state."]
+    #[doc = "**API Contract:** Run `sand api show sand::state::ScoreOperation::Mul` for the canonical contract."]
     Mul,
+    #[doc = "Selects the div operation or policy for typed gameplay state."]
+    #[doc = "**API Contract:** Run `sand api show sand::state::ScoreOperation::Div` for the canonical contract."]
     Div,
+    #[doc = "Selects the mod operation or policy for typed gameplay state."]
+    #[doc = "**API Contract:** Run `sand api show sand::state::ScoreOperation::Mod` for the canonical contract."]
     Mod,
+    #[doc = "Selects the min operation or policy for typed gameplay state."]
+    #[doc = "**API Contract:** Run `sand api show sand::state::ScoreOperation::Min` for the canonical contract."]
     Min,
+    #[doc = "Selects the max operation or policy for typed gameplay state."]
+    #[doc = "**API Contract:** Run `sand api show sand::state::ScoreOperation::Max` for the canonical contract."]
     Max,
+    #[doc = "Selects the swap operation or policy for typed gameplay state."]
+    #[doc = "**API Contract:** Run `sand api show sand::state::ScoreOperation::Swap` for the canonical contract."]
     Swap,
 }
 
 impl ScoreOperation {
     /// Render this operation as vanilla command syntax.
+    #[doc = "**API Contract:** Run `sand api show sand::state::ScoreOperation::as_str` for the canonical contract."]
     pub const fn as_str(self) -> &'static str {
         match self {
             Self::Assign => "=",
@@ -97,6 +118,7 @@ impl ScoreOperation {
     }
 }
 
+#[doc = "**API Contract:** Run `sand api show sand::state::ScoreConstants` for the canonical contract."]
 /// A namespace for reusable fake-player score constants.
 #[derive(Debug, Clone, Copy)]
 pub struct ScoreConstants {
@@ -106,11 +128,13 @@ pub struct ScoreConstants {
 impl ScoreConstants {
     /// Create a constant namespace. Its objective is created automatically in
     /// Sand's generated load function when one of its constants is used.
+    #[doc = "**API Contract:** Run `sand api show sand::state::ScoreConstants::new` for the canonical contract."]
     pub const fn new(objective: &'static str) -> Self {
         Self { objective }
     }
 
     /// Define a typed integer constant.
+    #[doc = "**API Contract:** Run `sand api show sand::state::ScoreConstants::i32` for the canonical contract."]
     pub const fn i32(&self, name: &'static str, value: i32) -> ScoreConst<i32> {
         ScoreConst {
             objective: self.objective,
@@ -121,6 +145,7 @@ impl ScoreConstants {
     }
 }
 
+#[doc = "**API Contract:** Run `sand api show sand::state::ScoreConst` for the canonical contract."]
 /// A typed fake-player constant for scoreboard operations and comparisons.
 #[derive(Debug, Clone, Copy)]
 pub struct ScoreConst<T = i32> {
@@ -132,6 +157,7 @@ pub struct ScoreConst<T = i32> {
 
 impl<T> ScoreConst<T> {
     /// Construct a constant in Sand's default `sand_consts` objective.
+    #[doc = "**API Contract:** Run `sand api show sand::state::ScoreConst::new` for the canonical contract."]
     pub const fn new(name: &'static str, value: i32) -> Self {
         Self {
             objective: "sand_consts",
@@ -145,6 +171,7 @@ impl<T> ScoreConst<T> {
     /// load-time setup. Reusing the same name/value is deduplicated; a
     /// conflicting definition panics during pack generation rather than
     /// silently changing scoreboard math.
+    #[doc = "**API Contract:** Run `sand api show sand::state::ScoreConst::ref_` for the canonical contract."]
     pub fn ref_(self) -> ScoreOperand {
         let objective = objective_name(self.objective);
         let holder = constant_holder(self.name);
@@ -260,7 +287,7 @@ pub fn drain_internal_score_setup() -> Vec<String> {
 }
 
 /// Sand's compiler-managed temporary objective used by score expressions.
-pub const SCORE_EXPRESSION_TEMP_OBJECTIVE: &str = "__sand_tmp";
+pub(crate) const SCORE_EXPRESSION_TEMP_OBJECTIVE: &str = "__sand_tmp";
 
 // ── ScoreVar ──────────────────────────────────────────────────────────────────
 
@@ -279,6 +306,10 @@ pub const SCORE_EXPRESSION_TEMP_OBJECTIVE: &str = "__sand_tmp";
 ///     MANA.add("@s", 5),
 /// ];
 /// ```
+///
+/// # API Contract
+///
+/// `sand api show sand::state::ScoreVar`
 pub struct ScoreVar<T = i32> {
     name: &'static str,
     _marker: PhantomData<T>,
@@ -289,6 +320,10 @@ impl<T> ScoreVar<T> {
     ///
     /// Names longer than 16 characters are automatically hashed to a stable
     /// 16-character objective name (see [`ScoreVar::objective_name`]).
+    ///
+    /// # API Contract
+    ///
+    /// `sand api show sand::state::ScoreVar::new`
     pub const fn new(name: &'static str) -> Self {
         Self {
             name,
@@ -299,6 +334,7 @@ impl<T> ScoreVar<T> {
     /// Return the actual scoreboard objective name used in commands.
     ///
     /// This is either `name` directly (≤16 chars) or a stable hash (>16 chars).
+    #[doc = "**API Contract:** Run `sand api show sand::state::ScoreVar::objective_name` for the canonical contract."]
     pub fn objective_name(&self) -> String {
         objective_name(self.name)
     }
@@ -306,11 +342,13 @@ impl<T> ScoreVar<T> {
     /// `scoreboard objectives add <obj> dummy` — register the objective.
     ///
     /// Call this in your `load` function.
+    #[doc = "**API Contract:** Run `sand api show sand::state::ScoreVar::define` for the canonical contract."]
     pub fn define(&self) -> String {
         format!("scoreboard objectives add {} dummy", self.objective_name())
     }
 
     /// `scoreboard players set <selector> <obj> <value>`
+    #[doc = "**API Contract:** Run `sand api show sand::state::ScoreVar::set` for the canonical contract."]
     pub fn set(&self, selector: impl std::fmt::Display, value: i32) -> String {
         format!(
             "scoreboard players set {} {} {}",
@@ -321,6 +359,7 @@ impl<T> ScoreVar<T> {
     }
 
     /// `scoreboard players add <selector> <obj> <amount>`
+    #[doc = "**API Contract:** Run `sand api show sand::state::ScoreVar::add` for the canonical contract."]
     pub fn add(&self, selector: impl std::fmt::Display, amount: i32) -> String {
         format!(
             "scoreboard players add {} {} {}",
@@ -331,6 +370,7 @@ impl<T> ScoreVar<T> {
     }
 
     /// `scoreboard players remove <selector> <obj> <amount>`
+    #[doc = "**API Contract:** Run `sand api show sand::state::ScoreVar::remove` for the canonical contract."]
     pub fn remove(&self, selector: impl std::fmt::Display, amount: i32) -> String {
         format!(
             "scoreboard players remove {} {} {}",
@@ -341,6 +381,7 @@ impl<T> ScoreVar<T> {
     }
 
     /// `scoreboard players reset <selector> <obj>`
+    #[doc = "**API Contract:** Run `sand api show sand::state::ScoreVar::reset` for the canonical contract."]
     pub fn reset(&self, selector: impl std::fmt::Display) -> String {
         format!(
             "scoreboard players reset {} {}",
@@ -367,6 +408,10 @@ impl<T> ScoreVar<T> {
     /// [#146](https://github.com/ThatOneToast/sand/issues/146)). Prefer
     /// [`ScoreVar::try_clamp`], which rejects `min > max` before returning
     /// any command text.
+    ///
+    /// # API Contract
+    ///
+    /// `sand api show sand::state::ScoreVar::clamp`
     pub fn clamp(&self, selector: impl std::fmt::Display, min: i32, max: i32) -> Vec<String> {
         let selector = selector.to_string();
         let obj = self.objective_name();
@@ -385,6 +430,7 @@ impl<T> ScoreVar<T> {
     /// Validated counterpart to [`ScoreVar::clamp`] — rejects `min > max`
     /// before generating any mcfunction output instead of emitting two
     /// contradictory `execute if score ... matches` commands.
+    #[doc = "**API Contract:** Run `sand api show sand::state::ScoreVar::try_clamp` for the canonical contract."]
     pub fn try_clamp(
         &self,
         selector: impl std::fmt::Display,
@@ -412,6 +458,7 @@ impl<T> ScoreVar<T> {
     /// ```rust,ignore
     /// let cond = MANA.of("@s").gte(25);
     /// ```
+    #[doc = "**API Contract:** Run `sand api show sand::state::ScoreVar::of` for the canonical contract."]
     pub fn of<'a>(&'a self, selector: &str) -> ScoreRef<'a, T> {
         ScoreRef {
             objective: self.name,
@@ -434,6 +481,7 @@ impl<T> ScoreVar<T> {
     /// let cond = MANA.try_of(ScoreHolder::self_()).unwrap().gte(25);
     /// assert!(MANA.try_of(ScoreHolder::fake("bad holder")).is_err());
     /// ```
+    #[doc = "**API Contract:** Run `sand api show sand::state::ScoreVar::try_of` for the canonical contract."]
     pub fn try_of<'a>(
         &'a self,
         holder: impl Into<sand_commands::ScoreHolder>,
@@ -468,6 +516,7 @@ impl<T> ScoreVar<T> {
     /// );
     /// assert!(MANA.try_set(ScoreHolder::fake("bad holder"), 100).is_err());
     /// ```
+    #[doc = "**API Contract:** Run `sand api show sand::state::ScoreVar::try_set` for the canonical contract."]
     pub fn try_set(
         &self,
         holder: impl Into<sand_commands::ScoreHolder>,
@@ -479,6 +528,7 @@ impl<T> ScoreVar<T> {
     }
 
     /// Validated counterpart to [`ScoreVar::add`] — see [`ScoreVar::try_set`].
+    #[doc = "**API Contract:** Run `sand api show sand::state::ScoreVar::try_add` for the canonical contract."]
     pub fn try_add(
         &self,
         holder: impl Into<sand_commands::ScoreHolder>,
@@ -490,6 +540,7 @@ impl<T> ScoreVar<T> {
     }
 
     /// Validated counterpart to [`ScoreVar::remove`] — see [`ScoreVar::try_set`].
+    #[doc = "**API Contract:** Run `sand api show sand::state::ScoreVar::try_remove` for the canonical contract."]
     pub fn try_remove(
         &self,
         holder: impl Into<sand_commands::ScoreHolder>,
@@ -501,6 +552,7 @@ impl<T> ScoreVar<T> {
     }
 
     /// Validated counterpart to [`ScoreVar::reset`] — see [`ScoreVar::try_set`].
+    #[doc = "**API Contract:** Run `sand api show sand::state::ScoreVar::try_reset` for the canonical contract."]
     pub fn try_reset(
         &self,
         holder: impl Into<sand_commands::ScoreHolder>,
@@ -511,6 +563,7 @@ impl<T> ScoreVar<T> {
     }
 
     /// Validated counterpart to [`ScoreVar::init`] — see [`ScoreVar::try_set`].
+    #[doc = "**API Contract:** Run `sand api show sand::state::ScoreVar::try_init` for the canonical contract."]
     pub fn try_init(
         &self,
         holder: impl Into<sand_commands::ScoreHolder>,
@@ -532,6 +585,7 @@ impl<T> ScoreVar<T> {
     /// semantics. `src_holder` is validated with
     /// [`sand_commands::ScoreHolder::validate_single`] accordingly; a
     /// wildcard or multi-entity selector source is rejected.
+    #[doc = "**API Contract:** Run `sand api show sand::state::ScoreVar::try_copy_within` for the canonical contract."]
     pub fn try_copy_within(
         &self,
         src_holder: impl Into<sand_commands::ScoreHolder>,
@@ -555,6 +609,7 @@ impl<T> ScoreVar<T> {
     /// ```text
     /// execute unless score <selector> <obj> matches -2147483648.. run scoreboard players set <selector> <obj> <value>
     /// ```
+    #[doc = "**API Contract:** Run `sand api show sand::state::ScoreVar::init` for the canonical contract."]
     pub fn init(&self, selector: impl std::fmt::Display, value: i32) -> String {
         format!(
             "execute unless score {} {} matches -2147483648.. run scoreboard players set {} {} {}",
@@ -572,6 +627,7 @@ impl<T> ScoreVar<T> {
     /// ```text
     /// scoreboard players operation <dst> <obj> = <src> <obj>
     /// ```
+    #[doc = "**API Contract:** Run `sand api show sand::state::ScoreVar::copy_within` for the canonical contract."]
     pub fn copy_within(
         &self,
         src_selector: impl std::fmt::Display,
@@ -592,6 +648,7 @@ impl<T> ScoreVar<T> {
     /// ```text
     /// scoreboard players operation <dst_sel> <self_obj> = <src_sel> <src_obj>
     /// ```
+    #[doc = "**API Contract:** Run `sand api show sand::state::ScoreVar::copy_from` for the canonical contract."]
     pub fn copy_from<U>(
         &self,
         dst_selector: impl std::fmt::Display,
@@ -613,6 +670,7 @@ impl<T> ScoreVar<T> {
     /// ```text
     /// scoreboard players operation <dst_sel> <dst_obj> = <src_sel> <self_obj>
     /// ```
+    #[doc = "**API Contract:** Run `sand api show sand::state::ScoreVar::copy_to` for the canonical contract."]
     pub fn copy_to<U>(
         &self,
         src_selector: impl std::fmt::Display,
@@ -634,6 +692,7 @@ impl<T> ScoreVar<T> {
     /// ```text
     /// scoreboard players operation <sel> <self_obj> < <other_sel> <other_obj>
     /// ```
+    #[doc = "**API Contract:** Run `sand api show sand::state::ScoreVar::min_op` for the canonical contract."]
     pub fn min_op<U>(
         &self,
         selector: impl std::fmt::Display,
@@ -655,6 +714,7 @@ impl<T> ScoreVar<T> {
     /// ```text
     /// scoreboard players operation <sel> <self_obj> > <other_sel> <other_obj>
     /// ```
+    #[doc = "**API Contract:** Run `sand api show sand::state::ScoreVar::max_op` for the canonical contract."]
     pub fn max_op<U>(
         &self,
         selector: impl std::fmt::Display,
@@ -671,21 +731,25 @@ impl<T> ScoreVar<T> {
     }
 
     /// Condition: score equals zero.
+    #[doc = "**API Contract:** Run `sand api show sand::state::ScoreVar::is_zero` for the canonical contract."]
     pub fn is_zero(&self, selector: &str) -> crate::condition::Condition {
         self.of(selector).is_zero()
     }
 
     /// Condition: score is not zero.
+    #[doc = "**API Contract:** Run `sand api show sand::state::ScoreVar::is_nonzero` for the canonical contract."]
     pub fn is_nonzero(&self, selector: &str) -> crate::condition::Condition {
         self.of(selector).is_nonzero()
     }
 
     /// Condition: score is strictly positive (> 0).
+    #[doc = "**API Contract:** Run `sand api show sand::state::ScoreVar::positive` for the canonical contract."]
     pub fn positive(&self, selector: &str) -> crate::condition::Condition {
         self.of(selector).positive()
     }
 
     /// Condition: score is strictly negative (< 0).
+    #[doc = "**API Contract:** Run `sand api show sand::state::ScoreVar::negative` for the canonical contract."]
     pub fn negative(&self, selector: &str) -> crate::condition::Condition {
         self.of(selector).negative()
     }
@@ -693,6 +757,7 @@ impl<T> ScoreVar<T> {
 
 // ── ScoreRef ──────────────────────────────────────────────────────────────────
 
+#[doc = "**API Contract:** Run `sand api show sand::state::ScoreRef` for the canonical contract."]
 /// A [`ScoreVar`] bound to a selector — used to build [`Condition`]s.
 ///
 /// Produced by [`ScoreVar::of`].
@@ -729,6 +794,7 @@ impl<'a, T> ScoreRef<'a, T> {
     ///     "execute store result storage pack:audit audit.sequence int 1 run scoreboard players get @s seq"
     /// );
     /// ```
+    #[doc = "**API Contract:** Run `sand api show sand::state::ScoreRef::store_into` for the canonical contract."]
     pub fn store_into<Schema, U>(&self, field: StorageField<Schema, U>) -> String {
         format!(
             "execute store result storage {} {} int 1 run scoreboard players get {} {}",
@@ -740,6 +806,7 @@ impl<'a, T> ScoreRef<'a, T> {
     }
 
     /// Return the typed scoreboard entry represented by this reference.
+    #[doc = "**API Contract:** Run `sand api show sand::state::ScoreRef::operand` for the canonical contract."]
     pub fn operand(&self) -> ScoreOperand {
         ScoreOperand {
             selector: self.selector.clone(),
@@ -754,48 +821,57 @@ impl<'a, T> ScoreRef<'a, T> {
     }
 
     /// Assign this score from another score entry (`=`).
+    #[doc = "**API Contract:** Run `sand api show sand::state::ScoreRef::assign` for the canonical contract."]
     pub fn assign<O: Into<ScoreOperand>>(self, other: O) -> String {
         self.operation(ScoreOperation::Assign, other)
     }
 
     /// Add another score entry (`+=`).
+    #[doc = "**API Contract:** Run `sand api show sand::state::ScoreRef::add_score` for the canonical contract."]
     pub fn add_score<O: Into<ScoreOperand>>(self, other: O) -> String {
         self.operation(ScoreOperation::Add, other)
     }
 
     /// Subtract another score entry (`-=`).
+    #[doc = "**API Contract:** Run `sand api show sand::state::ScoreRef::sub_score` for the canonical contract."]
     pub fn sub_score<O: Into<ScoreOperand>>(self, other: O) -> String {
         self.operation(ScoreOperation::Sub, other)
     }
 
     /// Multiply by another score entry (`*=`).
+    #[doc = "**API Contract:** Run `sand api show sand::state::ScoreRef::mul_score` for the canonical contract."]
     pub fn mul_score<O: Into<ScoreOperand>>(self, other: O) -> String {
         self.operation(ScoreOperation::Mul, other)
     }
 
     /// Divide by another score entry (`/=`). Scoreboard math is integer-only;
     /// division by zero remains a vanilla runtime error.
+    #[doc = "**API Contract:** Run `sand api show sand::state::ScoreRef::div_score` for the canonical contract."]
     pub fn div_score<O: Into<ScoreOperand>>(self, other: O) -> String {
         self.operation(ScoreOperation::Div, other)
     }
 
     /// Modulo another score entry (`%=`). Modulo by zero remains a vanilla
     /// runtime error.
+    #[doc = "**API Contract:** Run `sand api show sand::state::ScoreRef::mod_score` for the canonical contract."]
     pub fn mod_score<O: Into<ScoreOperand>>(self, other: O) -> String {
         self.operation(ScoreOperation::Mod, other)
     }
 
     /// Keep the minimum of this and another score entry (`<`).
+    #[doc = "**API Contract:** Run `sand api show sand::state::ScoreRef::min_score` for the canonical contract."]
     pub fn min_score<O: Into<ScoreOperand>>(self, other: O) -> String {
         self.operation(ScoreOperation::Min, other)
     }
 
     /// Keep the maximum of this and another score entry (`>`).
+    #[doc = "**API Contract:** Run `sand api show sand::state::ScoreRef::max_score` for the canonical contract."]
     pub fn max_score<O: Into<ScoreOperand>>(self, other: O) -> String {
         self.operation(ScoreOperation::Max, other)
     }
 
     /// Swap this score entry with another (`><`).
+    #[doc = "**API Contract:** Run `sand api show sand::state::ScoreRef::swap` for the canonical contract."]
     pub fn swap<O: Into<ScoreOperand>>(self, other: O) -> String {
         self.operation(ScoreOperation::Swap, other)
     }
@@ -804,6 +880,7 @@ impl<'a, T> ScoreRef<'a, T> {
     ///
     /// Scoreboard math is integer-only, so the final division truncates toward
     /// zero. Sand registers the generated percentage constants automatically.
+    #[doc = "**API Contract:** Run `sand api show sand::state::ScoreRef::set_percent` for the canonical contract."]
     pub fn set_percent<O: Into<ScoreOperand>>(self, value: O, percent: i32) -> Vec<String> {
         let target = self.operand();
         let value = value.into();
@@ -821,6 +898,7 @@ impl<'a, T> ScoreRef<'a, T> {
     /// Scoreboard math is integer-only, so the final division truncates toward
     /// zero. Use [`ScoreRef::set_percent`] when the source and destination are
     /// different scores.
+    #[doc = "**API Contract:** Run `sand api show sand::state::ScoreRef::scale_percent` for the canonical contract."]
     pub fn scale_percent(self, percent: i32) -> Vec<String> {
         let target = self.operand();
         let percent = score_constant_operand("score_percent", percent);
@@ -835,6 +913,7 @@ impl<'a, T> ScoreRef<'a, T> {
     ///
     /// This emits the direct vanilla operations and does not hide division by
     /// zero. Use [`ScoreRef::safe_divide`] when `max` may be zero.
+    #[doc = "**API Contract:** Run `sand api show sand::state::ScoreRef::set_ratio` for the canonical contract."]
     pub fn set_ratio<N: Into<ScoreOperand>, D: Into<ScoreOperand>>(
         self,
         current: N,
@@ -857,6 +936,7 @@ impl<'a, T> ScoreRef<'a, T> {
     /// If the divisor is zero, the target is set to `fallback` instead. This
     /// keeps generated output explicit about the branch that avoids vanilla's
     /// division-by-zero runtime failure.
+    #[doc = "**API Contract:** Run `sand api show sand::state::ScoreRef::safe_divide` for the canonical contract."]
     pub fn safe_divide<O: Into<ScoreOperand>>(self, divisor: O, fallback: i32) -> Vec<String> {
         let target = self.operand();
         let divisor = divisor.into();
@@ -880,6 +960,7 @@ impl<'a, T> ScoreRef<'a, T> {
     ///
     /// The first command enforces the lower bound with vanilla's `>` operation
     /// (`max`), and the second enforces the upper bound with `<` (`min`).
+    #[doc = "**API Contract:** Run `sand api show sand::state::ScoreRef::clamp_score` for the canonical contract."]
     pub fn clamp_score<L: Into<ScoreOperand>, U: Into<ScoreOperand>>(
         self,
         min: L,
@@ -895,6 +976,7 @@ impl<'a, T> ScoreRef<'a, T> {
     }
 
     /// Add `amount` and then clamp to the literal `[min, max]` range.
+    #[doc = "**API Contract:** Run `sand api show sand::state::ScoreRef::saturating_add` for the canonical contract."]
     pub fn saturating_add(self, amount: i32, min: i32, max: i32) -> Vec<String> {
         let target = self.operand();
         vec![
@@ -920,6 +1002,7 @@ impl<'a, T> ScoreRef<'a, T> {
     }
 
     /// Subtract `amount` and then clamp to the literal `[min, max]` range.
+    #[doc = "**API Contract:** Run `sand api show sand::state::ScoreRef::saturating_sub` for the canonical contract."]
     pub fn saturating_sub(self, amount: i32, min: i32, max: i32) -> Vec<String> {
         let target = self.operand();
         vec![
@@ -949,37 +1032,44 @@ impl<'a, T> ScoreRef<'a, T> {
     }
 
     /// Compare this score to another score entry (`=`).
+    #[doc = "**API Contract:** Run `sand api show sand::state::ScoreRef::eq_score` for the canonical contract."]
     pub fn eq_score<O: Into<ScoreOperand>>(self, other: O) -> Condition {
         self.compare(ScoreCompareOp::Eq, other)
     }
 
     /// Compare this score as not equal to another score entry.
+    #[doc = "**API Contract:** Run `sand api show sand::state::ScoreRef::ne_score` for the canonical contract."]
     pub fn ne_score<O: Into<ScoreOperand>>(self, other: O) -> Condition {
         !self.eq_score(other)
     }
 
     /// Compare this score as greater than another score entry (`>`).
+    #[doc = "**API Contract:** Run `sand api show sand::state::ScoreRef::gt_score` for the canonical contract."]
     pub fn gt_score<O: Into<ScoreOperand>>(self, other: O) -> Condition {
         self.compare(ScoreCompareOp::Gt, other)
     }
 
     /// Compare this score as greater than or equal to another score entry (`>=`).
+    #[doc = "**API Contract:** Run `sand api show sand::state::ScoreRef::gte_score` for the canonical contract."]
     pub fn gte_score<O: Into<ScoreOperand>>(self, other: O) -> Condition {
         self.compare(ScoreCompareOp::Gte, other)
     }
 
     /// Compare this score as less than another score entry (`<`).
+    #[doc = "**API Contract:** Run `sand api show sand::state::ScoreRef::lt_score` for the canonical contract."]
     pub fn lt_score<O: Into<ScoreOperand>>(self, other: O) -> Condition {
         self.compare(ScoreCompareOp::Lt, other)
     }
 
     /// Compare this score as less than or equal to another score entry (`<=`).
+    #[doc = "**API Contract:** Run `sand api show sand::state::ScoreRef::lte_score` for the canonical contract."]
     pub fn lte_score<O: Into<ScoreOperand>>(self, other: O) -> Condition {
         self.compare(ScoreCompareOp::Lte, other)
     }
 
     /// Begin an integer-only score expression. Its setup commands are emitted
     /// before the final branch condition is evaluated.
+    #[doc = "**API Contract:** Run `sand api show sand::state::ScoreRef::expr` for the canonical contract."]
     pub fn expr(&self) -> ScoreExpr<T> {
         ScoreExpr {
             base: self.operand(),
@@ -989,62 +1079,73 @@ impl<'a, T> ScoreRef<'a, T> {
     }
 
     /// `if score <sel> <obj> matches <n>` — equal to `n`.
+    #[doc = "**API Contract:** Run `sand api show sand::state::ScoreRef::eq` for the canonical contract."]
     pub fn eq(self, n: i32) -> Condition {
         let objective = self.obj();
         Condition::score(self.selector, objective, ScoreRange::Eq(n))
     }
 
     /// `unless score <sel> <obj> matches <n>` — not equal to `n`.
+    #[doc = "**API Contract:** Run `sand api show sand::state::ScoreRef::ne` for the canonical contract."]
     pub fn ne(self, n: i32) -> Condition {
         let objective = self.obj();
         !Condition::score(self.selector, objective, ScoreRange::Eq(n))
     }
 
     /// `if score <sel> <obj> matches <n+1>..` — strictly greater than `n`.
+    #[doc = "**API Contract:** Run `sand api show sand::state::ScoreRef::gt` for the canonical contract."]
     pub fn gt(self, n: i32) -> Condition {
         let objective = self.obj();
         Condition::score(self.selector, objective, ScoreRange::Gt(n))
     }
 
     /// `if score <sel> <obj> matches <n>..` — greater than or equal to `n`.
+    #[doc = "**API Contract:** Run `sand api show sand::state::ScoreRef::gte` for the canonical contract."]
     pub fn gte(self, n: i32) -> Condition {
         let objective = self.obj();
         Condition::score(self.selector, objective, ScoreRange::Gte(n))
     }
 
     /// `if score <sel> <obj> matches ..<n-1>` — strictly less than `n`.
+    #[doc = "**API Contract:** Run `sand api show sand::state::ScoreRef::lt` for the canonical contract."]
     pub fn lt(self, n: i32) -> Condition {
         let objective = self.obj();
         Condition::score(self.selector, objective, ScoreRange::Lt(n))
     }
 
     /// Condition: score equals zero.
+    #[doc = "**API Contract:** Run `sand api show sand::state::ScoreRef::is_zero` for the canonical contract."]
     pub fn is_zero(self) -> Condition {
         self.eq(0)
     }
 
     /// Condition: score is not zero.
+    #[doc = "**API Contract:** Run `sand api show sand::state::ScoreRef::is_nonzero` for the canonical contract."]
     pub fn is_nonzero(self) -> Condition {
         self.ne(0)
     }
 
     /// Condition: score is strictly positive (`matches 1..`).
+    #[doc = "**API Contract:** Run `sand api show sand::state::ScoreRef::positive` for the canonical contract."]
     pub fn positive(self) -> Condition {
         self.gt(0)
     }
 
     /// Condition: score is strictly negative (`matches ..-1`).
+    #[doc = "**API Contract:** Run `sand api show sand::state::ScoreRef::negative` for the canonical contract."]
     pub fn negative(self) -> Condition {
         self.lt(0)
     }
 
     /// `if score <sel> <obj> matches ..<n>` — less than or equal to `n`.
+    #[doc = "**API Contract:** Run `sand api show sand::state::ScoreRef::lte` for the canonical contract."]
     pub fn lte(self, n: i32) -> Condition {
         let objective = self.obj();
         Condition::score(self.selector, objective, ScoreRange::Lte(n))
     }
 
     /// `if score <sel> <obj> matches <min>..<max>` — inside an inclusive range.
+    #[doc = "**API Contract:** Run `sand api show sand::state::ScoreRef::between` for the canonical contract."]
     pub fn between(self, min: i32, max: i32) -> Condition {
         let objective = self.obj();
         Condition::score(
@@ -1055,6 +1156,7 @@ impl<'a, T> ScoreRef<'a, T> {
     }
 
     /// `unless score <sel> <obj> matches <min>..<max>` — outside an inclusive range.
+    #[doc = "**API Contract:** Run `sand api show sand::state::ScoreRef::outside` for the canonical contract."]
     pub fn outside(self, min: i32, max: i32) -> Condition {
         !self.between(min, max)
     }
@@ -1063,6 +1165,7 @@ impl<'a, T> ScoreRef<'a, T> {
     ///
     /// Rejects `n == i32::MAX`, which describes a range no `i32` score can
     /// satisfy; for example, no `i32` score can be greater than `i32::MAX`.
+    #[doc = "**API Contract:** Run `sand api show sand::state::ScoreRef::try_gt` for the canonical contract."]
     pub fn try_gt(self, n: i32) -> sand_commands::CommandResult<Condition> {
         ScoreRange::Gt(n).validate()?;
         Ok(self.gt(n))
@@ -1072,6 +1175,7 @@ impl<'a, T> ScoreRef<'a, T> {
     ///
     /// Rejects `n == i32::MIN`, which describes a range no `i32` score can
     /// satisfy.
+    #[doc = "**API Contract:** Run `sand api show sand::state::ScoreRef::try_lt` for the canonical contract."]
     pub fn try_lt(self, n: i32) -> sand_commands::CommandResult<Condition> {
         ScoreRange::Lt(n).validate()?;
         Ok(self.lt(n))
@@ -1079,6 +1183,7 @@ impl<'a, T> ScoreRef<'a, T> {
 
     /// Validated inclusive range — rejects `min > max` instead of emitting an
     /// always-false `matches` fragment.
+    #[doc = "**API Contract:** Run `sand api show sand::state::ScoreRef::try_between` for the canonical contract."]
     pub fn try_between(self, min: i32, max: i32) -> sand_commands::CommandResult<Condition> {
         ScoreRange::Between(Some(min), Some(max)).validate()?;
         Ok(self.between(min, max))
@@ -1087,6 +1192,7 @@ impl<'a, T> ScoreRef<'a, T> {
     /// `if score <sel> <obj> matches <lo>..<hi>` — within an inclusive range.
     ///
     /// Accepts any `RangeBounds<i32>`: `1..=100`, `0..`, `..100`, etc.
+    #[doc = "**API Contract:** Run `sand api show sand::state::ScoreRef::matches` for the canonical contract."]
     pub fn matches(self, range: impl RangeBounds<i32>) -> Condition {
         use std::ops::Bound;
         let lo = match range.start_bound() {
@@ -1106,6 +1212,7 @@ impl<'a, T> ScoreRef<'a, T> {
     /// Validated counterpart to [`ScoreRef::matches`] — rejects a range whose
     /// resolved bounds have `lo > hi` instead of emitting an always-false
     /// `matches` fragment.
+    #[doc = "**API Contract:** Run `sand api show sand::state::ScoreRef::try_matches` for the canonical contract."]
     pub fn try_matches(
         self,
         range: impl RangeBounds<i32>,
@@ -1137,6 +1244,7 @@ impl<'a, T> From<ScoreRef<'a, T>> for ScoreOperand {
     }
 }
 
+#[doc = "**API Contract:** Run `sand api show sand::state::ScoreExpr` for the canonical contract."]
 /// A compiler-managed sequence of vanilla scoreboard operations.
 pub struct ScoreExpr<T = i32> {
     base: ScoreOperand,
@@ -1150,26 +1258,40 @@ impl<T> ScoreExpr<T> {
         self
     }
 
+    /// Adds another score operand to this expression.
+    #[doc = "**API Contract:** Run `sand api show sand::state::ScoreExpr::plus` for the canonical contract."]
     pub fn plus<O: Into<ScoreOperand>>(self, other: O) -> Self {
         self.operation(ScoreOperation::Add, other)
     }
+    /// Subtracts another score operand from this expression.
+    #[doc = "**API Contract:** Run `sand api show sand::state::ScoreExpr::minus` for the canonical contract."]
     pub fn minus<O: Into<ScoreOperand>>(self, other: O) -> Self {
         self.operation(ScoreOperation::Sub, other)
     }
+    /// Multiplies this expression by another score operand.
+    #[doc = "**API Contract:** Run `sand api show sand::state::ScoreExpr::mul` for the canonical contract."]
     #[allow(clippy::should_implement_trait)]
     pub fn mul<O: Into<ScoreOperand>>(self, other: O) -> Self {
         self.operation(ScoreOperation::Mul, other)
     }
+    /// Divides this expression by another score operand using scoreboard arithmetic.
+    #[doc = "**API Contract:** Run `sand api show sand::state::ScoreExpr::div` for the canonical contract."]
     #[allow(clippy::should_implement_trait)]
     pub fn div<O: Into<ScoreOperand>>(self, other: O) -> Self {
         self.operation(ScoreOperation::Div, other)
     }
+    /// Applies scoreboard remainder arithmetic with another score operand.
+    #[doc = "**API Contract:** Run `sand api show sand::state::ScoreExpr::modulo` for the canonical contract."]
     pub fn modulo<O: Into<ScoreOperand>>(self, other: O) -> Self {
         self.operation(ScoreOperation::Mod, other)
     }
+    /// Clamps this expression to the lesser of itself and another score operand.
+    #[doc = "**API Contract:** Run `sand api show sand::state::ScoreExpr::min` for the canonical contract."]
     pub fn min<O: Into<ScoreOperand>>(self, other: O) -> Self {
         self.operation(ScoreOperation::Min, other)
     }
+    /// Clamps this expression to the greater of itself and another score operand.
+    #[doc = "**API Contract:** Run `sand api show sand::state::ScoreExpr::max` for the canonical contract."]
     pub fn max<O: Into<ScoreOperand>>(self, other: O) -> Self {
         self.operation(ScoreOperation::Max, other)
     }
@@ -1204,6 +1326,8 @@ impl<T> ScoreExpr<T> {
         }
     }
 
+    /// Builds a condition requiring this expression to equal an integer.
+    #[doc = "**API Contract:** Run `sand api show sand::state::ScoreExpr::eq` for the canonical contract."]
     pub fn eq(self, n: i32) -> Conditional {
         let temp = self.temp();
         self.lowered(Condition::score(
@@ -1212,6 +1336,8 @@ impl<T> ScoreExpr<T> {
             ScoreRange::Eq(n),
         ))
     }
+    /// Builds a condition requiring this expression to exceed an integer.
+    #[doc = "**API Contract:** Run `sand api show sand::state::ScoreExpr::gt` for the canonical contract."]
     pub fn gt(self, n: i32) -> Conditional {
         let temp = self.temp();
         self.lowered(Condition::score(
@@ -1220,6 +1346,8 @@ impl<T> ScoreExpr<T> {
             ScoreRange::Gt(n),
         ))
     }
+    /// Builds a condition requiring this expression to be at least an integer.
+    #[doc = "**API Contract:** Run `sand api show sand::state::ScoreExpr::gte` for the canonical contract."]
     pub fn gte(self, n: i32) -> Conditional {
         let temp = self.temp();
         self.lowered(Condition::score(
@@ -1228,6 +1356,8 @@ impl<T> ScoreExpr<T> {
             ScoreRange::Gte(n),
         ))
     }
+    /// Builds a condition requiring this expression to be below an integer.
+    #[doc = "**API Contract:** Run `sand api show sand::state::ScoreExpr::lt` for the canonical contract."]
     pub fn lt(self, n: i32) -> Conditional {
         let temp = self.temp();
         self.lowered(Condition::score(
@@ -1236,6 +1366,8 @@ impl<T> ScoreExpr<T> {
             ScoreRange::Lt(n),
         ))
     }
+    /// Builds a condition requiring this expression to be at most an integer.
+    #[doc = "**API Contract:** Run `sand api show sand::state::ScoreExpr::lte` for the canonical contract."]
     pub fn lte(self, n: i32) -> Conditional {
         let temp = self.temp();
         self.lowered(Condition::score(
@@ -1244,6 +1376,8 @@ impl<T> ScoreExpr<T> {
             ScoreRange::Lte(n),
         ))
     }
+    /// Builds a condition requiring this expression to fall within a score range.
+    #[doc = "**API Contract:** Run `sand api show sand::state::ScoreExpr::matches` for the canonical contract."]
     pub fn matches(self, range: impl RangeBounds<i32>) -> Conditional {
         use std::ops::Bound;
         let lo = match range.start_bound() {
@@ -1263,6 +1397,8 @@ impl<T> ScoreExpr<T> {
             ScoreRange::Between(lo, hi),
         ))
     }
+    /// Builds a condition requiring this expression to equal another score operand.
+    #[doc = "**API Contract:** Run `sand api show sand::state::ScoreExpr::eq_score` for the canonical contract."]
     pub fn eq_score<O: Into<ScoreOperand>>(self, other: O) -> Conditional {
         let left = self.temp();
         self.lowered(Condition::score_compare(
@@ -1271,6 +1407,8 @@ impl<T> ScoreExpr<T> {
             other.into(),
         ))
     }
+    /// Builds a condition requiring this expression to exceed another score operand.
+    #[doc = "**API Contract:** Run `sand api show sand::state::ScoreExpr::gt_score` for the canonical contract."]
     pub fn gt_score<O: Into<ScoreOperand>>(self, other: O) -> Conditional {
         let left = self.temp();
         self.lowered(Condition::score_compare(
@@ -1279,6 +1417,8 @@ impl<T> ScoreExpr<T> {
             other.into(),
         ))
     }
+    /// Builds a condition requiring this expression to be at least another score operand.
+    #[doc = "**API Contract:** Run `sand api show sand::state::ScoreExpr::gte_score` for the canonical contract."]
     pub fn gte_score<O: Into<ScoreOperand>>(self, other: O) -> Conditional {
         let left = self.temp();
         self.lowered(Condition::score_compare(
@@ -1287,6 +1427,8 @@ impl<T> ScoreExpr<T> {
             other.into(),
         ))
     }
+    /// Builds a condition requiring this expression to be below another score operand.
+    #[doc = "**API Contract:** Run `sand api show sand::state::ScoreExpr::lt_score` for the canonical contract."]
     pub fn lt_score<O: Into<ScoreOperand>>(self, other: O) -> Conditional {
         let left = self.temp();
         self.lowered(Condition::score_compare(
@@ -1295,6 +1437,8 @@ impl<T> ScoreExpr<T> {
             other.into(),
         ))
     }
+    /// Builds a condition requiring this expression to be at most another score operand.
+    #[doc = "**API Contract:** Run `sand api show sand::state::ScoreExpr::lte_score` for the canonical contract."]
     pub fn lte_score<O: Into<ScoreOperand>>(self, other: O) -> Conditional {
         let left = self.temp();
         self.lowered(Condition::score_compare(

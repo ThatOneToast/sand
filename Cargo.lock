@@ -1880,6 +1880,7 @@ dependencies = [
  "sand-core",
  "sand-macros",
  "sand-resourcepack",
+ "tempfile",
 ]
 
 [[package]]
@@ -1916,6 +1917,7 @@ dependencies = [
  "hex",
  "indicatif",
  "proc-macro2",
+ "quote",
  "reqwest",
  "sand-api-contract",
  "sand-version",

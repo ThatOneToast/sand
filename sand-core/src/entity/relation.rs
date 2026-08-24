@@ -10,29 +10,39 @@ use crate::error::{Result, SandError};
 use crate::function::register_dyn_fn_dedup;
 use crate::version::VersionProfile;
 
+#[doc = "**API Contract:** Run `sand api show sand::entity::Relation` for the canonical contract."]
 /// A vanilla entity relationship reachable via `execute on <relation>`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Relation {
+    #[doc = "**API Contract:** Run `sand api show sand::entity::Relation::Owner` for the canonical contract."]
     /// The entity that owns this entity (e.g. a tamed wolf's owner).
     Owner,
+    #[doc = "**API Contract:** Run `sand api show sand::entity::Relation::Leasher` for the canonical contract."]
     /// The entity leashing this entity.
     Leasher,
+    #[doc = "**API Contract:** Run `sand api show sand::entity::Relation::Target` for the canonical contract."]
     /// This entity's current attack/follow target (mobs only).
     Target,
+    #[doc = "**API Contract:** Run `sand api show sand::entity::Relation::Vehicle` for the canonical contract."]
     /// The vehicle this entity is riding.
     Vehicle,
+    #[doc = "**API Contract:** Run `sand api show sand::entity::Relation::Controller` for the canonical contract."]
     /// The entity steering this entity's vehicle (e.g. a boat's rower).
     Controller,
+    #[doc = "**API Contract:** Run `sand api show sand::entity::Relation::Attacker` for the canonical contract."]
     /// The entity that last damaged this entity.
     Attacker,
+    #[doc = "**API Contract:** Run `sand api show sand::entity::Relation::Origin` for the canonical contract."]
     /// The entity that fired/summoned this entity (e.g. a projectile's shooter).
     Origin,
+    #[doc = "**API Contract:** Run `sand api show sand::entity::Relation::Passengers` for the canonical contract."]
     /// The entities riding this entity. Many-cardinality.
     Passengers,
 }
 
 impl Relation {
     /// The `execute on <keyword>` relation keyword.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::Relation::keyword` for the canonical contract."]
     pub const fn keyword(self) -> &'static str {
         match self {
             Relation::Owner => "owner",
@@ -56,6 +66,7 @@ impl Relation {
     /// releases; the thresholds below should be re-verified against the
     /// vanilla changelog before relying on them for a profile close to the
     /// boundary.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::Relation::check_supported` for the canonical contract."]
     pub fn check_supported(self, profile: &VersionProfile) -> Result<()> {
         let min: Option<(u32, u32, u32)> = match self {
             Relation::Owner
@@ -91,6 +102,7 @@ impl Relation {
     }
 }
 
+#[doc = "**API Contract:** Run `sand api show sand::entity::RelationQuery` for the canonical contract."]
 /// A pending traversal of a single [`Relation`] from an [`EntityContext`].
 ///
 /// `A` encodes cardinality: [`One`] for relations that resolve to at most one
@@ -126,6 +138,7 @@ impl<A> RelationQuery<A> {
     }
 
     /// The underlying relation.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::RelationQuery::relation` for the canonical contract."]
     pub fn relation(&self) -> Relation {
         self.relation
     }
@@ -159,6 +172,7 @@ impl RelationQuery<One> {
     /// [`AnyEntity`] context. No-op (empty command list) if the relation is
     /// absent at runtime — vanilla `execute on <relation>` fails silently
     /// when there is no such entity.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::RelationQuery::if_present` for the canonical contract."]
     pub fn if_present(
         &self,
         profile: &VersionProfile,
@@ -168,6 +182,7 @@ impl RelationQuery<One> {
     }
 
     /// Run `body` only if the relation resolves to a player.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::RelationQuery::if_player` for the canonical contract."]
     pub fn if_player(
         &self,
         profile: &VersionProfile,
@@ -179,6 +194,7 @@ impl RelationQuery<One> {
 
 impl RelationQuery<Many> {
     /// Run `body` once for each passenger, as a generic [`AnyEntity`] context.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::RelationQuery::each` for the canonical contract."]
     pub fn each(
         &self,
         profile: &VersionProfile,

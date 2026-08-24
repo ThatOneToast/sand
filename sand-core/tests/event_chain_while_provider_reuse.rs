@@ -35,16 +35,10 @@ fn no_chain() -> Option<ChainEventDispatch> {
     None
 }
 fn sneaking_condition() -> Option<String> {
-    let SandEventDispatch::TickCondition(condition) = PlayerSneakEvent::dispatch() else {
-        unreachable!("PlayerSneakEvent remains a condition event")
-    };
-    Some(condition)
+    sand_core::__private::event_dispatch_tick_condition(PlayerSneakEvent::dispatch())
 }
 fn child_chain() -> Option<ChainEventDispatch> {
-    let SandEventDispatch::Chain(chain) = Child::dispatch().into() else {
-        unreachable!("Child remains chained")
-    };
-    Some(chain)
+    sand_core::__private::event_dispatch_chain(Child::dispatch().into())
 }
 fn setup() -> EventSetup {
     EventSetup::none()

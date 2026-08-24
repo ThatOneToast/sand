@@ -27,15 +27,27 @@ const KIND: &str = "worldgen/configured_feature";
 /// Vanilla's maximum world height, used as the `fill_layer` height bound.
 const MAX_FILL_LAYER_HEIGHT: u32 = 4064;
 
+#[doc = "**API Contract:** Run `sand api show sand::component::RuleTest` for the canonical contract."]
 /// A block-matching rule test used by ore-like feature configs.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum RuleTest {
+    #[doc = "**API Contract:** Run `sand api show sand::component::RuleTest::AlwaysTrue` for the canonical contract."]
     /// `minecraft:always_true` — replaces any block.
     AlwaysTrue,
+    #[doc = "**API Contract:** Run `sand api show sand::component::RuleTest::BlockMatch` for the canonical contract."]
     /// `minecraft:block_match` — replaces exactly one block.
-    BlockMatch { block: BlockId },
+    BlockMatch {
+        #[doc = "`block` provides the block identifier when `minecraft:block_match` — replaces exactly one block."]
+        #[doc = "**API Contract:** Run `sand api show sand::component::RuleTest::BlockMatch::block` for the canonical contract."]
+        block: BlockId,
+    },
+    #[doc = "**API Contract:** Run `sand api show sand::component::RuleTest::TagMatch` for the canonical contract."]
     /// `minecraft:tag_match` — replaces any block in a block tag.
-    TagMatch { tag: TagId<BlockId> },
+    TagMatch {
+        #[doc = "`tag` provides the tag identifier when `minecraft:tag_match` — replaces any block in a block tag."]
+        #[doc = "**API Contract:** Run `sand api show sand::component::RuleTest::TagMatch::tag` for the canonical contract."]
+        tag: TagId<BlockId>,
+    },
 }
 
 impl RuleTest {
@@ -54,6 +66,7 @@ impl RuleTest {
     }
 }
 
+#[doc = "**API Contract:** Run `sand api show sand::component::OreTarget` for the canonical contract."]
 /// One replaceable-target entry of an ore feature config.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct OreTarget {
@@ -63,6 +76,7 @@ pub struct OreTarget {
 
 impl OreTarget {
     /// Place `state` wherever `target` matches.
+    #[doc = "**API Contract:** Run `sand api show sand::component::OreTarget::new` for the canonical contract."]
     pub fn new(target: RuleTest, state: BlockState) -> Self {
         Self { target, state }
     }
@@ -75,6 +89,7 @@ impl OreTarget {
     }
 }
 
+#[doc = "**API Contract:** Run `sand api show sand::component::OreConfig` for the canonical contract."]
 /// Config for the `minecraft:ore` feature type.
 #[derive(Debug, Clone, PartialEq)]
 pub struct OreConfig {
@@ -85,6 +100,7 @@ pub struct OreConfig {
 
 impl OreConfig {
     /// Create an ore config with the given vein size and replaceable targets.
+    #[doc = "**API Contract:** Run `sand api show sand::component::OreConfig::new` for the canonical contract."]
     pub fn new(size: u32, targets: impl IntoIterator<Item = OreTarget>) -> Self {
         Self {
             size,
@@ -94,6 +110,7 @@ impl OreConfig {
     }
 
     /// Probability (`0..=1`) that a vein block exposed to air is discarded.
+    #[doc = "**API Contract:** Run `sand api show sand::component::OreConfig::discard_chance_on_air_exposure` for the canonical contract."]
     pub fn discard_chance_on_air_exposure(mut self, chance: f32) -> Self {
         self.discard_chance_on_air_exposure = chance;
         self
@@ -187,6 +204,7 @@ impl Feature {
     }
 }
 
+#[doc = "**API Contract:** Run `sand api show sand::component::ConfiguredFeature` for the canonical contract."]
 /// A configured feature definition
 /// (`data/<namespace>/worldgen/configured_feature/<id>.json`).
 ///
@@ -213,6 +231,7 @@ impl ConfiguredFeature {
     ///
     /// Useful as a placeholder target while a pack's placement rules are being
     /// developed.
+    #[doc = "**API Contract:** Run `sand api show sand::component::ConfiguredFeature::no_op` for the canonical contract."]
     pub fn no_op(location: ResourceLocation) -> Self {
         Self {
             location,
@@ -221,6 +240,7 @@ impl ConfiguredFeature {
     }
 
     /// A `minecraft:simple_block` feature that places a single block state.
+    #[doc = "**API Contract:** Run `sand api show sand::component::ConfiguredFeature::simple_block` for the canonical contract."]
     pub fn simple_block(location: ResourceLocation, to_place: BlockStateProvider) -> Self {
         Self {
             location,
@@ -229,6 +249,7 @@ impl ConfiguredFeature {
     }
 
     /// A `minecraft:fill_layer` feature that fills one world layer with a state.
+    #[doc = "**API Contract:** Run `sand api show sand::component::ConfiguredFeature::fill_layer` for the canonical contract."]
     pub fn fill_layer(location: ResourceLocation, state: BlockState, height: u32) -> Self {
         Self {
             location,
@@ -237,6 +258,7 @@ impl ConfiguredFeature {
     }
 
     /// A `minecraft:ore` feature that replaces matching blocks with ore veins.
+    #[doc = "**API Contract:** Run `sand api show sand::component::ConfiguredFeature::ore` for the canonical contract."]
     pub fn ore(location: ResourceLocation, config: OreConfig) -> Self {
         Self {
             location,
@@ -251,6 +273,7 @@ impl ConfiguredFeature {
     /// feature types and for vanilla configs outside the typed slice (trees,
     /// selectors, decorated shapes, and other version-sensitive schemas).
     /// The config must still be a JSON object.
+    #[doc = "**API Contract:** Run `sand api show sand::component::ConfiguredFeature::raw` for the canonical contract."]
     pub fn raw(
         location: ResourceLocation,
         feature_type: ResourceLocation,
@@ -279,6 +302,7 @@ impl ConfiguredFeature {
     /// );
     /// # let _ = placed;
     /// ```
+    #[doc = "**API Contract:** Run `sand api show sand::component::ConfiguredFeature::id` for the canonical contract."]
     pub fn id(&self) -> ConfiguredFeatureId {
         ConfiguredFeatureId::custom(self.location.clone())
     }

@@ -9,20 +9,26 @@ use crate::resource_location::ResourceLocation;
 use super::types::{CookingType, Ingredient, RecipeResult};
 use sand_version::ComponentFeature;
 
+#[doc = "**API Contract:** Run `sand api show sand::component::CookingRecipe` for the canonical contract."]
 /// Represents a cooking recipe (smelting, blasting, smoking, or campfire cooking).
 pub struct CookingRecipe {
+    /// `location` provides the location identifier when the variant represents a cooking recipe (smelting, blasting, smoking, or campfire cooking).
+    #[doc = "**API Contract:** Run `sand api show sand::component::CookingRecipe::location` for the canonical contract."]
     pub location: ResourceLocation,
+    /// `recipe_type` provides the recipe type when the variant represents a cooking recipe (smelting, blasting, smoking, or campfire cooking).
+    #[doc = "**API Contract:** Run `sand api show sand::component::CookingRecipe::recipe_type` for the canonical contract."]
     pub recipe_type: CookingType,
-    pub category: Option<String>,
-    pub group: Option<String>,
-    pub ingredient: Ingredient,
-    pub result: RecipeResult,
-    pub experience: f32,
-    pub cooking_time: u32,
+    category: Option<String>,
+    group: Option<String>,
+    ingredient: Ingredient,
+    result: RecipeResult,
+    experience: f32,
+    cooking_time: u32,
 }
 
 impl CookingRecipe {
     /// Creates a new cooking recipe with the given location and cooking type.
+    #[doc = "**API Contract:** Run `sand api show sand::component::CookingRecipe::new` for the canonical contract."]
     pub fn new(location: ResourceLocation, recipe_type: CookingType) -> Self {
         Self {
             location,
@@ -37,36 +43,42 @@ impl CookingRecipe {
     }
 
     /// Sets the ingredient for this cooking recipe.
+    #[doc = "**API Contract:** Run `sand api show sand::component::CookingRecipe::ingredient` for the canonical contract."]
     pub fn ingredient(mut self, ingredient: Ingredient) -> Self {
         self.ingredient = ingredient;
         self
     }
 
     /// Sets the result item and quantity produced by this recipe.
+    #[doc = "**API Contract:** Run `sand api show sand::component::CookingRecipe::result` for the canonical contract."]
     pub fn result(mut self, result: RecipeResult) -> Self {
         self.result = result;
         self
     }
 
     /// Sets the amount of experience awarded for completing this recipe.
+    #[doc = "**API Contract:** Run `sand api show sand::component::CookingRecipe::experience` for the canonical contract."]
     pub fn experience(mut self, experience: f32) -> Self {
         self.experience = experience;
         self
     }
 
     /// Sets the cooking time in ticks required for this recipe.
+    #[doc = "**API Contract:** Run `sand api show sand::component::CookingRecipe::cooking_time` for the canonical contract."]
     pub fn cooking_time(mut self, cooking_time: u32) -> Self {
         self.cooking_time = cooking_time;
         self
     }
 
     /// Sets the recipe category for organization.
+    #[doc = "**API Contract:** Run `sand api show sand::component::CookingRecipe::category` for the canonical contract."]
     pub fn category(mut self, cat: impl Into<String>) -> Self {
         self.category = Some(cat.into());
         self
     }
 
     /// Sets the recipe group for organization.
+    #[doc = "**API Contract:** Run `sand api show sand::component::CookingRecipe::group` for the canonical contract."]
     pub fn group(mut self, g: impl Into<String>) -> Self {
         self.group = Some(g.into());
         self

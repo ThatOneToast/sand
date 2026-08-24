@@ -29,6 +29,7 @@ use crate::validation;
 
 const TYPED_FIELDS: &[&str] = &["asset_id", "spawn_conditions"];
 
+#[doc = "**API Contract:** Run `sand api show sand::component::PigVariant` for the canonical contract."]
 /// A pig variant definition (`data/<namespace>/pig_variant/<id>.json`).
 ///
 /// Pig variants select the texture used when a pig spawns, based on an
@@ -42,6 +43,7 @@ pub struct PigVariant {
 
 impl PigVariant {
     /// Create a new pig variant with the given resource location.
+    #[doc = "**API Contract:** Run `sand api show sand::component::PigVariant::new` for the canonical contract."]
     pub fn new(location: ResourceLocation) -> Self {
         Self {
             location,
@@ -52,18 +54,21 @@ impl PigVariant {
     }
 
     /// Set the texture asset ID (e.g. `"minecraft:entity/pig/cold_pig"`).
+    #[doc = "**API Contract:** Run `sand api show sand::component::PigVariant::asset_id` for the canonical contract."]
     pub fn asset_id(mut self, id: impl Into<String>) -> Self {
         self.asset_id = id.into();
         self
     }
 
     /// Add one prioritized biome spawn condition.
+    #[doc = "**API Contract:** Run `sand api show sand::component::PigVariant::spawn_condition` for the canonical contract."]
     pub fn spawn_condition(mut self, condition: SpawnCondition) -> Self {
         self.spawn_conditions.push(condition);
         self
     }
 
     /// Replace the full ordered list of biome spawn conditions.
+    #[doc = "**API Contract:** Run `sand api show sand::component::PigVariant::spawn_conditions` for the canonical contract."]
     pub fn spawn_conditions(
         mut self,
         conditions: impl IntoIterator<Item = SpawnCondition>,
@@ -75,6 +80,7 @@ impl PigVariant {
     /// Add a modded or version-specific field not represented by the typed API.
     ///
     /// Typed field names cannot be overridden through this escape hatch.
+    #[doc = "**API Contract:** Run `sand api show sand::component::PigVariant::raw_field` for the canonical contract."]
     pub fn raw_field(mut self, key: impl Into<String>, value: RawJson) -> Self {
         self.raw_fields.insert(key.into(), value);
         self

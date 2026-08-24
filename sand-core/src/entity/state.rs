@@ -25,62 +25,86 @@ use sand_commands::selector::ScoreRange as SelectorScoreRange;
 use crate::condition::{Condition, ScoreRange};
 use crate::entity::diagnostic::EntityDiagnostic;
 
+#[doc = "**API Contract:** Run `sand api show sand::entity::EnumEncoding` for the canonical contract."]
 /// One enum variant's stable scoreboard encoding.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct EnumEncoding {
+    #[doc = "**API Contract:** Run `sand api show sand::entity::EnumEncoding::name` for the canonical contract."]
     /// Rust-facing variant name used by diagnostics.
     pub name: &'static str,
+    #[doc = "**API Contract:** Run `sand api show sand::entity::EnumEncoding::score` for the canonical contract."]
     /// Integer stored in the scoreboard.
     pub score: i32,
 }
 
+#[doc = "**API Contract:** Run `sand api show sand::entity::EntityEnumValue` for the canonical contract."]
 /// A finite typed value stored by [`EntityEnum`].
 ///
 /// `#[derive(EntityStateEnum)]` is the normal implementation path. Manual
 /// implementations remain supported for established wire formats.
 pub trait EntityEnumValue: Copy + Eq + fmt::Debug + 'static {
+    #[doc = "**API Contract:** Run `sand api show sand::entity::EntityEnumValue::ENCODINGS` for the canonical contract."]
     /// Complete stable encoding table.
     const ENCODINGS: &'static [EnumEncoding];
 
     /// Convert a value to its declared score.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::EntityEnumValue::encode` for the canonical contract."]
     fn encode(self) -> i32;
 }
 
+#[doc = "**API Contract:** Run `sand api show sand::entity::StateFieldKind` for the canonical contract."]
 /// Persistence and runtime behavior of a state field.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[non_exhaustive]
 pub enum StateFieldKind {
+    #[doc = "**API Contract:** Run `sand api show sand::entity::StateFieldKind::Score` for the canonical contract."]
     /// Signed integer or fixed-point score.
     Score,
+    #[doc = "**API Contract:** Run `sand api show sand::entity::StateFieldKind::Flag` for the canonical contract."]
     /// Boolean encoded as zero or one.
     Flag,
+    #[doc = "**API Contract:** Run `sand api show sand::entity::StateFieldKind::Enum` for the canonical contract."]
     /// Finite enum encoded without string matching.
-    Enum(&'static [EnumEncoding]),
+    Enum(
+        #[doc = "The `Enum` variant carries the value described by its variant semantics: Finite enum encoded without string matching."]
+        #[doc = "**API Contract:** Run `sand api show sand::entity::StateFieldKind::Enum::0` for the canonical contract."]
+        &'static [EnumEncoding],
+    ),
+    #[doc = "**API Contract:** Run `sand api show sand::entity::StateFieldKind::Timer` for the canonical contract."]
     /// Elapsed/countdown timer.
     Timer,
+    #[doc = "**API Contract:** Run `sand api show sand::entity::StateFieldKind::Cooldown` for the canonical contract."]
     /// Reusable countdown that is ready at zero.
     Cooldown,
+    #[doc = "**API Contract:** Run `sand api show sand::entity::StateFieldKind::Version` for the canonical contract."]
     /// Schema or archetype version.
     Version,
+    #[doc = "**API Contract:** Run `sand api show sand::entity::StateFieldKind::Dirty` for the canonical contract."]
     /// Generated source/output dirty bit.
     Dirty,
 }
 
+#[doc = "**API Contract:** Run `sand api show sand::entity::StateFieldDescriptor` for the canonical contract."]
 /// Static metadata for one schema field.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct StateFieldDescriptor {
+    #[doc = "**API Contract:** Run `sand api show sand::entity::StateFieldDescriptor::name` for the canonical contract."]
     /// Rust-facing field name.
     pub name: &'static str,
+    #[doc = "**API Contract:** Run `sand api show sand::entity::StateFieldDescriptor::kind` for the canonical contract."]
     /// Storage/behavior family.
     pub kind: StateFieldKind,
+    #[doc = "**API Contract:** Run `sand api show sand::entity::StateFieldDescriptor::default` for the canonical contract."]
     /// Initial score assigned only when the value is missing.
     pub default: i32,
+    #[doc = "**API Contract:** Run `sand api show sand::entity::StateFieldDescriptor::bounds` for the canonical contract."]
     /// Optional inclusive bounds.
     pub bounds: Option<(i32, i32)>,
 }
 
 impl StateFieldDescriptor {
     /// Construct field metadata.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::StateFieldDescriptor::new` for the canonical contract."]
     #[must_use]
     pub const fn new(
         name: &'static str,
@@ -97,27 +121,34 @@ impl StateFieldDescriptor {
     }
 }
 
+#[doc = "**API Contract:** Run `sand api show sand::entity::StateSchema` for the canonical contract."]
 /// Complete metadata for a typed state schema.
 #[derive(Debug, Clone, Copy)]
 pub struct StateSchema {
+    #[doc = "**API Contract:** Run `sand api show sand::entity::StateSchema::namespace` for the canonical contract."]
     /// Namespace used in generated logical names.
     pub namespace: &'static str,
+    #[doc = "**API Contract:** Run `sand api show sand::entity::StateSchema::name` for the canonical contract."]
     /// Schema name within the namespace.
     pub name: &'static str,
+    #[doc = "**API Contract:** Run `sand api show sand::entity::StateSchema::version` for the canonical contract."]
     /// Current version; zero is reserved for an uninitialized entity.
     pub version: u32,
+    #[doc = "**API Contract:** Run `sand api show sand::entity::StateSchema::fields` for the canonical contract."]
     /// Fields in source declaration order.
     pub fields: &'static [StateFieldDescriptor],
 }
 
 impl StateSchema {
     /// Logical `namespace:name` identifier.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::StateSchema::id` for the canonical contract."]
     #[must_use]
     pub fn id(&self) -> String {
         format!("{}:{}", self.namespace, self.name)
     }
 
     /// Validate field names, bounds, resolved objective names, and enum encodings.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::StateSchema::validate` for the canonical contract."]
     pub fn validate(&self) -> Result<(), EntityDiagnostic> {
         let schema = self.id();
         let mut names = BTreeSet::new();
@@ -157,30 +188,38 @@ impl StateSchema {
     }
 }
 
+#[doc = "**API Contract:** Run `sand api show sand::entity::EntityState` for the canonical contract."]
 /// A type-level State schema.
 ///
 /// The derive macro generates this implementation and associated typed field
 /// constants. Manual implementations must return stable immutable metadata.
 pub trait EntityState: 'static {
     /// Return this schema's metadata.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::EntityState::schema` for the canonical contract."]
     fn schema() -> StateSchema;
 }
 
+#[doc = "**API Contract:** Run `sand api show sand::entity::EntityStateField` for the canonical contract."]
 /// Shared behavior implemented by all typed state field handles.
 pub trait EntityStateField: Copy + 'static {
+    #[doc = "**API Contract:** Run `sand api show sand::entity::EntityStateField::Accessor` for the canonical contract."]
     /// Accessor returned by [`crate::entity::EntityContext::state`].
     type Accessor;
 
     /// Static field metadata.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::EntityStateField::descriptor` for the canonical contract."]
     fn descriptor(self) -> StateFieldDescriptor;
 
     /// Resolved scoreboard objective, at most 16 characters.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::EntityStateField::objective` for the canonical contract."]
     fn objective(self) -> String;
 
     /// Hidden source-dirty objective.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::EntityStateField::dirty_objective` for the canonical contract."]
     fn dirty_objective(self) -> String;
 
     /// Bind this field to the current executor.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::EntityStateField::bind` for the canonical contract."]
     fn bind(self) -> Self::Accessor {
         self.bind_to("@s", true)
     }
@@ -190,10 +229,11 @@ pub trait EntityStateField: Copy + 'static {
     /// `track_dirty` is enabled for entity/living state whose archetype
     /// reconciliation consumes the auxiliary objective. Player/global state
     /// passes `false` because its lifecycle owns only the primary objective.
-    #[doc(hidden)]
+    #[doc = "**API Contract:** Run `sand api show sand::entity::EntityStateField::bind_to` for the canonical contract."]
     fn bind_to(self, holder: &'static str, track_dirty: bool) -> Self::Accessor;
 }
 
+#[doc = "**API Contract:** Run `sand api show sand::entity::StatePredicate` for the canonical contract."]
 /// Typed score predicate consumable by [`crate::entity::EntityQuery`].
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct StatePredicate {
@@ -204,6 +244,7 @@ pub struct StatePredicate {
 
 impl StatePredicate {
     /// Generated scoreboard objective.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::StatePredicate::objective` for the canonical contract."]
     #[must_use]
     pub fn objective(&self) -> &str {
         &self.objective
@@ -211,12 +252,14 @@ impl StatePredicate {
 
     /// Vanilla selector range used when this predicate constrains adoption or
     /// an [`crate::entity::EntityQuery`].
+    #[doc = "**API Contract:** Run `sand api show sand::entity::StatePredicate::selector_range` for the canonical contract."]
     #[must_use]
     pub fn selector_range(&self) -> String {
         self.selector_range.to_string()
     }
 
     /// Turn this predicate into an `@s` condition.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::StatePredicate::condition` for the canonical contract."]
     #[must_use]
     pub fn condition(&self) -> Condition {
         Condition::score(
@@ -227,6 +270,7 @@ impl StatePredicate {
     }
 }
 
+#[doc = "**API Contract:** Run `sand api show sand::entity::EntityScore` for the canonical contract."]
 /// Typed signed entity score.
 #[derive(Debug, PartialEq, Eq)]
 pub struct EntityScore<T = i32> {
@@ -245,6 +289,7 @@ impl<T> Clone for EntityScore<T> {
 
 impl<T: 'static> EntityScore<T> {
     /// Construct a score field; normally generated by `State`.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::EntityScore::new` for the canonical contract."]
     #[must_use]
     pub const fn new(
         namespace: &'static str,
@@ -266,7 +311,7 @@ impl<T: 'static> EntityScore<T> {
     /// Compiler-facing constructor for version and dirty score fields.
     #[doc(hidden)]
     #[must_use]
-    pub const fn __new(
+    pub(crate) const fn __new(
         namespace: &'static str,
         schema: &'static str,
         name: &'static str,
@@ -283,6 +328,7 @@ impl<T: 'static> EntityScore<T> {
     }
 
     /// Match an inclusive/open Rust range without handwritten selector maps.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::EntityScore::matches` for the canonical contract."]
     pub fn matches(self, range: impl RangeBounds<i32>) -> Result<StatePredicate, EntityDiagnostic> {
         predicate_for_range(
             self.objective(),
@@ -313,6 +359,7 @@ impl<T: 'static> EntityStateField for EntityScore<T> {
     }
 }
 
+#[doc = "**API Contract:** Run `sand api show sand::entity::EntityScoreAccessor` for the canonical contract."]
 /// An [`EntityScore`] bound to its schema-selected score holder.
 ///
 /// Entity/living schemas normally use the current executor (`@s`), player
@@ -327,6 +374,7 @@ pub struct EntityScoreAccessor<T = i32> {
 
 impl<T: 'static> EntityScoreAccessor<T> {
     /// Return a readable typed score view.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::EntityScoreAccessor::get` for the canonical contract."]
     #[must_use]
     pub fn get(self) -> EntityScoreValue {
         EntityScoreValue {
@@ -336,12 +384,14 @@ impl<T: 'static> EntityScoreAccessor<T> {
     }
 
     /// Assign a value, marking the source dirty for archetype-bound state.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::EntityScoreAccessor::set` for the canonical contract."]
     #[must_use]
     pub fn set(self, value: i32) -> Vec<String> {
         mutation(self.field, self.holder, self.track_dirty, "set", value)
     }
 
     /// Add a value, marking the source dirty for archetype-bound state.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::EntityScoreAccessor::add` for the canonical contract."]
     #[must_use]
     #[allow(clippy::should_implement_trait)]
     pub fn add(self, value: i32) -> Vec<String> {
@@ -349,12 +399,14 @@ impl<T: 'static> EntityScoreAccessor<T> {
     }
 
     /// Subtract a value, marking the source dirty for archetype-bound state.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::EntityScoreAccessor::subtract` for the canonical contract."]
     #[must_use]
     pub fn subtract(self, value: i32) -> Vec<String> {
         mutation(self.field, self.holder, self.track_dirty, "remove", value)
     }
 
     /// Build a typed condition over this score.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::EntityScoreAccessor::matches` for the canonical contract."]
     pub fn matches(self, range: impl RangeBounds<i32>) -> Result<Condition, EntityDiagnostic> {
         let predicate = predicate_for_range(
             self.field.objective(),
@@ -391,6 +443,7 @@ impl EntityScoreValue {
     }
 }
 
+#[doc = "**API Contract:** Run `sand api show sand::entity::EntityFlag` for the canonical contract."]
 /// Typed boolean entity field.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct EntityFlag {
@@ -401,6 +454,7 @@ pub struct EntityFlag {
 
 impl EntityFlag {
     /// Construct a flag field; normally generated by `State`.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::EntityFlag::new` for the canonical contract."]
     #[must_use]
     pub const fn new(
         namespace: &'static str,
@@ -421,12 +475,14 @@ impl EntityFlag {
     }
 
     /// Predicate for an enabled flag.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::EntityFlag::is_enabled` for the canonical contract."]
     #[must_use]
     pub fn is_enabled(self) -> StatePredicate {
         exact_predicate(self.objective(), 1)
     }
 
     /// Predicate for a disabled flag.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::EntityFlag::is_disabled` for the canonical contract."]
     #[must_use]
     pub fn is_disabled(self) -> StatePredicate {
         exact_predicate(self.objective(), 0)
@@ -453,6 +509,7 @@ impl EntityStateField for EntityFlag {
     }
 }
 
+#[doc = "**API Contract:** Run `sand api show sand::entity::EntityFlagAccessor` for the canonical contract."]
 /// An [`EntityFlag`] bound to its schema-selected score holder.
 ///
 /// Entity/living schemas normally use the current executor (`@s`), player
@@ -467,27 +524,32 @@ pub struct EntityFlagAccessor {
 
 impl EntityFlagAccessor {
     /// Set the flag to one.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::EntityFlagAccessor::enable` for the canonical contract."]
     #[must_use]
     pub fn enable(self) -> Vec<String> {
         mutation(self.field, self.holder, self.track_dirty, "set", 1)
     }
     /// Set the flag to zero.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::EntityFlagAccessor::disable` for the canonical contract."]
     #[must_use]
     pub fn disable(self) -> Vec<String> {
         mutation(self.field, self.holder, self.track_dirty, "set", 0)
     }
     /// Condition: enabled.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::EntityFlagAccessor::is_enabled` for the canonical contract."]
     #[must_use]
     pub fn is_enabled(self) -> Condition {
         holder_condition(self.holder, self.field.objective(), ScoreRange::Eq(1))
     }
     /// Condition: disabled.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::EntityFlagAccessor::is_disabled` for the canonical contract."]
     #[must_use]
     pub fn is_disabled(self) -> Condition {
         holder_condition(self.holder, self.field.objective(), ScoreRange::Eq(0))
     }
 }
 
+#[doc = "**API Contract:** Run `sand api show sand::entity::EntityEnum` for the canonical contract."]
 /// Typed finite entity enum.
 #[derive(Debug, PartialEq, Eq)]
 pub struct EntityEnum<T: EntityEnumValue> {
@@ -506,6 +568,7 @@ impl<T: EntityEnumValue> Clone for EntityEnum<T> {
 
 impl<T: EntityEnumValue> EntityEnum<T> {
     /// Construct an enum field from its default encoded score.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::EntityEnum::new` for the canonical contract."]
     #[must_use]
     pub const fn new(
         namespace: &'static str,
@@ -527,6 +590,7 @@ impl<T: EntityEnumValue> EntityEnum<T> {
     }
 
     /// Predicate for exactly one variant.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::EntityEnum::is` for the canonical contract."]
     #[must_use]
     pub fn is(self, value: T) -> StatePredicate {
         exact_predicate(self.objective(), value.encode())
@@ -553,6 +617,7 @@ impl<T: EntityEnumValue> EntityStateField for EntityEnum<T> {
     }
 }
 
+#[doc = "**API Contract:** Run `sand api show sand::entity::EntityEnumAccessor` for the canonical contract."]
 /// An [`EntityEnum`] bound to its schema-selected score holder.
 ///
 /// Entity/living schemas normally use the current executor (`@s`), player
@@ -567,6 +632,7 @@ pub struct EntityEnumAccessor<T: EntityEnumValue> {
 
 impl<T: EntityEnumValue> EntityEnumAccessor<T> {
     /// Store a variant, marking the source dirty for archetype-bound state.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::EntityEnumAccessor::set` for the canonical contract."]
     #[must_use]
     pub fn set(self, value: T) -> Vec<String> {
         mutation(
@@ -578,6 +644,7 @@ impl<T: EntityEnumValue> EntityEnumAccessor<T> {
         )
     }
     /// Condition: current value equals `value`.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::EntityEnumAccessor::is` for the canonical contract."]
     #[must_use]
     pub fn is(self, value: T) -> Condition {
         holder_condition(
@@ -588,6 +655,7 @@ impl<T: EntityEnumValue> EntityEnumAccessor<T> {
     }
 }
 
+#[doc = "**API Contract:** Run `sand api show sand::entity::EntityTimer` for the canonical contract."]
 /// Typed elapsed/countdown entity timer.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct EntityTimer {
@@ -598,6 +666,7 @@ pub struct EntityTimer {
 
 impl EntityTimer {
     /// Construct a non-negative timer field.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::EntityTimer::new` for the canonical contract."]
     #[must_use]
     pub const fn new(
         namespace: &'static str,
@@ -618,6 +687,7 @@ impl EntityTimer {
     }
 
     /// Predicate: timer reached zero.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::EntityTimer::elapsed` for the canonical contract."]
     #[must_use]
     pub fn elapsed(self) -> StatePredicate {
         exact_predicate(self.objective(), 0)
@@ -644,6 +714,7 @@ impl EntityStateField for EntityTimer {
     }
 }
 
+#[doc = "**API Contract:** Run `sand api show sand::entity::EntityTimerAccessor` for the canonical contract."]
 /// An [`EntityTimer`] bound to its schema-selected score holder.
 ///
 /// Entity/living schemas normally use the current executor (`@s`), player
@@ -658,6 +729,7 @@ pub struct EntityTimerAccessor {
 
 impl EntityTimerAccessor {
     /// Start a countdown.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::EntityTimerAccessor::start` for the canonical contract."]
     #[must_use]
     pub fn start(self, ticks: crate::state::Ticks) -> Vec<String> {
         mutation(
@@ -669,6 +741,7 @@ impl EntityTimerAccessor {
         )
     }
     /// Decrement a positive timer for the bound score holder.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::EntityTimerAccessor::tick` for the canonical contract."]
     #[must_use]
     pub fn tick(self) -> Vec<String> {
         let decrement = format!(
@@ -691,18 +764,21 @@ impl EntityTimerAccessor {
         }
     }
     /// Condition: timer reached zero.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::EntityTimerAccessor::elapsed` for the canonical contract."]
     #[must_use]
     pub fn elapsed(self) -> Condition {
         holder_condition(self.holder, self.field.objective(), ScoreRange::Eq(0))
     }
 }
 
+#[doc = "**API Contract:** Run `sand api show sand::entity::EntityCooldown` for the canonical contract."]
 /// Typed entity cooldown, ready at zero.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct EntityCooldown(EntityTimer);
 
 impl EntityCooldown {
     /// Construct a cooldown field.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::EntityCooldown::new` for the canonical contract."]
     #[must_use]
     pub const fn new(namespace: &'static str, schema: &'static str, name: &'static str) -> Self {
         Self(EntityTimer {
@@ -718,6 +794,7 @@ impl EntityCooldown {
     }
 
     /// Predicate: cooldown is ready.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::EntityCooldown::ready` for the canonical contract."]
     #[must_use]
     pub fn ready(self) -> StatePredicate {
         exact_predicate(self.objective(), 0)
@@ -744,6 +821,7 @@ impl EntityStateField for EntityCooldown {
     }
 }
 
+#[doc = "**API Contract:** Run `sand api show sand::entity::EntityCooldownAccessor` for the canonical contract."]
 /// An [`EntityCooldown`] bound to its schema-selected score holder.
 ///
 /// Entity/living schemas normally use the current executor (`@s`), player
@@ -758,6 +836,7 @@ pub struct EntityCooldownAccessor {
 
 impl EntityCooldownAccessor {
     /// Start the cooldown.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::EntityCooldownAccessor::start` for the canonical contract."]
     #[must_use]
     pub fn start(self, ticks: crate::state::Ticks) -> Vec<String> {
         mutation(
@@ -769,6 +848,7 @@ impl EntityCooldownAccessor {
         )
     }
     /// Condition: ready.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::EntityCooldownAccessor::ready` for the canonical contract."]
     #[must_use]
     pub fn ready(self) -> Condition {
         holder_condition(self.holder, self.field.objective(), ScoreRange::Eq(0))

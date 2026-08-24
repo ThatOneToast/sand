@@ -38,6 +38,7 @@ use sand_commands::{Objective, ScoreHolder};
 
 // ── Cooldown ──────────────────────────────────────────────────────────────────
 
+#[doc = "**API Contract:** Run `sand api show sand::command::Cooldown` for the canonical contract."]
 /// Scoreboard-based cooldown system for ability tracking.
 ///
 /// A cooldown is a countdown timer backed by a scoreboard objective.
@@ -59,6 +60,7 @@ impl Cooldown {
     /// static COOLDOWN_OBJ: Objective = Objective::new("spell_cd");
     /// static SPELL_COOLDOWN: Cooldown = Cooldown::new(&COOLDOWN_OBJ, 60); // 3 seconds
     /// ```
+    #[doc = "**API Contract:** Run `sand api show sand::command::Cooldown::new` for the canonical contract."]
     pub const fn new(objective: &'static Objective, ticks: u32) -> Self {
         Self { objective, ticks }
     }
@@ -68,6 +70,7 @@ impl Cooldown {
     /// `scoreboard objectives add <name> dummy` — register the underlying objective.
     ///
     /// Call this once in your data pack's `load` function or setup phase.
+    #[doc = "**API Contract:** Run `sand api show sand::command::Cooldown::register` for the canonical contract."]
     pub fn register(&self) -> String {
         format!("scoreboard objectives add {} dummy", self.objective.name())
     }
@@ -79,6 +82,7 @@ impl Cooldown {
     /// Place this at the start of your ability function to prevent use while cooling.
     /// If score is > 0, the function returns 0 immediately. Otherwise execution continues.
     /// Produces: `execute if score <holder> <obj> matches 1.. run return 0`
+    #[doc = "**API Contract:** Run `sand api show sand::command::Cooldown::guard` for the canonical contract."]
     pub fn guard(&self, holder: ScoreHolder) -> String {
         format!(
             "execute if score {} {} matches 1.. run return 0",
@@ -91,11 +95,13 @@ impl Cooldown {
     ///
     /// Call this after the ability executes to begin the countdown.
     /// Produces: `scoreboard players set <holder> <obj> <ticks>`
+    #[doc = "**API Contract:** Run `sand api show sand::command::Cooldown::start` for the canonical contract."]
     pub fn start(&self, holder: ScoreHolder) -> String {
         self.objective.set(holder, self.ticks as i32)
     }
 
     /// Reset the cooldown immediately to ready (score = 0).
+    #[doc = "**API Contract:** Run `sand api show sand::command::Cooldown::reset` for the canonical contract."]
     pub fn reset(&self, holder: ScoreHolder) -> String {
         self.objective.set(holder, 0)
     }
@@ -107,6 +113,7 @@ impl Cooldown {
     /// Place this in your data pack's tick function to countdown all active cooldowns.
     /// Safe to call repeatedly — only decrements if score is positive.
     /// Produces: `execute if score <holder> <obj> matches 1.. run scoreboard players remove <holder> <obj> 1`
+    #[doc = "**API Contract:** Run `sand api show sand::command::Cooldown::tick` for the canonical contract."]
     pub fn tick(&self, holder: ScoreHolder) -> String {
         format!(
             "execute if score {} {} matches 1.. run scoreboard players remove {} {} 1",
@@ -123,6 +130,7 @@ impl Cooldown {
     ///
     /// Use with `Execute::if_()` to conditionally execute code when cooldown is active.
     /// Produces: `if score <holder> <obj> matches 1..`
+    #[doc = "**API Contract:** Run `sand api show sand::command::Cooldown::is_active` for the canonical contract."]
     pub fn is_active(&self, holder: ScoreHolder) -> String {
         format!("if score {} {} matches 1..", holder, self.objective.name())
     }
@@ -131,6 +139,7 @@ impl Cooldown {
     ///
     /// Use with `Execute::if_()` to conditionally execute code when ability is ready.
     /// Produces: `if score <holder> <obj> matches 0`
+    #[doc = "**API Contract:** Run `sand api show sand::command::Cooldown::is_ready` for the canonical contract."]
     pub fn is_ready(&self, holder: ScoreHolder) -> String {
         format!("if score {} {} matches 0", holder, self.objective.name())
     }
@@ -138,11 +147,13 @@ impl Cooldown {
     /// Return a reference to the underlying objective.
     ///
     /// Useful if you need direct access to the objective for other operations.
+    #[doc = "**API Contract:** Run `sand api show sand::command::Cooldown::objective` for the canonical contract."]
     pub fn objective(&self) -> &Objective {
         self.objective
     }
 
     /// Return the configured cooldown duration in ticks.
+    #[doc = "**API Contract:** Run `sand api show sand::command::Cooldown::ticks` for the canonical contract."]
     pub fn ticks(&self) -> u32 {
         self.ticks
     }

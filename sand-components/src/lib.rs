@@ -206,7 +206,7 @@ pub use wolf_variant::WolfVariant;
 
 // ── Worldgen ──────────────────────────────────────────────────────────────────
 
-pub use worldgen::biome::BiomeEffects;
+pub use worldgen::biome::{BiomeEffects, TemperatureModifier};
 pub use worldgen::providers::{BlockState, BlockStateProvider, WeightedBlockState};
 pub use worldgen::{
     Biome, BiomeSelector, CarverFloatRange, CarvingStep, CaveCarverConfig, ConfiguredCarver,

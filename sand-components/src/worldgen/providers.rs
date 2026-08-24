@@ -18,6 +18,7 @@ use crate::registry::BlockId;
 use crate::resource_location::ResourceLocation;
 use crate::validation;
 
+#[doc = "**API Contract:** Run `sand api show sand::component::BlockState` for the canonical contract."]
 /// A concrete block state: a block identifier plus optional property values.
 ///
 /// This is the datapack JSON form used by structure processors and feature
@@ -40,6 +41,7 @@ pub struct BlockState {
 
 impl BlockState {
     /// Create a block state with no property overrides.
+    #[doc = "**API Contract:** Run `sand api show sand::component::BlockState::new` for the canonical contract."]
     pub fn new(block: BlockId) -> Self {
         Self {
             block,
@@ -48,12 +50,14 @@ impl BlockState {
     }
 
     /// Set a block-state property (deterministically ordered on export).
+    #[doc = "**API Contract:** Run `sand api show sand::component::BlockState::property` for the canonical contract."]
     pub fn property(mut self, key: impl Into<String>, value: impl Into<String>) -> Self {
         self.properties.insert(key.into(), value.into());
         self
     }
 
     /// The block this state refers to.
+    #[doc = "**API Contract:** Run `sand api show sand::component::BlockState::block` for the canonical contract."]
     pub fn block(&self) -> &BlockId {
         &self.block
     }
@@ -97,6 +101,7 @@ impl BlockState {
     }
 }
 
+#[doc = "**API Contract:** Run `sand api show sand::component::WeightedBlockState` for the canonical contract."]
 /// A weighted entry of a [`BlockStateProvider::Weighted`] provider.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct WeightedBlockState {
@@ -106,27 +111,41 @@ pub struct WeightedBlockState {
 
 impl WeightedBlockState {
     /// Create a weighted block-state entry. `weight` must be at least 1.
+    #[doc = "**API Contract:** Run `sand api show sand::component::WeightedBlockState::new` for the canonical contract."]
     pub fn new(state: BlockState, weight: u32) -> Self {
         Self { state, weight }
     }
 }
 
+#[doc = "**API Contract:** Run `sand api show sand::component::BlockStateProvider` for the canonical contract."]
 /// A typed block-state provider used by worldgen feature configs.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum BlockStateProvider {
+    #[doc = "**API Contract:** Run `sand api show sand::component::BlockStateProvider::Simple` for the canonical contract."]
     /// `minecraft:simple_state_provider` — always the same block state.
-    Simple(BlockState),
+    Simple(
+        #[doc = "The `Simple` variant carries the value described by its variant semantics: `minecraft:simple_state_provider` — always the same block state."]
+        #[doc = "**API Contract:** Run `sand api show sand::component::BlockStateProvider::Simple::0` for the canonical contract."]
+        BlockState,
+    ),
+    #[doc = "**API Contract:** Run `sand api show sand::component::BlockStateProvider::Weighted` for the canonical contract."]
     /// `minecraft:weighted_state_provider` — a weighted random choice.
-    Weighted(Vec<WeightedBlockState>),
+    Weighted(
+        #[doc = "The `Weighted` variant carries the value described by its variant semantics: `minecraft:weighted_state_provider` — a weighted random choice."]
+        #[doc = "**API Contract:** Run `sand api show sand::component::BlockStateProvider::Weighted::0` for the canonical contract."]
+        Vec<WeightedBlockState>,
+    ),
 }
 
 impl BlockStateProvider {
     /// Convenience constructor for a `minecraft:simple_state_provider`.
+    #[doc = "**API Contract:** Run `sand api show sand::component::BlockStateProvider::simple` for the canonical contract."]
     pub fn simple(state: BlockState) -> Self {
         Self::Simple(state)
     }
 
     /// Convenience constructor for a `minecraft:weighted_state_provider`.
+    #[doc = "**API Contract:** Run `sand api show sand::component::BlockStateProvider::weighted` for the canonical contract."]
     pub fn weighted(entries: impl IntoIterator<Item = WeightedBlockState>) -> Self {
         Self::Weighted(entries.into_iter().collect())
     }
@@ -192,19 +211,36 @@ impl BlockStateProvider {
 const MIN_ANCHOR: i32 = -2032;
 const MAX_ANCHOR: i32 = 2031;
 
+#[doc = "**API Contract:** Run `sand api show sand::component::VerticalAnchor` for the canonical contract."]
 /// A vanilla vertical anchor (`{"absolute": 0}`, `{"above_bottom": 8}`, …).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum VerticalAnchor {
+    #[doc = "**API Contract:** Run `sand api show sand::component::VerticalAnchor::Absolute` for the canonical contract."]
     /// An absolute Y coordinate.
-    Absolute(i32),
+    Absolute(
+        #[doc = "The `Absolute` variant carries the value described by its variant semantics: An absolute Y coordinate."]
+        #[doc = "**API Contract:** Run `sand api show sand::component::VerticalAnchor::Absolute::0` for the canonical contract."]
+        i32,
+    ),
+    #[doc = "**API Contract:** Run `sand api show sand::component::VerticalAnchor::AboveBottom` for the canonical contract."]
     /// An offset above the dimension's minimum build height.
-    AboveBottom(i32),
+    AboveBottom(
+        #[doc = "The `AboveBottom` variant carries the value described by its variant semantics: An offset above the dimension's minimum build height."]
+        #[doc = "**API Contract:** Run `sand api show sand::component::VerticalAnchor::AboveBottom::0` for the canonical contract."]
+        i32,
+    ),
+    #[doc = "**API Contract:** Run `sand api show sand::component::VerticalAnchor::BelowTop` for the canonical contract."]
     /// An offset below the dimension's maximum build height.
-    BelowTop(i32),
+    BelowTop(
+        #[doc = "The `BelowTop` variant carries the value described by its variant semantics: An offset below the dimension's maximum build height."]
+        #[doc = "**API Contract:** Run `sand api show sand::component::VerticalAnchor::BelowTop::0` for the canonical contract."]
+        i32,
+    ),
 }
 
 impl VerticalAnchor {
     /// Serialize to the vanilla single-key anchor object.
+    #[doc = "**API Contract:** Run `sand api show sand::component::VerticalAnchor::to_json` for the canonical contract."]
     pub fn to_json(&self) -> Value {
         let (key, value) = match self {
             Self::Absolute(value) => ("absolute", *value),
@@ -243,36 +279,61 @@ impl VerticalAnchor {
     }
 }
 
+#[doc = "**API Contract:** Run `sand api show sand::component::HeightProvider` for the canonical contract."]
 /// A vanilla height provider.
 ///
 /// [`HeightProvider::Raw`] is the explicit escape hatch for provider types
 /// Sand does not model yet (for example `weighted_list`).
 #[derive(Debug, Clone, PartialEq)]
 pub enum HeightProvider {
+    #[doc = "**API Contract:** Run `sand api show sand::component::HeightProvider::Constant` for the canonical contract."]
     /// A constant anchor, emitted using the vanilla inline shorthand.
-    Constant(VerticalAnchor),
+    Constant(
+        #[doc = "The `Constant` variant carries the value described by its variant semantics: A constant anchor, emitted using the vanilla inline shorthand."]
+        #[doc = "**API Contract:** Run `sand api show sand::component::HeightProvider::Constant::0` for the canonical contract."]
+        VerticalAnchor,
+    ),
+    #[doc = "**API Contract:** Run `sand api show sand::component::HeightProvider::Uniform` for the canonical contract."]
     /// A uniformly sampled inclusive anchor range.
     Uniform {
+        /// `min_inclusive` provides the min inclusive when a uniformly sampled inclusive anchor range.
+        #[doc = "**API Contract:** Run `sand api show sand::component::HeightProvider::Uniform::min_inclusive` for the canonical contract."]
         min_inclusive: VerticalAnchor,
+        /// `max_inclusive` provides the max inclusive when a uniformly sampled inclusive anchor range.
+        #[doc = "**API Contract:** Run `sand api show sand::component::HeightProvider::Uniform::max_inclusive` for the canonical contract."]
         max_inclusive: VerticalAnchor,
     },
+    #[doc = "**API Contract:** Run `sand api show sand::component::HeightProvider::Trapezoid` for the canonical contract."]
     /// A trapezoidal distribution between two anchors.
     Trapezoid {
+        /// `min_inclusive` provides the min inclusive when a trapezoidal distribution between two anchors.
+        #[doc = "**API Contract:** Run `sand api show sand::component::HeightProvider::Trapezoid::min_inclusive` for the canonical contract."]
         min_inclusive: VerticalAnchor,
+        /// `max_inclusive` provides the max inclusive when a trapezoidal distribution between two anchors.
+        #[doc = "**API Contract:** Run `sand api show sand::component::HeightProvider::Trapezoid::max_inclusive` for the canonical contract."]
         max_inclusive: VerticalAnchor,
+        /// `plateau` provides the plateau when a trapezoidal distribution between two anchors.
+        #[doc = "**API Contract:** Run `sand api show sand::component::HeightProvider::Trapezoid::plateau` for the canonical contract."]
         plateau: i32,
     },
+    #[doc = "**API Contract:** Run `sand api show sand::component::HeightProvider::Raw` for the canonical contract."]
     /// An explicitly raw height provider object.
-    Raw(RawJson),
+    Raw(
+        #[doc = "The `Raw` variant carries the value described by its variant semantics: An explicitly raw height provider object."]
+        #[doc = "**API Contract:** Run `sand api show sand::component::HeightProvider::Raw::0` for the canonical contract."]
+        RawJson,
+    ),
 }
 
 impl HeightProvider {
     /// A constant absolute-Y height provider.
+    #[doc = "**API Contract:** Run `sand api show sand::component::HeightProvider::absolute` for the canonical contract."]
     pub fn absolute(y: i32) -> Self {
         Self::Constant(VerticalAnchor::Absolute(y))
     }
 
     /// Serialize to the vanilla height provider JSON.
+    #[doc = "**API Contract:** Run `sand api show sand::component::HeightProvider::to_json` for the canonical contract."]
     pub fn to_json(&self) -> Value {
         match self {
             Self::Constant(anchor) => anchor.to_json(),
@@ -372,19 +433,33 @@ fn require_ordered_anchors(
     Ok(())
 }
 
+#[doc = "**API Contract:** Run `sand api show sand::component::Heightmap` for the canonical contract."]
 /// A vanilla chunk heightmap selector.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Heightmap {
+    #[doc = "Selects the world surface wg form in this typed Minecraft component schema."]
+    #[doc = "**API Contract:** Run `sand api show sand::component::Heightmap::WorldSurfaceWg` for the canonical contract."]
     WorldSurfaceWg,
+    #[doc = "Selects the world surface form in this typed Minecraft component schema."]
+    #[doc = "**API Contract:** Run `sand api show sand::component::Heightmap::WorldSurface` for the canonical contract."]
     WorldSurface,
+    #[doc = "Selects the ocean floor wg form in this typed Minecraft component schema."]
+    #[doc = "**API Contract:** Run `sand api show sand::component::Heightmap::OceanFloorWg` for the canonical contract."]
     OceanFloorWg,
+    #[doc = "Selects the ocean floor form in this typed Minecraft component schema."]
+    #[doc = "**API Contract:** Run `sand api show sand::component::Heightmap::OceanFloor` for the canonical contract."]
     OceanFloor,
+    #[doc = "Selects the motion blocking form in this typed Minecraft component schema."]
+    #[doc = "**API Contract:** Run `sand api show sand::component::Heightmap::MotionBlocking` for the canonical contract."]
     MotionBlocking,
+    #[doc = "Selects the motion blocking no leaves form in this typed Minecraft component schema."]
+    #[doc = "**API Contract:** Run `sand api show sand::component::Heightmap::MotionBlockingNoLeaves` for the canonical contract."]
     MotionBlockingNoLeaves,
 }
 
 impl Heightmap {
     /// The vanilla uppercase enum name written into datapack JSON.
+    #[doc = "**API Contract:** Run `sand api show sand::component::Heightmap::as_str` for the canonical contract."]
     pub fn as_str(&self) -> &'static str {
         match self {
             Self::WorldSurfaceWg => "WORLD_SURFACE_WG",

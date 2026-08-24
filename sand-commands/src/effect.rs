@@ -8,23 +8,39 @@ use crate::error::{CommandError, CommandResult};
 use crate::render::{CommandProfile, RenderCommand, Validate};
 use crate::selector::Selector;
 
+#[doc = "**API Contract:** Run `sand api show sand::command::EffectDuration` for the canonical contract."]
 /// Minecraft's effect duration representation.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum EffectDuration {
+    #[doc = "**API Contract:** Run `sand api show sand::command::EffectDuration::Infinite` for the canonical contract."]
     /// Persist until explicitly cleared. Supported by Java 1.19.4+.
     Infinite,
+    #[doc = "**API Contract:** Run `sand api show sand::command::EffectDuration::Seconds` for the canonical contract."]
     /// An explicit whole-second duration.
-    Seconds(u32),
+    Seconds(
+        #[doc = "The `Seconds` variant carries the value described by its variant semantics: An explicit whole-second duration."]
+        #[doc = "**API Contract:** Run `sand api show sand::command::EffectDuration::Seconds::0` for the canonical contract."]
+        u32,
+    ),
+    #[doc = "**API Contract:** Run `sand api show sand::command::EffectDuration::Ticks` for the canonical contract."]
     /// Compatibility input expressed in ticks; validation requires exact
     /// divisibility by 20.
-    Ticks(u32),
+    Ticks(
+        #[doc = "The `Ticks` variant carries the value described by its variant semantics: Compatibility input expressed in ticks; validation requires exact divisibility by 20."]
+        #[doc = "**API Contract:** Run `sand api show sand::command::EffectDuration::Ticks::0` for the canonical contract."]
+        u32,
+    ),
 }
 
 impl EffectDuration {
+    /// Creates an effect duration measured in whole seconds.
+    #[doc = "**API Contract:** Run `sand api show sand::command::EffectDuration::seconds` for the canonical contract."]
     pub const fn seconds(seconds: u32) -> Self {
         Self::Seconds(seconds)
     }
 
+    /// Creates an effect duration measured in game ticks.
+    #[doc = "**API Contract:** Run `sand api show sand::command::EffectDuration::ticks` for the canonical contract."]
     pub const fn ticks(ticks: u32) -> Self {
         Self::Ticks(ticks)
     }
@@ -38,6 +54,7 @@ impl EffectDuration {
     }
 }
 
+#[doc = "**API Contract:** Run `sand api show sand::command::EffectCommand` for the canonical contract."]
 /// Structured `effect give` terminal command.
 #[derive(Debug, Clone)]
 pub struct EffectCommand {
@@ -50,6 +67,8 @@ pub struct EffectCommand {
 }
 
 impl EffectCommand {
+    /// Creates a typed effect command builder from the supplied command inputs.
+    #[doc = "**API Contract:** Run `sand api show sand::command::EffectCommand::give` for the canonical contract."]
     pub fn give(target: Selector, effect: impl Into<String>) -> Self {
         Self {
             target,
@@ -61,6 +80,8 @@ impl EffectCommand {
         }
     }
 
+    /// Uses the explicit raw give escape hatch on the effect command builder.
+    #[doc = "**API Contract:** Run `sand api show sand::command::EffectCommand::give_raw` for the canonical contract."]
     pub fn give_raw(target: Selector, effect: impl Into<String>) -> Self {
         Self {
             raw_effect: true,
@@ -68,16 +89,22 @@ impl EffectCommand {
         }
     }
 
+    /// Sets the effect duration on this command builder.
+    #[doc = "**API Contract:** Run `sand api show sand::command::EffectCommand::duration` for the canonical contract."]
     pub fn duration(mut self, duration: EffectDuration) -> Self {
         self.duration = Some(duration);
         self
     }
 
+    /// Sets the zero-based effect amplifier on this command builder.
+    #[doc = "**API Contract:** Run `sand api show sand::command::EffectCommand::amplifier` for the canonical contract."]
     pub fn amplifier(mut self, amplifier: u8) -> Self {
         self.amplifier = Some(amplifier);
         self
     }
 
+    /// Controls whether applying the effect displays particles.
+    #[doc = "**API Contract:** Run `sand api show sand::command::EffectCommand::particles` for the canonical contract."]
     pub fn particles(mut self, show_particles: bool) -> Self {
         self.show_particles = show_particles;
         self

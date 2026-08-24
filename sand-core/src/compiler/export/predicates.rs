@@ -118,10 +118,9 @@ mod tests {
     #[test]
     fn player_state_events_use_predicate_flags() {
         let dispatch: crate::events::SandEventDispatch = PlayerSwimmingEvent::dispatch();
-        let condition = match dispatch {
-            crate::events::SandEventDispatch::TickCondition(condition) => condition,
-            _ => panic!("player swimming must be tick-polled"),
-        };
+        let condition = dispatch
+            .into_tick_condition()
+            .expect("player swimming must be tick-polled");
         assert_eq!(
             sand_player_state_predicate(&condition),
             Some(("__sand/player_swimming", "is_swimming"))

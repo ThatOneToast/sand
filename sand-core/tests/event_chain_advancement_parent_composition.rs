@@ -65,10 +65,7 @@ macro_rules! submit_handler {
     ($event:ty, $path:literal, $body:literal) => {
         const _: () = {
             fn chain() -> Option<ChainEventDispatch> {
-                match <$event as SandEvent>::dispatch().into() {
-                    SandEventDispatch::Chain(chain) => Some(chain),
-                    _ => None,
-                }
+                sand_core::__private::event_dispatch_chain(<$event as SandEvent>::dispatch().into())
             }
             fn type_id() -> TypeId {
                 TypeId::of::<$event>()
@@ -109,10 +106,7 @@ submit_handler!(FirstChild, "on_first_child", "say first");
 submit_handler!(SecondChildWithWhile, "on_second_child", "say second");
 
 fn other_tick() -> Option<sand_core::events::TickEventDispatch> {
-    match OtherTickParent::dispatch().into() {
-        SandEventDispatch::Tick(tick) => Some(tick),
-        _ => None,
-    }
+    sand_core::__private::event_dispatch_tick(OtherTickParent::dispatch().into())
 }
 fn other_type_id() -> TypeId {
     TypeId::of::<OtherTickParent>()

@@ -3,22 +3,27 @@
 
 use std::fmt;
 
+#[doc = "**API Contract:** Run `sand api show sand::entity::AnyEntity` for the canonical contract."]
 /// Marker for an "any entity" (`@e`-rooted) query/context kind.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub struct AnyEntity;
 
+#[doc = "**API Contract:** Run `sand api show sand::entity::PlayerKind` for the canonical contract."]
 /// Marker for a player-only (`@a`-rooted) query/context kind.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub struct PlayerKind;
 
+#[doc = "**API Contract:** Run `sand api show sand::entity::ZombieKind` for the canonical contract."]
 /// Marker for a typed vanilla Zombie.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub struct ZombieKind;
 
+#[doc = "**API Contract:** Run `sand api show sand::entity::MarkerKind` for the canonical contract."]
 /// Marker for a typed vanilla marker entity.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub struct MarkerKind;
 
+#[doc = "**API Contract:** Run `sand api show sand::entity::EntityKind` for the canonical contract."]
 /// A query/context entity kind.
 ///
 /// Sealed: only [`AnyEntity`] and [`PlayerKind`] implement it today.
@@ -26,6 +31,7 @@ pub struct MarkerKind;
 /// follow-up work — see issue #228, which builds entity operations and
 /// blueprints on top of this foundation.
 pub trait EntityKind: sealed::Sealed + fmt::Debug + Clone + Copy + Default + 'static {
+    #[doc = "**API Contract:** Run `sand api show sand::entity::EntityKind::LABEL` for the canonical contract."]
     /// Short label used in generated function paths and diagnostics.
     const LABEL: &'static str;
 }
@@ -46,12 +52,14 @@ impl EntityKind for MarkerKind {
     const LABEL: &'static str = "marker";
 }
 
+#[doc = "**API Contract:** Run `sand api show sand::entity::KnownEntityKind` for the canonical contract."]
 /// An entity kind with one statically known vanilla/custom entity type.
 ///
 /// Archetypes require this stronger bound because their adoption selector and
 /// summon command must have a concrete typed entity type.
 pub trait KnownEntityKind: EntityKind {
     /// Validated entity type used by summon/adoption lowering.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::KnownEntityKind::entity_type` for the canonical contract."]
     fn entity_type() -> sand_components::EntityTypeId;
 }
 
@@ -76,6 +84,7 @@ impl KnownEntityKind for MarkerKind {
     }
 }
 
+#[doc = "**API Contract:** Run `sand api show sand::entity::LivingEntityKind` for the canonical contract."]
 /// Capability implemented by living entities, including players.
 ///
 /// This enables typed health observation, effects, damage, and safe
@@ -86,6 +95,7 @@ pub trait LivingEntityKind: KnownEntityKind + sealed::Living {}
 impl LivingEntityKind for PlayerKind {}
 impl LivingEntityKind for ZombieKind {}
 
+#[doc = "**API Contract:** Run `sand api show sand::entity::MutableLivingEntityKind` for the canonical contract."]
 /// A non-player living entity whose native data and attributes may be mutated.
 ///
 /// `PlayerKind` intentionally does not implement this trait, structurally
@@ -95,6 +105,7 @@ pub trait MutableLivingEntityKind: LivingEntityKind + sealed::MutableLiving {}
 
 impl MutableLivingEntityKind for ZombieKind {}
 
+#[doc = "**API Contract:** Run `sand api show sand::entity::SafeEntityDataWriteKind` for the canonical contract."]
 /// A non-player entity kind that permits stable typed entity-NBT writes.
 ///
 /// This capability is intentionally absent from [`PlayerKind`].

@@ -45,6 +45,7 @@ pub struct FunctionPointerTypeEntry {
 }
 inventory::collect!(FunctionPointerTypeEntry);
 
+#[doc = "**API Contract:** Run `sand api show sand::command::IntoFunctionRef` for the canonical contract."]
 /// Trait for types that can be resolved to a `function <id>` command string.
 ///
 /// This enables `cmd::call(...)` to accept local function pointers,
@@ -67,9 +68,11 @@ inventory::collect!(FunctionPointerTypeEntry);
 /// will panic with a clear message.
 pub trait IntoFunctionRef {
     /// Resolve to a complete `function <id>` Minecraft command string.
+    #[doc = "**API Contract:** Run `sand api show sand::command::IntoFunctionRef::into_function_command` for the canonical contract."]
     fn into_function_command(self) -> String;
 
     /// Resolve to just the `namespace:path` resource location string.
+    #[doc = "**API Contract:** Run `sand api show sand::command::IntoFunctionRef::into_function_id` for the canonical contract."]
     fn into_function_id(self) -> String;
 }
 
@@ -446,7 +449,7 @@ pub enum EventDispatch {
         /// the other factories — exactly one returns `Some`.
         make_chain: fn() -> Option<crate::events::ChainEventDispatch>,
         /// Returns `Some(TrackedTransition)` when using
-        /// `SandEventDispatch::Tracked(...)`. Mutually exclusive with the
+        /// Sand's compiler-owned tracked dispatch. Mutually exclusive with the
         /// other factories — exactly one returns `Some`. Generic `SandEvent`
         /// types (e.g. `EffectStarted<Speed>`) reach the shared transition
         /// provider backend through this factory rather than macro-level

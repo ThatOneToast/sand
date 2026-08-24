@@ -7,18 +7,22 @@ use crate::error::{Result, SandError};
 use crate::registry::{BlockId, EntityTypeId, FunctionId, ItemId, TagId, VillagerTradeId};
 use crate::resource_location::ResourceLocation;
 
+#[doc = "**API Contract:** Run `sand api show sand::component::Tag` for the canonical contract."]
 /// A Minecraft tag file that groups entities, items, blocks, or other objects together.
 pub struct Tag {
+    #[doc = "**API Contract:** Run `sand api show sand::component::Tag::location` for the canonical contract."]
     /// The resource location for this tag.
     pub location: ResourceLocation,
     /// Whether this tag replaces existing tag definitions.
-    pub replace: bool,
+    replace: bool,
+    #[doc = "**API Contract:** Run `sand api show sand::component::Tag::values` for the canonical contract."]
     /// List of tag entries (item/block/entity IDs or tag references).
     pub values: Vec<String>,
 }
 
 impl Tag {
     /// Create a new tag with the given resource location.
+    #[doc = "**API Contract:** Run `sand api show sand::component::Tag::new` for the canonical contract."]
     pub fn new(location: ResourceLocation) -> Self {
         Self {
             location,
@@ -28,18 +32,21 @@ impl Tag {
     }
 
     /// Add a single entry to this tag.
+    #[doc = "**API Contract:** Run `sand api show sand::component::Tag::entry` for the canonical contract."]
     pub fn entry(mut self, id: impl std::fmt::Display) -> Self {
         self.values.push(id.to_string());
         self
     }
 
     /// Add a reference to another tag (prefixed with `#`).
+    #[doc = "**API Contract:** Run `sand api show sand::component::Tag::tag_ref` for the canonical contract."]
     pub fn tag_ref(mut self, tag: impl std::fmt::Display) -> Self {
         self.values.push(format!("#{tag}"));
         self
     }
 
     /// Set whether this tag replaces existing tag definitions.
+    #[doc = "**API Contract:** Run `sand api show sand::component::Tag::replace` for the canonical contract."]
     pub fn replace(mut self, v: bool) -> Self {
         self.replace = v;
         self
@@ -67,14 +74,17 @@ mod sealed {
     pub trait Sealed {}
 }
 
+#[doc = "**API Contract:** Run `sand api show sand::component::TagRegistry` for the canonical contract."]
 /// Registry marker implemented by IDs that have a vanilla datapack tag directory.
 ///
 /// This sealed mapping mirrors `registry_coverage::TAG_COVERAGE`; it prevents an
 /// item tag from being exported under `tags/block`, or from accepting a block ID
 /// by accident.
 pub trait TagRegistry: sealed::Sealed + Sized + std::fmt::Display {
+    #[doc = "**API Contract:** Run `sand api show sand::component::TagRegistry::REGISTRY_KEY` for the canonical contract."]
     /// Registry whose values the tag contains.
     const REGISTRY_KEY: &'static str;
+    #[doc = "**API Contract:** Run `sand api show sand::component::TagRegistry::TAG_DIR` for the canonical contract."]
     /// Directory relative to `data/<namespace>/`.
     const TAG_DIR: &'static str;
 }
@@ -106,6 +116,7 @@ enum EntryKind<T> {
     Raw(String),
 }
 
+#[doc = "**API Contract:** Run `sand api show sand::component::TagEntry` for the canonical contract."]
 /// One registry-checked entry in a [`TypedTag`].
 ///
 /// Required entries serialize as strings. Optional entries use vanilla's
@@ -119,6 +130,7 @@ pub struct TagEntry<T> {
 
 impl<T> TagEntry<T> {
     /// Create a required registry value entry.
+    #[doc = "**API Contract:** Run `sand api show sand::component::TagEntry::value` for the canonical contract."]
     pub fn value(value: T) -> Self {
         Self {
             kind: EntryKind::Value(value),
@@ -127,6 +139,7 @@ impl<T> TagEntry<T> {
     }
 
     /// Create an optional registry value entry.
+    #[doc = "**API Contract:** Run `sand api show sand::component::TagEntry::optional_value` for the canonical contract."]
     pub fn optional_value(value: T) -> Self {
         Self {
             kind: EntryKind::Value(value),
@@ -135,6 +148,7 @@ impl<T> TagEntry<T> {
     }
 
     /// Create a required reference to another tag in the same registry.
+    #[doc = "**API Contract:** Run `sand api show sand::component::TagEntry::tag` for the canonical contract."]
     pub fn tag(tag: TagId<T>) -> Self {
         Self {
             kind: EntryKind::Tag(tag),
@@ -143,6 +157,7 @@ impl<T> TagEntry<T> {
     }
 
     /// Create an optional reference to another tag in the same registry.
+    #[doc = "**API Contract:** Run `sand api show sand::component::TagEntry::optional_tag` for the canonical contract."]
     pub fn optional_tag(tag: TagId<T>) -> Self {
         Self {
             kind: EntryKind::Tag(tag),
@@ -151,11 +166,13 @@ impl<T> TagEntry<T> {
     }
 
     /// Validated escape hatch for a value ID or `#`-prefixed tag reference.
+    #[doc = "**API Contract:** Run `sand api show sand::component::TagEntry::raw` for the canonical contract."]
     pub fn raw(id: impl AsRef<str>) -> Result<Self> {
         Self::raw_with_required(id.as_ref(), true)
     }
 
     /// Validated optional escape hatch for a value ID or tag reference.
+    #[doc = "**API Contract:** Run `sand api show sand::component::TagEntry::optional_raw` for the canonical contract."]
     pub fn optional_raw(id: impl AsRef<str>) -> Result<Self> {
         Self::raw_with_required(id.as_ref(), false)
     }
@@ -200,6 +217,7 @@ impl<T: std::fmt::Display> TagEntry<T> {
     }
 }
 
+#[doc = "**API Contract:** Run `sand api show sand::component::TypedTag` for the canonical contract."]
 /// A tag whose entries and output directory are tied to registry type `T`.
 ///
 /// Entries retain insertion order, including duplicates, matching the legacy
@@ -223,6 +241,7 @@ pub struct TypedTag<T: TagRegistry> {
 
 impl<T: TagRegistry> TypedTag<T> {
     /// Create an empty typed tag. Add values or explicitly call `allow_empty(true)`.
+    #[doc = "**API Contract:** Run `sand api show sand::component::TypedTag::new` for the canonical contract."]
     pub fn new(location: TagId<T>) -> Self {
         Self {
             location,
@@ -234,52 +253,62 @@ impl<T: TagRegistry> TypedTag<T> {
     }
 
     /// Add a required value.
+    #[doc = "**API Contract:** Run `sand api show sand::component::TypedTag::entry` for the canonical contract."]
     pub fn entry(mut self, value: T) -> Self {
         self.values.push(TagEntry::value(value));
         self
     }
     /// Add an optional value.
+    #[doc = "**API Contract:** Run `sand api show sand::component::TypedTag::optional_entry` for the canonical contract."]
     pub fn optional_entry(mut self, value: T) -> Self {
         self.values.push(TagEntry::optional_value(value));
         self
     }
     /// Add a required reference to another tag in this registry.
+    #[doc = "**API Contract:** Run `sand api show sand::component::TypedTag::tag_ref` for the canonical contract."]
     pub fn tag_ref(mut self, tag: TagId<T>) -> Self {
         self.values.push(TagEntry::tag(tag));
         self
     }
     /// Add an optional reference to another tag in this registry.
+    #[doc = "**API Contract:** Run `sand api show sand::component::TypedTag::optional_tag_ref` for the canonical contract."]
     pub fn optional_tag_ref(mut self, tag: TagId<T>) -> Self {
         self.values.push(TagEntry::optional_tag(tag));
         self
     }
     /// Add a validated raw value or tag reference.
+    #[doc = "**API Contract:** Run `sand api show sand::component::TypedTag::raw_entry` for the canonical contract."]
     pub fn raw_entry(mut self, id: impl AsRef<str>) -> Result<Self> {
         self.values.push(TagEntry::raw(id)?);
         Ok(self)
     }
     /// Add a validated optional raw value or tag reference.
+    #[doc = "**API Contract:** Run `sand api show sand::component::TypedTag::optional_raw_entry` for the canonical contract."]
     pub fn optional_raw_entry(mut self, id: impl AsRef<str>) -> Result<Self> {
         self.values.push(TagEntry::optional_raw(id)?);
         Ok(self)
     }
     /// Add an already constructed typed entry.
+    #[doc = "**API Contract:** Run `sand api show sand::component::TypedTag::with_entry` for the canonical contract."]
     pub fn with_entry(mut self, entry: TagEntry<T>) -> Self {
         self.values.push(entry);
         self
     }
 
     /// Set vanilla's replacement flag.
+    #[doc = "**API Contract:** Run `sand api show sand::component::TypedTag::replace` for the canonical contract."]
     pub fn replace(mut self, replace: bool) -> Self {
         self.replace = replace;
         self
     }
     /// Permit or reject an empty values array. Empty tags are rejected by default.
+    #[doc = "**API Contract:** Run `sand api show sand::component::TypedTag::allow_empty` for the canonical contract."]
     pub fn allow_empty(mut self, allow: bool) -> Self {
         self.allow_empty = allow;
         self
     }
     /// Entries in deterministic insertion order. Duplicates are retained.
+    #[doc = "**API Contract:** Run `sand api show sand::component::TypedTag::values` for the canonical contract."]
     pub fn values(&self) -> &[TagEntry<T>] {
         &self.values
     }

@@ -9,17 +9,23 @@ use crate::resource_location::ResourceLocation;
 use super::types::{Ingredient, RecipeResult};
 use sand_version::ComponentFeature;
 
+#[doc = "**API Contract:** Run `sand api show sand::component::ShapelessRecipe` for the canonical contract."]
 /// Represents a shapeless crafting recipe where ingredient order and position don't matter.
 pub struct ShapelessRecipe {
+    /// `location` provides the location identifier when the variant represents a shapeless crafting recipe where ingredient order and position don't matter.
+    #[doc = "**API Contract:** Run `sand api show sand::component::ShapelessRecipe::location` for the canonical contract."]
     pub location: ResourceLocation,
-    pub category: Option<String>,
-    pub group: Option<String>,
+    category: Option<String>,
+    group: Option<String>,
+    /// `ingredients` provides the ingredients when the variant represents a shapeless crafting recipe where ingredient order and position don't matter.
+    #[doc = "**API Contract:** Run `sand api show sand::component::ShapelessRecipe::ingredients` for the canonical contract."]
     pub ingredients: Vec<Ingredient>,
-    pub result: RecipeResult,
+    result: RecipeResult,
 }
 
 impl ShapelessRecipe {
     /// Creates a new shapeless recipe with the given resource location.
+    #[doc = "**API Contract:** Run `sand api show sand::component::ShapelessRecipe::new` for the canonical contract."]
     pub fn new(location: ResourceLocation) -> Self {
         Self {
             location,
@@ -31,24 +37,28 @@ impl ShapelessRecipe {
     }
 
     /// Adds an ingredient to the recipe.
+    #[doc = "**API Contract:** Run `sand api show sand::component::ShapelessRecipe::ingredient` for the canonical contract."]
     pub fn ingredient(mut self, ingredient: Ingredient) -> Self {
         self.ingredients.push(ingredient);
         self
     }
 
     /// Sets the result item and quantity produced by this recipe.
+    #[doc = "**API Contract:** Run `sand api show sand::component::ShapelessRecipe::result` for the canonical contract."]
     pub fn result(mut self, result: RecipeResult) -> Self {
         self.result = result;
         self
     }
 
     /// Sets the recipe category for organization.
+    #[doc = "**API Contract:** Run `sand api show sand::component::ShapelessRecipe::category` for the canonical contract."]
     pub fn category(mut self, cat: impl Into<String>) -> Self {
         self.category = Some(cat.into());
         self
     }
 
     /// Sets the recipe group for organization.
+    #[doc = "**API Contract:** Run `sand api show sand::component::ShapelessRecipe::group` for the canonical contract."]
     pub fn group(mut self, g: impl Into<String>) -> Self {
         self.group = Some(g.into());
         self

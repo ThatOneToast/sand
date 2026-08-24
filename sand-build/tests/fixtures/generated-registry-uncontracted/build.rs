@@ -85,6 +85,7 @@ pub enum UncontractedRegistry {}
         "use_when": ["Calling an untyped integration"],
         "avoid_when": ["A typed Sand API accepts Item"],
         "returns": "The static namespaced item identifier.",
+        "return_type": "&'static str",
         "example": "let id = sand::vanilla::Item::Stone.resource_location();",
         "availability": ["minecraft = fixture"]
       }

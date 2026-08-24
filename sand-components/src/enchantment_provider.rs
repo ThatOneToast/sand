@@ -20,25 +20,38 @@ use crate::registry::{EnchantmentId, TagId};
 use crate::resource_location::ResourceLocation;
 use crate::validation;
 
+#[doc = "**API Contract:** Run `sand api show sand::component::EnchantmentProviderInt` for the canonical contract."]
 /// A positive integer provider used for enchantment levels and enchanting costs.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum EnchantmentProviderInt {
+    #[doc = "**API Contract:** Run `sand api show sand::component::EnchantmentProviderInt::Constant` for the canonical contract."]
     /// A fixed positive integer.
-    Constant(i32),
+    Constant(
+        #[doc = "The `Constant` variant carries the value described by its variant semantics: A fixed positive integer."]
+        #[doc = "**API Contract:** Run `sand api show sand::component::EnchantmentProviderInt::Constant::0` for the canonical contract."]
+        i32,
+    ),
+    #[doc = "**API Contract:** Run `sand api show sand::component::EnchantmentProviderInt::Uniform` for the canonical contract."]
     /// A uniformly sampled inclusive positive range.
     Uniform {
+        /// `min_inclusive` provides the min inclusive when a uniformly sampled inclusive positive range.
+        #[doc = "**API Contract:** Run `sand api show sand::component::EnchantmentProviderInt::Uniform::min_inclusive` for the canonical contract."]
         min_inclusive: i32,
+        /// `max_inclusive` provides the max inclusive when a uniformly sampled inclusive positive range.
+        #[doc = "**API Contract:** Run `sand api show sand::component::EnchantmentProviderInt::Uniform::max_inclusive` for the canonical contract."]
         max_inclusive: i32,
     },
 }
 
 impl EnchantmentProviderInt {
     /// Create a fixed integer provider.
+    #[doc = "**API Contract:** Run `sand api show sand::component::EnchantmentProviderInt::constant` for the canonical contract."]
     pub fn constant(value: i32) -> Self {
         Self::Constant(value)
     }
 
     /// Create a uniformly sampled inclusive integer provider.
+    #[doc = "**API Contract:** Run `sand api show sand::component::EnchantmentProviderInt::uniform` for the canonical contract."]
     pub fn uniform(min_inclusive: i32, max_inclusive: i32) -> Self {
         Self::Uniform {
             min_inclusive,
@@ -94,19 +107,36 @@ impl From<i32> for EnchantmentProviderInt {
     }
 }
 
+#[doc = "**API Contract:** Run `sand api show sand::component::EnchantmentSelection` for the canonical contract."]
 /// A typed set of enchantments accepted by cost-based providers.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum EnchantmentSelection {
+    #[doc = "**API Contract:** Run `sand api show sand::component::EnchantmentSelection::Single` for the canonical contract."]
     /// One concrete enchantment.
-    Single(EnchantmentId),
+    Single(
+        #[doc = "The `Single` variant carries the value described by its variant semantics: One concrete enchantment."]
+        #[doc = "**API Contract:** Run `sand api show sand::component::EnchantmentSelection::Single::0` for the canonical contract."]
+        EnchantmentId,
+    ),
+    #[doc = "**API Contract:** Run `sand api show sand::component::EnchantmentSelection::List` for the canonical contract."]
     /// A non-empty list of concrete enchantments.
-    List(Vec<EnchantmentId>),
+    List(
+        #[doc = "The `List` variant carries the value described by its variant semantics: A non-empty list of concrete enchantments."]
+        #[doc = "**API Contract:** Run `sand api show sand::component::EnchantmentSelection::List::0` for the canonical contract."]
+        Vec<EnchantmentId>,
+    ),
+    #[doc = "**API Contract:** Run `sand api show sand::component::EnchantmentSelection::Tag` for the canonical contract."]
     /// Every enchantment in a typed enchantment tag.
-    Tag(TagId<EnchantmentId>),
+    Tag(
+        #[doc = "The `Tag` variant carries the value described by its variant semantics: Every enchantment in a typed enchantment tag."]
+        #[doc = "**API Contract:** Run `sand api show sand::component::EnchantmentSelection::Tag::0` for the canonical contract."]
+        TagId<EnchantmentId>,
+    ),
 }
 
 impl EnchantmentSelection {
     /// Select one concrete enchantment.
+    #[doc = "**API Contract:** Run `sand api show sand::component::EnchantmentSelection::one` for the canonical contract."]
     pub fn one(enchantment: EnchantmentId) -> Self {
         Self::Single(enchantment)
     }
@@ -114,11 +144,13 @@ impl EnchantmentSelection {
     /// Select multiple concrete enchantments.
     ///
     /// Empty collections are rejected during component validation.
+    #[doc = "**API Contract:** Run `sand api show sand::component::EnchantmentSelection::many` for the canonical contract."]
     pub fn many(enchantments: impl IntoIterator<Item = EnchantmentId>) -> Self {
         Self::List(enchantments.into_iter().collect())
     }
 
     /// Select all enchantments in a tag.
+    #[doc = "**API Contract:** Run `sand api show sand::component::EnchantmentSelection::tag` for the canonical contract."]
     pub fn tag(tag: TagId<EnchantmentId>) -> Self {
         Self::Tag(tag)
     }
@@ -200,6 +232,7 @@ enum EnchantmentProviderKind {
     Raw(RawJson),
 }
 
+#[doc = "**API Contract:** Run `sand api show sand::component::EnchantmentProvider` for the canonical contract."]
 /// A data-driven enchantment provider definition (Minecraft 1.21+).
 #[derive(Debug, Clone, PartialEq)]
 pub struct EnchantmentProvider {
@@ -209,6 +242,7 @@ pub struct EnchantmentProvider {
 
 impl EnchantmentProvider {
     /// Always provide one enchantment at a fixed or randomized positive level.
+    #[doc = "**API Contract:** Run `sand api show sand::component::EnchantmentProvider::single` for the canonical contract."]
     pub fn single(
         location: ResourceLocation,
         enchantment: EnchantmentId,
@@ -224,6 +258,7 @@ impl EnchantmentProvider {
     }
 
     /// Choose compatible enchantments from a typed set using an enchanting cost.
+    #[doc = "**API Contract:** Run `sand api show sand::component::EnchantmentProvider::by_cost` for the canonical contract."]
     pub fn by_cost(
         location: ResourceLocation,
         enchantments: impl Into<EnchantmentSelection>,
@@ -239,6 +274,7 @@ impl EnchantmentProvider {
     }
 
     /// Choose enchantments using a cost influenced by local difficulty.
+    #[doc = "**API Contract:** Run `sand api show sand::component::EnchantmentProvider::by_cost_with_difficulty` for the canonical contract."]
     pub fn by_cost_with_difficulty(
         location: ResourceLocation,
         enchantments: impl Into<EnchantmentSelection>,
@@ -259,6 +295,7 @@ impl EnchantmentProvider {
     ///
     /// The export boundary still requires an object with a valid namespaced
     /// `type` string. Nested fields remain intentionally opaque.
+    #[doc = "**API Contract:** Run `sand api show sand::component::EnchantmentProvider::raw` for the canonical contract."]
     pub fn raw(location: ResourceLocation, provider: RawJson) -> Self {
         Self {
             location,

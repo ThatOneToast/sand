@@ -20,6 +20,7 @@ const KIND: &str = "worldgen/structure_set";
 
 const TYPED_FIELDS: &[&str] = &["structures", "placement"];
 
+#[doc = "**API Contract:** Run `sand api show sand::component::StructureEntry` for the canonical contract."]
 /// A weighted `worldgen/structure` reference inside a structure set.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct StructureEntry {
@@ -29,6 +30,7 @@ pub struct StructureEntry {
 
 impl StructureEntry {
     /// `weight` must be at least 1; checked on export.
+    #[doc = "**API Contract:** Run `sand api show sand::component::StructureEntry::new` for the canonical contract."]
     pub fn new(structure: StructureId, weight: u32) -> Self {
         Self { structure, weight }
     }
@@ -59,6 +61,7 @@ impl StructureEntry {
     }
 }
 
+#[doc = "**API Contract:** Run `sand api show sand::component::ExclusionZone` for the canonical contract."]
 /// The exclusion-zone chunk count that another structure set must keep clear
 /// around a placement.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -72,6 +75,7 @@ impl ExclusionZone {
     /// structure set (kept as a string since vanilla exclusion zones may
     /// reference sets defined outside the current pack). `chunk_count` must
     /// be at least 1.
+    #[doc = "**API Contract:** Run `sand api show sand::component::ExclusionZone::new` for the canonical contract."]
     pub fn new(other_set: impl Into<String>, chunk_count: u32) -> Self {
         Self {
             other_set: other_set.into(),
@@ -105,17 +109,27 @@ impl ExclusionZone {
     }
 }
 
+#[doc = "**API Contract:** Run `sand api show sand::component::FrequencyReductionMethod` for the canonical contract."]
 /// The frequency reduction curve for random-spread placement.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum FrequencyReductionMethod {
+    #[doc = "Selects the default form in this typed Minecraft component schema."]
+    #[doc = "**API Contract:** Run `sand api show sand::component::FrequencyReductionMethod::Default` for the canonical contract."]
     Default,
+    #[doc = "Selects the legacy type1 form in this typed Minecraft component schema."]
+    #[doc = "**API Contract:** Run `sand api show sand::component::FrequencyReductionMethod::LegacyType1` for the canonical contract."]
     LegacyType1,
+    #[doc = "Selects the legacy type2 form in this typed Minecraft component schema."]
+    #[doc = "**API Contract:** Run `sand api show sand::component::FrequencyReductionMethod::LegacyType2` for the canonical contract."]
     LegacyType2,
+    #[doc = "Selects the legacy type3 form in this typed Minecraft component schema."]
+    #[doc = "**API Contract:** Run `sand api show sand::component::FrequencyReductionMethod::LegacyType3` for the canonical contract."]
     LegacyType3,
 }
 
 impl FrequencyReductionMethod {
     /// The vanilla string written into datapack JSON.
+    #[doc = "**API Contract:** Run `sand api show sand::component::FrequencyReductionMethod::as_str` for the canonical contract."]
     pub fn as_str(&self) -> &'static str {
         match self {
             Self::Default => "default",
@@ -126,15 +140,21 @@ impl FrequencyReductionMethod {
     }
 }
 
+#[doc = "**API Contract:** Run `sand api show sand::component::SpreadType` for the canonical contract."]
 /// How random-spread candidate chunks are chosen inside each spacing cell.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum SpreadType {
+    #[doc = "Selects the linear form in this typed Minecraft component schema."]
+    #[doc = "**API Contract:** Run `sand api show sand::component::SpreadType::Linear` for the canonical contract."]
     Linear,
+    #[doc = "Selects the triangular form in this typed Minecraft component schema."]
+    #[doc = "**API Contract:** Run `sand api show sand::component::SpreadType::Triangular` for the canonical contract."]
     Triangular,
 }
 
 impl SpreadType {
     /// The vanilla string written into datapack JSON.
+    #[doc = "**API Contract:** Run `sand api show sand::component::SpreadType::as_str` for the canonical contract."]
     pub fn as_str(&self) -> &'static str {
         match self {
             Self::Linear => "linear",
@@ -143,30 +163,54 @@ impl SpreadType {
     }
 }
 
+#[doc = "**API Contract:** Run `sand api show sand::component::StructurePlacement` for the canonical contract."]
 /// A structure-set placement strategy.
 #[derive(Debug, Clone, PartialEq)]
 pub enum StructurePlacement {
+    #[doc = "**API Contract:** Run `sand api show sand::component::StructurePlacement::RandomSpread` for the canonical contract."]
     /// `minecraft:random_spread` — an evenly distributed grid with jitter.
     RandomSpread {
+        /// `spacing` provides the spacing when `minecraft:random_spread` — an evenly distributed grid with jitter.
+        #[doc = "**API Contract:** Run `sand api show sand::component::StructurePlacement::RandomSpread::spacing` for the canonical contract."]
         spacing: u32,
+        /// `separation` provides the separation when `minecraft:random_spread` — an evenly distributed grid with jitter.
+        #[doc = "**API Contract:** Run `sand api show sand::component::StructurePlacement::RandomSpread::separation` for the canonical contract."]
         separation: u32,
+        /// `salt` provides the salt when `minecraft:random_spread` — an evenly distributed grid with jitter.
+        #[doc = "**API Contract:** Run `sand api show sand::component::StructurePlacement::RandomSpread::salt` for the canonical contract."]
         salt: i32,
+        /// `spread_type` provides the spread type when `minecraft:random_spread` — an evenly distributed grid with jitter.
+        #[doc = "**API Contract:** Run `sand api show sand::component::StructurePlacement::RandomSpread::spread_type` for the canonical contract."]
         spread_type: SpreadType,
+        /// `frequency` optionally supplies the placement frequency for this random-spread strategy.
+        #[doc = "**API Contract:** Run `sand api show sand::component::StructurePlacement::RandomSpread::frequency` for the canonical contract."]
         frequency: Option<f32>,
+        /// `frequency_reduction_method` optionally provides the frequency reduction method when `minecraft:random_spread` — an evenly distributed grid with jitter.
+        #[doc = "**API Contract:** Run `sand api show sand::component::StructurePlacement::RandomSpread::frequency_reduction_method` for the canonical contract."]
         frequency_reduction_method: Option<FrequencyReductionMethod>,
     },
+    #[doc = "**API Contract:** Run `sand api show sand::component::StructurePlacement::ConcentricRings` for the canonical contract."]
     /// `minecraft:concentric_rings` — rings of candidate chunks around the
     /// world origin, as used by strongholds.
     ConcentricRings {
+        /// `distance` provides the distance when `minecraft:concentric_rings` — rings of candidate chunks around the world origin, as used by strongholds.
+        #[doc = "**API Contract:** Run `sand api show sand::component::StructurePlacement::ConcentricRings::distance` for the canonical contract."]
         distance: u32,
+        /// `spread` provides the spread when `minecraft:concentric_rings` — rings of candidate chunks around the world origin, as used by strongholds.
+        #[doc = "**API Contract:** Run `sand api show sand::component::StructurePlacement::ConcentricRings::spread` for the canonical contract."]
         spread: u32,
+        /// `count` provides the count when `minecraft:concentric_rings` — rings of candidate chunks around the world origin, as used by strongholds.
+        #[doc = "**API Contract:** Run `sand api show sand::component::StructurePlacement::ConcentricRings::count` for the canonical contract."]
         count: u32,
+        /// `preferred_biomes` optionally provides the preferred biomes when `minecraft:concentric_rings` — rings of candidate chunks around the world origin, as used by strongholds.
+        #[doc = "**API Contract:** Run `sand api show sand::component::StructurePlacement::ConcentricRings::preferred_biomes` for the canonical contract."]
         preferred_biomes: Option<Vec<String>>,
     },
 }
 
 impl StructurePlacement {
     /// A random-spread placement with vanilla village-like defaults.
+    #[doc = "**API Contract:** Run `sand api show sand::component::StructurePlacement::random_spread` for the canonical contract."]
     pub fn random_spread(spacing: u32, separation: u32, salt: i32) -> Self {
         Self::RandomSpread {
             spacing,
@@ -179,6 +223,7 @@ impl StructurePlacement {
     }
 
     /// A concentric-rings placement with vanilla stronghold-like defaults.
+    #[doc = "**API Contract:** Run `sand api show sand::component::StructurePlacement::concentric_rings` for the canonical contract."]
     pub fn concentric_rings(distance: u32, spread: u32, count: u32) -> Self {
         Self::ConcentricRings {
             distance,
@@ -329,6 +374,7 @@ impl StructurePlacement {
     }
 }
 
+#[doc = "**API Contract:** Run `sand api show sand::component::StructureSet` for the canonical contract."]
 /// A structure set definition (`data/<namespace>/worldgen/structure_set/<id>.json`).
 ///
 /// ```
@@ -354,6 +400,7 @@ pub struct StructureSet {
 
 impl StructureSet {
     /// Create a structure set from an explicit weighted structure list and placement.
+    #[doc = "**API Contract:** Run `sand api show sand::component::StructureSet::new` for the canonical contract."]
     pub fn new(
         location: ResourceLocation,
         structures: impl IntoIterator<Item = StructureEntry>,
@@ -369,6 +416,7 @@ impl StructureSet {
     }
 
     /// Convenience constructor for a single-structure random-spread set.
+    #[doc = "**API Contract:** Run `sand api show sand::component::StructureSet::random_spread` for the canonical contract."]
     pub fn random_spread(
         location: ResourceLocation,
         structure: StructureId,
@@ -384,6 +432,7 @@ impl StructureSet {
     }
 
     /// Convenience constructor for a single-structure concentric-rings set.
+    #[doc = "**API Contract:** Run `sand api show sand::component::StructureSet::concentric_rings` for the canonical contract."]
     pub fn concentric_rings(
         location: ResourceLocation,
         structure: StructureId,
@@ -398,21 +447,29 @@ impl StructureSet {
         )
     }
 
+    /// Sets the Minecraft structures property on this typed structure set definition and returns the updated builder.
+    #[doc = "**API Contract:** Run `sand api show sand::component::StructureSet::structures` for the canonical contract."]
     pub fn structures(mut self, structures: impl IntoIterator<Item = StructureEntry>) -> Self {
         self.structures = structures.into_iter().collect();
         self
     }
 
+    /// Sets the Minecraft add structure property on this typed structure set definition and returns the updated builder.
+    #[doc = "**API Contract:** Run `sand api show sand::component::StructureSet::add_structure` for the canonical contract."]
     pub fn add_structure(mut self, entry: StructureEntry) -> Self {
         self.structures.push(entry);
         self
     }
 
+    /// Sets the Minecraft placement property on this typed structure set definition and returns the updated builder.
+    #[doc = "**API Contract:** Run `sand api show sand::component::StructureSet::placement` for the canonical contract."]
     pub fn placement(mut self, placement: StructurePlacement) -> Self {
         self.placement = placement;
         self
     }
 
+    /// Sets the Minecraft exclusion zone property on this typed structure set definition and returns the updated builder.
+    #[doc = "**API Contract:** Run `sand api show sand::component::StructureSet::exclusion_zone` for the canonical contract."]
     pub fn exclusion_zone(mut self, zone: ExclusionZone) -> Self {
         self.exclusion_zone = Some(zone);
         self
@@ -421,6 +478,7 @@ impl StructureSet {
     /// Add a modded or version-specific field not represented by the typed API.
     ///
     /// Typed field names cannot be overridden through this escape hatch.
+    #[doc = "**API Contract:** Run `sand api show sand::component::StructureSet::raw_field` for the canonical contract."]
     pub fn raw_field(mut self, key: impl Into<String>, value: RawJson) -> Self {
         self.raw_fields.insert(key.into(), value);
         self

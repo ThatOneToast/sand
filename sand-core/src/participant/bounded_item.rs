@@ -194,6 +194,7 @@ impl BoundedItemSchema {
     }
 }
 
+#[doc = "**API Contract:** Run `sand api show sand::participant::BoundedItemSnapshot` for the canonical contract."]
 /// A read-only handle to a bounded, per-subject item snapshot — the
 /// item-side counterpart of [`ItemSnapshot`] for values that must survive
 /// across a `.within(...)` correlation window rather than just one
@@ -233,12 +234,14 @@ impl BoundedItemSnapshot {
     /// itself is, only how long the copy remains readable (see
     /// [`crate::participant::ParticipantLifetime::BoundedWindow`] for the
     /// lifetime half of that distinction).
+    #[doc = "**API Contract:** Run `sand api show sand::participant::BoundedItemSnapshot::reliability` for the canonical contract."]
     pub fn reliability(&self) -> SnapshotReliability {
         self.reliability
     }
 
     /// The [`crate::item::ItemLocation::kind`] the *source* snapshot was
     /// originally captured from.
+    #[doc = "**API Contract:** Run `sand api show sand::participant::BoundedItemSnapshot::source_kind` for the canonical contract."]
     pub fn source_kind(&self) -> &'static str {
         self.source_kind
     }
@@ -249,6 +252,7 @@ impl BoundedItemSnapshot {
     /// conflated with "the window has not been refreshed yet": the persist
     /// function always writes a definite present/absent value on every
     /// source occurrence.
+    #[doc = "**API Contract:** Run `sand api show sand::participant::BoundedItemSnapshot::is_present` for the canonical contract."]
     pub fn is_present(&self) -> crate::condition::Condition {
         let base = self.schema.staged_base();
         crate::condition::Condition::nbt_exists(
@@ -258,27 +262,32 @@ impl BoundedItemSnapshot {
     }
 
     /// The negation of [`Self::is_present`].
+    #[doc = "**API Contract:** Run `sand api show sand::participant::BoundedItemSnapshot::is_absent` for the canonical contract."]
     pub fn is_absent(&self) -> crate::condition::Condition {
         crate::condition::Condition::negate(self.is_present())
     }
 
     /// The typed NBT path to the persisted item compound.
+    #[doc = "**API Contract:** Run `sand api show sand::participant::BoundedItemSnapshot::item_path` for the canonical contract."]
     pub fn item_path(&self) -> NbtRef<UntypedNbt> {
         self.schema.staged_base().field("item")
     }
 
     /// The typed NBT path to the persisted item's `id` field.
+    #[doc = "**API Contract:** Run `sand api show sand::participant::BoundedItemSnapshot::id_path` for the canonical contract."]
     pub fn id_path(&self) -> NbtRef<UntypedNbt> {
         self.item_path().field("id")
     }
 
     /// The typed NBT path to the persisted item's `count` field.
+    #[doc = "**API Contract:** Run `sand api show sand::participant::BoundedItemSnapshot::count_path` for the canonical contract."]
     pub fn count_path(&self) -> NbtRef<UntypedNbt> {
         self.item_path().field("count")
     }
 
     /// The typed NBT path to the persisted item's version-appropriate
     /// component/tag data.
+    #[doc = "**API Contract:** Run `sand api show sand::participant::BoundedItemSnapshot::components_path` for the canonical contract."]
     pub fn components_path(&self) -> NbtRef<UntypedNbt> {
         self.item_path().field("components")
     }
@@ -294,6 +303,7 @@ impl BoundedItemSnapshot {
     /// durable per-subject copy; clearing the durable copy requires the
     /// subject's slot and therefore a macro call, which the export pipeline
     /// generates for window expiry (see `expire_macro_body`).
+    #[doc = "**API Contract:** Run `sand api show sand::participant::BoundedItemSnapshot::reset_commands` for the canonical contract."]
     pub fn reset_commands(&self) -> Vec<String> {
         reset_to_absence(&self.schema.staged_base())
     }

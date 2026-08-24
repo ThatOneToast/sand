@@ -1050,8 +1050,12 @@ fn canonical_26_2_worldgen_placed_feature() {
         id("worldgen/placed_feature/scorched_shrub"),
         ConfiguredFeatureId::custom(ResourceLocation::new("canon", "scorched_shrub").unwrap()),
     )
-    .placement_modifier(serde_json::json!({"type": "minecraft:count", "count": 4}))
-    .placement_modifier(serde_json::json!({"type": "minecraft:square"}));
+    .placement_modifier(RawJson::new(
+        serde_json::json!({"type": "minecraft:count", "count": 4}),
+    ))
+    .placement_modifier(RawJson::new(
+        serde_json::json!({"type": "minecraft:square"}),
+    ));
 
     let expected = serde_json::json!({
         "feature": "canon:scorched_shrub",

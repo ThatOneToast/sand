@@ -2,6 +2,7 @@ use crate::component::{AssetContent, AssetOutput, ResourcePackComponent};
 use crate::components::font::{BitmapFont, BitmapProvider};
 use crate::sprite::{Color, gen_bar_png};
 
+#[doc = "**API Contract:** Run `sand api show sand::resourcepack::GenHudBar` for the canonical contract."]
 /// A bitmap-font progress bar whose sprite strip is **generated at build time**
 /// from color parameters rather than copied from a user-supplied PNG.
 ///
@@ -25,38 +26,48 @@ use crate::sprite::{Color, gen_bar_png};
 ///
 /// [`HudBar`]: crate::HudBar
 pub struct GenHudBar {
+    #[doc = "**API Contract:** Run `sand api show sand::resourcepack::GenHudBar::name` for the canonical contract."]
     /// Unique identifier used in diagnostics and codepoint derivation.
     pub name: &'static str,
 
+    #[doc = "**API Contract:** Run `sand api show sand::resourcepack::GenHudBar::texture_dest` for the canonical contract."]
     /// Destination sub-path inside `assets/<namespace>/textures/` (without
     /// extension), e.g. `"font/health_bar"`.
     pub texture_dest: &'static str,
 
+    #[doc = "**API Contract:** Run `sand api show sand::resourcepack::GenHudBar::unicode_start` for the canonical contract."]
     /// Override the first unicode codepoint for the bar frames.
     ///
     /// When `None` (the default), the codepoint is derived automatically from
-    /// the component name via [`bar_base_codepoint`](crate::unicode::bar_base_codepoint).
+    /// the component name via Sand's deterministic private-use codepoint allocation.
     pub unicode_start: Option<char>,
 
+    #[doc = "**API Contract:** Run `sand api show sand::resourcepack::GenHudBar::steps` for the canonical contract."]
     /// Number of frames in the generated sprite strip.
     pub steps: u32,
 
+    #[doc = "**API Contract:** Run `sand api show sand::resourcepack::GenHudBar::height` for the canonical contract."]
     /// Rendered glyph height in pixels. Also used as `frame_width` when
     /// `frame_width` is `0`.
     pub height: i32,
 
+    #[doc = "**API Contract:** Run `sand api show sand::resourcepack::GenHudBar::ascent` for the canonical contract."]
     /// Vertical offset from the baseline to the top of the glyph.
     pub ascent: i32,
 
+    #[doc = "**API Contract:** Run `sand api show sand::resourcepack::GenHudBar::font` for the canonical contract."]
     /// Name of the font file (without extension).
     pub font: &'static str,
 
+    #[doc = "**API Contract:** Run `sand api show sand::resourcepack::GenHudBar::fill` for the canonical contract."]
     /// Packed `0xRRGGBBAA` color for the filled portion of each frame.
     pub fill: u32,
 
+    #[doc = "**API Contract:** Run `sand api show sand::resourcepack::GenHudBar::empty` for the canonical contract."]
     /// Packed `0xRRGGBBAA` color for the empty / background portion.
     pub empty: u32,
 
+    #[doc = "**API Contract:** Run `sand api show sand::resourcepack::GenHudBar::frame_width` for the canonical contract."]
     /// Pixel width of each individual frame.
     ///
     /// A value of `0` means "use `height`" (produces square frames).

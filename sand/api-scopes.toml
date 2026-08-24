@@ -4,8 +4,8 @@
 # are discovered through the reachable re-export graph. Generator scopes are
 # supplied from the same declaration/schema that emits their Rust API.
 schema_version = 1
-enforced_scope_baseline = ["predicate-source", "generated-predicate-id-wrapper", "execute-when-source", "condition-source", "resource-ref-source", "generated-resource-id-wrappers", "version-source", "generated-vanilla-registries", "vfx-source", "advanced-source", "root-source"]
-pending_scope_ceiling = 29
+enforced_scope_baseline = ["predicate-source", "generated-predicate-id-wrapper", "execute-when-source", "condition-source", "resource-ref-source", "generated-resource-id-wrappers", "version-source", "generated-vanilla-registries", "vfx-source", "advanced-source", "root-source", "generated-effect-registry-enums", "generated-commands", "generated-event-markers", "generated-registry-id-wrappers", "item-source", "inventory-source", "event-source", "events-source", "entity-source", "state-source", "participant-source", "text-source", "data-source", "systems-source", "command-source", "component-source", "resourcepack-source"]
+pending_scope_ceiling = 0
 
 [[scope]]
 id = "root-source"
@@ -18,17 +18,9 @@ recursive = false
 aliases = ["sand::prelude"]
 
 [[scope]]
-id = "prelude-unassigned-source"
-canonical_module = "sand::prelude"
-state = "pending"
-tier = "ordinary"
-provider = "source"
-precedence = 0
-
-[[scope]]
 id = "command-source"
 canonical_module = "sand::command"
-state = "pending"
+state = "enforced"
 tier = "ordinary"
 provider = "source"
 aliases = ["sand::cmd", "sand::prelude"]
@@ -36,7 +28,7 @@ aliases = ["sand::cmd", "sand::prelude"]
 [[scope]]
 id = "event-source"
 canonical_module = "sand::event"
-state = "pending"
+state = "enforced"
 tier = "ordinary"
 provider = "source"
 aliases = ["sand::prelude"]
@@ -44,7 +36,7 @@ aliases = ["sand::prelude"]
 [[scope]]
 id = "events-source"
 canonical_module = "sand::events"
-state = "pending"
+state = "enforced"
 tier = "ordinary"
 provider = "source"
 precedence = 100
@@ -53,7 +45,7 @@ aliases = ["sand::prelude"]
 [[scope]]
 id = "item-source"
 canonical_module = "sand::item"
-state = "pending"
+state = "enforced"
 tier = "ordinary"
 provider = "source"
 aliases = ["sand::prelude"]
@@ -61,7 +53,7 @@ aliases = ["sand::prelude"]
 [[scope]]
 id = "inventory-source"
 canonical_module = "sand::inventory"
-state = "pending"
+state = "enforced"
 tier = "ordinary"
 provider = "source"
 precedence = 100
@@ -88,7 +80,7 @@ aliases = ["sand::component", "sand::prelude"]
 [[scope]]
 id = "state-source"
 canonical_module = "sand::state"
-state = "pending"
+state = "enforced"
 tier = "ordinary"
 provider = "source"
 aliases = ["sand::prelude"]
@@ -96,7 +88,7 @@ aliases = ["sand::prelude"]
 [[scope]]
 id = "entity-source"
 canonical_module = "sand::entity"
-state = "pending"
+state = "enforced"
 tier = "ordinary"
 provider = "source"
 aliases = ["sand::prelude"]
@@ -104,7 +96,7 @@ aliases = ["sand::prelude"]
 [[scope]]
 id = "participant-source"
 canonical_module = "sand::participant"
-state = "pending"
+state = "enforced"
 tier = "ordinary"
 provider = "source"
 precedence = 100
@@ -113,7 +105,7 @@ aliases = ["sand::prelude"]
 [[scope]]
 id = "component-source"
 canonical_module = "sand::component"
-state = "pending"
+state = "enforced"
 tier = "ordinary"
 provider = "source"
 aliases = ["sand::prelude"]
@@ -161,14 +153,14 @@ precedence = 100
 [[scope]]
 id = "systems-source"
 canonical_module = "sand::systems"
-state = "pending"
+state = "enforced"
 tier = "ordinary"
 provider = "source"
 
 [[scope]]
 id = "text-source"
 canonical_module = "sand::text"
-state = "pending"
+state = "enforced"
 tier = "ordinary"
 provider = "source"
 precedence = 100
@@ -177,18 +169,10 @@ aliases = ["sand::prelude"]
 [[scope]]
 id = "data-source"
 canonical_module = "sand::data"
-state = "pending"
+state = "enforced"
 tier = "ordinary"
 provider = "source"
 precedence = 100
-aliases = ["sand::prelude"]
-
-[[scope]]
-id = "vanilla-source"
-canonical_module = "sand::vanilla"
-state = "pending"
-tier = "ordinary"
-provider = "source"
 aliases = ["sand::prelude"]
 
 [[scope]]
@@ -202,7 +186,7 @@ precedence = 100
 [[scope]]
 id = "resourcepack-source"
 canonical_module = "sand::resourcepack"
-state = "pending"
+state = "enforced"
 tier = "ordinary"
 provider = "source"
 features = ["resourcepack"]
@@ -210,7 +194,7 @@ features = ["resourcepack"]
 [[scope]]
 id = "generated-commands"
 canonical_module = "sand::command"
-state = "pending"
+state = "enforced"
 tier = "ordinary"
 provider = "generator:generated_commands"
 aliases = ["sand::cmd", "sand::prelude"]
@@ -233,8 +217,8 @@ precedence = 200
 
 [[scope]]
 id = "generated-registry-id-wrappers"
-canonical_module = "sand::prelude"
-state = "pending"
+canonical_module = "sand::registry"
+state = "enforced"
 tier = "ordinary"
 provider = "generator:generated_registry_ids"
 precedence = 0
@@ -242,107 +226,13 @@ precedence = 0
 [[scope]]
 id = "generated-effect-registry-enums"
 canonical_module = "sand"
-state = "pending"
+state = "enforced"
 tier = "ordinary"
 provider = "generator:generated_effect_registry_enums"
 
 [[scope]]
 id = "generated-event-markers"
 canonical_module = "sand"
-state = "pending"
+state = "enforced"
 tier = "ordinary"
 provider = "generator:generated_event_markers"
-
-# Downstream macro expansions are parametric provider scopes. Their public
-# output is audited in the consuming crate; the installed static item ceiling
-# deliberately does not pretend these families have a finite item count.
-
-[[scope]]
-id = "generated-function-macro"
-canonical_module = "sand"
-state = "pending"
-tier = "ordinary"
-provider = "generator:function_macro"
-enforcement = "consumer_build"
-recursive = false
-
-[[scope]]
-id = "generated-component-macro"
-canonical_module = "sand"
-state = "pending"
-tier = "ordinary"
-provider = "generator:component_macro"
-enforcement = "consumer_build"
-recursive = false
-
-[[scope]]
-id = "generated-event-macro"
-canonical_module = "sand"
-state = "pending"
-tier = "ordinary"
-provider = "generator:event_macro"
-enforcement = "consumer_build"
-recursive = false
-
-[[scope]]
-id = "generated-item-macro"
-canonical_module = "sand"
-state = "pending"
-tier = "ordinary"
-provider = "generator:item_macro"
-enforcement = "consumer_build"
-recursive = false
-
-[[scope]]
-id = "generated-armor-event-macro"
-canonical_module = "sand"
-state = "pending"
-tier = "ordinary"
-provider = "generator:armor_event_macro"
-enforcement = "consumer_build"
-recursive = false
-
-[[scope]]
-id = "generated-schedule-macro"
-canonical_module = "sand"
-state = "pending"
-tier = "ordinary"
-provider = "generator:schedule_macro"
-enforcement = "consumer_build"
-recursive = false
-
-[[scope]]
-id = "generated-state-derive"
-canonical_module = "sand"
-state = "pending"
-tier = "ordinary"
-provider = "generator:state_derive"
-enforcement = "consumer_build"
-recursive = false
-
-[[scope]]
-id = "generated-storage-derive"
-canonical_module = "sand"
-state = "pending"
-tier = "ordinary"
-provider = "generator:storage_derive"
-enforcement = "consumer_build"
-recursive = false
-
-[[scope]]
-id = "generated-resourcepack-macros"
-canonical_module = "sand::resourcepack"
-state = "pending"
-tier = "ordinary"
-provider = "generator:resourcepack_macros"
-enforcement = "consumer_build"
-features = ["resourcepack"]
-
-[[scope]]
-id = "generated-entity-state-enum-derive"
-canonical_module = "sand"
-state = "pending"
-tier = "ordinary"
-provider = "generator:entity_state_enum_derive"
-enforcement = "consumer_build"
-recursive = false

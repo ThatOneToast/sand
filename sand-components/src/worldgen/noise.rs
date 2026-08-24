@@ -33,6 +33,7 @@ const MAX_FIRST_OCTAVE: i32 = 32;
 /// Vanilla caps the total number of octaves a noise may declare.
 const MAX_AMPLITUDES: usize = 32;
 
+#[doc = "**API Contract:** Run `sand api show sand::component::Noise` for the canonical contract."]
 /// A noise-parameter definition (`data/<namespace>/worldgen/noise/<id>.json`).
 ///
 /// ```
@@ -58,6 +59,7 @@ pub struct Noise {
 impl Noise {
     /// Create a noise-parameter definition from its first octave and
     /// amplitudes.
+    #[doc = "**API Contract:** Run `sand api show sand::component::Noise::new` for the canonical contract."]
     pub fn new(
         location: ResourceLocation,
         first_octave: i32,
@@ -74,7 +76,8 @@ impl Noise {
     /// The typed registry ID other worldgen files use to reference this noise.
     ///
     /// ```
-    /// use sand_components::{Noise, ResourceLocation};
+    /// use sand_components::worldgen::Noise;
+    /// use sand_components::ResourceLocation;
     ///
     /// let noise = Noise::new(
     ///     ResourceLocation::new("example", "ridges").unwrap(),
@@ -83,23 +86,27 @@ impl Noise {
     /// );
     /// assert_eq!(noise.id().to_string(), "example:ridges");
     /// ```
+    #[doc = "**API Contract:** Run `sand api show sand::component::Noise::id` for the canonical contract."]
     pub fn id(&self) -> NoiseId {
         NoiseId::custom(self.location.clone())
     }
 
     /// Set the first (lowest) octave.
+    #[doc = "**API Contract:** Run `sand api show sand::component::Noise::first_octave` for the canonical contract."]
     pub fn first_octave(mut self, first_octave: i32) -> Self {
         self.first_octave = first_octave;
         self
     }
 
     /// Replace the octave amplitudes.
+    #[doc = "**API Contract:** Run `sand api show sand::component::Noise::amplitudes` for the canonical contract."]
     pub fn amplitudes(mut self, amplitudes: impl IntoIterator<Item = f64>) -> Self {
         self.amplitudes = amplitudes.into_iter().collect();
         self
     }
 
     /// Append a single octave amplitude.
+    #[doc = "**API Contract:** Run `sand api show sand::component::Noise::amplitude` for the canonical contract."]
     pub fn amplitude(mut self, amplitude: f64) -> Self {
         self.amplitudes.push(amplitude);
         self
@@ -108,6 +115,7 @@ impl Noise {
     /// Add a modded or version-specific field not represented by the typed API.
     ///
     /// Typed field names cannot be overridden through this escape hatch.
+    #[doc = "**API Contract:** Run `sand api show sand::component::Noise::raw_field` for the canonical contract."]
     pub fn raw_field(mut self, key: impl Into<String>, value: RawJson) -> Self {
         self.raw_fields.insert(key.into(), value);
         self

@@ -5,6 +5,7 @@ use std::fmt;
 use crate::error::{CommandError, CommandResult};
 use crate::render::{CommandProfile, RenderCommand, Validate};
 
+#[doc = "**API Contract:** Run `sand api show sand::command::RawCommand` for the canonical contract."]
 /// A command line intentionally excluded from typed grammar validation.
 ///
 /// Raw commands still must be a single `.mcfunction`-safe line and must not
@@ -28,13 +29,18 @@ use crate::render::{CommandProfile, RenderCommand, Validate};
 pub struct RawCommand(String);
 
 impl RawCommand {
+    /// Wraps an intentionally unchecked Minecraft command string.
+    #[doc = "**API Contract:** Run `sand api show sand::command::RawCommand::new` for the canonical contract."]
     pub fn new(command: impl Into<String>) -> Self {
         Self(command.into())
     }
+    /// Returns the exact Minecraft command token represented by this raw command value.
+    #[doc = "**API Contract:** Run `sand api show sand::command::RawCommand::as_str` for the canonical contract."]
     pub fn as_str(&self) -> &str {
         &self.0
     }
     /// Consume this wrapper and return the unchecked command text.
+    #[doc = "**API Contract:** Run `sand api show sand::command::RawCommand::into_inner` for the canonical contract."]
     pub fn into_inner(self) -> String {
         self.0
     }

@@ -53,6 +53,7 @@ use super::score::objective_name;
 
 // ── TypedGameState ─────────────────────────────────────────────────────────────
 
+#[doc = "**API Contract:** Run `sand api show sand::state::TypedGameState` for the canonical contract."]
 /// Implement this trait on an enum to use it as a typed gameplay state.
 ///
 /// # Example
@@ -69,16 +70,19 @@ use super::score::objective_name;
 /// ```
 pub trait TypedGameState: Copy + Eq + 'static {
     /// Map this variant to its scoreboard integer representation.
+    #[doc = "**API Contract:** Run `sand api show sand::state::TypedGameState::to_score` for the canonical contract."]
     fn to_score(self) -> i32;
 
     /// Attempt to construct this variant from a scoreboard integer.
     ///
     /// Returns `None` if `n` does not correspond to any valid variant.
+    #[doc = "**API Contract:** Run `sand api show sand::state::TypedGameState::from_score` for the canonical contract."]
     fn from_score(n: i32) -> Option<Self>;
 }
 
 // ── GameState ─────────────────────────────────────────────────────────────────
 
+#[doc = "**API Contract:** Run `sand api show sand::state::GameState` for the canonical contract."]
 /// A scoreboard-backed typed gameplay state variable.
 ///
 /// Declare once as a `static` and use throughout your datapack:
@@ -104,6 +108,7 @@ impl<S: TypedGameState> GameState<S> {
     ///
     /// Names longer than 16 characters are automatically hashed to a stable
     /// 16-character objective name (see [`GameState::objective_name`]).
+    #[doc = "**API Contract:** Run `sand api show sand::state::GameState::new` for the canonical contract."]
     pub const fn new(name: &'static str) -> Self {
         Self {
             name,
@@ -123,6 +128,7 @@ impl<S: TypedGameState> GameState<S> {
     /// static PHASE: GameState<BossPhase> =
     ///     GameState::with_default_score("boss_phase", 0);
     /// ```
+    #[doc = "**API Contract:** Run `sand api show sand::state::GameState::with_default_score` for the canonical contract."]
     pub const fn with_default_score(name: &'static str, default_score: i32) -> Self {
         Self {
             name,
@@ -134,11 +140,13 @@ impl<S: TypedGameState> GameState<S> {
     /// Return the actual scoreboard objective name used in commands.
     ///
     /// This is either `name` directly (≤16 chars) or a stable FNV-1a hash (>16 chars).
+    #[doc = "**API Contract:** Run `sand api show sand::state::GameState::objective_name` for the canonical contract."]
     pub fn objective_name(&self) -> String {
         objective_name(self.name)
     }
 
     /// Return the configured default score, if this state has one.
+    #[doc = "**API Contract:** Run `sand api show sand::state::GameState::default_score` for the canonical contract."]
     pub fn default_score(&self) -> Option<i32> {
         self.default_score
     }
@@ -146,6 +154,7 @@ impl<S: TypedGameState> GameState<S> {
     /// `scoreboard objectives add <obj> dummy` — register the objective.
     ///
     /// Call this in your `load` function.
+    #[doc = "**API Contract:** Run `sand api show sand::state::GameState::define` for the canonical contract."]
     pub fn define(&self) -> String {
         format!("scoreboard objectives add {} dummy", self.objective_name())
     }
@@ -156,6 +165,7 @@ impl<S: TypedGameState> GameState<S> {
     /// let ref_ = PHASE.of("@s");
     /// let cmd = ref_.set(BossPhase::Enraged);
     /// ```
+    #[doc = "**API Contract:** Run `sand api show sand::state::GameState::of` for the canonical contract."]
     pub fn of<'a>(&'a self, selector: &str) -> GameStateRef<'a, S> {
         GameStateRef {
             state: self,
@@ -166,6 +176,7 @@ impl<S: TypedGameState> GameState<S> {
 
 // ── GameStateRef ──────────────────────────────────────────────────────────────
 
+#[doc = "**API Contract:** Run `sand api show sand::state::GameStateRef` for the canonical contract."]
 /// A [`GameState`] bound to a selector — provides typed get/set/check helpers.
 ///
 /// Produced by [`GameState::of`].
@@ -175,16 +186,20 @@ pub struct GameStateRef<'a, S: TypedGameState> {
 }
 
 impl<'a, S: TypedGameState> GameStateRef<'a, S> {
+    /// Returns the entity selector whose scoreboard value stores this game state.
+    #[doc = "**API Contract:** Run `sand api show sand::state::GameStateRef::selector` for the canonical contract."]
     pub fn selector(&self) -> &str {
         &self.selector
     }
 
     /// Start a compact one-off typed transition.
+    #[doc = "**API Contract:** Run `sand api show sand::state::GameStateRef::transition` for the canonical contract."]
     pub fn transition(&'a self) -> crate::state::StateTransitionBuilder<'a, S> {
         crate::state::StateTransitionBuilder::new(self)
     }
 
     /// `scoreboard players set <sel> <obj> <variant.to_score()>`
+    #[doc = "**API Contract:** Run `sand api show sand::state::GameStateRef::set` for the canonical contract."]
     pub fn set(&self, variant: S) -> String {
         self.set_score(variant.to_score())
     }
@@ -203,6 +218,7 @@ impl<'a, S: TypedGameState> GameStateRef<'a, S> {
     /// For states declared with [`GameState::with_default_score`], this writes
     /// the configured default score. For states declared with [`GameState::new`],
     /// this clears the scoreboard entry with `scoreboard players reset`.
+    #[doc = "**API Contract:** Run `sand api show sand::state::GameStateRef::reset` for the canonical contract."]
     pub fn reset(&self) -> String {
         match self.state.default_score() {
             Some(default_score) => self.set_score(default_score),
@@ -211,6 +227,7 @@ impl<'a, S: TypedGameState> GameStateRef<'a, S> {
     }
 
     /// Clear this selector's scoreboard entry regardless of any default state.
+    #[doc = "**API Contract:** Run `sand api show sand::state::GameStateRef::clear` for the canonical contract."]
     pub fn clear(&self) -> String {
         format!(
             "scoreboard players reset {} {}",
@@ -222,6 +239,7 @@ impl<'a, S: TypedGameState> GameStateRef<'a, S> {
     /// Condition: state equals the given variant.
     ///
     /// Renders as `if score <sel> <obj> matches <variant.to_score()>`.
+    #[doc = "**API Contract:** Run `sand api show sand::state::GameStateRef::is` for the canonical contract."]
     pub fn is(&self, variant: S) -> Condition {
         Condition::score(
             self.selector.clone(),
@@ -233,6 +251,7 @@ impl<'a, S: TypedGameState> GameStateRef<'a, S> {
     /// Condition: state does NOT equal the given variant.
     ///
     /// Renders as `unless score <sel> <obj> matches <variant.to_score()>`.
+    #[doc = "**API Contract:** Run `sand api show sand::state::GameStateRef::is_not` for the canonical contract."]
     pub fn is_not(&self, variant: S) -> Condition {
         !self.is(variant)
     }

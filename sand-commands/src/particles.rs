@@ -21,8 +21,11 @@ use crate::render::{CommandProfile, RenderCommand, Validate};
 
 // ── Particle ──────────────────────────────────────────────────────────────────
 
+#[doc = "**API Contract:** Run `sand api show sand::command::IntoParticleId` for the canonical contract."]
 /// Conversion into a particle resource-location token.
 pub trait IntoParticleId {
+    /// Converts a typed or validated value into a Minecraft particle identifier.
+    #[doc = "**API Contract:** Run `sand api show sand::command::IntoParticleId::into_particle_id` for the canonical contract."]
     fn into_particle_id(self) -> String;
 }
 
@@ -38,37 +41,98 @@ impl IntoParticleId for &str {
     }
 }
 
+#[doc = "**API Contract:** Run `sand api show sand::command::Particle` for the canonical contract."]
 /// A Minecraft particle type with its parameters.
 #[derive(Debug, Clone)]
 pub enum Particle {
+    #[doc = "**API Contract:** Run `sand api show sand::command::Particle::Named` for the canonical contract."]
     /// A named particle with no extra parameters, e.g. `"minecraft:flame"`.
-    Named(String),
+    Named(
+        #[doc = "The `Named` variant carries the value described by its variant semantics: A named particle with no extra parameters, e.g. `\"minecraft:flame\"`."]
+        #[doc = "**API Contract:** Run `sand api show sand::command::Particle::Named::0` for the canonical contract."]
+        String,
+    ),
+    #[doc = "**API Contract:** Run `sand api show sand::command::Particle::Dust` for the canonical contract."]
     /// Colored `minecraft:dust` particle. RGB values in `0.0–1.0`.
-    Dust { r: f32, g: f32, b: f32, scale: f32 },
-    /// `minecraft:dust_color_transition` — animates from one color to another.
-    DustColorTransition {
-        from_r: f32,
-        from_g: f32,
-        from_b: f32,
-        to_r: f32,
-        to_g: f32,
-        to_b: f32,
+    Dust {
+        #[doc = "`r` provides the red channel when colored `minecraft:dust` particle. RGB values in `0.0–1.0`."]
+        #[doc = "**API Contract:** Run `sand api show sand::command::Particle::Dust::r` for the canonical contract."]
+        r: f32,
+        #[doc = "`g` provides the green channel when colored `minecraft:dust` particle. RGB values in `0.0–1.0`."]
+        #[doc = "**API Contract:** Run `sand api show sand::command::Particle::Dust::g` for the canonical contract."]
+        g: f32,
+        #[doc = "`b` provides the blue channel when colored `minecraft:dust` particle. RGB values in `0.0–1.0`."]
+        #[doc = "**API Contract:** Run `sand api show sand::command::Particle::Dust::b` for the canonical contract."]
+        b: f32,
+        #[doc = "`scale` provides the particle scale when colored `minecraft:dust` particle. RGB values in `0.0–1.0`."]
+        #[doc = "**API Contract:** Run `sand api show sand::command::Particle::Dust::scale` for the canonical contract."]
         scale: f32,
     },
+    #[doc = "**API Contract:** Run `sand api show sand::command::Particle::DustColorTransition` for the canonical contract."]
+    /// `minecraft:dust_color_transition` — animates from one color to another.
+    DustColorTransition {
+        /// `from_r` provides the from r when `minecraft:dust_color_transition` — animates from one color to another.
+        #[doc = "**API Contract:** Run `sand api show sand::command::Particle::DustColorTransition::from_r` for the canonical contract."]
+        from_r: f32,
+        /// `from_g` provides the from g when `minecraft:dust_color_transition` — animates from one color to another.
+        #[doc = "**API Contract:** Run `sand api show sand::command::Particle::DustColorTransition::from_g` for the canonical contract."]
+        from_g: f32,
+        /// `from_b` provides the from b when `minecraft:dust_color_transition` — animates from one color to another.
+        #[doc = "**API Contract:** Run `sand api show sand::command::Particle::DustColorTransition::from_b` for the canonical contract."]
+        from_b: f32,
+        /// `to_r` provides the to r when `minecraft:dust_color_transition` — animates from one color to another.
+        #[doc = "**API Contract:** Run `sand api show sand::command::Particle::DustColorTransition::to_r` for the canonical contract."]
+        to_r: f32,
+        /// `to_g` provides the to g when `minecraft:dust_color_transition` — animates from one color to another.
+        #[doc = "**API Contract:** Run `sand api show sand::command::Particle::DustColorTransition::to_g` for the canonical contract."]
+        to_g: f32,
+        /// `to_b` provides the to b when `minecraft:dust_color_transition` — animates from one color to another.
+        #[doc = "**API Contract:** Run `sand api show sand::command::Particle::DustColorTransition::to_b` for the canonical contract."]
+        to_b: f32,
+        /// `scale` provides the particle scale when `minecraft:dust_color_transition` — animates from one color to another.
+        #[doc = "**API Contract:** Run `sand api show sand::command::Particle::DustColorTransition::scale` for the canonical contract."]
+        scale: f32,
+    },
+    #[doc = "**API Contract:** Run `sand api show sand::command::Particle::Block` for the canonical contract."]
     /// `minecraft:block` particle showing a block's break texture.
-    Block(String),
+    Block(
+        #[doc = "The `Block` variant carries the value described by its variant semantics: `minecraft:block` particle showing a block's break texture."]
+        #[doc = "**API Contract:** Run `sand api show sand::command::Particle::Block::0` for the canonical contract."]
+        String,
+    ),
+    #[doc = "**API Contract:** Run `sand api show sand::command::Particle::Item` for the canonical contract."]
     /// `minecraft:item` particle showing an item's texture.
-    Item(String),
+    Item(
+        #[doc = "The `Item` variant carries the value described by its variant semantics: `minecraft:item` particle showing an item's texture."]
+        #[doc = "**API Contract:** Run `sand api show sand::command::Particle::Item::0` for the canonical contract."]
+        String,
+    ),
+    #[doc = "**API Contract:** Run `sand api show sand::command::Particle::SculkCharge` for the canonical contract."]
     /// `minecraft:sculk_charge` with a rotation in radians.
-    SculkCharge { roll: f32 },
+    SculkCharge {
+        #[doc = "`roll` provides the roll when `minecraft:sculk_charge` with a rotation in radians."]
+        #[doc = "**API Contract:** Run `sand api show sand::command::Particle::SculkCharge::roll` for the canonical contract."]
+        roll: f32,
+    },
+    #[doc = "**API Contract:** Run `sand api show sand::command::Particle::Shriek` for the canonical contract."]
     /// `minecraft:shriek` with a delay in ticks before appearing.
-    Shriek { delay: u32 },
+    Shriek {
+        #[doc = "`delay` provides the delay when `minecraft:shriek` with a delay in ticks before appearing."]
+        #[doc = "**API Contract:** Run `sand api show sand::command::Particle::Shriek::delay` for the canonical contract."]
+        delay: u32,
+    },
+    #[doc = "**API Contract:** Run `sand api show sand::command::Particle::Raw` for the canonical contract."]
     /// Explicit opaque particle token.
-    Raw(String),
+    Raw(
+        #[doc = "The `Raw` variant carries the value described by its variant semantics: Explicit opaque particle token."]
+        #[doc = "**API Contract:** Run `sand api show sand::command::Particle::Raw::0` for the canonical contract."]
+        String,
+    ),
 }
 
 impl Particle {
     /// A named particle with no extra parameters (e.g. `"minecraft:flame"`).
+    #[doc = "**API Contract:** Run `sand api show sand::command::Particle::named` for the canonical contract."]
     pub fn named(name: impl IntoParticleId) -> Self {
         Particle::Named(name.into_particle_id())
     }
@@ -77,16 +141,19 @@ impl Particle {
     ///
     /// Sand renders this unchanged and does not apply particle-specific
     /// compatibility checks.
+    #[doc = "**API Contract:** Run `sand api show sand::command::Particle::raw_token` for the canonical contract."]
     pub fn raw_token(token: impl Into<String>) -> Self {
         Self::Raw(token.into())
     }
 
     /// Colored dust particle. RGB values in `0.0–1.0`, scale is size (1.0 = default).
+    #[doc = "**API Contract:** Run `sand api show sand::command::Particle::dust` for the canonical contract."]
     pub fn dust(r: f32, g: f32, b: f32, scale: f32) -> Self {
         Particle::Dust { r, g, b, scale }
     }
 
     /// Colored dust from 8-bit RGB (0–255).
+    #[doc = "**API Contract:** Run `sand api show sand::command::Particle::dust_u8` for the canonical contract."]
     pub fn dust_u8(r: u8, g: u8, b: u8, scale: f32) -> Self {
         Particle::Dust {
             r: r as f32 / 255.0,
@@ -97,6 +164,7 @@ impl Particle {
     }
 
     /// Colored dust from a hex RGB value, e.g. `0xFF4400` for orange.
+    #[doc = "**API Contract:** Run `sand api show sand::command::Particle::dust_hex` for the canonical contract."]
     pub fn dust_hex(hex: u32, scale: f32) -> Self {
         Particle::dust_u8(
             ((hex >> 16) & 0xFF) as u8,
@@ -107,6 +175,7 @@ impl Particle {
     }
 
     /// Color-transitioning dust. RGB values in `0.0–1.0`.
+    #[doc = "**API Contract:** Run `sand api show sand::command::Particle::dust_transition` for the canonical contract."]
     pub fn dust_transition(
         from_r: f32,
         from_g: f32,
@@ -128,6 +197,7 @@ impl Particle {
     }
 
     /// Color-transitioning dust from two hex RGB values.
+    #[doc = "**API Contract:** Run `sand api show sand::command::Particle::dust_transition_hex` for the canonical contract."]
     pub fn dust_transition_hex(from_hex: u32, to_hex: u32, scale: f32) -> Self {
         let [fr, fg, fb] = hex_to_f32(from_hex);
         let [tr, tg, tb] = hex_to_f32(to_hex);
@@ -143,21 +213,25 @@ impl Particle {
     }
 
     /// Block break texture particle, e.g. `"minecraft:stone"`.
+    #[doc = "**API Contract:** Run `sand api show sand::command::Particle::block` for the canonical contract."]
     pub fn block(state: impl Into<String>) -> Self {
         Particle::Block(state.into())
     }
 
     /// Item texture particle, e.g. `"minecraft:diamond_sword"`.
+    #[doc = "**API Contract:** Run `sand api show sand::command::Particle::item` for the canonical contract."]
     pub fn item(item: impl Into<String>) -> Self {
         Particle::Item(item.into())
     }
 
     /// `minecraft:sculk_charge` with a roll angle in radians.
+    #[doc = "**API Contract:** Run `sand api show sand::command::Particle::sculk_charge` for the canonical contract."]
     pub fn sculk_charge(roll: f32) -> Self {
         Particle::SculkCharge { roll }
     }
 
     /// `minecraft:shriek` with a delay in ticks.
+    #[doc = "**API Contract:** Run `sand api show sand::command::Particle::shriek` for the canonical contract."]
     pub fn shriek(delay: u32) -> Self {
         Particle::Shriek { delay }
     }
@@ -248,15 +322,23 @@ impl Validate for Particle {
 
 // ── ParticleSpread ─────────────────────────────────────────────────────────────
 
+#[doc = "**API Contract:** Run `sand api show sand::command::ParticleSpread` for the canonical contract."]
 /// Spread/dispersion of a particle from its spawn position.
 #[derive(Debug, Clone)]
 pub struct ParticleSpread {
+    /// `dx` provides the x-axis spread when spread/dispersion of a particle from its spawn position.
+    #[doc = "**API Contract:** Run `sand api show sand::command::ParticleSpread::dx` for the canonical contract."]
     pub dx: f64,
+    /// `dy` provides the y-axis spread when spread/dispersion of a particle from its spawn position.
+    #[doc = "**API Contract:** Run `sand api show sand::command::ParticleSpread::dy` for the canonical contract."]
     pub dy: f64,
+    /// `dz` provides the z-axis spread when spread/dispersion of a particle from its spawn position.
+    #[doc = "**API Contract:** Run `sand api show sand::command::ParticleSpread::dz` for the canonical contract."]
     pub dz: f64,
 }
 
 impl ParticleSpread {
+    #[doc = "**API Contract:** Run `sand api show sand::command::ParticleSpread::POINT` for the canonical contract."]
     /// No spread — particles appear exactly at the specified position.
     pub const POINT: Self = Self {
         dx: 0.0,
@@ -265,6 +347,7 @@ impl ParticleSpread {
     };
 
     /// Uniform spread in all three directions.
+    #[doc = "**API Contract:** Run `sand api show sand::command::ParticleSpread::uniform` for the canonical contract."]
     pub fn uniform(v: f64) -> Self {
         Self {
             dx: v,
@@ -274,6 +357,7 @@ impl ParticleSpread {
     }
 
     /// Custom per-axis spread.
+    #[doc = "**API Contract:** Run `sand api show sand::command::ParticleSpread::new` for the canonical contract."]
     pub fn new(dx: f64, dy: f64, dz: f64) -> Self {
         Self { dx, dy, dz }
     }
@@ -292,6 +376,7 @@ impl Validate for ParticleSpread {
     }
 }
 
+#[doc = "**API Contract:** Run `sand api show sand::command::ParticleCommand` for the canonical contract."]
 /// One structured `particle` command retained until validation and rendering.
 #[derive(Debug, Clone)]
 pub struct ParticleCommand {
@@ -346,6 +431,7 @@ impl RenderCommand for ParticleCommand {
 
 // ── ParticleBuilder ────────────────────────────────────────────────────────────
 
+#[doc = "**API Contract:** Run `sand api show sand::command::ParticleBuilder` for the canonical contract."]
 /// Fluent builder for generating `particle` commands.
 #[derive(Debug, Clone)]
 pub struct ParticleBuilder {
@@ -360,6 +446,7 @@ impl ParticleBuilder {
     /// Create a new builder for the given particle type.
     ///
     /// Defaults: `spread = POINT`, `speed = 0`, `particles_per_point = 1`, `force = true`.
+    #[doc = "**API Contract:** Run `sand api show sand::command::ParticleBuilder::new` for the canonical contract."]
     pub fn new(particle: Particle) -> Self {
         Self {
             particle,
@@ -371,36 +458,42 @@ impl ParticleBuilder {
     }
 
     /// Set the random spread box around each particle's spawn position.
+    #[doc = "**API Contract:** Run `sand api show sand::command::ParticleBuilder::spread` for the canonical contract."]
     pub fn spread(mut self, spread: ParticleSpread) -> Self {
         self.spread = spread;
         self
     }
 
     /// Set the initial speed of each particle after spawning.
+    #[doc = "**API Contract:** Run `sand api show sand::command::ParticleBuilder::speed` for the canonical contract."]
     pub fn speed(mut self, speed: f64) -> Self {
         self.speed = speed;
         self
     }
 
     /// Number of particles Minecraft spawns per command call (default: `1`).
+    #[doc = "**API Contract:** Run `sand api show sand::command::ParticleBuilder::particles_per_point` for the canonical contract."]
     pub fn particles_per_point(mut self, n: u32) -> Self {
         self.particles_per_point = n;
         self
     }
 
     /// Whether to use `force` visibility mode (default: `true`).
+    #[doc = "**API Contract:** Run `sand api show sand::command::ParticleBuilder::force` for the canonical contract."]
     pub fn force(mut self, force: bool) -> Self {
         self.force = force;
         self
     }
 
     /// Validate the particle and numeric command settings without rendering.
+    #[doc = "**API Contract:** Run `sand api show sand::command::ParticleBuilder::validate` for the canonical contract."]
     pub fn validate(&self) -> CommandResult<()> {
         self.command_at([0.0, 0.0, 0.0])
             .validate(&CommandProfile::unprofiled())
     }
 
     /// Fallible point renderer used by VFX and strict callers.
+    #[doc = "**API Contract:** Run `sand api show sand::command::ParticleBuilder::try_points_at` for the canonical contract."]
     pub fn try_points_at(&self, pts: &[[f64; 3]]) -> CommandResult<Vec<String>> {
         if pts.is_empty() {
             return Err(particle_error(
@@ -415,6 +508,7 @@ impl ParticleBuilder {
     }
 
     /// Fallible circle generator with explicit geometry diagnostics.
+    #[doc = "**API Contract:** Run `sand api show sand::command::ParticleBuilder::try_circle` for the canonical contract."]
     pub fn try_circle(
         &self,
         radius: f64,
@@ -427,6 +521,8 @@ impl ParticleBuilder {
         Ok(self.circle(radius, y_offset, points))
     }
 
+    /// Validates an arc geometry and returns its ordered particle commands.
+    #[doc = "**API Contract:** Run `sand api show sand::command::ParticleBuilder::try_arc` for the canonical contract."]
     pub fn try_arc(
         &self,
         radius: f64,
@@ -447,6 +543,8 @@ impl ParticleBuilder {
         Ok(self.arc(radius, y_offset, start_deg, end_deg, points))
     }
 
+    /// Validates a regular polygon and returns its ordered particle commands.
+    #[doc = "**API Contract:** Run `sand api show sand::command::ParticleBuilder::try_polygon` for the canonical contract."]
     pub fn try_polygon(
         &self,
         sides: usize,
@@ -474,6 +572,8 @@ impl ParticleBuilder {
         Ok(self.polygon(sides, radius, y_offset, points_per_side))
     }
 
+    /// Validates a star geometry and returns its ordered particle commands.
+    #[doc = "**API Contract:** Run `sand api show sand::command::ParticleBuilder::try_star` for the canonical contract."]
     pub fn try_star(
         &self,
         arms: usize,
@@ -495,6 +595,7 @@ impl ParticleBuilder {
     }
 
     /// Fallible sphere generator with explicit geometry diagnostics.
+    #[doc = "**API Contract:** Run `sand api show sand::command::ParticleBuilder::try_sphere` for the canonical contract."]
     pub fn try_sphere(
         &self,
         radius: f64,
@@ -508,6 +609,7 @@ impl ParticleBuilder {
     }
 
     /// Fallible helix generator with explicit geometry diagnostics.
+    #[doc = "**API Contract:** Run `sand api show sand::command::ParticleBuilder::try_helix` for the canonical contract."]
     pub fn try_helix(
         &self,
         radius: f64,
@@ -529,6 +631,8 @@ impl ParticleBuilder {
         Ok(self.helix(radius, height, turns, points))
     }
 
+    /// Validates a double helix and returns its ordered particle commands.
+    #[doc = "**API Contract:** Run `sand api show sand::command::ParticleBuilder::try_double_helix` for the canonical contract."]
     pub fn try_double_helix(
         &self,
         radius: f64,
@@ -540,6 +644,8 @@ impl ParticleBuilder {
         Ok(self.double_helix(radius, height, turns, points))
     }
 
+    /// Validates a line segment and returns its ordered particle commands.
+    #[doc = "**API Contract:** Run `sand api show sand::command::ParticleBuilder::try_line` for the canonical contract."]
     pub fn try_line(
         &self,
         from: [f64; 3],
@@ -553,6 +659,8 @@ impl ParticleBuilder {
         Ok(self.line(from, to, points))
     }
 
+    /// Validates a filled disc and returns its ordered particle commands.
+    #[doc = "**API Contract:** Run `sand api show sand::command::ParticleBuilder::try_disc` for the canonical contract."]
     pub fn try_disc(
         &self,
         radius: f64,
@@ -565,6 +673,8 @@ impl ParticleBuilder {
         Ok(self.disc(radius, y_offset, density))
     }
 
+    /// Validates a torus geometry and returns its ordered particle commands.
+    #[doc = "**API Contract:** Run `sand api show sand::command::ParticleBuilder::try_torus` for the canonical contract."]
     pub fn try_torus(
         &self,
         major_radius: f64,
@@ -594,6 +704,8 @@ impl ParticleBuilder {
         ))
     }
 
+    /// Validates a cone geometry and returns its ordered particle commands.
+    #[doc = "**API Contract:** Run `sand api show sand::command::ParticleBuilder::try_cone` for the canonical contract."]
     pub fn try_cone(
         &self,
         base_radius: f64,
@@ -608,6 +720,8 @@ impl ParticleBuilder {
         Ok(self.cone(base_radius, height, y_offset, rings))
     }
 
+    /// Validates a radial burst and returns its ordered particle commands.
+    #[doc = "**API Contract:** Run `sand api show sand::command::ParticleBuilder::try_burst` for the canonical contract."]
     pub fn try_burst(
         &self,
         radius: f64,
@@ -620,6 +734,8 @@ impl ParticleBuilder {
         Ok(self.burst(radius, y_offset, points))
     }
 
+    /// Validates a wave geometry and returns its ordered particle commands.
+    #[doc = "**API Contract:** Run `sand api show sand::command::ParticleBuilder::try_wave` for the canonical contract."]
     pub fn try_wave(
         &self,
         length: f64,
@@ -636,6 +752,8 @@ impl ParticleBuilder {
         Ok(self.wave(length, amplitude, cycles, y_offset, points))
     }
 
+    /// Validates a rectangular grid and returns its ordered particle commands.
+    #[doc = "**API Contract:** Run `sand api show sand::command::ParticleBuilder::try_grid` for the canonical contract."]
     pub fn try_grid(
         &self,
         width: f64,
@@ -662,6 +780,7 @@ impl ParticleBuilder {
     // ── Shape generators ──────────────────────────────────────────────────────
 
     /// A horizontal ring of particles at `y_offset` above the executor.
+    #[doc = "**API Contract:** Run `sand api show sand::command::ParticleBuilder::circle` for the canonical contract."]
     pub fn circle(&self, radius: f64, y_offset: f64, points: usize) -> Vec<String> {
         (0..points)
             .map(|i| {
@@ -672,6 +791,7 @@ impl ParticleBuilder {
     }
 
     /// A partial arc of a circle, from `start_deg` to `end_deg` (degrees).
+    #[doc = "**API Contract:** Run `sand api show sand::command::ParticleBuilder::arc` for the canonical contract."]
     pub fn arc(
         &self,
         radius: f64,
@@ -695,6 +815,7 @@ impl ParticleBuilder {
     }
 
     /// A regular polygon at `y_offset`. `points_per_side` particles per edge.
+    #[doc = "**API Contract:** Run `sand api show sand::command::ParticleBuilder::polygon` for the canonical contract."]
     pub fn polygon(
         &self,
         sides: usize,
@@ -721,6 +842,7 @@ impl ParticleBuilder {
     }
 
     /// A star shape with `arms` points, alternating outer and inner radii.
+    #[doc = "**API Contract:** Run `sand api show sand::command::ParticleBuilder::star` for the canonical contract."]
     pub fn star(
         &self,
         arms: usize,
@@ -746,6 +868,7 @@ impl ParticleBuilder {
     }
 
     /// A sphere surface using the Fibonacci lattice for even distribution.
+    #[doc = "**API Contract:** Run `sand api show sand::command::ParticleBuilder::sphere` for the canonical contract."]
     pub fn sphere(&self, radius: f64, y_offset: f64, points: usize) -> Vec<String> {
         let gr = (1.0 + 5.0_f64.sqrt()) / 2.0;
         (0..points)
@@ -762,6 +885,7 @@ impl ParticleBuilder {
     }
 
     /// The upper hemisphere only (y ≥ y_offset).
+    #[doc = "**API Contract:** Run `sand api show sand::command::ParticleBuilder::hemisphere` for the canonical contract."]
     pub fn hemisphere(&self, radius: f64, y_offset: f64, points: usize) -> Vec<String> {
         self.sphere(radius, y_offset, points * 2)
             .into_iter()
@@ -774,6 +898,7 @@ impl ParticleBuilder {
     }
 
     /// A rising spiral helix.
+    #[doc = "**API Contract:** Run `sand api show sand::command::ParticleBuilder::helix` for the canonical contract."]
     pub fn helix(&self, radius: f64, height: f64, turns: f64, points: usize) -> Vec<String> {
         (0..points)
             .map(|i| {
@@ -785,6 +910,7 @@ impl ParticleBuilder {
     }
 
     /// Two interleaved helices (double-helix / DNA shape).
+    #[doc = "**API Contract:** Run `sand api show sand::command::ParticleBuilder::double_helix` for the canonical contract."]
     pub fn double_helix(&self, radius: f64, height: f64, turns: f64, points: usize) -> Vec<String> {
         let half = points / 2;
         let mut cmds = self.helix(radius, height, turns, half);
@@ -798,6 +924,7 @@ impl ParticleBuilder {
     }
 
     /// A straight line from `from` to `to` (both relative to executor).
+    #[doc = "**API Contract:** Run `sand api show sand::command::ParticleBuilder::line` for the canonical contract."]
     pub fn line(&self, from: [f64; 3], to: [f64; 3], points: usize) -> Vec<String> {
         match points {
             0 => vec![],
@@ -816,6 +943,7 @@ impl ParticleBuilder {
     }
 
     /// A filled disc of concentric rings. `density` controls ring count per unit radius.
+    #[doc = "**API Contract:** Run `sand api show sand::command::ParticleBuilder::disc` for the canonical contract."]
     pub fn disc(&self, radius: f64, y_offset: f64, density: usize) -> Vec<String> {
         let rings = (radius * density as f64).ceil() as usize;
         let mut cmds = vec![self.cmd(0.0, y_offset, 0.0)];
@@ -828,6 +956,7 @@ impl ParticleBuilder {
     }
 
     /// A 3D torus (donut shape).
+    #[doc = "**API Contract:** Run `sand api show sand::command::ParticleBuilder::torus` for the canonical contract."]
     pub fn torus(
         &self,
         major_radius: f64,
@@ -853,6 +982,7 @@ impl ParticleBuilder {
     }
 
     /// A cone rising from the base ring up to an apex.
+    #[doc = "**API Contract:** Run `sand api show sand::command::ParticleBuilder::cone` for the canonical contract."]
     pub fn cone(&self, base_radius: f64, height: f64, y_offset: f64, rings: usize) -> Vec<String> {
         let mut cmds = Vec::new();
         let ring_count = rings.max(1);
@@ -870,6 +1000,7 @@ impl ParticleBuilder {
     }
 
     /// An outward burst (sphere with extra spread, simulates an explosion).
+    #[doc = "**API Contract:** Run `sand api show sand::command::ParticleBuilder::burst` for the canonical contract."]
     pub fn burst(&self, radius: f64, y_offset: f64, points: usize) -> Vec<String> {
         let boosted = Self {
             spread: ParticleSpread::new(
@@ -883,6 +1014,7 @@ impl ParticleBuilder {
     }
 
     /// A horizontal sine wave along the X axis.
+    #[doc = "**API Contract:** Run `sand api show sand::command::ParticleBuilder::wave` for the canonical contract."]
     pub fn wave(
         &self,
         length: f64,
@@ -905,6 +1037,7 @@ impl ParticleBuilder {
     }
 
     /// A flat rectangular grid of particles.
+    #[doc = "**API Contract:** Run `sand api show sand::command::ParticleBuilder::grid` for the canonical contract."]
     pub fn grid(
         &self,
         width: f64,
@@ -935,6 +1068,7 @@ impl ParticleBuilder {
     }
 
     /// Spawn a particle at each point in the given list (relative offsets from executor).
+    #[doc = "**API Contract:** Run `sand api show sand::command::ParticleBuilder::points_at` for the canonical contract."]
     pub fn points_at(&self, pts: &[[f64; 3]]) -> Vec<String> {
         pts.iter().map(|[x, y, z]| self.cmd(*x, *y, *z)).collect()
     }
@@ -960,11 +1094,13 @@ impl ParticleBuilder {
 
 // ── ParticleEffect ────────────────────────────────────────────────────────────
 
+#[doc = "**API Contract:** Run `sand api show sand::command::ParticleEffect` for the canonical contract."]
 /// Static particle geometry generators (thin wrappers around [`ParticleBuilder`]).
 pub struct ParticleEffect;
 
 impl ParticleEffect {
     /// Horizontal ring of particles.
+    #[doc = "**API Contract:** Run `sand api show sand::command::ParticleEffect::circle` for the canonical contract."]
     pub fn circle(
         particle: &str,
         radius: f64,
@@ -978,6 +1114,7 @@ impl ParticleEffect {
     }
 
     /// Sphere surface (Fibonacci distribution).
+    #[doc = "**API Contract:** Run `sand api show sand::command::ParticleEffect::sphere` for the canonical contract."]
     pub fn sphere(
         particle: &str,
         radius: f64,
@@ -991,6 +1128,7 @@ impl ParticleEffect {
     }
 
     /// Rising spiral helix.
+    #[doc = "**API Contract:** Run `sand api show sand::command::ParticleEffect::helix` for the canonical contract."]
     pub fn helix(
         particle: &str,
         radius: f64,
@@ -1005,6 +1143,7 @@ impl ParticleEffect {
     }
 
     /// Straight line between two relative points.
+    #[doc = "**API Contract:** Run `sand api show sand::command::ParticleEffect::line` for the canonical contract."]
     #[allow(clippy::too_many_arguments)]
     pub fn line(
         particle: &str,
@@ -1023,6 +1162,7 @@ impl ParticleEffect {
     }
 
     /// Outward burst (sphere with boosted spread).
+    #[doc = "**API Contract:** Run `sand api show sand::command::ParticleEffect::burst` for the canonical contract."]
     pub fn burst(
         particle: &str,
         radius: f64,
@@ -1036,6 +1176,7 @@ impl ParticleEffect {
     }
 
     /// Two interleaved helices.
+    #[doc = "**API Contract:** Run `sand api show sand::command::ParticleEffect::double_helix` for the canonical contract."]
     pub fn double_helix(
         particle: &str,
         radius: f64,
@@ -1050,6 +1191,7 @@ impl ParticleEffect {
     }
 
     /// Filled disc of concentric rings.
+    #[doc = "**API Contract:** Run `sand api show sand::command::ParticleEffect::disc` for the canonical contract."]
     pub fn disc(
         particle: &str,
         radius: f64,

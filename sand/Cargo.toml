@@ -31,8 +31,19 @@ resourcepack = ["dep:sand-resourcepack", "sand-macros/resourcepack"]
 systems-damage = ["sand-core/systems-damage"]
 systems-cooldowns = ["sand-core/systems-cooldowns"]
 systems-lifecycle = ["sand-core/systems-lifecycle"]
-systems-player-data = ["sand-core/systems-player-data"]
+systems-player-data = ["systems-lifecycle", "sand-core/systems-player-data"]
 systems-movement = ["sand-core/systems-movement"]
 systems-inventory = ["sand-core/systems-inventory"]
 systems-entities = ["sand-core/systems-entities"]
-systems-all = ["sand-core/systems-all"]
+systems-all = [
+    "systems-damage",
+    "systems-cooldowns",
+    "systems-lifecycle",
+    "systems-player-data",
+    "systems-movement",
+    "systems-inventory",
+    "systems-entities",
+]
+
+[dev-dependencies]
+tempfile = "3"

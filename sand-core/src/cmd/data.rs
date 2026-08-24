@@ -51,15 +51,18 @@ use sand_commands::{CommandResult, DataModify, DataTarget, NbtValue, Validate};
 
 // ── StorageKind ───────────────────────────────────────────────────────────────
 
+#[doc = "**API Contract:** Run `sand api show sand::command::StorageKind` for the canonical contract."]
 /// Declares the intended scope of a [`Storage`] namespace.
 ///
 /// This is a semantic annotation — Minecraft does not enforce it.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum StorageKind {
+    #[doc = "**API Contract:** Run `sand api show sand::command::StorageKind::Global` for the canonical contract."]
     /// One namespace shared by all players and functions. Use for world state,
     /// boss phases, global flags, server-wide counters.
     Global,
 
+    #[doc = "**API Contract:** Run `sand api show sand::command::StorageKind::PerPlayer` for the canonical contract."]
     /// Conceptually per-player. Callers scope paths by player identity
     /// (e.g. `"players.<uuid>.kills"`).
     ///
@@ -70,6 +73,7 @@ pub enum StorageKind {
 
 // ── Storage ───────────────────────────────────────────────────────────────────
 
+#[doc = "**API Contract:** Run `sand api show sand::command::Storage` for the canonical contract."]
 /// A named Minecraft NBT storage namespace — used like a `HashMap<String, NbtValue>`.
 ///
 /// Keys are dot-separated NBT paths (e.g. `"boss_phase"`, `"players.health"`).
@@ -119,6 +123,7 @@ impl Storage {
     /// ```rust,ignore
     /// static WORLD: Storage = Storage::global("my_pack:world");
     /// ```
+    #[doc = "**API Contract:** Run `sand api show sand::command::Storage::global` for the canonical contract."]
     pub const fn global(id: &'static str) -> Self {
         Self {
             id: Cow::Borrowed(id),
@@ -131,6 +136,7 @@ impl Storage {
     /// ```rust,ignore
     /// static PLAYERS: Storage = Storage::per_player("my_pack:players");
     /// ```
+    #[doc = "**API Contract:** Run `sand api show sand::command::Storage::per_player` for the canonical contract."]
     pub const fn per_player(id: &'static str) -> Self {
         Self {
             id: Cow::Borrowed(id),
@@ -139,6 +145,7 @@ impl Storage {
     }
 
     /// Dynamic constructor for runtime-determined IDs.
+    #[doc = "**API Contract:** Run `sand api show sand::command::Storage::new` for the canonical contract."]
     pub fn new(id: impl Into<String>, kind: StorageKind) -> Self {
         Self {
             id: Cow::Owned(id.into()),
@@ -147,11 +154,13 @@ impl Storage {
     }
 
     /// The resource-location string for this storage namespace.
+    #[doc = "**API Contract:** Run `sand api show sand::command::Storage::id` for the canonical contract."]
     pub fn id(&self) -> &str {
         &self.id
     }
 
     /// The declared scope of this storage namespace.
+    #[doc = "**API Contract:** Run `sand api show sand::command::Storage::kind` for the canonical contract."]
     pub fn kind(&self) -> StorageKind {
         self.kind
     }
@@ -175,6 +184,7 @@ impl Storage {
     /// WORLD.insert("active",     true)    // → data modify storage … set value 1b
     /// WORLD.insert("name",       "Boss")  // → data modify storage … set value "Boss"
     /// ```
+    #[doc = "**API Contract:** Run `sand api show sand::command::Storage::insert` for the canonical contract."]
     pub fn insert(&self, key: impl Into<String>, value: impl Into<NbtValue>) -> String {
         DataModify::new(self.target(), key.into()).set(value)
     }
@@ -186,6 +196,7 @@ impl Storage {
     /// Raw/unchecked: hand-formats the command without routing the storage
     /// id or NBT path through the typed [`DataTarget`]/[`NbtPath`](sand_commands::NbtPath)
     /// validators. Prefer [`Storage::try_remove`].
+    #[doc = "**API Contract:** Run `sand api show sand::command::Storage::remove` for the canonical contract."]
     pub fn remove(&self, key: impl Into<String>) -> String {
         format!("data remove storage {} {}", self.id, key.into())
     }
@@ -196,6 +207,7 @@ impl Storage {
     /// [`sand_commands::DataCommand`]: the storage id must be a valid
     /// `namespace:path` resource location and `key` must be a
     /// structurally valid NBT path.
+    #[doc = "**API Contract:** Run `sand api show sand::command::Storage::try_remove` for the canonical contract."]
     pub fn try_remove(&self, key: impl Into<String>) -> CommandResult<String> {
         self.target()
             .path(key.into())
@@ -215,11 +227,13 @@ impl Storage {
     ///     .store_result_score(ScoreHolder::entity(Selector::self_()), "my_obj")
     ///     .run(WORLD.get("boss_phase"))
     /// ```
+    #[doc = "**API Contract:** Run `sand api show sand::command::Storage::get` for the canonical contract."]
     pub fn get(&self, key: impl Into<String>) -> String {
         format!("data get storage {} {}", self.id, key.into())
     }
 
     /// Validated counterpart to [`Storage::get`].
+    #[doc = "**API Contract:** Run `sand api show sand::command::Storage::try_get` for the canonical contract."]
     pub fn try_get(&self, key: impl Into<String>) -> CommandResult<String> {
         self.target()
             .path(key.into())
@@ -233,6 +247,7 @@ impl Storage {
     ///
     /// Raw/unchecked: accepts a non-finite `scale`. Prefer
     /// [`Storage::try_get_scaled`].
+    #[doc = "**API Contract:** Run `sand api show sand::command::Storage::get_scaled` for the canonical contract."]
     pub fn get_scaled(&self, key: impl Into<String>, scale: f64) -> String {
         format!("data get storage {} {} {scale}", self.id, key.into())
     }
@@ -240,6 +255,7 @@ impl Storage {
     /// Validated counterpart to [`Storage::get_scaled`]. Rejects a
     /// non-finite `scale` in addition to the storage id/path validation
     /// shared with [`Storage::try_get`].
+    #[doc = "**API Contract:** Run `sand api show sand::command::Storage::try_get_scaled` for the canonical contract."]
     pub fn try_get_scaled(&self, key: impl Into<String>, scale: f64) -> CommandResult<String> {
         self.target()
             .path(key.into())
@@ -253,6 +269,7 @@ impl Storage {
     ///
     /// Equivalent to `HashMap::contains_key`. Use in `Execute::if_` to branch
     /// on whether `key` is present.
+    #[doc = "**API Contract:** Run `sand api show sand::command::Storage::contains` for the canonical contract."]
     pub fn contains(&self, key: impl Into<String>) -> String {
         format!("data storage {} {}", self.id, key.into())
     }
@@ -263,6 +280,7 @@ impl Storage {
     /// `DataCommand`, so this validates the storage id and NBT path through
     /// the same [`sand_commands`] validators (via a throwaway `data get`
     /// read-shaped check) without changing the emitted fragment's syntax.
+    #[doc = "**API Contract:** Run `sand api show sand::command::Storage::try_contains` for the canonical contract."]
     pub fn try_contains(&self, key: impl Into<String>) -> CommandResult<String> {
         let key = key.into();
         self.target()
@@ -278,6 +296,7 @@ impl Storage {
     /// `execute unless data storage … run data modify …` command.
     ///
     /// Raw/unchecked: prefer [`Storage::try_get_or_insert`].
+    #[doc = "**API Contract:** Run `sand api show sand::command::Storage::get_or_insert` for the canonical contract."]
     pub fn get_or_insert(&self, key: impl Into<String>, default: impl Into<NbtValue>) -> String {
         let key = key.into();
         let val = default.into();
@@ -288,6 +307,7 @@ impl Storage {
     }
 
     /// Validated counterpart to [`Storage::get_or_insert`].
+    #[doc = "**API Contract:** Run `sand api show sand::command::Storage::try_get_or_insert` for the canonical contract."]
     pub fn try_get_or_insert(
         &self,
         key: impl Into<String>,
@@ -306,11 +326,13 @@ impl Storage {
     // ── List operations ───────────────────────────────────────────────────
 
     /// Append `value` to the end of the list at `key`.
+    #[doc = "**API Contract:** Run `sand api show sand::command::Storage::push` for the canonical contract."]
     pub fn push(&self, key: impl Into<String>, value: impl Into<NbtValue>) -> String {
         DataModify::new(self.target(), key.into()).append(value)
     }
 
     /// Prepend `value` to the front of the list at `key`.
+    #[doc = "**API Contract:** Run `sand api show sand::command::Storage::push_front` for the canonical contract."]
     pub fn push_front(&self, key: impl Into<String>, value: impl Into<NbtValue>) -> String {
         DataModify::new(self.target(), key.into()).prepend(value)
     }
@@ -320,6 +342,7 @@ impl Storage {
     /// `data merge storage <id> <nbt>` — merge a compound into the root.
     ///
     /// Raw/unchecked: prefer [`Storage::try_merge`].
+    #[doc = "**API Contract:** Run `sand api show sand::command::Storage::merge` for the canonical contract."]
     pub fn merge(&self, value: impl Into<NbtValue>) -> String {
         format!("data merge storage {} {}", self.id, value.into())
     }
@@ -332,6 +355,7 @@ impl Storage {
     /// structured `NbtCompound`, while this compatibility API keeps
     /// accepting any [`NbtValue`] (including [`NbtValue::raw`] escape
     /// hatches) for the merge payload.
+    #[doc = "**API Contract:** Run `sand api show sand::command::Storage::try_merge` for the canonical contract."]
     pub fn try_merge(&self, value: impl Into<NbtValue>) -> CommandResult<String> {
         sand_commands::validate::resource_location_shape(&self.id, "Storage::try_merge", "id")?;
         Ok(format!("data merge storage {} {}", self.id, value.into()))
@@ -340,6 +364,7 @@ impl Storage {
     // ── Copy from other locations ─────────────────────────────────────────
 
     /// Copy a value from entity NBT into this storage.
+    #[doc = "**API Contract:** Run `sand api show sand::command::Storage::copy_from_entity` for the canonical contract."]
     pub fn copy_from_entity(
         &self,
         key: impl Into<String>,
@@ -351,6 +376,7 @@ impl Storage {
     }
 
     /// Copy a value from another storage namespace.
+    #[doc = "**API Contract:** Run `sand api show sand::command::Storage::copy_from_storage` for the canonical contract."]
     pub fn copy_from_storage(
         &self,
         key: impl Into<String>,

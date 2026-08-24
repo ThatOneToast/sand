@@ -41,6 +41,7 @@ fn f32_to_json(value: f32) -> Value {
 /// override these.
 const TYPED_CONFIG_FIELDS: &[&str] = &["probability", "y", "yScale", "lava_level"];
 
+#[doc = "**API Contract:** Run `sand api show sand::component::CarverFloatRange` for the canonical contract."]
 /// A `minecraft:uniform` float provider (`{"type": "minecraft:uniform",
 /// "min_inclusive": …, "max_inclusive": …}`), used for the `yScale` field of
 /// cave-shaped carver configs.
@@ -52,6 +53,7 @@ pub struct CarverFloatRange {
 
 impl CarverFloatRange {
     /// Create a uniformly sampled inclusive float range.
+    #[doc = "**API Contract:** Run `sand api show sand::component::CarverFloatRange::new` for the canonical contract."]
     pub fn new(min_inclusive: f32, max_inclusive: f32) -> Self {
         Self {
             min_inclusive,
@@ -95,6 +97,7 @@ impl CarverFloatRange {
     }
 }
 
+#[doc = "**API Contract:** Run `sand api show sand::component::CaveCarverConfig` for the canonical contract."]
 /// Config shared by the `minecraft:cave` and `minecraft:nether_cave` carver
 /// types.
 #[derive(Debug, Clone, PartialEq)]
@@ -110,6 +113,7 @@ impl CaveCarverConfig {
     /// Create a cave-shaped carver config.
     ///
     /// `probability` (`0..=1`) is the per-chunk chance this carver runs.
+    #[doc = "**API Contract:** Run `sand api show sand::component::CaveCarverConfig::new` for the canonical contract."]
     pub fn new(
         probability: f32,
         y: HeightProvider,
@@ -130,6 +134,7 @@ impl CaveCarverConfig {
     ///
     /// Typed field names (`probability`, `y`, `yScale`, `lava_level`) cannot
     /// be overridden through this escape hatch.
+    #[doc = "**API Contract:** Run `sand api show sand::component::CaveCarverConfig::config_field` for the canonical contract."]
     pub fn config_field(mut self, key: impl Into<String>, value: RawJson) -> Self {
         self.extra_fields.insert(key.into(), value);
         self
@@ -209,6 +214,7 @@ impl Carver {
     }
 }
 
+#[doc = "**API Contract:** Run `sand api show sand::component::ConfiguredCarver` for the canonical contract."]
 /// A configured carver definition
 /// (`data/<namespace>/worldgen/configured_carver/<id>.json`).
 ///
@@ -238,6 +244,7 @@ pub struct ConfiguredCarver {
 
 impl ConfiguredCarver {
     /// A `minecraft:cave` carver.
+    #[doc = "**API Contract:** Run `sand api show sand::component::ConfiguredCarver::cave` for the canonical contract."]
     pub fn cave(location: ResourceLocation, config: CaveCarverConfig) -> Self {
         Self {
             location,
@@ -246,6 +253,7 @@ impl ConfiguredCarver {
     }
 
     /// A `minecraft:nether_cave` carver.
+    #[doc = "**API Contract:** Run `sand api show sand::component::ConfiguredCarver::nether_cave` for the canonical contract."]
     pub fn nether_cave(location: ResourceLocation, config: CaveCarverConfig) -> Self {
         Self {
             location,
@@ -260,6 +268,7 @@ impl ConfiguredCarver {
     /// This escape hatch exists for modded carver types and for vanilla
     /// configs outside the typed slice. The config must still be a JSON
     /// object.
+    #[doc = "**API Contract:** Run `sand api show sand::component::ConfiguredCarver::raw` for the canonical contract."]
     pub fn raw(location: ResourceLocation, carver_type: ResourceLocation, config: RawJson) -> Self {
         Self {
             location,
@@ -276,8 +285,7 @@ impl ConfiguredCarver {
     /// use sand_components::ResourceLocation;
     /// use sand_components::worldgen::configured_carver::{CarverFloatRange, CaveCarverConfig};
     /// use sand_components::worldgen::providers::{HeightProvider, VerticalAnchor};
-    /// use sand_components::worldgen::{Biome, CarvingStep, ConfiguredCarver};
-    /// use sand_components::BiomeEffects;
+    /// use sand_components::worldgen::ConfiguredCarver;
     ///
     /// let carver = ConfiguredCarver::cave(
     ///     ResourceLocation::new("example", "shallow_cave").unwrap(),
@@ -288,13 +296,10 @@ impl ConfiguredCarver {
     ///         VerticalAnchor::Absolute(-54),
     ///     ),
     /// );
-    /// let biome = Biome::new(
-    ///     ResourceLocation::new("example", "shallow_caves").unwrap(),
-    ///     BiomeEffects::new(0xC0D8FF, 0x3F76E4, 0x050533, 0x78A7FF),
-    /// )
-    /// .carver_step(CarvingStep::Air, carver.id());
-    /// # let _ = biome;
+    /// let id = carver.id();
+    /// assert_eq!(id.as_resource_location().to_string(), "example:shallow_cave");
     /// ```
+    #[doc = "**API Contract:** Run `sand api show sand::component::ConfiguredCarver::id` for the canonical contract."]
     pub fn id(&self) -> ConfiguredCarverId {
         ConfiguredCarverId::custom(self.location.clone())
     }

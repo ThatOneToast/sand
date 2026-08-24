@@ -56,6 +56,7 @@ fn main() {
         .select(&providers.versions)
         .unwrap_or_else(|error| panic!("cannot select Sand API surface profile: {error}"));
     let placeholder_codegen = providers.placeholder;
+    let minecraft_version = providers.minecraft_version.clone();
     manifest.static_surface_items = profile.static_surface_items;
     manifest.pending_item_ceiling = profile.pending_item_ceiling;
     let mut generated = providers.apis;
@@ -83,137 +84,141 @@ fn main() {
     for source_crate in &source_crates {
         println!("cargo:rerun-if-changed={}", source_crate.root.display());
     }
-    let graph = SurfaceGraph::load_with_cfg(
-        source_crates.clone(),
-        cargo_cfg(enabled_features.clone(), placeholder_codegen),
-        generated,
-    )
-    .and_then(|graph| {
-        graph.bind_item_macro_provider(
-            "sand_components::registry",
-            "registry_id",
-            "generated_registry_ids",
+    let generated_for_installed = generated.clone();
+    let build_graph = |features: BTreeSet<String>, generated: Vec<GeneratedApi>| {
+        SurfaceGraph::load_with_cfg(
+            source_crates.clone(),
+            cargo_cfg(features, placeholder_codegen),
+            generated,
         )
-    })
-    .and_then(|graph| {
-        graph.bind_item_macro_provider(
-            "sand_components::effect",
-            "vanilla_registry_enum",
-            "generated_effect_registry_enums",
-        )
-    })
-    .and_then(|graph| {
-        graph.bind_item_macro_provider(
-            "sand_core::events",
-            "gamemode_transition",
-            "generated_event_markers",
-        )
-    })
-    .and_then(|graph| {
-        graph.bind_item_macro_provider(
-            "sand_core::events",
-            "status_effect_marker",
-            "generated_event_markers",
-        )
-    })
-    .and_then(|graph| {
-        graph.bind_inert_item_macro(
-            "sand_commands::nbt",
-            "nbt_from",
-            InertItemMacroClassification::LocalTraitImplOnly,
-        )
-    })
-    .and_then(|graph| {
-        graph.bind_inert_item_macro(
-            "sand_components::tag",
-            "tag_registry",
-            InertItemMacroClassification::LocalTraitImplOnly,
-        )
-    })
-    .and_then(|graph| {
-        graph.bind_inert_item_macro(
-            "sand_core::events",
-            "adv_event",
-            InertItemMacroClassification::LocalTraitImplOnly,
-        )
-    })
-    .and_then(|graph| {
-        graph.bind_inert_item_macro(
-            "sand_core::events",
-            "player_event",
-            InertItemMacroClassification::LocalTraitImplOnly,
-        )
-    })
-    .and_then(|graph| {
-        graph.bind_inert_item_macro(
-            "sand_commands::export_registry",
-            "thread_local",
-            InertItemMacroClassification::ThreadLocalStorageWiring,
-        )
-    })
-    .and_then(|graph| {
-        graph.bind_inert_item_macro(
-            "sand_core::function",
-            "thread_local",
-            InertItemMacroClassification::ThreadLocalStorageWiring,
-        )
-    })
-    .and_then(|graph| {
-        graph.bind_inert_item_macro(
-            "sand_core::function",
-            "inventory::collect",
-            InertItemMacroClassification::InventoryCollectionWiring,
-        )
-    })
-    .and_then(|graph| {
-        graph.bind_inert_item_macro(
-            "sand_core::state::registry",
-            "inventory::collect",
-            InertItemMacroClassification::InventoryCollectionWiring,
-        )
-    })
-    .and_then(|graph| {
-        graph.bind_inert_item_macro(
-            "sand_core::entity::archetype",
-            "inventory::collect",
-            InertItemMacroClassification::InventoryCollectionWiring,
-        )
-    })
-    .and_then(|graph| {
-        graph.bind_inert_item_macro(
-            "sand_components::dialog",
-            "inventory::collect",
-            InertItemMacroClassification::InventoryCollectionWiring,
-        )
-    })
-    .and_then(|graph| {
-        graph.bind_inert_item_macro(
-            "sand_resourcepack::descriptor",
-            "inventory::collect",
-            InertItemMacroClassification::InventoryCollectionWiring,
-        )
-    })
-    .and_then(|graph| {
-        if placeholder_codegen {
-            graph.bind_placeholder_generated_include("sand_core::generated", "generated_registries")
-        } else {
-            graph.bind_generated_include("sand_core::generated", "generated_registries")
-        }
-    })
-    .and_then(|graph| {
-        if placeholder_codegen {
-            graph.bind_placeholder_generated_include(
-                "sand_core::cmd::_generated",
-                "generated_commands",
+        .and_then(|graph| {
+            graph.bind_item_macro_provider(
+                "sand_components::registry",
+                "registry_id",
+                "generated_registry_ids",
             )
-        } else {
-            graph.bind_generated_include("sand_core::cmd::_generated", "generated_commands")
-        }
-    })
-    .unwrap_or_else(|error| panic!("failed to construct Sand public facade graph: {error}"));
+        })
+        .and_then(|graph| {
+            graph.bind_item_macro_provider(
+                "sand_components::effect",
+                "vanilla_registry_enum",
+                "generated_effect_registry_enums",
+            )
+        })
+        .and_then(|graph| {
+            graph.bind_item_macro_provider(
+                "sand_core::events",
+                "gamemode_transition",
+                "generated_event_markers",
+            )
+        })
+        .and_then(|graph| {
+            graph.bind_item_macro_provider(
+                "sand_core::events",
+                "status_effect_marker",
+                "generated_event_markers",
+            )
+        })
+        .and_then(|graph| {
+            graph.bind_inert_item_macro(
+                "sand_commands::nbt",
+                "nbt_from",
+                InertItemMacroClassification::LocalTraitImplOnly,
+            )
+        })
+        .and_then(|graph| {
+            graph.bind_inert_item_macro(
+                "sand_components::tag",
+                "tag_registry",
+                InertItemMacroClassification::LocalTraitImplOnly,
+            )
+        })
+        .and_then(|graph| {
+            graph.bind_inert_item_macro(
+                "sand_core::events",
+                "adv_event",
+                InertItemMacroClassification::LocalTraitImplOnly,
+            )
+        })
+        .and_then(|graph| {
+            graph.bind_inert_item_macro(
+                "sand_commands::export_registry",
+                "thread_local",
+                InertItemMacroClassification::ThreadLocalStorageWiring,
+            )
+        })
+        .and_then(|graph| {
+            graph.bind_inert_item_macro(
+                "sand_core::function",
+                "thread_local",
+                InertItemMacroClassification::ThreadLocalStorageWiring,
+            )
+        })
+        .and_then(|graph| {
+            graph.bind_inert_item_macro(
+                "sand_core::function",
+                "inventory::collect",
+                InertItemMacroClassification::InventoryCollectionWiring,
+            )
+        })
+        .and_then(|graph| {
+            graph.bind_inert_item_macro(
+                "sand_core::state::registry",
+                "inventory::collect",
+                InertItemMacroClassification::InventoryCollectionWiring,
+            )
+        })
+        .and_then(|graph| {
+            graph.bind_inert_item_macro(
+                "sand_core::entity::archetype",
+                "inventory::collect",
+                InertItemMacroClassification::InventoryCollectionWiring,
+            )
+        })
+        .and_then(|graph| {
+            graph.bind_inert_item_macro(
+                "sand_components::dialog",
+                "inventory::collect",
+                InertItemMacroClassification::InventoryCollectionWiring,
+            )
+        })
+        .and_then(|graph| {
+            graph.bind_inert_item_macro(
+                "sand_resourcepack::descriptor",
+                "inventory::collect",
+                InertItemMacroClassification::InventoryCollectionWiring,
+            )
+        })
+        .and_then(|graph| {
+            if placeholder_codegen {
+                graph.bind_placeholder_generated_include(
+                    "sand_core::generated",
+                    "generated_registries",
+                )
+            } else {
+                graph.bind_generated_include("sand_core::generated", "generated_registries")
+            }
+        })
+        .and_then(|graph| {
+            if placeholder_codegen {
+                graph.bind_placeholder_generated_include(
+                    "sand_core::cmd::_generated",
+                    "generated_commands",
+                )
+            } else {
+                graph.bind_generated_include("sand_core::cmd::_generated", "generated_commands")
+            }
+        })
+        .unwrap_or_else(|error| panic!("failed to construct Sand public facade graph: {error}"))
+    };
+    let graph = build_graph(enabled_features.clone(), generated);
     let reachable = graph
         .reachable_from("sand")
         .unwrap_or_else(|error| panic!("failed to extract Sand public facade: {error}"));
+    let installed_features = enabled_cargo_features(&enabled_features);
+    let installed_reachable = build_graph(installed_features.clone(), generated_for_installed)
+        .reachable_from("sand")
+        .unwrap_or_else(|error| panic!("failed to extract installed Sand public facade: {error}"));
 
     let source_declarations =
         contract_declarations_from_files(contract_source_files(&source_crates))
@@ -224,13 +229,29 @@ fn main() {
         &reachable,
         generated_contracts,
     ));
+    contracts.extend(generated_provider_contracts(
+        &reachable,
+        "generated_effect_registry_enums",
+    ));
+    contracts.extend(generated_provider_contracts(
+        &reachable,
+        "generated_event_markers",
+    ));
     reject_duplicate_contract_identities(&contracts);
 
-    // The vanilla-registry provider is structurally compared with the emitted
-    // Rust above even when a selected Minecraft profile contains no supported
-    // registries (the explicit placeholder profile). Connecting that audit
-    // prevents the empty profile from becoming a vacuous enforcement claim.
-    let connected_provider_audits = BTreeSet::from(["generated-vanilla-registries".to_owned()]);
+    // The command and vanilla-registry providers are structurally compared
+    // with their emitted Rust above even when a selected Minecraft profile
+    // contains no generated declarations (the explicit placeholder profile).
+    // Connecting those audits prevents the empty profile from becoming a
+    // vacuous enforcement claim.
+    // Only static providers proven against their emitted source in this build
+    // participate in the facade report. Parametric consumer expansions are
+    // self-audited by their proc macros and do not pretend to be finite items
+    // in Sand's installed static surface.
+    let connected_provider_audits = BTreeSet::from([
+        "generated-commands".to_owned(),
+        "generated-vanilla-registries".to_owned(),
+    ]);
     let report = manifest
         .evaluate_with_provider_audits(
             &reachable,
@@ -247,7 +268,35 @@ fn main() {
         );
     }
 
-    write_coverage(&manifest, &report, &reachable, profile);
+    write_coverage(
+        &manifest,
+        &report,
+        &reachable,
+        &installed_reachable,
+        &contracts,
+        &source_declarations,
+        InstalledConfiguration {
+            features: &installed_features,
+            profile,
+            placeholder_codegen,
+            minecraft_version: &minecraft_version,
+        },
+    );
+}
+
+fn enabled_cargo_features(supported: &BTreeSet<String>) -> BTreeSet<String> {
+    supported
+        .iter()
+        .filter(|feature| feature.as_str() != "default")
+        .filter(|feature| {
+            let variable = format!(
+                "CARGO_FEATURE_{}",
+                feature.replace('-', "_").to_ascii_uppercase()
+            );
+            env::var_os(variable).is_some()
+        })
+        .cloned()
+        .collect()
 }
 
 fn contract_source_files(source_crates: &[sand_api_enforce::SourceCrate]) -> Vec<PathBuf> {
@@ -313,6 +362,7 @@ struct GeneratedProviders {
     contracts: Vec<ContractIdentity>,
     versions: BTreeMap<String, String>,
     placeholder: bool,
+    minecraft_version: String,
 }
 
 fn generated_providers(directory: &Path) -> Result<GeneratedProviders, String> {
@@ -320,6 +370,7 @@ fn generated_providers(directory: &Path) -> Result<GeneratedProviders, String> {
     let mut contracts = Vec::new();
     let mut provider_versions = BTreeMap::new();
     let mut placeholder_modes = BTreeSet::new();
+    let mut minecraft_versions = BTreeSet::new();
     for (filename, rust_filename, root_identity, expected_provider) in [
         (
             "commands.api.json",
@@ -345,6 +396,7 @@ fn generated_providers(directory: &Path) -> Result<GeneratedProviders, String> {
             ));
         }
         placeholder_modes.insert(catalog.placeholder);
+        minecraft_versions.insert(catalog.minecraft_version.clone());
         let surface_profile = if catalog.placeholder {
             PLACEHOLDER_SURFACE_PROFILE.to_owned()
         } else {
@@ -421,6 +473,7 @@ fn generated_providers(directory: &Path) -> Result<GeneratedProviders, String> {
             registry_id_path.display()
         ));
     }
+    minecraft_versions.insert(registry_id_catalog.minecraft_version.clone());
     if placeholder_modes == BTreeSet::from([false])
         && provider_versions
             .values()
@@ -448,6 +501,11 @@ fn generated_providers(directory: &Path) -> Result<GeneratedProviders, String> {
             "generated API providers mix placeholder and real codegen artifacts".to_owned(),
         );
     }
+    if minecraft_versions.len() != 1 {
+        return Err(format!(
+            "generated API providers disagree on Minecraft version: {minecraft_versions:?}"
+        ));
+    }
     Ok(GeneratedProviders {
         apis: generated,
         contracts,
@@ -456,6 +514,10 @@ fn generated_providers(directory: &Path) -> Result<GeneratedProviders, String> {
             .into_iter()
             .next()
             .expect("two provider files were read"),
+        minecraft_version: minecraft_versions
+            .into_iter()
+            .next()
+            .expect("three provider files were read"),
     })
 }
 
@@ -469,7 +531,7 @@ fn validate_generated_contracts(
         .collect::<BTreeMap<_, _>>();
     contracts
         .into_iter()
-        .filter_map(|contract| {
+        .filter_map(|mut contract| {
             // A generated declaration shadowed by a handwritten item is Rust-
             // public inside the implementation module but is not reachable
             // through the facade glob, so it is outside the supported surface.
@@ -488,7 +550,59 @@ fn validate_generated_contracts(
                     );
                 }
             }
+            // Providers own semantic metadata, while the facade graph owns
+            // discovery paths. Preserve the provider's canonical spelling but
+            // derive every reachable alias here so a newly exported prelude or
+            // topic alias cannot silently fall out of strict enforcement.
+            contract.aliases = item
+                .paths
+                .iter()
+                .filter(|path| *path != &contract.canonical_path)
+                .cloned()
+                .collect();
             Some(contract)
+        })
+        .collect()
+}
+
+/// A declaration-backed generator owns both the emitted public shape and its
+/// contract registrations. Resolve that provider's contracts through the
+/// facade graph here, so a new generated identity or re-export path fails the
+/// ordinary build rather than relying on a hand-maintained path list.
+fn generated_provider_contracts(
+    reachable: &[sand_api_enforce::ReachableApi],
+    provider: &str,
+) -> Vec<ContractIdentity> {
+    reachable
+        .iter()
+        .filter(|item| {
+            matches!(
+                &item.origin,
+                sand_api_enforce::ReachableOrigin::Generator(origin) if origin == provider
+            )
+        })
+        .map(|item| {
+            let canonical_candidates = item
+                .paths
+                .iter()
+                .filter(|path| path.starts_with("sand::") && !path.starts_with("sand::prelude::"))
+                .collect::<Vec<_>>();
+            let [canonical_path] = canonical_candidates.as_slice() else {
+                panic!(
+                    "generated provider `{provider}` identity `{}` must expose exactly one sand::* canonical path; found {:?}",
+                    item.identity, item.paths
+                );
+            };
+            ContractIdentity {
+                identity: item.identity.clone(),
+                canonical_path: (*canonical_path).clone(),
+                aliases: item
+                    .paths
+                    .iter()
+                    .filter(|path| *path != *canonical_path)
+                    .cloned()
+                    .collect(),
+            }
         })
         .collect()
 }
@@ -537,11 +651,21 @@ fn panic_errors<T: ToString>(heading: &str, errors: &[T]) -> ! {
     )
 }
 
+struct InstalledConfiguration<'a> {
+    features: &'a BTreeSet<String>,
+    profile: &'a sand_api_enforce::SurfaceProfile,
+    placeholder_codegen: bool,
+    minecraft_version: &'a str,
+}
+
 fn write_coverage(
     manifest: &ScopeManifest,
     report: &sand_api_enforce::ScopeReport,
     reachable: &[sand_api_enforce::ReachableApi],
-    profile: &sand_api_enforce::SurfaceProfile,
+    installed_reachable: &[sand_api_enforce::ReachableApi],
+    contracts: &[ContractIdentity],
+    source_declarations: &[sand_api_enforce::ContractDeclaration],
+    installed: InstalledConfiguration<'_>,
 ) {
     let mut pending = report
         .entries
@@ -580,11 +704,373 @@ fn write_coverage(
         writeln!(generated, "String::from({id:?}),").unwrap();
     }
     generated.push_str("] } }\n");
+    generated
+        .push_str("pub fn installed_configuration() -> ApiConfiguration { ApiConfiguration {\n");
+    writeln!(
+        generated,
+        "surface_profile: String::from({:?}),",
+        installed.profile.minecraft_version
+    )
+    .unwrap();
+    writeln!(
+        generated,
+        "minecraft_version: String::from({:?}),",
+        installed.minecraft_version
+    )
+    .unwrap();
+    generated.push_str("cargo_features: vec![\n");
+    for feature in installed.features {
+        writeln!(generated, "String::from({feature:?}),").unwrap();
+    }
+    generated.push_str("],\n");
+    writeln!(
+        generated,
+        "placeholder_codegen: {},",
+        installed.placeholder_codegen
+    )
+    .unwrap();
+    writeln!(
+        generated,
+        "compiled_surface_items: {},",
+        installed_reachable.len()
+    )
+    .unwrap();
+    generated.push_str("} }\n");
+    let installed_paths = installed_reachable
+        .iter()
+        .flat_map(|item| item.paths.iter())
+        .filter(|path| path.starts_with("sand::"))
+        .collect::<BTreeSet<_>>();
+    generated.push_str("pub static INSTALLED_API_PATHS: &[&str] = &[\n");
+    for path in installed_paths {
+        writeln!(generated, "{path:?},").unwrap();
+    }
+    generated.push_str("];\n");
+    let canonical_by_identity = contracts
+        .iter()
+        .map(|contract| (contract.identity.as_str(), contract.canonical_path.as_str()))
+        .collect::<BTreeMap<_, _>>();
+    let mut facade_path_mappings = installed_reachable
+        .iter()
+        .filter_map(|item| {
+            canonical_by_identity
+                .get(item.identity.as_str())
+                .map(|canonical_path| (item.identity.clone(), *canonical_path))
+        })
+        .collect::<BTreeMap<_, _>>();
+    let kind_by_identity = installed_reachable
+        .iter()
+        .map(|item| (item.identity.as_str(), item.kind))
+        .collect::<BTreeMap<_, _>>();
+    let mut shortened_owners = BTreeMap::<String, BTreeSet<&str>>::new();
+    for (identity, canonical_path) in &facade_path_mappings {
+        let segments = identity.split("::").collect::<Vec<_>>();
+        let end = match kind_by_identity.get(identity.as_str()) {
+            Some(
+                ReachableKind::Method
+                | ReachableKind::TraitMethod
+                | ReachableKind::AssociatedConst
+                | ReachableKind::AssociatedType
+                | ReachableKind::Field
+                | ReachableKind::Variant,
+            ) => segments.len().saturating_sub(1),
+            _ => segments.len(),
+        };
+        for start in 1..end {
+            shortened_owners
+                .entry(
+                    std::iter::once(segments[0])
+                        .chain(segments[start..].iter().copied())
+                        .collect::<Vec<_>>()
+                        .join("::"),
+                )
+                .or_default()
+                .insert(*canonical_path);
+        }
+    }
+    for (implementation_path, owners) in shortened_owners {
+        if let Some(canonical_path) = owners.iter().next().filter(|_| owners.len() == 1) {
+            facade_path_mappings
+                .entry(implementation_path)
+                .or_insert(*canonical_path);
+        }
+    }
+    generated.push_str("pub static INSTALLED_API_PATH_MAPPINGS: &[(&str, &str)] = &[\n");
+    for (implementation_path, canonical_path) in &facade_path_mappings {
+        writeln!(generated, "({implementation_path:?}, {canonical_path:?}),").unwrap();
+    }
+    generated.push_str("];\n");
+    let mut suffix_owners = BTreeMap::<String, BTreeSet<&str>>::new();
+    for canonical_path in facade_path_mappings.values().copied() {
+        let segments = canonical_path.split("::").collect::<Vec<_>>();
+        for start in 1..segments.len() {
+            suffix_owners
+                .entry(segments[start..].join("::"))
+                .or_default()
+                .insert(canonical_path);
+        }
+    }
+    generated.push_str("pub static INSTALLED_API_SUFFIX_MAPPINGS: &[(&str, &str)] = &[\n");
+    for (suffix, owners) in suffix_owners {
+        if let Some(canonical_path) = owners.iter().next().filter(|_| owners.len() == 1) {
+            writeln!(generated, "({suffix:?}, {canonical_path:?}),").unwrap();
+        }
+    }
+    generated.push_str("];\n");
+    let mut type_suffix_owners = BTreeMap::<String, BTreeSet<&str>>::new();
+    let mut type_path_mappings = BTreeMap::<&str, &str>::new();
+    for item in installed_reachable {
+        if !matches!(
+            item.kind,
+            ReachableKind::Struct
+                | ReachableKind::Enum
+                | ReachableKind::Union
+                | ReachableKind::Trait
+                | ReachableKind::TypeAlias
+        ) {
+            continue;
+        }
+        let Some(canonical_path) = canonical_by_identity.get(item.identity.as_str()) else {
+            continue;
+        };
+        type_path_mappings.insert(item.identity.as_str(), *canonical_path);
+        let terminal = canonical_path.rsplit("::").next().unwrap_or(canonical_path);
+        type_suffix_owners
+            .entry(terminal.to_owned())
+            .or_default()
+            .insert(*canonical_path);
+    }
+    generated.push_str("pub static INSTALLED_API_TYPE_SUFFIX_MAPPINGS: &[(&str, &str)] = &[\n");
+    for (suffix, owners) in type_suffix_owners {
+        if let Some(canonical_path) = owners.iter().next().filter(|_| owners.len() == 1) {
+            writeln!(generated, "({suffix:?}, {canonical_path:?}),").unwrap();
+        }
+    }
+    generated.push_str("];\n");
+    generated.push_str("pub static INSTALLED_API_TYPE_PATH_MAPPINGS: &[(&str, &str)] = &[\n");
+    for (implementation_path, canonical_path) in type_path_mappings {
+        writeln!(generated, "({implementation_path:?}, {canonical_path:?}),").unwrap();
+    }
+    generated.push_str("];\n");
+    generated.push_str("pub static INSTALLED_FACADE_CONTRACTS: &[ApiRegistration] = &[\n");
+    let mut installed_facades = source_declarations
+        .iter()
+        .filter_map(|declaration| {
+            declaration
+                .facade
+                .as_ref()
+                .map(|facade| (declaration, facade))
+        })
+        .collect::<Vec<_>>();
+    installed_facades.sort_by_key(|(declaration, _)| declaration.canonical_path.as_str());
+    let documented_family_paths = installed_facades
+        .iter()
+        .filter(|(_, facade)| facade.family && facade.kind != sand_api_contract::ApiKind::Module)
+        .map(|(declaration, _)| declaration.canonical_path.as_str())
+        .collect::<BTreeSet<_>>();
+    let mut facade_registrations = String::new();
+    for (declaration, facade) in &installed_facades {
+        facade_registrations.push_str(
+            "sand_api_contract::inventory::submit! { sand_api_contract::ApiRegistration {\n",
+        );
+        writeln!(
+            facade_registrations,
+            "canonical_path: {:?},",
+            declaration.canonical_path
+        )
+        .unwrap();
+        facade_registrations.push_str("aliases: &[");
+        for alias in &declaration.aliases {
+            write!(facade_registrations, "{alias:?},").unwrap();
+        }
+        writeln!(
+            facade_registrations,
+            "], canonical_module: {:?},",
+            facade.canonical_module
+        )
+        .unwrap();
+        writeln!(
+            facade_registrations,
+            "kind: sand_api_contract::ApiKind::{:?},",
+            facade.kind
+        )
+        .unwrap();
+        writeln!(
+            facade_registrations,
+            "signature: {:?},",
+            facade.runtime_signature
+        )
+        .unwrap();
+        writeln!(facade_registrations, "summary: {:?},", facade.summary).unwrap();
+        writeln!(facade_registrations, "context: {:?},", facade.context).unwrap();
+        writeln!(facade_registrations, "minecraft: {:?},", facade.minecraft).unwrap();
+        facade_registrations.push_str("use_when: &[");
+        for value in &facade.use_when {
+            write!(facade_registrations, "{value:?},").unwrap();
+        }
+        facade_registrations.push_str("], avoid_when: &[");
+        for value in &facade.avoid_when {
+            write!(facade_registrations, "{value:?},").unwrap();
+        }
+        facade_registrations.push_str("], parameters: &[");
+        for (name, description) in &facade.parameter_docs {
+            write!(facade_registrations, "sand_api_contract::StaticApiParameter {{ name: {name:?}, description: {description:?} }},").unwrap();
+        }
+        facade_registrations.push_str("], returns: ");
+        match &facade.return_doc {
+            Some(value) => write!(facade_registrations, "Some({value:?})").unwrap(),
+            None => facade_registrations.push_str("None"),
+        }
+        writeln!(facade_registrations, ", example: {:?},", facade.example).unwrap();
+        facade_registrations.push_str("availability: &[");
+        for value in &facade.availability {
+            write!(facade_registrations, "{value:?},").unwrap();
+        }
+        facade_registrations.push_str("], } }\n");
+
+        generated.push_str("ApiRegistration {\n");
+        writeln!(
+            generated,
+            "canonical_path: {:?},",
+            declaration.canonical_path
+        )
+        .unwrap();
+        generated.push_str("aliases: &[");
+        for alias in &declaration.aliases {
+            write!(generated, "{alias:?},").unwrap();
+        }
+        generated.push_str("],\n");
+        writeln!(
+            generated,
+            "canonical_module: {:?},",
+            facade.canonical_module
+        )
+        .unwrap();
+        writeln!(generated, "kind: ApiKind::{:?},", facade.kind).unwrap();
+        writeln!(generated, "signature: {:?},", facade.runtime_signature).unwrap();
+        writeln!(generated, "summary: {:?},", facade.summary).unwrap();
+        writeln!(generated, "context: {:?},", facade.context).unwrap();
+        writeln!(generated, "minecraft: {:?},", facade.minecraft).unwrap();
+        generated.push_str("use_when: &[");
+        for value in &facade.use_when {
+            write!(generated, "{value:?},").unwrap();
+        }
+        generated.push_str("],\navoid_when: &[");
+        for value in &facade.avoid_when {
+            write!(generated, "{value:?},").unwrap();
+        }
+        generated.push_str("],\nparameters: &[");
+        for (name, description) in &facade.parameter_docs {
+            write!(
+                generated,
+                "StaticApiParameter {{ name: {name:?}, description: {description:?} }},"
+            )
+            .unwrap();
+        }
+        generated.push_str("],\n");
+        match &facade.return_doc {
+            Some(value) => writeln!(generated, "returns: Some({value:?}),").unwrap(),
+            None => generated.push_str("returns: None,\n"),
+        }
+        writeln!(generated, "example: {:?},", facade.example).unwrap();
+        generated.push_str("availability: &[");
+        for value in &facade.availability {
+            write!(generated, "{value:?},").unwrap();
+        }
+        generated.push_str("],\n},\n");
+    }
+    generated.push_str("];\n");
+    generated.push_str("pub static INSTALLED_FAMILY_API_PATHS: &[&str] = &[\n");
+    for (declaration, facade) in installed_facades {
+        if facade.family {
+            writeln!(generated, "{:?},", declaration.canonical_path).unwrap();
+        }
+    }
+    generated.push_str("];\n");
+    generated.push_str(
+        "pub type InstalledApiShape = (&'static str, &'static [&'static str], &'static str, &'static [(&'static str, &'static str)], Option<&'static str>, &'static str, bool, Option<&'static str>, Option<&'static str>, Option<&'static str>);\n",
+    );
+    let all_definition_shapes = sand_api_enforce::definition_shapes(reachable)
+        .unwrap_or_else(|error| panic!("failed to derive structural API metadata: {error}"));
+    generated.push_str("pub static INSTALLED_API_SHAPES: &[InstalledApiShape] = &[\n");
+    let missing_family_docs = reachable
+        .iter()
+        .filter_map(|item| {
+            let canonical_path = item
+                .paths
+                .iter()
+                .find(|path| documented_family_paths.contains(path.as_str()))?;
+            let shape = all_definition_shapes.get(&item.identity)?;
+            if source_documentation_is_substantive(&shape.documentation)
+                && source_documentation_has_contract_lookup(&shape.documentation, canonical_path)
+            {
+                return None;
+            }
+            let definition = item.definition.as_ref()?;
+            Some(format!(
+                "{canonical_path}\t{}\t{}",
+                definition.source.display(),
+                definition.line
+            ))
+        })
+        .collect::<Vec<_>>();
+    if !missing_family_docs.is_empty() {
+        let output_dir = PathBuf::from(env::var_os("OUT_DIR").expect("Cargo provides OUT_DIR"));
+        let report = output_dir.join("api_contract_doc_gaps.txt");
+        fs::write(&report, missing_family_docs.join("\n"))
+            .unwrap_or_else(|error| panic!("failed to write {}: {error}", report.display()));
+        panic!(
+            "{} supported family callables or placeholder-backed members lack substantive source Rustdoc with their exact `sand api show <canonical-path>` lookup; every forwarded member must carry API-specific semantic documentation and direct contract discovery at its defining item (details: {})",
+            missing_family_docs.len(),
+            report.display()
+        );
+    }
+    let definition_shapes = sand_api_enforce::definition_shapes(installed_reachable)
+        .unwrap_or_else(|error| {
+            panic!("failed to derive installed structural API metadata: {error}")
+        });
+    for item in installed_reachable {
+        let Some(shape) = definition_shapes.get(&item.identity) else {
+            continue;
+        };
+        write!(generated, "({:?}, &[", item.identity).unwrap();
+        for path in item.paths.iter().filter(|path| path.starts_with("sand::")) {
+            write!(generated, "{path:?},").unwrap();
+        }
+        write!(generated, "], {:?}, &[", shape.signature).unwrap();
+        for (name, ty) in &shape.parameters {
+            write!(generated, "({name:?},{ty:?}),").unwrap();
+        }
+        writeln!(
+            generated,
+            "], {:?}, {:?}, {}, {:?}, {:?}, {:?}),",
+            shape.return_type.as_deref(),
+            shape.documentation,
+            shape.has_receiver,
+            shape.impl_self_type.as_deref(),
+            shape.impl_generics.as_deref(),
+            shape.impl_where_clause.as_deref()
+        )
+        .unwrap();
+    }
+    generated.push_str("];\n");
+    generated.push_str("pub static INSTALLED_API_IDENTITIES: &[&[&str]] = &[\n");
+    for item in installed_reachable {
+        generated.push_str("&[");
+        for path in item.paths.iter().filter(|path| path.starts_with("sand::")) {
+            write!(generated, "{path:?},").unwrap();
+        }
+        generated.push_str("],\n");
+    }
+    generated.push_str("];\n");
     generated.push_str(
         "pub fn installed_surface_report() -> &'static str { include_str!(concat!(env!(\"OUT_DIR\"), \"/api_surface_report.txt\")) }\n",
     );
 
     let output_dir = PathBuf::from(env::var_os("OUT_DIR").expect("Cargo provides OUT_DIR"));
+    let facade_output = output_dir.join("api_facade_registrations.rs");
+    fs::write(&facade_output, facade_registrations)
+        .unwrap_or_else(|error| panic!("failed to write {}: {error}", facade_output.display()));
     let output = output_dir.join("api_coverage.rs");
     fs::write(&output, generated)
         .unwrap_or_else(|error| panic!("failed to write {}: {error}", output.display()));
@@ -603,7 +1089,7 @@ fn write_coverage(
     }
     let mut surface = format!(
         "schema_version=1\nconfiguration=all-supported-features,current-target\nminecraft_version={}\ntotal={}\n",
-        profile.minecraft_version,
+        installed.profile.minecraft_version,
         reachable.len(),
     );
     for (kind, count) in kinds {
@@ -616,10 +1102,10 @@ fn write_coverage(
     let report_path = output_dir.join("api_surface_report.txt");
     fs::write(&report_path, &surface)
         .unwrap_or_else(|error| panic!("failed to write {}: {error}", report_path.display()));
-    let baseline = fs::read_to_string(&profile.baseline).unwrap_or_else(|error| {
+    let baseline = fs::read_to_string(&installed.profile.baseline).unwrap_or_else(|error| {
         panic!(
             "failed to read selected API surface baseline {}: {error}",
-            profile.baseline.display()
+            installed.profile.baseline.display()
         )
     });
     if baseline != surface {
@@ -639,9 +1125,18 @@ fn write_coverage(
             );
         panic!(
             "Sand API aggregate surface differs from selected profile baseline {}; classify the scope-level change and update that deterministic baseline ({difference})",
-            profile.baseline.display()
+            installed.profile.baseline.display()
         );
     }
+}
+
+fn source_documentation_is_substantive(documentation: &str) -> bool {
+    sand_api_contract::rustdoc_has_specific_semantics(documentation)
+}
+
+fn source_documentation_has_contract_lookup(documentation: &str, canonical_path: &str) -> bool {
+    documentation.contains("API Contract")
+        && documentation.contains(&format!("sand api show {canonical_path}"))
 }
 
 fn kind_name(kind: ReachableKind) -> &'static str {

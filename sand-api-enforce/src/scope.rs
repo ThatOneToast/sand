@@ -12,7 +12,9 @@ use std::path::Path;
 
 use serde::Deserialize;
 
-use crate::{ContractIdentity, ReachableApi, ReachableOrigin, audit_reachable_surface};
+use crate::{
+    ContractIdentity, ReachableApi, ReachableKind, ReachableOrigin, audit_reachable_surface,
+};
 
 const SCOPE_SCHEMA_VERSION: u32 = 1;
 
@@ -326,6 +328,13 @@ impl ScopeManifest {
             .iter()
             .map(|contract| contract.identity.as_str())
             .collect::<BTreeSet<_>>();
+        let root_types = reachable
+            .iter()
+            .filter(|item| root_type_kind(item.kind))
+            .flat_map(|item| item.paths.iter())
+            .filter(|path| direct_child(path, "sand"))
+            .cloned()
+            .collect::<BTreeSet<_>>();
         let mut entries = Vec::with_capacity(self.scopes.len());
         let mut failures = Vec::new();
         let mut pending_items = 0;
@@ -351,7 +360,7 @@ impl ScopeManifest {
             let candidates = self
                 .scopes
                 .iter()
-                .filter(|scope| scope.matches(item))
+                .filter(|scope| scope.matches(item, &root_types))
                 .collect::<Vec<_>>();
             match candidates.as_slice() {
                 [] => unscoped.push(item.identity.clone()),
@@ -397,7 +406,11 @@ impl ScopeManifest {
                 .iter()
                 .find(|scope| scope.id == **scope_id)
                 .expect("owners only contain validated scope ids");
-            if !scope.matches_path(&contract.canonical_path) {
+            let item = reachable
+                .iter()
+                .find(|item| item.identity == contract.identity)
+                .expect("contract owners only contain reachable identities");
+            if !scope.matches_path(&contract.canonical_path, &root_types, item) {
                 failures.push(ScopeFailure::NonCanonicalContractPath {
                     identity: contract.identity.clone(),
                     selected: contract.canonical_path.clone(),
@@ -606,16 +619,21 @@ impl ScopeManifest {
 }
 
 impl ApiScope {
-    fn matches(&self, item: &ReachableApi) -> bool {
+    fn matches(&self, item: &ReachableApi, root_types: &BTreeSet<String>) -> bool {
         provider_matches(&self.provider, &item.origin)
-            && item.paths.iter().any(|path| self.matches_path(path))
+            && item
+                .paths
+                .iter()
+                .any(|path| self.matches_path(path, root_types, item))
     }
 
-    fn matches_path(&self, path: &str) -> bool {
+    fn matches_path(&self, path: &str, root_types: &BTreeSet<String>, item: &ReachableApi) -> bool {
         if self.recursive {
             within(path, &self.canonical_module)
         } else {
             direct_child(path, &self.canonical_module)
+                || self.canonical_module == "sand"
+                    && direct_root_item_member(path, root_types, item)
         }
     }
 }
@@ -721,6 +739,42 @@ fn direct_child(path: &str, scope: &str) -> bool {
     path.strip_prefix(scope)
         .and_then(|rest| rest.strip_prefix("::"))
         .is_some_and(|rest| !rest.is_empty() && !rest.contains("::"))
+}
+
+fn root_type_kind(kind: ReachableKind) -> bool {
+    matches!(
+        kind,
+        ReachableKind::Struct
+            | ReachableKind::Union
+            | ReachableKind::Enum
+            | ReachableKind::Trait
+            | ReachableKind::TypeAlias
+    )
+}
+
+// The root facade is intentionally non-recursive so module-owned APIs remain
+// in their topic scopes. Descendants of a type exported directly at the root
+// still belong to that root type. Use the discovered type surface rather than
+// a naming convention: lowercase and raw-identifier type names are valid Rust.
+fn direct_root_item_member(path: &str, root_types: &BTreeSet<String>, item: &ReachableApi) -> bool {
+    let Some(rest) = path.strip_prefix("sand::") else {
+        return false;
+    };
+    let mut segments = rest.split("::");
+    let Some(root_item) = segments.next() else {
+        return false;
+    };
+    segments.next().is_some()
+        && root_types.contains(&format!("sand::{root_item}"))
+        && matches!(
+            item.kind,
+            ReachableKind::Variant
+                | ReachableKind::Field
+                | ReachableKind::Method
+                | ReachableKind::TraitMethod
+                | ReachableKind::AssociatedConst
+                | ReachableKind::AssociatedType
+        )
 }
 
 fn overlaps(left: &str, right: &str) -> bool {

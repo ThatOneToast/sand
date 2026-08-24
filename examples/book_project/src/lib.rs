@@ -133,7 +133,7 @@ pub fn grapple_core() -> CustomItem {
             Text::new("Pulses with stored momentum").gray(),
             Text::new("Craft into Trail Striders").dark_gray(),
         ]))
-        .component(ItemComponent::rarity(Rarity::Rare))
+        .component(ItemComponent::rarity(ItemRarity::Rare))
         .component(ItemComponent::max_stack_size(1))
 }
 // ANCHOR_END: item_grapple_core
@@ -149,9 +149,9 @@ pub fn trail_striders() -> CustomItem {
             Text::new("Light as a rumor").gray(),
         ]))
         .component(ItemComponent::custom_data_marker("trail_striders"))
-        .component(ItemComponent::rarity(Rarity::Epic))
+        .component(ItemComponent::rarity(ItemRarity::Epic))
         .component(ItemComponent::attribute_modifier(
-            AttributeModifier::new(AttributeId::MovementSpeed)
+            AttributeModifier::new(AttributeType::MovementSpeed)
                 .amount(0.02)
                 .operation(AttributeOperation::AddValue)
                 .slot(EquipmentSlotGroup::Feet),

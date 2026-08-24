@@ -7,8 +7,12 @@ use std::path::Path;
 
 use proc_macro2::{TokenStream, TokenTree};
 use quote::ToTokens;
-use syn::parse::{Parse, ParseStream};
+use syn::ext::IdentExt;
+use syn::parse::{Parse, ParseStream, Parser};
 
+use crate::reachable::{
+    CfgSet, cfg_enabled, effective_attribute_metas, module_path, module_search_directory,
+};
 use crate::{GeneratedApi, GeneratedProducer, ReachableKind};
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -22,6 +26,445 @@ pub enum MacroProviderError {
     MissingGeneratedVariants,
     MissingGeneratedEvents,
     UnsupportedGeneratedShape(String),
+    MissingConsumerInvocation(String),
+}
+
+/// Audit a real downstream use of a Sand macro whose expansion deliberately
+/// preserves the annotated public declaration's shape.
+///
+/// `function`, `datapack_component`, `on_event`, `armor_event`, and
+/// `schedule` only add private descriptor factories and inventory wiring; the
+/// author's function remains the sole supported Rust identity. Likewise,
+/// `EntityStateEnum` adds a trait implementation only. This audit refuses an
+/// empty fixture, preventing a consumer-build scope from being promoted merely
+/// because it happens to have no finite checked-in declarations.
+pub fn shape_preserving_consumer_provider(
+    path: &Path,
+    macro_name: &str,
+    cfg: &CfgSet,
+) -> Result<(), MacroProviderError> {
+    let source = fs::read_to_string(path)
+        .map_err(|error| MacroProviderError::Io(format!("{}: {error}", path.display())))?;
+    let file = syn::parse_file(&source)
+        .map_err(|error| MacroProviderError::Parse(format!("{}: {error}", path.display())))?;
+    let found = contains_shape_preserving_invocation(
+        &file.items,
+        macro_name,
+        path,
+        &module_search_directory(path),
+        path.parent().unwrap_or_else(|| Path::new(".")),
+        cfg,
+    )?;
+    if found {
+        Ok(())
+    } else {
+        Err(MacroProviderError::MissingConsumerInvocation(
+            macro_name.to_owned(),
+        ))
+    }
+}
+
+fn contains_shape_preserving_invocation(
+    items: &[syn::Item],
+    macro_name: &str,
+    source_file: &Path,
+    default_directory: &Path,
+    path_directory: &Path,
+    cfg: &CfgSet,
+) -> Result<bool, MacroProviderError> {
+    for item in items {
+        if !provider_item_enabled(item, cfg, source_file)? {
+            continue;
+        }
+        if let Some((path, file)) = parse_provider_include(item, source_file)? {
+            if contains_shape_preserving_invocation(
+                &file.items,
+                macro_name,
+                &path,
+                &module_search_directory(&path),
+                path.parent().unwrap_or_else(|| Path::new(".")),
+                cfg,
+            )? {
+                return Ok(true);
+            }
+            continue;
+        }
+        let found = match item {
+            syn::Item::Fn(function) => {
+                is_public(&function.vis)
+                    && provider_has_attribute_named(&function.attrs, macro_name, cfg, source_file)?
+            }
+            syn::Item::Enum(enumeration) if macro_name == "EntityStateEnum" => {
+                is_public(&enumeration.vis)
+                    && provider_derives_named(&enumeration.attrs, macro_name, cfg, source_file)?
+            }
+            syn::Item::Mod(module) => {
+                let name = module.ident.unraw().to_string();
+                if let Some((_, items)) = &module.content {
+                    let child_directory = default_directory.join(name);
+                    contains_shape_preserving_invocation(
+                        items,
+                        macro_name,
+                        source_file,
+                        &child_directory,
+                        &child_directory,
+                        cfg,
+                    )?
+                } else {
+                    let (path, file) = parse_provider_module(
+                        module,
+                        source_file,
+                        default_directory,
+                        path_directory,
+                        cfg,
+                    )?;
+                    contains_shape_preserving_invocation(
+                        &file.items,
+                        macro_name,
+                        &path,
+                        &module_search_directory(&path),
+                        path.parent().unwrap_or_else(|| Path::new(".")),
+                        cfg,
+                    )?
+                }
+            }
+            _ => false,
+        };
+        if found {
+            return Ok(true);
+        }
+    }
+    Ok(false)
+}
+
+/// Describe the public HUD handle constants emitted by feature-gated
+/// `hud_bar!` and `hud_element!` calls. `texture!` intentionally produces no
+/// Rust-visible API: it only registers a pack asset. Parsing the same literal
+/// `name` input the macros use for their uppercased handle keeps consumer
+/// enforcement exact without pretending raw texture registrations are APIs.
+pub fn resourcepack_macro_provider(
+    path: &Path,
+    identity_module: &str,
+    cfg: &CfgSet,
+) -> Result<Vec<GeneratedApi>, MacroProviderError> {
+    let source = fs::read_to_string(path)
+        .map_err(|error| MacroProviderError::Io(format!("{}: {error}", path.display())))?;
+    let file = syn::parse_file(&source)
+        .map_err(|error| MacroProviderError::Parse(format!("{}: {error}", path.display())))?;
+    let mut generated = Vec::new();
+    let saw_resourcepack_macro = collect_resourcepack_macros(
+        &file.items,
+        identity_module,
+        path,
+        &module_search_directory(path),
+        path.parent().unwrap_or_else(|| Path::new(".")),
+        cfg,
+        &mut generated,
+    )?;
+    if !saw_resourcepack_macro {
+        return Err(MacroProviderError::MissingConsumerInvocation(
+            "resourcepack macro".into(),
+        ));
+    }
+    generated.sort_by(|left, right| left.identity.cmp(&right.identity));
+    generated.dedup_by(|left, right| left.identity == right.identity);
+    Ok(generated)
+}
+
+fn collect_resourcepack_macros(
+    items: &[syn::Item],
+    identity_module: &str,
+    path: &Path,
+    default_directory: &Path,
+    path_directory: &Path,
+    cfg: &CfgSet,
+    generated: &mut Vec<GeneratedApi>,
+) -> Result<bool, MacroProviderError> {
+    let mut saw_resourcepack_macro = false;
+    for item in items {
+        if !provider_item_enabled(item, cfg, path)? {
+            continue;
+        }
+        if let Some((included_path, file)) = parse_provider_include(item, path)? {
+            saw_resourcepack_macro |= collect_resourcepack_macros(
+                &file.items,
+                identity_module,
+                &included_path,
+                &module_search_directory(&included_path),
+                included_path.parent().unwrap_or_else(|| Path::new(".")),
+                cfg,
+                generated,
+            )?;
+            continue;
+        }
+        if let syn::Item::Mod(module) = item {
+            let nested_module = format!("{identity_module}::{}", module.ident.unraw());
+            if let Some((_, items)) = &module.content {
+                let child_directory = default_directory.join(module.ident.unraw().to_string());
+                saw_resourcepack_macro |= collect_resourcepack_macros(
+                    items,
+                    &nested_module,
+                    path,
+                    &child_directory,
+                    &child_directory,
+                    cfg,
+                    generated,
+                )?;
+            } else {
+                let (nested_path, file) =
+                    parse_provider_module(module, path, default_directory, path_directory, cfg)?;
+                saw_resourcepack_macro |= collect_resourcepack_macros(
+                    &file.items,
+                    &nested_module,
+                    &nested_path,
+                    &module_search_directory(&nested_path),
+                    nested_path.parent().unwrap_or_else(|| Path::new(".")),
+                    cfg,
+                    generated,
+                )?;
+            }
+            continue;
+        }
+        let syn::Item::Macro(item) = item else {
+            continue;
+        };
+        let Some(name) = item
+            .mac
+            .path
+            .segments
+            .last()
+            .map(|segment| segment.ident.to_string())
+        else {
+            continue;
+        };
+        match name.as_str() {
+            "hud_bar" | "hud_element" => {
+                saw_resourcepack_macro = true;
+                let handle = resourcepack_handle_name(item.mac.tokens.clone(), path)?;
+                generated.push(GeneratedApi {
+                    identity: format!("{identity_module}::{handle}"),
+                    provider: "resourcepack_macros".into(),
+                    producer: None,
+                    kind: ReachableKind::Constant,
+                    members: Vec::new(),
+                    excluded: false,
+                });
+            }
+            "texture" => saw_resourcepack_macro = true,
+            _ => {}
+        }
+    }
+    Ok(saw_resourcepack_macro)
+}
+
+fn resourcepack_handle_name(
+    tokens: TokenStream,
+    path: &Path,
+) -> Result<String, MacroProviderError> {
+    let fields = syn::punctuated::Punctuated::<syn::ExprAssign, syn::Token![,]>::parse_terminated
+        .parse2(tokens)
+        .map_err(|error| MacroProviderError::Parse(format!("{}: {error}", path.display())))?;
+    let name = fields
+        .iter()
+        .rev()
+        .find_map(|field| match field.left.as_ref() {
+            syn::Expr::Path(path) if path.path.is_ident("name") => match field.right.as_ref() {
+                syn::Expr::Lit(syn::ExprLit {
+                    lit: syn::Lit::Str(value),
+                    ..
+                }) => Some(value.value()),
+                _ => None,
+            },
+            _ => None,
+        })
+        .ok_or_else(|| {
+            MacroProviderError::Parse(format!(
+                "{}: resourcepack HUD macro needs a literal name = \"...\"",
+                path.display()
+            ))
+        })?;
+    let handle = name.to_uppercase().replace(['-', ' '], "_");
+    if syn::parse_str::<syn::Ident>(&handle).is_err() {
+        return Err(MacroProviderError::Parse(format!(
+            "{}: resourcepack HUD name `{name}` does not produce a valid public Rust handle",
+            path.display()
+        )));
+    }
+    Ok(handle)
+}
+
+/// Verify that a `texture!` invocation has the exact semantic inputs needed
+/// by the macro while acknowledging that it emits no supported Rust item.
+pub(crate) fn audit_resourcepack_texture_invocation(
+    tokens: &TokenStream,
+) -> Result<(), MacroProviderError> {
+    let fields = syn::punctuated::Punctuated::<syn::ExprAssign, syn::Token![,]>::parse_terminated
+        .parse2(tokens.clone())
+        .map_err(|error| MacroProviderError::Parse(error.to_string()))?;
+    let literal = |key: &str| {
+        fields
+            .iter()
+            .rev()
+            .find_map(|field| match field.left.as_ref() {
+                syn::Expr::Path(path) if path.path.is_ident(key) => match field.right.as_ref() {
+                    syn::Expr::Lit(syn::ExprLit {
+                        lit: syn::Lit::Str(value),
+                        ..
+                    }) => Some(Ok(value.value())),
+                    _ => Some(Err(MacroProviderError::Parse(format!(
+                        "`{key}` must be a string literal in texture!"
+                    )))),
+                },
+                _ => None,
+            })
+            .unwrap_or_else(|| {
+                Err(MacroProviderError::Parse(format!(
+                    "`{key}` is required in texture!"
+                )))
+            })
+    };
+    let id = literal("id")?;
+    let _path = literal("path")?;
+    if id.split_once(':').is_none() {
+        return Err(MacroProviderError::Parse(format!(
+            "`id` must be a resource location `namespace:path`, got `{id}`"
+        )));
+    }
+    Ok(())
+}
+
+fn parse_provider_module(
+    module: &syn::ItemMod,
+    source_file: &Path,
+    default_directory: &Path,
+    path_directory: &Path,
+    cfg: &CfgSet,
+) -> Result<(std::path::PathBuf, syn::File), MacroProviderError> {
+    let path = module_path(
+        &module.attrs,
+        default_directory,
+        path_directory,
+        &module.ident.unraw().to_string(),
+        cfg,
+        source_file,
+    )
+    .map_err(|error| MacroProviderError::Parse(error.to_string()))?;
+    let source = fs::read_to_string(&path)
+        .map_err(|error| MacroProviderError::Io(format!("{}: {error}", path.display())))?;
+    let file = syn::parse_file(&source)
+        .map_err(|error| MacroProviderError::Parse(format!("{}: {error}", path.display())))?;
+    Ok((path, file))
+}
+
+fn parse_provider_include(
+    item: &syn::Item,
+    source_file: &Path,
+) -> Result<Option<(std::path::PathBuf, syn::File)>, MacroProviderError> {
+    let syn::Item::Macro(item) = item else {
+        return Ok(None);
+    };
+    if !item.mac.path.is_ident("include") {
+        return Ok(None);
+    }
+    // Follow checked-in source includes, but leave generated includes to the
+    // surface graph's named-provider enforcement. Consumer fixtures commonly
+    // include their generated enforcement shim with `concat!(env!(...))` in a
+    // hidden module; that file is not provider source and is unavailable until
+    // the fixture build script runs.
+    let Ok(relative) = syn::parse2::<syn::LitStr>(item.mac.tokens.clone()) else {
+        return Ok(None);
+    };
+    let path = source_file
+        .parent()
+        .unwrap_or_else(|| Path::new("."))
+        .join(relative.value());
+    let source = fs::read_to_string(&path)
+        .map_err(|error| MacroProviderError::Io(format!("{}: {error}", path.display())))?;
+    let file = syn::parse_file(&source)
+        .map_err(|error| MacroProviderError::Parse(format!("{}: {error}", path.display())))?;
+    Ok(Some((path, file)))
+}
+
+fn provider_item_enabled(
+    item: &syn::Item,
+    cfg: &CfgSet,
+    source_file: &Path,
+) -> Result<bool, MacroProviderError> {
+    cfg_enabled(crate::item_attrs(item), cfg, source_file)
+        .map_err(|error| MacroProviderError::Parse(error.to_string()))
+}
+
+pub(crate) fn provider_effective_attributes(
+    attrs: &[syn::Attribute],
+    cfg: &CfgSet,
+    source_file: &Path,
+) -> Result<Vec<syn::Attribute>, MacroProviderError> {
+    effective_attribute_metas(attrs, cfg, source_file)
+        .map_err(|error| MacroProviderError::Parse(error.to_string()))
+        .map(|metas| {
+            metas
+                .into_iter()
+                .map(|meta| syn::parse_quote!(#[#meta]))
+                .collect()
+        })
+}
+
+fn provider_has_attribute_named(
+    attrs: &[syn::Attribute],
+    name: &str,
+    cfg: &CfgSet,
+    source_file: &Path,
+) -> Result<bool, MacroProviderError> {
+    Ok(provider_effective_attributes(attrs, cfg, source_file)?
+        .iter()
+        .any(|attribute| {
+            attribute
+                .path()
+                .segments
+                .last()
+                .is_some_and(|segment| segment.ident == name)
+        }))
+}
+
+fn provider_derives_named(
+    attrs: &[syn::Attribute],
+    name: &str,
+    cfg: &CfgSet,
+    source_file: &Path,
+) -> Result<bool, MacroProviderError> {
+    Ok(provider_effective_attributes(attrs, cfg, source_file)?
+        .iter()
+        .any(|attribute| derives_named(std::slice::from_ref(attribute), name)))
+}
+
+pub(crate) fn provider_derive_input(
+    structure: &syn::ItemStruct,
+    cfg: &CfgSet,
+    source_file: &Path,
+) -> Result<syn::DeriveInput, MacroProviderError> {
+    let mut input =
+        syn::parse2::<syn::DeriveInput>(structure.to_token_stream()).map_err(|error| {
+            MacroProviderError::Parse(format!("{}: {error}", source_file.display()))
+        })?;
+    input.attrs = provider_effective_attributes(&input.attrs, cfg, source_file)?;
+    if let syn::Data::Struct(data) = &mut input.data {
+        let fields = match &mut data.fields {
+            syn::Fields::Named(fields) => &mut fields.named,
+            syn::Fields::Unnamed(fields) => &mut fields.unnamed,
+            syn::Fields::Unit => return Ok(input),
+        };
+        let mut enabled = syn::punctuated::Punctuated::new();
+        for mut field in std::mem::take(fields) {
+            if cfg_enabled(&field.attrs, cfg, source_file)
+                .map_err(|error| MacroProviderError::Parse(error.to_string()))?
+            {
+                field.attrs = provider_effective_attributes(&field.attrs, cfg, source_file)?;
+                enabled.push(field);
+            }
+        }
+        *fields = enabled;
+    }
+    Ok(input)
 }
 
 /// Prove that a local `macro_rules!` transcriber cannot add an API identity.
@@ -208,6 +651,9 @@ impl fmt::Display for MacroProviderError {
             Self::MissingGeneratedEvents => formatter.write_str(
                 "gamemode_transition! and status_effect_marker! have no generated event types",
             ),
+            Self::MissingConsumerInvocation(name) => {
+                write!(formatter, "consumer fixture does not exercise #[{name}]")
+            }
             Self::UnsupportedGeneratedShape(message) => formatter.write_str(message),
         }
     }
@@ -722,45 +1168,96 @@ fn generated_event(name: &str, shape: &GeneratedTypeShape) -> GeneratedApi {
 pub fn sand_storage_derive_provider(
     path: &Path,
     identity_module: &str,
+    cfg: &CfgSet,
 ) -> Result<Vec<GeneratedApi>, MacroProviderError> {
     let source = fs::read_to_string(path)
         .map_err(|error| MacroProviderError::Io(format!("{}: {error}", path.display())))?;
     let file = syn::parse_file(&source)
         .map_err(|error| MacroProviderError::Parse(format!("{}: {error}", path.display())))?;
     let mut generated = Vec::new();
-    for item in &file.items {
+    collect_sand_storage_derives(
+        &file.items,
+        identity_module,
+        path,
+        &module_search_directory(path),
+        path.parent().unwrap_or_else(|| Path::new(".")),
+        cfg,
+        &mut generated,
+    )?;
+    if generated.is_empty() {
+        return Err(MacroProviderError::MissingGeneratedTypes);
+    }
+    generated.sort_by(|left, right| left.identity.cmp(&right.identity));
+    Ok(generated)
+}
+
+fn collect_sand_storage_derives(
+    items: &[syn::Item],
+    identity_module: &str,
+    path: &Path,
+    default_directory: &Path,
+    path_directory: &Path,
+    cfg: &CfgSet,
+    generated: &mut Vec<GeneratedApi>,
+) -> Result<(), MacroProviderError> {
+    for item in items {
+        if !provider_item_enabled(item, cfg, path)? {
+            continue;
+        }
+        if let Some((included_path, file)) = parse_provider_include(item, path)? {
+            collect_sand_storage_derives(
+                &file.items,
+                identity_module,
+                &included_path,
+                &module_search_directory(&included_path),
+                included_path.parent().unwrap_or_else(|| Path::new(".")),
+                cfg,
+                generated,
+            )?;
+            continue;
+        }
+        if let syn::Item::Mod(module) = item {
+            let nested_module = format!("{identity_module}::{}", module.ident.unraw());
+            if let Some((_, items)) = &module.content {
+                let child_directory = default_directory.join(module.ident.unraw().to_string());
+                collect_sand_storage_derives(
+                    items,
+                    &nested_module,
+                    path,
+                    &child_directory,
+                    &child_directory,
+                    cfg,
+                    generated,
+                )?;
+            } else {
+                let (nested_path, file) =
+                    parse_provider_module(module, path, default_directory, path_directory, cfg)?;
+                collect_sand_storage_derives(
+                    &file.items,
+                    &nested_module,
+                    &nested_path,
+                    &module_search_directory(&nested_path),
+                    nested_path.parent().unwrap_or_else(|| Path::new(".")),
+                    cfg,
+                    generated,
+                )?;
+            }
+            continue;
+        }
         let syn::Item::Struct(structure) = item else {
             continue;
         };
-        let derives_sand_storage = structure.attrs.iter().any(|attribute| {
-            if !attribute.path().is_ident("derive") {
-                return false;
-            }
-            attribute
-                .parse_args_with(
-                    syn::punctuated::Punctuated::<syn::Path, syn::Token![,]>::parse_terminated,
-                )
-                .is_ok_and(|derives| {
-                    derives.iter().any(|derive| {
-                        derive
-                            .segments
-                            .last()
-                            .is_some_and(|segment| segment.ident == "SandStorage")
-                    })
-                })
-        });
-        if !derives_sand_storage {
+        if !provider_derives_named(&structure.attrs, "SandStorage", cfg, path)? {
             continue;
         }
-        let derive_input = syn::parse2::<syn::DeriveInput>(structure.to_token_stream())
-            .map_err(|error| MacroProviderError::Parse(format!("{}: {error}", path.display())))?;
+        let derive_input = provider_derive_input(structure, cfg, path)?;
         let members = sand_api_contract::syntax::sand_storage_generated_member_names(&derive_input)
             .map_err(|error| MacroProviderError::Parse(format!("{}: {error}", path.display())))?;
-        let owner = format!("{identity_module}::{}", structure.ident);
+        let owner = format!("{identity_module}::{}", structure.ident.unraw());
         for (index, name) in members.into_iter().enumerate() {
             generated.push(GeneratedApi {
                 identity: format!("{owner}::{name}"),
-                provider: "sand_storage_derive".into(),
+                provider: "storage_derive".into(),
                 producer: Some(GeneratedProducer {
                     owner: owner.clone(),
                     name: "SandStorage".into(),
@@ -775,11 +1272,283 @@ pub fn sand_storage_derive_provider(
             });
         }
     }
+    Ok(())
+}
+
+/// Describe the public bound-view type and inherent APIs emitted by a real
+/// `State` derive. The surface model is shared with reachability so a new
+/// State field or a scope change cannot be accepted by a consumer build until
+/// its exact generated declarations are contracted.
+pub fn state_derive_provider(
+    path: &Path,
+    identity_module: &str,
+    cfg: &CfgSet,
+) -> Result<Vec<GeneratedApi>, MacroProviderError> {
+    let source = fs::read_to_string(path)
+        .map_err(|error| MacroProviderError::Io(format!("{}: {error}", path.display())))?;
+    let file = syn::parse_file(&source)
+        .map_err(|error| MacroProviderError::Parse(format!("{}: {error}", path.display())))?;
+    let mut generated = Vec::new();
+    collect_state_derives(
+        &file.items,
+        identity_module,
+        path,
+        &module_search_directory(path),
+        path.parent().unwrap_or_else(|| Path::new(".")),
+        cfg,
+        &mut generated,
+    )?;
     if generated.is_empty() {
         return Err(MacroProviderError::MissingGeneratedTypes);
     }
     generated.sort_by(|left, right| left.identity.cmp(&right.identity));
     Ok(generated)
+}
+
+fn collect_state_derives(
+    items: &[syn::Item],
+    identity_module: &str,
+    path: &Path,
+    default_directory: &Path,
+    path_directory: &Path,
+    cfg: &CfgSet,
+    generated: &mut Vec<GeneratedApi>,
+) -> Result<(), MacroProviderError> {
+    for item in items {
+        if !provider_item_enabled(item, cfg, path)? {
+            continue;
+        }
+        if let Some((included_path, file)) = parse_provider_include(item, path)? {
+            collect_state_derives(
+                &file.items,
+                identity_module,
+                &included_path,
+                &module_search_directory(&included_path),
+                included_path.parent().unwrap_or_else(|| Path::new(".")),
+                cfg,
+                generated,
+            )?;
+            continue;
+        }
+        if let syn::Item::Mod(module) = item {
+            let nested_module = format!("{identity_module}::{}", module.ident.unraw());
+            if let Some((_, items)) = &module.content {
+                let child_directory = default_directory.join(module.ident.unraw().to_string());
+                collect_state_derives(
+                    items,
+                    &nested_module,
+                    path,
+                    &child_directory,
+                    &child_directory,
+                    cfg,
+                    generated,
+                )?;
+            } else {
+                let (nested_path, file) =
+                    parse_provider_module(module, path, default_directory, path_directory, cfg)?;
+                collect_state_derives(
+                    &file.items,
+                    &nested_module,
+                    &nested_path,
+                    &module_search_directory(&nested_path),
+                    nested_path.parent().unwrap_or_else(|| Path::new(".")),
+                    cfg,
+                    generated,
+                )?;
+            }
+            continue;
+        }
+        let syn::Item::Struct(structure) = item else {
+            continue;
+        };
+        if !provider_derives_named(&structure.attrs, "State", cfg, path)?
+            || !is_public(&structure.vis)
+        {
+            continue;
+        }
+        let derive_input = provider_derive_input(structure, cfg, path)?;
+        let surface = sand_api_contract::syntax::state_generated_surface(&derive_input)
+            .map_err(|error| MacroProviderError::Parse(format!("{}: {error}", path.display())))?;
+        let owner = format!("{identity_module}::{}", structure.ident.unraw());
+        generated.push(GeneratedApi {
+            identity: format!("{identity_module}::{}", surface.bound_type),
+            provider: "state_derive".into(),
+            producer: Some(GeneratedProducer {
+                owner: owner.clone(),
+                name: "State".into(),
+            }),
+            kind: ReachableKind::Struct,
+            members: surface
+                .bound_fields
+                .into_iter()
+                .map(|name| (name, ReachableKind::Field))
+                .collect(),
+            excluded: false,
+        });
+        generated.extend(surface.associated.into_iter().map(|member| GeneratedApi {
+            identity: format!("{owner}::{}", member.name),
+            provider: "state_derive".into(),
+            producer: Some(GeneratedProducer {
+                owner: owner.clone(),
+                name: "State".into(),
+            }),
+            kind: match member.kind {
+                sand_api_contract::syntax::StateGeneratedAssociatedKind::Const => {
+                    ReachableKind::AssociatedConst
+                }
+                sand_api_contract::syntax::StateGeneratedAssociatedKind::Method => {
+                    ReachableKind::Method
+                }
+            },
+            members: Vec::new(),
+            excluded: false,
+        }));
+    }
+    Ok(())
+}
+
+/// Describe the sibling typed item reference and helpers emitted by one real
+/// `#[custom_item]` invocation. Literal name extraction lives in the shared
+/// syntax model, so consumer enforcement fails closed if the macro gains a
+/// new naming form that has not received a provider implementation.
+pub fn custom_item_provider(
+    path: &Path,
+    identity_module: &str,
+    cfg: &CfgSet,
+) -> Result<Vec<GeneratedApi>, MacroProviderError> {
+    let source = fs::read_to_string(path)
+        .map_err(|error| MacroProviderError::Io(format!("{}: {error}", path.display())))?;
+    let file = syn::parse_file(&source)
+        .map_err(|error| MacroProviderError::Parse(format!("{}: {error}", path.display())))?;
+    let mut generated = Vec::new();
+    collect_custom_items(
+        &file.items,
+        identity_module,
+        path,
+        &module_search_directory(path),
+        path.parent().unwrap_or_else(|| Path::new(".")),
+        cfg,
+        &mut generated,
+    )?;
+    if generated.is_empty() {
+        return Err(MacroProviderError::MissingGeneratedTypes);
+    }
+    generated.sort_by(|left, right| left.identity.cmp(&right.identity));
+    Ok(generated)
+}
+
+fn collect_custom_items(
+    items: &[syn::Item],
+    identity_module: &str,
+    path: &Path,
+    default_directory: &Path,
+    path_directory: &Path,
+    cfg: &CfgSet,
+    generated: &mut Vec<GeneratedApi>,
+) -> Result<(), MacroProviderError> {
+    for item in items {
+        if !provider_item_enabled(item, cfg, path)? {
+            continue;
+        }
+        if let Some((included_path, file)) = parse_provider_include(item, path)? {
+            collect_custom_items(
+                &file.items,
+                identity_module,
+                &included_path,
+                &module_search_directory(&included_path),
+                included_path.parent().unwrap_or_else(|| Path::new(".")),
+                cfg,
+                generated,
+            )?;
+            continue;
+        }
+        if let syn::Item::Mod(module) = item {
+            let nested_module = format!("{identity_module}::{}", module.ident.unraw());
+            if let Some((_, items)) = &module.content {
+                let child_directory = default_directory.join(module.ident.unraw().to_string());
+                collect_custom_items(
+                    items,
+                    &nested_module,
+                    path,
+                    &child_directory,
+                    &child_directory,
+                    cfg,
+                    generated,
+                )?;
+            } else {
+                let (nested_path, file) =
+                    parse_provider_module(module, path, default_directory, path_directory, cfg)?;
+                collect_custom_items(
+                    &file.items,
+                    &nested_module,
+                    &nested_path,
+                    &module_search_directory(&nested_path),
+                    nested_path.parent().unwrap_or_else(|| Path::new(".")),
+                    cfg,
+                    generated,
+                )?;
+            }
+            continue;
+        }
+        let syn::Item::Fn(function) = item else {
+            continue;
+        };
+        if !provider_has_attribute_named(&function.attrs, "custom_item", cfg, path)?
+            || !is_public(&function.vis)
+        {
+            continue;
+        }
+        let mut function = function.clone();
+        function.attrs = provider_effective_attributes(&function.attrs, cfg, path)?;
+        let surface = sand_api_contract::syntax::custom_item_generated_surface(&function)
+            .map_err(|error| MacroProviderError::Parse(format!("{}: {error}", path.display())))?;
+        let owner = format!("{identity_module}::{}", function.sig.ident.unraw());
+        let type_identity = format!("{identity_module}::{}", surface.type_name);
+        generated.push(GeneratedApi {
+            identity: type_identity.clone(),
+            provider: "item_macro".into(),
+            producer: Some(GeneratedProducer {
+                owner: owner.clone(),
+                name: "custom_item".into(),
+            }),
+            kind: ReachableKind::Struct,
+            members: surface
+                .constants
+                .into_iter()
+                .map(|name| (name, ReachableKind::AssociatedConst))
+                .chain(
+                    surface
+                        .methods
+                        .into_iter()
+                        .map(|name| (name, ReachableKind::Method)),
+                )
+                .collect(),
+            excluded: false,
+        });
+    }
+    Ok(())
+}
+
+fn derives_named(attributes: &[syn::Attribute], name: &str) -> bool {
+    attributes.iter().any(|attribute| {
+        attribute.path().is_ident("derive")
+            && attribute
+                .parse_args_with(
+                    syn::punctuated::Punctuated::<syn::Path, syn::Token![,]>::parse_terminated,
+                )
+                .is_ok_and(|derives| {
+                    derives.iter().any(|derive| {
+                        derive
+                            .segments
+                            .last()
+                            .is_some_and(|segment| segment.ident == name)
+                    })
+                })
+    })
+}
+
+fn is_public(visibility: &syn::Visibility) -> bool {
+    matches!(visibility, syn::Visibility::Public(_))
 }
 
 fn named_generator(file: &syn::File, macro_name: &str) -> Result<TokenStream, MacroProviderError> {
@@ -1251,9 +2020,11 @@ fn repetition_emits_api_item(tokens: TokenStream) -> bool {
     let flattened = flatten(tokens);
     flattened.iter().any(|token| {
         matches!(token, TokenTree::Ident(ident) if matches!(ident.to_string().as_str(), "pub" | "fn" | "const" | "type" | "struct" | "enum" | "union" | "trait" | "static" | "mod" | "use"))
-    }) || flattened.windows(2).any(|window| {
+    }) || flattened.windows(2).enumerate().any(|(index, window)| {
         matches!(&window[0], TokenTree::Ident(_))
             && matches!(&window[1], TokenTree::Punct(punct) if punct.as_char() == '!')
+            && !is_api_contract_inventory_submit(&flattened, index)
+            && !inert_expression_macro(&flattened, index)
     })
 }
 
@@ -1278,13 +2049,46 @@ fn reject_item_position_macro_invocations(
         else {
             continue;
         };
-        if bang.as_char() == '!' && macro_path_starts_at_item_boundary(tokens, index) {
+        if bang.as_char() == '!'
+            && macro_path_starts_at_item_boundary(tokens, index)
+            && !is_api_contract_inventory_submit(tokens, index)
+        {
             return Err(unsupported(format!(
                 "generator invokes unmodeled `{name}!` macro at {position}; helper macros in item-producing positions are not auditable"
             )));
         }
     }
     Ok(())
+}
+
+/// `inventory::submit!` is the inert link-time registration mechanism used by
+/// generated API contracts. It cannot introduce a Rust-visible declaration;
+/// accepting only this fully-qualified spelling lets generators emit contract
+/// metadata beside a repeated public family without creating a macro escape
+/// hatch in the public-surface extractor.
+fn is_api_contract_inventory_submit(tokens: &[TokenTree], submit_index: usize) -> bool {
+    matches!(
+        tokens.get(submit_index.saturating_sub(6)..submit_index),
+        Some([
+            TokenTree::Ident(contract),
+            TokenTree::Punct(colon_one),
+            TokenTree::Punct(colon_two),
+            TokenTree::Ident(inventory),
+            TokenTree::Punct(colon_three),
+            TokenTree::Punct(colon_four),
+        ]) if contract == "sand_api_contract"
+            && inventory == "inventory"
+            && colon_one.as_char() == ':'
+            && colon_two.as_char() == ':'
+            && colon_three.as_char() == ':'
+            && colon_four.as_char() == ':'
+    ) && matches!(tokens.get(submit_index), Some(TokenTree::Ident(submit)) if submit == "submit")
+}
+
+/// Built-in literal macros are expressions only and cannot create an item in
+/// a generator transcriber. They are common in static contract registrations.
+fn inert_expression_macro(tokens: &[TokenTree], index: usize) -> bool {
+    matches!(tokens.get(index), Some(TokenTree::Ident(name)) if matches!(name.to_string().as_str(), "concat" | "stringify"))
 }
 
 fn macro_path_starts_at_item_boundary(tokens: &[TokenTree], name_index: usize) -> bool {

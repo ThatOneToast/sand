@@ -2,6 +2,7 @@ use crate::component::{AssetContent, AssetOutput, ResourcePackComponent};
 use crate::components::font::{BitmapFont, BitmapProvider};
 use crate::sprite::{Color, gen_element_png};
 
+#[doc = "**API Contract:** Run `sand api show sand::resourcepack::GenHudElement` for the canonical contract."]
 /// A static HUD overlay element whose texture is **generated at build time**
 /// from a solid color rather than copied from a user-supplied PNG.
 ///
@@ -20,32 +21,40 @@ use crate::sprite::{Color, gen_element_png};
 /// ```
 ///
 pub struct GenHudElement {
+    #[doc = "**API Contract:** Run `sand api show sand::resourcepack::GenHudElement::name` for the canonical contract."]
     /// Unique identifier used in diagnostics and codepoint derivation.
     pub name: &'static str,
 
+    #[doc = "**API Contract:** Run `sand api show sand::resourcepack::GenHudElement::texture_dest` for the canonical contract."]
     /// Destination sub-path inside `assets/<namespace>/textures/` (without
     /// extension), e.g. `"font/hotbar_bg"`.
     pub texture_dest: &'static str,
 
+    #[doc = "**API Contract:** Run `sand api show sand::resourcepack::GenHudElement::unicode` for the canonical contract."]
     /// Override the unicode codepoint for this element.
     ///
     /// When `None` (the default), the codepoint is derived automatically from
     /// the component name via [`element_char`](crate::element_char).
     pub unicode: Option<char>,
 
+    #[doc = "**API Contract:** Run `sand api show sand::resourcepack::GenHudElement::height` for the canonical contract."]
     /// Rendered glyph height in pixels. Also used as `width` when `width`
     /// is `0`.
     pub height: i32,
 
+    #[doc = "**API Contract:** Run `sand api show sand::resourcepack::GenHudElement::ascent` for the canonical contract."]
     /// Vertical offset from the baseline to the top of the glyph.
     pub ascent: i32,
 
+    #[doc = "**API Contract:** Run `sand api show sand::resourcepack::GenHudElement::font` for the canonical contract."]
     /// Name of the font file (without extension).
     pub font: &'static str,
 
+    #[doc = "**API Contract:** Run `sand api show sand::resourcepack::GenHudElement::color` for the canonical contract."]
     /// Packed `0xRRGGBBAA` fill color for the generated texture.
     pub color: u32,
 
+    #[doc = "**API Contract:** Run `sand api show sand::resourcepack::GenHudElement::width` for the canonical contract."]
     /// Pixel width of the generated texture.
     ///
     /// A value of `0` means "use `height`" (produces a square texture).

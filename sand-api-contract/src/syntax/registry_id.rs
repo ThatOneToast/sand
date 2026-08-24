@@ -3,7 +3,7 @@
 use proc_macro2::TokenStream;
 use quote::{ToTokens, quote};
 use syn::parse::{Parse, ParseStream};
-use syn::{Attribute, FnArg, Item, LitStr, Pat, Token};
+use syn::{Attribute, Expr, FnArg, Item, Lit, LitStr, Meta, Pat, Token};
 
 use crate::{ApiEntry, ApiKind, ApiParameter};
 
@@ -16,7 +16,7 @@ pub struct RegistryApiDefinition {
     pub contract: ApiEntry,
 }
 
-/// The compiled Rust expansion and any opted-in API definitions.
+/// The compiled Rust expansion and its declaration-derived API definitions.
 pub struct RegistryIdExpansion {
     pub rust: TokenStream,
     pub definitions: Vec<RegistryApiDefinition>,
@@ -94,11 +94,11 @@ pub fn expand(input: TokenStream) -> syn::Result<RegistryIdExpansion> {
     let invocation = syn::parse2::<Invocation>(input)?;
     let name = &invocation.name;
     let attributes = &invocation.attributes;
-    let contract = invocation.contract.map(parse_contract).transpose()?;
-    let local_constructor = contract
-        .as_ref()
-        .and_then(|contract| contract.local.as_ref())
-        .is_some();
+    let contract = match invocation.contract.map(parse_contract).transpose()? {
+        Some(contract) => contract,
+        None => semantic_default_contract(attributes, name)?,
+    };
+    let local_constructor = contract.local.is_some();
     if local_constructor && name != "DialogId" {
         return Err(syn::Error::new_spanned(
             name,
@@ -164,18 +164,91 @@ pub fn expand(input: TokenStream) -> syn::Result<RegistryIdExpansion> {
         }
     };
     let mut file = syn::parse2::<syn::File>(base)?;
-    let definitions = match contract {
-        Some(contract) => definitions(&file, &invocation.name, contract)?,
-        None => Vec::new(),
-    };
-    if definitions.is_empty() {
-        add_default_method_docs(&mut file, &invocation.name);
-    } else {
-        add_contract_docs(&mut file, &invocation.name, &definitions)?;
-    }
+    let definitions = definitions(&file, &invocation.name, contract)?;
+    add_contract_docs(&mut file, &invocation.name, &definitions)?;
     Ok(RegistryIdExpansion {
         rust: file.into_token_stream(),
         definitions,
+    })
+}
+
+/// Turn declaration documentation into a complete contract for the ordinary
+/// prelude-only registry-ID family. This intentionally rejects undocumented
+/// declarations: a generator may synthesize prose only when its input already
+/// states what the registry identifier represents.
+fn semantic_default_contract(attributes: &[Attribute], name: &syn::Ident) -> syn::Result<Contract> {
+    let documentation = attributes
+        .iter()
+        .filter_map(|attribute| match &attribute.meta {
+            Meta::NameValue(value)
+                if value.path.is_ident("doc")
+                    && matches!(&value.value, Expr::Lit(expression) if matches!(&expression.lit, Lit::Str(_))) =>
+            {
+                let Expr::Lit(expression) = &value.value else {
+                    unreachable!();
+                };
+                let Lit::Str(text) = &expression.lit else {
+                    unreachable!();
+                };
+                Some(text.value().trim().to_owned())
+            }
+            _ => None,
+        })
+        .filter(|line| !line.is_empty())
+        .collect::<Vec<_>>()
+        .join(" ");
+    let first_sentence = super::first_prose_sentence(&documentation);
+    if first_sentence.is_empty() {
+        return Err(syn::Error::new_spanned(
+            name,
+            format!(
+                "registry_id! `{name}` requires @contract(...) or declaration docs that explain its Minecraft registry semantics"
+            ),
+        ));
+    }
+    let subject = first_sentence
+        .strip_prefix("Typed ")
+        .unwrap_or(first_sentence)
+        .trim_end_matches('.')
+        .to_owned();
+    let availability = if documentation.contains("Introduced in Minecraft 26") {
+        Some(vec![LitStr::new("Minecraft Java 26.1+", name.span())])
+    } else if documentation.contains("Introduced in 1.21.5") {
+        Some(vec![LitStr::new("Minecraft Java 1.21.5+", name.span())])
+    } else {
+        None
+    };
+    Ok(Contract {
+        path: Some(LitStr::new(&format!("sand::registry::{name}"), name.span())),
+        aliases: Some(Vec::new()),
+        subject: Some(LitStr::new(&subject, name.span())),
+        minecraft: Some(LitStr::new(
+            &format!(
+                "Validates and serializes the namespace:path identifier Minecraft uses for this {subject}."
+            ),
+            name.span(),
+        )),
+        use_when: Some(vec![
+            LitStr::new(
+                &format!("Passing a typed {subject} to a Sand API"),
+                name.span(),
+            ),
+            LitStr::new(
+                &format!("Representing a custom or modded {subject}"),
+                name.span(),
+            ),
+        ]),
+        avoid_when: Some(vec![
+            LitStr::new("Passing an unvalidated namespace:path string", name.span()),
+            LitStr::new(
+                "Using a more specific generated vanilla enum when one is available",
+                name.span(),
+            ),
+        ]),
+        example_namespace: Some(LitStr::new("demo", name.span())),
+        example_path: Some(LitStr::new("entry", name.span())),
+        availability,
+        local: None,
     })
 }
 
@@ -404,15 +477,16 @@ fn definitions(
         canonical_module: module,
         kind: ApiKind::Struct,
         signature: structure_shape.into_token_stream().to_string(),
-        summary: format!("Identifies a {subject} with a validated Minecraft resource location."),
+        summary: format!("Represents {subject} with a validated Minecraft resource location."),
         context: format!(
-            "{name} keeps the namespace and path of a {subject} distinct from unrelated registry identifiers."
+            "{name} keeps the namespace and path for {subject} distinct from unrelated registry identifiers."
         ),
         minecraft: minecraft.clone(),
         use_when: use_when.clone(),
         avoid_when: avoid_when.clone(),
         parameters: Vec::new(),
         returns: None,
+        return_type: None,
         example: format!(
             "let id = {name}::custom(ResourceLocation::new(\"{example_namespace}\", \"{example_path}\")?);"
         ),
@@ -459,6 +533,7 @@ fn definitions(
                         example: String|
      -> syn::Result<RegistryApiDefinition> {
         let parameters = parameter_names(&item.sig)?;
+        let parameter_types = parameter_types(&item.sig);
         if parameters.len() != descriptions.len() {
             return Err(syn::Error::new_spanned(
                 &item.sig,
@@ -494,10 +569,16 @@ fn definitions(
                 avoid_when: avoid_when.clone(),
                 parameters: parameters
                     .into_iter()
+                    .zip(parameter_types)
                     .zip(descriptions.iter().cloned())
-                    .map(|(name, description)| ApiParameter { name, description })
+                    .map(|((name, rust_type), description)| ApiParameter {
+                        name,
+                        rust_type: Some(rust_type),
+                        description,
+                    })
                     .collect(),
                 returns: Some(returns.to_owned()),
+                return_type: return_type(&item.sig),
                 example,
                 availability: availability.clone(),
             },
@@ -514,21 +595,21 @@ fn definitions(
         contract: type_entry,
     }];
     result.push(method_entry(minecraft_method,
-        format!("Creates an identifier for a {subject} in the minecraft namespace."),
-        format!("Use this constructor for a vanilla {subject} rather than spelling the minecraft namespace repeatedly."),
-        format!("Validates the path and emits minecraft:<path> when the {subject} identifier is serialized."),
-        &[format!("The resource path of the {subject} inside the minecraft namespace.")],
+        format!("Creates {subject} in the minecraft namespace."),
+        format!("Use this constructor for vanilla {subject} rather than spelling the minecraft namespace repeatedly."),
+        format!("Validates the path and emits minecraft:<path> when {subject} is serialized."),
+        &[format!("The resource path for {subject} inside the minecraft namespace.")],
         "The validated typed identifier, or an error when the resource path is invalid.", format!("let id = {name}::minecraft(\"{example_path}\")?;"))?);
     result.push(method_entry(custom_method,
-        format!("Wraps a validated custom resource location as an identifier for a {subject}."),
+        format!("Wraps a validated custom resource location as {subject}."),
         format!("This preserves the namespace chosen by a datapack or mod while retaining the registry-specific {name} type."),
-        format!("Serializes the supplied namespace:path unchanged wherever Minecraft expects the {subject}."),
+        format!("Serializes the supplied namespace:path unchanged wherever Minecraft expects {subject}."),
         &[format!("The validated namespaced location of the {subject}.")], "The registry-specific typed identifier.",
         format!("let id = {name}::custom(ResourceLocation::new(\"{example_namespace}\", \"{example_path}\")?);"))?);
     result.push(method_entry(location_method,
-        format!("Borrows the resource location stored by this {subject} identifier."),
+        format!("Borrows the resource location stored for {subject}."),
         "Use the shared ResourceLocation view when an API accepts identifiers from multiple Minecraft registries.".to_owned(),
-        format!("Does not change serialization; it exposes the validated namespace and path Minecraft uses for the {subject}."),
+        format!("Does not change serialization; it exposes the validated namespace and path Minecraft uses for {subject}."),
         &[], "A borrowed view of the identifier's validated namespace and path.",
         format!("let id = {name}::custom(ResourceLocation::new(\"{example_namespace}\", \"{example_path}\")?); let location = id.as_resource_location();"))?);
     if let Some(local) = local {
@@ -582,9 +663,11 @@ fn definitions(
                 avoid_when,
                 parameters: vec![ApiParameter {
                     name: "path".into(),
+                    rust_type: Some("impl AsRef<str>".into()),
                     description: "The validated dialog path inside the current Sand project's namespace.".into(),
                 }],
                 returns: Some("The local dialog identifier.".into()),
+                return_type: return_type(&item.sig),
                 example: format!("let dialog = DialogId::local(\"{example_path}\");"),
                 availability: availability.clone(),
             },
@@ -614,9 +697,11 @@ fn definitions(
                 avoid_when: vec!["A trusted literal path can use DialogId::local".into()],
                 parameters: vec![ApiParameter {
                     name: "path".into(),
+                    rust_type: Some("impl AsRef<str>".into()),
                     description: "The dialog path inside the current Sand project's namespace to validate.".into(),
                 }],
                 returns: Some("The local dialog identifier, or an error when the path is invalid.".into()),
+                return_type: return_type(&try_item.sig),
                 example: format!("let dialog = DialogId::try_local(\"{example_path}\")?;"),
                 availability,
             },
@@ -642,24 +727,22 @@ fn parameter_names(signature: &syn::Signature) -> syn::Result<Vec<String>> {
         .collect()
 }
 
-fn add_default_method_docs(file: &mut syn::File, name: &syn::Ident) {
-    let Some(implementation) = inherent_impl_mut(file, name) else {
-        return;
-    };
-    for item in &mut implementation.items {
-        let syn::ImplItem::Fn(method) = item else {
-            continue;
-        };
-        let text = match method.sig.ident.to_string().as_str() {
-            "minecraft" => {
-                "Construct a `minecraft:<path>` ID. Returns an error if `path` is invalid."
-            }
-            "custom" => "Wrap any `ResourceLocation` as this registry ID.",
-            "as_resource_location" => "Access the inner `ResourceLocation`.",
-            _ => continue,
-        };
-        method.attrs.push(syn::parse_quote!(#[doc = #text]));
+fn return_type(signature: &syn::Signature) -> Option<String> {
+    match &signature.output {
+        syn::ReturnType::Default => None,
+        syn::ReturnType::Type(_, ty) => Some(ty.to_token_stream().to_string()),
     }
+}
+
+fn parameter_types(signature: &syn::Signature) -> Vec<String> {
+    signature
+        .inputs
+        .iter()
+        .filter_map(|argument| match argument {
+            FnArg::Receiver(_) => None,
+            FnArg::Typed(argument) => Some(argument.ty.to_token_stream().to_string()),
+        })
+        .collect()
 }
 
 fn add_contract_docs(

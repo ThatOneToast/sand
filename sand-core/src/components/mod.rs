@@ -4,7 +4,7 @@
 //! This module re-exports them so that `sand-core` provides a single
 //! import surface for downstream users.
 
-pub mod mc_function;
+pub(crate) mod mc_function;
 
 // ── Flat re-exports ───────────────────────────────────────────────────────────
 

@@ -119,9 +119,20 @@ use crate::state::storage::{Nbt, NbtPath, NbtRef, StorageField, UntypedNbt};
 /// consistent with every other Sand-generated storage resource). `key` is
 /// derived from a caller-supplied stable label (conventionally
 /// `std::any::type_name::<YourSandEvent>()`) via the same FNV-1a scheme
-/// [`crate::events::graph`] uses for detector resource keys, so two
+/// Sand uses for event detector resource keys, so two
 /// snapshots for different event labels can never collide, and the same
 /// label always produces the same path across repeated builds.
+#[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::item::SnapshotSchema",
+    aliases = ["sand::item::snapshot::SnapshotSchema"],
+    summary = "Defines the deterministic storage location for one event-time item snapshot.",
+    context = "A schema pairs a caller-owned storage id with a stable event label so capture sites do not collide while remaining reproducible across exports.",
+    minecraft = "Addresses one command-storage subtree that Sand resets, populates, and later clears during a synchronous event dispatch.",
+    use_when = ["Capturing an item at the boundary of a named event", "Sharing one explicitly scoped snapshot destination"],
+    avoid_when = ["Persisting player data across ticks", "Using an unstable or reused event label for unrelated capture sites"],
+    example = "let schema = SnapshotSchema::new(\"demo:snapshots\", std::any::type_name::<MyEvent>());"
+)]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SnapshotSchema {
     storage: String,
@@ -135,6 +146,7 @@ impl SnapshotSchema {
     /// stable, unique string per capturing event — `std::any::type_name`
     /// of the owning `SandEvent` is the recommended choice, matching the
     /// convention used for every other generated-resource key in Sand.
+    #[sand_macros::api(kind = "method", registry = sand_api_contract, path = "sand::item::SnapshotSchema::new", summary = "Builds a deterministic snapshot-storage schema.", context = "The storage id remains caller-owned while the event label supplies the stable collision-resistant subtree key.", minecraft = "Selects the command-storage path used by later capture commands.", use_when = ["Allocating one schema for a stable event capture site"], avoid_when = ["Using a temporary or shared label for unrelated captures"], params(storage = "The caller-owned namespace:path command storage id.", event_label = "A stable unique label for the owning event."), returns = "A schema with a deterministic storage subtree.", example = "let schema = SnapshotSchema::new(\"demo:snapshots\", \"demo::Join\");")]
     pub fn new(storage: impl Into<String>, event_label: &str) -> Self {
         Self {
             storage: storage.into(),
@@ -143,6 +155,7 @@ impl SnapshotSchema {
     }
 
     /// The fully-qualified storage id this schema writes to.
+    #[sand_macros::api(kind = "method", registry = sand_api_contract, path = "sand::item::SnapshotSchema::storage", summary = "Returns the caller-owned storage identifier.", context = "Use this for diagnostics or integration; ordinary capture code should pass the schema itself.", minecraft = "Names the storage target addressed by generated data commands.", use_when = ["Inspecting a schema's configured storage"], avoid_when = ["Constructing raw data commands instead of using ItemSnapshot"], returns = "The configured namespace:path storage id.", example = "assert_eq!(schema.storage(), \"demo:snapshots\");")]
     pub fn storage(&self) -> &str {
         &self.storage
     }
@@ -155,6 +168,18 @@ impl SnapshotSchema {
 /// Explicit evidence strength for a captured item value. Never claim a
 /// stronger level than the capture mechanism actually provides — see the
 /// module doc for exactly which mechanisms produce which level.
+#[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::item::SnapshotReliability",
+    aliases = ["sand::item::snapshot::SnapshotReliability"],
+    summary = "States how faithfully a captured item represents the triggering moment.",
+    context = "Event code must preserve the evidence level reported by its capture mechanism instead of treating all item observations as interchangeable.",
+    minecraft = "Describes ordering guarantees around generated data-copy commands; it does not change Minecraft state by itself.",
+    use_when = ["Declaring the evidence level supplied to ItemSnapshot::capture", "Checking whether a handler may rely on an exact item value"],
+    avoid_when = ["Upgrading an advancement-backed observation to exact without runtime evidence"],
+    variants(Exact = "Captured before Sand-controlled mutation in a tick-backed observation.", ExactPostTrigger = "Captured after the vanilla trigger may already have changed the source item.", Correlated = "Reserved for a bounded correlation rather than a direct source capture.", Unavailable = "Records that no usable item observation exists."),
+    example = "let reliability = SnapshotReliability::Exact;"
+)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum SnapshotReliability {
     /// Copied from the authoritative event-time item source before any
@@ -181,6 +206,19 @@ pub enum SnapshotReliability {
 
 /// A validated, actionable diagnostic for snapshot capture. Always names
 /// the requested location and the specific unsupported behavior.
+#[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::item::SnapshotError",
+    aliases = ["sand::item::snapshot::SnapshotError"],
+    summary = "Reports why an event-time item snapshot cannot be formed.",
+    context = "Capture fails only when the requested live location or its asserted context cannot be represented safely by Sand's generated commands.",
+    minecraft = "Prevents generation of an invalid data-command source rather than emitting a partial capture sequence.",
+    use_when = ["Handling a fallible ItemSnapshot::capture result"],
+    avoid_when = ["Treating a missing runtime item as a Rust capture error; use the snapshot presence condition"],
+    variants(Location = "Wraps a validated item-location error.", IncompatibleContext = "Explains why the requested capture context cannot address this location."),
+    variant_fields(Location = ["The underlying validated item-location error."], IncompatibleContext(location_kind = "The requested kind of live item location.", reason = "The unsupported context relationship.")),
+    example = "let result = ItemSnapshot::capture(&location, schema, SnapshotReliability::Exact);"
+)]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum SnapshotError {
     /// The source [`ItemLocation`] could not be resolved.
@@ -222,6 +260,17 @@ impl From<ItemLocationError> for SnapshotError {
 /// ordering, reliability, absence, lifetime, and concurrency contract — a
 /// value of this type is a *reference* to generated storage plus a
 /// reliability/source label, never a live Rust-side copy of the item.
+#[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::item::ItemSnapshot",
+    aliases = ["sand::item::snapshot::ItemSnapshot"],
+    summary = "References immutable item data captured for one synchronous event invocation.",
+    context = "The handle separates an event-time observation from a live inventory read, preserving a stated reliability level and a deliberately short lifetime.",
+    minecraft = "Points at Sand-generated storage populated by a guarded data copy and reset on the next capture or explicit cleanup.",
+    use_when = ["A handler must inspect the item that existed when its event fired", "Copying that evidence into caller-owned storage before the invocation ends"],
+    avoid_when = ["Reading a live item after handler mutations", "Keeping the handle or its temporary storage path across ticks"],
+    example = "let (snapshot, commands) = ItemSnapshot::capture(&ItemLocation::PlayerMainHand, schema, SnapshotReliability::Exact)?;"
+)]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ItemSnapshot {
     schema: SnapshotSchema,
@@ -236,6 +285,18 @@ pub struct ItemSnapshot {
 /// either had an item ([`SnapshotAbsence::Present`]) or genuinely had none
 /// ([`SnapshotAbsence::Empty`]) — absence is never encoded as an item ID
 /// such as `minecraft:air`.
+#[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::item::SnapshotAbsence",
+    aliases = ["sand::item::snapshot::SnapshotAbsence"],
+    summary = "Names the two runtime presence outcomes for a captured item location.",
+    context = "Snapshots encode empty inventory state explicitly instead of pretending that minecraft:air is a captured item.",
+    minecraft = "Corresponds to the generated present flag in the snapshot storage subtree.",
+    use_when = ["Documenting a branch over snapshot presence"],
+    avoid_when = ["Using it as a Rust-time Option; presence is evaluated by generated commands"],
+    variants(Present = "The source location held an item when capture ran.", Empty = "The source location resolved without an item."),
+    example = "let absent = snapshot.is_absent();"
+)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum SnapshotAbsence {
     Present,
@@ -253,6 +314,7 @@ impl ItemSnapshot {
     /// Returns the snapshot handle and the exact commands to run, in order,
     /// as the very first commands of the capturing invocation. See the
     /// module doc for exactly where to embed them for each dispatch kind.
+    #[sand_macros::api(kind = "method", registry = sand_api_contract, path = "sand::item::ItemSnapshot::capture", summary = "Captures a live item location into temporary event storage.", context = "Capture must run as the first generated commands for the event invocation so subsequent mutations cannot change the evidence.", minecraft = "Resets the destination, conditionally copies the source item compound, and marks presence only after a successful copy.", use_when = ["An event handler needs the item that existed at trigger time"], avoid_when = ["Reading a live slot after it may have changed", "Persisting a snapshot handle across ticks"], params(location = "The validated live item location to capture.", schema = "The deterministic storage schema for this capture site.", reliability = "The evidence level justified by the trigger path."), returns = "The short-lived snapshot handle and ordered capture commands.", example = "let (snapshot, commands) = ItemSnapshot::capture(&ItemLocation::PlayerMainHand, schema, SnapshotReliability::Exact)?;")]
     pub fn capture(
         location: &ItemLocation,
         schema: SnapshotSchema,
@@ -322,22 +384,26 @@ impl ItemSnapshot {
     }
 
     /// The reliability level this snapshot was captured with.
+    #[sand_macros::api(kind = "method", registry = sand_api_contract, path = "sand::item::ItemSnapshot::reliability", summary = "Returns the evidence level recorded for this capture.", context = "Handlers should retain this qualification when deciding how strongly to rely on item data.", minecraft = "Reads metadata carried by the Rust handle; it emits no command.", use_when = ["Reporting or branching on capture confidence"], avoid_when = ["Assuming every snapshot was captured before vanilla-side mutation"], returns = "The capture reliability selected by the producer.", example = "let evidence = snapshot.reliability();")]
     pub fn reliability(&self) -> SnapshotReliability {
         self.reliability
     }
 
     /// The [`ItemLocation::kind`] this snapshot was captured from.
+    #[sand_macros::api(kind = "method", registry = sand_api_contract, path = "sand::item::ItemSnapshot::source_kind", summary = "Returns the stable label for the captured location kind.", context = "The label supports diagnostics without exposing an arbitrary NBT path as public vocabulary.", minecraft = "Emits no command.", use_when = ["Explaining the source of captured item evidence"], avoid_when = ["Building a raw Minecraft data path"], returns = "A deterministic location-kind label.", example = "let source = snapshot.source_kind();")]
     pub fn source_kind(&self) -> &'static str {
         self.source_kind
     }
 
     /// The fully-qualified storage id backing this snapshot.
+    #[sand_macros::api(kind = "method", registry = sand_api_contract, path = "sand::item::ItemSnapshot::storage", summary = "Returns the storage identifier backing this snapshot.", context = "This is mainly diagnostic information; use the typed path and copy helpers for normal work.", minecraft = "Names the command storage holding the temporary capture.", use_when = ["Inspecting generated capture ownership"], avoid_when = ["Retaining the temporary path as long-lived state"], returns = "The configured namespace:path storage id.", example = "let storage = snapshot.storage();")]
     pub fn storage(&self) -> &str {
         self.schema.storage()
     }
 
     /// `if data storage <s> <path>{present:1b}` — true when the captured
     /// location actually had an item at capture time.
+    #[sand_macros::api(kind = "method", registry = sand_api_contract, path = "sand::item::ItemSnapshot::is_present", summary = "Builds the runtime condition that the captured location held an item.", context = "Presence is a Minecraft runtime fact encoded by capture commands, not a Rust-time Option.", minecraft = "Lowers to an execute-if-data test of the snapshot present flag.", use_when = ["Guarding handler commands that require a captured item"], avoid_when = ["Checking whether capture itself returned an error"], returns = "A condition true only when capture found an item.", example = "when(snapshot.is_present()).then_one(sand::command::raw(\"say item found\"));")]
     pub fn is_present(&self) -> Condition {
         let base = self.schema.base_path();
         Condition::nbt_exists(
@@ -348,6 +414,7 @@ impl ItemSnapshot {
 
     /// The negation of [`ItemSnapshot::is_present`] — true when the
     /// captured location had no item ([`SnapshotAbsence::Empty`]).
+    #[sand_macros::api(kind = "method", registry = sand_api_contract, path = "sand::item::ItemSnapshot::is_absent", summary = "Builds the runtime condition that the captured location was empty.", context = "It is the exact logical opposite of the capture presence flag.", minecraft = "Lowers to the negated execute-if-data test for the snapshot flag.", use_when = ["Running a handler branch only when no item was captured"], avoid_when = ["Treating an empty slot as a capture failure"], returns = "A condition true when the capture found no item.", example = "when(snapshot.is_absent()).then_one(sand::command::raw(\"say empty\"));")]
     pub fn is_absent(&self) -> Condition {
         Condition::negate(self.is_present())
     }
@@ -356,19 +423,22 @@ impl ItemSnapshot {
     /// `components`/legacy tag data, depending on the target profile's
     /// item-component encoding — this snapshot layer copies the item
     /// compound verbatim and does not itself reinterpret component shape;
-    /// combine with `sand_components::item::ItemMatcher` / typed
-    /// component accessors to interpret it, exactly as you would any other
+    /// combine with Sand's typed item predicates or component accessors to
+    /// interpret it, exactly as you would any other
     /// captured item compound).
+    #[sand_macros::api(kind = "method", registry = sand_api_contract, path = "sand::item::ItemSnapshot::item_path", summary = "Returns the typed path to the captured item compound.", context = "Use the path only with typed data APIs; it is valid for this snapshot's synchronous invocation lifetime.", minecraft = "Addresses the copied item compound in temporary command storage.", use_when = ["Passing the captured compound to a typed NBT operation"], avoid_when = ["Assuming a version-independent components layout"], returns = "The untyped NBT reference for the captured item compound.", example = "let item = snapshot.item_path();")]
     pub fn item_path(&self) -> NbtRef<UntypedNbt> {
         self.schema.base_path().field("item")
     }
 
     /// The typed NBT path to the captured item's `id` field.
+    #[sand_macros::api(kind = "method", registry = sand_api_contract, path = "sand::item::ItemSnapshot::id_path", summary = "Returns the typed path to the captured item identifier.", context = "This is a narrow view of the snapshot compound for APIs that explicitly operate on item ids.", minecraft = "Addresses the id member copied from the item compound.", use_when = ["Reading or copying the captured vanilla or custom item id"], avoid_when = ["Matching component data; use item_path or a typed matcher"], returns = "The untyped NBT reference for the item id.", example = "let id = snapshot.id_path();")]
     pub fn id_path(&self) -> NbtRef<UntypedNbt> {
         self.item_path().field("id")
     }
 
     /// The typed NBT path to the captured item's `count` field.
+    #[sand_macros::api(kind = "method", registry = sand_api_contract, path = "sand::item::ItemSnapshot::count_path", summary = "Returns the typed path to the captured item count.", context = "The count is observed at capture time, not re-read from the live slot.", minecraft = "Addresses the count member in the temporary copied compound.", use_when = ["Comparing or copying the count observed by an event"], avoid_when = ["Querying a live stack after handler mutations"], returns = "The untyped NBT reference for the item count.", example = "let count = snapshot.count_path();")]
     pub fn count_path(&self) -> NbtRef<UntypedNbt> {
         self.item_path().field("count")
     }
@@ -378,6 +448,7 @@ impl ItemSnapshot {
     /// needing version-aware interpretation should route through the
     /// existing `ItemMatcher`/`VersionCaps`-aware machinery rather than
     /// reading this path as version-independent.
+    #[sand_macros::api(kind = "method", registry = sand_api_contract, path = "sand::item::ItemSnapshot::components_path", summary = "Returns the path to the captured item component payload.", context = "Component encoding follows the target profile, so callers needing semantic interpretation should use existing version-aware item APIs.", minecraft = "Addresses the components member of the copied item compound on component-era targets.", use_when = ["Copying or inspecting a profile-aware component payload"], avoid_when = ["Assuming every Minecraft profile uses the same item NBT layout"], returns = "The untyped NBT reference for component data.", example = "let components = snapshot.components_path();")]
     pub fn components_path(&self) -> NbtRef<UntypedNbt> {
         self.item_path().field("components")
     }
@@ -393,6 +464,7 @@ impl ItemSnapshot {
     /// Defined in terms of [`Self::copy_to_nbt`] — see that method's doc for
     /// the generalized form that targets any NBT location, not just command
     /// storage.
+    #[sand_macros::api(kind = "method", registry = sand_api_contract, path = "sand::item::ItemSnapshot::copy_to", summary = "Builds a command that persists the captured item into a typed storage field.", context = "This is the supported escape from a snapshot's one-invocation lifetime: ownership transfers to the caller's schema.", minecraft = "Renders data modify storage ... set from storage for the captured item compound.", use_when = ["Keeping event item evidence in application-owned storage"], avoid_when = ["Copying into an arbitrary untyped path; use copy_to_nbt only when that is intentional"], params(dest = "The typed caller-owned destination storage field."), returns = "The rendered data-modify command.", example = "let command = snapshot.copy_to(PlayerStorage::last_item());")]
     pub fn copy_to<Schema, T>(&self, dest: StorageField<Schema, T>) -> String {
         self.copy_to_nbt(&dest.path())
     }
@@ -410,6 +482,7 @@ impl ItemSnapshot {
     /// keys — vanilla silently drops those writes (see
     /// `crate::participant::bounded_item`'s module doc for the live
     /// transcript). Use it only for vanilla-recognized fields.
+    #[sand_macros::api(kind = "method", registry = sand_api_contract, path = "sand::item::ItemSnapshot::copy_to_nbt", summary = "Builds a command copying the captured item into a caller-supplied NBT path.", context = "Use this generalized form only when a typed storage field cannot express the destination and the destination's lifetime is understood.", minecraft = "Renders a data modify set-from command from temporary snapshot storage.", use_when = ["Writing capture evidence to a deliberate typed NBT destination"], avoid_when = ["Writing arbitrary custom keys into entity NBT", "A StorageField provides the safer destination"], params(dest = "The destination NBT reference."), returns = "The rendered data-modify command.", example = "let command = snapshot.copy_to_nbt(&storage.path(\"audit.item\"));")]
     pub fn copy_to_nbt<T>(&self, dest: &NbtRef<T>) -> String {
         dest.copy_from(&self.item_path()).to_string()
     }
@@ -421,6 +494,7 @@ impl ItemSnapshot {
     /// the next capture always resets first — but keeps storage from
     /// holding onto a stale item compound between invocations, and is
     /// cheap, deterministic, and idempotent to call unconditionally).
+    #[sand_macros::api(kind = "method", registry = sand_api_contract, path = "sand::item::ItemSnapshot::cleanup_commands", summary = "Builds idempotent commands that clear this temporary snapshot.", context = "Cleanup is optional for correctness because the next capture resets first, but it avoids retaining stale item data after the synchronous handler finishes.", minecraft = "Sets the generated present flag false and replaces the temporary item compound with an empty object.", use_when = ["Explicitly clearing event-time item evidence after its final consumer"], avoid_when = ["Cleaning before descendant handler commands have consumed the snapshot"], returns = "The ordered reset commands.", example = "let cleanup = snapshot.cleanup_commands();")]
     pub fn cleanup_commands(&self) -> Vec<String> {
         let base = self.schema.base_path();
         vec![
@@ -450,25 +524,33 @@ fn presence_execute(target: &DataTarget, path: &str) -> Execute {
 
 // ── Integration seam for #230 ───────────────────────────────────────────────
 
+#[doc = "**API Contract:** Run `sand api show sand::participant::ItemParticipantRole` for the canonical contract."]
 /// The role an item plays in a future participant-rich event context
 /// (#230). Phase 7 defines this purely as a stable label to pair with an
 /// [`ItemSnapshot`] via [`EventItem`] — it does not implement any
 /// role-specific observation/correlation backend; that is #230's work.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum ItemRole {
+    #[doc = "**API Contract:** Run `sand api show sand::participant::ItemParticipantRole::UsedItem` for the canonical contract."]
     /// The item directly used to trigger the event (e.g. a consumed item,
     /// a placed block's item, a used tool).
     UsedItem,
+    #[doc = "**API Contract:** Run `sand api show sand::participant::ItemParticipantRole::Weapon` for the canonical contract."]
     /// The item wielded as a weapon in a combat event.
     Weapon,
+    #[doc = "**API Contract:** Run `sand api show sand::participant::ItemParticipantRole::Tool` for the canonical contract."]
     /// The tool used for a block-interaction event.
     Tool,
+    #[doc = "**API Contract:** Run `sand api show sand::participant::ItemParticipantRole::ProjectileItem` for the canonical contract."]
     /// A projectile's own item form, where representable.
     ProjectileItem,
+    #[doc = "**API Contract:** Run `sand api show sand::participant::ItemParticipantRole::Ammunition` for the canonical contract."]
     /// The ammunition item consumed to fire a projectile.
     Ammunition,
+    #[doc = "**API Contract:** Run `sand api show sand::participant::ItemParticipantRole::DroppedItem` for the canonical contract."]
     /// An item that was dropped as part of the event.
     DroppedItem,
+    #[doc = "**API Contract:** Run `sand api show sand::participant::ItemParticipantRole::EquippedItem` for the canonical contract."]
     /// An item equipped as part of the event.
     EquippedItem,
 }
@@ -480,6 +562,18 @@ pub enum ItemRole {
 /// context, subscription-based observation backends, and
 /// exact/correlated/approximate reliability for *non-item* participant
 /// fields.
+#[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::item::EventItem",
+    aliases = ["sand::item::snapshot::EventItem"],
+    summary = "Pairs an event-participant item role with its immutable snapshot.",
+    context = "Participant-aware event APIs use this small value to carry item evidence without introducing a second snapshot representation.",
+    minecraft = "Carries no new runtime resource; its snapshot refers to the capture storage generated for the current dispatch.",
+    use_when = ["Passing role-tagged item evidence through an event context"],
+    avoid_when = ["Representing a live inventory location or long-lived item state"],
+    fields(role = "The semantic role the item had in the event.", snapshot = "The captured item evidence and its reliability."),
+    example = "let item: EventItem = event.item();"
+)]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct EventItem {
     pub role: ItemRole,

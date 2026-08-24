@@ -39,6 +39,15 @@ ctrlc = "3"
 
 [features]
 integration-tests = []
+resourcepack = ["sand/resourcepack"]
+systems-damage = ["sand/systems-damage"]
+systems-cooldowns = ["sand/systems-cooldowns"]
+systems-lifecycle = ["sand/systems-lifecycle"]
+systems-player-data = ["sand/systems-player-data"]
+systems-movement = ["sand/systems-movement"]
+systems-inventory = ["sand/systems-inventory"]
+systems-entities = ["sand/systems-entities"]
+systems-all = ["sand/systems-all"]
 
 [dev-dependencies]
 criterion = "0.5"

@@ -36,14 +36,25 @@ const TYPED_FIELDS: &[&str] = &[
     "monster_spawn_block_light_limit",
 ];
 
+#[doc = "**API Contract:** Run `sand api show sand::component::MonsterSpawnLightLevel` for the canonical contract."]
 /// The sky-light range in which monsters may spawn.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum MonsterSpawnLightLevel {
+    #[doc = "**API Contract:** Run `sand api show sand::component::MonsterSpawnLightLevel::Constant` for the canonical contract."]
     /// A single light level.
-    Constant(u8),
+    Constant(
+        #[doc = "The `Constant` variant carries the value described by its variant semantics: A single light level."]
+        #[doc = "**API Contract:** Run `sand api show sand::component::MonsterSpawnLightLevel::Constant::0` for the canonical contract."]
+        u8,
+    ),
+    #[doc = "**API Contract:** Run `sand api show sand::component::MonsterSpawnLightLevel::Uniform` for the canonical contract."]
     /// A uniformly sampled inclusive light-level range.
     Uniform {
+        /// `min_inclusive` provides the min inclusive when a uniformly sampled inclusive light-level range.
+        #[doc = "**API Contract:** Run `sand api show sand::component::MonsterSpawnLightLevel::Uniform::min_inclusive` for the canonical contract."]
         min_inclusive: u8,
+        /// `max_inclusive` provides the max inclusive when a uniformly sampled inclusive light-level range.
+        #[doc = "**API Contract:** Run `sand api show sand::component::MonsterSpawnLightLevel::Uniform::max_inclusive` for the canonical contract."]
         max_inclusive: u8,
     },
 }
@@ -93,6 +104,7 @@ impl MonsterSpawnLightLevel {
     }
 }
 
+#[doc = "**API Contract:** Run `sand api show sand::component::DimensionType` for the canonical contract."]
 /// A Minecraft dimension type definition.
 ///
 /// The constructor uses overworld-like defaults, producing a complete valid
@@ -132,6 +144,7 @@ pub struct DimensionType {
 
 impl DimensionType {
     /// Create a complete dimension type with vanilla overworld-like defaults.
+    #[doc = "**API Contract:** Run `sand api show sand::component::DimensionType::new` for the canonical contract."]
     pub fn new(location: ResourceLocation) -> Self {
         Self {
             location,
@@ -166,100 +179,139 @@ impl DimensionType {
     ///
     /// This named alias is convenient when an example should emphasize which
     /// vanilla behavior the defaults model.
+    #[doc = "**API Contract:** Run `sand api show sand::component::DimensionType::overworld_like` for the canonical contract."]
     pub fn overworld_like(location: ResourceLocation) -> Self {
         Self::new(location)
     }
 
+    /// Sets the Minecraft fixed time property on this typed dimension type definition and returns the updated builder.
+    #[doc = "**API Contract:** Run `sand api show sand::component::DimensionType::fixed_time` for the canonical contract."]
     pub fn fixed_time(mut self, time: i64) -> Self {
         self.fixed_time = Some(time);
         self
     }
 
+    /// Sets the Minecraft without fixed time property on this typed dimension type definition and returns the updated builder.
+    #[doc = "**API Contract:** Run `sand api show sand::component::DimensionType::without_fixed_time` for the canonical contract."]
     pub fn without_fixed_time(mut self) -> Self {
         self.fixed_time = None;
         self
     }
 
+    /// Sets the Minecraft has skylight property on this typed dimension type definition and returns the updated builder.
+    #[doc = "**API Contract:** Run `sand api show sand::component::DimensionType::has_skylight` for the canonical contract."]
     pub fn has_skylight(mut self, value: bool) -> Self {
         self.has_skylight = value;
         self
     }
 
+    /// Sets the Minecraft has ceiling property on this typed dimension type definition and returns the updated builder.
+    #[doc = "**API Contract:** Run `sand api show sand::component::DimensionType::has_ceiling` for the canonical contract."]
     pub fn has_ceiling(mut self, value: bool) -> Self {
         self.has_ceiling = value;
         self
     }
 
+    /// Sets the Minecraft ultrawarm property on this typed dimension type definition and returns the updated builder.
+    #[doc = "**API Contract:** Run `sand api show sand::component::DimensionType::ultrawarm` for the canonical contract."]
     pub fn ultrawarm(mut self, value: bool) -> Self {
         self.ultrawarm = value;
         self
     }
 
+    /// Sets the Minecraft natural property on this typed dimension type definition and returns the updated builder.
+    #[doc = "**API Contract:** Run `sand api show sand::component::DimensionType::natural` for the canonical contract."]
     pub fn natural(mut self, value: bool) -> Self {
         self.natural = value;
         self
     }
 
+    /// Sets the Minecraft coordinate scale property on this typed dimension type definition and returns the updated builder.
+    #[doc = "**API Contract:** Run `sand api show sand::component::DimensionType::coordinate_scale` for the canonical contract."]
     pub fn coordinate_scale(mut self, value: f64) -> Self {
         self.coordinate_scale = value;
         self
     }
 
+    /// Sets the Minecraft bed works property on this typed dimension type definition and returns the updated builder.
+    #[doc = "**API Contract:** Run `sand api show sand::component::DimensionType::bed_works` for the canonical contract."]
     pub fn bed_works(mut self, value: bool) -> Self {
         self.bed_works = value;
         self
     }
 
+    /// Sets the Minecraft respawn anchor works property on this typed dimension type definition and returns the updated builder.
+    #[doc = "**API Contract:** Run `sand api show sand::component::DimensionType::respawn_anchor_works` for the canonical contract."]
     pub fn respawn_anchor_works(mut self, value: bool) -> Self {
         self.respawn_anchor_works = value;
         self
     }
 
+    /// Sets the Minecraft min y property on this typed dimension type definition and returns the updated builder.
+    #[doc = "**API Contract:** Run `sand api show sand::component::DimensionType::min_y` for the canonical contract."]
     pub fn min_y(mut self, value: i32) -> Self {
         self.min_y = value;
         self
     }
 
+    /// Sets the Minecraft height property on this typed dimension type definition and returns the updated builder.
+    #[doc = "**API Contract:** Run `sand api show sand::component::DimensionType::height` for the canonical contract."]
     pub fn height(mut self, value: u32) -> Self {
         self.height = value;
         self
     }
 
+    /// Sets the Minecraft logical height property on this typed dimension type definition and returns the updated builder.
+    #[doc = "**API Contract:** Run `sand api show sand::component::DimensionType::logical_height` for the canonical contract."]
     pub fn logical_height(mut self, value: u32) -> Self {
         self.logical_height = value;
         self
     }
 
+    /// Sets the Minecraft infiniburn property on this typed dimension type definition and returns the updated builder.
+    #[doc = "**API Contract:** Run `sand api show sand::component::DimensionType::infiniburn` for the canonical contract."]
     pub fn infiniburn(mut self, value: TagId<BlockId>) -> Self {
         self.infiniburn = value;
         self
     }
 
+    /// Sets the Minecraft effects property on this typed dimension type definition and returns the updated builder.
+    #[doc = "**API Contract:** Run `sand api show sand::component::DimensionType::effects` for the canonical contract."]
     pub fn effects(mut self, value: ResourceLocation) -> Self {
         self.effects = value;
         self
     }
 
+    /// Sets the Minecraft ambient light property on this typed dimension type definition and returns the updated builder.
+    #[doc = "**API Contract:** Run `sand api show sand::component::DimensionType::ambient_light` for the canonical contract."]
     pub fn ambient_light(mut self, value: f32) -> Self {
         self.ambient_light = value;
         self
     }
 
+    /// Sets the Minecraft piglin safe property on this typed dimension type definition and returns the updated builder.
+    #[doc = "**API Contract:** Run `sand api show sand::component::DimensionType::piglin_safe` for the canonical contract."]
     pub fn piglin_safe(mut self, value: bool) -> Self {
         self.piglin_safe = value;
         self
     }
 
+    /// Sets the Minecraft has raids property on this typed dimension type definition and returns the updated builder.
+    #[doc = "**API Contract:** Run `sand api show sand::component::DimensionType::has_raids` for the canonical contract."]
     pub fn has_raids(mut self, value: bool) -> Self {
         self.has_raids = value;
         self
     }
 
+    /// Sets the Minecraft monster spawn light level property on this typed dimension type definition and returns the updated builder.
+    #[doc = "**API Contract:** Run `sand api show sand::component::DimensionType::monster_spawn_light_level` for the canonical contract."]
     pub fn monster_spawn_light_level(mut self, value: MonsterSpawnLightLevel) -> Self {
         self.monster_spawn_light_level = value;
         self
     }
 
+    /// Sets the Minecraft monster spawn block light limit property on this typed dimension type definition and returns the updated builder.
+    #[doc = "**API Contract:** Run `sand api show sand::component::DimensionType::monster_spawn_block_light_limit` for the canonical contract."]
     pub fn monster_spawn_block_light_limit(mut self, value: u8) -> Self {
         self.monster_spawn_block_light_limit = value;
         self
@@ -268,6 +320,7 @@ impl DimensionType {
     /// Add a modded or version-specific field not represented by the typed API.
     ///
     /// Typed field names cannot be overridden through this escape hatch.
+    #[doc = "**API Contract:** Run `sand api show sand::component::DimensionType::raw_field` for the canonical contract."]
     pub fn raw_field(mut self, key: impl Into<String>, value: RawJson) -> Self {
         self.raw_fields.insert(key.into(), value);
         self

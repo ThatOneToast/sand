@@ -46,10 +46,9 @@ impl SandEvent for CustomAdvancementWithWeapon {
 }
 
 fn trigger() -> Option<AdvancementTrigger> {
-    match <CustomAdvancementWithWeapon as SandEvent>::dispatch().into() {
-        SandEventDispatch::AdvancementTrigger(t) => Some(t),
-        _ => None,
-    }
+    sand_core::__private::event_dispatch_advancement(
+        <CustomAdvancementWithWeapon as SandEvent>::dispatch().into(),
+    )
 }
 fn type_id() -> TypeId {
     TypeId::of::<CustomAdvancementWithWeapon>()

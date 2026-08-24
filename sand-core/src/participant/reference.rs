@@ -6,6 +6,7 @@ use super::lifetime::ParticipantLifetime;
 use super::reliability::ParticipantReliability;
 use super::role::EntityParticipantRole;
 
+#[doc = "**API Contract:** Run `sand api show sand::participant::ParticipantReliabilityError` for the canonical contract."]
 /// A requested reliability floor was not met by a supplied participant, or
 /// a participant reference was used outside its declared execution scope.
 ///
@@ -16,8 +17,14 @@ use super::role::EntityParticipantRole;
 /// caller can see exactly why a `require_exact()` call was rejected.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ParticipantReliabilityError {
+    /// `role` provides the role when a requested reliability floor was not met by a supplied participant, or a participant reference was used outside its declared execution scope.
+    #[doc = "**API Contract:** Run `sand api show sand::participant::ParticipantReliabilityError::role` for the canonical contract."]
     pub role: EntityParticipantRole,
+    /// `requested` provides the requested when a requested reliability floor was not met by a supplied participant, or a participant reference was used outside its declared execution scope.
+    #[doc = "**API Contract:** Run `sand api show sand::participant::ParticipantReliabilityError::requested` for the canonical contract."]
     pub requested: ParticipantReliability,
+    /// `supplied` provides the supplied when a requested reliability floor was not met by a supplied participant, or a participant reference was used outside its declared execution scope.
+    #[doc = "**API Contract:** Run `sand api show sand::participant::ParticipantReliabilityError::supplied` for the canonical contract."]
     pub supplied: ParticipantReliability,
 }
 
@@ -33,6 +40,7 @@ impl std::fmt::Display for ParticipantReliabilityError {
 
 impl std::error::Error for ParticipantReliabilityError {}
 
+#[doc = "**API Contract:** Run `sand api show sand::participant::PlayerParticipant` for the canonical contract."]
 /// A typed player participant reference: a command-building handle, not
 /// live runtime player data.
 ///
@@ -85,6 +93,7 @@ impl PlayerParticipant {
     /// lifetime must justify it via graph propagation (see
     /// `super::capabilities`), not by constructing this directly with a
     /// different lifetime.
+    #[doc = "**API Contract:** Run `sand api show sand::participant::PlayerParticipant::subject` for the canonical contract."]
     pub fn subject() -> Self {
         Self {
             selector: SinglePlayer::self_(),
@@ -94,14 +103,20 @@ impl PlayerParticipant {
         }
     }
 
+    /// Returns the player's semantic role in the current event.
+    #[doc = "**API Contract:** Run `sand api show sand::participant::PlayerParticipant::role` for the canonical contract."]
     pub fn role(&self) -> EntityParticipantRole {
         self.role
     }
 
+    /// Returns the evidence strength that established this player participant.
+    #[doc = "**API Contract:** Run `sand api show sand::participant::PlayerParticipant::reliability` for the canonical contract."]
     pub fn reliability(&self) -> ParticipantReliability {
         self.reliability
     }
 
+    /// Returns how long the player reference remains valid.
+    #[doc = "**API Contract:** Run `sand api show sand::participant::PlayerParticipant::lifetime` for the canonical contract."]
     pub fn lifetime(&self) -> ParticipantLifetime {
         self.lifetime
     }
@@ -109,6 +124,7 @@ impl PlayerParticipant {
     /// The typed selector for building commands against this participant.
     /// Never exposes a raw/unrestricted selector string — the caller gets
     /// [`SinglePlayer`]'s own safe builder surface.
+    #[doc = "**API Contract:** Run `sand api show sand::participant::PlayerParticipant::selector` for the canonical contract."]
     pub fn selector(&self) -> &SinglePlayer {
         &self.selector
     }
@@ -116,6 +132,7 @@ impl PlayerParticipant {
     /// Require at least `required` reliability, or a
     /// [`ParticipantReliabilityError`] naming exactly what was requested
     /// vs. supplied.
+    #[doc = "**API Contract:** Run `sand api show sand::participant::PlayerParticipant::require` for the canonical contract."]
     pub fn require(
         &self,
         required: ParticipantReliability,
@@ -132,11 +149,13 @@ impl PlayerParticipant {
     }
 
     /// Require [`ParticipantReliability::Exact`].
+    #[doc = "**API Contract:** Run `sand api show sand::participant::PlayerParticipant::require_exact` for the canonical contract."]
     pub fn require_exact(&self) -> Result<&Self, ParticipantReliabilityError> {
         self.require(ParticipantReliability::Exact)
     }
 }
 
+#[doc = "**API Contract:** Run `sand api show sand::participant::EntityParticipant` for the canonical contract."]
 /// A typed non-player-specific entity participant reference: a
 /// command-building handle, not live runtime entity data.
 ///
@@ -170,6 +189,7 @@ impl EntityParticipant {
     /// The event's own subject, treated as a generic entity rather than
     /// specifically a player (for events whose subject need not be a
     /// player). Always [`ParticipantReliability::Exact`].
+    #[doc = "**API Contract:** Run `sand api show sand::participant::EntityParticipant::subject` for the canonical contract."]
     pub fn subject() -> Self {
         Self {
             selector: SingleEntity::self_(),
@@ -191,6 +211,7 @@ impl EntityParticipant {
     /// remain honestly weaker than `Exact` by construction — there is no
     /// API path to mark a `selector` exact without going through
     /// [`subject`](Self::subject).
+    #[doc = "**API Contract:** Run `sand api show sand::participant::EntityParticipant::correlated` for the canonical contract."]
     pub fn correlated(
         selector: SingleEntity,
         role: EntityParticipantRole,
@@ -206,6 +227,7 @@ impl EntityParticipant {
 
     /// Construct an inferred entity participant reference (a heuristic
     /// query result that may be ambiguous). See [`correlated`](Self::correlated).
+    #[doc = "**API Contract:** Run `sand api show sand::participant::EntityParticipant::inferred` for the canonical contract."]
     pub fn inferred(
         selector: SingleEntity,
         role: EntityParticipantRole,
@@ -219,22 +241,32 @@ impl EntityParticipant {
         }
     }
 
+    /// Returns the entity's semantic role in the current event.
+    #[doc = "**API Contract:** Run `sand api show sand::participant::EntityParticipant::role` for the canonical contract."]
     pub fn role(&self) -> EntityParticipantRole {
         self.role
     }
 
+    /// Returns the evidence strength that established this entity participant.
+    #[doc = "**API Contract:** Run `sand api show sand::participant::EntityParticipant::reliability` for the canonical contract."]
     pub fn reliability(&self) -> ParticipantReliability {
         self.reliability
     }
 
+    /// Returns how long the entity reference remains valid.
+    #[doc = "**API Contract:** Run `sand api show sand::participant::EntityParticipant::lifetime` for the canonical contract."]
     pub fn lifetime(&self) -> ParticipantLifetime {
         self.lifetime
     }
 
+    /// Returns the single-entity selector bound to this participant.
+    #[doc = "**API Contract:** Run `sand api show sand::participant::EntityParticipant::selector` for the canonical contract."]
     pub fn selector(&self) -> &SingleEntity {
         &self.selector
     }
 
+    /// Checks that the participant evidence meets the requested reliability.
+    #[doc = "**API Contract:** Run `sand api show sand::participant::EntityParticipant::require` for the canonical contract."]
     pub fn require(
         &self,
         required: ParticipantReliability,
@@ -250,6 +282,8 @@ impl EntityParticipant {
         }
     }
 
+    /// Rejects participant evidence that is not exact for this handler operation.
+    #[doc = "**API Contract:** Run `sand api show sand::participant::EntityParticipant::require_exact` for the canonical contract."]
     pub fn require_exact(&self) -> Result<&Self, ParticipantReliabilityError> {
         self.require(ParticipantReliability::Exact)
     }
@@ -306,6 +340,7 @@ impl EntityParticipant {
     ///     "execute as @e[tag=x,limit=1] at @s run data modify storage pack:audit audit.attacker_uuid set from entity @s UUID"
     /// );
     /// ```
+    #[doc = "**API Contract:** Run `sand api show sand::participant::EntityParticipant::execute_at` for the canonical contract."]
     pub fn execute_at(&self, cmd: impl Into<String>) -> String {
         format!("execute as {} at @s run {}", self.selector, cmd.into())
     }

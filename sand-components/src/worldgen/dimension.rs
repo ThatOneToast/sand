@@ -4,6 +4,7 @@ use serde_json::Value;
 
 use crate::component::DatapackComponent;
 use crate::error::Result as SandResult;
+use crate::raw::RawJson;
 use crate::registry::DimensionTypeId;
 use crate::resource_location::ResourceLocation;
 use crate::validation;
@@ -25,11 +26,12 @@ impl DimensionTypeReference {
     }
 }
 
+#[doc = "**API Contract:** Run `sand api show sand::component::Dimension` for the canonical contract."]
 /// A dimension definition (`data/<namespace>/dimension/<id>.json`).
 ///
 /// Dimensions reference a dimension type and a chunk generator. The chunk
-/// generator config is complex so it is accepted as raw JSON. Use
-/// [`Dimension::generator_raw`] to supply it directly.
+/// generator config is complex, so it is accepted through the explicit
+/// [`RawJson`] escape hatch. Use [`Dimension::generator_raw`] to replace it.
 pub struct Dimension {
     location: ResourceLocation,
     /// The dimension type ID (e.g. `"minecraft:overworld"`, `"minecraft:the_nether"`).
@@ -39,16 +41,17 @@ pub struct Dimension {
 }
 
 impl Dimension {
-    /// Creates a new dimension referencing the given type and generator JSON.
+    /// Creates a new dimension referencing the given type and raw generator JSON.
+    #[doc = "**API Contract:** Run `sand api show sand::component::Dimension::new` for the canonical contract."]
     pub fn new(
         location: ResourceLocation,
         dimension_type: DimensionTypeId,
-        generator: Value,
+        generator: RawJson,
     ) -> Self {
         Self {
             location,
             dimension_type: DimensionTypeReference::Typed(dimension_type),
-            generator,
+            generator: generator.into_value(),
         }
     }
 
@@ -56,68 +59,74 @@ impl Dimension {
     ///
     /// Prefer [`Dimension::new`] with [`DimensionTypeId`]. This escape hatch
     /// exists for version-specific or otherwise unsupported reference syntax.
+    #[doc = "**API Contract:** Run `sand api show sand::component::Dimension::new_raw_dimension_type` for the canonical contract."]
     pub fn new_raw_dimension_type(
         location: ResourceLocation,
         dimension_type: impl Into<String>,
-        generator: Value,
+        generator: RawJson,
     ) -> Self {
         Self {
             location,
             dimension_type: DimensionTypeReference::Raw(dimension_type.into()),
-            generator,
+            generator: generator.into_value(),
         }
     }
 
     /// Convenience: create with a noise-based generator pointing to a noise_settings ID.
     ///
-    /// `biome_source` should be a raw JSON biome source object, e.g.:
+    /// `biome_source` should wrap a raw JSON biome source object, e.g.:
     /// ```json
     /// { "type": "minecraft:fixed", "biome": "minecraft:plains" }
     /// ```
+    #[doc = "**API Contract:** Run `sand api show sand::component::Dimension::noise_generator` for the canonical contract."]
     pub fn noise_generator(
         location: ResourceLocation,
         dimension_type: DimensionTypeId,
         noise_settings: impl Into<String>,
-        biome_source: Value,
+        biome_source: RawJson,
     ) -> Self {
         let generator = serde_json::json!({
             "type": "minecraft:noise",
             "settings": noise_settings.into(),
-            "biome_source": biome_source,
+            "biome_source": biome_source.into_value(),
         });
-        Self::new(location, dimension_type, generator)
+        Self::new(location, dimension_type, RawJson::new(generator))
     }
 
     /// Convenience: create with a flat (superflat) generator.
     ///
-    /// `flat_settings` is the raw JSON settings for `minecraft:flat`.
+    /// `flat_settings` wraps the raw JSON settings for `minecraft:flat`.
+    #[doc = "**API Contract:** Run `sand api show sand::component::Dimension::flat_generator` for the canonical contract."]
     pub fn flat_generator(
         location: ResourceLocation,
         dimension_type: DimensionTypeId,
-        flat_settings: Value,
+        flat_settings: RawJson,
     ) -> Self {
         let generator = serde_json::json!({
             "type": "minecraft:flat",
-            "settings": flat_settings,
+            "settings": flat_settings.into_value(),
         });
-        Self::new(location, dimension_type, generator)
+        Self::new(location, dimension_type, RawJson::new(generator))
     }
 
     /// Updates the dimension type.
+    #[doc = "**API Contract:** Run `sand api show sand::component::Dimension::dimension_type` for the canonical contract."]
     pub fn dimension_type(mut self, dt: DimensionTypeId) -> Self {
         self.dimension_type = DimensionTypeReference::Typed(dt);
         self
     }
 
     /// Updates the dimension type through the explicit raw compatibility path.
+    #[doc = "**API Contract:** Run `sand api show sand::component::Dimension::raw_dimension_type` for the canonical contract."]
     pub fn raw_dimension_type(mut self, dt: impl Into<String>) -> Self {
         self.dimension_type = DimensionTypeReference::Raw(dt.into());
         self
     }
 
     /// Replaces the generator with a raw JSON value.
-    pub fn generator_raw(mut self, generator: Value) -> Self {
-        self.generator = generator;
+    #[doc = "**API Contract:** Run `sand api show sand::component::Dimension::generator_raw` for the canonical contract."]
+    pub fn generator_raw(mut self, generator: RawJson) -> Self {
+        self.generator = generator.into_value();
         self
     }
 }
@@ -199,14 +208,20 @@ mod tests {
     #[test]
     fn constructors_accept_typed_dimension_type_ids() {
         let id = DimensionTypeId::minecraft("overworld").unwrap();
-        let dimension = Dimension::new(location(), id, serde_json::json!({"type": "test"}));
+        let dimension = Dimension::new(
+            location(),
+            id,
+            RawJson::new(serde_json::json!({"type": "test"})),
+        );
         assert_eq!(dimension.to_json()["type"], "minecraft:overworld");
 
         let noise = Dimension::noise_generator(
             location(),
             DimensionTypeId::minecraft("overworld").unwrap(),
             "minecraft:overworld",
-            serde_json::json!({"type": "minecraft:fixed", "biome": "minecraft:plains"}),
+            RawJson::new(
+                serde_json::json!({"type": "minecraft:fixed", "biome": "minecraft:plains"}),
+            ),
         );
         assert_eq!(noise.to_json()["type"], "minecraft:overworld");
     }
@@ -216,7 +231,7 @@ mod tests {
         let dimension = Dimension::new_raw_dimension_type(
             location(),
             "modded reference",
-            serde_json::json!({"type": "test"}),
+            RawJson::new(serde_json::json!({"type": "test"})),
         )
         .raw_dimension_type("modded:custom");
         assert_eq!(dimension.to_json()["type"], "modded:custom");
@@ -227,7 +242,9 @@ mod tests {
         let dimension = Dimension::new(
             location(),
             DimensionTypeId::minecraft("overworld").unwrap(),
-            serde_json::json!({"type": "minecraft:noise", "settings": "minecraft:overworld"}),
+            RawJson::new(
+                serde_json::json!({"type": "minecraft:noise", "settings": "minecraft:overworld"}),
+            ),
         );
         assert!(dimension.validate().is_ok());
     }
@@ -237,7 +254,7 @@ mod tests {
         let dimension = Dimension::new_raw_dimension_type(
             location(),
             "modded reference",
-            serde_json::json!({"type": "test"}),
+            RawJson::new(serde_json::json!({"type": "test"})),
         );
         let err = dimension.validate().unwrap_err().to_string();
         assert!(err.contains("type"), "{err}");
@@ -245,8 +262,11 @@ mod tests {
 
     #[test]
     fn empty_raw_dimension_type_rejected() {
-        let dimension =
-            Dimension::new_raw_dimension_type(location(), "", serde_json::json!({"type": "test"}));
+        let dimension = Dimension::new_raw_dimension_type(
+            location(),
+            "",
+            RawJson::new(serde_json::json!({"type": "test"})),
+        );
         assert!(dimension.validate().is_err());
     }
 
@@ -255,9 +275,9 @@ mod tests {
         let dimension = Dimension::new(
             location(),
             DimensionTypeId::minecraft("overworld").unwrap(),
-            serde_json::json!({"type": "test"}),
+            RawJson::new(serde_json::json!({"type": "test"})),
         )
-        .generator_raw(serde_json::json!(["not", "an", "object"]));
+        .generator_raw(RawJson::new(serde_json::json!(["not", "an", "object"])));
         let err = dimension.validate().unwrap_err().to_string();
         assert!(err.contains("generator"), "{err}");
     }
@@ -267,9 +287,11 @@ mod tests {
         let dimension = Dimension::new(
             location(),
             DimensionTypeId::minecraft("overworld").unwrap(),
-            serde_json::json!({"type": "test"}),
+            RawJson::new(serde_json::json!({"type": "test"})),
         )
-        .generator_raw(serde_json::json!({"settings": "minecraft:overworld"}));
+        .generator_raw(RawJson::new(
+            serde_json::json!({"settings": "minecraft:overworld"}),
+        ));
         let err = dimension.validate().unwrap_err().to_string();
         assert!(err.contains("generator.type"), "{err}");
     }
@@ -280,7 +302,9 @@ mod tests {
             location(),
             DimensionTypeId::minecraft("overworld").unwrap(),
             "Not A Valid Id",
-            serde_json::json!({"type": "minecraft:fixed", "biome": "minecraft:plains"}),
+            RawJson::new(
+                serde_json::json!({"type": "minecraft:fixed", "biome": "minecraft:plains"}),
+            ),
         );
         let err = dimension.validate().unwrap_err().to_string();
         assert!(err.contains("generator.settings"), "{err}");
@@ -291,7 +315,9 @@ mod tests {
         let dimension = Dimension::flat_generator(
             location(),
             DimensionTypeId::minecraft("overworld").unwrap(),
-            serde_json::json!({"layers": [{"block": "minecraft:bedrock", "height": 1}]}),
+            RawJson::new(
+                serde_json::json!({"layers": [{"block": "minecraft:bedrock", "height": 1}]}),
+            ),
         );
         assert!(dimension.validate().is_ok());
         assert_eq!(dimension.to_json()["generator"]["type"], "minecraft:flat");

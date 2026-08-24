@@ -3,6 +3,7 @@ use serde_json::Value;
 use crate::component::DatapackComponent;
 use crate::resource_location::ResourceLocation;
 
+#[doc = "**API Contract:** Run `sand api show sand::component::StructureTemplate` for the canonical contract."]
 /// A datapack structure template copied from an existing `.nbt` file.
 ///
 /// Structure templates are binary NBT assets. Sand treats them as copy-backed
@@ -19,6 +20,7 @@ impl StructureTemplate {
     ///
     /// `source_path` is relative to the project root containing `sand.toml`.
     /// The build pipeline validates that it is a safe relative `.nbt` path.
+    #[doc = "**API Contract:** Run `sand api show sand::component::StructureTemplate::new` for the canonical contract."]
     pub fn new(location: ResourceLocation, source_path: impl Into<String>) -> Self {
         Self {
             location,
@@ -27,6 +29,7 @@ impl StructureTemplate {
     }
 
     /// Return the source path that will be copied into the datapack.
+    #[doc = "**API Contract:** Run `sand api show sand::component::StructureTemplate::source_path` for the canonical contract."]
     pub fn source_path(&self) -> &str {
         &self.source_path
     }

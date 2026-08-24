@@ -5,8 +5,7 @@
 //! other export tests in this crate.
 
 use sand_core::events::{
-    ChainEventDispatch, EventSetup, SameCycleEventDependency, SameCycleEventRequirement,
-    SandEventDispatch, TickEventDispatch,
+    ChainEventDispatch, EventSetup, SandEvent, SandEventDispatch, TickEventDispatch,
 };
 use sand_core::{AdvancementTrigger, EventDescriptor, EventDispatch};
 use std::any::TypeId;
@@ -27,22 +26,6 @@ fn empty_setup() -> EventSetup {
     EventSetup::none()
 }
 
-fn after(
-    event_type_id: fn() -> TypeId,
-    event_type_name: fn() -> &'static str,
-    event_dispatch: fn() -> SandEventDispatch,
-) -> Vec<SameCycleEventRequirement> {
-    vec![SameCycleEventRequirement::After(SameCycleEventDependency {
-        event_type_id,
-        event_type_name,
-        event_dispatch,
-        event_setup: EventSetup::none,
-        event_raw_setup: EventSetup::none,
-        event_participants: || sand_core::participant::EventParticipantPlan::none(),
-        event_revoke: || true,
-    })]
-}
-
 // ── Indirect cycle: A -> B -> C -> A ────────────────────────────────────────
 
 struct CycleA;
@@ -50,50 +33,33 @@ struct CycleB;
 struct CycleC;
 
 fn a_dispatch() -> sand_core::events::SandEventDispatch {
-    sand_core::events::SandEventDispatch::Chain(ChainEventDispatch {
-        occurrence: after(
-            TypeId::of::<CycleC>,
-            std::any::type_name::<CycleC>,
-            c_dispatch,
-        ),
-        persistent: vec![],
-        bounded: vec![],
-        when: vec![],
-        unless: vec![],
-    })
+    SandEventDispatch::chain::<CycleC>().into()
 }
 fn b_dispatch() -> sand_core::events::SandEventDispatch {
-    sand_core::events::SandEventDispatch::Chain(ChainEventDispatch {
-        occurrence: after(
-            TypeId::of::<CycleA>,
-            std::any::type_name::<CycleA>,
-            a_dispatch,
-        ),
-        persistent: vec![],
-        bounded: vec![],
-        when: vec![],
-        unless: vec![],
-    })
+    SandEventDispatch::chain::<CycleA>().into()
 }
 fn c_dispatch() -> sand_core::events::SandEventDispatch {
-    sand_core::events::SandEventDispatch::Chain(ChainEventDispatch {
-        occurrence: after(
-            TypeId::of::<CycleB>,
-            std::any::type_name::<CycleB>,
-            b_dispatch,
-        ),
-        persistent: vec![],
-        bounded: vec![],
-        when: vec![],
-        unless: vec![],
-    })
+    SandEventDispatch::chain::<CycleB>().into()
+}
+
+impl SandEvent for CycleA {
+    fn dispatch() -> impl Into<SandEventDispatch> {
+        a_dispatch()
+    }
+}
+impl SandEvent for CycleB {
+    fn dispatch() -> impl Into<SandEventDispatch> {
+        b_dispatch()
+    }
+}
+impl SandEvent for CycleC {
+    fn dispatch() -> impl Into<SandEventDispatch> {
+        c_dispatch()
+    }
 }
 
 fn a_chain() -> Option<ChainEventDispatch> {
-    match a_dispatch() {
-        sand_core::events::SandEventDispatch::Chain(c) => Some(c),
-        _ => None,
-    }
+    sand_core::__private::event_dispatch_chain(a_dispatch())
 }
 fn a_type_id() -> TypeId {
     TypeId::of::<CycleA>()

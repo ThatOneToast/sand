@@ -1,0 +1,65 @@
+error[E0532]: cannot match against a tuple struct which contains private fields
+  --> tests/cases/fail_sand_event_transport_private.rs:18:9
+   |
+18 |     let SandEventDispatch(_) = opaque;
+   |         ^^^^^^^^^^^^^^^^^
+   |
+note: constructor is not visible here due to private fields
+  --> tests/cases/fail_sand_event_transport_private.rs:18:27
+   |
+18 |     let SandEventDispatch(_) = opaque;
+   |                           ^ private field
+
+error[E0603]: struct `BoundedEventDependency` is private
+ --> tests/cases/fail_sand_event_transport_private.rs:2:5
+  |
+2 |     BoundedEventDependency, EventDispatchRepresentation, SameCycleEventDependency,
+  |     ^^^^^^^^^^^^^^^^^^^^^^ private struct
+  |
+note: the struct `BoundedEventDependency` is defined here
+ --> $WORKSPACE/sand-core/src/events/mod.rs
+  |
+  | pub(crate) struct BoundedEventDependency {
+  | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[E0603]: enum `EventDispatchRepresentation` is private
+ --> tests/cases/fail_sand_event_transport_private.rs:2:29
+  |
+2 |     BoundedEventDependency, EventDispatchRepresentation, SameCycleEventDependency,
+  |                             ^^^^^^^^^^^^^^^^^^^^^^^^^^^ private enum
+  |
+note: the enum `EventDispatchRepresentation` is defined here
+ --> $WORKSPACE/sand-core/src/events/mod.rs
+  |
+  | pub(crate) enum EventDispatchRepresentation {
+  | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[E0603]: struct `SameCycleEventDependency` is private
+ --> tests/cases/fail_sand_event_transport_private.rs:2:58
+  |
+2 |     BoundedEventDependency, EventDispatchRepresentation, SameCycleEventDependency,
+  |                                                          ^^^^^^^^^^^^^^^^^^^^^^^^ private struct
+  |
+note: the struct `SameCycleEventDependency` is defined here
+ --> $WORKSPACE/sand-core/src/events/mod.rs
+  |
+  | pub(crate) struct SameCycleEventDependency {
+  | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[E0603]: enum `SameCycleEventRequirement` is private
+ --> tests/cases/fail_sand_event_transport_private.rs:3:5
+  |
+3 |     SameCycleEventRequirement, SandEvent, SandEventDispatch,
+  |     ^^^^^^^^^^^^^^^^^^^^^^^^^ private enum
+  |
+note: the enum `SameCycleEventRequirement` is defined here
+ --> $WORKSPACE/sand-core/src/events/mod.rs
+  |
+  | pub(crate) enum SameCycleEventRequirement {
+  | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[E0616]: field `occurrence` of struct `ChainEventDispatch` is private
+  --> tests/cases/fail_sand_event_transport_private.rs:16:14
+   |
+16 |     dispatch.occurrence.clear();
+   |              ^^^^^^^^^^ private field

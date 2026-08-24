@@ -25,8 +25,11 @@ use crate::selector::Selector;
 
 // ── SoundSource ───────────────────────────────────────────────────────────────
 
+#[doc = "**API Contract:** Run `sand api show sand::command::IntoSoundEvent` for the canonical contract."]
 /// Conversion into a sound-event resource-location token.
 pub trait IntoSoundEvent {
+    /// Converts a typed or validated value into a Minecraft sound-event identifier.
+    #[doc = "**API Contract:** Run `sand api show sand::command::IntoSoundEvent::into_sound_event` for the canonical contract."]
     fn into_sound_event(self) -> String;
 }
 
@@ -42,19 +45,42 @@ impl IntoSoundEvent for &str {
     }
 }
 
+#[doc = "**API Contract:** Run `sand api show sand::command::SoundSource` for the canonical contract."]
 /// Minecraft audio channel/category for sound playback.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum SoundSource {
+    #[doc = "Selects the master form of the sound source Minecraft command value."]
+    #[doc = "**API Contract:** Run `sand api show sand::command::SoundSource::Master` for the canonical contract."]
     Master,
+    #[doc = "Selects the music form of the sound source Minecraft command value."]
+    #[doc = "**API Contract:** Run `sand api show sand::command::SoundSource::Music` for the canonical contract."]
     Music,
+    #[doc = "Selects the record form of the sound source Minecraft command value."]
+    #[doc = "**API Contract:** Run `sand api show sand::command::SoundSource::Record` for the canonical contract."]
     Record,
+    #[doc = "Selects the weather form of the sound source Minecraft command value."]
+    #[doc = "**API Contract:** Run `sand api show sand::command::SoundSource::Weather` for the canonical contract."]
     Weather,
+    #[doc = "Selects the block form of the sound source Minecraft command value."]
+    #[doc = "**API Contract:** Run `sand api show sand::command::SoundSource::Block` for the canonical contract."]
     Block,
+    #[doc = "Selects the hostile form of the sound source Minecraft command value."]
+    #[doc = "**API Contract:** Run `sand api show sand::command::SoundSource::Hostile` for the canonical contract."]
     Hostile,
+    #[doc = "Selects the neutral form of the sound source Minecraft command value."]
+    #[doc = "**API Contract:** Run `sand api show sand::command::SoundSource::Neutral` for the canonical contract."]
     Neutral,
+    #[doc = "Selects the player form of the sound source Minecraft command value."]
+    #[doc = "**API Contract:** Run `sand api show sand::command::SoundSource::Player` for the canonical contract."]
     Player,
+    #[doc = "Selects the ui form of the sound source Minecraft command value."]
+    #[doc = "**API Contract:** Run `sand api show sand::command::SoundSource::Ui` for the canonical contract."]
     Ui,
+    #[doc = "Selects the ambient form of the sound source Minecraft command value."]
+    #[doc = "**API Contract:** Run `sand api show sand::command::SoundSource::Ambient` for the canonical contract."]
     Ambient,
+    #[doc = "Selects the voice form of the sound source Minecraft command value."]
+    #[doc = "**API Contract:** Run `sand api show sand::command::SoundSource::Voice` for the canonical contract."]
     Voice,
 }
 
@@ -79,6 +105,7 @@ impl fmt::Display for SoundSource {
 
 // ── Sound ─────────────────────────────────────────────────────────────────────
 
+#[doc = "**API Contract:** Run `sand api show sand::command::Sound` for the canonical contract."]
 /// Builder for `playsound` commands.
 #[derive(Debug, Clone)]
 pub struct Sound {
@@ -94,6 +121,7 @@ pub struct Sound {
 
 impl Sound {
     /// Begin building a `playsound` command for the given sound event ID.
+    #[doc = "**API Contract:** Run `sand api show sand::command::Sound::play` for the canonical contract."]
     pub fn play(event: impl IntoSoundEvent) -> Self {
         Self {
             event: event.into_sound_event(),
@@ -108,6 +136,7 @@ impl Sound {
     }
 
     /// Begin building a sound command with an intentionally opaque event token.
+    #[doc = "**API Contract:** Run `sand api show sand::command::Sound::play_raw` for the canonical contract."]
     pub fn play_raw(event: impl IntoSoundEvent) -> Self {
         Self {
             raw_event: true,
@@ -116,36 +145,42 @@ impl Sound {
     }
 
     /// Set the target entity/player who hears the sound (default: `@s`).
+    #[doc = "**API Contract:** Run `sand api show sand::command::Sound::to` for the canonical contract."]
     pub fn to(mut self, selector: Selector) -> Self {
         self.target = Some(selector);
         self
     }
 
     /// Set the sound source/channel category (default: `master`).
+    #[doc = "**API Contract:** Run `sand api show sand::command::Sound::source` for the canonical contract."]
     pub fn source(mut self, source: SoundSource) -> Self {
         self.source = source;
         self
     }
 
     /// Set the position in the world where the sound originates (default: `~ ~ ~`).
+    #[doc = "**API Contract:** Run `sand api show sand::command::Sound::at` for the canonical contract."]
     pub fn at(mut self, pos: Vec3) -> Self {
         self.pos = Some(pos);
         self
     }
 
     /// Set the volume multiplier (default: `1.0`).
+    #[doc = "**API Contract:** Run `sand api show sand::command::Sound::volume` for the canonical contract."]
     pub fn volume(mut self, volume: f64) -> Self {
         self.volume = volume;
         self
     }
 
     /// Set the pitch multiplier (default: `1.0`).
+    #[doc = "**API Contract:** Run `sand api show sand::command::Sound::pitch` for the canonical contract."]
     pub fn pitch(mut self, pitch: f64) -> Self {
         self.pitch = pitch;
         self
     }
 
     /// Set minimum volume for players far from the sound origin.
+    #[doc = "**API Contract:** Run `sand api show sand::command::Sound::min_volume` for the canonical contract."]
     pub fn min_volume(mut self, min: f64) -> Self {
         self.min_volume = Some(min);
         self
@@ -154,16 +189,19 @@ impl Sound {
     // ── stopsound helpers ─────────────────────────────────────────────────────
 
     /// `stopsound <selector>` — stop all sounds playing for the target.
+    #[doc = "**API Contract:** Run `sand api show sand::command::Sound::stop_all` for the canonical contract."]
     pub fn stop_all(target: Selector) -> String {
         StopSoundCommand::All { target }.build_registered()
     }
 
     /// `stopsound <selector> <source>` — stop all sounds in a specific category.
+    #[doc = "**API Contract:** Run `sand api show sand::command::Sound::stop_source` for the canonical contract."]
     pub fn stop_source(target: Selector, source: SoundSource) -> String {
         StopSoundCommand::Source { target, source }.build_registered()
     }
 
     /// `stopsound <selector> <source> <event>` — stop a specific sound for the target.
+    #[doc = "**API Contract:** Run `sand api show sand::command::Sound::stop_event` for the canonical contract."]
     pub fn stop_event(target: Selector, source: SoundSource, event: impl Into<String>) -> String {
         StopSoundCommand::Event {
             target,
@@ -175,11 +213,13 @@ impl Sound {
     }
 
     /// Compatibility alias for [`Sound::stop_event`].
+    #[doc = "**API Contract:** Run `sand api show sand::command::Sound::stop` for the canonical contract."]
     pub fn stop(target: Selector, source: SoundSource, event: impl Into<String>) -> String {
         Self::stop_event(target, source, event)
     }
 
     /// Stop a sound with an intentionally opaque event token.
+    #[doc = "**API Contract:** Run `sand api show sand::command::Sound::stop_event_raw` for the canonical contract."]
     pub fn stop_event_raw(
         target: Selector,
         source: SoundSource,
@@ -261,20 +301,41 @@ impl RenderCommand for Sound {
     }
 }
 
+#[doc = "**API Contract:** Run `sand api show sand::command::StopSoundCommand` for the canonical contract."]
 /// Structured forms of `stopsound`.
 #[derive(Debug, Clone)]
 pub enum StopSoundCommand {
+    #[doc = "Selects the all form of the stop sound command Minecraft command value."]
+    #[doc = "**API Contract:** Run `sand api show sand::command::StopSoundCommand::All` for the canonical contract."]
     All {
+        /// `target` provides the command target when the variant selects the all form of the stop sound command Minecraft command value.
+        #[doc = "**API Contract:** Run `sand api show sand::command::StopSoundCommand::All::target` for the canonical contract."]
         target: Selector,
     },
+    #[doc = "Selects the source form of the stop sound command Minecraft command value."]
+    #[doc = "**API Contract:** Run `sand api show sand::command::StopSoundCommand::Source` for the canonical contract."]
     Source {
+        /// `target` provides the command target when the variant selects the source form of the stop sound command Minecraft command value.
+        #[doc = "**API Contract:** Run `sand api show sand::command::StopSoundCommand::Source::target` for the canonical contract."]
         target: Selector,
+        /// `source` provides the source when the variant selects the source form of the stop sound command Minecraft command value.
+        #[doc = "**API Contract:** Run `sand api show sand::command::StopSoundCommand::Source::source` for the canonical contract."]
         source: SoundSource,
     },
+    #[doc = "Selects the event form of the stop sound command Minecraft command value."]
+    #[doc = "**API Contract:** Run `sand api show sand::command::StopSoundCommand::Event` for the canonical contract."]
     Event {
+        /// `target` provides the command target when the variant selects the event form of the stop sound command Minecraft command value.
+        #[doc = "**API Contract:** Run `sand api show sand::command::StopSoundCommand::Event::target` for the canonical contract."]
         target: Selector,
+        /// `source` provides the source when the variant selects the event form of the stop sound command Minecraft command value.
+        #[doc = "**API Contract:** Run `sand api show sand::command::StopSoundCommand::Event::source` for the canonical contract."]
         source: SoundSource,
+        /// `event` provides the event when the variant selects the event form of the stop sound command Minecraft command value.
+        #[doc = "**API Contract:** Run `sand api show sand::command::StopSoundCommand::Event::event` for the canonical contract."]
         event: String,
+        /// `raw_event` provides the raw event when the variant selects the event form of the stop sound command Minecraft command value.
+        #[doc = "**API Contract:** Run `sand api show sand::command::StopSoundCommand::Event::raw_event` for the canonical contract."]
         raw_event: bool,
     },
 }

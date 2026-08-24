@@ -3,22 +3,24 @@ use serde_json::Value;
 use crate::component::{ComponentContent, DatapackComponent};
 use crate::resource_location::ResourceLocation;
 
+#[doc = "**API Contract:** Run `sand api show sand::component::IntoCommands` for the canonical contract."]
 /// Trait for types that can be converted into a list of Minecraft commands.
 pub trait IntoCommands {
     /// Convert this value into a vector of command strings.
+    #[doc = "**API Contract:** Run `sand api show sand::component::IntoCommands::into_commands` for the canonical contract."]
     fn into_commands(self) -> Vec<String>;
 }
 
+#[doc = "**API Contract:** Run `sand api show sand::component::McFunction` for the canonical contract."]
 /// A Minecraft function file (.mcfunction) that contains a list of commands to be executed.
 pub struct McFunction {
-    /// The resource location for this function.
-    pub location: ResourceLocation,
-    /// List of commands in this function.
-    pub commands: Vec<String>,
+    location: ResourceLocation,
+    commands: Vec<String>,
 }
 
 impl McFunction {
     /// Create a new function with the given resource location.
+    #[doc = "**API Contract:** Run `sand api show sand::component::McFunction::new` for the canonical contract."]
     pub fn new(location: ResourceLocation) -> Self {
         Self {
             location,
@@ -27,12 +29,14 @@ impl McFunction {
     }
 
     /// Add a single command to this function.
+    #[doc = "**API Contract:** Run `sand api show sand::component::McFunction::command` for the canonical contract."]
     pub fn command(mut self, cmd: impl Into<String>) -> Self {
         self.commands.push(cmd.into());
         self
     }
 
     /// Add multiple commands to this function.
+    #[doc = "**API Contract:** Run `sand api show sand::component::McFunction::commands` for the canonical contract."]
     pub fn commands(mut self, cmds: impl IntoIterator<Item = impl Into<String>>) -> Self {
         self.commands.extend(cmds.into_iter().map(|c| c.into()));
         self

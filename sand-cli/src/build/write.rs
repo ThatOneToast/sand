@@ -152,24 +152,35 @@ pub fn write_resourcepack_mcmeta(
     Ok(())
 }
 
-pub fn write_rp_record(
-    dist: &Path,
+/// Computes the resource pack's `pack.mcmeta` pack-root-relative path and
+/// bytes for use with [`super::output_manifest::OutputManifest`].
+pub fn resourcepack_mcmeta_output(
+    description: &str,
+    pack_format: u32,
+    supported_formats: Option<PackSupportedFormats>,
+    overlays: &[PackOverlay],
+) -> Result<(String, Vec<u8>)> {
+    let mcmeta = build_mcmeta(description, pack_format, supported_formats, overlays);
+    Ok((
+        "pack.mcmeta".to_string(),
+        serde_json::to_string_pretty(&mcmeta)?.into_bytes(),
+    ))
+}
+
+/// Computes a resource-pack record's pack-root-relative output path and
+/// final bytes, without writing anything. Shared by the unconditional
+/// writer below and the content-hash-based
+/// [`super::output_manifest::OutputManifest`] path.
+pub fn rp_record_output(
     project_root: &Path,
     record: &ResourcePackRecord,
-) -> Result<()> {
+) -> Result<(String, Vec<u8>)> {
     // The `path` field is already a full pack-relative path, e.g.
     // "assets/my_pack/font/hud.json". Strip any leading separator just in
-    // case, then join to the dist directory.
-    let rel = record.path.as_str().trim_start_matches('/');
-    let dest = dist.join(rel);
-    std::fs::create_dir_all(dest.parent().unwrap())
-        .with_context(|| format!("failed to create dir for '{}'", dest.display()))?;
-
-    match record.content_type {
-        ContentType::Json => {
-            std::fs::write(&dest, &record.content)
-                .with_context(|| format!("failed to write '{}'", dest.display()))?;
-        }
+    // case.
+    let rel = record.path.as_str().trim_start_matches('/').to_string();
+    let bytes = match record.content_type {
+        ContentType::Json => record.content.clone().into_bytes(),
         ContentType::Copy => {
             let src = project_root.join(&record.content);
             if !src.exists() {
@@ -179,27 +190,28 @@ pub fn write_rp_record(
                     src.display()
                 );
             }
-            let mut input = std::io::BufReader::new(
-                std::fs::File::open(&src)
-                    .with_context(|| format!("failed to open '{}'", src.display()))?,
-            );
-            let mut output = std::io::BufWriter::new(
-                std::fs::File::create(&dest)
-                    .with_context(|| format!("failed to create '{}'", dest.display()))?,
-            );
-            std::io::copy(&mut input, &mut output).with_context(|| {
-                format!("failed to copy '{}' → '{}'", src.display(), dest.display())
-            })?;
+            std::fs::read(&src).with_context(|| format!("failed to read '{}'", src.display()))?
         }
         ContentType::Bytes => {
             use base64::Engine as _;
-            let bytes = base64::engine::general_purpose::STANDARD
+            base64::engine::general_purpose::STANDARD
                 .decode(&record.content)
-                .with_context(|| format!("failed to base64-decode '{}'", record.path.as_str()))?;
-            std::fs::write(&dest, &bytes)
-                .with_context(|| format!("failed to write '{}'", dest.display()))?;
+                .with_context(|| format!("failed to base64-decode '{}'", record.path.as_str()))?
         }
-    }
+    };
+    Ok((rel, bytes))
+}
 
+pub fn write_rp_record(
+    dist: &Path,
+    project_root: &Path,
+    record: &ResourcePackRecord,
+) -> Result<()> {
+    let (rel, bytes) = rp_record_output(project_root, record)?;
+    let dest = dist.join(&rel);
+    std::fs::create_dir_all(dest.parent().unwrap())
+        .with_context(|| format!("failed to create dir for '{}'", dest.display()))?;
+    std::fs::write(&dest, &bytes)
+        .with_context(|| format!("failed to write '{}'", dest.display()))?;
     Ok(())
 }

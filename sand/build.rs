@@ -239,15 +239,19 @@ fn main() {
     ));
     reject_duplicate_contract_identities(&contracts);
 
-    // The vanilla-registry provider is structurally compared with the emitted
-    // Rust above even when a selected Minecraft profile contains no supported
-    // registries (the explicit placeholder profile). Connecting that audit
-    // prevents the empty profile from becoming a vacuous enforcement claim.
+    // The command and vanilla-registry providers are structurally compared
+    // with their emitted Rust above even when a selected Minecraft profile
+    // contains no generated declarations (the explicit placeholder profile).
+    // Connecting those audits prevents the empty profile from becoming a
+    // vacuous enforcement claim.
     // Only static providers proven against their emitted source in this build
     // participate in the facade report. Parametric consumer expansions are
     // self-audited by their proc macros and do not pretend to be finite items
     // in Sand's installed static surface.
-    let connected_provider_audits = BTreeSet::from(["generated-vanilla-registries".to_owned()]);
+    let connected_provider_audits = BTreeSet::from([
+        "generated-commands".to_owned(),
+        "generated-vanilla-registries".to_owned(),
+    ]);
     let report = manifest
         .evaluate_with_provider_audits(
             &reachable,

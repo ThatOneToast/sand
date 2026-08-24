@@ -785,11 +785,15 @@ pub fn resolve_contract_identities(
         if let (Some(facade), Some(definition)) = (&declaration.facade, &item.definition)
             && facade.signature.is_some()
             && facade.kind != ApiKind::Macro
-            && !facade.family
+            && (!facade.family
+                || facade
+                    .signature
+                    .as_deref()
+                    .is_some_and(family_signature_is_concrete))
         {
             match callable_shape(definition) {
                 Ok(Some(shape)) => {
-                    if facade.parameters.as_ref() != Some(&shape.parameters) {
+                    if !facade.family && facade.parameters.as_ref() != Some(&shape.parameters) {
                         errors.push(ContractSourceError::InvalidFacadeContract {
                             path: declaration.canonical_path.clone(),
                             message: format!(
@@ -799,7 +803,7 @@ pub fn resolve_contract_identities(
                         });
                         continue;
                     }
-                    if facade.returns != Some(shape.returns) {
+                    if !facade.family && facade.returns != Some(shape.returns) {
                         errors.push(ContractSourceError::InvalidFacadeContract {
                             path: declaration.canonical_path.clone(),
                             message: format!(
@@ -913,6 +917,24 @@ pub fn resolve_contract_identities(
         errors.sort_by_key(ToString::to_string);
         Err(errors)
     }
+}
+
+fn family_signature_is_concrete(signature: &str) -> bool {
+    !matches!(
+        signature,
+        "pub struct event marker"
+            | "source-derived event API"
+            | "author-facing entity API"
+            | "author-facing typed state API"
+            | "author-facing typed event participant API"
+            | "typed Minecraft text component API"
+            | "typed Minecraft NBT and command-storage API"
+            | "feature-gated author-facing gameplay system API"
+            | "handwritten typed Minecraft command API"
+            | "typed datapack component definition API"
+            | "typed Minecraft version capability API"
+            | "feature-gated resource-pack authoring API"
+    )
 }
 
 struct CallableShape {
@@ -1354,7 +1376,7 @@ impl RegisterArgs {
                 }
                 "register_event_api" => (
                     self.canonical_module.as_deref().unwrap_or("sand::events"),
-                    self.signature.as_deref().unwrap_or_default(),
+                    "source-derived event API",
                     "This typed event API is part of Sand's author-facing event model; exporter records and generated function wiring remain private.",
                     self.minecraft.as_deref().unwrap_or_default(),
                     "Defining, composing, or handling a typed Sand event",

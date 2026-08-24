@@ -437,6 +437,84 @@ fn facade_callable_shape_is_validated_against_the_reachable_definition() {
 }
 
 #[test]
+fn concrete_family_signatures_validate_receiver_mutability_and_typed_self() {
+    let temp = tempdir().unwrap();
+    let facade = temp.path().join("sand.rs");
+    let implementation = temp.path().join("lower.rs");
+    std::fs::write(&facade, "pub use lower::Thing;\n").unwrap();
+    std::fs::write(
+        &implementation,
+        r#"pub struct Thing;
+impl Thing {
+    pub fn view(&self) {}
+    pub fn boxed(self: Box<Self>) {}
+}
+"#,
+    )
+    .unwrap();
+    let graph = SurfaceGraph::load(
+        [
+            SourceCrate {
+                name: "sand".into(),
+                root: facade,
+            },
+            SourceCrate {
+                name: "lower".into(),
+                root: implementation,
+            },
+        ],
+        [],
+        [],
+    )
+    .unwrap();
+    let reachable = graph.reachable_from("sand").unwrap();
+
+    for (member, signature) in [("view", "fn view(&mut self)"), ("boxed", "fn boxed(self)")] {
+        let contracts = temp.path().join(format!("{member}.rs"));
+        std::fs::write(
+            &contracts,
+            format!(
+                r#"register_event_api! {{
+                    path: "sand::Thing::{member}",
+                    aliases: [],
+                    module: "sand",
+                    kind: Method,
+                    signature: "{signature}",
+                    summary: "Exercises a concrete family receiver.",
+                    minecraft: "This test has no Minecraft runtime behavior."
+                }}"#
+            ),
+        )
+        .unwrap();
+        let declarations = contract_declarations_from_files([contracts]).unwrap();
+        let error = resolve_contract_identities(&reachable, &declarations).unwrap_err();
+        assert!(
+            error
+                .iter()
+                .any(|error| error.to_string().contains("stale signature")),
+            "receiver drift unexpectedly passed: {error:?}"
+        );
+    }
+
+    let contracts = temp.path().join("exact.rs");
+    std::fs::write(
+        &contracts,
+        r#"register_event_api! {
+            path: "sand::Thing::view",
+            aliases: [],
+            module: "sand",
+            kind: Method,
+            signature: "fn view(&self)",
+            summary: "Exercises the exact concrete family receiver.",
+            minecraft: "This test has no Minecraft runtime behavior."
+        }"#,
+    )
+    .unwrap();
+    let declarations = contract_declarations_from_files([contracts]).unwrap();
+    resolve_contract_identities(&reachable, &declarations).unwrap();
+}
+
+#[test]
 fn repository_contract_sources_are_the_actual_authored_declarations() {
     let workspace = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
         .parent()

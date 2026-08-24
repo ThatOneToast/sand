@@ -229,11 +229,11 @@ fn run_cargo_build(dir: &Path) -> Result<()> {
 
     let status = std::process::Command::new("cargo")
         .arg("build")
-        // Must match the RUSTFLAGS `sand build` compiles the exporters with
-        // (see `build::export::ExportBuildPlan::compile`). RUSTFLAGS is part of
-        // Cargo's fingerprint, so a mismatch here would dirty every unit in the
-        // graph and throw this pre-warm away on the user's first `sand build`.
-        .env("RUSTFLAGS", "-Awarnings")
+        // Intentionally no RUSTFLAGS override: `sand build` compiles exporters
+        // (see `build::export::ExportBuildPlan::compile`) with the same plain
+        // dev profile and no exporter-specific compiler flags, so this
+        // pre-warm shares Cargo's fingerprint/artifact cache with the first
+        // real `sand build` instead of being thrown away by a flag mismatch.
         .current_dir(dir)
         .status()
         .context("failed to invoke `cargo build`")?;

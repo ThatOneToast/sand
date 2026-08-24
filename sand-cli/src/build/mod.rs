@@ -84,7 +84,7 @@ pub fn run(release: bool, resourcepack: bool) -> Result<()> {
     //    *same* `cargo build` so Cargo resolves and analyses the project once.
     //    The exporters still run as separate processes with separate record
     //    streams — only compilation is coordinated.
-    let plan = ExportBuildPlan::new(release, resourcepack);
+    let plan = ExportBuildPlan::new(resourcepack);
     if resourcepack {
         // Checked before compiling so a missing resource exporter reports the
         // scaffolding instructions instead of a raw Cargo target error.

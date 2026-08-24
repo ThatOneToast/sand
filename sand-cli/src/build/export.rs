@@ -42,11 +42,19 @@ impl Exporter {
     }
 }
 
-/// The exporter binaries this build needs and the profile to compile them with.
+/// The exporter binaries this build needs.
+///
+/// Exporters are always compiled with Cargo's plain dev profile, regardless
+/// of whether the overall Sand build is `sand build` or `sand build
+/// --release`. Sand's "release" concept controls *packaging* (zip
+/// generation, output semantics) — it is not a request for an optimized
+/// exporter binary. Keeping one profile means `sand build` followed by
+/// `sand build --release` reuses the same exporter compilation artifacts
+/// instead of paying for a second dependency-graph compile under a
+/// different Cargo artifact identity.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(super) struct ExportBuildPlan {
     exporters: Vec<Exporter>,
-    release: bool,
 }
 
 /// Compiled exporter binary paths.
@@ -62,12 +70,16 @@ pub(super) struct ExportBinaries {
 impl ExportBuildPlan {
     /// Plans compilation for a build. The datapack exporter is always needed;
     /// the resource exporter is added only for `--resourcepack`.
-    pub(super) fn new(release: bool, resourcepack: bool) -> Self {
+    ///
+    /// `sand build --release` semantics (zip packaging) live entirely outside
+    /// this plan — see [`super::run`]. Exporter compilation itself never
+    /// varies with Sand's release flag.
+    pub(super) fn new(resourcepack: bool) -> Self {
         let mut exporters = vec![Exporter::Datapack];
         if resourcepack {
             exporters.push(Exporter::ResourcePack);
         }
-        Self { exporters, release }
+        Self { exporters }
     }
 
     /// The exporters this plan compiles, in invocation order.
@@ -86,9 +98,6 @@ impl ExportBuildPlan {
             args.push("--bin");
             args.push(exporter.bin_name());
         }
-        if self.release {
-            args.push("--release");
-        }
         args
     }
 
@@ -97,19 +106,25 @@ impl ExportBuildPlan {
         format!("cargo {}", self.cargo_args().join(" "))
     }
 
-    /// Cargo's output subdirectory for the selected profile.
+    /// Cargo's output subdirectory for the compiled profile.
+    ///
+    /// Always `debug`: exporters are always compiled with Cargo's plain dev
+    /// profile (see the [`ExportBuildPlan`] docs), independent of `sand
+    /// build --release`.
     pub(super) fn profile_dir(&self) -> &'static str {
-        if self.release { "release" } else { "debug" }
+        "debug"
     }
 
     /// Compiles every planned exporter with one `cargo build`.
+    ///
+    /// Intentionally does not set `RUSTFLAGS` or any other compiler flag that
+    /// would change Cargo's fingerprint for the exporter dependency graph:
+    /// doing so used to split the artifact cache between `cargo
+    /// build`/`cargo check` run directly and exporter compilation triggered
+    /// by `sand build`, so equivalent work was paid for twice.
     pub(super) fn compile(&self) -> Result<()> {
         let mut cmd = std::process::Command::new("cargo");
         cmd.args(self.cargo_args());
-        // Suppress all compiler warnings during the build — the export binaries
-        // are build-time tools, not user-facing code, so warning noise is
-        // unhelpful here.
-        cmd.env("RUSTFLAGS", "-Awarnings");
         let status = cmd
             .status()
             .with_context(|| format!("failed to invoke `{}`", self.command_line()))?;
@@ -189,7 +204,7 @@ mod tests {
 
     #[test]
     fn datapack_only_plan_requests_only_the_datapack_exporter() {
-        let plan = ExportBuildPlan::new(false, false);
+        let plan = ExportBuildPlan::new(false);
         assert_eq!(plan.exporters(), [Exporter::Datapack]);
         assert_eq!(plan.cargo_args(), ["build", "--bin", "sand_export"]);
         assert!(
@@ -201,7 +216,7 @@ mod tests {
 
     #[test]
     fn resourcepack_plan_compiles_both_exporters_in_one_invocation() {
-        let plan = ExportBuildPlan::new(false, true);
+        let plan = ExportBuildPlan::new(true);
         assert_eq!(
             plan.exporters(),
             [Exporter::Datapack, Exporter::ResourcePack]
@@ -222,47 +237,37 @@ mod tests {
         assert_eq!(args.iter().filter(|a| **a == "--bin").count(), 2);
     }
 
+    /// `sand build` and `sand build --release` are both driven through
+    /// `ExportBuildPlan`, which has no notion of Sand's release flag at all.
+    /// This is what guarantees the two Sand commands share one exporter
+    /// compilation artifact identity: there is no `--release` Cargo arg to
+    /// diverge on in the first place.
     #[test]
-    fn release_flag_is_appended_once_after_the_bin_selection() {
-        assert_eq!(
-            ExportBuildPlan::new(true, true).cargo_args(),
-            [
-                "build",
-                "--bin",
-                "sand_export",
-                "--bin",
-                "sand_resource_export",
-                "--release"
-            ]
-        );
-        assert_eq!(
-            ExportBuildPlan::new(true, false).cargo_args(),
-            ["build", "--bin", "sand_export", "--release"]
-        );
+    fn plan_never_requests_cargos_release_profile() {
+        let with_resourcepack = ExportBuildPlan::new(true);
+        assert!(!with_resourcepack.cargo_args().contains(&"--release"));
+        assert_eq!(with_resourcepack.profile_dir(), "debug");
+
+        let datapack_only = ExportBuildPlan::new(false);
+        assert!(!datapack_only.cargo_args().contains(&"--release"));
+        assert_eq!(datapack_only.profile_dir(), "debug");
     }
 
     #[test]
-    fn binary_paths_follow_the_selected_profile_and_target_dir() {
+    fn binary_paths_always_resolve_under_the_debug_profile_dir() {
         let target = Path::new("/tmp/custom-target");
 
-        let debug = ExportBuildPlan::new(false, true).binaries(target);
-        assert_eq!(debug.datapack, target.join("debug/sand_export"));
+        let binaries = ExportBuildPlan::new(true).binaries(target);
+        assert_eq!(binaries.datapack, target.join("debug/sand_export"));
         assert_eq!(
-            debug.resource_pack,
+            binaries.resource_pack,
             Some(target.join("debug/sand_resource_export"))
-        );
-
-        let release = ExportBuildPlan::new(true, true).binaries(target);
-        assert_eq!(release.datapack, target.join("release/sand_export"));
-        assert_eq!(
-            release.resource_pack,
-            Some(target.join("release/sand_resource_export"))
         );
     }
 
     #[test]
     fn datapack_only_plan_resolves_no_resource_binary() {
-        let binaries = ExportBuildPlan::new(false, false).binaries(Path::new("/tmp/t"));
+        let binaries = ExportBuildPlan::new(false).binaries(Path::new("/tmp/t"));
         assert_eq!(binaries.datapack, Path::new("/tmp/t/debug/sand_export"));
         assert_eq!(
             binaries.resource_pack, None,
@@ -272,10 +277,10 @@ mod tests {
 
     #[test]
     fn compile_failure_names_the_exact_cargo_command() {
-        let plan = ExportBuildPlan::new(true, true);
+        let plan = ExportBuildPlan::new(true);
         assert_eq!(
             plan.command_line(),
-            "cargo build --bin sand_export --bin sand_resource_export --release"
+            "cargo build --bin sand_export --bin sand_resource_export"
         );
     }
 

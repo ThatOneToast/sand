@@ -758,10 +758,25 @@ fn write_coverage(
                 .map(|canonical_path| (item.identity.clone(), *canonical_path))
         })
         .collect::<BTreeMap<_, _>>();
+    let kind_by_identity = installed_reachable
+        .iter()
+        .map(|item| (item.identity.as_str(), item.kind))
+        .collect::<BTreeMap<_, _>>();
     let mut shortened_owners = BTreeMap::<String, BTreeSet<&str>>::new();
     for (identity, canonical_path) in &facade_path_mappings {
         let segments = identity.split("::").collect::<Vec<_>>();
-        for start in 1..segments.len() {
+        let end = match kind_by_identity.get(identity.as_str()) {
+            Some(
+                ReachableKind::Method
+                | ReachableKind::TraitMethod
+                | ReachableKind::AssociatedConst
+                | ReachableKind::AssociatedType
+                | ReachableKind::Field
+                | ReachableKind::Variant,
+            ) => segments.len().saturating_sub(1),
+            _ => segments.len(),
+        };
+        for start in 1..end {
             shortened_owners
                 .entry(
                     std::iter::once(segments[0])
@@ -802,6 +817,41 @@ fn write_coverage(
         }
     }
     generated.push_str("];\n");
+    let mut type_suffix_owners = BTreeMap::<String, BTreeSet<&str>>::new();
+    let mut type_path_mappings = BTreeMap::<&str, &str>::new();
+    for item in installed_reachable {
+        if !matches!(
+            item.kind,
+            ReachableKind::Struct
+                | ReachableKind::Enum
+                | ReachableKind::Union
+                | ReachableKind::Trait
+                | ReachableKind::TypeAlias
+        ) {
+            continue;
+        }
+        let Some(canonical_path) = canonical_by_identity.get(item.identity.as_str()) else {
+            continue;
+        };
+        type_path_mappings.insert(item.identity.as_str(), *canonical_path);
+        let terminal = canonical_path.rsplit("::").next().unwrap_or(canonical_path);
+        type_suffix_owners
+            .entry(terminal.to_owned())
+            .or_default()
+            .insert(*canonical_path);
+    }
+    generated.push_str("pub static INSTALLED_API_TYPE_SUFFIX_MAPPINGS: &[(&str, &str)] = &[\n");
+    for (suffix, owners) in type_suffix_owners {
+        if let Some(canonical_path) = owners.iter().next().filter(|_| owners.len() == 1) {
+            writeln!(generated, "({suffix:?}, {canonical_path:?}),").unwrap();
+        }
+    }
+    generated.push_str("];\n");
+    generated.push_str("pub static INSTALLED_API_TYPE_PATH_MAPPINGS: &[(&str, &str)] = &[\n");
+    for (implementation_path, canonical_path) in type_path_mappings {
+        writeln!(generated, "({implementation_path:?}, {canonical_path:?}),").unwrap();
+    }
+    generated.push_str("];\n");
     generated.push_str("pub static INSTALLED_FACADE_CONTRACTS: &[ApiRegistration] = &[\n");
     let mut installed_facades = source_declarations
         .iter()
@@ -815,15 +865,7 @@ fn write_coverage(
     installed_facades.sort_by_key(|(declaration, _)| declaration.canonical_path.as_str());
     let documented_family_paths = installed_facades
         .iter()
-        .filter(|(_, facade)| {
-            facade.family
-                && matches!(
-                    facade.kind,
-                    sand_api_contract::ApiKind::Function
-                        | sand_api_contract::ApiKind::Method
-                        | sand_api_contract::ApiKind::TraitMethod
-                )
-        })
+        .filter(|(_, facade)| facade.family && facade.kind != sand_api_contract::ApiKind::Module)
         .map(|(declaration, _)| declaration.canonical_path.as_str())
         .collect::<BTreeSet<_>>();
     let mut facade_registrations = String::new();
@@ -946,11 +988,11 @@ fn write_coverage(
     }
     generated.push_str("];\n");
     generated.push_str(
-        "pub type InstalledApiShape = (&'static str, &'static [&'static str], &'static str, &'static [(&'static str, &'static str)], Option<&'static str>, &'static str, bool);\n",
+        "pub type InstalledApiShape = (&'static str, &'static [&'static str], &'static str, &'static [(&'static str, &'static str)], Option<&'static str>, &'static str, bool, Option<&'static str>, Option<&'static str>, Option<&'static str>);\n",
     );
-    generated.push_str("pub static INSTALLED_API_SHAPES: &[InstalledApiShape] = &[\n");
     let all_definition_shapes = sand_api_enforce::definition_shapes(reachable)
         .unwrap_or_else(|error| panic!("failed to derive structural API metadata: {error}"));
+    generated.push_str("pub static INSTALLED_API_SHAPES: &[InstalledApiShape] = &[\n");
     let missing_family_docs = reachable
         .iter()
         .filter_map(|item| {
@@ -1001,10 +1043,13 @@ fn write_coverage(
         }
         writeln!(
             generated,
-            "], {:?}, {:?}, {}),",
+            "], {:?}, {:?}, {}, {:?}, {:?}, {:?}),",
             shape.return_type.as_deref(),
             shape.documentation,
-            shape.has_receiver
+            shape.has_receiver,
+            shape.impl_self_type.as_deref(),
+            shape.impl_generics.as_deref(),
+            shape.impl_where_clause.as_deref()
         )
         .unwrap();
     }

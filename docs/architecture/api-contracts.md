@@ -50,7 +50,7 @@ observe re-exports or arbitrary generated code. Sand therefore uses a hybrid:
    `cargo check` and `cargo build`, regardless of the build's selected facade
    features. It consumes generated command/registry artifacts, discovers
    checked-in macro families, resolves contracts from the mapped source
-   crates, partitions all 10,976 static identities in the latest profile, and byte-compares the
+   crates, partitions all 11,014 static identities in the latest profile, and byte-compares the
    deterministic aggregate baseline. A migration may mark a scope enforced
    only in the same change that supplies every contract for that scope.
 
@@ -172,7 +172,7 @@ closed during ordinary compilation.
 
 The explicitly opted-in codegen-failure path emits empty, marked provider
 catalogs from the same helper that emits its placeholder Rust. Those catalogs
-select a separate exact 4,876-item source-plus-checked-in-generator profile; they cannot be mixed
+select a separate exact 4,914-item source-plus-checked-in-generator profile; they cannot be mixed
 with real catalogs or contain declarations. The facade's source and checked-in
 generator scopes remain fully audited in this recovery mode, while unavailable
 vanilla re-exports are cfg-disabled. This is a compile-only recovery mode:

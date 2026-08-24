@@ -14,9 +14,9 @@ use crate::validate;
 ///
 /// Implemented for `&str`/`String` (the untyped escape hatch — no validation
 /// beyond what the selector/command syntax itself enforces) and for Sand's
-/// typed vanilla/custom entity-type identifiers: `sand_core::generated::EntityType`
-/// (generated vanilla entity types, e.g. `Marker`) and
-/// `sand_components::registry::EntityTypeId` (validated custom/modded IDs).
+/// typed vanilla/custom entity-type identifiers: the generated vanilla
+/// entity-type enum when the selected Minecraft profile provides one, and
+/// `EntityTypeId` (validated custom/modded IDs).
 /// Prefer the typed identifiers in normal code; the string forms remain for
 /// compatibility and cases with no typed representation yet.
 ///
@@ -47,6 +47,7 @@ impl IntoEntityType for &String {
 
 // ── Public types ──────────────────────────────────────────────────────────────
 
+#[doc = "**API Contract:** Run `sand api show sand::command::Selector` for the canonical contract."]
 /// An entity/player selector for use in Minecraft commands.
 ///
 /// Selectors target entities in the world. Construct with a base selector (e.g., `all_players()`)
@@ -90,27 +91,52 @@ impl From<&Selector> for String {
     }
 }
 
+#[doc = "**API Contract:** Run `sand api show sand::command::TargetBase` for the canonical contract."]
 /// The base target variant of a selector.
 #[derive(Debug, Clone, PartialEq)]
 pub enum TargetBase {
+    #[doc = "Selects the all players form of the target base Minecraft command value."]
+    #[doc = "**API Contract:** Run `sand api show sand::command::TargetBase::AllPlayers` for the canonical contract."]
     AllPlayers,
+    #[doc = "Selects the all entities form of the target base Minecraft command value."]
+    #[doc = "**API Contract:** Run `sand api show sand::command::TargetBase::AllEntities` for the canonical contract."]
     AllEntities,
+    #[doc = "Selects the nearest player form of the target base Minecraft command value."]
+    #[doc = "**API Contract:** Run `sand api show sand::command::TargetBase::NearestPlayer` for the canonical contract."]
     NearestPlayer,
+    #[doc = "Selects the self  form of the target base Minecraft command value."]
+    #[doc = "**API Contract:** Run `sand api show sand::command::TargetBase::Self_` for the canonical contract."]
     Self_,
+    #[doc = "Selects the random player form of the target base Minecraft command value."]
+    #[doc = "**API Contract:** Run `sand api show sand::command::TargetBase::RandomPlayer` for the canonical contract."]
     RandomPlayer,
-    Player(String),
+    #[doc = "Selects the player form of the target base Minecraft command value."]
+    #[doc = "**API Contract:** Run `sand api show sand::command::TargetBase::Player` for the canonical contract."]
+    Player(
+        #[doc = "The `Player` variant carries the value described by its variant semantics: Selects the player form of the target base Minecraft command value."]
+        #[doc = "**API Contract:** Run `sand api show sand::command::TargetBase::Player::0` for the canonical contract."]
+        String,
+    ),
+    #[doc = "**API Contract:** Run `sand api show sand::command::TargetBase::Raw` for the canonical contract."]
     /// Explicit unchecked selector syntax for advanced/modded grammar.
-    Raw(String),
+    Raw(
+        #[doc = "The `Raw` variant carries the value described by its variant semantics: Explicit unchecked selector syntax for advanced/modded grammar."]
+        #[doc = "**API Contract:** Run `sand api show sand::command::TargetBase::Raw::0` for the canonical contract."]
+        String,
+    ),
 }
 
+#[doc = "**API Contract:** Run `sand api show sand::command::One` for the canonical contract."]
 /// Marker for selector wrappers that are statically known to select one target.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum One {}
 
+#[doc = "**API Contract:** Run `sand api show sand::command::Many` for the canonical contract."]
 /// Marker for selector wrappers that may select multiple targets.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Many {}
 
+#[doc = "**API Contract:** Run `sand api show sand::command::EntityTarget` for the canonical contract."]
 /// Entity selector with statically modeled arity.
 #[derive(Debug, Clone)]
 #[must_use = "targets do nothing until passed to a command"]
@@ -119,6 +145,7 @@ pub struct EntityTarget<A> {
     _arity: PhantomData<A>,
 }
 
+#[doc = "**API Contract:** Run `sand api show sand::command::PlayerTarget` for the canonical contract."]
 /// Player selector with statically modeled arity.
 #[derive(Debug, Clone)]
 #[must_use = "targets do nothing until passed to a command"]
@@ -127,15 +154,19 @@ pub struct PlayerTarget<A> {
     _arity: PhantomData<A>,
 }
 
+#[doc = "**API Contract:** Run `sand api show sand::command::SingleEntity` for the canonical contract."]
 /// An entity target that resolves to at most one entity.
 pub type SingleEntity = EntityTarget<One>;
 
+#[doc = "**API Contract:** Run `sand api show sand::command::EntityTargets` for the canonical contract."]
 /// An entity target that may resolve to zero or more entities.
 pub type EntityTargets = EntityTarget<Many>;
 
+#[doc = "**API Contract:** Run `sand api show sand::command::SinglePlayer` for the canonical contract."]
 /// A player target that resolves to at most one player.
 pub type SinglePlayer = PlayerTarget<One>;
 
+#[doc = "**API Contract:** Run `sand api show sand::command::PlayerTargets` for the canonical contract."]
 /// A player target that may resolve to zero or more players.
 pub type PlayerTargets = PlayerTarget<Many>;
 
@@ -893,17 +924,22 @@ impl<A> fmt::Display for PlayerTarget<A> {
     }
 }
 
+#[doc = "**API Contract:** Run `sand api show sand::command::SortOrder` for the canonical contract."]
 /// Sort order for entity selection in `@a`/`@e` selectors.
 ///
 /// Determines the order entities are iterated when using commands like `execute as`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum SortOrder {
+    #[doc = "**API Contract:** Run `sand api show sand::command::SortOrder::Nearest` for the canonical contract."]
     /// Sort by distance from executor (nearest first).
     Nearest,
+    #[doc = "**API Contract:** Run `sand api show sand::command::SortOrder::Furthest` for the canonical contract."]
     /// Sort by distance from executor (furthest first).
     Furthest,
+    #[doc = "**API Contract:** Run `sand api show sand::command::SortOrder::Random` for the canonical contract."]
     /// Randomize the order.
     Random,
+    #[doc = "**API Contract:** Run `sand api show sand::command::SortOrder::Arbitrary` for the canonical contract."]
     /// No specific order (performance optimized).
     Arbitrary,
 }
@@ -1922,6 +1958,7 @@ impl fmt::Display for SelectorRange {
 /// type here at the API boundary makes a fractional score range a compile
 /// error instead of a malformed-selector diagnostic discovered at
 /// `try_build` time.
+#[doc = "**API Contract:** Run `sand api show sand::command::ScoreRange` for the canonical contract."]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct ScoreRange {
     min: Option<i32>,
@@ -1930,6 +1967,7 @@ pub struct ScoreRange {
 
 impl ScoreRange {
     /// An exact value: `n..n`, rendered as `n`.
+    #[doc = "**API Contract:** Run `sand api show sand::command::ScoreRange::exact` for the canonical contract."]
     pub fn exact(n: i32) -> Self {
         Self {
             min: Some(n),
@@ -1938,6 +1976,7 @@ impl ScoreRange {
     }
 
     /// `n..` — at least `n`.
+    #[doc = "**API Contract:** Run `sand api show sand::command::ScoreRange::at_least` for the canonical contract."]
     pub fn at_least(n: i32) -> Self {
         Self {
             min: Some(n),
@@ -1946,6 +1985,7 @@ impl ScoreRange {
     }
 
     /// `..n` — at most `n`.
+    #[doc = "**API Contract:** Run `sand api show sand::command::ScoreRange::at_most` for the canonical contract."]
     pub fn at_most(n: i32) -> Self {
         Self {
             min: None,
@@ -1954,6 +1994,7 @@ impl ScoreRange {
     }
 
     /// `min..max` — an inclusive range.
+    #[doc = "**API Contract:** Run `sand api show sand::command::ScoreRange::between` for the canonical contract."]
     pub fn between(min: i32, max: i32) -> Self {
         Self {
             min: Some(min),
@@ -2069,10 +2110,12 @@ impl fmt::Display for PredicateId {
 /// control-character validity is checked at [`Selector::try_build`] time,
 /// matching [`Selector::tag`]'s existing validation.
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[doc = "**API Contract:** Run `sand api show sand::command::EntityTag` for the canonical contract."]
 pub struct EntityTag(String);
 
 impl EntityTag {
     /// Wrap a tag value.
+    #[doc = "**API Contract:** Run `sand api show sand::command::EntityTag::new` for the canonical contract."]
     pub fn new(tag: impl Into<String>) -> Self {
         Self(tag.into())
     }
@@ -2090,11 +2133,13 @@ impl fmt::Display for EntityTag {
 
 /// A typed selector `team` value (see
 /// [#200](https://github.com/ThatOneToast/sand/issues/200)).
+#[doc = "**API Contract:** Run `sand api show sand::command::TeamName` for the canonical contract."]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct TeamName(String);
 
 impl TeamName {
     /// Wrap a team name.
+    #[doc = "**API Contract:** Run `sand api show sand::command::TeamName::new` for the canonical contract."]
     pub fn new(team: impl Into<String>) -> Self {
         Self(team.into())
     }
@@ -2112,15 +2157,20 @@ impl fmt::Display for TeamName {
 
 // ── GameMode ──────────────────────────────────────────────────────────────────
 
+#[doc = "**API Contract:** Run `sand api show sand::command::GameMode` for the canonical contract."]
 /// Minecraft player game mode.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum GameMode {
+    #[doc = "**API Contract:** Run `sand api show sand::command::GameMode::Survival` for the canonical contract."]
     /// `survival` — normal gameplay.
     Survival,
+    #[doc = "**API Contract:** Run `sand api show sand::command::GameMode::Creative` for the canonical contract."]
     /// `creative` — infinite resources and flight.
     Creative,
+    #[doc = "**API Contract:** Run `sand api show sand::command::GameMode::Adventure` for the canonical contract."]
     /// `adventure` — survival-like with block-break restrictions.
     Adventure,
+    #[doc = "**API Contract:** Run `sand api show sand::command::GameMode::Spectator` for the canonical contract."]
     /// `spectator` — observe-only mode.
     Spectator,
 }

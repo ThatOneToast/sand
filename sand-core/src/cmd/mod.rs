@@ -74,7 +74,7 @@ mod typed_execute;
 #[doc = include_str!("../api_contract_rustdoc.md")]
 pub use sand_commands::{
     Build, CommandError, CommandProfile, CommandResult, EffectCommand, EffectDuration,
-    IntoEntityType, RawCommand, RenderCommand, Validate,
+    IntoDamageTargets, IntoEntityType, RawCommand, RenderCommand, Validate,
 };
 
 /// Trait for types resolving to a `function <id>` command.
@@ -112,8 +112,9 @@ pub use sand_commands::{
 // Entity/player targeting
 #[doc = include_str!("../api_contract_rustdoc.md")]
 pub use sand_commands::{
-    Damage as DamageBuilder, DamageAmount, DamageKind, EntityTarget, EntityTargets, GameMode, Many,
-    One, PlayerTarget, PlayerTargets, Selector, SingleEntity, SinglePlayer, SortOrder, TargetBase,
+    Damage as DamageBuilder, DamageAmount, DamageKind, EntityTag, EntityTarget, EntityTargets,
+    GameMode, Many, One, PlayerTarget, PlayerTargets, ScoreRange, Selector, SingleEntity,
+    SinglePlayer, SortOrder, TargetBase, TeamName,
 };
 // Sound
 #[doc = include_str!("../api_contract_rustdoc.md")]
@@ -332,13 +333,14 @@ pub fn try_tellraw_raw(
     Ok(format!("tellraw {target} {json}"))
 }
 
+#[doc = "**API Contract:** Run `sand api show sand::command::IntoGiveItem` for the canonical contract."]
 /// Conversion accepted by [`give`]'s `item` parameter.
 ///
 /// Implemented for:
 /// - `&str`/`String` — the untyped escape hatch; no validation beyond what
 ///   the `give` command syntax itself enforces.
-/// - [`sand_core::generated::Item`](crate::generated::Item) — generated
-///   vanilla item identifiers (e.g. `vanilla::Item::Diamond`).
+/// - Sand's profile-generated vanilla item enum, when available (e.g.
+///   `vanilla::Item::Diamond`).
 /// - [`sand_components::registry::ItemId`] (and `&ItemId`) — validated
 ///   custom/modded item identifiers (`ItemId::minecraft`/`::custom`).
 ///
@@ -402,10 +404,13 @@ impl IntoGiveItem for &sand_components::CustomItem {
 /// # Examples
 /// ```
 /// use sand_core::cmd;
-/// use sand_core::generated::Item;
+/// use sand_components::ItemId;
 /// use sand_commands::Selector;
 ///
-/// cmd::give(Selector::all_players(), Item::Diamond);
+/// cmd::give(
+///     Selector::all_players(),
+///     ItemId::minecraft("diamond").unwrap(),
+/// );
 /// cmd::give(Selector::self_(), "minecraft:diamond_sword");
 /// ```
 #[doc = "**API Contract:** Run `sand api show sand::command::give` for the canonical contract."]
@@ -415,8 +420,8 @@ pub fn give(selector: Selector, item: impl IntoGiveItem) -> String {
 
 /// Validated counterpart to [`give`].
 ///
-/// Typed [`IntoGiveItem`] implementors ([`crate::generated::Item`],
-/// [`sand_components::registry::ItemId`], [`sand_components::CustomItem`])
+/// Typed [`IntoGiveItem`] implementors (the profile-generated vanilla item
+/// enum, [`sand_components::registry::ItemId`], and [`sand_components::CustomItem`])
 /// are already well-formed by construction, but the `&str`/`String` raw
 /// escape hatch is not — this validates the leading `namespace:path` item ID
 /// (any trailing `[...]`/`{...}` item-component/NBT payload is preserved
@@ -480,6 +485,7 @@ pub fn raw(command: impl Into<String>) -> sand_commands::RawCommand {
     sand_commands::RawCommand::new(command)
 }
 
+#[doc = "**API Contract:** Run `sand api show sand::command::Command` for the canonical contract."]
 /// A typed Minecraft command that can be serialized to a command string.
 ///
 /// All command builders generated from the Minecraft command tree implement

@@ -65,6 +65,9 @@ pub struct DefinitionShape {
     pub return_type: Option<String>,
     pub documentation: String,
     pub has_receiver: bool,
+    pub impl_self_type: Option<String>,
+    pub impl_generics: Option<String>,
+    pub impl_where_clause: Option<String>,
 }
 
 pub fn definition_shape(item: &ReachableApi) -> Result<Option<DefinitionShape>, String> {
@@ -101,6 +104,9 @@ pub fn definition_shape(item: &ReachableApi) -> Result<Option<DefinitionShape>, 
                 .inputs
                 .iter()
                 .any(|input| matches!(input, syn::FnArg::Receiver(_))),
+            impl_self_type: None,
+            impl_generics: None,
+            impl_where_clause: None,
         }));
     }
     let source = fs::read_to_string(&definition.source)
@@ -114,6 +120,9 @@ pub fn definition_shape(item: &ReachableApi) -> Result<Option<DefinitionShape>, 
             return_type: None,
             documentation: String::new(),
             has_receiver: false,
+            impl_self_type: None,
+            impl_generics: None,
+            impl_where_clause: None,
         }),
     )
 }
@@ -165,6 +174,9 @@ fn collect_definition_shapes(
                     return_type: None,
                     documentation: rustdoc(crate::item_attrs(item)),
                     has_receiver: false,
+                    impl_self_type: None,
+                    impl_generics: None,
+                    impl_where_clause: None,
                 },
             );
         }
@@ -199,8 +211,23 @@ fn collect_definition_shapes(
                             return_type: None,
                             documentation: rustdoc(impl_member_attrs(member)),
                             has_receiver: false,
+                            impl_self_type: None,
+                            impl_generics: None,
+                            impl_where_clause: None,
                         },
                     };
+                    let mut shape = shape;
+                    shape.impl_self_type = Some(block.self_ty.to_token_stream().to_string());
+                    if !block.generics.params.is_empty() {
+                        shape.impl_generics =
+                            Some(format!("<{}>", block.generics.params.to_token_stream()));
+                    }
+                    shape.impl_where_clause = block
+                        .generics
+                        .where_clause
+                        .as_ref()
+                        .map(ToTokens::to_token_stream)
+                        .map(|tokens| tokens.to_string());
                     shapes.insert((location.line, location.column), shape);
                 }
             }
@@ -217,6 +244,9 @@ fn collect_definition_shapes(
                             return_type: None,
                             documentation: rustdoc(trait_member_attrs(member)),
                             has_receiver: false,
+                            impl_self_type: None,
+                            impl_generics: None,
+                            impl_where_clause: None,
                         },
                     };
                     shapes.insert((location.line, location.column), shape);
@@ -233,6 +263,9 @@ fn collect_definition_shapes(
                             return_type: None,
                             documentation: rustdoc(&field.attrs),
                             has_receiver: false,
+                            impl_self_type: None,
+                            impl_generics: None,
+                            impl_where_clause: None,
                         },
                     );
                 }
@@ -248,6 +281,9 @@ fn collect_definition_shapes(
                             return_type: None,
                             documentation: rustdoc(&variant.attrs),
                             has_receiver: false,
+                            impl_self_type: None,
+                            impl_generics: None,
+                            impl_where_clause: None,
                         },
                     );
                     for field in &variant.fields {
@@ -260,6 +296,9 @@ fn collect_definition_shapes(
                                 return_type: None,
                                 documentation: rustdoc(&field.attrs),
                                 has_receiver: false,
+                                impl_self_type: None,
+                                impl_generics: None,
+                                impl_where_clause: None,
                             },
                         );
                     }
@@ -355,6 +394,9 @@ fn definition_shape_from_signature(
             .inputs
             .iter()
             .any(|input| matches!(input, syn::FnArg::Receiver(_))),
+        impl_self_type: None,
+        impl_generics: None,
+        impl_where_clause: None,
     }
 }
 

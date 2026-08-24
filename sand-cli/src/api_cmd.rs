@@ -179,6 +179,10 @@ fn installed_catalog() -> Result<ApiCatalog> {
                 .iter()
                 .any(|alias| installed_paths.contains(alias.as_str()))
     });
+    let entry_kinds = entries
+        .iter()
+        .map(|entry| (entry.canonical_path.clone(), entry.kind))
+        .collect::<BTreeMap<_, _>>();
     for entry in &mut entries {
         let family_contract = sand::__private::api_contract::INSTALLED_FAMILY_API_PATHS
             .contains(&entry.canonical_path.as_str());
@@ -204,7 +208,8 @@ fn installed_catalog() -> Result<ApiCatalog> {
             parameters,
             return_type,
             documentation,
-            _has_receiver,
+            has_receiver,
+            ..,
         )) = sand::__private::api_contract::INSTALLED_API_SHAPES
             .iter()
             .find(|(_, paths, ..)| paths.contains(&entry.canonical_path.as_str()))
@@ -240,42 +245,64 @@ fn installed_catalog() -> Result<ApiCatalog> {
                     ApiParameter {
                         name: (*name).to_owned(),
                         rust_type: Some(rust_type.clone()),
-                        description: authored.get(name).map_or_else(
-                            || source_parameter_description(name, documentation),
-                            |description| (*description).to_owned(),
-                        ),
+                        description: authored
+                            .get(name)
+                            .filter(|description| !description.trim().is_empty())
+                            .map(|description| (*description).to_owned())
+                            .or_else(|| {
+                                let description = source_parameter_description(name, documentation);
+                                (!description.is_empty()).then_some(description)
+                            })
+                            .unwrap_or_else(|| {
+                                semantic_parameter_description(name, &rust_type, &resolved_summary)
+                            }),
                     }
                 })
                 .collect();
+            entry.return_type = return_type.map(|ty| normalize_shape_paths(ty, Some(identity)));
             entry.returns = if family_contract {
-                source_return_description(documentation)
+                source_return_description(documentation).or_else(|| {
+                    entry.return_type.as_deref().and_then(|return_type| {
+                        semantic_return_description(
+                            return_type,
+                            &resolved_summary,
+                            *has_receiver,
+                            &entry.canonical_path,
+                        )
+                    })
+                })
             } else {
                 entry
                     .returns
                     .clone()
                     .or_else(|| source_return_description(documentation))
             };
-            entry.return_type = return_type.map(|ty| normalize_shape_paths(ty, Some(identity)));
             if family_contract {
                 let summary = resolved_summary.clone();
                 let prose = normalize_shape_paths(&rustdoc_prose(documentation), Some(identity));
                 entry.summary = summary.clone();
-                entry.context = if !prose.trim().is_empty() && prose.trim() != summary.trim() {
-                    prose
-                } else {
-                    String::new()
-                };
-                entry.minecraft = source_minecraft_behavior(documentation)
-                    .map(|value| normalize_shape_paths(&value, Some(identity)))
-                    .unwrap_or_default();
-                entry.use_when = source_guidance(documentation, GuidanceKind::Use)
+                if !prose.trim().is_empty() && prose.trim() != summary.trim() {
+                    entry.context = prose;
+                } else if !entry.context.contains(&summary) {
+                    entry.context = format!("{summary} {}", entry.context);
+                }
+                if let Some(minecraft) = source_minecraft_behavior(documentation) {
+                    entry.minecraft = normalize_shape_paths(&minecraft, Some(identity));
+                }
+                let use_when = source_guidance(documentation, GuidanceKind::Use)
                     .into_iter()
                     .map(|value| normalize_shape_paths(&value, Some(identity)))
-                    .collect();
-                entry.avoid_when = source_guidance(documentation, GuidanceKind::Avoid)
+                    .collect::<Vec<_>>();
+                if !use_when.is_empty() {
+                    entry.use_when = use_when;
+                }
+                let avoid_when = source_guidance(documentation, GuidanceKind::Avoid)
                     .into_iter()
                     .map(|value| normalize_shape_paths(&value, Some(identity)))
-                    .collect();
+                    .collect::<Vec<_>>();
+                if !avoid_when.is_empty() {
+                    entry.avoid_when = avoid_when;
+                }
             } else if let Some(summary) = source_summary {
                 if is_family_template_summary(&entry.summary) {
                     entry.summary = summary.clone();
@@ -302,6 +329,25 @@ fn installed_catalog() -> Result<ApiCatalog> {
     // name-derived `Type()` example. A type declaration is not a function;
     // retain an exact, compilable import reference instead of fabricating a
     // constructor that may be private or may not exist.
+    let entry_shapes = entries
+        .iter()
+        .map(|entry| {
+            let installed = sand::__private::api_contract::INSTALLED_API_SHAPES
+                .iter()
+                .find(|(_, paths, ..)| paths.contains(&entry.canonical_path.as_str()));
+            (
+                entry.canonical_path.clone(),
+                (
+                    entry.kind,
+                    entry.signature.clone(),
+                    installed.map(|(identity, ..)| *identity),
+                    installed.and_then(|(_, _, _, _, _, _, _, self_type, ..)| *self_type),
+                    installed.and_then(|(_, _, _, _, _, _, _, _, generics, ..)| *generics),
+                    installed.and_then(|(_, _, _, _, _, _, _, _, _, clause)| *clause),
+                ),
+            )
+        })
+        .collect::<BTreeMap<_, _>>();
     for entry in &mut entries {
         let source_identity = installed_source_identity(&entry.canonical_path);
         entry.signature = normalize_shape_paths(&entry.signature, source_identity);
@@ -332,7 +378,21 @@ fn installed_catalog() -> Result<ApiCatalog> {
         if let Some(return_type) = &mut entry.return_type {
             *return_type = normalize_shape_paths(return_type, source_identity);
         }
-        if !matches!(
+        if matches!(
+            entry.kind,
+            ApiKind::Function | ApiKind::Method | ApiKind::TraitMethod
+        ) && (entry.example.trim().is_empty()
+            || !example_exercises_member(&entry.example, &entry.canonical_path))
+        {
+            let has_receiver = sand::__private::api_contract::INSTALLED_API_SHAPES
+                .iter()
+                .find(|(_, paths, ..)| paths.contains(&entry.canonical_path.as_str()))
+                .is_some_and(|(_, _, _, _, _, _, has_receiver, ..)| *has_receiver);
+            entry.example = semantic_callable_example(entry, has_receiver, &entry_shapes);
+        }
+        if entry.kind == ApiKind::Field {
+            entry.example = semantic_field_example(entry, &entry_kinds);
+        } else if !matches!(
             entry.kind,
             ApiKind::Function | ApiKind::Method | ApiKind::TraitMethod
         ) && (entry.example.trim_end().ends_with("();")
@@ -397,6 +457,723 @@ fn source_return_description(documentation: &str) -> Option<String> {
                 || prose.starts_with("on success")
                 || prose.contains(" returns ")
         })
+}
+
+fn semantic_parameter_description(name: &str, rust_type: &str, summary: &str) -> String {
+    let bare = name.trim_start_matches('_');
+    let lower_type = rust_type.to_ascii_lowercase();
+    let role = match bare {
+        "x" => "the x-coordinate",
+        "y" => "the y-coordinate",
+        "z" => "the z-coordinate",
+        "dx" => "the x-axis offset or spread",
+        "dy" => "the y-axis offset or spread",
+        "dz" => "the z-axis offset or spread",
+        "selector" | "players" | "targets" => "the Minecraft target selection",
+        "target" => "the entity, block, or command target",
+        "player" => "the player participant",
+        "entity" => "the entity participant or predicate",
+        "json" => "the raw JSON payload",
+        "nbt" => "the NBT payload",
+        "text" | "message" | "name" => "the author-visible text value",
+        "value" => "the value being applied or compared",
+        "key" => "the key that identifies the setting or entry",
+        "g" if summary.to_ascii_lowercase().contains("group") => "the recipe group name",
+        "id" | "location" | "path" => "the typed resource identifier or location",
+        "item" => "the item value or item predicate",
+        "block" => "the block value or block predicate",
+        "condition" | "cond" => "the condition that gates the operation",
+        "predicate" => "the predicate that must match",
+        "callback" | "handler" | "function" => "the callback invoked by this operation",
+        "duration" | "ticks" => "the Minecraft tick duration",
+        "count" | "amount" => "the requested numeric amount",
+        "min" => "the inclusive lower bound",
+        "max" => "the inclusive upper bound",
+        "inputs" => "the runtime score inputs",
+        "fixed" => "the fixed-value inputs",
+        "archetype" => "the entity archetype supplying the property",
+        "derivation" => "the derived-stat selector",
+        _ if lower_type.contains("selector") => "the Minecraft target selection",
+        _ if lower_type.contains("predicate") => "the typed predicate that must match",
+        _ if lower_type.contains("resource") || lower_type.ends_with("id") => {
+            "the typed Minecraft resource identifier"
+        }
+        _ if lower_type.contains("bool") => "the switch that enables or disables the behavior",
+        _ if lower_type.contains("range") => "the accepted numeric range",
+        _ if lower_type.contains("text") => "the player-visible text value",
+        _ => {
+            return format!(
+                "`{bare}` supplies the {} value used to {}.",
+                bare.replace('_', " "),
+                summary_purpose(summary)
+            );
+        }
+    };
+    format!(
+        "`{bare}` provides {role} used to {}.",
+        summary_purpose(summary)
+    )
+}
+
+fn semantic_return_description(
+    return_type: &str,
+    summary: &str,
+    has_receiver: bool,
+    canonical_path: &str,
+) -> Option<String> {
+    let compact = return_type.split_whitespace().collect::<String>();
+    if compact.is_empty() || compact == "()" || compact == "!" {
+        return None;
+    }
+    let owner = canonical_path
+        .rsplit_once("::")
+        .and_then(|(owner, _)| owner.rsplit("::").next())
+        .unwrap_or("value");
+    let purpose = summary_purpose(summary);
+    let description = if compact == "Self" {
+        if has_receiver {
+            format!("The `{owner}` value with the documented change applied to {purpose}.")
+        } else {
+            format!("A newly constructed `{owner}` configured to {purpose}.")
+        }
+    } else if compact.starts_with("Result<")
+        || compact.starts_with("CommandResult<")
+        || compact.starts_with("SandResult<")
+    {
+        format!(
+            "On success, the value produced to {purpose}; otherwise, the documented validation or export diagnostic."
+        )
+    } else if compact.starts_with("Option<") {
+        format!("The matching value used to {purpose}, or `None` when that value is unavailable.")
+    } else if compact == "bool" {
+        format!("`true` when the documented condition holds to {purpose}; otherwise `false`.")
+    } else if compact == "String" || compact == "&str" || compact == "&'staticstr" {
+        if summary.to_ascii_lowercase().contains("command") {
+            format!("The rendered Minecraft command text produced to {purpose}.")
+        } else {
+            format!("The string value produced to {purpose}.")
+        }
+    } else if compact.starts_with("Vec<") {
+        format!("The ordered values produced to {purpose}.")
+    } else {
+        format!("The `{return_type}` value produced to {purpose}.")
+    };
+    Some(description)
+}
+
+fn summary_purpose(summary: &str) -> String {
+    let summary = summary.trim().trim_end_matches('.');
+    let mut words = summary.split_whitespace();
+    let first = words.next().unwrap_or("perform the documented behavior");
+    let rest = words.collect::<Vec<_>>().join(" ");
+    let verb = match first.to_ascii_lowercase().as_str() {
+        "add" => "add",
+        "adds" => "add",
+        "append" => "append",
+        "apply" => "apply",
+        "applies" => "apply",
+        "attach" => "attach",
+        "begin" => "begin",
+        "bind" | "binds" => "bind",
+        "build" => "build",
+        "builds" => "build",
+        "check" => "check",
+        "checks" => "check",
+        "compare" => "compare",
+        "configure" => "configure",
+        "configures" => "configure",
+        "construct" => "construct",
+        "constructs" => "construct",
+        "create" => "create",
+        "creates" => "create",
+        "emit" => "emit",
+        "emits" => "emit",
+        "evaluate" => "evaluate",
+        "evaluates" => "evaluate",
+        "extend" | "extends" => "extend",
+        "filter" => "filter",
+        "get" => "get",
+        "gets" => "get",
+        "guard" => "guard",
+        "map" | "maps" => "map",
+        "observe" => "observe",
+        "parse" => "parse",
+        "parses" => "parse",
+        "query" => "query",
+        "queries" => "query",
+        "register" | "registers" => "register",
+        "remove" => "remove",
+        "removes" => "remove",
+        "render" => "render",
+        "renders" => "render",
+        "reset" => "reset",
+        "resets" => "reset",
+        "restrict" => "restrict",
+        "resolve" => "resolve",
+        "resolves" => "resolve",
+        "return" => "return",
+        "returns" => "return",
+        "select" => "select",
+        "selects" => "select",
+        "serialize" => "serialize",
+        "serializes" => "serialize",
+        "show" => "show",
+        "start" | "starts" => "start",
+        "set" => "set",
+        "sets" => "set",
+        "store" => "store",
+        "stores" => "store",
+        "update" | "updates" => "update",
+        "use" => "use",
+        "validate" => "validate",
+        "validates" => "validate",
+        "wrap" => "wrap",
+        _ if first.starts_with('`') => return format!("emit the documented {summary} form"),
+        _ if matches!(
+            first.to_ascii_lowercase().as_str(),
+            "a" | "an"
+                | "the"
+                | "alias"
+                | "compatibility"
+                | "convenience"
+                | "explicit"
+                | "fallible"
+                | "like"
+                | "shorthand:"
+                | "validated"
+        ) =>
+        {
+            return format!("use {}", lower_first(summary));
+        }
+        _ => return format!("apply this API's specific `{summary}` behavior"),
+    };
+    if rest.is_empty() {
+        verb.to_owned()
+    } else {
+        format!("{verb} {rest}")
+    }
+}
+
+fn lower_first(value: &str) -> String {
+    let mut characters = value.chars();
+    let Some(first) = characters.next() else {
+        return String::new();
+    };
+    first.to_lowercase().chain(characters).collect()
+}
+
+fn semantic_callable_example(
+    entry: &ApiEntry,
+    has_receiver: bool,
+    entry_shapes: &BTreeMap<
+        String,
+        (
+            ApiKind,
+            String,
+            Option<&'static str>,
+            Option<&'static str>,
+            Option<&'static str>,
+            Option<&'static str>,
+        ),
+    >,
+) -> String {
+    let Some((owner_path, member)) = entry.canonical_path.rsplit_once("::") else {
+        return String::new();
+    };
+    let owner_name = owner_path.rsplit("::").next().unwrap_or("value");
+    let owner_variable = format!("{}_value", to_snake_case(owner_name));
+    let (owner_kind, owner_signature) = entry_shapes
+        .get(owner_path)
+        .map_or((ApiKind::Struct, ""), |(kind, signature, ..)| {
+            (*kind, signature.as_str())
+        });
+    let method_shape = entry_shapes.get(&entry.canonical_path);
+    let source_identity = method_shape.and_then(|(_, _, identity, ..)| *identity);
+    let impl_self_type = method_shape
+        .and_then(|(_, _, _, self_type, ..)| *self_type)
+        .map(|self_type| normalize_shape_paths(self_type, source_identity));
+    let impl_generics = method_shape
+        .and_then(|(_, _, _, _, generics, ..)| *generics)
+        .unwrap_or_default();
+    let impl_where_clause = method_shape
+        .and_then(|(_, _, _, _, _, clause)| *clause)
+        .unwrap_or_default();
+    let (owner_generics, owner_arguments) = if impl_self_type.is_some() {
+        (impl_generics.to_owned(), String::new())
+    } else {
+        signature_generics(owner_signature, owner_name)
+    };
+    let (method_generics, method_arguments) = signature_generics(&entry.signature, member);
+    let method_turbofish = explicit_method_arguments(&method_arguments);
+    let owner_use = if let Some(self_type) = &impl_self_type {
+        normalize_example_type(self_type, owner_path, source_identity)
+    } else if owner_arguments.is_empty() {
+        owner_path.to_owned()
+    } else {
+        format!("{owner_path}{owner_arguments}")
+    };
+    let arguments = entry
+        .parameters
+        .iter()
+        .map(|parameter| parameter.name.trim_start_matches('_'))
+        .collect::<Vec<_>>()
+        .join(", ");
+    let inputs = entry
+        .parameters
+        .iter()
+        .map(|parameter| {
+            format!(
+                "{}: {}",
+                parameter.name.trim_start_matches('_'),
+                normalize_example_type(
+                    parameter.rust_type.as_deref().unwrap_or("impl Sized"),
+                    &owner_use,
+                    source_identity,
+                )
+            )
+        })
+        .collect::<Vec<_>>();
+    let mut parameters = Vec::new();
+    let mut generic_declarations = generic_declaration_items(&owner_generics);
+    generic_declarations.extend(generic_declaration_items(&method_generics));
+    let owner_call = if impl_self_type.is_some() {
+        expression_type_path(&owner_use)
+    } else if owner_arguments.is_empty() {
+        owner_path.to_owned()
+    } else {
+        format!("{owner_path}::{owner_arguments}")
+    };
+    let call = if has_receiver {
+        let receiver_type = if owner_kind == ApiKind::Trait {
+            generic_declarations.push(format!("T: {owner_use}"));
+            if entry.signature.contains("& mut self") {
+                "&mut T".to_owned()
+            } else if entry.signature.contains("& self") {
+                "&T".to_owned()
+            } else {
+                "T".to_owned()
+            }
+        } else if entry.signature.contains("& mut self") {
+            format!("&mut {owner_use}")
+        } else if entry.signature.contains("& self") {
+            format!("&{owner_use}")
+        } else {
+            owner_use.clone()
+        };
+        parameters.push(format!("{owner_variable}: {receiver_type}"));
+        parameters.extend(inputs);
+        format!("{owner_variable}.{member}{method_turbofish}({arguments})")
+    } else {
+        parameters.extend(inputs);
+        if owner_kind == ApiKind::Trait {
+            generic_declarations.push(format!("T: {owner_use}"));
+            format!("<T as {owner_use}>::{member}{method_turbofish}({arguments})")
+        } else {
+            format!("{owner_call}::{member}{method_turbofish}({arguments})")
+        }
+    };
+    let result_name = semantic_result_name(entry, owner_name, member, has_receiver);
+    let std_import = entry
+        .signature
+        .contains("fmt ::")
+        .then_some("use std::fmt;\n")
+        .unwrap_or_default();
+    let generic_declarations = if generic_declarations.is_empty() {
+        String::new()
+    } else {
+        generic_declarations = generic_declarations
+            .into_iter()
+            .map(|parameter| normalize_example_type(&parameter, &owner_use, source_identity))
+            .collect();
+        generic_declarations.sort_by_key(|parameter| !parameter.trim_start().starts_with('\''));
+        format!("<{}>", generic_declarations.join(", "))
+    };
+    let method_where_clause = entry
+        .signature
+        .find(" where ")
+        .map(|position| {
+            normalize_example_type(
+                entry.signature[position..].trim_end_matches(','),
+                &owner_use,
+                source_identity,
+            )
+        })
+        .unwrap_or_default();
+    let where_clause = merge_where_clauses(
+        &normalize_example_type(impl_where_clause, &owner_use, source_identity),
+        &method_where_clause,
+    );
+    format!(
+        "{std_import}use sand::prelude::*;\n\nfn demonstrate{generic_declarations}({}) {where_clause} {{\n    let {result_name} = {call};\n}}",
+        parameters.join(", ")
+    )
+}
+
+fn generic_declaration_items(declaration: &str) -> Vec<String> {
+    if declaration.is_empty() {
+        return Vec::new();
+    }
+    split_top_level(declaration.trim_matches(&['<', '>'][..]), ',')
+        .into_iter()
+        .filter_map(|parameter| {
+            let parameter = parameter.trim();
+            if parameter.is_empty() {
+                return None;
+            }
+            let without_default = split_top_level(parameter, '=')
+                .first()
+                .copied()
+                .unwrap_or(parameter)
+                .trim();
+            if without_default.is_empty() {
+                None
+            } else if without_default.starts_with('\'')
+                || without_default.starts_with("const ")
+                || without_default.contains("'static")
+            {
+                Some(without_default.to_owned())
+            } else if without_default.contains(':') {
+                Some(format!("{without_default} + 'static"))
+            } else {
+                Some(format!("{without_default}: 'static"))
+            }
+        })
+        .collect()
+}
+
+fn explicit_method_arguments(arguments: &str) -> String {
+    if arguments.is_empty() {
+        return String::new();
+    }
+    let arguments = split_top_level(arguments.trim_matches(&['<', '>'][..]), ',')
+        .into_iter()
+        // Explicit late-bound lifetime arguments are rejected by rustc. Type
+        // and const arguments are safe to spell and keep zero-argument generic
+        // methods (for example event dependency groups) inferable.
+        .filter(|argument| !argument.trim_start().starts_with('\''))
+        .map(str::trim)
+        .filter(|argument| !argument.is_empty())
+        .collect::<Vec<_>>();
+    if arguments.is_empty() {
+        String::new()
+    } else {
+        format!("::<{}>", arguments.join(", "))
+    }
+}
+
+fn expression_type_path(path: &str) -> String {
+    path.find('<').map_or_else(
+        || path.to_owned(),
+        |position| format!("{}::{}", &path[..position], &path[position..]),
+    )
+}
+
+fn merge_where_clauses(left: &str, right: &str) -> String {
+    let predicates = [left, right]
+        .into_iter()
+        .map(str::trim)
+        .filter(|clause| !clause.is_empty())
+        .map(|clause| clause.strip_prefix("where ").unwrap_or(clause).trim())
+        .filter(|clause| !clause.is_empty())
+        .collect::<Vec<_>>();
+    if predicates.is_empty() {
+        String::new()
+    } else {
+        format!("where {}", predicates.join(", "))
+    }
+}
+
+fn signature_generics(signature: &str, name: &str) -> (String, String) {
+    let Some(name_position) = signature.find(name) else {
+        return (String::new(), String::new());
+    };
+    let tail = &signature[name_position + name.len()..];
+    let Some(start) = tail.find('<') else {
+        return (String::new(), String::new());
+    };
+    if !tail[..start].trim().is_empty() {
+        return (String::new(), String::new());
+    }
+    let mut depth = 0_i32;
+    let mut end = None;
+    for (index, character) in tail[start..].char_indices() {
+        match character {
+            '<' => depth += 1,
+            '>' => {
+                depth -= 1;
+                if depth == 0 {
+                    end = Some(start + index + 1);
+                    break;
+                }
+            }
+            _ => {}
+        }
+    }
+    let Some(end) = end else {
+        return (String::new(), String::new());
+    };
+    let declaration = tail[start..end].to_owned();
+    let arguments = split_top_level(&declaration[1..declaration.len() - 1], ',')
+        .into_iter()
+        .filter_map(|parameter| {
+            let parameter = parameter.trim();
+            if parameter.is_empty() {
+                return None;
+            }
+            let parameter = parameter.strip_prefix("const ").unwrap_or(parameter);
+            Some(
+                parameter
+                    .split([':', '='])
+                    .next()
+                    .unwrap_or(parameter)
+                    .trim()
+                    .to_owned(),
+            )
+        })
+        .collect::<Vec<_>>();
+    (declaration, format!("<{}>", arguments.join(", ")))
+}
+
+fn split_top_level(value: &str, separator: char) -> Vec<&str> {
+    let mut parts = Vec::new();
+    let mut angle = 0_i32;
+    let mut paren = 0_i32;
+    let mut bracket = 0_i32;
+    let mut start = 0;
+    for (index, character) in value.char_indices() {
+        match character {
+            '<' => angle += 1,
+            '>' => angle -= 1,
+            '(' => paren += 1,
+            ')' => paren -= 1,
+            '[' => bracket += 1,
+            ']' => bracket -= 1,
+            _ if character == separator && angle == 0 && paren == 0 && bracket == 0 => {
+                parts.push(&value[start..index]);
+                start = index + character.len_utf8();
+            }
+            _ => {}
+        }
+    }
+    parts.push(&value[start..]);
+    parts
+}
+
+fn normalize_example_type(
+    rust_type: &str,
+    owner_type: &str,
+    source_identity: Option<&str>,
+) -> String {
+    let normalized = normalize_two_argument_result(rust_type.replace(" :: ", "::"));
+    let bytes = normalized.as_bytes();
+    let mut output = String::with_capacity(normalized.len());
+    let mut cursor = 0;
+    while cursor < bytes.len() {
+        if !is_path_ident_start(bytes[cursor]) {
+            output.push(bytes[cursor] as char);
+            cursor += 1;
+            continue;
+        }
+        let start = cursor;
+        cursor += 1;
+        while cursor < bytes.len() && is_path_ident_continue(bytes[cursor]) {
+            cursor += 1;
+        }
+        let identifier = &normalized[start..cursor];
+        let next_non_space = bytes[cursor..]
+            .iter()
+            .copied()
+            .find(|byte| !byte.is_ascii_whitespace());
+        if identifier == "Self" {
+            output.push_str(owner_type);
+        } else if next_non_space == Some(b'=') {
+            output.push_str(identifier);
+        } else if cursor + 1 < bytes.len() && bytes[cursor..].starts_with(b"::")
+            || start >= 2 && bytes[start - 2..start].starts_with(b"::")
+        {
+            output.push_str(identifier);
+        } else if let Some(canonical) = standard_example_type(identifier) {
+            output.push_str(canonical);
+        } else if let Some(canonical) = resolve_bare_example_type(identifier, source_identity) {
+            output.push_str(canonical);
+        } else if let Some(canonical) = installed_type_suffix_mappings().get(identifier) {
+            output.push_str(canonical);
+        } else {
+            output.push_str(identifier);
+        }
+    }
+    output
+}
+
+fn resolve_bare_example_type(
+    identifier: &str,
+    source_identity: Option<&str>,
+) -> Option<&'static str> {
+    // The contextual scan includes variants, constants, and fields in the
+    // complete path table. Only terminals independently classified as types
+    // may participate, otherwise names such as `String` and `i32` can be
+    // captured by an enum variant or associated constant.
+    if !installed_type_path_mappings()
+        .keys()
+        .any(|path| path.rsplit("::").next() == Some(identifier))
+    {
+        return None;
+    }
+    let source_identity = source_identity?;
+    installed_type_path_mappings()
+        .iter()
+        .filter(|(implementation, _)| implementation.rsplit("::").next() == Some(identifier))
+        .max_by_key(|(implementation, _)| common_path_prefix_len(implementation, source_identity))
+        .and_then(|(implementation, canonical)| {
+            (common_path_prefix_len(implementation, source_identity) > 0).then_some(*canonical)
+        })
+}
+
+fn common_path_prefix_len(left: &str, right: &str) -> usize {
+    left.split("::")
+        .zip(right.split("::"))
+        .take_while(|(left, right)| left == right)
+        .count()
+}
+
+fn standard_example_type(identifier: &str) -> Option<&'static str> {
+    match identifier {
+        "HashMap" => Some("std::collections::HashMap"),
+        "RangeBounds" => Some("std::ops::RangeBounds"),
+        "Display" => Some("std::fmt::Display"),
+        "Value" => Some("serde_json::Value"),
+        _ => None,
+    }
+}
+
+fn normalize_two_argument_result(mut value: String) -> String {
+    for spelling in ["sand::component::Result", "Result"] {
+        let mut search_from = 0;
+        while let Some(relative) = value[search_from..].find(spelling) {
+            let start = search_from + relative;
+            let after_name = start + spelling.len();
+            if (start > 0 && is_path_ident_continue(value.as_bytes()[start - 1]))
+                || (spelling == "Result" && start >= 2 && &value[start - 2..start] == "::")
+                || value[after_name..]
+                    .as_bytes()
+                    .first()
+                    .is_some_and(|byte| is_path_ident_continue(*byte))
+            {
+                search_from = after_name;
+                continue;
+            }
+            let Some(open_offset) = value[after_name..].find('<') else {
+                break;
+            };
+            let open = after_name + open_offset;
+            if !value[after_name..open].trim().is_empty() {
+                search_from = after_name;
+                continue;
+            }
+            let mut depth = 0_i32;
+            let mut has_top_level_comma = false;
+            let mut close = None;
+            for (offset, character) in value[open..].char_indices() {
+                match character {
+                    '<' => depth += 1,
+                    '>' => {
+                        depth -= 1;
+                        if depth == 0 {
+                            close = Some(open + offset);
+                            break;
+                        }
+                    }
+                    ',' if depth == 1 => has_top_level_comma = true,
+                    _ => {}
+                }
+            }
+            if has_top_level_comma && close.is_some() {
+                value.replace_range(start..after_name, "std::result::Result");
+                search_from = start + "std::result::Result".len();
+            } else {
+                search_from = after_name;
+            }
+        }
+    }
+    value
+}
+
+fn semantic_field_example(entry: &ApiEntry, entry_kinds: &BTreeMap<String, ApiKind>) -> String {
+    let Some((parent_path, field)) = entry.canonical_path.rsplit_once("::") else {
+        return declaration_reference_example(entry.kind, &entry.canonical_path);
+    };
+    let field_name = if field.chars().all(|character| character.is_ascii_digit()) {
+        "payload".to_owned()
+    } else {
+        field.to_owned()
+    };
+    if entry_kinds.get(parent_path) == Some(&ApiKind::Variant) {
+        let Some((enum_path, variant)) = parent_path.rsplit_once("::") else {
+            return declaration_reference_example(entry.kind, &entry.canonical_path);
+        };
+        let pattern = if let Ok(index) = field.parse::<usize>() {
+            let mut fields = vec!["_"; index];
+            fields.push("payload");
+            fields.push("..");
+            format!("{enum_path}::{variant}({})", fields.join(", "))
+        } else {
+            format!("{enum_path}::{variant} {{ {field}, .. }}")
+        };
+        return format!(
+            "use sand::prelude::*;\n\nfn inspect(value: {enum_path}) {{\n    if let {pattern} = value {{\n        let {field_name}_value = {field_name};\n    }}\n}}"
+        );
+    }
+    format!(
+        "use sand::prelude::*;\n\nfn inspect(value: {parent_path}) {{\n    let {field_name}_value = value.{field};\n}}"
+    )
+}
+
+fn semantic_result_name(
+    entry: &ApiEntry,
+    owner_name: &str,
+    member: &str,
+    has_receiver: bool,
+) -> String {
+    let return_type = entry
+        .return_type
+        .as_deref()
+        .unwrap_or_default()
+        .split_whitespace()
+        .collect::<String>();
+    if return_type == "Self" {
+        if has_receiver {
+            return format!("updated_{}", to_snake_case(owner_name));
+        }
+        return to_snake_case(owner_name);
+    }
+    if matches!(member, "new" | "parse" | "try_new") {
+        return format!("{}_result", to_snake_case(owner_name));
+    }
+    if return_type == "bool" {
+        return format!("is_{}", to_snake_case(member));
+    }
+    if return_type == "String" && entry.summary.to_ascii_lowercase().contains("command") {
+        return "command".to_owned();
+    }
+    if return_type.starts_with("Vec<") {
+        return "values".to_owned();
+    }
+    to_snake_case(member)
+}
+
+fn to_snake_case(value: &str) -> String {
+    let mut output = String::new();
+    for (index, character) in value.chars().enumerate() {
+        if character.is_ascii_uppercase() {
+            if index > 0 {
+                output.push('_');
+            }
+            output.push(character.to_ascii_lowercase());
+        } else {
+            output.push(character);
+        }
+    }
+    output
 }
 
 fn non_placeholder_summary(entry: &ApiEntry) -> String {
@@ -503,10 +1280,7 @@ fn rustdoc_example(documentation: &str) -> Option<String> {
                 continue;
             };
             let language = info.split(',').next().unwrap_or_default().trim();
-            fence = Some(
-                language.is_empty()
-                    || matches!(language, "rust" | "ignore" | "no_run" | "compile_fail"),
-            );
+            fence = Some(language.is_empty() || matches!(language, "rust" | "ignore" | "no_run"));
             continue;
         }
         if trimmed.starts_with("```") {
@@ -557,6 +1331,26 @@ fn installed_suffix_mappings() -> &'static BTreeMap<&'static str, &'static str> 
     })
 }
 
+fn installed_type_suffix_mappings() -> &'static BTreeMap<&'static str, &'static str> {
+    static MAPPINGS: OnceLock<BTreeMap<&'static str, &'static str>> = OnceLock::new();
+    MAPPINGS.get_or_init(|| {
+        sand::__private::api_contract::INSTALLED_API_TYPE_SUFFIX_MAPPINGS
+            .iter()
+            .copied()
+            .collect()
+    })
+}
+
+fn installed_type_path_mappings() -> &'static BTreeMap<&'static str, &'static str> {
+    static MAPPINGS: OnceLock<BTreeMap<&'static str, &'static str>> = OnceLock::new();
+    MAPPINGS.get_or_init(|| {
+        sand::__private::api_contract::INSTALLED_API_TYPE_PATH_MAPPINGS
+            .iter()
+            .copied()
+            .collect()
+    })
+}
+
 fn installed_implementation_crates() -> &'static BTreeSet<&'static str> {
     static CRATES: OnceLock<BTreeSet<&'static str>> = OnceLock::new();
     CRATES.get_or_init(|| {
@@ -575,6 +1369,19 @@ fn normalize_shape_paths(value: &str, source_identity: Option<&str>) -> String {
             .replace("crate::", &format!("{source_crate}::"))
             .replace("crate ::", &format!("{source_crate} ::"));
     }
+    if normalized.contains("super::")
+        || normalized.contains("super ::")
+        || normalized.contains("self::")
+        || normalized.contains("self ::")
+    {
+        for (suffix, canonical) in installed_type_suffix_mappings() {
+            normalized = normalized
+                .replace(&format!("super::{suffix}"), canonical)
+                .replace(&format!("super :: {suffix}"), canonical)
+                .replace(&format!("self::{suffix}"), canonical)
+                .replace(&format!("self :: {suffix}"), canonical);
+        }
+    }
     normalized = rewrite_braced_use_paths(&normalized, source_identity);
     rewrite_qualified_paths(&normalized, source_identity)
 }
@@ -591,23 +1398,13 @@ fn rewrite_braced_use_paths(value: &str, source_identity: Option<&str>) -> Strin
             else {
                 return line.to_owned();
             };
-            let Some((root, members)) = body.split_once("::{") else {
+            let mut leaves = Vec::new();
+            if !flatten_use_tree("", body, &mut leaves) || !body.contains("::{") {
                 return line.to_owned();
-            };
-            let Some(members) = members.strip_suffix('}') else {
-                return line.to_owned();
-            };
-            let resolved = members
-                .split(',')
-                .map(str::trim)
-                .filter(|member| !member.is_empty())
-                .map(|member| {
-                    let (path, rename) = member
-                        .split_once(" as ")
-                        .map_or((member, None), |(path, rename)| {
-                            (path.trim(), Some(rename.trim()))
-                        });
-                    let implementation = format!("{}::{}", root.trim(), path);
+            }
+            let resolved = leaves
+                .into_iter()
+                .map(|(implementation, rename)| {
                     resolve_qualified_path(&implementation, source_identity).map(|canonical| {
                         rename.map_or_else(
                             || canonical.to_owned(),
@@ -623,6 +1420,87 @@ fn rewrite_braced_use_paths(value: &str, source_identity: Option<&str>) -> Strin
         })
         .collect::<Vec<_>>()
         .join("\n")
+}
+
+fn flatten_use_tree(prefix: &str, tree: &str, leaves: &mut Vec<(String, Option<String>)>) -> bool {
+    let tree = tree.trim();
+    if tree.starts_with('{') && tree.ends_with('}') {
+        return split_use_members(&tree[1..tree.len() - 1])
+            .into_iter()
+            .all(|member| flatten_use_tree(prefix, member, leaves));
+    }
+    if let Some(position) = top_level_group_position(tree) {
+        let owner = join_use_path(prefix, tree[..position].trim());
+        let group = &tree[position + 2..];
+        return flatten_use_tree(&owner, group, leaves);
+    }
+    let (leaf, rename) = tree
+        .split_once(" as ")
+        .map_or((tree, None), |(leaf, rename)| {
+            (leaf.trim(), Some(rename.trim().to_owned()))
+        });
+    if leaf.is_empty() || leaf == "*" {
+        return false;
+    }
+    let path = if leaf == "self" {
+        prefix.to_owned()
+    } else {
+        join_use_path(prefix, leaf)
+    };
+    if path.is_empty() {
+        return false;
+    }
+    leaves.push((path, rename));
+    true
+}
+
+fn split_use_members(group: &str) -> Vec<&str> {
+    let mut members = Vec::new();
+    let mut depth = 0_u32;
+    let mut start = 0;
+    for (index, character) in group.char_indices() {
+        match character {
+            '{' => depth += 1,
+            '}' => depth = depth.saturating_sub(1),
+            ',' if depth == 0 => {
+                if !group[start..index].trim().is_empty() {
+                    members.push(group[start..index].trim());
+                }
+                start = index + 1;
+            }
+            _ => {}
+        }
+    }
+    if !group[start..].trim().is_empty() {
+        members.push(group[start..].trim());
+    }
+    members
+}
+
+fn top_level_group_position(tree: &str) -> Option<usize> {
+    let bytes = tree.as_bytes();
+    let mut depth = 0_u32;
+    let mut cursor = 0;
+    while cursor + 2 < bytes.len() {
+        match bytes[cursor] {
+            b'{' => depth += 1,
+            b'}' => depth = depth.saturating_sub(1),
+            b':' if depth == 0 && bytes[cursor + 1] == b':' && bytes[cursor + 2] == b'{' => {
+                return Some(cursor);
+            }
+            _ => {}
+        }
+        cursor += 1;
+    }
+    None
+}
+
+fn join_use_path(prefix: &str, suffix: &str) -> String {
+    if prefix.is_empty() {
+        suffix.to_owned()
+    } else {
+        format!("{prefix}::{suffix}")
+    }
 }
 
 fn rewrite_qualified_paths(value: &str, source_identity: Option<&str>) -> String {
@@ -674,6 +1552,17 @@ fn qualified_paths(value: &str) -> Vec<(usize, usize, String)> {
             while cursor < bytes.len() && bytes[cursor].is_ascii_whitespace() {
                 cursor += 1;
             }
+            if bytes.get(cursor) == Some(&b'{') {
+                if segments == 1 {
+                    paths.push((
+                        start,
+                        separator_start,
+                        value[start..separator_start].to_owned(),
+                    ));
+                }
+                cursor = separator_start;
+                break;
+            }
             if cursor >= bytes.len() || !is_path_ident_start(bytes[cursor]) {
                 cursor = separator_start;
                 break;
@@ -703,7 +1592,19 @@ fn validate_exported_references(entries: &[ApiEntry]) -> Result<()> {
                 .chain(entry.aliases.iter().map(String::as_str))
         })
         .collect::<BTreeSet<_>>();
+    let public_kinds = entries
+        .iter()
+        .flat_map(|entry| {
+            std::iter::once((entry.canonical_path.as_str(), entry.kind)).chain(
+                entry
+                    .aliases
+                    .iter()
+                    .map(move |alias| (alias.as_str(), entry.kind)),
+            )
+        })
+        .collect::<BTreeMap<_, _>>();
     let mut invalid = BTreeSet::new();
+    let mut invalid_types = BTreeSet::new();
     for entry in entries {
         let parameter_text = entry.parameters.iter().flat_map(|parameter| {
             std::iter::once(parameter.description.as_str()).chain(parameter.rust_type.as_deref())
@@ -733,37 +1634,64 @@ fn validate_exported_references(entries: &[ApiEntry]) -> Result<()> {
                 }
             }
         }
+        let structural_types = entry
+            .parameters
+            .iter()
+            .filter_map(|parameter| parameter.rust_type.as_deref())
+            .chain(entry.return_type.as_deref())
+            // Constant signatures may include an initializer expression. A
+            // path in that expression names a value, not a type identity.
+            .chain(
+                (!matches!(entry.kind, ApiKind::Constant | ApiKind::AssociatedConst))
+                    .then_some(entry.signature.as_str()),
+            );
+        for text in structural_types {
+            for (_, _, path) in qualified_paths(text) {
+                if path.starts_with("sand::")
+                    && !public_kinds
+                        .get(path.as_str())
+                        .is_some_and(|kind| type_capable_kind(*kind))
+                {
+                    invalid_types.insert(format!("{} -> {path}", entry.canonical_path));
+                }
+            }
+        }
     }
-    if invalid.is_empty() {
+    if invalid.is_empty() && invalid_types.is_empty() {
         Ok(())
     } else {
-        let count = invalid.len();
-        bail!(
-            "installed API catalog contains {count} unresolved or nonexistent exported API references:\n{}",
-            invalid.into_iter().take(50).collect::<Vec<_>>().join("\n")
-        )
+        let count = invalid.len() + invalid_types.len();
+        let details = invalid
+            .into_iter()
+            .map(|item| format!("unresolved reference: {item}"))
+            .chain(
+                invalid_types
+                    .into_iter()
+                    .map(|item| format!("non-type structural reference: {item}")),
+            )
+            .take(50)
+            .collect::<Vec<_>>()
+            .join("\n");
+        bail!("installed API catalog contains {count} invalid exported API references:\n{details}")
     }
 }
 
+fn type_capable_kind(kind: ApiKind) -> bool {
+    matches!(
+        kind,
+        ApiKind::Struct
+            | ApiKind::Enum
+            | ApiKind::Trait
+            | ApiKind::TypeAlias
+            | ApiKind::AssociatedType
+    )
+}
+
 fn is_meaningful_public_path(path: &str, public_paths: &BTreeSet<&str>) -> bool {
-    if public_paths.contains(path)
+    public_paths.contains(path)
         || public_paths
             .iter()
             .any(|candidate| candidate.starts_with(&format!("{path}::")))
-    {
-        return true;
-    }
-    let mut owner = path;
-    while let Some((prefix, _)) = owner.rsplit_once("::") {
-        if prefix == "sand" {
-            break;
-        }
-        if public_paths.contains(prefix) {
-            return true;
-        }
-        owner = prefix;
-    }
-    false
 }
 
 fn resolve_qualified_path(path: &str, source_identity: Option<&str>) -> Option<&'static str> {
@@ -775,6 +1703,11 @@ fn resolve_qualified_path(path: &str, source_identity: Option<&str>) -> Option<&
         return None;
     }
     let path_terminal = path.rsplit("::").next()?;
+    if path.split("::").count() == 2
+        && let Some(canonical) = installed_type_suffix_mappings().get(path_terminal)
+    {
+        return Some(*canonical);
+    }
     if let Some(mut source_owner) = source_identity {
         while let Some((owner, _)) = source_owner.rsplit_once("::") {
             source_owner = owner;
@@ -1283,6 +2216,13 @@ mod tests {
         );
         assert_eq!(
             normalize_shape_paths(
+                "use sand_components::{advancement::{AdvancementDisplay, AdvancementIcon}, ItemId};",
+                Some("sand_components::advancement::AdvancementDisplay::new"),
+            ),
+            "use {sand::component::AdvancementDisplay, sand::component::AdvancementIcon, sand::registry::ItemId};"
+        );
+        assert_eq!(
+            normalize_shape_paths(
                 "sand_components::worldgen::Noise",
                 Some("sand_components::worldgen::noise::Noise::id"),
             ),
@@ -1296,6 +2236,100 @@ mod tests {
             "sand_components::private_model::Text",
             "an ambiguous terminal name must not be assigned to an arbitrary public owner",
         );
+
+        let public_paths = BTreeSet::from(["sand::component", "sand::component::ItemId"]);
+        assert!(is_meaningful_public_path(
+            "sand::component::ItemId",
+            &public_paths
+        ));
+        assert!(!is_meaningful_public_path(
+            "sand::component::DefinitelyMissing",
+            &public_paths
+        ));
+    }
+
+    #[test]
+    fn opaque_event_dispatch_constructor_uses_the_public_trigger_type() {
+        let entry = generated_catalog()
+            .find("sand::events::SandEventDispatch::AdvancementTrigger")
+            .expect("opaque advancement constructor is installed");
+        assert_eq!(
+            entry.parameters[0]
+                .rust_type
+                .as_deref()
+                .map(|value| value.split_whitespace().collect::<String>()),
+            Some("sand::component::AdvancementTrigger".to_owned())
+        );
+        assert!(
+            !entry.parameters[0]
+                .rust_type
+                .as_deref()
+                .unwrap()
+                .contains("SandEventDispatch::AdvancementTrigger")
+        );
+    }
+
+    #[test]
+    fn structural_sand_paths_must_resolve_to_type_capable_identities() {
+        let mut trigger_type = entry(
+            "sand::component::AdvancementTrigger",
+            ApiKind::Enum,
+            "A typed advancement trigger.",
+            "sand::component",
+        );
+        trigger_type.signature = "pub enum AdvancementTrigger".into();
+        trigger_type.returns = None;
+        trigger_type.return_type = None;
+
+        let mut constructor = entry(
+            "sand::events::SandEventDispatch::AdvancementTrigger",
+            ApiKind::Method,
+            "Creates an event dispatch.",
+            "sand::events",
+        );
+        constructor.signature =
+            "pub fn AdvancementTrigger(trigger: sand::component::AdvancementTrigger) -> Self"
+                .into();
+        constructor.parameters = vec![ApiParameter {
+            name: "trigger".into(),
+            rust_type: Some("sand::component::AdvancementTrigger".into()),
+            description: "The typed advancement trigger.".into(),
+        }];
+        constructor.return_type = Some("Self".into());
+        validate_exported_references(&[trigger_type.clone(), constructor.clone()])
+            .expect("an enum is valid in structural type metadata");
+
+        constructor.signature = "pub fn AdvancementTrigger(trigger: sand::events::SandEventDispatch::AdvancementTrigger) -> Self".into();
+        constructor.parameters[0].rust_type =
+            Some("sand::events::SandEventDispatch::AdvancementTrigger".into());
+        let error = validate_exported_references(&[trigger_type, constructor])
+            .expect_err("a method identity cannot masquerade as a parameter type");
+        assert!(error.to_string().contains("non-type structural reference"));
+    }
+
+    #[test]
+    fn example_type_normalization_handles_std_types_and_generic_methods() {
+        assert_eq!(
+            normalize_example_type("HashMap<String, String>", "sand::component::Owner", None),
+            "std::collections::HashMap<String, String>"
+        );
+        assert_eq!(
+            normalize_example_type("impl RangeBounds<i32>", "sand::component::Owner", None),
+            "impl std::ops::RangeBounds<i32>"
+        );
+        assert_eq!(
+            normalize_example_type("impl Display", "sand::component::Owner", None),
+            "impl std::fmt::Display"
+        );
+        assert_eq!(
+            normalize_example_type(
+                "sand::component::Result<Value, Error>",
+                "sand::component::Owner",
+                None
+            ),
+            "std::result::Result<serde_json::Value, Error>"
+        );
+        assert_eq!(explicit_method_arguments("<'a, G, N>"), "::<G, N>");
     }
 
     fn generated_catalog() -> &'static ApiCatalog {
@@ -1639,14 +2673,11 @@ mod tests {
         );
         assert_eq!(path.return_type.as_deref(), Some("& str"));
 
-        let undocumented_field = catalog.find("sand::command::BlockPos::x").unwrap();
-        assert_eq!(undocumented_field.signature, "pub x: Coord");
-        assert!(undocumented_field.summary.is_empty());
-        assert!(
-            !serde_json::to_string(undocumented_field)
-                .unwrap()
-                .contains("\"summary\"")
-        );
+        let documented_field = catalog.find("sand::command::BlockPos::x").unwrap();
+        assert_eq!(documented_field.signature, "pub x: Coord");
+        assert!(documented_field.summary.contains('x'));
+        assert!(documented_field.summary.contains("coordinate"));
+        assert!(documented_field.example.contains("value.x"));
 
         assert!(
             catalog
@@ -1854,6 +2885,12 @@ mod tests {
         assert_eq!(
             rustdoc_example("Shape:\n\n```text\nnot Rust\n```\n\n```rust\nlet actual = 3;\n```"),
             Some("let actual = 3;".to_owned())
+        );
+        assert_eq!(
+            rustdoc_example(
+                "Rejected:\n\n```compile_fail\nlet wrong = missing();\n```\n\n```rust\nlet right = 4;\n```"
+            ),
+            Some("let right = 4;".to_owned())
         );
         assert_eq!(
             rustdoc_summary(
@@ -2399,6 +3436,86 @@ mod tests {
         assert!(contract.contains("Returns\n  `Self`"));
         assert!(contract.contains("Minecraft receives the resulting objectives"));
         assert!(contract.contains("Avoid creating multiple archetypes"));
+    }
+
+    #[test]
+    fn all_generated_callable_examples_compile_in_a_downstream_crate() {
+        use std::fs;
+        use std::process::Command;
+
+        let catalog = generated_catalog();
+        let paths = [
+            // Standard-library collection and trait paths must be nameable
+            // without relying on the Sand prelude.
+            "sand::component::AdvancementTrigger::enter_block",
+            "sand::entity::EntityScore::matches",
+            "sand::component::Ingredient::item",
+            // Two-argument `Result` is the standard result, not the
+            // component serialization alias with the same suffix.
+            "sand::entity::StatCurve::custom",
+            // A zero-argument generic method needs an explicit turbofish.
+            "sand::events::SandEventDispatch::after_any",
+        ];
+        for path in paths {
+            let entry = catalog
+                .find(path)
+                .unwrap_or_else(|| panic!("representative callable `{path}` is installed"));
+            assert!(
+                entry.example.contains("fn demonstrate"),
+                "`{path}` should use a generated callable example"
+            );
+        }
+
+        let generated = catalog
+            .entries
+            .iter()
+            .filter(|entry| {
+                matches!(
+                    entry.kind,
+                    ApiKind::Function | ApiKind::Method | ApiKind::TraitMethod
+                ) && entry.example.contains("fn demonstrate")
+            })
+            .collect::<Vec<_>>();
+        assert!(
+            generated.len() > 1_900,
+            "expected repository-wide generated callable coverage, found {}",
+            generated.len()
+        );
+        let mut source = String::new();
+        for (index, entry) in generated.iter().enumerate() {
+            source.push_str(&format!(
+                "#[allow(dead_code, unused_imports, unused_variables, unreachable_code)]\nmod example_{index} {{\n{}\n}}\n",
+                entry.example
+            ));
+        }
+
+        let project = tempfile::tempdir().expect("create downstream example crate");
+        let workspace = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .parent()
+            .expect("sand-cli is inside the workspace");
+        fs::create_dir(project.path().join("src")).expect("create source directory");
+        fs::write(
+            project.path().join("Cargo.toml"),
+            format!(
+                "[package]\nname = \"sand-contract-example-check\"\nversion = \"0.0.0\"\nedition = \"2024\"\n\n[dependencies]\nsand = {{ path = {:?}, features = [\"systems-all\", \"resourcepack\"] }}\nserde_json = \"1\"\n",
+                workspace.join("sand")
+            ),
+        )
+        .expect("write downstream manifest");
+        fs::write(project.path().join("src/lib.rs"), source).expect("write downstream examples");
+        let target = workspace.join("target/generated-api-example-check");
+        let output = Command::new(env!("CARGO"))
+            .current_dir(project.path())
+            .env("CARGO_TARGET_DIR", &target)
+            .args(["check", "--offline", "--quiet"])
+            .output()
+            .expect("run downstream cargo check");
+        assert!(
+            output.status.success(),
+            "all {} generated callable examples must compile:\n{}",
+            generated.len(),
+            String::from_utf8_lossy(&output.stderr)
+        );
     }
 
     #[cfg(any(feature = "systems-player-data", feature = "systems-all"))]

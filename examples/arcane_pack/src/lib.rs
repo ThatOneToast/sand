@@ -738,7 +738,8 @@ mod tests {
 
     #[test]
     fn golden_advancements_generated() {
-        let json_str = sand_core::export_components_json("arcane");
+        let json_str = sand_core::try_export_components_json("arcane")
+            .expect("arcane components export should succeed");
         let records: Vec<serde_json::Value> =
             serde_json::from_str(&json_str).expect("valid JSON from export");
 

@@ -44,3 +44,6 @@ systems-all = [
     "systems-inventory",
     "systems-entities",
 ]
+
+[dev-dependencies]
+tempfile = "3"

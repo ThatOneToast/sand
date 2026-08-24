@@ -1880,6 +1880,7 @@ dependencies = [
  "sand-core",
  "sand-macros",
  "sand-resourcepack",
+ "tempfile",
 ]
 
 [[package]]

@@ -77,7 +77,7 @@ pub(super) fn build_resourcepack(
     mc_version: &str,
     release: bool,
     binary: &Path,
-) -> Result<()> {
+) -> Result<super::output_manifest::ChangeSummary> {
     use sand_core::version::{MinecraftVersion, VersionProfile};
 
     let rp_cfg = config.resourcepack.as_ref();
@@ -183,5 +183,5 @@ pub(super) fn build_resourcepack(
         );
     }
 
-    Ok(())
+    Ok(change_summary)
 }

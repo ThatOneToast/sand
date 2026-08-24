@@ -235,7 +235,7 @@ isolated downstream fixtures exercise the same expansion-time guards used by
 ordinary consumer builds. The static report therefore cannot be made complete
 by blessing a named zero-item consumer scope.
 
-The exact 26.2 profile records 10,976 enforced static identities across 29
+The exact 26.2 profile records 10,976 enforced static identities across 28
 scopes, with zero pending scopes and zero pending items. The 1.21.4 and explicit
 placeholder profiles enforce the same source and checked-in-generator boundary
 against their independently generated totals. Every reachable identity maps to

@@ -268,6 +268,27 @@ where
     /// path, and helper function. The default version is the state schema
     /// version and reconciliation is version-driven.
     ///
+    /// `id` is the stable resource location used to derive those generated
+    /// names. Renaming it after release creates a distinct archetype identity.
+    ///
+    /// Returns a new archetype builder using the state schema's current
+    /// version and schema-change reconciliation policy.
+    ///
+    /// Use this constructor when declaring the canonical lifecycle policy for
+    /// one entity kind and state schema.
+    ///
+    /// Avoid creating multiple archetypes with the same identifier; their
+    /// generated Minecraft objectives and helper functions would collide.
+    ///
+    /// Minecraft receives the resulting objectives, marker tags, storage
+    /// paths, migration functions, and reconciliation commands at export.
+    ///
+    /// ```rust,ignore
+    /// let archetype = EntityArchetype::<Zombie, MyState>::new(
+    ///     "demo:managed_zombie".parse()?,
+    /// );
+    /// ```
+    ///
     /// # API Contract
     ///
     /// `sand api show sand::entity::EntityArchetype::new`

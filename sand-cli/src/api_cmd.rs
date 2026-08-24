@@ -441,23 +441,35 @@ fn source_guidance(documentation: &str, kind: GuidanceKind) -> Vec<String> {
 }
 
 fn source_minecraft_behavior(documentation: &str) -> Option<String> {
-    rustdoc_prose_paragraphs(documentation)
+    let paragraphs = rustdoc_prose_paragraphs(documentation)
         .into_iter()
         .skip(1)
+        .collect::<Vec<_>>();
+    paragraphs
+        .iter()
         .find(|paragraph| {
-            let lower = paragraph.to_ascii_lowercase();
-            [
-                "minecraft",
-                " command",
-                "scoreboard",
-                "nbt",
-                "datapack",
-                "resource pack",
-                "json",
-                "export",
-            ]
-            .iter()
-            .any(|token| lower.contains(token))
+            paragraph
+                .trim_start()
+                .to_ascii_lowercase()
+                .starts_with("minecraft ")
+        })
+        .cloned()
+        .or_else(|| {
+            paragraphs.into_iter().find(|paragraph| {
+                let lower = paragraph.to_ascii_lowercase();
+                [
+                    "minecraft",
+                    " command",
+                    "scoreboard",
+                    "nbt",
+                    "datapack",
+                    "resource pack",
+                    "json",
+                    "export",
+                ]
+                .iter()
+                .any(|token| lower.contains(token))
+            })
         })
 }
 
@@ -951,6 +963,8 @@ fn render_entry(entry: &ApiEntry) -> String {
             .as_ref()
             .map_or_else(|| returns.clone(), |ty| format!("`{ty}` — {returns}"));
         section(&mut output, "Returns", &rendered);
+    } else if let Some(return_type) = &entry.return_type {
+        section(&mut output, "Returns", &format!("`{return_type}`"));
     }
     list_section(&mut output, "Use when", &entry.use_when);
     list_section(&mut output, "Avoid when", &entry.avoid_when);
@@ -2375,6 +2389,16 @@ mod tests {
             search_with_options(catalog, "!!!", Some(3), None, None).unwrap(),
             "No APIs matched `!!!`.\n"
         );
+    }
+
+    #[test]
+    fn entity_archetype_constructor_exposes_structural_and_semantic_contract_details() {
+        let contract = show(generated_catalog(), "sand::entity::EntityArchetype::new").unwrap();
+        assert!(contract.contains("pub fn new (id : ResourceLocation) -> Self"));
+        assert!(contract.contains("id (`ResourceLocation`):"));
+        assert!(contract.contains("Returns\n  `Self`"));
+        assert!(contract.contains("Minecraft receives the resulting objectives"));
+        assert!(contract.contains("Avoid creating multiple archetypes"));
     }
 
     #[cfg(any(feature = "systems-player-data", feature = "systems-all"))]

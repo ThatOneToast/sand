@@ -75,7 +75,8 @@ impl Noise {
     /// The typed registry ID other worldgen files use to reference this noise.
     ///
     /// ```
-    /// use sand_components::{Noise, ResourceLocation};
+    /// use sand_components::worldgen::Noise;
+    /// use sand_components::ResourceLocation;
     ///
     /// let noise = Noise::new(
     ///     ResourceLocation::new("example", "ridges").unwrap(),

@@ -563,7 +563,54 @@ fn normalize_shape_paths(value: &str, source_identity: Option<&str>) -> String {
             .replace("crate::", &format!("{source_crate}::"))
             .replace("crate ::", &format!("{source_crate} ::"));
     }
+    normalized = rewrite_braced_use_paths(&normalized, source_identity);
     rewrite_qualified_paths(&normalized, source_identity)
+}
+
+fn rewrite_braced_use_paths(value: &str, source_identity: Option<&str>) -> String {
+    value
+        .lines()
+        .map(|line| {
+            let indentation = &line[..line.len() - line.trim_start().len()];
+            let trimmed = line.trim();
+            let Some(body) = trimmed
+                .strip_prefix("use ")
+                .and_then(|body| body.strip_suffix(';'))
+            else {
+                return line.to_owned();
+            };
+            let Some((root, members)) = body.split_once("::{") else {
+                return line.to_owned();
+            };
+            let Some(members) = members.strip_suffix('}') else {
+                return line.to_owned();
+            };
+            let resolved = members
+                .split(',')
+                .map(str::trim)
+                .filter(|member| !member.is_empty())
+                .map(|member| {
+                    let (path, rename) = member
+                        .split_once(" as ")
+                        .map_or((member, None), |(path, rename)| {
+                            (path.trim(), Some(rename.trim()))
+                        });
+                    let implementation = format!("{}::{}", root.trim(), path);
+                    resolve_qualified_path(&implementation, source_identity).map(|canonical| {
+                        rename.map_or_else(
+                            || canonical.to_owned(),
+                            |rename| format!("{canonical} as {rename}"),
+                        )
+                    })
+                })
+                .collect::<Option<Vec<_>>>();
+            let Some(resolved) = resolved else {
+                return line.to_owned();
+            };
+            format!("{indentation}use {{{}}};", resolved.join(", "))
+        })
+        .collect::<Vec<_>>()
+        .join("\n")
 }
 
 fn rewrite_qualified_paths(value: &str, source_identity: Option<&str>) -> String {
@@ -714,6 +761,17 @@ fn resolve_qualified_path(path: &str, source_identity: Option<&str>) -> Option<&
     let implementation_crate = path.split("::").next()?;
     if !installed_implementation_crates().contains(implementation_crate) {
         return None;
+    }
+    let path_terminal = path.rsplit("::").next()?;
+    if let Some(mut source_owner) = source_identity {
+        while let Some((owner, _)) = source_owner.rsplit_once("::") {
+            source_owner = owner;
+            if source_owner.rsplit("::").next() == Some(path_terminal)
+                && let Some(canonical) = installed_path_mappings().get(source_owner)
+            {
+                return Some(*canonical);
+            }
+        }
     }
     let mut suffix = path;
     while let Some((_, remainder)) = suffix.split_once("::") {
@@ -1202,6 +1260,20 @@ mod tests {
         for (source, identity, expected) in cases {
             assert_eq!(normalize_shape_paths(source, Some(identity)), expected);
         }
+        assert_eq!(
+            normalize_shape_paths(
+                "use sand_components::{AdvancementDisplay, AdvancementIcon, ItemId};",
+                Some("sand_components::advancement::AdvancementDisplay::new"),
+            ),
+            "use {sand::component::AdvancementDisplay, sand::component::AdvancementIcon, sand::registry::ItemId};"
+        );
+        assert_eq!(
+            normalize_shape_paths(
+                "sand_components::worldgen::Noise",
+                Some("sand_components::worldgen::noise::Noise::id"),
+            ),
+            "sand::component::Noise"
+        );
         assert_eq!(
             normalize_shape_paths(
                 "sand_components::private_model::Text",

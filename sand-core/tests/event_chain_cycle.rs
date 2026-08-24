@@ -59,10 +59,7 @@ impl SandEvent for CycleC {
 }
 
 fn a_chain() -> Option<ChainEventDispatch> {
-    match a_dispatch() {
-        sand_core::events::SandEventDispatch::Chain(c) => Some(c),
-        _ => None,
-    }
+    sand_core::__private::event_dispatch_chain(a_dispatch())
 }
 fn a_type_id() -> TypeId {
     TypeId::of::<CycleA>()

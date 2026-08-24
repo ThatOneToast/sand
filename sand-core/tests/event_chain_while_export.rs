@@ -41,10 +41,7 @@ fn no_tick() -> Option<TickEventDispatch> {
     None
 }
 fn child_chain() -> Option<ChainEventDispatch> {
-    match WhileSneaking::dispatch().into() {
-        SandEventDispatch::Chain(chain) => Some(chain),
-        _ => None,
-    }
+    sand_core::__private::event_dispatch_chain(WhileSneaking::dispatch().into())
 }
 fn child_type_id() -> TypeId {
     TypeId::of::<WhileSneaking>()

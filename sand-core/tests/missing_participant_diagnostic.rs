@@ -80,10 +80,7 @@ fn no_condition() -> Option<String> {
     None
 }
 fn sand_tick() -> Option<sand_core::events::TickEventDispatch> {
-    match <SomeSandEvent as SandEvent>::dispatch().into() {
-        SandEventDispatch::Tick(tick) => Some(tick),
-        _ => None,
-    }
+    sand_core::__private::event_dispatch_tick(<SomeSandEvent as SandEvent>::dispatch().into())
 }
 fn no_chain() -> Option<sand_core::events::ChainEventDispatch> {
     None

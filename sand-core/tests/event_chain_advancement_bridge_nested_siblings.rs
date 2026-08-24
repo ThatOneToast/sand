@@ -38,10 +38,7 @@ macro_rules! submit_chain_handler {
                 None
             }
             fn chain() -> Option<ChainEventDispatch> {
-                match <$event as SandEvent>::dispatch().into() {
-                    SandEventDispatch::Chain(chain) => Some(chain),
-                    _ => None,
-                }
+                sand_core::__private::event_dispatch_chain(<$event as SandEvent>::dispatch().into())
             }
             fn tick() -> Option<TickEventDispatch> {
                 None

@@ -293,8 +293,8 @@ impl DensityFunctionExpr {
 
     /// Serialize this expression to the JSON Minecraft expects.
     ///
-    /// Public so typed expressions can be embedded in still-raw surfaces such
-    /// as [`crate::worldgen::NoiseSettings::noise_router`].
+    /// Public so typed expressions can be embedded in explicit raw
+    /// noise-router surfaces that Sand does not yet model as author API.
     #[doc = "**API Contract:** Run `sand api show sand::component::DensityFunctionExpr::to_json` for the canonical contract."]
     pub fn to_json(&self) -> Value {
         match self {

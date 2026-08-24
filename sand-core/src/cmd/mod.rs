@@ -420,7 +420,7 @@ pub fn give(selector: Selector, item: impl IntoGiveItem) -> String {
 /// are already well-formed by construction, but the `&str`/`String` raw
 /// escape hatch is not — this validates the leading `namespace:path` item ID
 /// (any trailing `[...]`/`{...}` item-component/NBT payload is preserved
-/// verbatim, matching `sand_commands::Inventory`'s item validation) and the
+/// verbatim, matching `sand::command::Inventory`'s item validation) and the
 /// target `selector` before returning command text.
 #[doc = "**API Contract:** Run `sand api show sand::command::try_give` for the canonical contract."]
 pub fn try_give(

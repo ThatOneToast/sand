@@ -306,7 +306,7 @@ impl TickWindow {
     ///
     /// Bounded correlation is meant for short cross-tick coordination
     /// windows, not long-lived session state — use durable per-player state
-    /// (e.g. `sand_core::state`) instead.
+    /// (e.g. `sand::state`) instead.
     pub const MAX_TICKS: u32 = 24_000;
 
     /// Validate `ticks` as a bounded correlation window.
@@ -1201,67 +1201,29 @@ impl From<ChainEventDispatch> for SandEventDispatch {
     }
 }
 
+#[allow(clippy::large_enum_variant)]
+pub(crate) enum EventDispatchRepresentation {
+    AdvancementTrigger(crate::AdvancementTrigger),
+    TickCondition(String),
+    Tick(TickEventDispatch),
+    Chain(ChainEventDispatch),
+    Tracked(crate::TrackedTransition),
+}
+
 /// How a custom [`SandEvent`] is dispatched at runtime.
 ///
 /// Returned by [`SandEvent::dispatch`]. Sand inspects this at build time to
 /// generate the correct detection mechanism (advancement JSON or tick loop).
-#[allow(clippy::large_enum_variant)]
-pub enum SandEventDispatch {
-    /// The event fires when the given advancement trigger criteria are met.
-    ///
-    /// Sand generates an advancement JSON file and wires the handler function
-    /// as its reward. The advancement is revoked after firing (by default) so
-    /// it can trigger again next time.
-    AdvancementTrigger(crate::AdvancementTrigger),
-
-    /// The event fires every tick an `execute if <condition>` is satisfied,
-    /// evaluated as each online player.
-    ///
-    /// The string must be a valid Minecraft `execute if` sub-command, e.g.:
-    ///
-    /// - `"items entity @s mainhand minecraft:diamond_sword"` — holding a sword
-    /// - `"score @s my_flag matches 1"` — scoreboard flag is set
-    /// - `"predicate my_pack:some_predicate"` — custom predicate
-    ///
-    /// This is the simple, single-fragment form. Prefer
-    /// [`SandEventDispatch::tick`] for typed conditions built from Sand's
-    /// [`Condition`](crate::condition::Condition) IR, or when the event needs
-    /// owned lifecycle resources via [`SandEvent::setup`].
-    TickCondition(String),
-
-    /// Structured, typed tick-poll dispatch. See [`TickEventDispatch`].
-    Tick(TickEventDispatch),
-
-    /// Structured, same-cycle chained dispatch. See [`ChainEventDispatch`]
-    /// and [`SandEventDispatch::chain`].
-    Chain(ChainEventDispatch),
-
-    /// Reusable tracked-transition dispatch (#49): a previous/current
-    /// baseline shared by every handler with the same
-    /// `TrackedTransition::tracker_id`, generated once regardless of how
-    /// many handlers subscribe.
-    ///
-    /// This is the mechanism `PlayerStartSneakingEvent` uses internally
-    /// (via macro-level dispatch), generalized here so arbitrary — including
-    /// generic — `SandEvent` types can declare their own tracked
-    /// transitions, e.g.:
-    ///
-    /// ```rust,ignore
-    /// impl SandEvent for PlayerStartSprintingEvent {
-    ///     fn dispatch() -> SandEventDispatch {
-    ///         SandEventDispatch::Tracked(TrackedTransition::new(
-    ///             "player_sprinting",
-    ///             PLAYER_SPRINTING_TRACKED_SOURCE,
-    ///             TransitionKind::BecameTrue,
-    ///         ))
-    ///     }
-    /// }
-    /// ```
-    ///
-    /// Not yet a supported same-cycle chain/compose parent — see
-    /// `NormalizedEventDispatch::Tracked`.
-    Tracked(crate::TrackedTransition),
-}
+/// Its transport representation is intentionally private; authors select a
+/// semantic constructor or return one of the typed builders instead.
+///
+/// ```compile_fail
+/// use sand_core::events::SandEventDispatch;
+///
+/// let dispatch: SandEventDispatch = SandEventDispatch::tick().as_players().into();
+/// let SandEventDispatch(_) = dispatch;
+/// ```
+pub struct SandEventDispatch(EventDispatchRepresentation);
 
 /// Normalized internal representation of a [`SandEventDispatch`], used by the
 /// export pipeline and by tests asserting on lowering behavior.
@@ -1289,6 +1251,42 @@ pub(crate) enum NormalizedEventDispatch {
 }
 
 impl SandEventDispatch {
+    /// Dispatch from one typed advancement trigger.
+    ///
+    /// Sand generates an advancement JSON file and wires the handler function
+    /// as its reward. The advancement is revoked after firing by default so it
+    /// can trigger again.
+    #[allow(non_snake_case)]
+    #[doc = "**API Contract:** Run `sand api show sand::events::SandEventDispatch::AdvancementTrigger` for the canonical contract."]
+    pub fn AdvancementTrigger(trigger: crate::AdvancementTrigger) -> Self {
+        Self(EventDispatchRepresentation::AdvancementTrigger(trigger))
+    }
+
+    /// Dispatch by polling one explicit `execute if` condition for each player.
+    ///
+    /// Prefer [`SandEventDispatch::tick`] for typed conditions and lifecycle
+    /// resources. This compatibility constructor preserves the raw-condition
+    /// escape hatch without exposing Sand's dispatch representation.
+    #[allow(non_snake_case)]
+    #[doc = "**API Contract:** Run `sand api show sand::events::SandEventDispatch::TickCondition` for the canonical contract."]
+    pub fn TickCondition(condition: String) -> Self {
+        Self(EventDispatchRepresentation::TickCondition(condition))
+    }
+
+    /// Wrap a structured typed tick-poll dispatch.
+    #[allow(non_snake_case)]
+    #[doc = "**API Contract:** Run `sand api show sand::events::SandEventDispatch::Tick` for the canonical contract."]
+    pub fn Tick(tick: TickEventDispatch) -> Self {
+        Self(EventDispatchRepresentation::Tick(tick))
+    }
+
+    /// Wrap a structured event-composition dispatch.
+    #[allow(non_snake_case)]
+    #[doc = "**API Contract:** Run `sand api show sand::events::SandEventDispatch::Chain` for the canonical contract."]
+    pub fn Chain(chain: ChainEventDispatch) -> Self {
+        Self(EventDispatchRepresentation::Chain(chain))
+    }
+
     /// Construct a structured, typed tick-poll dispatch builder.
     ///
     /// ```rust,ignore
@@ -1347,6 +1345,45 @@ impl SandEventDispatch {
         Self::compose().after_all::<G>()
     }
 
+    pub(crate) fn tracked(transition: crate::TrackedTransition) -> Self {
+        Self(EventDispatchRepresentation::Tracked(transition))
+    }
+
+    pub(crate) fn into_advancement(self) -> Option<crate::AdvancementTrigger> {
+        match self.0 {
+            EventDispatchRepresentation::AdvancementTrigger(trigger) => Some(trigger),
+            _ => None,
+        }
+    }
+
+    pub(crate) fn into_tick_condition(self) -> Option<String> {
+        match self.0 {
+            EventDispatchRepresentation::TickCondition(condition) => Some(condition),
+            _ => None,
+        }
+    }
+
+    pub(crate) fn into_tick(self) -> Option<TickEventDispatch> {
+        match self.0 {
+            EventDispatchRepresentation::Tick(tick) => Some(tick),
+            _ => None,
+        }
+    }
+
+    pub(crate) fn into_chain(self) -> Option<ChainEventDispatch> {
+        match self.0 {
+            EventDispatchRepresentation::Chain(chain) => Some(chain),
+            _ => None,
+        }
+    }
+
+    pub(crate) fn into_tracked(self) -> Option<crate::TrackedTransition> {
+        match self.0 {
+            EventDispatchRepresentation::Tracked(transition) => Some(transition),
+            _ => None,
+        }
+    }
+
     /// Lower this dispatch into the normalized internal IR.
     ///
     /// - `AdvancementTrigger(t)` → `Advancement(t)` unchanged.
@@ -1355,14 +1392,16 @@ impl SandEventDispatch {
     /// - `Tick(t)` → `Tick(t)` unchanged.
     /// - `Chain(c)` → `Chain(c)` unchanged.
     pub(crate) fn normalize(self) -> NormalizedEventDispatch {
-        match self {
-            SandEventDispatch::AdvancementTrigger(t) => NormalizedEventDispatch::Advancement(t),
-            SandEventDispatch::TickCondition(s) => NormalizedEventDispatch::Tick(
+        match self.0 {
+            EventDispatchRepresentation::AdvancementTrigger(t) => {
+                NormalizedEventDispatch::Advancement(t)
+            }
+            EventDispatchRepresentation::TickCondition(s) => NormalizedEventDispatch::Tick(
                 TickEventDispatch::default().when(crate::condition::Condition::raw(s)),
             ),
-            SandEventDispatch::Tick(t) => NormalizedEventDispatch::Tick(t),
-            SandEventDispatch::Chain(c) => NormalizedEventDispatch::Chain(c),
-            SandEventDispatch::Tracked(t) => NormalizedEventDispatch::Tracked(t),
+            EventDispatchRepresentation::Tick(t) => NormalizedEventDispatch::Tick(t),
+            EventDispatchRepresentation::Chain(c) => NormalizedEventDispatch::Chain(c),
+            EventDispatchRepresentation::Tracked(t) => NormalizedEventDispatch::Tracked(t),
         }
     }
 }
@@ -1562,7 +1601,7 @@ impl<T: SandEvent + Sized + 'static> SandEventParticipants for T {}
 /// Fires on the first tick after a server start, `/reload`, or when a new
 /// player joins mid-session.
 ///
-/// The preferred short name is [`sand_core::event::vanilla::OnJoin`](crate::event::vanilla::OnJoin).
+/// The supported author-facing identity is `sand::events::OnJoinEvent`.
 ///
 /// Implemented as a `JoinTick` scoreboard check: the `__sand_join` scoreboard
 /// objective is created and reset on `minecraft:load`; players whose score is
@@ -1587,7 +1626,7 @@ pub struct OnJoinEvent;
 
 /// Fires the very first time a player ever joins. Never fires again.
 ///
-/// The preferred short name is [`sand_core::event::vanilla::FirstJoin`](crate::event::vanilla::FirstJoin).
+/// The supported author-facing identity is `sand::events::FirstJoinEvent`.
 ///
 /// Implemented as an `Advancement + Tick` trigger **without** revocation.
 /// Once the advancement is granted it stays, so the event fires exactly once
@@ -1609,7 +1648,7 @@ pub struct FirstJoinEvent;
 
 /// Fires on the tick a player dies (any cause: mob, fall, void, `/kill`, …).
 ///
-/// The preferred short name is [`sand_core::event::vanilla::OnDeath`](crate::event::vanilla::OnDeath).
+/// The supported author-facing identity is `sand::events::OnDeathEvent`.
 ///
 /// Implemented via the `deathCount` scoreboard criterion. The handler runs as
 /// `@s` = the dying player.
@@ -1628,7 +1667,7 @@ pub struct OnDeathEvent;
 
 /// Fires on the first Sand tick that observes the player active after death.
 ///
-/// The preferred short name is [`sand_core::event::vanilla::OnRespawn`](crate::event::vanilla::OnRespawn).
+/// The supported author-facing identity is `sand::events::OnRespawnEvent`.
 ///
 /// Sand records a per-player waiting phase when `deathCount` observes a death.
 /// Vanilla resets `minecraft.custom:minecraft.time_since_death` to zero on
@@ -2162,8 +2201,7 @@ impl SandEvent for FallFromHeightEvent {
 
 /// Fires when a player's XP level increases (gains one or more levels in a tick).
 ///
-/// The preferred short name is
-/// [`sand_core::event::vanilla::PlayerLevelsUp`](crate::event::vanilla::PlayerLevelsUp).
+/// The supported author-facing identity is `sand::events::PlayerLevelUpEvent`.
 ///
 /// Implemented as a Sand-generated tick-backed system — not an advancement.
 /// Vanilla Minecraft has no `minecraft:leveled_up` advancement trigger.
@@ -2181,7 +2219,6 @@ impl SandEvent for FallFromHeightEvent {
 /// # Example
 ///
 /// ```rust,ignore
-/// use sand_core::event::vanilla::PlayerLevelsUp;
 /// use sand_core::events::PlayerLevelUpEvent;
 /// use sand_core::prelude::*;
 /// use sand_macros::on_event;
@@ -2447,12 +2484,11 @@ impl SandEventDispatch {
     /// Extract the advancement trigger from this dispatch, panicking if it's
     /// a tick-condition dispatch.
     fn into_trigger(self) -> Option<crate::AdvancementTrigger> {
-        match self {
-            SandEventDispatch::AdvancementTrigger(t) => Some(t),
-            SandEventDispatch::TickCondition(_) => None,
-            SandEventDispatch::Tick(_) => None,
-            SandEventDispatch::Chain(_) => None,
-            SandEventDispatch::Tracked(_) => None,
+        match self.normalize() {
+            NormalizedEventDispatch::Advancement(t) => Some(t),
+            NormalizedEventDispatch::Tick(_)
+            | NormalizedEventDispatch::Chain(_)
+            | NormalizedEventDispatch::Tracked(_) => None,
         }
     }
 }
@@ -2640,7 +2676,7 @@ impl PersistentSandEvent for PlayerSprintEvent {
 pub struct PlayerStartSprintingEvent;
 impl SandEvent for PlayerStartSprintingEvent {
     fn dispatch() -> SandEventDispatch {
-        SandEventDispatch::Tracked(crate::TrackedTransition::new(
+        SandEventDispatch::tracked(crate::TrackedTransition::new(
             "player_sprinting",
             PLAYER_SPRINTING_TRACKED_SOURCE,
             crate::TransitionKind::BecameTrue,
@@ -2654,7 +2690,7 @@ impl SandEvent for PlayerStartSprintingEvent {
 pub struct PlayerStopSprintingEvent;
 impl SandEvent for PlayerStopSprintingEvent {
     fn dispatch() -> SandEventDispatch {
-        SandEventDispatch::Tracked(crate::TrackedTransition::new(
+        SandEventDispatch::tracked(crate::TrackedTransition::new(
             "player_sprinting",
             PLAYER_SPRINTING_TRACKED_SOURCE,
             crate::TransitionKind::BecameFalse,
@@ -2695,7 +2731,7 @@ impl PersistentSandEvent for PlayerSwimmingEvent {
 pub struct PlayerStartSwimmingEvent;
 impl SandEvent for PlayerStartSwimmingEvent {
     fn dispatch() -> SandEventDispatch {
-        SandEventDispatch::Tracked(crate::TrackedTransition::new(
+        SandEventDispatch::tracked(crate::TrackedTransition::new(
             "player_swimming",
             PLAYER_SWIMMING_TRACKED_SOURCE,
             crate::TransitionKind::BecameTrue,
@@ -2709,7 +2745,7 @@ impl SandEvent for PlayerStartSwimmingEvent {
 pub struct PlayerStopSwimmingEvent;
 impl SandEvent for PlayerStopSwimmingEvent {
     fn dispatch() -> SandEventDispatch {
-        SandEventDispatch::Tracked(crate::TrackedTransition::new(
+        SandEventDispatch::tracked(crate::TrackedTransition::new(
             "player_swimming",
             PLAYER_SWIMMING_TRACKED_SOURCE,
             crate::TransitionKind::BecameFalse,
@@ -2751,7 +2787,7 @@ impl PersistentSandEvent for PlayerFlyingEvent {
 pub struct PlayerStartFlyingEvent;
 impl SandEvent for PlayerStartFlyingEvent {
     fn dispatch() -> SandEventDispatch {
-        SandEventDispatch::Tracked(crate::TrackedTransition::new(
+        SandEventDispatch::tracked(crate::TrackedTransition::new(
             "player_flying",
             PLAYER_FLYING_TRACKED_SOURCE,
             crate::TransitionKind::BecameTrue,
@@ -2765,7 +2801,7 @@ impl SandEvent for PlayerStartFlyingEvent {
 pub struct PlayerStopFlyingEvent;
 impl SandEvent for PlayerStopFlyingEvent {
     fn dispatch() -> SandEventDispatch {
-        SandEventDispatch::Tracked(crate::TrackedTransition::new(
+        SandEventDispatch::tracked(crate::TrackedTransition::new(
             "player_flying",
             PLAYER_FLYING_TRACKED_SOURCE,
             crate::TransitionKind::BecameFalse,
@@ -2819,7 +2855,7 @@ impl PersistentSandEvent for PlayerOnFireEvent {
 pub struct PlayerCaughtFireEvent;
 impl SandEvent for PlayerCaughtFireEvent {
     fn dispatch() -> SandEventDispatch {
-        SandEventDispatch::Tracked(crate::TrackedTransition::new(
+        SandEventDispatch::tracked(crate::TrackedTransition::new(
             "player_on_fire",
             PLAYER_ON_FIRE_TRACKED_SOURCE,
             crate::TransitionKind::BecameTrue,
@@ -2833,7 +2869,7 @@ impl SandEvent for PlayerCaughtFireEvent {
 pub struct PlayerExtinguishedEvent;
 impl SandEvent for PlayerExtinguishedEvent {
     fn dispatch() -> SandEventDispatch {
-        SandEventDispatch::Tracked(crate::TrackedTransition::new(
+        SandEventDispatch::tracked(crate::TrackedTransition::new(
             "player_on_fire",
             PLAYER_ON_FIRE_TRACKED_SOURCE,
             crate::TransitionKind::BecameFalse,
@@ -2921,7 +2957,7 @@ macro_rules! gamemode_transition {
         }
         impl SandEvent for $enter {
             fn dispatch() -> SandEventDispatch {
-                SandEventDispatch::Tracked(crate::TrackedTransition::new(
+        SandEventDispatch::tracked(crate::TrackedTransition::new(
                     $tracker,
                     crate::TrackedSource::BooleanCondition {
                         description: concat!("vanilla gamemode selector: ", $mode),
@@ -2955,7 +2991,7 @@ macro_rules! gamemode_transition {
         }
         impl SandEvent for $exit {
             fn dispatch() -> SandEventDispatch {
-                SandEventDispatch::Tracked(crate::TrackedTransition::new(
+        SandEventDispatch::tracked(crate::TrackedTransition::new(
                     $tracker,
                     crate::TrackedSource::BooleanCondition {
                         description: concat!("vanilla gamemode selector: ", $mode),
@@ -3021,7 +3057,7 @@ pub(crate) const PLAYER_HEALTH_TRACKED_SOURCE: crate::TrackedSource = crate::Tra
 pub struct PlayerHealthChangedEvent;
 impl SandEvent for PlayerHealthChangedEvent {
     fn dispatch() -> SandEventDispatch {
-        SandEventDispatch::Tracked(crate::TrackedTransition::new(
+        SandEventDispatch::tracked(crate::TrackedTransition::new(
             "player_health",
             PLAYER_HEALTH_TRACKED_SOURCE,
             crate::TransitionKind::ScoreChanged,
@@ -3036,7 +3072,7 @@ impl SandEvent for PlayerHealthChangedEvent {
 pub struct PlayerHealthLostEvent;
 impl SandEvent for PlayerHealthLostEvent {
     fn dispatch() -> SandEventDispatch {
-        SandEventDispatch::Tracked(crate::TrackedTransition::new(
+        SandEventDispatch::tracked(crate::TrackedTransition::new(
             "player_health",
             PLAYER_HEALTH_TRACKED_SOURCE,
             crate::TransitionKind::ScoreDecreased,
@@ -3051,7 +3087,7 @@ impl SandEvent for PlayerHealthLostEvent {
 pub struct PlayerHealthGainedEvent;
 impl SandEvent for PlayerHealthGainedEvent {
     fn dispatch() -> SandEventDispatch {
-        SandEventDispatch::Tracked(crate::TrackedTransition::new(
+        SandEventDispatch::tracked(crate::TrackedTransition::new(
             "player_health",
             PLAYER_HEALTH_TRACKED_SOURCE,
             crate::TransitionKind::ScoreIncreased,
@@ -3088,7 +3124,7 @@ impl SandEvent for PlayerHealthGainedEvent {
 pub struct PlayerLowHealthEvent<const HALF_HEARTS: i32>;
 impl<const HALF_HEARTS: i32> SandEvent for PlayerLowHealthEvent<HALF_HEARTS> {
     fn dispatch() -> SandEventDispatch {
-        SandEventDispatch::Tracked(crate::TrackedTransition::new(
+        SandEventDispatch::tracked(crate::TrackedTransition::new(
             "player_low_health",
             crate::TrackedSource::ScoreThreshold {
                 description: "vanilla health scoreboard criterion, low-health threshold",
@@ -3108,7 +3144,7 @@ impl<const HALF_HEARTS: i32> SandEvent for PlayerLowHealthEvent<HALF_HEARTS> {
 pub struct PlayerRecoveredHealthEvent<const HALF_HEARTS: i32>;
 impl<const HALF_HEARTS: i32> SandEvent for PlayerRecoveredHealthEvent<HALF_HEARTS> {
     fn dispatch() -> SandEventDispatch {
-        SandEventDispatch::Tracked(crate::TrackedTransition::new(
+        SandEventDispatch::tracked(crate::TrackedTransition::new(
             "player_low_health",
             crate::TrackedSource::ScoreThreshold {
                 description: "vanilla health scoreboard criterion, low-health threshold",
@@ -3298,7 +3334,7 @@ status_effect_marker!(
 pub struct EffectStarted<E: StatusEffectMarker>(std::marker::PhantomData<E>);
 impl<E: StatusEffectMarker> SandEvent for EffectStarted<E> {
     fn dispatch() -> SandEventDispatch {
-        SandEventDispatch::Tracked(crate::TrackedTransition::new(
+        SandEventDispatch::tracked(crate::TrackedTransition::new(
             E::TRACKER_ID,
             crate::TrackedSource::BooleanCondition {
                 description: "vanilla entity_properties effects predicate",
@@ -3315,7 +3351,7 @@ impl<E: StatusEffectMarker> SandEvent for EffectStarted<E> {
 pub struct EffectStopped<E: StatusEffectMarker>(std::marker::PhantomData<E>);
 impl<E: StatusEffectMarker> SandEvent for EffectStopped<E> {
     fn dispatch() -> SandEventDispatch {
-        SandEventDispatch::Tracked(crate::TrackedTransition::new(
+        SandEventDispatch::tracked(crate::TrackedTransition::new(
             E::TRACKER_ID,
             crate::TrackedSource::BooleanCondition {
                 description: "vanilla entity_properties effects predicate",
@@ -3431,6 +3467,18 @@ pub(crate) const BUILTIN_EVENT_NAMES: &[&str] = &[
 mod tests {
     use super::*;
     use crate::event::AdvancementEvent;
+
+    #[test]
+    fn semantic_dispatch_builders_produce_opaque_dispatch_values() {
+        let tick: SandEventDispatch = SandEventDispatch::tick().as_players().into();
+        assert!(matches!(tick.normalize(), NormalizedEventDispatch::Tick(_)));
+
+        let advancement = SandEventDispatch::AdvancementTrigger(crate::AdvancementTrigger::Tick);
+        assert!(matches!(
+            advancement.normalize(),
+            NormalizedEventDispatch::Advancement(crate::AdvancementTrigger::Tick)
+        ));
+    }
 
     #[test]
     fn player_level_up_event_is_not_deprecated() {

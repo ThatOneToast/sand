@@ -269,6 +269,7 @@ fn main() {
         &report,
         &reachable,
         &installed_reachable,
+        &contracts,
         &source_declarations,
         InstalledConfiguration {
             features: &installed_features,
@@ -658,6 +659,7 @@ fn write_coverage(
     report: &sand_api_enforce::ScopeReport,
     reachable: &[sand_api_enforce::ReachableApi],
     installed_reachable: &[sand_api_enforce::ReachableApi],
+    contracts: &[ContractIdentity],
     source_declarations: &[sand_api_enforce::ContractDeclaration],
     installed: InstalledConfiguration<'_>,
 ) {
@@ -738,6 +740,62 @@ fn write_coverage(
     generated.push_str("pub static INSTALLED_API_PATHS: &[&str] = &[\n");
     for path in installed_paths {
         writeln!(generated, "{path:?},").unwrap();
+    }
+    generated.push_str("];\n");
+    let canonical_by_identity = contracts
+        .iter()
+        .map(|contract| (contract.identity.as_str(), contract.canonical_path.as_str()))
+        .collect::<BTreeMap<_, _>>();
+    let mut facade_path_mappings = installed_reachable
+        .iter()
+        .filter_map(|item| {
+            canonical_by_identity
+                .get(item.identity.as_str())
+                .map(|canonical_path| (item.identity.clone(), *canonical_path))
+        })
+        .collect::<BTreeMap<_, _>>();
+    let mut shortened_owners = BTreeMap::<String, BTreeSet<&str>>::new();
+    for (identity, canonical_path) in &facade_path_mappings {
+        let segments = identity.split("::").collect::<Vec<_>>();
+        for start in 1..segments.len() {
+            shortened_owners
+                .entry(
+                    std::iter::once(segments[0])
+                        .chain(segments[start..].iter().copied())
+                        .collect::<Vec<_>>()
+                        .join("::"),
+                )
+                .or_default()
+                .insert(*canonical_path);
+        }
+    }
+    for (implementation_path, owners) in shortened_owners {
+        if let Some(canonical_path) = owners.iter().next().filter(|_| owners.len() == 1) {
+            facade_path_mappings
+                .entry(implementation_path)
+                .or_insert(*canonical_path);
+        }
+    }
+    generated.push_str("pub static INSTALLED_API_PATH_MAPPINGS: &[(&str, &str)] = &[\n");
+    for (implementation_path, canonical_path) in &facade_path_mappings {
+        writeln!(generated, "({implementation_path:?}, {canonical_path:?}),").unwrap();
+    }
+    generated.push_str("];\n");
+    let mut suffix_owners = BTreeMap::<String, BTreeSet<&str>>::new();
+    for canonical_path in facade_path_mappings.values().copied() {
+        let segments = canonical_path.split("::").collect::<Vec<_>>();
+        for start in 1..segments.len() {
+            suffix_owners
+                .entry(segments[start..].join("::"))
+                .or_default()
+                .insert(canonical_path);
+        }
+    }
+    generated.push_str("pub static INSTALLED_API_SUFFIX_MAPPINGS: &[(&str, &str)] = &[\n");
+    for (suffix, owners) in suffix_owners {
+        if let Some(canonical_path) = owners.iter().next().filter(|_| owners.len() == 1) {
+            writeln!(generated, "({suffix:?}, {canonical_path:?}),").unwrap();
+        }
     }
     generated.push_str("];\n");
     generated.push_str("pub static INSTALLED_FACADE_CONTRACTS: &[ApiRegistration] = &[\n");
@@ -884,7 +942,7 @@ fn write_coverage(
     }
     generated.push_str("];\n");
     generated.push_str(
-        "pub type InstalledApiShape = (&'static [&'static str], &'static str, &'static [(&'static str, &'static str)], Option<&'static str>, &'static str, bool);\n",
+        "pub type InstalledApiShape = (&'static str, &'static [&'static str], &'static str, &'static [(&'static str, &'static str)], Option<&'static str>, &'static str, bool);\n",
     );
     generated.push_str("pub static INSTALLED_API_SHAPES: &[InstalledApiShape] = &[\n");
     let all_definition_shapes = sand_api_enforce::definition_shapes(reachable)
@@ -929,7 +987,7 @@ fn write_coverage(
         let Some(shape) = definition_shapes.get(&item.identity) else {
             continue;
         };
-        generated.push_str("(&[");
+        write!(generated, "({:?}, &[", item.identity).unwrap();
         for path in item.paths.iter().filter(|path| path.starts_with("sand::")) {
             write!(generated, "{path:?},").unwrap();
         }

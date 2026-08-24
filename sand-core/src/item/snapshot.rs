@@ -119,7 +119,7 @@ use crate::state::storage::{Nbt, NbtPath, NbtRef, StorageField, UntypedNbt};
 /// consistent with every other Sand-generated storage resource). `key` is
 /// derived from a caller-supplied stable label (conventionally
 /// `std::any::type_name::<YourSandEvent>()`) via the same FNV-1a scheme
-/// [`crate::events::graph`] uses for detector resource keys, so two
+/// Sand uses for event detector resource keys, so two
 /// snapshots for different event labels can never collide, and the same
 /// label always produces the same path across repeated builds.
 #[sand_macros::api(
@@ -423,8 +423,8 @@ impl ItemSnapshot {
     /// `components`/legacy tag data, depending on the target profile's
     /// item-component encoding — this snapshot layer copies the item
     /// compound verbatim and does not itself reinterpret component shape;
-    /// combine with `sand_components::item::ItemMatcher` / typed
-    /// component accessors to interpret it, exactly as you would any other
+    /// combine with Sand's typed item predicates or component accessors to
+    /// interpret it, exactly as you would any other
     /// captured item compound).
     #[sand_macros::api(kind = "method", registry = sand_api_contract, path = "sand::item::ItemSnapshot::item_path", summary = "Returns the typed path to the captured item compound.", context = "Use the path only with typed data APIs; it is valid for this snapshot's synchronous invocation lifetime.", minecraft = "Addresses the copied item compound in temporary command storage.", use_when = ["Passing the captured compound to a typed NBT operation"], avoid_when = ["Assuming a version-independent components layout"], returns = "The untyped NBT reference for the captured item compound.", example = "let item = snapshot.item_path();")]
     pub fn item_path(&self) -> NbtRef<UntypedNbt> {

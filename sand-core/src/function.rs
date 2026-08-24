@@ -448,7 +448,7 @@ pub enum EventDispatch {
         /// the other factories — exactly one returns `Some`.
         make_chain: fn() -> Option<crate::events::ChainEventDispatch>,
         /// Returns `Some(TrackedTransition)` when using
-        /// `SandEventDispatch::Tracked(...)`. Mutually exclusive with the
+        /// Sand's compiler-owned tracked dispatch. Mutually exclusive with the
         /// other factories — exactly one returns `Some`. Generic `SandEvent`
         /// types (e.g. `EffectStarted<Speed>`) reach the shared transition
         /// provider backend through this factory rather than macro-level

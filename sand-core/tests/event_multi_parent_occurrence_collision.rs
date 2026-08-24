@@ -62,10 +62,7 @@ fn no_tick() -> Option<TickEventDispatch> {
 }
 
 fn child_chain() -> Option<ChainEventDispatch> {
-    match MultiChild::dispatch().into() {
-        SandEventDispatch::Chain(chain) => Some(chain),
-        _ => None,
-    }
+    sand_core::__private::event_dispatch_chain(MultiChild::dispatch().into())
 }
 
 fn revoke_true() -> bool {

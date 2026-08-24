@@ -144,10 +144,7 @@ macro_rules! submit_handler {
     ($event:ty, $path:literal, $body:literal) => {
         const _: () = {
             fn chain() -> Option<ChainEventDispatch> {
-                match <$event as SandEvent>::dispatch().into() {
-                    SandEventDispatch::Chain(chain) => Some(chain),
-                    _ => None,
-                }
+                sand_core::__private::event_dispatch_chain(<$event as SandEvent>::dispatch().into())
             }
             fn type_id() -> TypeId {
                 TypeId::of::<$event>()
@@ -200,10 +197,7 @@ submit_handler!(
 );
 
 fn current_tick() -> Option<TickEventDispatch> {
-    match CurrentEvent::dispatch().into() {
-        SandEventDispatch::Tick(tick) => Some(tick),
-        _ => None,
-    }
+    sand_core::__private::event_dispatch_tick(CurrentEvent::dispatch().into())
 }
 fn current_type_id() -> TypeId {
     TypeId::of::<CurrentEvent>()
@@ -239,10 +233,7 @@ sand_core::inventory::submit! {
 }
 
 fn other_tick() -> Option<TickEventDispatch> {
-    match OtherCurrent::dispatch().into() {
-        SandEventDispatch::Tick(tick) => Some(tick),
-        _ => None,
-    }
+    sand_core::__private::event_dispatch_tick(OtherCurrent::dispatch().into())
 }
 fn other_type_id() -> TypeId {
     TypeId::of::<OtherCurrent>()
@@ -281,10 +272,7 @@ macro_rules! submit_root {
     ($event:ty, $path:literal, $body:literal) => {
         const _: () = {
             fn tick() -> Option<TickEventDispatch> {
-                match <$event as SandEvent>::dispatch().into() {
-                    SandEventDispatch::Tick(tick) => Some(tick),
-                    _ => None,
-                }
+                sand_core::__private::event_dispatch_tick(<$event as SandEvent>::dispatch().into())
             }
             fn type_id() -> TypeId {
                 TypeId::of::<$event>()

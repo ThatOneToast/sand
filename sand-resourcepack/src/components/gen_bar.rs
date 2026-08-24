@@ -35,7 +35,7 @@ pub struct GenHudBar {
     /// Override the first unicode codepoint for the bar frames.
     ///
     /// When `None` (the default), the codepoint is derived automatically from
-    /// the component name via [`bar_base_codepoint`](crate::unicode::bar_base_codepoint).
+    /// the component name via Sand's deterministic private-use codepoint allocation.
     pub unicode_start: Option<char>,
 
     /// Number of frames in the generated sprite strip.

@@ -8,6 +8,7 @@
 use std::collections::{BTreeMap, BTreeSet};
 use std::fmt::Write as _;
 use std::path::PathBuf;
+use std::sync::OnceLock;
 
 use anyhow::{Context, Result, bail};
 use clap::{Args, Subcommand};
@@ -196,14 +197,21 @@ fn installed_catalog() -> Result<ApiCatalog> {
         if entry.kind == ApiKind::Macro {
             continue;
         }
-        if let Some((_, signature, parameters, return_type, documentation, _has_receiver)) =
-            sand::__private::api_contract::INSTALLED_API_SHAPES
-                .iter()
-                .find(|(paths, ..)| paths.contains(&entry.canonical_path.as_str()))
+        if let Some((
+            identity,
+            _,
+            signature,
+            parameters,
+            return_type,
+            documentation,
+            _has_receiver,
+        )) = sand::__private::api_contract::INSTALLED_API_SHAPES
+            .iter()
+            .find(|(_, paths, ..)| paths.contains(&entry.canonical_path.as_str()))
         {
-            entry.signature = normalize_shape_paths(signature, &entry.canonical_module);
+            entry.signature = normalize_shape_paths(signature, Some(identity));
             let source_summary = rustdoc_summary(documentation)
-                .map(|summary| normalize_shape_paths(&summary, &entry.canonical_module));
+                .map(|summary| normalize_shape_paths(&summary, Some(identity)));
             if family_contract
                 && matches!(
                     entry.kind,
@@ -228,7 +236,7 @@ fn installed_catalog() -> Result<ApiCatalog> {
             entry.parameters = parameters
                 .iter()
                 .map(|(name, ty)| {
-                    let rust_type = normalize_shape_paths(ty, &entry.canonical_module);
+                    let rust_type = normalize_shape_paths(ty, Some(identity));
                     ApiParameter {
                         name: (*name).to_owned(),
                         rust_type: Some(rust_type.clone()),
@@ -247,12 +255,10 @@ fn installed_catalog() -> Result<ApiCatalog> {
                     .clone()
                     .or_else(|| source_return_description(documentation))
             };
-            entry.return_type =
-                return_type.map(|ty| normalize_shape_paths(ty, &entry.canonical_module));
+            entry.return_type = return_type.map(|ty| normalize_shape_paths(ty, Some(identity)));
             if family_contract {
                 let summary = resolved_summary.clone();
-                let prose =
-                    normalize_shape_paths(&rustdoc_prose(documentation), &entry.canonical_module);
+                let prose = normalize_shape_paths(&rustdoc_prose(documentation), Some(identity));
                 entry.summary = summary.clone();
                 entry.context = if !prose.trim().is_empty() && prose.trim() != summary.trim() {
                     prose
@@ -260,15 +266,15 @@ fn installed_catalog() -> Result<ApiCatalog> {
                     String::new()
                 };
                 entry.minecraft = source_minecraft_behavior(documentation)
-                    .map(|value| normalize_shape_paths(&value, &entry.canonical_module))
+                    .map(|value| normalize_shape_paths(&value, Some(identity)))
                     .unwrap_or_default();
                 entry.use_when = source_guidance(documentation, GuidanceKind::Use)
                     .into_iter()
-                    .map(|value| normalize_shape_paths(&value, &entry.canonical_module))
+                    .map(|value| normalize_shape_paths(&value, Some(identity)))
                     .collect();
                 entry.avoid_when = source_guidance(documentation, GuidanceKind::Avoid)
                     .into_iter()
-                    .map(|value| normalize_shape_paths(&value, &entry.canonical_module))
+                    .map(|value| normalize_shape_paths(&value, Some(identity)))
                     .collect();
             } else if let Some(summary) = source_summary {
                 if is_family_template_summary(&entry.summary) {
@@ -285,7 +291,7 @@ fn installed_catalog() -> Result<ApiCatalog> {
                 || !example_exercises_member(&entry.example, &entry.canonical_path))
             {
                 entry.example = rustdoc_example(documentation)
-                    .map(|example| normalize_shape_paths(&example, &entry.canonical_module))
+                    .map(|example| normalize_shape_paths(&example, Some(identity)))
                     .filter(|example| example_exercises_member(example, &entry.canonical_path))
                     .unwrap_or_default();
             }
@@ -297,34 +303,34 @@ fn installed_catalog() -> Result<ApiCatalog> {
     // retain an exact, compilable import reference instead of fabricating a
     // constructor that may be private or may not exist.
     for entry in &mut entries {
-        entry.signature = normalize_shape_paths(&entry.signature, &entry.canonical_module);
-        entry.summary = normalize_shape_paths(&entry.summary, &entry.canonical_module);
-        entry.context = normalize_shape_paths(&entry.context, &entry.canonical_module);
-        entry.minecraft = normalize_shape_paths(&entry.minecraft, &entry.canonical_module);
+        let source_identity = installed_source_identity(&entry.canonical_path);
+        entry.signature = normalize_shape_paths(&entry.signature, source_identity);
+        entry.summary = normalize_shape_paths(&entry.summary, source_identity);
+        entry.context = normalize_shape_paths(&entry.context, source_identity);
+        entry.minecraft = normalize_shape_paths(&entry.minecraft, source_identity);
         entry.use_when = entry
             .use_when
             .iter()
-            .map(|value| normalize_shape_paths(value, &entry.canonical_module))
+            .map(|value| normalize_shape_paths(value, source_identity))
             .collect();
         entry.avoid_when = entry
             .avoid_when
             .iter()
-            .map(|value| normalize_shape_paths(value, &entry.canonical_module))
+            .map(|value| normalize_shape_paths(value, source_identity))
             .collect();
         entry.returns = entry
             .returns
             .as_deref()
-            .map(|value| normalize_shape_paths(value, &entry.canonical_module));
-        entry.example = normalize_shape_paths(&entry.example, &entry.canonical_module);
+            .map(|value| normalize_shape_paths(value, source_identity));
+        entry.example = normalize_shape_paths(&entry.example, source_identity);
         for parameter in &mut entry.parameters {
-            parameter.description =
-                normalize_shape_paths(&parameter.description, &entry.canonical_module);
+            parameter.description = normalize_shape_paths(&parameter.description, source_identity);
             if let Some(rust_type) = &mut parameter.rust_type {
-                *rust_type = normalize_shape_paths(rust_type, &entry.canonical_module);
+                *rust_type = normalize_shape_paths(rust_type, source_identity);
             }
         }
         if let Some(return_type) = &mut entry.return_type {
-            *return_type = normalize_shape_paths(return_type, &entry.canonical_module);
+            *return_type = normalize_shape_paths(return_type, source_identity);
         }
         if !matches!(
             entry.kind,
@@ -335,6 +341,7 @@ fn installed_catalog() -> Result<ApiCatalog> {
             entry.example = declaration_reference_example(entry.kind, &entry.canonical_path);
         }
     }
+    validate_exported_references(&entries)?;
 
     let catalog = ApiCatalog::from_entries_with_coverage(
         env!("CARGO_PKG_VERSION"),
@@ -369,7 +376,6 @@ fn rustdoc_prose(documentation: &str) -> String {
 fn rustdoc_prose_paragraphs(documentation: &str) -> Vec<String> {
     sand_api_contract::rustdoc_prose_paragraphs(documentation)
         .into_iter()
-        .map(|paragraph| normalize_facade_paths(&paragraph))
         .collect()
 }
 
@@ -526,58 +532,275 @@ fn rustdoc_example(documentation: &str) -> Option<String> {
             code.push(trimmed);
         }
     }
-    (!code.is_empty()).then(|| normalize_facade_paths(&code.join("\n")))
+    (!code.is_empty()).then(|| code.join("\n"))
 }
 
-fn normalize_facade_paths(value: &str) -> String {
-    value
-        .replace("sand_core::", "sand::")
-        .replace("sand_core ::", "sand ::")
-        .replace("sand_commands::", "sand::command::")
-        .replace("sand_commands ::", "sand :: command ::")
-        .replace("[`sand_commands`]", "[`sand::command`]")
-        .replace("sand_components::", "sand::component::")
-        .replace("sand_components ::", "sand :: component ::")
-        .replace("sand_resourcepack::", "sand::resourcepack::")
-        .replace("sand_resourcepack ::", "sand :: resourcepack ::")
-        .replace("sand_version::", "sand::version::")
-        .replace("sand_version ::", "sand :: version ::")
-        .replace("sand_macros::", "sand::")
-        .replace("sand_macros ::", "sand ::")
+fn installed_source_identity(canonical_path: &str) -> Option<&'static str> {
+    sand::__private::api_contract::INSTALLED_API_SHAPES
+        .iter()
+        .find(|(_, paths, ..)| paths.contains(&canonical_path))
+        .map(|(identity, ..)| *identity)
+        .or_else(|| {
+            installed_path_mappings()
+                .iter()
+                .find_map(|(identity, canonical)| {
+                    (*canonical == canonical_path).then_some(*identity)
+                })
+        })
 }
 
-fn normalize_shape_paths(value: &str, canonical_module: &str) -> String {
-    let value = normalize_facade_paths(value);
-    if canonical_module.starts_with("sand::command") {
-        value
-            .replace("crate::function::", "")
-            .replace("crate::selector::", "")
-            .replace("crate::", "")
-            .replace("crate :: function ::", "")
-            .replace("crate :: selector ::", "")
-            .replace("crate ::", "")
-    } else if canonical_module.starts_with("sand::component") {
-        value
-            .replace("crate::error::Result", "SandResult")
-            .replace("crate::registry::FunctionId", "sand::registry::FunctionId")
-            .replace("crate::recipe::", "")
-            .replace("crate::", "sand::component::")
-            .replace("crate :: error :: Result", "SandResult")
-            .replace(
-                "crate :: registry :: FunctionId",
-                "sand :: registry :: FunctionId",
-            )
-            .replace("crate :: recipe ::", "")
-            .replace("crate ::", "sand :: component ::")
-    } else if canonical_module.starts_with("sand::resourcepack") {
-        value
-            .replace("crate::", "sand::resourcepack::")
-            .replace("crate ::", "sand :: resourcepack ::")
-    } else {
-        value
-            .replace("crate::", "sand::")
-            .replace("crate ::", "sand ::")
+fn installed_path_mappings() -> &'static BTreeMap<&'static str, &'static str> {
+    static MAPPINGS: OnceLock<BTreeMap<&'static str, &'static str>> = OnceLock::new();
+    MAPPINGS.get_or_init(|| {
+        sand::__private::api_contract::INSTALLED_API_PATH_MAPPINGS
+            .iter()
+            .copied()
+            .collect()
+    })
+}
+
+fn installed_suffix_mappings() -> &'static BTreeMap<&'static str, &'static str> {
+    static MAPPINGS: OnceLock<BTreeMap<&'static str, &'static str>> = OnceLock::new();
+    MAPPINGS.get_or_init(|| {
+        sand::__private::api_contract::INSTALLED_API_SUFFIX_MAPPINGS
+            .iter()
+            .copied()
+            .collect()
+    })
+}
+
+fn installed_implementation_crates() -> &'static BTreeSet<&'static str> {
+    static CRATES: OnceLock<BTreeSet<&'static str>> = OnceLock::new();
+    CRATES.get_or_init(|| {
+        installed_path_mappings()
+            .keys()
+            .filter_map(|path| path.split("::").next())
+            .filter(|root| *root != "sand")
+            .collect()
+    })
+}
+
+fn normalize_shape_paths(value: &str, source_identity: Option<&str>) -> String {
+    let mut normalized = value.to_owned();
+    if let Some(source_crate) = source_identity.and_then(|identity| identity.split("::").next()) {
+        normalized = normalized
+            .replace("crate::", &format!("{source_crate}::"))
+            .replace("crate ::", &format!("{source_crate} ::"));
     }
+    rewrite_qualified_paths(&normalized, source_identity)
+}
+
+fn rewrite_qualified_paths(value: &str, source_identity: Option<&str>) -> String {
+    let mut output = String::with_capacity(value.len());
+    let mut copied = 0;
+    for (start, end, compact_path) in qualified_paths(value) {
+        let raw_path = &value[start..end];
+        if let Some(canonical) = resolve_qualified_path(&compact_path, source_identity) {
+            output.push_str(&value[copied..start]);
+            if raw_path.contains(" :: ") {
+                output.push_str(&canonical.replace("::", " :: "));
+            } else {
+                output.push_str(canonical);
+            }
+            copied = end;
+        }
+    }
+    output.push_str(&value[copied..]);
+    output
+}
+
+fn qualified_paths(value: &str) -> Vec<(usize, usize, String)> {
+    let bytes = value.as_bytes();
+    let mut paths = Vec::new();
+    let mut cursor = 0;
+    while cursor < bytes.len() {
+        if !is_path_ident_start(bytes[cursor])
+            || cursor > 0 && is_path_ident_continue(bytes[cursor - 1])
+        {
+            cursor += 1;
+            continue;
+        }
+        let start = cursor;
+        cursor += 1;
+        while cursor < bytes.len() && is_path_ident_continue(bytes[cursor]) {
+            cursor += 1;
+        }
+        let mut segments = 1;
+        loop {
+            let separator_start = cursor;
+            while cursor < bytes.len() && bytes[cursor].is_ascii_whitespace() {
+                cursor += 1;
+            }
+            if bytes.get(cursor..cursor + 2) != Some(b"::") {
+                cursor = separator_start;
+                break;
+            }
+            cursor += 2;
+            while cursor < bytes.len() && bytes[cursor].is_ascii_whitespace() {
+                cursor += 1;
+            }
+            if cursor >= bytes.len() || !is_path_ident_start(bytes[cursor]) {
+                cursor = separator_start;
+                break;
+            }
+            cursor += 1;
+            while cursor < bytes.len() && is_path_ident_continue(bytes[cursor]) {
+                cursor += 1;
+            }
+            segments += 1;
+        }
+        if segments >= 2 {
+            paths.push((
+                start,
+                cursor,
+                value[start..cursor].split_whitespace().collect(),
+            ));
+        }
+    }
+    paths
+}
+
+fn validate_exported_references(entries: &[ApiEntry]) -> Result<()> {
+    let public_paths = entries
+        .iter()
+        .flat_map(|entry| {
+            std::iter::once(entry.canonical_path.as_str())
+                .chain(entry.aliases.iter().map(String::as_str))
+        })
+        .collect::<BTreeSet<_>>();
+    let mut invalid = BTreeSet::new();
+    for entry in entries {
+        let parameter_text = entry.parameters.iter().flat_map(|parameter| {
+            std::iter::once(parameter.description.as_str()).chain(parameter.rust_type.as_deref())
+        });
+        let texts = [
+            entry.signature.as_str(),
+            entry.summary.as_str(),
+            entry.context.as_str(),
+            entry.minecraft.as_str(),
+            entry.example.as_str(),
+        ]
+        .into_iter()
+        .chain(entry.use_when.iter().map(String::as_str))
+        .chain(entry.avoid_when.iter().map(String::as_str))
+        .chain(entry.returns.as_deref())
+        .chain(entry.return_type.as_deref())
+        .chain(parameter_text);
+        for text in texts {
+            for (_, _, path) in qualified_paths(text) {
+                let root = path.split("::").next().unwrap_or_default();
+                if installed_implementation_crates().contains(root)
+                    || path.starts_with("crate::")
+                    || path.starts_with("sand::")
+                        && !is_meaningful_public_path(&path, &public_paths)
+                {
+                    invalid.insert(format!("{} -> {path}", entry.canonical_path));
+                }
+            }
+        }
+    }
+    if invalid.is_empty() {
+        Ok(())
+    } else {
+        let count = invalid.len();
+        bail!(
+            "installed API catalog contains {count} unresolved or nonexistent exported API references:\n{}",
+            invalid.into_iter().take(50).collect::<Vec<_>>().join("\n")
+        )
+    }
+}
+
+fn is_meaningful_public_path(path: &str, public_paths: &BTreeSet<&str>) -> bool {
+    if public_paths.contains(path)
+        || public_paths
+            .iter()
+            .any(|candidate| candidate.starts_with(&format!("{path}::")))
+    {
+        return true;
+    }
+    let mut owner = path;
+    while let Some((prefix, _)) = owner.rsplit_once("::") {
+        if prefix == "sand" {
+            break;
+        }
+        if public_paths.contains(prefix) {
+            return true;
+        }
+        owner = prefix;
+    }
+    false
+}
+
+fn resolve_qualified_path(path: &str, source_identity: Option<&str>) -> Option<&'static str> {
+    if let Some(canonical) = installed_path_mappings().get(path) {
+        return Some(*canonical);
+    }
+    let implementation_crate = path.split("::").next()?;
+    if !installed_implementation_crates().contains(implementation_crate) {
+        return None;
+    }
+    let mut suffix = path;
+    while let Some((_, remainder)) = suffix.split_once("::") {
+        suffix = remainder;
+        if let Some(canonical) = installed_suffix_mappings().get(suffix) {
+            return Some(*canonical);
+        }
+    }
+    let descendant_prefix = format!("{path}::");
+    let descendant_modules = installed_path_mappings()
+        .iter()
+        .filter_map(|(implementation, canonical)| {
+            implementation
+                .starts_with(&descendant_prefix)
+                .then_some(*canonical)
+                .map(|canonical| {
+                    canonical
+                        .rsplit_once("::")
+                        .map_or(canonical, |(owner, _)| owner)
+                })
+        })
+        .collect::<Vec<_>>();
+    if let Some(module) = common_canonical_module(descendant_modules.iter().copied()) {
+        return Some(module);
+    }
+    let preferred_domain = source_identity
+        .and_then(|identity| installed_path_mappings().get(identity).copied())
+        .and_then(|canonical| {
+            let mut segments = canonical.split("::");
+            Some(format!("{}::{}", segments.next()?, segments.next()?))
+        });
+    common_canonical_module(descendant_modules.into_iter().filter(|module| {
+        preferred_domain
+            .as_ref()
+            .is_some_and(|domain| module.starts_with(domain))
+    }))
+}
+
+fn common_canonical_module(
+    modules: impl IntoIterator<Item = &'static str>,
+) -> Option<&'static str> {
+    let mut canonical_module = None;
+    for module in modules {
+        canonical_module = match canonical_module {
+            None => Some(module),
+            Some(existing)
+                if module == existing || module.starts_with(&format!("{existing}::")) =>
+            {
+                Some(existing)
+            }
+            Some(existing) if existing.starts_with(&format!("{module}::")) => Some(module),
+            Some(_) => return None,
+        };
+    }
+    canonical_module
+}
+
+const fn is_path_ident_start(byte: u8) -> bool {
+    byte.is_ascii_alphabetic() || byte == b'_'
+}
+
+const fn is_path_ident_continue(byte: u8) -> bool {
+    is_path_ident_start(byte) || byte.is_ascii_digit() || byte == b'#'
 }
 
 fn is_import_only_example(example: &str) -> bool {
@@ -968,6 +1191,48 @@ mod tests {
 
     use super::*;
     use sand_api_contract::ApiParameter;
+
+    #[test]
+    fn source_paths_resolve_through_installed_facade_identities() {
+        let cases = [
+            (
+                "crate::selector::EntityTarget<Player>",
+                "sand_commands::selector::EntityTarget",
+                "sand::command::EntityTarget<Player>",
+            ),
+            (
+                "crate :: worldgen :: ConfiguredCarver",
+                "sand_components::worldgen::ConfiguredCarver",
+                "sand :: component :: ConfiguredCarver",
+            ),
+            (
+                "crate::participant::EntityParticipant",
+                "sand_core::events::SandEventParticipants::entity",
+                "sand::participant::EntityParticipant",
+            ),
+            (
+                "crate::cmd::IntoGiveItem",
+                "sand_core::cmd::IntoGiveItem",
+                "sand::command::IntoGiveItem",
+            ),
+            (
+                "crate::event::handle::EventHandle<E>",
+                "sand_core::event::handle::EventHandle",
+                "sand::event::handle::EventHandle<E>",
+            ),
+        ];
+        for (source, identity, expected) in cases {
+            assert_eq!(normalize_shape_paths(source, Some(identity)), expected);
+        }
+        assert_eq!(
+            normalize_shape_paths(
+                "sand_components::private_model::Text",
+                Some("sand_components::private_model::Owner"),
+            ),
+            "sand_components::private_model::Text",
+            "an ambiguous terminal name must not be assigned to an arbitrary public owner",
+        );
+    }
 
     fn generated_catalog() -> &'static ApiCatalog {
         static CATALOG: OnceLock<ApiCatalog> = OnceLock::new();

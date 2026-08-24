@@ -282,8 +282,7 @@ impl ConfiguredCarver {
     /// use sand_components::ResourceLocation;
     /// use sand_components::worldgen::configured_carver::{CarverFloatRange, CaveCarverConfig};
     /// use sand_components::worldgen::providers::{HeightProvider, VerticalAnchor};
-    /// use sand_components::worldgen::{Biome, CarvingStep, ConfiguredCarver};
-    /// use sand_components::BiomeEffects;
+    /// use sand_components::worldgen::ConfiguredCarver;
     ///
     /// let carver = ConfiguredCarver::cave(
     ///     ResourceLocation::new("example", "shallow_cave").unwrap(),
@@ -294,12 +293,8 @@ impl ConfiguredCarver {
     ///         VerticalAnchor::Absolute(-54),
     ///     ),
     /// );
-    /// let biome = Biome::new(
-    ///     ResourceLocation::new("example", "shallow_caves").unwrap(),
-    ///     BiomeEffects::new(0xC0D8FF, 0x3F76E4, 0x050533, 0x78A7FF),
-    /// )
-    /// .carver_step(CarvingStep::Air, carver.id());
-    /// # let _ = biome;
+    /// let id = carver.id();
+    /// assert_eq!(id.as_resource_location().as_str(), "example:shallow_cave");
     /// ```
     #[doc = "**API Contract:** Run `sand api show sand::component::ConfiguredCarver::id` for the canonical contract."]
     pub fn id(&self) -> ConfiguredCarverId {

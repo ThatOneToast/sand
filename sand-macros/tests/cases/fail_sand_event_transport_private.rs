@@ -1,6 +1,6 @@
 use sand_core::events::{
-    BoundedEventDependency, SameCycleEventDependency, SameCycleEventRequirement,
-    SandEvent, SandEventDispatch,
+    BoundedEventDependency, EventDispatchRepresentation, SameCycleEventDependency,
+    SameCycleEventRequirement, SandEvent, SandEventDispatch,
 };
 
 struct Parent;
@@ -14,6 +14,9 @@ impl SandEvent for Parent {
 fn main() {
     let mut dispatch = SandEventDispatch::chain::<Parent>();
     dispatch.occurrence.clear();
+    let opaque: SandEventDispatch = SandEventDispatch::tick().into();
+    let SandEventDispatch(_) = opaque;
+    let _ = std::mem::size_of::<EventDispatchRepresentation>();
     let _ = std::mem::size_of::<BoundedEventDependency>();
     let _ = std::mem::size_of::<SameCycleEventDependency>();
     let _ = std::mem::size_of::<SameCycleEventRequirement>();

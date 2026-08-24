@@ -74,10 +74,7 @@ fn revoke_true() -> bool {
     true
 }
 fn tick() -> Option<sand_core::events::TickEventDispatch> {
-    match OnAttackerRelationCheck::dispatch().into() {
-        SandEventDispatch::Tick(t) => Some(t),
-        _ => None,
-    }
+    sand_core::__private::event_dispatch_tick(OnAttackerRelationCheck::dispatch().into())
 }
 fn type_id() -> TypeId {
     TypeId::of::<OnAttackerRelationCheck>()

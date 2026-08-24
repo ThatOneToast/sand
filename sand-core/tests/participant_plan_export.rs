@@ -48,10 +48,7 @@ fn revoke_true() -> bool {
     true
 }
 fn tick() -> Option<sand_core::events::TickEventDispatch> {
-    match OnPlayerHurtViaPlan::dispatch().into() {
-        SandEventDispatch::Tick(t) => Some(t),
-        _ => None,
-    }
+    sand_core::__private::event_dispatch_tick(OnPlayerHurtViaPlan::dispatch().into())
 }
 fn type_id() -> TypeId {
     TypeId::of::<OnPlayerHurtViaPlan>()

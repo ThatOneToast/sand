@@ -329,14 +329,14 @@ impl<E> Event<E> {
     /// `@s` is the player selected by the advancement reward or generated
     /// per-player dispatcher.
     #[doc = "**API Contract:** Run `sand api show sand::event::Event::player` for the canonical contract."]
-    pub fn player(&self) -> crate::cmd::Selector {
-        crate::cmd::Selector::self_()
+    pub fn player(&self) -> sand_commands::Selector {
+        sand_commands::Selector::self_()
     }
 
     /// Returns `Selector::self_()` — alias for [`player`](Event::player).
     #[doc = "**API Contract:** Run `sand api show sand::event::Event::subject` for the canonical contract."]
-    pub fn subject(&self) -> crate::cmd::Selector {
-        crate::cmd::Selector::self_()
+    pub fn subject(&self) -> sand_commands::Selector {
+        sand_commands::Selector::self_()
     }
 }
 

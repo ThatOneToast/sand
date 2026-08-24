@@ -3,7 +3,7 @@
 //! `CustomItem` wraps a base item type with any combination of the 1.21 item
 //! component system. The resulting value formats as an item-component string
 //! (e.g. `minecraft:diamond_sword[custom_name={text:"..."},enchantments={...}]`) that
-//! can be passed directly to [`sand_commands::give`].
+//! can be passed directly to `sand::command::give`.
 //!
 //! # Identifying items
 //!
@@ -32,7 +32,7 @@
 //!
 //! #[function]
 //! fn give_inferno() {
-//!     sand_commands::give(Selector::all_players(), inferno_blade());
+//!     sand::command::give(Selector::all_players(), inferno_blade());
 //! }
 //! ```
 
@@ -1224,7 +1224,7 @@ fn item_component_error(base: &str, key: &str, message: impl fmt::Display) -> Sa
 /// A custom item definition using the Minecraft 1.21+ item component system.
 ///
 /// The item formats as `base[component1=val1,component2=val2,...]` and can be
-/// passed directly to [`sand_commands::give`] since it implements `Into<String>`.
+/// passed directly to `sand::command::give` since it implements `Into<String>`.
 ///
 /// # Item identity
 ///
@@ -1943,7 +1943,7 @@ impl CustomItem {
     /// item-component command-argument string.
     ///
     /// Prefer this over `.to_string()`/`.into()` at command-generation
-    /// boundaries (e.g. before [`cmd::give`](crate::component)-style call
+    /// boundaries (e.g. before `sand::command::give`-style call
     /// sites) so malformed numeric/string state fails with a Sand diagnostic
     /// instead of silently producing command text Minecraft rejects at
     /// dispatch time.
@@ -2393,7 +2393,7 @@ impl fmt::Display for CustomItem {
     }
 }
 
-/// Allows passing a `CustomItem` directly to [`sand_commands::give`] and any
+/// Allows passing a `CustomItem` directly to `sand::command::give` and any
 /// other function accepting `impl Into<String>`.
 ///
 /// **This does not validate** — see [`fmt::Display`]'s doc comment above and

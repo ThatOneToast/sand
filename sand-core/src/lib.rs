@@ -582,6 +582,46 @@ impl sand_commands::selector::IntoEntityType for generated::EntityType {
 /// author-facing API surface.
 #[doc(hidden)]
 pub mod __private {
+    /// Extracts an advancement trigger for generated proc-macro wiring.
+    #[doc(hidden)]
+    pub fn event_dispatch_advancement(
+        dispatch: crate::events::SandEventDispatch,
+    ) -> Option<crate::AdvancementTrigger> {
+        dispatch.into_advancement()
+    }
+
+    /// Extracts a legacy raw tick condition for generated proc-macro wiring.
+    #[doc(hidden)]
+    pub fn event_dispatch_tick_condition(
+        dispatch: crate::events::SandEventDispatch,
+    ) -> Option<String> {
+        dispatch.into_tick_condition()
+    }
+
+    /// Extracts a typed tick dispatch for generated proc-macro wiring.
+    #[doc(hidden)]
+    pub fn event_dispatch_tick(
+        dispatch: crate::events::SandEventDispatch,
+    ) -> Option<crate::events::TickEventDispatch> {
+        dispatch.into_tick()
+    }
+
+    /// Extracts a chain dispatch for generated proc-macro wiring.
+    #[doc(hidden)]
+    pub fn event_dispatch_chain(
+        dispatch: crate::events::SandEventDispatch,
+    ) -> Option<crate::events::ChainEventDispatch> {
+        dispatch.into_chain()
+    }
+
+    /// Extracts compiler-owned tracked dispatch state for proc-macro wiring.
+    #[doc(hidden)]
+    pub fn event_dispatch_tracked(
+        dispatch: crate::events::SandEventDispatch,
+    ) -> Option<crate::TrackedTransition> {
+        dispatch.into_tracked()
+    }
+
     /// Exact generated contract providers selected by this `sand-core` build.
     ///
     /// Keeping these as embedded build outputs lets the installed CLI inspect

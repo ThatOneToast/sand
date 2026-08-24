@@ -37,8 +37,7 @@ const TYPED_FIELDS: &[&str] = &[
 /// The world-generation step a structure starts in.
 ///
 /// This is vanilla's shared `GenerationStep.Decoration` enum: the same
-/// ordered steps also bucket a biome's per-step `features` list-of-lists
-/// (see [`crate::worldgen::biome::Biome::feature`]).
+/// ordered steps also bucket a biome's per-step `features` list-of-lists.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum GenerationStep {
     RawGeneration,

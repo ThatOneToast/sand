@@ -80,8 +80,8 @@ fn main() {
 
     let dispatch_up: SandEventDispatch = ElevatorUsed::<GoUp>::dispatch().into();
     let dispatch_down: SandEventDispatch = ElevatorUsed::<GoDown>::dispatch().into();
-    assert!(matches!(dispatch_up, SandEventDispatch::Tick(_)));
-    assert!(matches!(dispatch_down, SandEventDispatch::Tick(_)));
+    assert!(sand::__private::event_dispatch_tick(dispatch_up).is_some());
+    assert!(sand::__private::event_dispatch_tick(dispatch_down).is_some());
 
     // Each real #[on_event]-registered handler also gets its own distinct
     // event_type_id, so multiple handlers never accidentally merge detectors

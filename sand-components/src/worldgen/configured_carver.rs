@@ -294,7 +294,7 @@ impl ConfiguredCarver {
     ///     ),
     /// );
     /// let id = carver.id();
-    /// assert_eq!(id.as_resource_location().as_str(), "example:shallow_cave");
+    /// assert_eq!(id.as_resource_location().to_string(), "example:shallow_cave");
     /// ```
     #[doc = "**API Contract:** Run `sand api show sand::component::ConfiguredCarver::id` for the canonical contract."]
     pub fn id(&self) -> ConfiguredCarverId {

@@ -263,17 +263,36 @@ fn main() {
         })
         .unwrap_or_else(|error| panic!("failed to construct Sand public facade graph: {error}"))
     };
+    // Split so --explain-rebuild-style diagnostics (SAND_BUILD_RS_PROFILE=1)
+    // can distinguish "parse + cfg-evaluate + classify + bind macro
+    // providers" (build_graph, dominated by SurfaceGraph::load_with_cfg's
+    // semantic walk -- see issue #349) from "walk the already-built graph
+    // for facade-reachable items" (reachable_from). Per issue #349's
+    // profiler-expansion request: this is a coarse two-way split at the
+    // sand/build.rs call-site level, not instrumentation inside
+    // SurfaceGraph itself (a ~4300-line file in sand-api-enforce) -- finer
+    // internal phase timing (file discovery, AST parse, cfg evaluation,
+    // item classification, macro-provider binding as separate numbers) is
+    // deferred to whoever picks up the deeper per-crate-manifest redesign,
+    // since adding instrumentation to reachable.rs's internals is
+    // meaningfully more invasive and this split already answers the
+    // question that matters here: parsing+classification+binding
+    // (build_graph) vs. the reachability walk (reachable_from) as separate
+    // costs.
     let graph = build_graph(enabled_features.clone(), generated);
+    profiler
+        .mark("build surface graph (all-supported-features ratchet): parse+cfg-eval+classify+bind");
     let reachable = graph
         .reachable_from("sand")
         .unwrap_or_else(|error| panic!("failed to extract Sand public facade: {error}"));
-    profiler
-        .mark("build surface graph + extract reachable facade (all-supported-features ratchet)");
+    profiler.mark("reachable_from(\"sand\") (all-supported-features ratchet): facade walk");
     let installed_features = enabled_cargo_features(&enabled_features);
-    let installed_reachable = build_graph(installed_features.clone(), generated_for_installed)
+    let installed_graph = build_graph(installed_features.clone(), generated_for_installed);
+    profiler.mark("build surface graph (installed configuration): parse+cfg-eval+classify+bind");
+    let installed_reachable = installed_graph
         .reachable_from("sand")
         .unwrap_or_else(|error| panic!("failed to extract installed Sand public facade: {error}"));
-    profiler.mark("build surface graph + extract reachable facade (installed configuration)");
+    profiler.mark("reachable_from(\"sand\") (installed configuration): facade walk");
 
     let source_declarations =
         contract_declarations_from_files(contract_source_files(&source_crates))

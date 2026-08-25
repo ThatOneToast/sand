@@ -135,89 +135,134 @@ In addition to the unit tests in `sand-build/src/codegen/cache.rs`, a real
 confirming the cache wiring works end-to-end against real Minecraft
 data-generator reports, not only the fixture-based unit tests.
 
-## Phase 5 (incremental API-contract manifests): measured, designed, deliberately not implemented in this PR
+## Phase 5 (incremental API-contract manifests): internally profiled, one caching hypothesis tested and ruled out, split into a dedicated follow-up
 
 Given the root-cause measurement above, Phase 5 is the single highest-value
 remaining optimization — but `sand/build.rs`'s facade analysis is also the
 part of the build pipeline with the strongest correctness requirement in
 the entire issue ("no exemptions/allowlists, no silent stale-manifest
 surface drift," "a stale cache must never let a genuinely new uncontracted
-API through"). Implementing a cache/short-circuit around it requires
-*exhaustively* cataloguing every input that can change its output — a
-partial catalogue that misses one input class is exactly the failure mode
-#347 explicitly forbids, and is worse than not caching at all.
+API through").
 
-Auditing `sand/build.rs` (1164 lines) for this PR found the analysis is
-sensitive to at least four independent input classes, only some of which
-are already declared as `rerun-if-*` triggers:
+### Internal phase breakdown (real measurement, `SAND_BUILD_RS_PROFILE=1`)
 
-1. **Source content** of every file already covered by the existing
-   `rerun-if-changed` directory watches (`sand`, `sand-core`,
-   `sand-commands`, `sand-components`, `sand-macros`, `sand-resourcepack`,
-   `sand-version` — all `src/`), plus `api-scopes.toml`,
-   `api-surface-profiles.toml`, and the selected baseline file
-   (`api-surface-baseline*.txt`).
-2. **Generated API provider directory** content
-   (`DEP_SAND_CORE_API_PROVIDER_DIR`) — currently only its *presence* is a
-   `rerun-if-env-changed` trigger (the env var pointing at the directory),
-   not its content; sand-core's own codegen fingerprint (Phase 3) already
-   captures this on sand-core's side, but sand's facade build script reads
-   the directory contents directly and would need its own content hash.
-3. **`CARGO_CFG_*`/`CARGO_FEATURE_*` environment variables** — the facade
-   build script reads *all* `CARGO_CFG_*` vars (`cargo_cfg()`, line ~334)
-   to reconstruct the effective `cfg(...)` set for the analysis, and
-   `CARGO_FEATURE_*` vars (`enabled_cargo_features()`, line ~287) for the
-   installed feature configuration. Cargo already reruns the build script
-   when these change as part of its own fingerprinting, but a *cache*
-   keyed globally (not per-`OUT_DIR`) needs them folded into the
-   fingerprint explicitly to avoid conflating two different
-   target/feature configurations under one cache entry.
-4. **Enforcement engine logic itself** (`sand-api-enforce`,
-   `sand-api-contract`) — needs an explicit schema/impl-version salt (the
-   same pattern as `codegen::CODEGEN_SCHEMA_VERSION` added for Phase 3 in
-   this PR) so a bug fix or new check in the enforcement crates invalidates
-   every cached facade result, not just entries whose watched source also
-   happened to change.
+`sand/build.rs` now has opt-in internal phase timing (see the "diag(build)"
+commit). Measured after `touch sand-core/src/lib.rs` on the same machine as
+the baseline above:
 
-**Recommended design** (not implemented here, left for a dedicated
-follow-up PR with its own focused review): wrap the existing analysis
-(`source_crates` discovery through the three `fs::write` calls around line
-1070-1104) in a fingerprint-addressed cache using the exact same pattern
-already proven in this PR for the codegen cache
-(`sand-build/src/codegen/cache.rs`): compute a fingerprint from all four
-input classes above using `sand_build::fingerprint::{hash_bytes,
-combine}`, check a cache entry under (e.g.)
-`~/.sand/cache/api-facade/<fingerprint>/` containing the three generated
-output files, copy-and-return on a validated hit, else run the existing
-analysis unchanged and publish its output. This is a **deliberate,
-documented simplification** of the issue's proposed *per-crate* manifest
-architecture (six independent `sand-core.json`/`sand-components.json`/...
-manifests consumed by the facade) in favor of one whole-input fingerprint
-around the single existing consolidated analysis: it does not achieve the
-issue's stated "editing an unrelated file does not cause a full
-source-tree contract parse" for edits *within* the seven watched crates
-(any content change there still invalidates the one cache entry and
-triggers a full reparse, same cost as today), but it directly and safely
-addresses the scenarios Phase 0's own benchmark list emphasizes most —
-repeated/no-change builds, clean `target/` with a warm cache, and a second
-worktree checkout with byte-identical source at different mtimes — without
-the substantially larger design and review surface of a true per-crate
-manifest split. Because the fingerprint is a strict superset of every
-`rerun-if-*` trigger already declared plus the additional inputs identified
-above, it is fail-closed by construction: it can only ever return a result
-previously produced by a full, real validation of byte-identical inputs,
-so it cannot let a newly uncontracted API through.
+| Phase | Duration | % of total |
+|---|---|---|
+| load scope/profile manifests + generated providers | 0.63 s | 1.8% |
+| parse item-macro generated providers (registry/effect/event) | 0.16 s | 0.5% |
+| discover facade features + local source crates | 0.006 s | <0.1% |
+| **build surface graph (all-supported-features ratchet)** | **14.43 s** | **41.2%** |
+| **build surface graph (installed configuration)** | **13.87 s** | **39.6%** |
+| parse API contract declarations (2nd full-source pass) | 1.68 s | 4.8% |
+| resolve identities + validate providers + dedup | 0.22 s | 0.6% |
+| evaluate scope manifest + provider audits | 0.62 s | 1.8% |
+| write installed API metadata | 3.43 s | 9.8% |
+| **TOTAL** | **35.05 s** | 100% |
 
-This was deliberately **not implemented in this PR** because verifying the
-four-input-class catalogue above is exhaustive — with no fifth input
-missed — needs dedicated review time this PR's scope didn't allow, and an
-incomplete catalogue here is strictly worse than the current
-always-correct-but-slow behavior. Landing it requires, at minimum: a second
-pass specifically hunting for any remaining input to `sand/build.rs`'s
-analysis (ideally via a change-detection fuzzer that mutates one input
-class at a time and confirms the fingerprint always changes), and the
-concurrency/corruption tests already established as the pattern in
-`sand-build/src/codegen/cache.rs`.
+The two `SurfaceGraph::load_with_cfg` calls dominate at **81% combined** —
+confirming the issue's premise and pinpointing exactly where the time goes.
+Writing installed API metadata (definition-shape derivation + generated
+source text for `api_facade_registrations.rs`/`api_coverage.rs`) is the
+next largest single cost at ~10%, and the second full-source contract
+declaration parse is ~5%.
+
+### One caching hypothesis tested and ruled out
+
+The two `SurfaceGraph::load_with_cfg` calls read the *same* source files
+under two different `CfgSet`s (an all-supported-features ratchet vs. the
+installed Cargo feature selection). `parse_module_file`'s raw syntax parse
+(`syn::parse_file`) does not itself depend on `cfg` — only the later
+semantic walk (`parse_items`) does — so the hypothesis was: cache the
+parsed `syn::File` per source file and share it between both calls within
+one build script invocation, avoiding redundant I/O and tokenizing/parsing
+of identical bytes.
+
+This was implemented (an additive `SurfaceGraph::load_with_cfg_and_cache`
+API plus a `ParseFileCache`) and measured directly: **~49% of file-visits
+were served from cache (184 hits / 191 misses in one run), but total time
+was unchanged (35.7 s vs. the 35.05 s baseline, within run-to-run noise).**
+This proves raw syntax parsing is *not* the dominant cost within each
+graph build — the semantic walk over the already-parsed AST (per-item
+`cfg` attribute evaluation, ~19-way `ReachableKind` classification,
+item-macro provider binding/auditing, module/re-export resolution) is.
+That change was reverted rather than merged, since it adds API surface and
+complexity to `sand-api-enforce` for a measured zero benefit — see the
+"diag(build)" commit for the full writeup.
+
+### Why a true per-crate manifest architecture needs a dedicated follow-up, not a rushed pass in this PR
+
+Reading `SurfaceGraph::load_with_cfg`'s implementation end to end surfaced
+an architectural fact that isn't visible from the outside: **reachability
+in Sand's current design is not actually a per-crate-independent
+computation.** `reachable_from("sand")` walks re-exports transitively
+starting from the facade crate, and several item-macro provider bindings
+explicitly connect specific paths in *different* crates (e.g.
+`sand_components::registry`'s `registry_id!` macro is bound to
+`sand-core`'s generated registries; `sand_core::events`' markers are bound
+across two separate binding calls). A "per-crate manifest" in the sense
+the issue originally proposes — six independent JSON files, each produced
+by looking at exactly one crate's source, with a thin cross-crate
+resolution step consuming them — requires *redesigning* what a per-crate
+manifest even contains (a declaration list with attached, unevaluated cfg
+predicates and unresolved cross-crate references) so that the facade-level
+resolution step can compose them without re-deriving what today's
+monolithic graph walk derives in one pass. Given the semantic walk (not
+parsing) is the proven cost driver, that facade-level resolution step
+would still need to repeat a meaningful fraction of today's per-item
+semantic work unless the per-crate manifests *also* memoize
+already-cfg-evaluated, already-classified declarations — which pushes the
+correctness burden (proving the memoized classification is still valid
+under the current cfg/feature selection) onto exactly the same "did I
+account for every input" problem the whole-workspace fingerprint approach
+below already has, just distributed across six manifests instead of one.
+
+This is a genuine, multi-day architecture change to a ~10k-line analysis
+engine that enforces Sand's core public-API guarantee. Rather than rush an
+implementation that risks an incomplete input catalogue or a subtly wrong
+cross-crate composition step — either of which could silently let a
+newly-uncontracted API through, exactly what #347 forbids — this work is
+split into a dedicated follow-up (issue and PR linked from #347 and this
+PR's description) with the real profiling data above as its starting
+point, rather than speculation.
+
+### Recommended design for the follow-up (informed by the above, not implemented here)
+
+Two design options, in order of implementation cost:
+
+1. **Whole-facade-analysis fingerprint cache** (simpler, smaller review
+   surface, does not require redesigning `sand-api-enforce`'s internals):
+   wrap the existing analysis (source-crate discovery through the three
+   generated-metadata `fs::write` calls) in a fingerprint-addressed cache
+   using the same pattern already proven in this PR's codegen cache
+   (`sand-build/src/codegen/cache.rs`): a fingerprint over every watched
+   source file's content, the generated API provider directory's content
+   (not just its env-var presence), all `CARGO_CFG_*`/`CARGO_FEATURE_*`
+   values, and an automatic implementation-identity fingerprint for
+   `sand-api-enforce`/`sand-api-contract` (same `build.rs`-computed-hash
+   pattern this PR added for `CODEGEN_IMPL_FINGERPRINT`, not a manual
+   constant). This is fail-closed by construction — any input drift changes
+   the fingerprint, so a hit can only ever replay a result already produced
+   by a full, real validation of byte-identical inputs — but does not
+   achieve "editing crate A doesn't reparse crate B": any change anywhere
+   in the watched surface still invalidates the whole cache entry. It does
+   directly address repeated/no-change builds, clean `target/` with a warm
+   cache, and second-worktree-with-identical-source scenarios, which is
+   most of what Phase 0's benchmark list actually measures.
+2. **True per-crate manifests** (the issue's originally proposed shape):
+   requires first restructuring `parse_module_file`/`parse_items` to
+   separate "record this item's raw declaration + its unevaluated cfg
+   predicate" from "decide whether this item is included under a specific
+   `CfgSet`," so a per-crate manifest can be produced once and cheaply
+   re-evaluated under different feature selections, and requires an
+   explicit design for how cross-crate item-macro provider bindings and
+   facade reachability compose from independent per-crate manifests rather
+   than one shared in-memory graph. Larger, more valuable long-term (it's
+   the only design that achieves true narrow invalidation), but is real
+   analysis-engine surgery, not a caching layer bolted on the outside.
 
 ## Deferred phases and why (see PR description for full detail)
 
@@ -229,6 +274,8 @@ chiefly motivated by, and Phase 4's own requirement that `cargo check`
 alone keep working without any `sand`-binary bootstrap step means
 build.rs must retain a complete fallback path regardless, so its
 incremental value on top of Phase 3 is smaller than originally scoped.
-Phase 5 (per-crate incremental API-contract manifests) is measured,
-designed, and deliberately not implemented — see above. See the PR
-description for the full phase-by-phase status and follow-up plan.
+Phase 5 (per-crate incremental API-contract manifests) is profiled and
+designed above, with one caching hypothesis implemented, measured, and
+ruled out; full implementation is split into a dedicated follow-up (see
+the PR description for the linked issue). See the PR description for the
+full phase-by-phase status.

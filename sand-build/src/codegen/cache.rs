@@ -22,12 +22,14 @@
 //!
 //! `<fingerprint>` is derived from everything capable of changing the
 //! output: the Minecraft version, [`super::CODEGEN_IMPL_FINGERPRINT`] (an
-//! automatic hash of the generator's own source, computed at compile time —
-//! see `sand-build/build.rs` — so editing `codegen/{registries,blocks,
-//! commands}.rs` invalidates every cached entry without anyone needing to
-//! remember a manual bump), [`super::CODEGEN_CACHE_FORMAT_VERSION`] (an
-//! explicit salt for cache-format-only changes), and the content of the
-//! three report files actually read ([`crate::report::ensure_reports`]
+//! automatic recursive hash of the generator's entire source tree --
+//! `codegen/**/*.rs` by relative path and content, computed at compile time,
+//! see `sand-build/build.rs` and `source_tree_fingerprint.rs` -- so editing,
+//! adding, or removing any generator source file invalidates every cached
+//! entry without anyone needing to remember a manual bump or update a file
+//! list), [`super::CODEGEN_CACHE_FORMAT_VERSION`] (an explicit salt for
+//! cache-format-only changes), and the content of the three report files
+//! actually read ([`crate::report::ensure_reports`]
 //! already guarantees these exist and are version-pinned; this module
 //! hashes their bytes rather than trusting their path or mtime). This
 //! deliberately does *not* key on Minecraft version alone — a generator
@@ -139,12 +141,61 @@ fn entry_dir(cache_root: &Path, minecraft_version: &str, fp: &str) -> PathBuf {
         .join(fp)
 }
 
+/// The outcome of validating a cache entry directory, whether or not it
+/// exists. Distinguishing [`Missing`](CacheEntryState::Missing) from
+/// [`Corrupt`](CacheEntryState::Corrupt) matters for [`try_publish`]: a
+/// missing entry is published normally, but a corrupt one must be actively
+/// *repaired* (replaced), not silently left in place forever because
+/// "something is already there" (issue #347 PR #348 review item 1).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum CacheEntryState {
+    /// No directory at all, or a directory Cargo/us haven't published to
+    /// yet (e.g. an empty leftover). Safe to populate directly.
+    Missing,
+    /// A fully valid, hash-verified entry for the requested fingerprint
+    /// already exists. Nothing to do.
+    Valid,
+    /// A directory exists but fails validation (unreadable/malformed
+    /// manifest, wrong fingerprint, non-canonical file set, missing file,
+    /// or a content-hash mismatch). Must be replaced, not left in place --
+    /// otherwise every future build would keep hitting this same poisoned
+    /// entry, detecting it's corrupt, and falling back to full regeneration
+    /// forever.
+    Corrupt,
+}
+
+/// Validates the cache entry at `dir` against the expected fingerprint,
+/// returning why it either validates or doesn't. Never touches `out_dir` or
+/// any other side effects -- purely a read-only check, so it's safe to call
+/// speculatively from both [`try_load`] and [`try_publish`].
+fn validate_entry(dir: &Path, fp: &str) -> CacheEntryState {
+    if !dir.is_dir() {
+        return CacheEntryState::Missing;
+    }
+    let Some(manifest) = read_manifest(dir, fp) else {
+        return CacheEntryState::Corrupt;
+    };
+    if !manifest_file_set_is_canonical(&manifest) {
+        return CacheEntryState::Corrupt;
+    }
+    for (file, expected_hash) in &manifest.files {
+        let Ok(bytes) = std::fs::read(dir.join(file)) else {
+            return CacheEntryState::Corrupt;
+        };
+        if &hash_bytes(&bytes) != expected_hash {
+            return CacheEntryState::Corrupt;
+        }
+    }
+    CacheEntryState::Valid
+}
+
 /// Attempts to satisfy this codegen invocation from the cache rooted at
 /// `cache_root`. Returns `true` and populates `out_dir` on a fully
 /// validated hit; returns `false` (leaving `out_dir` untouched) on any
 /// miss, including a missing, corrupt, incomplete, or fingerprint-
 /// mismatched cache entry — the caller is expected to fall back to
-/// generating normally and calling [`publish`].
+/// generating normally and calling [`publish`], which will *repair* a
+/// corrupt entry rather than leaving it permanently poisoned.
 ///
 /// See the module docs' "Validation" section for exactly what is checked.
 /// Nothing is copied into `out_dir` until every check has passed for every
@@ -156,26 +207,13 @@ pub fn try_load(
     out_dir: &Path,
 ) -> Result<bool> {
     let dir = entry_dir(cache_root, minecraft_version, fp);
-    let Some(manifest) = read_manifest(&dir, fp) else {
-        return Ok(false);
-    };
-    if !manifest_file_set_is_canonical(&manifest) {
+    if validate_entry(&dir, fp) != CacheEntryState::Valid {
         return Ok(false);
     }
-    // Validate every file's existence AND content hash before copying any
-    // of them, so a partially-corrupt entry (truncated by an out-of-band
-    // `rm`, bit-flipped, or hand-edited) never leaves `out_dir`
-    // half-populated -- or populated with bytes that don't match what was
-    // actually published -- from a bad cache read.
-    for (file, expected_hash) in &manifest.files {
-        let path = dir.join(file);
-        let Ok(bytes) = std::fs::read(&path) else {
-            return Ok(false);
-        };
-        if &hash_bytes(&bytes) != expected_hash {
-            return Ok(false);
-        }
-    }
+    // Re-read the manifest (cheap; the file set is tiny) rather than thread
+    // it out of `validate_entry`, keeping that function a pure yes/no check
+    // with a single obvious call site for "what do I actually copy."
+    let manifest = read_manifest(&dir, fp).expect("just validated as Valid");
     for file in manifest.files.keys() {
         std::fs::copy(dir.join(file), out_dir.join(file))?;
     }
@@ -214,6 +252,14 @@ fn read_manifest(dir: &Path, expected_fingerprint: &str) -> Option<CacheManifest
 /// in the published manifest so a future [`try_load`] can detect
 /// corruption rather than trusting the files blindly.
 ///
+/// If an entry already exists at this fingerprint, it is re-validated
+/// first: a valid entry is left alone (no reason to re-publish
+/// deterministic content), but a *corrupt* one is atomically replaced --
+/// see [`try_publish`] for exactly how, and the module docs for why this
+/// matters (a corrupt entry that's never repaired would poison every
+/// future build at this fingerprint forever, each one detecting the
+/// corruption, missing, and regenerating from scratch every single time).
+///
 /// This is best-effort: a failure to publish (e.g. a read-only cache
 /// directory) does not fail the build — the caller already has correct
 /// output in `out_dir` regardless of whether caching it succeeds, and a
@@ -230,11 +276,17 @@ pub fn publish(cache_root: &Path, minecraft_version: &str, fp: &str, out_dir: &P
 
 fn try_publish(cache_root: &Path, minecraft_version: &str, fp: &str, out_dir: &Path) -> Result<()> {
     let final_dir = entry_dir(cache_root, minecraft_version, fp);
-    if final_dir.is_dir() {
-        // Already published by this or another process for this exact
-        // fingerprint -- nothing to do, and no reason to re-publish
-        // deterministic content.
-        return Ok(());
+    match validate_entry(&final_dir, fp) {
+        CacheEntryState::Valid => {
+            // Already published by this or another process for this exact
+            // fingerprint, and it's genuinely good -- nothing to do, and no
+            // reason to re-publish deterministic content.
+            return Ok(());
+        }
+        CacheEntryState::Missing => {}
+        CacheEntryState::Corrupt => {
+            // Fall through to publish a fresh entry, then swap it in below.
+        }
     }
     let parent = final_dir.parent().ok_or_else(|| Error::MissingField {
         field: "parent",
@@ -262,12 +314,73 @@ fn try_publish(cache_root: &Path, minecraft_version: &str, fp: &str, out_dir: &P
 
     match std::fs::rename(&tmp_dir, &final_dir) {
         Ok(()) => Ok(()),
-        Err(_) if final_dir.is_dir() => {
-            // Lost a publish race to another process; its content is
-            // deterministically identical for this fingerprint, so this is
-            // not an error. Clean up our now-orphaned temp dir.
+        Err(_) if validate_entry(&final_dir, fp) == CacheEntryState::Valid => {
+            // Lost a publish race to another process that got a valid
+            // entry in first; its content is deterministically identical
+            // for this fingerprint, so this is not an error. Clean up our
+            // now-orphaned temp dir.
             let _ = std::fs::remove_dir_all(&tmp_dir);
             Ok(())
+        }
+        Err(_) if final_dir.is_dir() => {
+            // The direct rename failed (most likely because `final_dir`
+            // already exists -- POSIX rename onto a non-empty directory
+            // fails), and re-validation didn't find a valid winner either:
+            // this is the corrupt-entry-repair path. Move the corrupt
+            // directory out of the way first (an already-open reader's file
+            // descriptors stay valid even after their directory entry
+            // moves, so this can't tear a concurrent `try_load` read), then
+            // move our fresh entry into place, then best-effort clean up
+            // the quarantined corrupt copy. If another process wins this
+            // same race, our stale-rename below simply fails and we treat
+            // that as "someone else repaired it," not an error -- the
+            // final state is a valid entry either way.
+            let stale_dir = parent.join(format!(
+                ".stale-{fp}-{}-{}",
+                std::process::id(),
+                tmp_nonce()
+            ));
+            match std::fs::rename(&final_dir, &stale_dir) {
+                Ok(()) => match std::fs::rename(&tmp_dir, &final_dir) {
+                    Ok(()) => {
+                        let _ = std::fs::remove_dir_all(&stale_dir);
+                        Ok(())
+                    }
+                    Err(_) if validate_entry(&final_dir, fp) == CacheEntryState::Valid => {
+                        // Another process published a valid entry into the
+                        // now-empty slot between our two renames.
+                        let _ = std::fs::remove_dir_all(&tmp_dir);
+                        let _ = std::fs::remove_dir_all(&stale_dir);
+                        Ok(())
+                    }
+                    Err(error) => {
+                        // Could neither install our fresh entry nor find a
+                        // valid one already there. Restore the original
+                        // (still-corrupt, but at least present) entry
+                        // rather than leaving the fingerprint directory
+                        // empty, and surface the error -- `publish` logs it
+                        // and the build continues using its already-correct
+                        // `out_dir` regardless.
+                        let _ = std::fs::rename(&stale_dir, &final_dir);
+                        let _ = std::fs::remove_dir_all(&tmp_dir);
+                        Err(error.into())
+                    }
+                },
+                Err(_) if validate_entry(&final_dir, fp) == CacheEntryState::Valid => {
+                    // Someone else already repaired it between our
+                    // `validate_entry` check above and this rename attempt.
+                    let _ = std::fs::remove_dir_all(&tmp_dir);
+                    Ok(())
+                }
+                Err(error) => {
+                    // Couldn't even quarantine the corrupt entry (e.g.
+                    // permissions, or it vanished and reappeared). Leave
+                    // whatever's there alone and surface the error; the
+                    // caller's `out_dir` is already correct regardless.
+                    let _ = std::fs::remove_dir_all(&tmp_dir);
+                    Err(error.into())
+                }
+            }
         }
         Err(error) => {
             let _ = std::fs::remove_dir_all(&tmp_dir);
@@ -669,5 +782,204 @@ mod tests {
         let restored = tempfile::tempdir().unwrap();
         let hit = try_load(cache_root.path(), "1.21.4", "abc123", restored.path()).unwrap();
         assert!(hit, "at least one concurrent publisher must succeed");
+    }
+
+    // ── Corrupt-entry repair (issue #347 PR #348 review item 1) ────────────
+    //
+    // Before this fix, `publish` treated "a directory already exists at
+    // this fingerprint" as "already published, nothing to do" -- even when
+    // that directory was corrupt. That meant a corrupted cache entry was
+    // permanently poisoned: every future build would `try_load` -> detect
+    // corruption -> miss -> regenerate -> `publish` -> see the (still
+    // corrupt) directory already exists -> skip -> leave it corrupt
+    // forever. These tests prove that's fixed: a corrupt entry gets
+    // replaced by `publish`, and the *next* build after that is a real
+    // cache hit rather than another regeneration.
+
+    #[test]
+    fn corrupt_entry_is_repaired_on_next_publish() {
+        let cache_root = tempfile::tempdir().unwrap();
+        let dir = entry_dir(cache_root.path(), "1.21.4", "abc123");
+        std::fs::create_dir_all(&dir).unwrap();
+        // A corrupt entry: files present, but bytes don't match a manifest
+        // hash (simulating bit-rot/truncation after a valid publish).
+        write_generated(&dir);
+        let manifest = canonical_manifest("abc123");
+        std::fs::write(
+            dir.join("manifest.json"),
+            serde_json::to_vec(&manifest).unwrap(),
+        )
+        .unwrap();
+        std::fs::write(dir.join("registries.rs"), b"// CORRUPTED").unwrap();
+        assert_eq!(validate_entry(&dir, "abc123"), CacheEntryState::Corrupt);
+
+        // Simulate what generate_all_cached_with_root does on a miss:
+        // regenerate into a fresh out_dir, then publish.
+        let generated = tempfile::tempdir().unwrap();
+        write_generated(generated.path());
+        publish(cache_root.path(), "1.21.4", "abc123", generated.path());
+
+        assert_eq!(
+            validate_entry(&dir, "abc123"),
+            CacheEntryState::Valid,
+            "publish must repair a corrupt entry, not leave it poisoned"
+        );
+    }
+
+    #[test]
+    fn second_build_after_corruption_recovery_is_a_real_cache_hit() {
+        let cache_root = tempfile::tempdir().unwrap();
+        let dir = entry_dir(cache_root.path(), "1.21.4", "abc123");
+        std::fs::create_dir_all(&dir).unwrap();
+        write_generated(&dir);
+        let manifest = canonical_manifest("abc123");
+        std::fs::write(
+            dir.join("manifest.json"),
+            serde_json::to_vec(&manifest).unwrap(),
+        )
+        .unwrap();
+        std::fs::write(dir.join("commands.rs"), b"// CORRUPTED").unwrap();
+
+        // Build 1: miss (corrupt), regenerate, publish (repairs it).
+        let out1 = tempfile::tempdir().unwrap();
+        let hit1 = try_load(cache_root.path(), "1.21.4", "abc123", out1.path()).unwrap();
+        assert!(!hit1, "corrupt entry must miss");
+        let generated = tempfile::tempdir().unwrap();
+        write_generated(generated.path());
+        publish(cache_root.path(), "1.21.4", "abc123", generated.path());
+
+        // Build 2: must now be a genuine hit -- not another silent miss.
+        let out2 = tempfile::tempdir().unwrap();
+        let hit2 = try_load(cache_root.path(), "1.21.4", "abc123", out2.path()).unwrap();
+        assert!(
+            hit2,
+            "the build immediately after repair must hit the cache, not regenerate again"
+        );
+        for file in GENERATED_FILES {
+            assert_eq!(
+                std::fs::read(generated.path().join(file)).unwrap(),
+                std::fs::read(out2.path().join(file)).unwrap(),
+            );
+        }
+    }
+
+    #[test]
+    fn corrupt_manifest_json_is_repaired_on_publish() {
+        let cache_root = tempfile::tempdir().unwrap();
+        let dir = entry_dir(cache_root.path(), "1.21.4", "abc123");
+        std::fs::create_dir_all(&dir).unwrap();
+        write_generated(&dir);
+        std::fs::write(dir.join("manifest.json"), b"not json{{{").unwrap();
+
+        let generated = tempfile::tempdir().unwrap();
+        write_generated(generated.path());
+        publish(cache_root.path(), "1.21.4", "abc123", generated.path());
+
+        assert_eq!(validate_entry(&dir, "abc123"), CacheEntryState::Valid);
+    }
+
+    #[test]
+    fn missing_canonical_file_is_repaired_on_publish() {
+        let cache_root = tempfile::tempdir().unwrap();
+        let dir = entry_dir(cache_root.path(), "1.21.4", "abc123");
+        std::fs::create_dir_all(&dir).unwrap();
+        write_generated(&dir);
+        std::fs::remove_file(dir.join("block_states.rs")).unwrap();
+        let manifest = canonical_manifest("abc123");
+        std::fs::write(
+            dir.join("manifest.json"),
+            serde_json::to_vec(&manifest).unwrap(),
+        )
+        .unwrap();
+        assert_eq!(validate_entry(&dir, "abc123"), CacheEntryState::Corrupt);
+
+        let generated = tempfile::tempdir().unwrap();
+        write_generated(generated.path());
+        publish(cache_root.path(), "1.21.4", "abc123", generated.path());
+
+        assert_eq!(validate_entry(&dir, "abc123"), CacheEntryState::Valid);
+        assert!(dir.join("block_states.rs").is_file());
+    }
+
+    #[test]
+    fn repair_never_leaves_the_entry_directory_empty_or_missing() {
+        // Even mid-repair, the fingerprint directory must always resolve to
+        // either the old (corrupt) or new (valid) complete entry -- never
+        // nothing. This proves the repair is a directory-level swap, not a
+        // delete-then-recreate.
+        let cache_root = tempfile::tempdir().unwrap();
+        let dir = entry_dir(cache_root.path(), "1.21.4", "abc123");
+        std::fs::create_dir_all(&dir).unwrap();
+        write_generated(&dir);
+        std::fs::write(dir.join("registries.rs"), b"// CORRUPTED").unwrap();
+        let manifest = canonical_manifest("abc123");
+        std::fs::write(
+            dir.join("manifest.json"),
+            serde_json::to_vec(&manifest).unwrap(),
+        )
+        .unwrap();
+
+        let generated = tempfile::tempdir().unwrap();
+        write_generated(generated.path());
+        publish(cache_root.path(), "1.21.4", "abc123", generated.path());
+
+        assert!(dir.is_dir(), "entry directory must exist after repair");
+        assert_eq!(validate_entry(&dir, "abc123"), CacheEntryState::Valid);
+        // No leftover temp/stale directories from the repair.
+        let siblings: Vec<_> = std::fs::read_dir(dir.parent().unwrap())
+            .unwrap()
+            .map(|entry| entry.unwrap().file_name().to_string_lossy().into_owned())
+            .collect();
+        assert!(
+            siblings.iter().all(|name| !name.starts_with(".stale-")),
+            "no stale quarantine directories should remain: {siblings:?}"
+        );
+        assert!(
+            siblings.iter().all(|name| !name.starts_with(".tmp-")),
+            "no temp directories should remain: {siblings:?}"
+        );
+    }
+
+    #[test]
+    fn concurrent_corrupt_entry_recovery_converges_on_one_valid_entry() {
+        let cache_root = tempfile::tempdir().unwrap();
+        let dir = entry_dir(cache_root.path(), "1.21.4", "abc123");
+        std::fs::create_dir_all(&dir).unwrap();
+        write_generated(&dir);
+        std::fs::write(dir.join("commands.rs"), b"// CORRUPTED").unwrap();
+        let manifest = canonical_manifest("abc123");
+        std::fs::write(
+            dir.join("manifest.json"),
+            serde_json::to_vec(&manifest).unwrap(),
+        )
+        .unwrap();
+
+        let generated = tempfile::tempdir().unwrap();
+        write_generated(generated.path());
+
+        let handles: Vec<_> = (0..8)
+            .map(|_| {
+                let cache_root = cache_root.path().to_path_buf();
+                let generated = generated.path().to_path_buf();
+                std::thread::spawn(move || {
+                    publish(&cache_root, "1.21.4", "abc123", &generated);
+                })
+            })
+            .collect();
+        for handle in handles {
+            handle.join().unwrap();
+        }
+
+        assert_eq!(
+            validate_entry(&dir, "abc123"),
+            CacheEntryState::Valid,
+            "concurrent repair attempts must converge on a valid entry"
+        );
+        let restored = tempfile::tempdir().unwrap();
+        let hit = try_load(cache_root.path(), "1.21.4", "abc123", restored.path()).unwrap();
+        assert!(
+            hit,
+            "readers after concurrent repair must see a valid, loadable entry"
+        );
     }
 }

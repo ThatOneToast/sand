@@ -41,6 +41,7 @@ mod manifest;
 mod registry_fixture;
 mod registry_id_contracts;
 mod report;
+pub mod source_tree_fingerprint;
 
 pub use api_provider::{
     ApiProviderCatalog, GeneratedProviderEntry, PROVIDER_SCHEMA_VERSION, read_api_provider,

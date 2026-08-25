@@ -8,17 +8,19 @@ use std::path::Path;
 use crate::error::Result;
 
 // Brings `CODEGEN_IMPL_FINGERPRINT` into scope: a SHA-1 fingerprint of this
-// crate's own `codegen/{mod,registries,blocks,commands}.rs` source,
-// computed automatically at compile time by `sand-build/build.rs`. Editing
-// generator logic changes this constant with no manual step -- see
-// `build.rs` for the full rationale (issue #347 PR #348 review item 1).
+// crate's entire `codegen/` source tree (recursively, by relative path and
+// content -- see `source_tree_fingerprint.rs`), computed automatically at
+// compile time by `sand-build/build.rs`. Editing, adding, removing, or
+// renaming any generator source file changes this constant with no manual
+// step -- see `build.rs` for the full rationale (issue #347 PR #348 review
+// items 1 and 2).
 include!(concat!(env!("OUT_DIR"), "/codegen_impl_fingerprint.rs"));
 
 /// Explicit salt for generated-code *cache format* changes that don't touch
-/// [`CODEGEN_IMPL_FINGERPRINT`]'s watched files (e.g. changing which files
-/// the cache expects to find in a published entry). Ordinary generator
-/// logic changes must never depend on this being bumped correctly -- that's
-/// what `CODEGEN_IMPL_FINGERPRINT` is for.
+/// any file under `codegen/` (e.g. changing which files the cache expects
+/// to find in a published entry). Ordinary generator logic changes must
+/// never depend on this being bumped correctly -- that's what
+/// [`CODEGEN_IMPL_FINGERPRINT`] is for.
 pub const CODEGEN_CACHE_FORMAT_VERSION: u32 = 1;
 
 /// Generate all source files from the data generator reports.

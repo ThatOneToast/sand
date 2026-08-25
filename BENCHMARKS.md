@@ -264,6 +264,51 @@ Two design options, in order of implementation cost:
    the only design that achieves true narrow invalidation), but is real
    analysis-engine surgery, not a caching layer bolted on the outside.
 
+## Deepened #349 investigation: the reachability walk, not parsing, dominates
+
+A later pass split the previous single "build surface graph + extract
+reachable facade" phase mark into its two constituent calls, which had
+been hiding an important distinction:
+
+| Phase | Duration |
+|---|---|
+| `SurfaceGraph::load_with_cfg` (parse+cfg-eval+classify+bind), ratchet | ~2.0 s |
+| `reachable_from("sand")` (facade-reachability walk), ratchet | ~12.0 s |
+| `SurfaceGraph::load_with_cfg`, installed configuration | ~2.0 s |
+| `reachable_from("sand")`, installed configuration | ~11.7 s |
+
+Parsing, cfg evaluation, item classification, and macro-provider binding
+are only ~2s per configuration; the graph *walk* over the already-built
+structure is ~12s, the dominant cost. This means the per-crate-manifest
+architecture proposed above would directly attack only the smaller ~2s
+portion per configuration -- the larger cost is inside `walk_module`/
+`expose_declaration`/`resolve_export` in `sand-api-enforce/src/
+reachable.rs`, not in source parsing/classification.
+
+Three algorithmic hypotheses for the walk's cost were implemented,
+measured, and found to produce **no wall-clock improvement**, then
+reverted (each verified correct via the full `sand-api-enforce` test suite
+before being measured):
+
+1. Memoizing `require_module_chain_audited`'s per-module ancestor-chain
+   audit (its result depends only on `module_id`, but the same module can
+   be walked via multiple alias/re-export paths). No measured change --
+   this codebase's alias structure doesn't trigger enough repeat visits.
+2. Indexing `self.generated` by parent identity to replace two O(n) linear
+   scans (over what could be a large generated-item list) with O(log n +
+   k) lookups. No measured change.
+3. A CPU sample (macOS `sample`) of the live build-script process showed
+   `syn::expr` parsing/printing activity, but with enough timing
+   uncertainty (attaching to a short-lived process mid-execution) to not
+   be confident it correctly isolated `reachable_from`'s own cost.
+   Inconclusive.
+
+This is real, if negative, progress: it rules out two plausible causes and
+refines exactly where in the codebase (a ~4300-line file) the remaining
+investigation needs to focus, with the profiler split itself landed as
+low-risk diagnostic infrastructure. The full fix remains open work in
+issue #349 -- see that issue for the complete write-up.
+
 ## Deferred phases and why (see PR description for full detail)
 
 Phase 2 (further build.rs shrinking) is measured and documented above but

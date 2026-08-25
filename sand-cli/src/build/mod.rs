@@ -134,15 +134,19 @@ pub fn run_with_options(options: BuildOptions) -> Result<()> {
     let plan = ExportBuildPlan::new(resourcepack);
     let binaries = plan.binaries(&target_dir);
     let (_, exporter_outcome) = timings.record(Phase::ExporterCompile, || {
-        observe_exporter_rebuild(&binaries.datapack, || {
-            if resourcepack {
-                // Checked before compiling so a missing resource exporter
-                // reports the scaffolding instructions instead of a raw
-                // Cargo target error.
-                ensure_resource_export_source(&config, &project_root)?;
-            }
-            plan.compile()
-        })
+        observe_exporter_rebuild(
+            &binaries.datapack,
+            binaries.resource_pack.as_deref(),
+            || {
+                if resourcepack {
+                    // Checked before compiling so a missing resource exporter
+                    // reports the scaffolding instructions instead of a raw
+                    // Cargo target error.
+                    ensure_resource_export_source(&config, &project_root)?;
+                }
+                plan.compile()
+            },
+        )
     })?;
 
     // 3. Run the datapack export binary — pass the target mc_version via env

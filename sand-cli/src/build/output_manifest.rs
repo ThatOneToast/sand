@@ -56,6 +56,14 @@ pub struct OutputManifest {
     root: PathBuf,
     previous: BTreeMap<String, String>,
     current: BTreeMap<String, String>,
+    /// Paths this invocation actually wrote to disk, recorded at the moment
+    /// [`OutputManifest::write_if_changed`] decides to write — not
+    /// recomputed afterward from `previous`/`current` hash comparison,
+    /// which cannot distinguish "hash unchanged, file also still on disk"
+    /// from "hash unchanged, but the file had been deleted out-of-band and
+    /// was just restored." Both are real writes; only the former is
+    /// `unchanged`.
+    written_paths: std::collections::BTreeSet<String>,
 }
 
 impl OutputManifest {
@@ -77,13 +85,15 @@ impl OutputManifest {
             root: root.to_path_buf(),
             previous,
             current: BTreeMap::new(),
+            written_paths: std::collections::BTreeSet::new(),
         }
     }
 
     /// Writes `bytes` to `root.join(rel_path)`, skipping the write entirely
     /// when the previous manifest already recorded the same content hash
     /// for `rel_path` *and* the file still exists on disk (so a file
-    /// deleted out-of-band by the user is still restored).
+    /// deleted out-of-band by the user is still restored, and correctly
+    /// counted as written — see [`ChangeSummary`]).
     ///
     /// `rel_path` must use `/` separators; it is the manifest key and is
     /// joined onto `root` verbatim via [`Path::join`], which accepts `/` on
@@ -105,6 +115,11 @@ impl OutputManifest {
                 .with_context(|| format!("failed to create dir for '{}'", dest.display()))?;
         }
         atomic_write(&dest, bytes)?;
+        // Recorded here, at the moment of the actual write, rather than
+        // reconstructed later from previous-vs-current hash comparison --
+        // see the `written_paths` field docs for why that reconstruction is
+        // wrong for the "hash unchanged but file was missing" case.
+        self.written_paths.insert(rel_path.to_string());
         Ok(true)
     }
 
@@ -132,11 +147,11 @@ impl OutputManifest {
             removed += 1;
         }
 
-        let written = self
-            .current
-            .iter()
-            .filter(|(rel_path, hash)| self.previous.get(rel_path.as_str()) != Some(hash))
-            .count();
+        // `written` is exactly what write_if_changed recorded as actually
+        // written this invocation -- never recomputed from hash comparison,
+        // which would misclassify a restored-after-out-of-band-deletion
+        // file (same hash, was missing, got rewritten) as unchanged.
+        let written = self.written_paths.len();
         let unchanged = self.current.len() - written;
 
         let manifest = ManifestFile {
@@ -245,6 +260,50 @@ mod tests {
             mtime_before, mtime_after,
             "unchanged file must keep its original mtime"
         );
+    }
+
+    /// Regression test (issue #347 PR #348 review item 3): an output file
+    /// deleted out-of-band (not through this manifest -- e.g. the user ran
+    /// `rm` or a cleanup script) must be restored on the next build *and*
+    /// counted as `written`, never as `unchanged`, even though its content
+    /// hash is identical to what the manifest last recorded.
+    #[test]
+    fn restoring_an_out_of_band_deleted_file_counts_as_written_not_unchanged() {
+        let dir = tempfile::tempdir().unwrap();
+        let mut first = OutputManifest::load(dir.path());
+        first.write_if_changed("a.txt", b"one").unwrap();
+        first.write_if_changed("b.txt", b"two").unwrap();
+        first.finish().unwrap();
+
+        // Out-of-band deletion: not through the manifest API.
+        std::fs::remove_file(dir.path().join("a.txt")).unwrap();
+        assert!(!dir.path().join("a.txt").exists());
+
+        let mut second = OutputManifest::load(dir.path());
+        let wrote_a = second.write_if_changed("a.txt", b"one").unwrap();
+        let wrote_b = second.write_if_changed("b.txt", b"two").unwrap();
+        let summary = second.finish().unwrap();
+
+        assert!(wrote_a, "a missing file must be restored (a real write)");
+        assert!(
+            !wrote_b,
+            "b.txt was never touched, so it truly is unchanged"
+        );
+        assert!(dir.path().join("a.txt").exists());
+        assert_eq!(
+            std::fs::read(dir.path().join("a.txt")).unwrap(),
+            b"one",
+            "restored content must match"
+        );
+        assert_eq!(
+            summary.written, 1,
+            "the restored file must be counted as written, not unchanged"
+        );
+        assert_eq!(
+            summary.unchanged, 1,
+            "the untouched file must still be counted as unchanged"
+        );
+        assert_eq!(summary.removed, 0);
     }
 
     #[test]

@@ -30,5 +30,13 @@ quote = "1"
 [features]
 integration-tests = []
 
+[build-dependencies]
+# Used by build.rs to compute CODEGEN_IMPL_FINGERPRINT / API_ENFORCE_IMPL_FINGERPRINT:
+# a hash of this crate's own codegen-generator source, embedded at compile time so
+# generator implementation changes automatically invalidate the generated-Rust
+# cache without anyone needing to remember to bump a manual schema constant.
+sha1 = "0.10"
+hex = "0.4"
+
 [dev-dependencies]
 tempfile = "3"

@@ -7,13 +7,19 @@ use std::path::Path;
 
 use crate::error::Result;
 
-/// Bumped whenever `codegen/{registries,blocks,commands}.rs` change what
-/// bytes they generate for the same input reports. This is the "codegen
-/// impl/schema version" input the generated-code cache
-/// ([`cache::fingerprint`]) folds in so a logic change invalidates every
-/// cached entry, not just entries for a version whose reports also
-/// happened to change (issue #347 Phase 3).
-pub const CODEGEN_SCHEMA_VERSION: u32 = 1;
+// Brings `CODEGEN_IMPL_FINGERPRINT` into scope: a SHA-1 fingerprint of this
+// crate's own `codegen/{mod,registries,blocks,commands}.rs` source,
+// computed automatically at compile time by `sand-build/build.rs`. Editing
+// generator logic changes this constant with no manual step -- see
+// `build.rs` for the full rationale (issue #347 PR #348 review item 1).
+include!(concat!(env!("OUT_DIR"), "/codegen_impl_fingerprint.rs"));
+
+/// Explicit salt for generated-code *cache format* changes that don't touch
+/// [`CODEGEN_IMPL_FINGERPRINT`]'s watched files (e.g. changing which files
+/// the cache expects to find in a published entry). Ordinary generator
+/// logic changes must never depend on this being bumped correctly -- that's
+/// what `CODEGEN_IMPL_FINGERPRINT` is for.
+pub const CODEGEN_CACHE_FORMAT_VERSION: u32 = 1;
 
 /// Generate all source files from the data generator reports.
 ///

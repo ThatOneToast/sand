@@ -15,7 +15,56 @@ use sand_api_enforce::{
 
 const PLACEHOLDER_SURFACE_PROFILE: &str = "placeholder-codegen";
 
+/// Opt-in internal phase profiling for this build script (issue #347 Part
+/// 3, "determine the real dependency graph first"). Set
+/// `SAND_BUILD_RS_PROFILE=1` to print a phase-by-phase timing breakdown of
+/// this build script's own work to stderr. Disabled by default so ordinary
+/// builds see no output change; the timing calls themselves
+/// (`Instant::now()`) are negligible either way.
+struct Profiler {
+    enabled: bool,
+    start: std::time::Instant,
+    last: std::time::Instant,
+}
+
+impl Profiler {
+    fn new() -> Self {
+        let enabled = env::var_os("SAND_BUILD_RS_PROFILE").is_some();
+        let now = std::time::Instant::now();
+        Self {
+            enabled,
+            start: now,
+            last: now,
+        }
+    }
+
+    /// Marks the end of a phase, printing its duration since the previous
+    /// mark (or since `new()` for the first phase).
+    fn mark(&mut self, phase: &str) {
+        if !self.enabled {
+            return;
+        }
+        let now = std::time::Instant::now();
+        eprintln!(
+            "cargo:warning=sand/build.rs profile: {phase} took {:?}",
+            now.duration_since(self.last)
+        );
+        self.last = now;
+    }
+
+    fn total(&self) {
+        if !self.enabled {
+            return;
+        }
+        eprintln!(
+            "cargo:warning=sand/build.rs profile: TOTAL {:?}",
+            self.start.elapsed()
+        );
+    }
+}
+
 fn main() {
+    let mut profiler = Profiler::new();
     let workspace = Path::new("..");
     for source in [
         "src",
@@ -48,6 +97,7 @@ fn main() {
     );
     let providers = generated_providers(&provider_dir)
         .unwrap_or_else(|error| panic!("invalid generated API provider: {error}"));
+    profiler.mark("load scope/profile manifests + generated providers");
     println!("cargo:rustc-check-cfg=cfg(sand_placeholder_codegen)");
     if providers.placeholder {
         println!("cargo:rustc-cfg=sand_placeholder_codegen");
@@ -73,6 +123,7 @@ fn main() {
         event_generated_type_provider(&workspace.join("sand-core/src/events/mod.rs"))
             .unwrap_or_else(|error| panic!("invalid generated event marker provider: {error}")),
     );
+    profiler.mark("parse item-macro generated providers (registry/effect/event)");
 
     // The ratchet is an all-supported-features baseline on every build. Using
     // only the current Cargo selection would leave enough global headroom for
@@ -84,6 +135,7 @@ fn main() {
     for source_crate in &source_crates {
         println!("cargo:rerun-if-changed={}", source_crate.root.display());
     }
+    profiler.mark("discover facade features + local source crates");
     let generated_for_installed = generated.clone();
     let build_graph = |features: BTreeSet<String>, generated: Vec<GeneratedApi>| {
         SurfaceGraph::load_with_cfg(
@@ -211,18 +263,41 @@ fn main() {
         })
         .unwrap_or_else(|error| panic!("failed to construct Sand public facade graph: {error}"))
     };
+    // Split so --explain-rebuild-style diagnostics (SAND_BUILD_RS_PROFILE=1)
+    // can distinguish "parse + cfg-evaluate + classify + bind macro
+    // providers" (build_graph, dominated by SurfaceGraph::load_with_cfg's
+    // semantic walk -- see issue #349) from "walk the already-built graph
+    // for facade-reachable items" (reachable_from). Per issue #349's
+    // profiler-expansion request: this is a coarse two-way split at the
+    // sand/build.rs call-site level, not instrumentation inside
+    // SurfaceGraph itself (a ~4300-line file in sand-api-enforce) -- finer
+    // internal phase timing (file discovery, AST parse, cfg evaluation,
+    // item classification, macro-provider binding as separate numbers) is
+    // deferred to whoever picks up the deeper per-crate-manifest redesign,
+    // since adding instrumentation to reachable.rs's internals is
+    // meaningfully more invasive and this split already answers the
+    // question that matters here: parsing+classification+binding
+    // (build_graph) vs. the reachability walk (reachable_from) as separate
+    // costs.
     let graph = build_graph(enabled_features.clone(), generated);
+    profiler
+        .mark("build surface graph (all-supported-features ratchet): parse+cfg-eval+classify+bind");
     let reachable = graph
         .reachable_from("sand")
         .unwrap_or_else(|error| panic!("failed to extract Sand public facade: {error}"));
+    profiler.mark("reachable_from(\"sand\") (all-supported-features ratchet): facade walk");
     let installed_features = enabled_cargo_features(&enabled_features);
-    let installed_reachable = build_graph(installed_features.clone(), generated_for_installed)
+    let installed_graph = build_graph(installed_features.clone(), generated_for_installed);
+    profiler.mark("build surface graph (installed configuration): parse+cfg-eval+classify+bind");
+    let installed_reachable = installed_graph
         .reachable_from("sand")
         .unwrap_or_else(|error| panic!("failed to extract installed Sand public facade: {error}"));
+    profiler.mark("reachable_from(\"sand\") (installed configuration): facade walk");
 
     let source_declarations =
         contract_declarations_from_files(contract_source_files(&source_crates))
             .unwrap_or_else(|error| panic!("invalid build-time API contract source: {error}"));
+    profiler.mark("parse API contract declarations from source files (second full-source pass)");
     let mut contracts = resolve_contract_identities(&reachable, &source_declarations)
         .unwrap_or_else(|errors| panic_errors("invalid source API contract identities", &errors));
     contracts.extend(validate_generated_contracts(
@@ -238,6 +313,7 @@ fn main() {
         "generated_event_markers",
     ));
     reject_duplicate_contract_identities(&contracts);
+    profiler.mark("resolve contract identities + validate generated providers + dedup check");
 
     // The command and vanilla-registry providers are structurally compared
     // with their emitted Rust above even when a selected Minecraft profile
@@ -267,6 +343,7 @@ fn main() {
             manifest.static_surface_items
         );
     }
+    profiler.mark("evaluate scope manifest + provider audits + static surface count check");
 
     write_coverage(
         &manifest,
@@ -282,6 +359,8 @@ fn main() {
             minecraft_version: &minecraft_version,
         },
     );
+    profiler.mark("write installed API metadata (facade registrations, coverage, surface report)");
+    profiler.total();
 }
 
 fn enabled_cargo_features(supported: &BTreeSet<String>) -> BTreeSet<String> {

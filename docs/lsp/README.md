@@ -63,11 +63,14 @@ Rust toolchain is enough:
   for free today.
 - **`sand build`** — what `sand-cli/src/build/mod.rs` (step 2 onward) actually
   does:
-  1. `cargo build --bin sand_export` (with `RUSTFLAGS=-Awarnings`) — a full
-     compile, status inherited straight to the terminal, so **normal rustc
-     diagnostics only**. With `--resourcepack` the same invocation also carries
-     `--bin sand_resource_export`, so both exporters are compiled once
-     (`sand-cli/src/build/export.rs`).
+  1. `cargo build --bin sand_export` (plain dev profile, no exporter-specific
+     `RUSTFLAGS` or other compiler flags — see #347) — a full compile, status
+     inherited straight to the terminal, so **normal rustc diagnostics only**.
+     With `--resourcepack` the same invocation also carries `--bin
+     sand_resource_export`, so both exporters are compiled once
+     (`sand-cli/src/build/export.rs`). `sand build --release` reuses the same
+     exporter compilation artifacts as `sand build`; `--release` only changes
+     packaging after the exporter runs.
   2. Runs the resulting `sand_export` binary and captures its stdout (a JSON
      array of component records) and stderr.
   3. If the binary exits non-zero, `sand build` `bail!`s with the *entire*

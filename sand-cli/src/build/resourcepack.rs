@@ -6,10 +6,11 @@ use colored::Colorize;
 use crate::config::SandConfig;
 
 use super::export::{Exporter, run_exporter};
+use super::output_manifest::OutputManifest;
 use super::package::zip_dir;
 use super::records::ResourcePackRecord;
 use super::validate::validate_resourcepack_records_for_project;
-use super::write::{write_resourcepack_mcmeta, write_rp_record};
+use super::write::{resourcepack_mcmeta_output, rp_record_output};
 
 /// The namespace the resource pack is exported under.
 ///
@@ -76,7 +77,7 @@ pub(super) fn build_resourcepack(
     mc_version: &str,
     release: bool,
     binary: &Path,
-) -> Result<()> {
+) -> Result<super::output_manifest::ChangeSummary> {
     use sand_core::version::{MinecraftVersion, VersionProfile};
 
     let rp_cfg = config.resourcepack.as_ref();
@@ -133,32 +134,33 @@ pub(super) fn build_resourcepack(
 
     validate_resourcepack_records_for_project(project_root, &records)?;
 
-    // Write pack.mcmeta for the resource pack.
+    // Write pack.mcmeta and every resource-pack record through the same
+    // content-hash output manifest the datapack half uses (issue #347
+    // Phase 7): unchanged assets are left untouched, changed ones rewritten
+    // atomically, and stale ones removed.
     let rp_dist_name = format!("{}-resources", config.pack.namespace.as_str());
     let rp_dist = PathBuf::from("dist").join(&rp_dist_name);
     std::fs::create_dir_all(&rp_dist)?;
     let rp_supported_formats = rp_cfg.and_then(|c| c.supported_formats);
     let rp_overlays = rp_cfg.map(|c| c.overlays.as_slice()).unwrap_or(&[]);
-    write_resourcepack_mcmeta(
-        &rp_dist,
-        rp_description,
-        rp_format,
-        rp_supported_formats,
-        rp_overlays,
-    )?;
-
-    // Write each resource pack record.
-    let mut written = 0usize;
+    let mut manifest = OutputManifest::load(&rp_dist);
+    let (mcmeta_path, mcmeta_bytes) =
+        resourcepack_mcmeta_output(rp_description, rp_format, rp_supported_formats, rp_overlays)?;
+    manifest.write_if_changed(&mcmeta_path, &mcmeta_bytes)?;
     for record in &records {
-        write_rp_record(&rp_dist, project_root, record)?;
-        written += 1;
+        let (rel_path, bytes) = rp_record_output(project_root, record)?;
+        manifest.write_if_changed(&rel_path, &bytes)?;
     }
+    let change_summary = manifest.finish()?;
 
     println!(
-        "{} {} asset(s) written to {}",
+        "{} {} asset(s) written to {} ({} written, {} unchanged, {} removed)",
         "Done!".green().bold(),
-        written.to_string().white().bold(),
-        format!("dist/{}/", rp_dist_name).white().bold()
+        records.len().to_string().white().bold(),
+        format!("dist/{}/", rp_dist_name).white().bold(),
+        change_summary.written,
+        change_summary.unchanged,
+        change_summary.removed
     );
 
     if release {
@@ -181,5 +183,5 @@ pub(super) fn build_resourcepack(
         );
     }
 
-    Ok(())
+    Ok(change_summary)
 }

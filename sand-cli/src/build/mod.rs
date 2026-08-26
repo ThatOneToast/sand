@@ -1,8 +1,11 @@
 mod config;
+mod explain;
 mod export;
+pub mod output_manifest;
 pub mod package;
 pub mod records;
 mod resourcepack;
+pub mod timing;
 pub mod validate;
 pub mod validate_output;
 pub mod write;
@@ -16,22 +19,65 @@ use crate::config::SandConfig;
 use crate::pack_format::pack_format_for;
 
 use config::{cargo_target_dir, resolve_mc_version};
+use explain::{RebuildExplanation, observe_exporter_rebuild};
 use export::{ExportBuildPlan, Exporter, run_exporter};
+use output_manifest::OutputManifest;
 use package::zip_dir;
 use records::ComponentRecord;
 use resourcepack::{build_resourcepack, ensure_resource_export_source};
+use timing::{Phase, Timings};
 use validate::validate_component_records_for_project;
-use write::{write_component, write_pack_mcmeta};
+use write::{component_output, pack_mcmeta_output};
 
 pub fn run(release: bool, resourcepack: bool) -> Result<()> {
+    run_with_timings(release, resourcepack, false)
+}
+
+/// Same as [`run`], but prints a `Sand build timings` phase breakdown
+/// (`sand build --timings`) when `print_timings` is set. Phase collection
+/// itself always runs — only the printing is conditional — see
+/// `timing.rs`.
+pub fn run_with_timings(release: bool, resourcepack: bool, print_timings: bool) -> Result<()> {
+    run_with_options(BuildOptions {
+        release,
+        resourcepack,
+        print_timings,
+        explain_rebuild: false,
+    })
+}
+
+/// Flags controlling one `sand build` invocation's diagnostics. `release`
+/// and `resourcepack` control build semantics; `print_timings` and
+/// `explain_rebuild` are purely additive reporting (issue #347 Phases 0/8)
+/// and never change what gets built or written.
+#[derive(Debug, Clone, Copy, Default)]
+pub struct BuildOptions {
+    pub release: bool,
+    pub resourcepack: bool,
+    pub print_timings: bool,
+    pub explain_rebuild: bool,
+}
+
+pub fn run_with_options(options: BuildOptions) -> Result<()> {
+    let BuildOptions {
+        release,
+        resourcepack,
+        print_timings,
+        explain_rebuild,
+    } = options;
+    let mut timings = Timings::new();
+
     // 1. Read sand.toml
-    let project_root = std::env::current_dir()?;
-    let config_path = project_root.join("sand.toml");
-    if !config_path.exists() {
-        bail!("sand.toml not found — run `sand build` from your project root");
-    }
-    let config: SandConfig = toml::from_str(&std::fs::read_to_string(&config_path)?)
-        .context("failed to parse sand.toml")?;
+    let (config, project_root) = timings.record(Phase::Configuration, || {
+        let project_root = std::env::current_dir()?;
+        let config_path = project_root.join("sand.toml");
+        if !config_path.exists() {
+            bail!("sand.toml not found — run `sand build` from your project root");
+        }
+        let config: SandConfig = toml::from_str(&std::fs::read_to_string(&config_path)?)
+            .context("failed to parse sand.toml")?;
+        Ok((config, project_root))
+    })?;
 
     // Resolve mc_version ("latest" → bundled latest-known verified version)
     let configured_version =
@@ -84,107 +130,151 @@ pub fn run(release: bool, resourcepack: bool) -> Result<()> {
     //    *same* `cargo build` so Cargo resolves and analyses the project once.
     //    The exporters still run as separate processes with separate record
     //    streams — only compilation is coordinated.
-    let plan = ExportBuildPlan::new(release, resourcepack);
-    if resourcepack {
-        // Checked before compiling so a missing resource exporter reports the
-        // scaffolding instructions instead of a raw Cargo target error.
-        ensure_resource_export_source(&config, &project_root)?;
-    }
-    plan.compile()?;
     let target_dir = cargo_target_dir()?;
+    let plan = ExportBuildPlan::new(resourcepack);
     let binaries = plan.binaries(&target_dir);
+    let (_, exporter_outcome) = timings.record(Phase::ExporterCompile, || {
+        observe_exporter_rebuild(
+            &binaries.datapack,
+            binaries.resource_pack.as_deref(),
+            || {
+                if resourcepack {
+                    // Checked before compiling so a missing resource exporter
+                    // reports the scaffolding instructions instead of a raw
+                    // Cargo target error.
+                    ensure_resource_export_source(&config, &project_root)?;
+                }
+                plan.compile()
+            },
+        )
+    })?;
 
     // 3. Run the datapack export binary — pass the target mc_version via env
     //    var so the subprocess can gate components against the resolved
     //    VersionProfile.
-    let stdout = run_exporter(
-        Exporter::Datapack,
-        &binaries.datapack,
-        &[("SAND_EXPORT_MC_VERSION", &mc_version)],
-    )?;
+    let stdout = timings.record(Phase::ExporterExecution, || {
+        run_exporter(
+            Exporter::Datapack,
+            &binaries.datapack,
+            &[("SAND_EXPORT_MC_VERSION", &mc_version)],
+        )
+    })?;
 
     // 4. Parse component records
-    let records: Vec<ComponentRecord> = serde_json::from_slice(&stdout).map_err(|e| {
-        let stdout = String::from_utf8_lossy(&stdout);
-        let hint = if stdout.contains("export_resourcepack_json") {
-            "\n\nHint: it looks like __sand_export is calling \
-             export_resourcepack_json. Resource pack output must go in \
-             __sand_resource_export (src/bin/sand_resource_export.rs), \
-             not in the datapack export. Remove the \
-             sand_resourcepack::export_resourcepack_json call from \
-             __sand_export in src/lib.rs."
-        } else if stdout.trim_start().starts_with('[') && stdout.matches('[').count() > 1 {
-            "\n\nHint: the export binary printed more than one JSON value. \
-             __sand_export must print exactly one JSON array \
-             (from sand_core::export_components_json). Resource pack \
-             output belongs in __sand_resource_export instead."
-        } else {
-            ""
-        };
-        anyhow::anyhow!("failed to parse component export JSON: {}{}", e, hint)
+    let records: Vec<ComponentRecord> = timings.record(Phase::RecordParsing, || {
+        serde_json::from_slice(&stdout).map_err(|e| {
+            let stdout = String::from_utf8_lossy(&stdout);
+            let hint = if stdout.contains("export_resourcepack_json") {
+                "\n\nHint: it looks like __sand_export is calling \
+                 export_resourcepack_json. Resource pack output must go in \
+                 __sand_resource_export (src/bin/sand_resource_export.rs), \
+                 not in the datapack export. Remove the \
+                 sand_resourcepack::export_resourcepack_json call from \
+                 __sand_export in src/lib.rs."
+            } else if stdout.trim_start().starts_with('[') && stdout.matches('[').count() > 1 {
+                "\n\nHint: the export binary printed more than one JSON value. \
+                 __sand_export must print exactly one JSON array \
+                 (from sand_core::export_components_json). Resource pack \
+                 output belongs in __sand_resource_export instead."
+            } else {
+                ""
+            };
+            anyhow::anyhow!("failed to parse component export JSON: {}{}", e, hint)
+        })
     })?;
 
     // 5. Validate every record before creating the output directory.  A build
     // must fail before it produces a partially valid datapack.
     let dist = PathBuf::from("dist").join(config.pack.namespace.as_str());
-    validate_component_records_for_project(&dist, &project_root, &records)?;
+    timings.record(Phase::Validation, || {
+        validate_component_records_for_project(&dist, &project_root, &records)
+    })?;
 
-    // 6. Write pack.mcmeta
-    std::fs::create_dir_all(&dist)?;
-    write_pack_mcmeta(
-        &dist,
-        config.pack.namespace.as_str(),
-        &config.pack.description,
-        pack_format,
-        config.pack.supported_formats,
-        &config.pack.overlays,
-    )?;
-
-    // 7. Write each component file
-    for record in &records {
-        write_component(&dist, &project_root, record)?;
-    }
+    // 6-7. Write pack.mcmeta and every component file through the output
+    //    manifest (issue #347 Phase 7): unchanged content is left untouched
+    //    (mtime included), changed content is rewritten atomically, and
+    //    anything the previous build wrote that this build no longer
+    //    produces is removed. See output_manifest.rs.
+    let change_summary = timings.record(Phase::DatapackWriting, || {
+        std::fs::create_dir_all(&dist)?;
+        let mut manifest = OutputManifest::load(&dist);
+        let (mcmeta_path, mcmeta_bytes) = pack_mcmeta_output(
+            &config.pack.description,
+            pack_format,
+            config.pack.supported_formats,
+            &config.pack.overlays,
+        )?;
+        manifest.write_if_changed(&mcmeta_path, &mcmeta_bytes)?;
+        for record in &records {
+            let (rel_path, bytes) = component_output(&project_root, record)?;
+            manifest.write_if_changed(&rel_path, &bytes)?;
+        }
+        manifest.finish()
+    })?;
 
     println!(
-        "{} {} component(s) written to {}",
+        "{} {} component(s) written to {} ({} written, {} unchanged, {} removed)",
         "Done!".green().bold(),
         records.len().to_string().white().bold(),
         format!("dist/{}/", config.pack.namespace.as_str())
             .white()
-            .bold()
+            .bold(),
+        change_summary.written,
+        change_summary.unchanged,
+        change_summary.removed
     );
 
     // 8. Zip if --release, otherwise hint how to install manually.
-    if release {
-        let zip_path = zip_dir(&dist, config.pack.namespace.as_str())?;
-        println!(
-            "  {} {}",
-            "zip:".dimmed(),
-            zip_path.display().to_string().white().bold()
-        );
-        println!(
-            "  {} drop {} into your world's datapacks/ folder",
-            "install:".dimmed(),
-            format!("dist/{}.zip", config.pack.namespace.as_str())
-                .white()
-                .bold()
-        );
-    } else {
-        println!(
-            "  {} copy the {} folder into your world's datapacks/ folder, \
-             or run `sand build --release` to produce a zip",
-            "install:".dimmed(),
-            format!("dist/{}/", config.pack.namespace.as_str())
-                .white()
-                .bold()
-        );
-    }
+    timings.record(Phase::Packaging, || {
+        if release {
+            let zip_path = zip_dir(&dist, config.pack.namespace.as_str())?;
+            println!(
+                "  {} {}",
+                "zip:".dimmed(),
+                zip_path.display().to_string().white().bold()
+            );
+            println!(
+                "  {} drop {} into your world's datapacks/ folder",
+                "install:".dimmed(),
+                format!("dist/{}.zip", config.pack.namespace.as_str())
+                    .white()
+                    .bold()
+            );
+        } else {
+            println!(
+                "  {} copy the {} folder into your world's datapacks/ folder, \
+                 or run `sand build --release` to produce a zip",
+                "install:".dimmed(),
+                format!("dist/{}/", config.pack.namespace.as_str())
+                    .white()
+                    .bold()
+            );
+        }
+        Ok(())
+    })?;
 
     // 9. Resource pack build (optional, --resourcepack flag).  The binary was
     //    already compiled in step 2; it runs and is validated independently,
     //    into its own output root.
-    if let Some(rp_binary) = binaries.resource_pack.as_deref() {
-        build_resourcepack(&config, &project_root, &mc_version, release, rp_binary)?;
+    let resourcepack_summary = if let Some(rp_binary) = binaries.resource_pack.as_deref() {
+        Some(timings.record(Phase::ResourcePackExport, || {
+            build_resourcepack(&config, &project_root, &mc_version, release, rp_binary)
+        })?)
+    } else {
+        None
+    };
+
+    if explain_rebuild {
+        RebuildExplanation {
+            exporter: exporter_outcome,
+            datapack: change_summary,
+            resourcepack: resourcepack_summary,
+        }
+        .print();
+    }
+
+    if print_timings {
+        timings.print();
     }
 
     Ok(())

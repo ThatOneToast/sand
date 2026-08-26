@@ -40,6 +40,17 @@ enum Commands {
         /// Run `sand add resourcepack` to add these automatically.
         #[arg(long)]
         resourcepack: bool,
+        /// Print a phase-by-phase timing breakdown after the build
+        /// (Configuration, Cargo/exporter compile, exporter execution,
+        /// record parsing, validation, datapack writing, resource-pack
+        /// export, packaging, total).
+        #[arg(long)]
+        timings: bool,
+        /// Print why each expensive step did or didn't redo work: whether
+        /// Cargo rebuilt the exporter, and how many datapack/resource-pack
+        /// output files were written, left unchanged, or removed.
+        #[arg(long)]
+        explain_rebuild: bool,
     },
     /// Build the datapack, download the server jar, and start a local server
     Run {
@@ -184,7 +195,14 @@ fn run() -> Result<()> {
         Commands::Build {
             release,
             resourcepack,
-        } => build::run(release, resourcepack),
+            timings,
+            explain_rebuild,
+        } => build::run_with_options(build::BuildOptions {
+            release,
+            resourcepack,
+            print_timings: timings,
+            explain_rebuild,
+        }),
         Commands::Run {
             ram,
             offline,

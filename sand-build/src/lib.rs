@@ -36,10 +36,12 @@ mod cache;
 mod codegen;
 mod download;
 mod error;
+pub mod fingerprint;
 mod manifest;
 mod registry_fixture;
 mod registry_id_contracts;
 mod report;
+pub mod source_tree_fingerprint;
 
 pub use api_provider::{
     ApiProviderCatalog, GeneratedProviderEntry, PROVIDER_SCHEMA_VERSION, read_api_provider,
@@ -201,8 +203,8 @@ pub fn generate_to_dir(mc_version: &str, out_dir: &std::path::Path) -> Result<()
     // 3. Run data generator.
     let reports_dir = report::ensure_reports(&version_id, &jar_path)?;
 
-    // 4. Codegen.
-    codegen::generate_all(&reports_dir, out_dir, &version_id)?;
+    // 4. Codegen (fingerprint-cached -- issue #347 Phase 3).
+    codegen::generate_all_cached(&reports_dir, out_dir, &version_id)?;
 
     Ok(())
 }

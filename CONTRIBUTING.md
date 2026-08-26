@@ -16,6 +16,70 @@ Or use the combined check script:
 scripts/check.sh
 ```
 
+## Optional: sccache for faster rebuilds (issue #347)
+
+Sand's workspace is large enough (several crates, proc macros, build
+scripts) that a shared-compilation-object cache noticeably speeds up clean
+builds, builds after branch switches, and builds in additional Git
+worktrees (including agent-created ones). This is entirely optional — Sand
+builds and CI both work correctly with no compiler cache at all, and a
+missing/broken cache only costs time, never correctness.
+
+Install:
+
+```sh
+# macOS
+brew install sccache
+
+# Linux
+cargo install sccache --locked
+```
+
+Enable it for your local Cargo builds by adding to `~/.cargo/config.toml`
+(do **not** add this to the repo's own Cargo config — it must stay a
+per-developer opt-in):
+
+```toml
+[build]
+rustc-wrapper = "sccache"
+```
+
+Check it's active and see hit-rate stats with:
+
+```sh
+sccache --show-stats
+```
+
+### Worktree reuse
+
+By default, sccache's cache keys include the absolute path to the crate
+being compiled, which normally prevents cache hits across two different
+Git worktrees of the same repo (e.g. `sand/` and an agent's temporary
+worktree under `sand/.claude/worktrees/...`) even when the source is
+identical. Setting `SCCACHE_BASEDIRS` (from sccache's `local` cache
+backend path-normalization support) to a common ancestor directory of your
+worktrees lets sccache normalize paths under that root before hashing, so
+equivalent compilations in different worktrees can share cache entries:
+
+```sh
+export SCCACHE_BASEDIRS="$HOME/Desktop/Projects/sand"
+```
+
+Verify this is actually helping (rather than assuming it does) by checking
+`sccache --show-stats` before and after building a second worktree — the
+cache hit count should increase noticeably compared to a build without
+`SCCACHE_BASEDIRS` set. Sand does not depend on this working for
+correctness; it's purely a speed optimization.
+
+### Incremental compilation
+
+Sand does not disable Rust's incremental compilation to increase sccache
+hit rates. In local benchmarking, active edit-compile-test loops benefit
+far more from incremental compilation than from sccache (which mainly pays
+off on cold/clean builds, branch switches, and new worktrees), so both stay
+enabled together — `sccache` still gets used for the initial/cold portion
+of an incremental build.
+
 ## Toolchain policy
 
 `rust-toolchain.toml` is the Rust toolchain authority for local development and

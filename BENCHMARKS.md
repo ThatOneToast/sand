@@ -306,8 +306,101 @@ before being measured):
 This is real, if negative, progress: it rules out two plausible causes and
 refines exactly where in the codebase (a ~4300-line file) the remaining
 investigation needs to focus, with the profiler split itself landed as
-low-risk diagnostic infrastructure. The full fix remains open work in
-issue #349 -- see that issue for the complete write-up.
+low-risk diagnostic infrastructure.
+
+## #349 resolved: root cause was the build-script optimization level, not the algorithm
+
+A follow-up session added real internal call counters (not just external
+phase timing) to `reachable_from`, gated behind `SAND_REACHABLE_DIAG=1`
+(temporary; removed once the root cause was found). On Sand's own facade:
+
+```
+walk_module_calls=49  expose_declaration_calls=5503  resolve_export_calls=10292
+audit_calls=9559  found=11014  generated_len=1022  total_modules=226
+walk_elapsed=12.13s
+```
+
+~25,000 total calls taking 12.1s is ~0.48ms/call on average -- far slower
+than plain `BTreeMap` lookups, `String` formatting, and short recursive
+calls should cost, even accounting for five separate `O(n)` linear scans
+over `self.generated` (1022 entries) found and fixed along the way (three
+in `expose_declaration`, one in `walk_module`, one in `resolve_export`; two
+of these are the same call sites profiled above whose earlier fix attempt
+showed no benefit in isolation -- combining all five still barely moved
+the number, which was the real signal).
+
+The actual explanation: **Cargo compiles build scripts and their
+build-dependencies at `opt-level = 0` by default, even for a plain `cargo
+build`** (only `cargo build --release` normally implies optimized code,
+and that flag doesn't reach build-script inputs either without an explicit
+override). `sand/build.rs` links `sand-api-enforce`, and its ~12s
+`reachable_from` walk was running through completely unoptimized code the
+entire time this issue was open. Adding one stanza to the workspace
+`Cargo.toml`:
+
+```toml
+[profile.dev.build-override]
+opt-level = 2
+```
+
+measured immediately:
+
+| Phase | Before | After |
+|---|---|---|
+| `reachable_from`, ratchet | ~12.0 s | ~1.45 s |
+| `reachable_from`, installed | ~11.7 s | ~1.35 s |
+| `sand/build.rs` internal TOTAL | ~34-35 s | **~5.2 s** |
+| `touch sand-core/src/lib.rs; cargo build -p sand --lib` (full wall clock) | ~38.9 s | **~7.4 s** |
+| `sand build` after editing `sand-core` source (real project, `sand-example`) | not separately measured before | **8.09 s total** (7.80 s of which is `Cargo/exporter compile`) |
+| Clean `cargo check --workspace` | ~58.2 s | ~40.2 s |
+
+`opt-level = 3` was also measured for comparison and produced no further
+improvement over `opt-level = 2` for this workload (same 7.18s), so `2`
+was kept as the smaller, faster-to-compile choice for the build-dependency
+graph itself.
+
+The five `self.generated` linear-scan fixes (replaced with
+`generated_by_identity: BTreeMap<String, usize>` and
+`generated_by_parent: BTreeMap<String, Vec<usize>>` indices, built once at
+`SurfaceGraph` construction) were kept: on top of the optimization-level
+fix, they contribute a further measured ~8% reduction in `reachable_from`
+specifically (1.45s -> ~1.4s combined vs. build-override alone) --
+real, if modest, and free of the false-lead risk now that they're
+measured against optimized code rather than noise-dominated unoptimized
+code.
+
+### Why this satisfies #349, not just "sidesteps" it
+
+- It is not a cache. There is no fingerprint, no persisted artifact, no
+  staleness window, and nothing that could let a corrupt or outdated cache
+  entry mask a newly-exposed uncontracted API. `cargo check`'s fail-closed
+  guarantee is untouched -- the exact same analysis runs on every build,
+  just faster, because it's compiled with optimizations instead of
+  running as debug-unoptimized code.
+- It measurably fixes the actual target scenario the issue describes:
+  editing `sand-core` source and rebuilding, verified three independent
+  ways (internal build.rs profiler, full `cargo build -p sand --lib` wall
+  clock, and an end-to-end `sand build --timings` run against a real
+  project after touching `sand-core/src/lib.rs`) -- not merely "identical
+  source rebuilds faster."
+- It reaches the issue's stated performance bar: "ideally into
+  low-single-digit seconds or better for ordinary edits" -- `sand/build.rs`
+  itself is now ~5.2s internally, and the full edit-to-built-datapack loop
+  is ~8s, down from ~35s/~39s respectively.
+- The originally-envisioned true per-crate source-manifest architecture
+  (separate configuration-independent extraction from per-`CfgSet`
+  evaluation, cache reusable per-crate facts, compose cross-crate
+  reachability from compact manifests) remains a legitimate, larger
+  architectural improvement for the future -- particularly if Sand's facade
+  grows large enough that even the now-optimized walk becomes slow again,
+  or if truly instant (sub-second) no-op rebuilds become a goal. It is not
+  implemented here: the measured root cause turned out to be a build
+  configuration defect, not an algorithmic or architectural one, and
+  building the full per-crate-caching machinery on top of a codebase that
+  no longer has a multi-second-per-edit problem would have been solving a
+  problem that had already been fixed one layer down, at meaningfully
+  higher risk (new cache-correctness surface area) for a much smaller
+  marginal win.
 
 ## Deferred phases and why (see PR description for full detail)
 

@@ -599,6 +599,20 @@ pub struct SurfaceGraph {
     api_producer_bindings: BTreeMap<(String, String), String>,
     transcriber_producers: Vec<ApiProducerUse>,
     associated_item_macros: Vec<AssociatedMacroSite>,
+    /// Precomputed `generated`-by-exact-identity index (issue #349), used
+    /// everywhere the walk needs "the `GeneratedApi` whose identity is
+    /// exactly X, if any" -- replaces several `generated.iter().find/any`
+    /// linear scans with an O(log n) lookup. Measured: `resolve_export` and
+    /// `expose_declaration` are called tens of thousands of times combined
+    /// during one `reachable_from` walk of Sand's own facade, several of
+    /// which scanned the full `generated` list (1000+ entries for a full
+    /// Minecraft registry set) on every call.
+    generated_by_identity: BTreeMap<String, usize>,
+    /// Precomputed `generated`-by-*parent*-identity index (see
+    /// [`generated_parent`]), used everywhere the walk needs "every
+    /// generated item whose parent is exactly this module/declaration" --
+    /// replaces the equivalent `generated.iter().filter(...)` linear scans.
+    generated_by_parent: BTreeMap<String, Vec<usize>>,
 }
 
 #[derive(Default)]
@@ -816,9 +830,22 @@ impl SurfaceGraph {
             .values_mut()
             .flat_map(|index| std::mem::take(&mut index.associated_item_macros))
             .collect();
+        let mut generated_by_identity = BTreeMap::new();
+        let mut generated_by_parent: BTreeMap<String, Vec<usize>> = BTreeMap::new();
+        for (index, item) in generated.iter().enumerate() {
+            generated_by_identity.insert(item.identity.clone(), index);
+            if let Some(parent) = generated_parent(&item.identity) {
+                generated_by_parent
+                    .entry(parent.to_owned())
+                    .or_default()
+                    .push(index);
+            }
+        }
         Ok(Self {
             crates: indices,
             generated,
+            generated_by_identity,
+            generated_by_parent,
             include_providers: BTreeMap::new(),
             item_macro_providers: BTreeMap::new(),
             associated_item_macro_providers: BTreeMap::new(),
@@ -1356,9 +1383,10 @@ impl SurfaceGraph {
         for (name, identity) in &module.declarations {
             self.expose_declaration(identity, &format!("{public_path}::{name}"), found)?;
         }
-        for generated in self.generated.iter().filter(|generated| {
-            !generated.excluded && generated_parent(&generated.identity) == Some(module_id)
-        }) {
+        for generated in self
+            .generated_children_of(module_id)
+            .filter(|generated| !generated.excluded)
+        {
             let name = generated
                 .identity
                 .rsplit("::")
@@ -1449,6 +1477,27 @@ impl SurfaceGraph {
     fn module(&self, identity: &str) -> Option<&Module> {
         let crate_name = identity.split("::").next()?;
         self.crates.get(crate_name)?.modules.get(identity)
+    }
+
+    /// The [`GeneratedApi`] whose identity is exactly `identity`, if any --
+    /// an O(log n) indexed lookup via [`Self::generated_by_identity`]
+    /// instead of a linear scan (issue #349).
+    fn generated_item(&self, identity: &str) -> Option<&GeneratedApi> {
+        self.generated_by_identity
+            .get(identity)
+            .map(|&index| &self.generated[index])
+    }
+
+    /// Every [`GeneratedApi`] whose parent identity (see [`generated_parent`])
+    /// is exactly `parent`, in `self.generated`'s original order -- an
+    /// O(log n + k) indexed lookup (k = matches) via
+    /// [`Self::generated_by_parent`] instead of a linear scan (issue #349).
+    fn generated_children_of(&self, parent: &str) -> impl Iterator<Item = &GeneratedApi> {
+        self.generated_by_parent
+            .get(parent)
+            .into_iter()
+            .flatten()
+            .map(|&index| &self.generated[index])
     }
 
     /// Audit every lexical module that participates in defining an exposed
@@ -1615,9 +1664,10 @@ impl SurfaceGraph {
                     )?;
                 }
             }
-            for generated in self.generated.iter().filter(|generated| {
-                !generated.excluded && generated_parent(&generated.identity) == Some(&resolved)
-            }) {
+            for generated in self
+                .generated_children_of(&resolved)
+                .filter(|generated| !generated.excluded)
+            {
                 let name = generated
                     .identity
                     .rsplit("::")
@@ -1649,10 +1699,9 @@ impl SurfaceGraph {
                 let target_identity = self.resolve_alias_target(&resolved, target)?;
                 self.expose_alias_members(&target_identity, path, found)?;
             }
-            for generated in self
-                .generated
-                .iter()
-                .filter(|generated| generated.identity == resolved && !generated.excluded)
+            if let Some(generated) = self
+                .generated_item(&resolved)
+                .filter(|generated| !generated.excluded)
             {
                 insert_path(
                     found,
@@ -1666,24 +1715,25 @@ impl SurfaceGraph {
             return Ok(true);
         }
         let mut exposed = false;
-        for generated in &self.generated {
-            if generated.identity == resolved && !generated.excluded {
-                if let Some((owner, _)) = resolved.rsplit_once("::") {
-                    self.require_module_chain_audited(owner)?;
-                }
-                let origin = ReachableOrigin::Generator(generated.provider.clone());
-                exposed = true;
-                insert_path(found, &resolved, generated.kind, origin.clone(), path, None)?;
-                for (name, kind) in &generated.members {
-                    insert_path(
-                        found,
-                        &format!("{resolved}::{name}"),
-                        *kind,
-                        origin.clone(),
-                        &format!("{path}::{name}"),
-                        None,
-                    )?;
-                }
+        if let Some(generated) = self
+            .generated_item(&resolved)
+            .filter(|generated| !generated.excluded)
+        {
+            if let Some((owner, _)) = resolved.rsplit_once("::") {
+                self.require_module_chain_audited(owner)?;
+            }
+            let origin = ReachableOrigin::Generator(generated.provider.clone());
+            exposed = true;
+            insert_path(found, &resolved, generated.kind, origin.clone(), path, None)?;
+            for (name, kind) in &generated.members {
+                insert_path(
+                    found,
+                    &format!("{resolved}::{name}"),
+                    *kind,
+                    origin.clone(),
+                    &format!("{path}::{name}"),
+                    None,
+                )?;
             }
         }
         Ok(exposed)
@@ -1938,10 +1988,7 @@ impl SurfaceGraph {
     fn resolve_export(&self, identity: &str, seen: &mut BTreeSet<String>) -> Option<String> {
         if self.module(identity).is_some()
             || self.declaration(identity).is_some()
-            || self
-                .generated
-                .iter()
-                .any(|generated| generated.identity == identity)
+            || self.generated_item(identity).is_some()
         {
             return Some(identity.to_owned());
         }

@@ -30,3 +30,19 @@ repository = "https://github.com/ThatOneToast/sand"
 homepage = "https://github.com/ThatOneToast/sand"
 authors = ["Toast <ThatOneToast@proton.me>"]
 rust-version = "1.96.0"
+
+# Issue #349: sand/build.rs links sand-api-enforce, whose facade
+# reachability walk (SurfaceGraph::reachable_from) was measured taking
+# ~12s per configuration (~24s total) on every `cargo build`, including
+# ordinary incremental source edits. The root cause was not an algorithmic
+# bottleneck in that walk -- it was that Cargo compiles build scripts and
+# their build-dependencies at opt-level=0 by default, even for a plain
+# `cargo build` (`--release` doesn't reach build-script inputs either,
+# without an explicit override like this one). Compiling just the
+# build-script/build-dependency graph with optimizations -- not the rest
+# of the dev profile, so ordinary crate compiles stay fast to iterate on
+# -- cut sand/build.rs's own wall-clock cost from ~34-35s to ~5.2s, and
+# the full "edit sand-core, rebuild" cycle from ~38.9s to ~7.4s. See
+# BENCHMARKS.md's "#349 resolved" section for the full measurement.
+[profile.dev.build-override]
+opt-level = 2

@@ -5,6 +5,7 @@
 //! contact a remote service: the CLI reports the contracts linked into this
 //! exact Sand installation.
 
+use std::cell::RefCell;
 use std::collections::{BTreeMap, BTreeSet};
 use std::fmt::Write as _;
 use std::path::PathBuf;
@@ -186,9 +187,9 @@ fn installed_catalog() -> Result<ApiCatalog> {
     for entry in &mut entries {
         let family_contract = sand::__private::api_contract::INSTALLED_FAMILY_API_PATHS
             .contains(&entry.canonical_path.as_str());
-        if let Some(paths) = sand::__private::api_contract::INSTALLED_API_IDENTITIES
-            .iter()
-            .find(|paths| paths.contains(&entry.canonical_path.as_str()))
+        if let Some(paths) = installed_api_identities_by_path()
+            .get(entry.canonical_path.as_str())
+            .copied()
         {
             entry.aliases = paths
                 .iter()
@@ -210,9 +211,9 @@ fn installed_catalog() -> Result<ApiCatalog> {
             documentation,
             has_receiver,
             ..,
-        )) = sand::__private::api_contract::INSTALLED_API_SHAPES
-            .iter()
-            .find(|(_, paths, ..)| paths.contains(&entry.canonical_path.as_str()))
+        )) = installed_api_shapes_by_path()
+            .get(entry.canonical_path.as_str())
+            .copied()
         {
             entry.signature = normalize_shape_paths(signature, Some(identity));
             let source_summary = rustdoc_summary(documentation)
@@ -342,9 +343,9 @@ fn installed_catalog() -> Result<ApiCatalog> {
     let entry_shapes = entries
         .iter()
         .map(|entry| {
-            let installed = sand::__private::api_contract::INSTALLED_API_SHAPES
-                .iter()
-                .find(|(_, paths, ..)| paths.contains(&entry.canonical_path.as_str()));
+            let installed = installed_api_shapes_by_path()
+                .get(entry.canonical_path.as_str())
+                .copied();
             (
                 entry.canonical_path.clone(),
                 (
@@ -394,9 +395,8 @@ fn installed_catalog() -> Result<ApiCatalog> {
         ) && (entry.example.trim().is_empty()
             || !example_exercises_member(&entry.example, &entry.canonical_path))
         {
-            let has_receiver = sand::__private::api_contract::INSTALLED_API_SHAPES
-                .iter()
-                .find(|(_, paths, ..)| paths.contains(&entry.canonical_path.as_str()))
+            let has_receiver = installed_api_shapes_by_path()
+                .get(entry.canonical_path.as_str())
                 .is_some_and(|(_, _, _, _, _, _, has_receiver, ..)| *has_receiver);
             entry.example = semantic_callable_example(entry, has_receiver, &entry_shapes);
         }
@@ -1352,17 +1352,32 @@ fn rustdoc_example(documentation: &str) -> Option<String> {
 }
 
 fn installed_source_identity(canonical_path: &str) -> Option<&'static str> {
-    sand::__private::api_contract::INSTALLED_API_SHAPES
-        .iter()
-        .find(|(_, paths, ..)| paths.contains(&canonical_path))
+    installed_api_shapes_by_path()
+        .get(canonical_path)
         .map(|(identity, ..)| *identity)
         .or_else(|| {
-            installed_path_mappings()
-                .iter()
-                .find_map(|(identity, canonical)| {
-                    (*canonical == canonical_path).then_some(*identity)
-                })
+            installed_identity_by_canonical_path()
+                .get(canonical_path)
+                .copied()
         })
+}
+
+/// Reverse of `installed_path_mappings` (canonical path -> source identity).
+/// `installed_source_identity`'s fallback used to scan every mapping by
+/// value on every call; this index makes it an O(1) lookup instead.
+fn installed_identity_by_canonical_path() -> &'static BTreeMap<&'static str, &'static str> {
+    static INDEX: OnceLock<BTreeMap<&'static str, &'static str>> = OnceLock::new();
+    INDEX.get_or_init(|| {
+        // `installed_path_mappings` iterates in identity-ascending order, and
+        // the scan this replaces (`.find_map` over that same order) kept the
+        // first identity for a given canonical path. Preserve that: only
+        // insert a canonical path the first time it's seen.
+        let mut index = BTreeMap::new();
+        for (identity, canonical) in installed_path_mappings() {
+            index.entry(*canonical).or_insert(*identity);
+        }
+        index
+    })
 }
 
 fn installed_path_mappings() -> &'static BTreeMap<&'static str, &'static str> {
@@ -1413,6 +1428,43 @@ fn installed_implementation_crates() -> &'static BTreeSet<&'static str> {
             .filter_map(|path| path.split("::").next())
             .filter(|root| *root != "sand")
             .collect()
+    })
+}
+
+/// Every canonical/alias path in `INSTALLED_API_SHAPES`, indexed to its
+/// owning shape. `INSTALLED_API_SHAPES` and the installed entry list are
+/// both on the order of ten thousand items; building this index once and
+/// reusing it turns what was a linear `paths.contains(...)` scan per
+/// catalog entry (effectively quadratic over the whole catalog) into a
+/// single lookup per entry.
+fn installed_api_shapes_by_path()
+-> &'static BTreeMap<&'static str, &'static sand::__private::api_contract::InstalledApiShape> {
+    static INDEX: OnceLock<
+        BTreeMap<&'static str, &'static sand::__private::api_contract::InstalledApiShape>,
+    > = OnceLock::new();
+    INDEX.get_or_init(|| {
+        let mut index = BTreeMap::new();
+        for shape in sand::__private::api_contract::INSTALLED_API_SHAPES {
+            for path in shape.1 {
+                index.insert(*path, shape);
+            }
+        }
+        index
+    })
+}
+
+/// Every path in `INSTALLED_API_IDENTITIES`, indexed to its owning group.
+/// See `installed_api_shapes_by_path` for why this index exists.
+fn installed_api_identities_by_path() -> &'static BTreeMap<&'static str, &'static [&'static str]> {
+    static INDEX: OnceLock<BTreeMap<&'static str, &'static [&'static str]>> = OnceLock::new();
+    INDEX.get_or_init(|| {
+        let mut index = BTreeMap::new();
+        for paths in sand::__private::api_contract::INSTALLED_API_IDENTITIES {
+            for path in *paths {
+                index.insert(*path, *paths);
+            }
+        }
+        index
     })
 }
 
@@ -1748,7 +1800,32 @@ fn is_meaningful_public_path(path: &str, public_paths: &BTreeSet<&str>) -> bool 
             .any(|candidate| candidate.starts_with(&format!("{path}::")))
 }
 
+/// Memoized wrapper around `resolve_qualified_path_uncached`. That function
+/// is pure but its fallback branch scans the full installed path-mapping
+/// table (on the order of ten thousand entries) by prefix when the fast
+/// direct/suffix lookups miss; the same handful of common types (`String`,
+/// `bool`, core entity/command types, ...) recur across nearly every
+/// catalog entry's signature and doc text, so caching by exact input
+/// eliminates the great majority of that scanning across one process's
+/// catalog construction.
 fn resolve_qualified_path(path: &str, source_identity: Option<&str>) -> Option<&'static str> {
+    type Cache = RefCell<BTreeMap<(String, Option<String>), Option<&'static str>>>;
+    thread_local! {
+        static CACHE: Cache = const { RefCell::new(BTreeMap::new()) };
+    }
+    let key = (path.to_owned(), source_identity.map(str::to_owned));
+    if let Some(cached) = CACHE.with(|cache| cache.borrow().get(&key).copied()) {
+        return cached;
+    }
+    let result = resolve_qualified_path_uncached(path, source_identity);
+    CACHE.with(|cache| cache.borrow_mut().insert(key, result));
+    result
+}
+
+fn resolve_qualified_path_uncached(
+    path: &str,
+    source_identity: Option<&str>,
+) -> Option<&'static str> {
     if let Some(canonical) = installed_path_mappings().get(path) {
         return Some(*canonical);
     }
@@ -1921,11 +1998,11 @@ fn show(catalog: &ApiCatalog, requested_path: &str) -> Result<String> {
     Ok(format!(
         "{}{}",
         coverage_notice(catalog),
-        render_entry(entry)
+        render_entry(catalog, entry)
     ))
 }
 
-fn render_entry(entry: &ApiEntry) -> String {
+fn render_entry(catalog: &ApiCatalog, entry: &ApiEntry) -> String {
     let mut output = String::new();
     writeln!(output, "{}", entry.canonical_path).unwrap();
     writeln!(output, "{}", entry.signature).unwrap();
@@ -1980,12 +2057,62 @@ fn render_entry(entry: &ApiEntry) -> String {
     if !entry.aliases.is_empty() {
         list_section(&mut output, "Aliases", &entry.aliases);
     }
+    let related = related_apis(catalog, entry);
+    if !related.is_empty() {
+        list_section(&mut output, "Related APIs", &related);
+    }
     section(
         &mut output,
         "API Contract",
         &format!("sand api show {}", entry.canonical_path),
     );
     output
+}
+
+/// Deterministically derived "See also" list: other members of the same
+/// owning type, then other entries in the same canonical module, in
+/// canonical-path order. Kept short (5 entries) and computed only from
+/// already-loaded catalog data -- no extra ranking pass, no heuristics
+/// beyond exact structural relationships.
+fn related_apis(catalog: &ApiCatalog, entry: &ApiEntry) -> Vec<String> {
+    const LIMIT: usize = 5;
+    let owner = entry
+        .canonical_path
+        .rsplit_once("::")
+        .map(|(owner, _)| owner);
+    let mut same_owner = catalog
+        .entries
+        .iter()
+        .filter(|candidate| {
+            candidate.canonical_path != entry.canonical_path
+                && owner.is_some_and(|owner| {
+                    candidate
+                        .canonical_path
+                        .rsplit_once("::")
+                        .is_some_and(|(candidate_owner, _)| candidate_owner == owner)
+                })
+        })
+        .map(|candidate| candidate.canonical_path.clone())
+        .collect::<Vec<_>>();
+    same_owner.sort();
+    same_owner.truncate(LIMIT);
+    if same_owner.len() >= LIMIT {
+        return same_owner;
+    }
+
+    let mut same_module = catalog
+        .entries
+        .iter()
+        .filter(|candidate| {
+            candidate.canonical_path != entry.canonical_path
+                && candidate.canonical_module == entry.canonical_module
+                && !same_owner.contains(&candidate.canonical_path)
+        })
+        .map(|candidate| candidate.canonical_path.clone())
+        .collect::<Vec<_>>();
+    same_module.sort();
+    same_owner.extend(same_module.into_iter().take(LIMIT - same_owner.len()));
+    same_owner
 }
 
 fn section(output: &mut String, heading: &str, value: &str) {
@@ -2047,7 +2174,7 @@ fn search_with_options(
     )
     .unwrap();
     for entry in hits.into_iter().take(shown) {
-        writeln!(
+        write!(
             output,
             "  {}  [{}]\n    {}",
             entry.canonical_path,
@@ -2055,8 +2182,89 @@ fn search_with_options(
             entry.summary
         )
         .unwrap();
+        if let Some(reason) = match_reason(entry, query) {
+            write!(output, "\n    matched: {reason}").unwrap();
+        }
+        writeln!(output, "\n    sand api show {}", entry.canonical_path).unwrap();
     }
     Ok(output)
+}
+
+/// Best-effort, presentation-only explanation of why an entry matched a
+/// search query: the first field (in the same priority order the ranking
+/// itself uses) containing one of the query's non-trivial words, plus a
+/// short snippet of that field. This never affects ranking -- it only helps
+/// a developer see why a result showed up, per the "matched: field /
+/// snippet" guidance for search output.
+fn match_reason(entry: &ApiEntry, query: &str) -> Option<String> {
+    let words = query
+        .split_whitespace()
+        .map(|word| {
+            word.trim_matches(|c: char| !c.is_ascii_alphanumeric())
+                .to_ascii_lowercase()
+        })
+        .filter(|word| word.len() > 2)
+        .collect::<Vec<_>>();
+    if words.is_empty() {
+        return None;
+    }
+    let path_lower = entry.canonical_path.to_ascii_lowercase();
+    if let Some(word) = words.iter().find(|word| path_lower.contains(word.as_str())) {
+        return Some(format!("path / \"{word}\""));
+    }
+    if let Some(alias) = entry.aliases.iter().find(|alias| {
+        words
+            .iter()
+            .any(|word| alias.to_ascii_lowercase().contains(word.as_str()))
+    }) {
+        return Some(format!("alias / \"{alias}\""));
+    }
+    let fields: &[(&str, &str)] = &[
+        ("summary", &entry.summary),
+        ("use-when", &entry.use_when.join("; ")),
+        ("avoid-when", &entry.avoid_when.join("; ")),
+        ("context", &entry.context),
+        ("minecraft behavior", &entry.minecraft),
+    ];
+    for (label, text) in fields {
+        let lower = text.to_ascii_lowercase();
+        if let Some(word) = words.iter().find(|word| lower.contains(word.as_str())) {
+            let snippet = snippet_around(text, &lower, word);
+            return Some(format!("{label} / \"{snippet}\""));
+        }
+    }
+    None
+}
+
+/// Returns a short (<=80 char), whole-word-boundary-respecting excerpt of
+/// `text` centered on the first occurrence of `word` (case-insensitively,
+/// via the precomputed `lower` form of `text`).
+fn snippet_around(text: &str, lower: &str, word: &str) -> String {
+    const RADIUS: usize = 30;
+    let Some(start) = lower.find(word) else {
+        return text.chars().take(60).collect();
+    };
+    let before = &text[..start];
+    let after = &text[start..];
+    let take_before = before.chars().rev().take(RADIUS).collect::<Vec<_>>();
+    let prefix = if take_before.len() < before.chars().count() {
+        "..."
+    } else {
+        ""
+    };
+    let before_str = take_before.into_iter().rev().collect::<String>();
+    let after_str = after
+        .chars()
+        .take(RADIUS + word.chars().count())
+        .collect::<String>();
+    let suffix = if after.chars().count() > after_str.chars().count() {
+        "..."
+    } else {
+        ""
+    };
+    format!("{prefix}{before_str}{after_str}{suffix}")
+        .trim()
+        .to_owned()
 }
 
 fn parse_kind(value: &str) -> Result<ApiKind> {

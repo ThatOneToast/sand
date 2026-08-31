@@ -7,6 +7,74 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added — typed build-time world/server configuration, `sand.build.rs` (#317)
+
+- Added `sand::build` — a new façade module (implementation in
+  `sand_core::build`, per
+  `docs/architecture/adr-002-typed-build-config.md`) for typed, build-time
+  world and local dev-server configuration:
+  - **Build context** — `SandBuild` (top-level return value of a
+    `sand.build.rs` script), `BuildContext` (resolved profile + target
+    Minecraft version), `BuildProfile` (`Dev`/`Test`/`Bench`/`Release`/
+    `Custom(name)`, selected via `sand build --profile`/`sand run
+    --profile`, defaulting to `dev`).
+  - **World** (🌍 datapack) — `World` (seed, spawn, border, gamerules,
+    time, weather, dimensions), `Dimensions`/`Dimension`/`DimensionSlot`/
+    `DimensionType`, and `Generator` with `FlatGenerator`/`FlatLayer`
+    (superflat), `Generator::Void`, `NoiseGenerator`/`NoiseSettingsRef`/
+    `VanillaNoiseSettings`/`BiomeSource` (vanilla or custom noise
+    generation, single-biome override), and `Generator::CustomReference`
+    for hand-authored generator resources. `WorldBorder`, `Spawn`/
+    `SpawnPlatform`, `TimeConfig`, `WeatherConfig`. Everything here lowers
+    into `data/<namespace>/dimension/*.json` plus a generated
+    `__sand_world_init` function merged into vanilla's `minecraft:load`
+    tag (not overwriting anything an ordinary `#[function(Load)]` hook
+    already contributed).
+  - **Server (host-only)** — a structurally separate `ServerConfig` type
+    (`view_distance`, `simulation_distance`, `difficulty`, `online_mode`,
+    `world_reset_policy`/`WorldResetPolicy`) — never written into the
+    exported datapack; consumed only by `sand run`, which applies it to
+    `server.properties` on first launch and to local world-reset behavior.
+    `WorldPreset` (superflat/large-biomes/amplified/… world-creation
+    preset) is likewise host-only despite living on `World` — see the
+    book's new "World vs. Server" chapter for why.
+  - `SandBuild::validate()` — structural validation (world border range,
+    duplicate dimension slots, flat generator layer sanity) reporting every
+    failure at once with a pointed builder-call location, run automatically
+    before anything is written to disk.
+- `sand-cli`:
+  - New `sand add worldbuild` subcommand scaffolds a starter
+    `sand.build.rs` and wires it in as an ordinary
+    `[[bin]] name = "sand_build_world"` Cargo target (mirroring
+    `sand add resourcepack`'s `sand_resource_export` pattern).
+  - `sand build`/`sand run` gained `--profile <name>` (default `dev`;
+    `--release` without an explicit `--profile` defaults to `release`).
+    When a project has a `sand.build.rs`, it's compiled and run
+    automatically as part of `sand build`, its resources merged into
+    `dist/`, and any `ServerConfig` written to
+    `dist/.sand-server-config.json` (sibling of `dist/<namespace>/`, never
+    part of the datapack) for `sand run` to apply.
+  - New `sand migrate` subcommand. **Honest scope note:** `sand.toml` has
+    no world/server fields to migrate away from — Sand never had built-in
+    `sand.toml` world/server configuration before this issue, so nothing
+    is deprecated and no deprecation warning is printed. `sand migrate`
+    says so explicitly and then scaffolds a starter `sand.build.rs` (same
+    output as `sand add worldbuild`) for projects that want to adopt the
+    typed API.
+- Docs: twelve new mdBook chapters (`book/src/23-*.md` through
+  `book/src/34-*.md`) covering the World-vs-Server split, build scripts,
+  profiles, worlds/dimensions/generators, flat/void worlds, custom
+  dimensions, server configuration, testing/benchmark worlds, generated
+  resources (with validation diagnostics), best practices, and the
+  `sand.toml` migration story; `examples/book_project/sand.build.rs`
+  demonstrates the full API with genuinely different dev vs. release
+  worlds and server configs.
+- **Known scope limits** (tracked as explicit follow-ups, not silently
+  dropped): validation is structural/range-based, not yet a full
+  `sand-vanilla-audit` registry audit of world-build resources; the `bench`
+  profile introduces `WorldResetPolicy` primitives but isn't yet wired into
+  `BENCHMARKS.md`'s existing benchmark harness.
+
 ### Added — typed Villager/Wandering Trader trade authoring (26.1+) (#296)
 
 - Added `sand_components::villager_trade` (re-exported at the `sand_components`,

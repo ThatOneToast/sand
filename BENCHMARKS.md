@@ -1,5 +1,14 @@
 # Sand build-performance benchmarks (issue #347)
 
+> **Note (issue #317):** the typed `sand::build` API added a `BuildProfile::Bench`
+> profile and `WorldResetPolicy` server-integration primitives, intended for
+> reproducible, fixed-seed "benchmark worlds" (see the book's "Testing And
+> Benchmark Worlds" chapter). That profile is **not yet wired into the
+> harness this file documents** — the numbers below are Cargo/exporter
+> compile-and-check timings, not gameplay/world benchmarks, and nothing here
+> currently constructs or reuses a `bench`-profile world. Tracked as a
+> follow-up in `ROADMAP.md`.
+
 This file tracks measured before/after numbers for the build-performance
 overhaul in #347. Numbers are wall-clock seconds from `/usr/bin/time -p`,
 single run, on the machine used for development (Apple Silicon macOS,

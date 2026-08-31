@@ -28,6 +28,21 @@
 - [21. RPG Entities: State, Archetypes, And Derived Stats](21-entity-archetypes.md)
 - [22. Parameterized Functions](22-function-macros.md)
 
+# Typed World & Server Configuration
+
+- [23. What Ships In The Datapack vs. What's Local To Your Dev Server](23-world-vs-server.md)
+- [24. Build Scripts (sand.build.rs)](24-build-scripts.md)
+- [25. Development And Release Profiles](25-development-and-release-profiles.md)
+- [26. Worlds, Dimensions, And Generators](26-worlds-dimensions-and-generators.md)
+- [27. Flat Worlds](27-flat-worlds.md)
+- [28. Void Worlds](28-void-worlds.md)
+- [29. Custom Dimensions](29-custom-dimensions.md)
+- [30. Server Configuration](30-server-configuration.md)
+- [31. Testing And Benchmark Worlds](31-testing-and-benchmark-worlds.md)
+- [32. Generated World Resources](32-generated-world-resources.md)
+- [33. Build Script Best Practices](33-build-script-best-practices.md)
+- [34. Migrating From Sand.toml](34-migrating-from-sand-toml.md)
+
 # Reference
 
 - [Vanilla Limitations](reference/vanilla-limitations.md)

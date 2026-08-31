@@ -2145,9 +2145,7 @@ pub(crate) fn try_export_components_impl(
         },
     )?;
 
-    for ((ids, every, selector, commands), owner) in
-        planned.into_iter().zip(system_owners.into_iter())
-    {
+    for ((ids, every, selector, commands), owner) in planned.into_iter().zip(system_owners) {
         debug_assert_eq!(owner, ids.join("+"));
         let key = system_keys
             .get(&owner)

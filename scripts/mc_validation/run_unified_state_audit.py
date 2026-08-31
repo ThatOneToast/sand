@@ -8,6 +8,7 @@ import json
 import os
 import queue
 import re
+import shlex
 import shutil
 import socket
 import subprocess
@@ -20,6 +21,7 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parents[2]
 PACK_DIR = REPO_ROOT / "examples" / "unified_state"
 RCON_CLIENT = Path(__file__).resolve().parent / "rcon_client.py"
+JOIN_CLIENT = Path(__file__).resolve().parent / "minimal_join_client.py"
 PASSWORD = "sand-unified-state-audit"
 
 
@@ -74,6 +76,7 @@ def main() -> int:
     )
     attach = functions["attach_zombie_components"]
     load = functions["__sand_lifecycle_load"]
+    player_init = functions["__sand_lifecycle_init"]
     system = functions["__sand_system_tick"]
     shared_system_path = re.search(r"run function unified_state:([^\s]+)", system).group(1)
     shared_system = functions[shared_system_path]
@@ -95,6 +98,9 @@ def main() -> int:
         r"unless score (#[^ ]+) (\w+) matches .* players set \1 \2 1", load
     )
     global_holder, global_wave = global_match.groups()
+    player_presence = re.findall(
+        r"scoreboard players set @s (\w+) 1", player_init
+    )[-1]
 
     server_dir = Path(tempfile.mkdtemp(prefix="sand-unified-state-audit-"))
     datapacks = server_dir / "world/datapacks"
@@ -190,6 +196,79 @@ def main() -> int:
             system.count("execute as ") == 1
             and shared_system.count("function unified_state:sand/entity_query/") == 2,
             system + "\n" + shared_system,
+        )
+        clients = []
+        for name in ("StateAuditOne", "StateAuditTwo"):
+            initialize_on_join = shlex.join(
+                [
+                    sys.executable,
+                    str(RCON_CLIENT),
+                    "127.0.0.1",
+                    str(rcon_port),
+                    PASSWORD,
+                    "function unified_state:__sand_lifecycle_tick",
+                ]
+            )
+            clients.append(
+                subprocess.Popen(
+                    [
+                        sys.executable,
+                        str(JOIN_CLIENT),
+                        "127.0.0.1",
+                        str(server_port),
+                        "776",
+                        name,
+                        "8",
+                        initialize_on_join,
+                    ],
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.STDOUT,
+                    text=True,
+                )
+            )
+        client_logs = []
+        for client in clients:
+            try:
+                output, _ = client.communicate(timeout=10)
+            except subprocess.TimeoutExpired:
+                client.kill()
+                output, _ = client.communicate()
+            client_logs.append(output)
+        player_server_logs = []
+        while True:
+            try:
+                player_server_logs.append(logs.get_nowait())
+            except queue.Empty:
+                break
+        joined = [
+            index
+            for index, line in enumerate(player_server_logs)
+            if "StateAudit" in line and " joined the game" in line
+        ]
+        left = [
+            index
+            for index, line in enumerate(player_server_logs)
+            if "StateAudit" in line and " left the game" in line
+        ]
+        simultaneous = len(joined) == 2 and (
+            not left or max(joined) < min(left)
+        )
+        player_scores = command(
+            f"scoreboard players get StateAuditOne {player_presence}",
+            f"scoreboard players get StateAuditTwo {player_presence}",
+        )
+        both_initialized = player_scores.count("has 1 [") == 2
+        check(
+            "two_real_players_join_and_initialize_independently",
+            both_initialized,
+            player_scores
+            + "\nclients entered play: "
+            + str(all("joined_play=True" in output for output in client_logs)),
+        )
+        check(
+            "two_real_players_observed_online_together",
+            simultaneous,
+            "".join(player_server_logs),
         )
         global_initial = command(
             f"scoreboard players get {global_holder} {global_wave}",
@@ -350,7 +429,9 @@ def main() -> int:
             "server_log": server_log.read_text(encoding="utf-8")
             if server_log.exists()
             else "",
-            "multiple_online_players": False,
+            "multiple_online_players": checks.get(
+                "two_real_players_observed_online_together", {}
+            ).get("passed", False),
         }
         if args.evidence:
             args.evidence.parent.mkdir(parents=True, exist_ok=True)

@@ -146,7 +146,8 @@ fn typed_advancement_handler_accessor_resolves_the_exact_tag_its_own_setup_creat
         .find("execute as @e[tag=__sand_observed_")
         .map(|i| i + "execute as @e[tag=".len())
         .expect("the handler's own .attacker() accessor must generate an `execute as` reference");
-    let accessor_tag = &body[accessor_tag_start..accessor_tag_start + "__sand_observed_XXXXXXXX".len()];
+    let accessor_tag =
+        &body[accessor_tag_start..accessor_tag_start + "__sand_observed_XXXXXXXX".len()];
 
     assert_eq!(
         setup_tag, accessor_tag,
@@ -158,7 +159,8 @@ fn typed_advancement_handler_accessor_resolves_the_exact_tag_its_own_setup_creat
         .rfind("tag @e[tag=__sand_observed_")
         .map(|i| i + "tag @e[tag=".len())
         .expect("cleanup must remove the same tag");
-    let cleanup_tag = &body[cleanup_tag_start..cleanup_tag_start + "__sand_observed_XXXXXXXX".len()];
+    let cleanup_tag =
+        &body[cleanup_tag_start..cleanup_tag_start + "__sand_observed_XXXXXXXX".len()];
     assert_eq!(
         setup_tag, cleanup_tag,
         "cleanup must remove the exact same tag setup created: {body}"
@@ -172,17 +174,25 @@ fn typed_advancement_handler_accessor_resolves_the_exact_tag_its_own_setup_creat
 /// function's own content.
 fn branch_targets<'a>(records: &'a [serde_json::Value], handler_body: &str) -> Vec<&'a str> {
     let mut targets = Vec::new();
-    for line in handler_body.lines() {
-        let Some(idx) = line.find("run function paudit:") else {
-            continue;
-        };
-        let path = &line[idx + "run function paudit:".len()..];
-        let content = records
-            .iter()
-            .find(|r| r["dir"] == "function" && r["path"] == path)
-            .and_then(|r| r["content"].as_str())
-            .unwrap_or_else(|| panic!("branch target function {path} must exist"));
-        targets.push(content);
+    let mut pending = vec![handler_body];
+    let mut visited = std::collections::BTreeSet::new();
+    while let Some(body) = pending.pop() {
+        for line in body.lines() {
+            let Some(idx) = line.find("function paudit:") else {
+                continue;
+            };
+            let path = &line[idx + "function paudit:".len()..];
+            if !visited.insert(path) {
+                continue;
+            }
+            let content = records
+                .iter()
+                .find(|r| r["dir"] == "function" && r["path"] == path)
+                .and_then(|r| r["content"].as_str())
+                .unwrap_or_else(|| panic!("branch target function {path} must exist"));
+            targets.push(content);
+            pending.push(content);
+        }
     }
     targets
 }
@@ -200,7 +210,7 @@ fn weapon_handler_body_captures_mainhand_before_dispatching_to_the_presence_bran
         .find("SelectedItem")
         .expect("mainhand item snapshot capture present");
     let dispatch = body
-        .find("run function paudit:sand/branches/")
+        .find("function paudit:")
         .expect("presence-branch dispatch present");
     assert!(
         capture < dispatch,
@@ -217,13 +227,14 @@ fn weapon_handler_branches_on_snapshot_presence() {
         .and_then(|r| r["content"].as_str())
         .expect("audit_on_hurt_entity/body function must exist");
 
-    assert!(
-        body.contains("execute if data storage sand:__participants")
-            && body.contains("execute unless data storage sand:__participants"),
-        "both present/absent branch dispatches must be generated: {body}"
-    );
-
     let targets = branch_targets(&records, body);
+    let reachable = targets.join("\n");
+    assert!(
+        reachable.contains("execute if data storage sand:__participants")
+            && reachable.contains("__sand_tmp matches 1 run function")
+            && reachable.contains("__sand_tmp matches 0 run function"),
+        "both present/absent branch dispatches must be generated: {reachable}"
+    );
     assert!(
         targets
             .iter()
@@ -291,7 +302,8 @@ fn composed_scenario_child_and_sibling_reference_the_exact_parent_tag() {
         );
     }
     assert!(
-        child.contains("state.compose_child_uuid") && sibling.contains("state.compose_sibling_uuid"),
+        child.contains("state.compose_child_uuid")
+            && sibling.contains("state.compose_sibling_uuid"),
         "each dependent must write its own evidence field: child={child:?} sibling={sibling:?}"
     );
 }
@@ -345,9 +357,9 @@ fn advancement_bridge_applies_parent_participants_around_dependent_dispatch() {
     let revoke = bridge
         .find("advancement revoke")
         .expect("bridge entry must revoke the advancement first");
-    let mark = bridge
-        .find("execute on attacker run")
-        .expect("PlayerKillEvent's own correlated-killer setup must be spliced into the bridge entry");
+    let mark = bridge.find("execute on attacker run").expect(
+        "PlayerKillEvent's own correlated-killer setup must be spliced into the bridge entry",
+    );
     let dispatch = bridge
         .find("function paudit:")
         .expect("bridge entry must dispatch to the dependent chain");

@@ -402,21 +402,22 @@ fn emit_entity(
     output: &mut AutomaticLifecycle,
 ) {
     let presence = objective_name(component.presence_objective);
+    let mut body = Vec::new();
     for field in component.fields.iter().filter(|field| field.auto_tick) {
         let objective = objective_name(field.objective);
-        output.entity_tick_commands.push(format!(
-            "execute as @e[scores={{{}={},{}=1..}}] at @s run scoreboard players remove @s {} 1",
-            presence, component.version, objective, objective
+        body.push(format!(
+            "execute if score @s {objective} matches 1.. run scoreboard players remove @s {objective} 1"
         ));
     }
     if let Some(hook) = hook {
-        let presence = objective_name(component.presence_objective);
-        for command in (hook.tick)("@s") {
-            output.entity_tick_commands.push(format!(
-                "execute as @e[scores={{{presence}={}}}] at @s run {command}",
-                component.version
-            ));
-        }
+        body.extend((hook.tick)("@s"));
+    }
+    if !body.is_empty() {
+        let path = crate::function::register_dyn_fn_dedup("sand/state_tick", body);
+        output.entity_tick_commands.push(format!(
+            "execute as @e[scores={{{presence}={}}}] at @s run function __sand_local:{path}",
+            component.version
+        ));
     }
 }
 
@@ -576,7 +577,15 @@ mod tests {
         )])
         .unwrap();
         assert_eq!(output.entity_tick_commands.len(), 1);
-        assert!(output.entity_tick_commands[0].contains("@e[scores={presence=1,timer_obj=1..}]"));
+        assert!(output.entity_tick_commands[0].contains("@e[scores={presence=1}]"));
+        let callbacks = crate::function::drain_dyn_fns();
+        assert_eq!(callbacks.len(), 1);
+        assert_eq!(
+            callbacks[0].1,
+            [
+                "execute if score @s timer_obj matches 1.. run scoreboard players remove @s timer_obj 1"
+            ]
+        );
     }
 
     #[test]

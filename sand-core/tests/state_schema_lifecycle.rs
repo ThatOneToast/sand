@@ -134,6 +134,15 @@ fn function<'a>(records: &'a [serde_json::Value], path: &str) -> &'a str {
         .unwrap_or_else(|| panic!("missing generated function {path}"))
 }
 
+fn all_function_content(records: &[serde_json::Value]) -> String {
+    records
+        .iter()
+        .filter(|record| record["dir"] == "function")
+        .filter_map(|record| record["content"].as_str())
+        .collect::<Vec<_>>()
+        .join("\n")
+}
+
 #[test]
 fn derived_state_lifecycle_is_scoped_deterministic_and_deduplicated() {
     let first = sand_core::try_export_components_json("statepack").unwrap();
@@ -153,7 +162,7 @@ fn derived_state_lifecycle_is_scoped_deterministic_and_deduplicated() {
     assert!(load.contains("dummy \"Player mana\""));
     assert!(load.contains("playerKillCount \"World wave\""));
     assert!(load.contains(
-        "execute unless data storage state_test:state components.global_state.settings run data modify storage state_test:state components.global_state.settings set value 3"
+        "execute unless data storage state_test:state components.\"global_state\".settings run data modify storage state_test:state components.\"global_state\".settings set value 3"
     ));
 
     let init = function(&records, "__sand_lifecycle_init");
@@ -161,8 +170,9 @@ fn derived_state_lifecycle_is_scoped_deterministic_and_deduplicated() {
     assert!(init.lines().all(|line| line.contains("score @s ")));
 
     let tick = function(&records, "__sand_lifecycle_tick");
+    let generated = all_function_content(&records);
     assert!(tick.contains("execute as @a run function statepack:__sand_lifecycle_init"));
-    assert_eq!(tick.matches("scoreboard players remove @s").count(), 2);
+    assert_eq!(generated.matches("scoreboard players remove @s").count(), 2);
     assert!(!tick.contains("execute as @e run"));
     assert!(tick.contains("execute as @e[scores={"));
     for dirty in [
@@ -307,9 +317,11 @@ fn custom_lifecycle_hooks_are_version_gated_and_cleanup_runs_first() {
     assert!(detach[0].contains("say marker cleanup"));
     assert!(detach[0].contains(&format!("if score @s {presence} matches 1..")));
 
-    let tick = function(&records(), "__sand_lifecycle_tick").to_owned();
+    let records = records();
+    let tick = function(&records, "__sand_lifecycle_tick").to_owned();
+    let generated = all_function_content(&records);
     assert!(tick.contains(&format!("@e[scores={{{presence}={version}}}]")));
-    assert!(tick.contains("say marker tick"));
+    assert!(generated.contains("say marker tick"));
 }
 
 #[test]
@@ -336,7 +348,8 @@ fn tick_system_uses_global_cadence_and_query_iteration() {
     assert!(load.contains("scoreboard objectives add "));
     assert!(load.contains("scoreboard players set #sand_system"));
     assert!(tick.contains("scoreboard players add #sand_system"));
-    assert!(tick.contains("matches 20.. run function statepack:__sand_system/"));
+    assert!(tick.contains("matches 20.. run execute as @e[scores={"));
+    assert!(tick.contains(" at @s run function statepack:__sand_system/"));
     let system = records
         .iter()
         .find(|record| {
@@ -347,8 +360,7 @@ fn tick_system_uses_global_cadence_and_query_iteration() {
         })
         .and_then(|record| record["content"].as_str())
         .expect("system body should be exported");
-    assert!(system.contains("execute as @e[scores={"));
-    assert!(system.contains(" at @s run function statepack:sand/entity_query/"));
+    assert!(system.contains("function statepack:sand/entity_query/"));
 }
 
 #[test]
@@ -433,14 +445,16 @@ fn bound_views_emit_complete_scope_aware_command_vectors() {
     assert_ne!(PlayerState::mana.objective(), GlobalState::wave.objective());
     assert_eq!(
         global.settings.set(4),
-        vec!["data modify storage state_test:state components.global_state.settings set value 4"]
+        vec![
+            "data modify storage state_test:state components.\"global_state\".settings set value 4"
+        ]
     );
     assert_eq!(
         global.settings.get(),
-        "data get storage state_test:state components.global_state.settings"
+        "data get storage state_test:state components.\"global_state\".settings"
     );
     assert!(GlobalState::detach().iter().any(|command| {
-        command == "data remove storage state_test:state components.global_state.settings"
+        command == "data remove storage state_test:state components.\"global_state\".settings"
     }));
 }
 

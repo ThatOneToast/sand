@@ -17,6 +17,11 @@ name = "sand_export"
 path = "src/bin/sand_export.rs"
 doc = false
 
+[[bin]]
+name = "sand_build_world"
+path = "sand.build.rs"
+doc = false
+
 [dependencies]
 sand = { path = "../../sand", features = ["systems-damage"] }
 

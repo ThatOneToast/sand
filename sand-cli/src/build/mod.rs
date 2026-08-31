@@ -319,7 +319,7 @@ fn run_worldbuild(project_root: &Path, dist: &Path, mc_version: &str, profile: &
     worldbuild::compile(project_root)?;
     let target_dir = cargo_target_dir()?;
     let binary = worldbuild::binary_path(&target_dir);
-    let (resources, server_config) = worldbuild::run(&binary, profile, mc_version)?;
+    let (resources, server_config, seed) = worldbuild::run(&binary, profile, mc_version)?;
 
     let mut written = 0usize;
     for resource in &resources {
@@ -352,33 +352,35 @@ fn run_worldbuild(project_root: &Path, dist: &Path, mc_version: &str, profile: &
         written += 1;
     }
 
-    // ServerConfig lives outside dist/<namespace>/ — it is never part of the
-    // datapack. `sand run` reads it directly; a stale file from a previous
-    // build (when this build's profile configured no ServerConfig) is
-    // removed so `sand run` doesn't apply settings from an old profile.
+    // ServerConfig (and any fixed Seed — 🖥️ server-bootstrap-only despite
+    // living on World, see World::seed's docs) lives outside
+    // dist/<namespace>/ — never part of the datapack. `sand run` reads it
+    // directly; a stale file from a previous build (when this build's
+    // profile configured neither) is removed so `sand run` doesn't apply
+    // settings from an old profile.
     let server_config_path = dist
         .parent()
         .expect("dist/<namespace> always has a parent")
         .join(SERVER_CONFIG_FILE_NAME);
-    match server_config {
-        Some(server) => {
-            let json = serde_json::json!({
-                "view_distance": server.view_distance,
-                "simulation_distance": server.simulation_distance,
-                "difficulty": server.difficulty.as_str(),
-                "online_mode": server.online_mode,
-                "world_reset_policy_always_reset": server.world_reset_policy,
-            });
-            std::fs::write(&server_config_path, serde_json::to_string_pretty(&json)?)
-                .with_context(|| format!("failed to write '{}'", server_config_path.display()))?;
-        }
-        None => {
-            if server_config_path.exists() {
-                std::fs::remove_file(&server_config_path).with_context(|| {
-                    format!("failed to remove stale '{}'", server_config_path.display())
-                })?;
-            }
-        }
+    if server_config.is_some() || seed.is_some() {
+        let mut json = server_config
+            .map(|server| {
+                serde_json::json!({
+                    "view_distance": server.view_distance,
+                    "simulation_distance": server.simulation_distance,
+                    "difficulty": server.difficulty.as_str(),
+                    "online_mode": server.online_mode,
+                    "world_reset_policy_always_reset": server.world_reset_policy,
+                })
+            })
+            .unwrap_or_else(|| serde_json::json!({}));
+        json["seed"] = serde_json::json!(seed);
+        std::fs::write(&server_config_path, serde_json::to_string_pretty(&json)?)
+            .with_context(|| format!("failed to write '{}'", server_config_path.display()))?;
+    } else if server_config_path.exists() {
+        std::fs::remove_file(&server_config_path).with_context(|| {
+            format!("failed to remove stale '{}'", server_config_path.display())
+        })?;
     }
 
     println!(

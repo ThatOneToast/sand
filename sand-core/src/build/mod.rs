@@ -89,6 +89,14 @@ where
 
     let resources = resources::lower(namespace, &built);
     let server = built.server_ref().cloned();
+    // 🖥️ Server (host) only, despite living on World — see `Seed`'s docs.
+    // `sand run` applies a fixed seed as server.properties' `level-seed`
+    // when creating a fresh local world; a datapack has no way to set an
+    // existing world's seed.
+    let seed = built.world_ref().and_then(|w| w.seed_ref()).and_then(|s| match s {
+        world::Seed::Fixed(value) => Some(*value),
+        world::Seed::Random => None,
+    });
     let output = serde_json::json!({
         "resources": resources,
         "server_config": server.map(|s| serde_json::json!({
@@ -98,6 +106,7 @@ where
             "online_mode": s.get_online_mode(),
             "world_reset_policy": matches!(s.get_world_reset_policy(), WorldResetPolicy::AlwaysReset),
         })),
+        "seed": seed,
     });
     println!("{}", serde_json::to_string(&output).expect("serializable"));
     std::process::exit(0);

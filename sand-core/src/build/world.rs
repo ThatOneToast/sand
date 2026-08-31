@@ -642,6 +642,23 @@ impl World {
     pub fn dimensions_ref(&self) -> &Dimensions {
         &self.dimensions
     }
+
+    /// 🖥️ Server (host) only — see the module docs on [`Seed`].
+    #[api(
+        registry = sand_api_contract,
+        path = "sand::build::World::seed_ref",
+        module = "sand::build",
+        summary = "Returns the configured seed, if any.",
+        context = "Read by sand run's local world-creation bootstrap (server.properties level-seed); a datapack cannot itself set a world's seed.",
+        minecraft = "Has no datapack representation; only affects sand run's own local world creation.",
+        use_when = ["Inspecting whether a World configured a fixed seed"],
+        avoid_when = ["Setting the seed; use World::seed"],
+        returns = "The configured Seed, or None.",
+        example = "assert!(World::new().seed_ref().is_none());"
+    )]
+    pub fn seed_ref(&self) -> Option<&Seed> {
+        self.seed.as_ref()
+    }
 }
 
 #[cfg(test)]

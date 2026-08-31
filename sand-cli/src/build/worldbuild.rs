@@ -73,6 +73,12 @@ impl DifficultyRecord {
 struct WorldBuildOutput {
     resources: Vec<WorldResourceRecord>,
     server_config: Option<ServerConfigRecord>,
+    /// 🖥️ Server (host) only, despite coming from `World::seed` — a fixed
+    /// seed only takes effect at world creation, which `sand run`'s local
+    /// bootstrap applies via `server.properties`' `level-seed`. `None` for
+    /// an unset or `Seed::Random` world.
+    #[serde(default)]
+    seed: Option<i64>,
 }
 
 /// Whether this project has a `sand.build.rs` wired in as the
@@ -104,7 +110,7 @@ pub(super) fn run(
     binary: &Path,
     profile: &str,
     mc_version: &str,
-) -> Result<(Vec<WorldResourceRecord>, Option<ServerConfigRecord>)> {
+) -> Result<(Vec<WorldResourceRecord>, Option<ServerConfigRecord>, Option<i64>)> {
     let output = std::process::Command::new(binary)
         .env("SAND_BUILD_PROFILE", profile)
         .env("SAND_EXPORT_MC_VERSION", mc_version)
@@ -118,7 +124,7 @@ pub(super) fn run(
     }
     let parsed: WorldBuildOutput = serde_json::from_slice(&output.stdout)
         .context("failed to parse sand_build_world JSON output")?;
-    Ok((parsed.resources, parsed.server_config))
+    Ok((parsed.resources, parsed.server_config, parsed.seed))
 }
 
 /// Resolves the compiled binary's path under Cargo's target directory.
@@ -165,7 +171,8 @@ mod tests {
                 "difficulty": "hard",
                 "online_mode": false,
                 "world_reset_policy": true,
-            }
+            },
+            "seed": 1337,
         });
         let parsed: WorldBuildOutput = serde_json::from_value(json).unwrap();
         assert_eq!(parsed.resources.len(), 1);
@@ -174,13 +181,25 @@ mod tests {
         assert!(!server.online_mode);
         assert!(server.world_reset_policy);
         assert_eq!(server.difficulty.as_str(), "hard");
+        assert_eq!(parsed.seed, Some(1337));
     }
 
     #[test]
-    fn parses_world_build_output_without_server_config() {
-        let json = serde_json::json!({ "resources": [], "server_config": null });
+    fn parses_world_build_output_without_server_config_or_seed() {
+        let json = serde_json::json!({ "resources": [], "server_config": null, "seed": null });
         let parsed: WorldBuildOutput = serde_json::from_value(json).unwrap();
         assert!(parsed.resources.is_empty());
         assert!(parsed.server_config.is_none());
+        assert!(parsed.seed.is_none());
+    }
+
+    #[test]
+    fn seed_field_defaults_to_none_when_absent_entirely() {
+        // Older sand_build_world binaries (before this field existed) won't
+        // emit "seed" at all; #[serde(default)] keeps sand-cli forward
+        // compatible with them rather than failing to parse.
+        let json = serde_json::json!({ "resources": [], "server_config": null });
+        let parsed: WorldBuildOutput = serde_json::from_value(json).unwrap();
+        assert!(parsed.seed.is_none());
     }
 }

@@ -220,6 +220,7 @@ pub struct StateDataFieldDescriptor {
     pub storage: &'static str,
     pub path: &'static str,
     pub default_snbt: &'static str,
+    pub keyed: bool,
 }
 
 impl StateDataFieldDescriptor {
@@ -233,6 +234,21 @@ impl StateDataFieldDescriptor {
             storage,
             path,
             default_snbt,
+            keyed: false,
+        }
+    }
+
+    #[doc(hidden)]
+    pub const fn keyed(
+        storage: &'static str,
+        path: &'static str,
+        default_snbt: &'static str,
+    ) -> Self {
+        Self {
+            storage,
+            path,
+            default_snbt,
+            keyed: true,
         }
     }
 }
@@ -365,10 +381,7 @@ pub fn state_attach_commands<S: EntityState>(
         ));
     }
     for field in S::data_fields() {
-        commands.push(format!(
-            "execute unless data storage {} {} run data modify storage {} {} set value {}",
-            field.storage, field.path, field.storage, field.path, field.default_snbt
-        ));
+        commands.extend(state_data_initialize_commands(*field));
     }
     for command in crate::state::registry::initialize_hook_commands::<S>(holder) {
         commands.push(format!(
@@ -425,10 +438,7 @@ pub fn state_detach_commands<S: EntityState>(
         }
     }
     for field in S::data_fields() {
-        commands.push(format!(
-            "data remove storage {} {}",
-            field.storage, field.path
-        ));
+        commands.extend(state_data_remove_commands(*field));
     }
     commands.push(format!("scoreboard players reset {holder} {presence}"));
     if suppress_observation {
@@ -1103,6 +1113,177 @@ impl<T> Data<T> {
     }
 }
 
+/// A typed command-storage field keyed by the current entity or player's UUID.
+///
+/// The UUID lives in a shared owner record while the value remains under its
+/// component-owned path. Every operation copies the four UUID integers into a
+/// short-lived macro argument compound and then runs a generated helper. This
+/// keeps values stable across unload/reload without writing custom top-level
+/// entity NBT.
+#[doc = "**API Contract:** Run `sand api show sand::entity::KeyedData` for the canonical contract."]
+#[derive(Debug, PartialEq, Eq)]
+pub struct KeyedData<T> {
+    storage: &'static str,
+    path: &'static str,
+    _marker: PhantomData<fn() -> T>,
+}
+
+impl<T> Copy for KeyedData<T> {}
+impl<T> Clone for KeyedData<T> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+
+impl<T> KeyedData<T> {
+    /// Construct a generated UUID-keyed storage handle.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::KeyedData::new` for the canonical contract."]
+    #[must_use]
+    pub const fn new(storage: &'static str, path: &'static str) -> Self {
+        Self {
+            storage,
+            path,
+            _marker: PhantomData,
+        }
+    }
+
+    /// Read the current owner's value through a generated UUID-keyed helper.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::KeyedData::get` for the canonical contract."]
+    #[must_use]
+    pub fn get(self) -> Vec<String> {
+        keyed_data_call(
+            self.storage,
+            format!(
+                "$data get storage {} {}",
+                self.storage,
+                keyed_path(self.path)
+            ),
+        )
+    }
+
+    /// Replace the current owner's component-owned value.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::KeyedData::set` for the canonical contract."]
+    #[must_use]
+    pub fn set(self, value: impl Into<sand_commands::NbtValue>) -> Vec<String> {
+        keyed_data_call(
+            self.storage,
+            format!(
+                "$data modify storage {} {} set value {}",
+                self.storage,
+                keyed_path(self.path),
+                value.into()
+            ),
+        )
+    }
+
+    /// Remove only the current owner's value for this component field.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::KeyedData::remove` for the canonical contract."]
+    #[must_use]
+    pub fn remove(self) -> Vec<String> {
+        keyed_data_call(
+            self.storage,
+            format!(
+                "$data remove storage {} {}",
+                self.storage,
+                keyed_path(self.path)
+            ),
+        )
+    }
+
+    /// Run commands only when the current owner's value actually exists.
+    ///
+    /// This callback is evaluated by Minecraft at runtime. It deliberately is
+    /// not a Rust `Option` or ordinary [`Condition`], because command-storage
+    /// membership depends on the executing entity's UUID.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::KeyedData::if_present` for the canonical contract."]
+    #[must_use]
+    pub fn if_present(self, body: impl FnOnce() -> Vec<String>) -> Vec<String> {
+        let body = body();
+        if body.is_empty() {
+            return Vec::new();
+        }
+        let callback = crate::function::register_dyn_fn_dedup("sand/state_data/body", body);
+        keyed_data_call(
+            self.storage,
+            format!(
+                "$execute if data storage {} {} run function __sand_local:{}",
+                self.storage,
+                keyed_path(self.path),
+                callback
+            ),
+        )
+    }
+}
+
+pub(crate) fn state_data_initialize_commands(field: StateDataFieldDescriptor) -> Vec<String> {
+    if !field.keyed {
+        return vec![format!(
+            "execute unless data storage {} {} run data modify storage {} {} set value {}",
+            field.storage, field.path, field.storage, field.path, field.default_snbt
+        )];
+    }
+    let owner_path = keyed_owner_path();
+    let value_path = keyed_path(field.path);
+    keyed_data_call(
+        field.storage,
+        format!(
+            "$execute unless data storage {0} {owner_path} run data modify storage {0} owners append value {{uuid:{1},components:{{}}}}\n$execute unless data storage {0} {value_path} run data modify storage {0} {value_path} set value {2}",
+            field.storage,
+            keyed_uuid(),
+            field.default_snbt,
+        ),
+    )
+}
+
+fn state_data_remove_commands(field: StateDataFieldDescriptor) -> Vec<String> {
+    if field.keyed {
+        keyed_data_call(
+            field.storage,
+            format!(
+                "$data remove storage {} {}",
+                field.storage,
+                keyed_path(field.path)
+            ),
+        )
+    } else {
+        vec![format!(
+            "data remove storage {} {}",
+            field.storage, field.path
+        )]
+    }
+}
+
+fn keyed_uuid() -> &'static str {
+    "[I;$(u0),$(u1),$(u2),$(u3)]"
+}
+
+fn keyed_owner_path() -> String {
+    format!("owners[{{uuid:{}}}]", keyed_uuid())
+}
+
+fn keyed_path(path: &str) -> String {
+    format!("{}.{}", keyed_owner_path(), path)
+}
+
+fn keyed_data_call(storage: &str, macro_body: String) -> Vec<String> {
+    let path = crate::function::register_dyn_fn_dedup(
+        "sand/state_data/keyed",
+        macro_body.lines().map(str::to_owned).collect(),
+    );
+    let args = "__sand_owner";
+    let mut commands = (0..4)
+        .map(|index| {
+            format!(
+                "data modify storage {storage} {args}.u{index} set from entity @s UUID[{index}]"
+            )
+        })
+        .collect::<Vec<_>>();
+    commands.push(format!(
+        "function __sand_local:{path} with storage {storage} {args}"
+    ));
+    commands
+}
+
 impl<T: EntityEnumValue> Copy for EntityEnum<T> {}
 impl<T: EntityEnumValue> Clone for EntityEnum<T> {
     fn clone(&self) -> Self {
@@ -1622,6 +1803,31 @@ mod tests {
             bound.set(f64::INFINITY)[0],
             format!("scoreboard players set @s {} 20", field.objective())
         );
+    }
+
+    #[test]
+    fn keyed_data_uses_uuid_macro_storage_without_entity_nbt_writes() {
+        let field = KeyedData::<i32>::new("rpg:state", "components.\"stats\".xp");
+        let commands = field.set(7);
+        assert_eq!(commands.len(), 5);
+        for (index, command) in commands[..4].iter().enumerate() {
+            assert_eq!(
+                command,
+                &format!(
+                    "data modify storage rpg:state __sand_owner.u{index} set from entity @s UUID[{index}]"
+                )
+            );
+        }
+        assert!(commands[4].starts_with("function __sand_local:sand/state_data/keyed/"));
+        assert!(commands[4].ends_with(" with storage rpg:state __sand_owner"));
+        assert!(
+            commands
+                .iter()
+                .all(|command| !command.contains("data modify entity"))
+        );
+        let helpers = crate::function::drain_dyn_fns();
+        assert_eq!(helpers.len(), 1);
+        assert!(helpers[0].1[0].contains("owners[{uuid:[I;$(u0),$(u1),$(u2),$(u3)]}]"));
     }
 
     #[test]

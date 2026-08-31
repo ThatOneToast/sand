@@ -74,9 +74,9 @@ def main() -> int:
     )
     attach = functions["attach_zombie_components"]
     load = functions["__sand_lifecycle_load"]
-    system = next(
-        content for path, content in functions.items() if path.startswith("__sand_system/s")
-    )
+    system = functions["__sand_system_tick"]
+    shared_system_path = re.search(r"run function unified_state:([^\s]+)", system).group(1)
+    shared_system = functions[shared_system_path]
 
     armor = re.search(r"scoreboard players add @s (\w+) 1", query).group(1)
     dead_presence = re.search(
@@ -185,6 +185,12 @@ def main() -> int:
 
         loaded = command("datapack list")
         check("datapack_loaded", "file/unified_state" in loaded, loaded)
+        check(
+            "compatible_systems_share_one_ordered_scan",
+            system.count("execute as ") == 1
+            and shared_system.count("function unified_state:sand/entity_query/") == 2,
+            system + "\n" + shared_system,
+        )
         global_initial = command(
             f"scoreboard players get {global_holder} {global_wave}",
             "data get storage rpg:state components.world.settings",
@@ -221,6 +227,42 @@ def main() -> int:
             time.sleep(0.25)
             initial_armor, initial_out = score(armor)
         check("archetype_nested_bundle_attached", initial_armor is not None, initial_out)
+        command(
+            'summon minecraft:zombie 2 200 0 {Tags:["state_audit_b"],NoAI:1b,NoGravity:1b,Invulnerable:1b,PersistenceRequired:1b}'
+        )
+        time.sleep(1.25)
+        uuid_output = command(
+            "data get entity @e[tag=state_audit,limit=1] UUID",
+            "data get entity @e[tag=state_audit_b,limit=1] UUID",
+        )
+        uuids = re.findall(r"\[I;[^]]+\]", uuid_output)
+        if len(uuids) == 2:
+            first_path = f'owners[{{uuid:{uuids[0]}}}].components."status".details'
+            second_path = f'owners[{{uuid:{uuids[1]}}}].components."status".details'
+            command(
+                "execute as @e[tag=state_audit,limit=1] run function unified_state:mark_status_data",
+                "reload",
+            )
+            time.sleep(0.75)
+            keyed_values = command(
+                f"data get storage rpg:state {first_path}",
+                f"data get storage rpg:state {second_path}",
+            )
+            keyed_ok = (
+                'note: "kept"' in keyed_values
+                and "stacks: 3" in keyed_values
+                and 'note: "clean"' in keyed_values
+                and "stacks: 0" in keyed_values
+            )
+        else:
+            first_path = second_path = ""
+            keyed_values = uuid_output
+            keyed_ok = False
+        check(
+            "keyed_typed_data_isolated_and_reload_safe",
+            keyed_ok,
+            keyed_values,
+        )
         command("scoreboard players set @e[tag=state_audit,limit=1] audit_external 41")
         time.sleep(1.25)
         ticked_armor, ticked_out = score(armor)
@@ -266,7 +308,21 @@ def main() -> int:
             attack_after is None and defense_after == 1 and external_after == 41,
             attack_after_out + defense_after_out + external_after_out,
         )
-        command("kill @e[tag=state_audit]")
+        if first_path and second_path:
+            command(
+                "execute as @e[tag=state_audit,limit=1] run function unified_state:detach_status"
+            )
+            detached_data = command(
+                f"data get storage rpg:state {first_path}",
+                f"data get storage rpg:state {second_path}",
+            )
+            check(
+                "keyed_detach_removes_only_one_owner_component_path",
+                'note: "kept"' not in detached_data
+                and 'note: "clean"' in detached_data,
+                detached_data,
+            )
+        command("kill @e[tag=state_audit]", "kill @e[tag=state_audit_b]")
     finally:
         try:
             command("stop")

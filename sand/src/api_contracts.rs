@@ -1800,6 +1800,12 @@ register_entity_api! { path: "sand::entity::Data::get", aliases: ["sand::prelude
 register_entity_api! { path: "sand::entity::Data::set", aliases: ["sand::prelude::Data::set"], kind: Method, summary: "Replaces a component-owned typed State storage value." }
 register_entity_api! { path: "sand::entity::Data::exists", aliases: ["sand::prelude::Data::exists"], kind: Method, summary: "Tests runtime presence of a component-owned typed storage path." }
 register_entity_api! { path: "sand::entity::Data::remove", aliases: ["sand::prelude::Data::remove"], kind: Method, summary: "Removes one component-owned typed State storage value." }
+register_entity_api! { path: "sand::entity::KeyedData", aliases: ["sand::prelude::KeyedData"], kind: Struct, summary: "Addresses component-owned command storage keyed by the current entity or player UUID." }
+register_entity_api! { path: "sand::entity::KeyedData::new", aliases: ["sand::prelude::KeyedData::new"], kind: Method, summary: "Constructs a generated UUID-keyed typed storage handle." }
+register_entity_api! { path: "sand::entity::KeyedData::get", aliases: ["sand::prelude::KeyedData::get"], kind: Method, summary: "Reads the current owner's value through a generated storage macro." }
+register_entity_api! { path: "sand::entity::KeyedData::set", aliases: ["sand::prelude::KeyedData::set"], kind: Method, summary: "Replaces the current owner's isolated typed storage value." }
+register_entity_api! { path: "sand::entity::KeyedData::remove", aliases: ["sand::prelude::KeyedData::remove"], kind: Method, summary: "Removes the current owner's isolated typed storage value." }
+register_entity_api! { path: "sand::entity::KeyedData::if_present", aliases: ["sand::prelude::KeyedData::if_present"], kind: Method, summary: "Runs a callback only when the current owner's value exists at runtime." }
 register_entity_api! { path: "sand::entity::EntityScore::matches", aliases: ["sand::entity::Score::matches", "sand::prelude::EntityScore::matches", "sand::prelude::Score::matches"], kind: Method, summary: "Configures or performs matches for the typed state entity API." }
 register_entity_api! { path: "sand::entity::EntityScore::new", aliases: ["sand::entity::Score::new", "sand::prelude::EntityScore::new", "sand::prelude::Score::new"], kind: Method, summary: "Constructs new for the typed state entity API." }
 register_entity_api! { path: "sand::entity::EntityScoreAccessor", aliases: [], kind: Struct, summary: "Represents entity score accessor in scoreboard-backed typed entity state." }

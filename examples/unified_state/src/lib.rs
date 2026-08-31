@@ -17,6 +17,8 @@ pub struct Progression {
     pub experience: Score,
     #[state(default = 1.0, min = 0, max = 10, scale = 100)]
     pub experience_multiplier: FixedScore,
+    #[state(default_snbt = "{announcements:1b,title:\"Rookie\"}")]
+    pub preferences: Data<serde_json::Value>,
 }
 
 #[derive(State)]
@@ -56,6 +58,8 @@ pub struct Status {
     pub poisoned: Flag,
     #[state(auto_tick)]
     pub poison_time: Timer,
+    #[state(default_snbt = "{stacks:0,note:\"clean\"}")]
+    pub details: Data<serde_json::Value>,
 }
 
 #[derive(State)]
@@ -101,6 +105,11 @@ impl CombatSystems {
             commands.extend(entity.status(|status| status.poison_time.tick()));
             commands
         });
+    }
+
+    #[tick(every = 20)]
+    fn train_attack(query: Combatants) {
+        query.each(|entity| entity.combat.attack.damage.add(1));
     }
 
     #[event(AttackPulse)]
@@ -162,6 +171,18 @@ pub fn reattach_attack() {
     Attack::attach(EntityContext::<ZombieKind>::default());
 }
 
+#[function]
+pub fn mark_status_data() {
+    Status::on(EntityContext::<ZombieKind>::default())
+        .details
+        .set(sand::command::NbtValue::raw("{stacks:3,note:\"kept\"}"));
+}
+
+#[function]
+pub fn detach_status() {
+    Status::detach(EntityContext::<ZombieKind>::default());
+}
+
 #[entity_archetype]
 pub fn armored_zombie() -> EntityArchetype<ZombieKind, ManagedZombie> {
     EntityArchetype::new(ResourceLocation::new("rpg", "armored_zombie").unwrap())
@@ -178,6 +199,9 @@ pub fn advance_world() {
     Progression::on(EntityContext::<PlayerKind>::default())
         .experience_multiplier
         .add(0.05);
+    Progression::on(EntityContext::<PlayerKind>::default())
+        .preferences
+        .if_present(|| vec!["say preferences loaded".into()]);
 }
 
 /// Export hook used by the isolated tutorial workspace.

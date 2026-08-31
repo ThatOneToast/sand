@@ -120,6 +120,16 @@ opts the player in again. Entity and living components never start a world-wide
 scan just because their type exists. Global state uses one deterministic holder
 and can also own typed `Data<T>` paths in command storage.
 
+`Data<T>` works for scoped components too. Sand keys those values by the
+current player's or entity's UUID in command storage. That means the data
+survives unloads without being stuffed into unreliable custom entity NBT. Use
+the generated `if_present` callback when existence matters at runtime:
+
+```rust
+let progression = Progression::on(EntityContext::<PlayerKind>::default());
+progression.preferences.if_present(|| vec!["say welcome back".into()]);
+```
+
 Version changes are explicit and contiguous. Declare each transition and use
 an optional lifecycle implementation for transformation commands:
 

@@ -80,26 +80,48 @@ pub(crate) fn derive_state(input: DeriveInput) -> syn::Result<proc_macro2::Token
         let namespace = &config.namespace;
         let schema_name = &config.name;
         if let Wrapper::Data(ty) = &wrapper {
-            if !matches!(config.scope, Scope::Global) {
-                return Err(syn::Error::new_spanned(
-                    field,
-                    "Data<T> State fields currently require `scope = global`; entity/player storage needs a stable typed owner-key backend",
-                ));
-            }
             reject_kind_or_bounds(&attrs, field)?;
             let default_snbt = data_default_snbt(&attrs, field)?;
             let storage = LitStr::new(&format!("{}:state", namespace.value()), field.span());
             let path = LitStr::new(
-                &format!("components.{}.{}", schema_name.value(), field_name),
+                &format!(
+                    "components.{}.{}",
+                    quoted_nbt_key(&schema_name.value()),
+                    field_name
+                ),
                 field.span(),
             );
+            let keyed = !matches!(config.scope, Scope::Global);
+            let handle = if keyed {
+                quote!(::sand::__private::KeyedData<#ty>)
+            } else {
+                quote!(::sand::__private::Data<#ty>)
+            };
+            let constructor = if keyed {
+                quote!(::sand::__private::KeyedData::new(#storage, #path))
+            } else {
+                quote!(::sand::__private::Data::new(#storage, #path))
+            };
+            let descriptor = if keyed {
+                quote!(::sand::__private::StateDataFieldDescriptor::keyed(
+                    #storage,
+                    #path,
+                    #default_snbt
+                ))
+            } else {
+                quote!(::sand::__private::StateDataFieldDescriptor::new(
+                    #storage,
+                    #path,
+                    #default_snbt
+                ))
+            };
             let constant_contract = generated_contract(
                 format!("{}::{field_name}", owner_ident.unraw()),
                 GeneratedApiKind::AssociatedConst,
                 format!("Provides the typed Data handle for the `{field_name}` State field."),
-                "The handle addresses one component-owned typed command-storage path.",
-                "Reads and writes the isolated storage path without using unreliable custom entity NBT.",
-                &["Accessing structured global State data through typed storage"],
+                "The handle addresses one component-owned typed command-storage path, keyed by owner UUID outside global scope.",
+                "Reads and writes isolated command storage without using unreliable custom entity NBT.",
+                &["Accessing structured State data through typed command storage"],
                 &["Storing arbitrary custom data on an entity's top-level native NBT"],
                 &[],
                 Some("The definition-owned typed storage field handle."),
@@ -109,19 +131,16 @@ pub(crate) fn derive_state(input: DeriveInput) -> syn::Result<proc_macro2::Token
             generated_contracts.push(constant_contract);
             constants.push(quote! {
                 #constant_docs
-                pub const #ident: ::sand::__private::Data<#ty> =
-                    ::sand::__private::Data::new(#storage, #path);
+                pub const #ident: #handle = #constructor;
             });
-            data_descriptors.push(quote! {
-                ::sand::__private::StateDataFieldDescriptor::new(#storage, #path, #default_snbt)
-            });
+            data_descriptors.push(descriptor);
             let bound_contract = generated_contract(
                 format!("{}Bound::{field_name}", owner_ident.unraw()),
                 GeneratedApiKind::Field,
                 format!("Provides the bound typed Data accessor for `{field_name}`."),
-                "Global State data retains its deterministic component-owned storage identity.",
-                "Operations lower to typed data-storage commands for the isolated path.",
-                &["Reading or replacing structured global State data"],
+                "State data retains its deterministic component-owned path and, when scoped, the current owner's UUID key.",
+                "Operations lower to typed command-storage commands for the isolated path.",
+                &["Reading or replacing structured State data"],
                 &["Using entity-native NBT as custom persistent component storage"],
                 &[],
                 Some("The typed component-owned storage accessor."),
@@ -131,7 +150,7 @@ pub(crate) fn derive_state(input: DeriveInput) -> syn::Result<proc_macro2::Token
             generated_contracts.push(bound_contract);
             bound_fields.push(quote! {
                 #bound_docs
-                pub #ident: ::sand::__private::Data<#ty>
+                pub #ident: #handle
             });
             bound_values.push(quote!(#ident: Self::#ident));
             continue;
@@ -1988,6 +2007,10 @@ fn global_holder(namespace: &str, schema: &str) -> String {
         hash = hash.wrapping_mul(1_099_511_628_211);
     }
     format!("#sand_{clean}_{:08x}", hash as u32)
+}
+
+fn quoted_nbt_key(value: &str) -> String {
+    format!("\"{}\"", value.replace('\\', "\\\\").replace('\"', "\\\""))
 }
 
 enum Wrapper {

@@ -312,6 +312,12 @@ fn automatic_lifecycle_from(
                     .push(format!("scoreboard objectives add {dirty} dummy"));
             }
         }
+        for field in component.data_fields.iter().filter(|field| field.keyed) {
+            output.provision_commands.push(format!(
+                "execute unless data storage {} owners run data modify storage {} owners set value []",
+                field.storage, field.storage
+            ));
+        }
 
         match component.scope {
             StateScope::Player => emit_player(component, hook, &mut output),
@@ -346,6 +352,11 @@ fn emit_player(
                 presence, objective, objective
             ));
         }
+    }
+    for field in component.data_fields {
+        output
+            .player_init_commands
+            .extend(crate::entity::state::state_data_initialize_commands(*field));
     }
     if let Some(hook) = hook {
         for command in (hook.initialize)("@s") {

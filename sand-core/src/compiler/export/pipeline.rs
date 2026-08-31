@@ -28,6 +28,7 @@ use super::events::{
     tick_event_export_error, xp_advance_command, xp_score_commands,
 };
 use super::functions::{drain_dynamic_functions_into, resolve_local_refs};
+use super::identities::{IDENTITY_PROBE_LIMIT, allocate_collision_safe_keys};
 use super::lifecycle::{
     ensure_private_lifecycle_path_available, ensure_private_transition_path_available,
     lifecycle_export_error, transition_export_error,
@@ -2127,11 +2128,31 @@ pub(crate) fn try_export_components_impl(
         planned.push((vec![id], every, selector, commands));
     }
 
-    for (ids, every, selector, commands) in planned {
-        let owner = ids.join("+");
-        let key = sand_commands::ObjectiveName::logical(format!("sand:system:{owner}"))
-            .as_str()
-            .to_owned();
+    let system_owners = planned
+        .iter()
+        .map(|(ids, _, _, _)| ids.join("+"))
+        .collect::<Vec<_>>();
+    let system_keys = allocate_collision_safe_keys(
+        system_owners.iter().map(String::as_str),
+        system_key_attempt,
+        validate_system_key,
+        |owner, previous, key| {
+            lifecycle_export_error(format!(
+                "State system group `{owner}` collides with `{previous}` on generated objective \
+                 `{key}` after {IDENTITY_PROBE_LIMIT} deterministic attempts; rename one of the \
+                 systems so their persisted cadence state can remain independent"
+            ))
+        },
+    )?;
+
+    for ((ids, every, selector, commands), owner) in
+        planned.into_iter().zip(system_owners.into_iter())
+    {
+        debug_assert_eq!(owner, ids.join("+"));
+        let key = system_keys
+            .get(&owner)
+            .expect("every planned State system group receives a key")
+            .clone();
         let path = format!("__sand_system/{key}");
         let content = if selector.is_some() {
             commands
@@ -2697,6 +2718,27 @@ fn state_system_scan(body: &[String]) -> Option<(String, Vec<String>)> {
         callbacks.push(callback.to_owned());
     }
     Some((selector?, callbacks))
+}
+
+fn system_key_attempt(owner: &str, attempt: u32) -> String {
+    let logical = if attempt == 0 {
+        format!("sand:system:{owner}")
+    } else {
+        format!("sand:system:{owner}#{attempt}")
+    };
+    sand_commands::ObjectiveName::logical(logical)
+        .as_str()
+        .to_owned()
+}
+
+fn validate_system_key(owner: &str, key: &str) -> ExportResult<()> {
+    if key.is_empty() || key.len() > 16 {
+        return Err(lifecycle_export_error(format!(
+            "State system group `{owner}` generated invalid scoreboard objective `{key}`; \
+             objective names must contain 1 to 16 characters"
+        )));
+    }
+    Ok(())
 }
 
 #[cfg(test)]

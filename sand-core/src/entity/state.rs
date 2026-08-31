@@ -197,6 +197,216 @@ pub trait EntityState: 'static {
     /// Return this schema's metadata.
     #[doc = "**API Contract:** Run `sand api show sand::entity::EntityState::schema` for the canonical contract."]
     fn schema() -> StateSchema;
+
+    /// Storage-backed fields owned by this component.
+    ///
+    /// **API Contract:** Run `sand api show sand::entity::EntityState::data_fields`.
+    fn data_fields() -> &'static [StateDataFieldDescriptor] {
+        &[]
+    }
+}
+
+/// Compiler metadata for one component-owned typed storage path.
+#[doc(hidden)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct StateDataFieldDescriptor {
+    pub storage: &'static str,
+    pub path: &'static str,
+    pub default_snbt: &'static str,
+}
+
+impl StateDataFieldDescriptor {
+    #[doc(hidden)]
+    pub const fn new(
+        storage: &'static str,
+        path: &'static str,
+        default_snbt: &'static str,
+    ) -> Self {
+        Self {
+            storage,
+            path,
+            default_snbt,
+        }
+    }
+}
+
+/// Compiler-facing composition contract implemented by generated State
+/// components and State bundles.
+#[doc(hidden)]
+pub trait StateBundleMember: 'static {
+    /// Concrete holder-bound view generated for this member.
+    type Bound;
+    /// Hidden owner-scope proof used to reject incompatible bundles.
+    type Scope: StateScopeMarker;
+
+    /// Bind every nested component to one execution-scoped holder.
+    fn bind_member(holder: &'static str) -> Self::Bound;
+
+    /// Attach all unique nested components in declaration order.
+    fn attach_member(holder: &'static str) -> Vec<String>;
+
+    /// Detach all unique nested components in reverse declaration order.
+    fn detach_member(holder: &'static str) -> Vec<String>;
+
+    /// Resolved presence objectives and accepted component versions for query filtering.
+    fn presence_requirements() -> Vec<(String, u32)>;
+}
+
+/// Hidden type-level owner-scope marker implemented by generated State components.
+#[doc(hidden)]
+pub trait StateScopeMarker: 'static {}
+
+/// Hidden proof that two generated component scopes are identical.
+#[doc(hidden)]
+pub trait SameStateScope<Rhs: StateScopeMarker>: StateScopeMarker {}
+
+impl<T: StateScopeMarker> SameStateScope<T> for T {}
+
+#[doc(hidden)]
+pub struct PlayerStateScope;
+#[doc(hidden)]
+pub struct EntityStateScope;
+#[doc(hidden)]
+pub struct LivingStateScope;
+#[doc(hidden)]
+pub struct GlobalStateScope;
+
+impl StateScopeMarker for PlayerStateScope {}
+impl StateScopeMarker for EntityStateScope {}
+impl StateScopeMarker for LivingStateScope {}
+impl StateScopeMarker for GlobalStateScope {}
+
+/// Construct the typed exact-version predicate used by generated State queries.
+#[doc(hidden)]
+pub fn state_presence_predicate(objective: String, version: u32) -> StatePredicate {
+    exact_predicate(objective, version as i32)
+}
+
+/// Build the canonical idempotent attachment sequence for a component.
+///
+/// This is compiler wiring used by `#[derive(State)]`. Dependencies are
+/// provisioned by the generated load function; attachment initializes only
+/// missing values and publishes the component version last.
+#[doc(hidden)]
+pub fn state_attach_commands<S: EntityState>(
+    holder: &'static str,
+    presence_logical: &'static str,
+    suppression_logical: &'static str,
+    clear_suppression: bool,
+) -> Vec<String> {
+    let schema = S::schema();
+    let presence = sand_commands::ObjectiveName::logical(presence_logical)
+        .as_str()
+        .to_owned();
+    let suppression = sand_commands::ObjectiveName::logical(suppression_logical)
+        .as_str()
+        .to_owned();
+    let mut commands = Vec::new();
+    if clear_suppression {
+        commands.push(format!("scoreboard players reset {holder} {suppression}"));
+    }
+    for field in schema.fields {
+        let objective = objective_name(schema.namespace, schema.name, field.name);
+        commands.push(format!(
+            "execute unless score {holder} {objective} matches -2147483648.. run scoreboard players set {holder} {objective} {}",
+            field.default
+        ));
+    }
+    for field in S::data_fields() {
+        commands.push(format!(
+            "execute unless data storage {} {} run data modify storage {} {} set value {}",
+            field.storage, field.path, field.storage, field.path, field.default_snbt
+        ));
+    }
+    for command in crate::state::registry::initialize_hook_commands::<S>(holder) {
+        commands.push(format!(
+            "execute unless score {holder} {presence} matches 1.. run {command}"
+        ));
+    }
+    for (from, to) in crate::state::registry::migration_steps::<S>() {
+        for command in crate::state::registry::migrate_hook_commands::<S>(holder, from, to) {
+            commands.push(format!(
+                "execute if score {holder} {presence} matches {from} run {command}"
+            ));
+        }
+        commands.push(format!(
+            "execute if score {holder} {presence} matches {from} run scoreboard players set {holder} {presence} {to}"
+        ));
+    }
+    commands.push(format!(
+        "execute unless score {holder} {presence} matches 1.. run scoreboard players set {holder} {presence} {}",
+        schema.version
+    ));
+    commands
+}
+
+/// Build ownership-safe component detachment commands.
+#[doc(hidden)]
+pub fn state_detach_commands<S: EntityState>(
+    holder: &'static str,
+    presence_logical: &'static str,
+    suppression_logical: &'static str,
+    track_dirty: bool,
+    suppress_observation: bool,
+) -> Vec<String> {
+    let schema = S::schema();
+    let presence = sand_commands::ObjectiveName::logical(presence_logical)
+        .as_str()
+        .to_owned();
+    let suppression = sand_commands::ObjectiveName::logical(suppression_logical)
+        .as_str()
+        .to_owned();
+    let mut commands = Vec::new();
+    for command in crate::state::registry::cleanup_hook_commands::<S>(holder) {
+        commands.push(format!(
+            "execute if score {holder} {presence} matches 1.. run {command}"
+        ));
+    }
+    for field in schema.fields {
+        let objective = objective_name(schema.namespace, schema.name, field.name);
+        commands.push(format!("scoreboard players reset {holder} {objective}"));
+        if track_dirty {
+            commands.push(format!(
+                "scoreboard players reset {holder} {}",
+                dirty_name(schema.namespace, schema.name, field.name)
+            ));
+        }
+    }
+    for field in S::data_fields() {
+        commands.push(format!(
+            "data remove storage {} {}",
+            field.storage, field.path
+        ));
+    }
+    commands.push(format!("scoreboard players reset {holder} {presence}"));
+    if suppress_observation {
+        commands.push(format!("scoreboard players set {holder} {suppression} 1"));
+    }
+    commands
+}
+
+/// Test whether a component is attached at its current version.
+#[doc(hidden)]
+pub fn state_attached_condition<S: EntityState>(
+    holder: &'static str,
+    presence_logical: &'static str,
+) -> Condition {
+    let presence = sand_commands::ObjectiveName::logical(presence_logical)
+        .as_str()
+        .to_owned();
+    Condition::score(
+        holder.to_owned(),
+        presence,
+        ScoreRange::Eq(S::schema().version as i32),
+    )
+}
+
+/// Resolve a logical State objective through the canonical objective rules.
+#[doc(hidden)]
+pub fn resolve_state_objective(logical: &str) -> String {
+    sand_commands::ObjectiveName::logical(logical)
+        .as_str()
+        .to_owned()
 }
 
 #[doc = "**API Contract:** Run `sand api show sand::entity::EntityStateField` for the canonical contract."]
@@ -279,6 +489,17 @@ pub struct EntityScore<T = i32> {
     descriptor: StateFieldDescriptor,
     _marker: PhantomData<fn() -> T>,
 }
+
+#[doc = "**API Contract:** Run `sand api show sand::entity::Score` for the canonical contract."]
+/// Canonical integer field marker for `#[derive(State)]` declarations.
+pub type Score = EntityScore<i32>;
+
+#[doc = "**API Contract:** Run `sand api show sand::entity::FixedScore` for the canonical contract."]
+/// Canonical fixed-point field marker.
+///
+/// The first implementation reuses the checked integer score backend; scale
+/// and rounding metadata are supplied by the State field attributes.
+pub type FixedScore = EntityScore<i32>;
 
 impl<T> Copy for EntityScore<T> {}
 impl<T> Clone for EntityScore<T> {
@@ -557,6 +778,80 @@ pub struct EntityEnum<T: EntityEnumValue> {
     schema: &'static str,
     descriptor: StateFieldDescriptor,
     _marker: PhantomData<fn() -> T>,
+}
+
+#[doc = "**API Contract:** Run `sand api show sand::entity::Data` for the canonical contract."]
+/// Canonical typed-data field marker.
+///
+/// Data fields are lowered through Sand's typed storage backend by the State
+/// derive. The marker carries no runtime Rust value.
+#[derive(Debug, PartialEq, Eq)]
+pub struct Data<T> {
+    storage: &'static str,
+    path: &'static str,
+    _marker: PhantomData<fn() -> T>,
+}
+
+impl<T> Copy for Data<T> {}
+impl<T> Clone for Data<T> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+
+impl<T> Data<T> {
+    /// Constructs a generated component-owned typed storage handle.
+    ///
+    /// **API Contract:** Run `sand api show sand::entity::Data::new`.
+    pub const fn new(storage: &'static str, path: &'static str) -> Self {
+        Self {
+            storage,
+            path,
+            _marker: PhantomData,
+        }
+    }
+
+    /// Build a typed query for this component-owned storage value.
+    ///
+    /// **API Contract:** Run `sand api show sand::entity::Data::get`.
+    pub fn get(self) -> String {
+        crate::state::Nbt::storage(self.storage)
+            .typed_path::<T>(self.path)
+            .get()
+            .to_string()
+    }
+
+    /// Replace this component-owned storage value.
+    ///
+    /// **API Contract:** Run `sand api show sand::entity::Data::set`.
+    pub fn set(self, value: impl Into<sand_commands::NbtValue>) -> Vec<String> {
+        vec![
+            crate::state::Nbt::storage(self.storage)
+                .typed_path::<T>(self.path)
+                .set(value)
+                .to_string(),
+        ]
+    }
+
+    /// Test whether this component-owned storage path currently exists.
+    ///
+    /// **API Contract:** Run `sand api show sand::entity::Data::exists`.
+    pub fn exists(self) -> Condition {
+        Condition::nbt_exists(
+            sand_commands::DataTarget::storage(self.storage),
+            sand_commands::NbtPath::new(self.path),
+        )
+    }
+
+    /// Remove this component-owned storage value.
+    ///
+    /// **API Contract:** Run `sand api show sand::entity::Data::remove`.
+    pub fn remove(self) -> Vec<String> {
+        vec![format!(
+            "data remove storage {} {}",
+            self.storage, self.path
+        )]
+    }
 }
 
 impl<T: EntityEnumValue> Copy for EntityEnum<T> {}

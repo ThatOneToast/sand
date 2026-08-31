@@ -2072,6 +2072,95 @@ pub(crate) fn try_export_components_impl(
     // records are emitted in the inventory order collected above.
     emit_schedule_records(namespace, &schedules, &mut records, &mut tag_map)?;
 
+    // ── State systems ────────────────────────────────────────────────────────
+    // Systems are immutable declarations. Build and sort them for each export
+    // so cadence and function identity never depend on inventory order.
+    let mut systems: Vec<_> = inventory::iter::<crate::function::StateSystemDescriptor>
+        .into_iter()
+        .collect();
+    systems.sort_by_key(|system| system.id);
+    let mut system_ids = BTreeMap::<&str, (u32, Vec<String>)>::new();
+    let mut system_load = Vec::new();
+    let mut system_tick = Vec::new();
+    for system in systems {
+        if system.every == 0 {
+            return Err(lifecycle_export_error(format!(
+                "State system `{}` declares an invalid zero tick cadence",
+                system.id
+            )));
+        }
+        let body = (system.make)();
+        if let Some((every, existing)) = system_ids.get(system.id) {
+            if *every != system.every || existing != &body {
+                return Err(lifecycle_export_error(format!(
+                    "conflicting State system declarations for `{}`",
+                    system.id
+                )));
+            }
+            continue;
+        }
+        system_ids.insert(system.id, (system.every, body.clone()));
+        let key = sand_commands::ObjectiveName::logical(format!("sand:system:{}", system.id))
+            .as_str()
+            .to_owned();
+        let path = format!("__sand_system/{key}");
+        records.push(ComponentRecord {
+            namespace: namespace.to_string(),
+            dir: "function".to_string(),
+            path: path.clone(),
+            ext: "mcfunction".to_string(),
+            content_type: "text".to_string(),
+            content: body.join("\n"),
+        });
+        if system.every == 1 {
+            system_tick.push(format!("function {namespace}:{path}"));
+        } else {
+            system_load.push(format!("scoreboard objectives add {key} dummy"));
+            system_load.push(format!("scoreboard players set #sand_system {key} 0"));
+            system_tick.push(format!("scoreboard players add #sand_system {key} 1"));
+            system_tick.push(format!(
+                "execute if score #sand_system {key} matches {}.. run function {namespace}:{path}",
+                system.every
+            ));
+            system_tick.push(format!(
+                "execute if score #sand_system {key} matches {}.. run scoreboard players set #sand_system {key} 0",
+                system.every
+            ));
+        }
+    }
+    if !system_load.is_empty() {
+        let path = "__sand_system_load";
+        ensure_private_lifecycle_path_available(&records, path)?;
+        records.push(ComponentRecord {
+            namespace: namespace.to_string(),
+            dir: "function".to_string(),
+            path: path.to_string(),
+            ext: "mcfunction".to_string(),
+            content_type: "text".to_string(),
+            content: system_load.join("\n"),
+        });
+        tag_map
+            .entry("minecraft:load".to_string())
+            .or_default()
+            .push(format!("{namespace}:{path}"));
+    }
+    if !system_tick.is_empty() {
+        let path = "__sand_system_tick";
+        ensure_private_lifecycle_path_available(&records, path)?;
+        records.push(ComponentRecord {
+            namespace: namespace.to_string(),
+            dir: "function".to_string(),
+            path: path.to_string(),
+            ext: "mcfunction".to_string(),
+            content_type: "text".to_string(),
+            content: system_tick.join("\n"),
+        });
+        tag_map
+            .entry("minecraft:tick".to_string())
+            .or_default()
+            .push(format!("{namespace}:{path}"));
+    }
+
     // ── Entity archetypes ────────────────────────────────────────────────────
     //
     // Archetype descriptors are immutable link-time factories. Collect and
@@ -2356,6 +2445,7 @@ pub(crate) fn try_export_components_impl(
             .map(|(_, command)| command)
             .collect();
         let mut load_cmds = load_cmds;
+        load_cmds.append(&mut automatic.provision_commands);
         load_cmds.append(&mut automatic.global_init_commands);
         if !load_cmds.is_empty() {
             let path = "__sand_lifecycle_load";
@@ -2399,6 +2489,7 @@ pub(crate) fn try_export_components_impl(
                 .into_iter()
                 .map(|command| format!("execute as @a run {command}")),
         );
+        tick_cmds.extend(automatic.entity_tick_commands);
         tick_cmds.extend(automatic.global_tick_commands);
         tick_cmds.extend(transition_global_tick_commands);
         if !tick_cmds.is_empty() {

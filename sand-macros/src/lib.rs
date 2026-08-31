@@ -201,11 +201,10 @@ pub fn registry_id(input: TokenStream) -> TokenStream {
 
 /// Derive a typed state schema, its field constants, and a concrete bound view.
 ///
-/// Player/global schemas own objective provisioning and support score
-/// `criterion`/`display_name` metadata plus timer/cooldown `auto_tick`.
-/// Entity/living schemas retain dirty writes for archetype reconciliation and
-/// require archetype-provisioned objectives; owner-aware metadata and ticking
-/// remain later #298 work.
+/// Every scope owns dependency provisioning and an independent presence/version
+/// marker. Player state is observed automatically, entity/living state is
+/// initialized explicitly through attachment or adoption, and global state is
+/// bound to one deterministic singleton holder.
 ///
 /// # API Contract
 ///
@@ -217,6 +216,33 @@ pub fn derive_state(input: TokenStream) -> TokenStream {
         .into()
 }
 
+/// Derive a concrete, nestable view over existing State components.
+///
+/// # API Contract
+///
+/// `sand api show sand::StateBundle`
+#[proc_macro_derive(StateBundle)]
+pub fn derive_state_bundle(input: TokenStream) -> TokenStream {
+    entity_state::derive_bundle(parse_macro_input!(input as syn::DeriveInput))
+        .unwrap_or_else(syn::Error::into_compile_error)
+        .into()
+}
+
+/// Derive a concrete presence-filtered query over State components and bundles.
+///
+/// # API Contract
+///
+/// `sand api show sand::StateQuery`
+#[proc_macro_derive(
+    StateQuery,
+    attributes(require, required, optional, without, forbidden, state, query)
+)]
+pub fn derive_state_query(input: TokenStream) -> TokenStream {
+    entity_state::derive_query(parse_macro_input!(input as syn::DeriveInput))
+        .unwrap_or_else(syn::Error::into_compile_error)
+        .into()
+}
+
 /// Derive the stable scoreboard encoding used by `EntityEnum<T>`.
 #[proc_macro_derive(EntityStateEnum)]
 pub fn derive_entity_state_enum(input: TokenStream) -> TokenStream {
@@ -224,6 +250,361 @@ pub fn derive_entity_state_enum(input: TokenStream) -> TokenStream {
         .and_then(|tokens| validate_preserved_public_surface(&tokens, None).map(|()| tokens))
         .unwrap_or_else(syn::Error::into_compile_error)
         .into()
+}
+
+/// Derive the canonical stable scoreboard encoding used by `StateEnum<T>`.
+///
+/// # API Contract
+///
+/// `sand api show sand::StateEnum`
+#[proc_macro_derive(StateEnum)]
+pub fn derive_state_enum(input: TokenStream) -> TokenStream {
+    entity_state::derive_enum(parse_macro_input!(input as syn::DeriveInput))
+        .and_then(|tokens| validate_preserved_public_surface(&tokens, None).map(|()| tokens))
+        .unwrap_or_else(syn::Error::into_compile_error)
+        .into()
+}
+
+/// Register one optional `StateLifecycle` implementation.
+///
+/// # API Contract
+///
+/// `sand api show sand::state_lifecycle`
+#[proc_macro_attribute]
+pub fn state_lifecycle(attr: TokenStream, item: TokenStream) -> TokenStream {
+    if !attr.is_empty() {
+        return syn::Error::new(
+            proc_macro2::Span::call_site(),
+            "#[state_lifecycle] does not accept arguments",
+        )
+        .into_compile_error()
+        .into();
+    }
+    let implementation = parse_macro_input!(item as syn::ItemImpl);
+    let Some((_, trait_path, _)) = &implementation.trait_ else {
+        return syn::Error::new_spanned(
+            &implementation.self_ty,
+            "#[state_lifecycle] requires `impl StateLifecycle for YourState`",
+        )
+        .into_compile_error()
+        .into();
+    };
+    if trait_path
+        .segments
+        .last()
+        .is_none_or(|segment| segment.ident != "StateLifecycle")
+    {
+        return syn::Error::new_spanned(
+            trait_path,
+            "#[state_lifecycle] requires an implementation of StateLifecycle",
+        )
+        .into_compile_error()
+        .into();
+    }
+    let self_ty = &implementation.self_ty;
+    quote! {
+        #implementation
+        const _: () = {
+            fn schema() -> ::sand::__private::StateSchema {
+                <#self_ty as ::sand::__private::EntityState>::schema()
+            }
+            fn provision() -> Vec<String> {
+                <#self_ty as ::sand::__private::StateLifecycle>::provision(
+                    ::sand::__private::StateProvision::default(),
+                )
+            }
+            fn initialize(holder: &'static str) -> Vec<String> {
+                <#self_ty as ::sand::__private::StateLifecycle>::initialize(
+                    ::sand::__private::StateInit::new(holder),
+                )
+            }
+            fn tick(holder: &'static str) -> Vec<String> {
+                <#self_ty as ::sand::__private::StateLifecycle>::tick(
+                    ::sand::__private::StateTick::new(holder),
+                )
+            }
+            fn reconcile(holder: &'static str) -> Vec<String> {
+                <#self_ty as ::sand::__private::StateLifecycle>::reconcile(
+                    ::sand::__private::StateReconcile::new(holder),
+                )
+            }
+            fn cleanup(holder: &'static str) -> Vec<String> {
+                <#self_ty as ::sand::__private::StateLifecycle>::cleanup(
+                    ::sand::__private::StateCleanup::new(holder),
+                )
+            }
+            fn migrate(holder: &'static str, from: u32, to: u32) -> Vec<String> {
+                <#self_ty as ::sand::__private::StateLifecycle>::migrate(
+                    ::sand::__private::StateMigrate::new(holder, from, to),
+                )
+            }
+            ::sand::__private::inventory::submit! {
+                ::sand::__private::StateHookDescriptor {
+                    schema,
+                    provision,
+                    initialize,
+                    tick,
+                    reconcile,
+                    cleanup,
+                    migrate,
+                }
+            }
+        };
+    }
+    .into()
+}
+
+/// Register a tick-driven State system from a function or grouped impl.
+///
+/// # API Contract
+///
+/// `sand api show sand::system`
+#[proc_macro_attribute]
+pub fn system(attr: TokenStream, item: TokenStream) -> TokenStream {
+    let attr = match parse_system_tick_attr(attr, true) {
+        Ok(attr) => attr,
+        Err(error) => return error.into_compile_error().into(),
+    };
+    let tokens: proc_macro2::TokenStream = item.into();
+    if let Ok(function) = syn::parse2::<ItemFn>(tokens.clone()) {
+        return expand_state_system_function(function, attr)
+            .unwrap_or_else(syn::Error::into_compile_error)
+            .into();
+    }
+    if let Ok(implementation) = syn::parse2::<syn::ItemImpl>(tokens.clone()) {
+        return expand_state_system_impl(implementation)
+            .unwrap_or_else(syn::Error::into_compile_error)
+            .into();
+    }
+    syn::Error::new_spanned(tokens, "#[system] requires a function or inherent impl")
+        .into_compile_error()
+        .into()
+}
+
+#[derive(Clone, Copy)]
+struct SystemTickAttr {
+    every: u32,
+}
+
+fn parse_system_tick_attr(attr: TokenStream, allow_empty: bool) -> syn::Result<SystemTickAttr> {
+    let tokens: proc_macro2::TokenStream = attr.into();
+    if tokens.is_empty() {
+        if allow_empty {
+            return Ok(SystemTickAttr { every: 1 });
+        }
+        return Err(syn::Error::new(
+            proc_macro2::Span::call_site(),
+            "tick system requires #[tick] or #[tick(every = N)]",
+        ));
+    }
+    struct Parsed(SystemTickAttr);
+    impl syn::parse::Parse for Parsed {
+        fn parse(input: syn::parse::ParseStream<'_>) -> syn::Result<Self> {
+            if input.peek(syn::Ident) {
+                let fork = input.fork();
+                let ident: syn::Ident = fork.parse()?;
+                if ident == "tick" {
+                    let _: syn::Ident = input.parse()?;
+                    if input.peek(syn::Token![,]) {
+                        let _: syn::Token![,] = input.parse()?;
+                    }
+                }
+            }
+            let mut every = 1;
+            if !input.is_empty() {
+                let key: syn::Ident = input.parse()?;
+                if key != "every" {
+                    return Err(syn::Error::new_spanned(
+                        key,
+                        "expected `tick` or `every = N`",
+                    ));
+                }
+                let _: syn::Token![=] = input.parse()?;
+                let value: syn::LitInt = input.parse()?;
+                every = value.base10_parse()?;
+            }
+            if !input.is_empty() {
+                return Err(input.error("unexpected system cadence arguments"));
+            }
+            if every == 0 {
+                return Err(syn::Error::new(
+                    proc_macro2::Span::call_site(),
+                    "system tick cadence must be at least one",
+                ));
+            }
+            Ok(Self(SystemTickAttr { every }))
+        }
+    }
+    syn::parse2::<Parsed>(tokens).map(|parsed| parsed.0)
+}
+
+fn state_system_body(function: &ItemFn) -> syn::Result<(syn::Ident, syn::Type, syn::Block)> {
+    if function.sig.inputs.len() != 1 {
+        return Err(syn::Error::new_spanned(
+            &function.sig.inputs,
+            "#[system] functions require exactly one derived StateQuery parameter",
+        ));
+    }
+    let argument = function.sig.inputs.first().expect("one argument");
+    let syn::FnArg::Typed(argument) = argument else {
+        return Err(syn::Error::new_spanned(
+            argument,
+            "systems cannot use a self receiver",
+        ));
+    };
+    let syn::Pat::Ident(pattern) = argument.pat.as_ref() else {
+        return Err(syn::Error::new_spanned(
+            &argument.pat,
+            "StateQuery system parameters must use a simple identifier",
+        ));
+    };
+    let query_ident = pattern.ident.clone();
+    let query_ty = (*argument.ty).clone();
+    let mut block = (*function.block).clone();
+    block.stmts.insert(
+        0,
+        syn::parse_quote!(let #query_ident = ::sand::__private::StateQueryHandle::<#query_ty>::new();),
+    );
+    Ok((query_ident, query_ty, block))
+}
+
+fn expand_state_system_function(
+    function: ItemFn,
+    attr: SystemTickAttr,
+) -> syn::Result<proc_macro2::TokenStream> {
+    let (_, query_ty, block) = state_system_body(&function)?;
+    let ident = &function.sig.ident;
+    let visibility = &function.vis;
+    let attrs = &function.attrs;
+    let factory = quote::format_ident!("__sand_system_{}_make", ident);
+    let body = build_cmd_body(&block)?;
+    let every = attr.every;
+    Ok(quote! {
+        #(#attrs)*
+        #visibility fn #ident() -> Vec<String> {
+            let _: ::std::marker::PhantomData<#query_ty> = ::std::marker::PhantomData;
+            #body
+        }
+
+        #[doc(hidden)]
+        fn #factory() -> Vec<String> { #ident() }
+
+        ::sand::__private::inventory::submit! {
+            ::sand::__private::StateSystemDescriptor {
+                id: concat!(module_path!(), "::", stringify!(#ident)),
+                every: #every,
+                make: #factory,
+            }
+        }
+    })
+}
+
+fn expand_state_system_impl(
+    mut implementation: syn::ItemImpl,
+) -> syn::Result<proc_macro2::TokenStream> {
+    if implementation.trait_.is_some() {
+        return Err(syn::Error::new_spanned(
+            implementation.impl_token,
+            "#[system] grouped form requires an inherent impl",
+        ));
+    }
+    let self_ty = &implementation.self_ty;
+    let mut registrations = Vec::new();
+    for item in &mut implementation.items {
+        let syn::ImplItem::Fn(method) = item else {
+            continue;
+        };
+        let tick_index = method
+            .attrs
+            .iter()
+            .position(|attr| attr.path().is_ident("tick"));
+        let Some(tick_index) = tick_index else {
+            if let Some(event_index) = method
+                .attrs
+                .iter()
+                .position(|attr| attr.path().is_ident("event"))
+            {
+                let event_attr = method.attrs.remove(event_index);
+                let expected_ty: syn::Type = match event_attr.meta {
+                    syn::Meta::List(list) => syn::parse2(list.tokens)?,
+                    _ => {
+                        return Err(syn::Error::new_spanned(
+                            event_attr,
+                            "use #[event(EventType)] on a grouped system method",
+                        ));
+                    }
+                };
+                if method.sig.inputs.len() != 1 {
+                    return Err(syn::Error::new_spanned(
+                        &method.sig.inputs,
+                        "grouped event systems require exactly one typed event parameter",
+                    ));
+                }
+                let syn::FnArg::Typed(argument) = method.sig.inputs.first().expect("one argument")
+                else {
+                    return Err(syn::Error::new_spanned(
+                        &method.sig.inputs,
+                        "grouped event systems cannot use self",
+                    ));
+                };
+                let actual_ty = &argument.ty;
+                if quote!(#expected_ty).to_string() != quote!(#actual_ty).to_string() {
+                    return Err(syn::Error::new_spanned(
+                        &argument.ty,
+                        "#[event(EventType)] must match the method parameter type",
+                    ));
+                }
+                let mut signature = method.sig.clone();
+                let original = &method.sig.ident;
+                signature.ident = quote::format_ident!("__sand_system_event_{}", original);
+                let function = ItemFn {
+                    attrs: method.attrs.clone(),
+                    vis: syn::Visibility::Inherited,
+                    sig: signature,
+                    block: Box::new(method.block.clone()),
+                };
+                registrations.push(expand_event(TokenStream::new(), function)?);
+            }
+            continue;
+        };
+        let tick_attr = method.attrs.remove(tick_index);
+        let cadence = match &tick_attr.meta {
+            syn::Meta::Path(_) => SystemTickAttr { every: 1 },
+            syn::Meta::List(list) => parse_system_tick_attr(list.tokens.clone().into(), true)?,
+            syn::Meta::NameValue(_) => {
+                return Err(syn::Error::new_spanned(tick_attr, "use #[tick(every = N)]"));
+            }
+        };
+        let function = ItemFn {
+            attrs: Vec::new(),
+            vis: method.vis.clone(),
+            sig: method.sig.clone(),
+            block: Box::new(method.block.clone()),
+        };
+        let (_, query_ty, block) = state_system_body(&function)?;
+        let body = build_cmd_body(&block)?;
+        method.sig.inputs.clear();
+        method.sig.output = syn::parse_quote!(-> Vec<String>);
+        method.block = syn::parse_quote!({
+            let _: ::std::marker::PhantomData<#query_ty> = ::std::marker::PhantomData;
+            #body
+        });
+        let method_ident = &method.sig.ident;
+        let factory = quote::format_ident!("__sand_system_{}_make", method_ident);
+        let every = cadence.every;
+        registrations.push(quote! {
+            #[doc(hidden)]
+            fn #factory() -> Vec<String> { <#self_ty>::#method_ident() }
+            ::sand::__private::inventory::submit! {
+                ::sand::__private::StateSystemDescriptor {
+                    id: concat!(module_path!(), "::", stringify!(#self_ty), "::", stringify!(#method_ident)),
+                    every: #every,
+                    make: #factory,
+                }
+            }
+        });
+    }
+    Ok(quote! { #implementation #(#registrations)* })
 }
 
 /// Register a zero-argument `EntityArchetype<K, S>` factory for export.

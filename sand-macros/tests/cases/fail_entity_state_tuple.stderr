@@ -1,4 +1,4 @@
-error: State requires a struct with named fields
+error: State requires named fields or a unit struct marker
  --> tests/cases/fail_entity_state_tuple.rs:5:11
   |
 5 | struct Bad(EntityScore<i32>);

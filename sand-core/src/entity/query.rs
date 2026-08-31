@@ -11,6 +11,32 @@ use crate::entity::context::EntityContext;
 use crate::entity::kind::{AnyEntity, PlayerKind};
 use crate::function::register_dyn_fn_dedup;
 
+/// Compiler-facing contract implemented by `#[derive(StateQuery)]`.
+#[doc(hidden)]
+pub trait StateQuerySpec: 'static {
+    type Item;
+
+    fn each(body: impl FnOnce(Self::Item) -> Vec<String>) -> Vec<String>;
+}
+
+/// Generated zero-sized query parameter used inside `#[system]` bodies.
+#[doc(hidden)]
+pub struct StateQueryHandle<Q>(std::marker::PhantomData<fn() -> Q>);
+
+impl<Q> StateQueryHandle<Q> {
+    #[doc(hidden)]
+    pub const fn new() -> Self {
+        Self(std::marker::PhantomData)
+    }
+}
+
+impl<Q: StateQuerySpec> StateQueryHandle<Q> {
+    #[doc(hidden)]
+    pub fn each(self, body: impl FnOnce(Q::Item) -> Vec<String>) -> Vec<String> {
+        Q::each(body)
+    }
+}
+
 #[doc = "**API Contract:** Run `sand api show sand::entity::EntityQuery` for the canonical contract."]
 /// A cardinality-aware query over entities, built on top of
 /// [`sand_commands::selector::EntityTarget`].
@@ -225,6 +251,20 @@ impl PlayerQuery<Many> {
         Self {
             target: PlayerTargets::all(),
         }
+    }
+
+    /// Restrict players with a typed State predicate.
+    ///
+    /// **API Contract:** Run `sand api show sand::entity::PlayerQuery::state`.
+    pub fn state(
+        mut self,
+        predicate: crate::entity::state::StatePredicate,
+    ) -> sand_commands::CommandResult<Self> {
+        self.target = self.target.score(
+            sand_commands::ObjectiveName::try_dynamic(predicate.objective)?,
+            predicate.selector_range,
+        )?;
+        Ok(self)
     }
 
     /// `tag=<tag>` — restrict to players with the given tag.

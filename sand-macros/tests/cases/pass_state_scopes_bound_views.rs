@@ -31,6 +31,12 @@ struct GlobalState {
     value: EntityScore<i32>,
 }
 
+#[derive(StateQuery)]
+#[query(scope = player)]
+struct PlayersWithState {
+    state: PlayerState,
+}
+
 fn main() {
     let player = PlayerState::on(EntityContext::<PlayerKind>::default());
     let _: Vec<String> = player.health.add(1);
@@ -45,4 +51,7 @@ fn main() {
 
     let global = GlobalState::global();
     let _: Vec<String> = global.value.set(2);
+
+    let query = PlayersWithState::each(|item| item.state.health.add(1));
+    assert!(query[0].starts_with("execute as @a["));
 }

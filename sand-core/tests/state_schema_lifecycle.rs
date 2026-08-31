@@ -30,6 +30,8 @@ struct GlobalState {
         display_name = "World wave"
     )]
     wave: EntityScore<i32>,
+    #[state(default = 3)]
+    settings: Data<i32>,
 }
 
 #[allow(dead_code)]
@@ -46,6 +48,59 @@ struct EntityRuntimeState {
 #[state(namespace = "state_test", scope = living)]
 struct LivingRuntimeState {
     timer: EntityTimer,
+}
+
+#[allow(dead_code)]
+#[derive(State)]
+#[state(
+    namespace = "state_test",
+    scope = entity,
+    version = 3,
+    migrate(from = 1, to = 2),
+    migrate(from = 2, to = 3)
+)]
+struct OptionalMarker;
+
+#[allow(dead_code)]
+#[derive(StateBundle)]
+struct RepeatedMarkerBundle {
+    first: OptionalMarker,
+    second: OptionalMarker,
+}
+
+#[state_lifecycle]
+impl StateLifecycle for OptionalMarker {
+    fn initialize(_ctx: StateInit) -> Vec<String> {
+        vec!["say marker initialized".into()]
+    }
+
+    fn tick(_ctx: StateTick) -> Vec<String> {
+        vec!["say marker tick".into()]
+    }
+
+    fn cleanup(_ctx: StateCleanup) -> Vec<String> {
+        vec!["say marker cleanup".into()]
+    }
+
+    fn migrate(ctx: StateMigrate) -> Vec<String> {
+        vec![format!("say migrate {} to {}", ctx.from(), ctx.to())]
+    }
+}
+
+#[allow(dead_code)]
+#[derive(StateQuery)]
+struct RuntimeEntities {
+    #[require]
+    runtime: EntityRuntimeState,
+    #[optional]
+    marker: OptionalMarker,
+    #[without]
+    living_runtime: LivingRuntimeState,
+}
+
+#[system(tick, every = 20)]
+fn recharge_runtime(query: RuntimeEntities) {
+    query.each(|item| item.runtime.charge.add(1));
 }
 
 fn records() -> Vec<serde_json::Value> {
@@ -73,26 +128,143 @@ fn derived_state_lifecycle_is_scoped_deterministic_and_deduplicated() {
         .filter(|line| line.starts_with("scoreboard objectives add "))
         .collect();
     let unique: std::collections::BTreeSet<_> = objectives.iter().copied().collect();
-    assert_eq!(objectives.len(), 5);
+    assert_eq!(objectives.len(), 17);
     assert_eq!(unique.len(), objectives.len());
     assert!(load.contains("#sand_state_test_global_state"));
     assert!(load.contains("dummy \"Player mana\""));
     assert!(load.contains("playerKillCount \"World wave\""));
+    assert!(load.contains(
+        "execute unless data storage state_test:state components.global_state.settings run data modify storage state_test:state components.global_state.settings set value 3"
+    ));
 
     let init = function(&records, "__sand_lifecycle_init");
-    assert_eq!(init.lines().count(), 4);
+    assert_eq!(init.lines().count(), 5);
     assert!(init.lines().all(|line| line.contains("score @s ")));
 
     let tick = function(&records, "__sand_lifecycle_tick");
     assert!(tick.contains("execute as @a run function statepack:__sand_lifecycle_init"));
     assert_eq!(tick.matches("scoreboard players remove @s").count(), 2);
-    assert!(!tick.contains("execute as @e"));
+    assert!(!tick.contains("execute as @e run"));
+    assert!(tick.contains("execute as @e[scores={"));
     for dirty in [
         PlayerState::timer.dirty_objective(),
         PlayerState::dash.dirty_objective(),
     ] {
         assert!(!tick.contains(&dirty));
     }
+}
+
+#[test]
+fn state_query_lowers_required_optional_and_forbidden_presence_at_runtime() {
+    let charge = EntityRuntimeState::charge.objective();
+    let invocation = RuntimeEntities::each(|item| {
+        let mut commands = item.runtime.charge.add(1);
+        commands.extend(item.marker(|_| vec!["say optional marker".into()]));
+        commands
+    });
+    assert_eq!(invocation.len(), 1);
+    let required =
+        <EntityRuntimeState as sand::__private::StateBundleMember>::presence_requirements();
+    assert!(invocation[0].contains(&format!("{}=1", required[0].0)));
+    assert!(invocation[0].contains("execute as @e[scores={"));
+    assert!(invocation[0].contains(" at @s run function "));
+
+    let generated = sand_core::drain_dyn_fns()
+        .into_iter()
+        .map(|(_, commands)| commands.join("\n"))
+        .find(|content| content.contains("say optional marker"))
+        .expect("query callback should be emitted as a generated function");
+    let forbidden =
+        <LivingRuntimeState as sand::__private::StateBundleMember>::presence_requirements();
+    let optional = <OptionalMarker as sand::__private::StateBundleMember>::presence_requirements();
+    assert!(generated.contains(&format!(
+        "unless score @s {} matches {}",
+        forbidden[0].0, forbidden[0].1
+    )));
+    assert!(generated.contains(&format!(
+        "if score @s {} matches {} run say optional marker",
+        optional[0].0, optional[0].1
+    )));
+    assert!(generated.contains(&charge));
+}
+
+#[test]
+fn custom_lifecycle_hooks_are_version_gated_and_cleanup_runs_first() {
+    let entity = EntityContext::<AnyEntity>::default();
+    let requirements =
+        <OptionalMarker as sand::__private::StateBundleMember>::presence_requirements();
+    let (presence, version) = &requirements[0];
+    let attach = OptionalMarker::attach(entity);
+    let initialize = attach
+        .iter()
+        .position(|command| command.contains("say marker initialized"))
+        .expect("attach should invoke initialization hook");
+    let publish = attach
+        .iter()
+        .position(|command| {
+            command.ends_with(&format!("scoreboard players set @s {presence} {version}"))
+        })
+        .expect("attach should publish presence");
+    assert!(initialize < publish);
+    assert!(attach[initialize].contains(&format!("unless score @s {presence} matches 1..")));
+    assert!(attach.iter().any(|command| command.contains(&format!(
+        "if score @s {presence} matches 1 run say migrate 1 to 2"
+    ))));
+    assert!(
+        attach
+            .iter()
+            .any(|command| command.ends_with(&format!("scoreboard players set @s {presence} 2")))
+    );
+    assert!(attach.iter().any(|command| command.contains(&format!(
+        "if score @s {presence} matches 2 run say migrate 2 to 3"
+    ))));
+
+    let detach = OptionalMarker::detach(entity);
+    assert!(detach[0].contains("say marker cleanup"));
+    assert!(detach[0].contains(&format!("if score @s {presence} matches 1..")));
+
+    let tick = function(&records(), "__sand_lifecycle_tick").to_owned();
+    assert!(tick.contains(&format!("@e[scores={{{presence}={version}}}]")));
+    assert!(tick.contains("say marker tick"));
+}
+
+#[test]
+fn repeated_bundle_members_reuse_one_component_lifecycle() {
+    let entity = EntityContext::<AnyEntity>::default();
+    assert_eq!(
+        RepeatedMarkerBundle::attach(entity),
+        OptionalMarker::attach(entity)
+    );
+    assert_eq!(
+        RepeatedMarkerBundle::detach(entity),
+        OptionalMarker::detach(entity)
+    );
+    let bound = RepeatedMarkerBundle::on(entity);
+    let _: OptionalMarkerBound = bound.first;
+    let _: OptionalMarkerBound = bound.second;
+}
+
+#[test]
+fn tick_system_uses_global_cadence_and_query_iteration() {
+    let records = records();
+    let load = function(&records, "__sand_system_load");
+    let tick = function(&records, "__sand_system_tick");
+    assert!(load.contains("scoreboard objectives add "));
+    assert!(load.contains("scoreboard players set #sand_system"));
+    assert!(tick.contains("scoreboard players add #sand_system"));
+    assert!(tick.contains("matches 20.. run function statepack:__sand_system/"));
+    let system = records
+        .iter()
+        .find(|record| {
+            record["dir"] == "function"
+                && record["path"]
+                    .as_str()
+                    .is_some_and(|path| path.starts_with("__sand_system/"))
+        })
+        .and_then(|record| record["content"].as_str())
+        .expect("system body should be exported");
+    assert!(system.contains("execute as @e[scores={"));
+    assert!(system.contains(" at @s run function statepack:sand/entity_query/"));
 }
 
 #[test]
@@ -175,6 +347,17 @@ fn bound_views_emit_complete_scope_aware_command_vectors() {
         format!("scoreboard players get {holder} {wave}")
     );
     assert_ne!(PlayerState::mana.objective(), GlobalState::wave.objective());
+    assert_eq!(
+        global.settings.set(4),
+        vec!["data modify storage state_test:state components.global_state.settings set value 4"]
+    );
+    assert_eq!(
+        global.settings.get(),
+        "data get storage state_test:state components.global_state.settings"
+    );
+    assert!(GlobalState::detach().iter().any(|command| {
+        command == "data remove storage state_test:state components.global_state.settings"
+    }));
 }
 
 #[test]

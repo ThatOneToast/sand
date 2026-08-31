@@ -209,8 +209,12 @@ pub use state::{
     StorageLocation, StorageSchema, StorageVar,
 };
 pub use state::{GameState, GameStateRef, TypedGameState};
+pub use state::{
+    StateCleanup, StateInit, StateLifecycle, StateMigrate, StateProvision, StateReconcile,
+    StateTick,
+};
 #[doc(hidden)]
-pub use state::{StateDescriptor, StateLifecycle};
+pub use state::{StateDescriptor, StateHookDescriptor, StateLifecycleDescriptor, StateScope};
 pub use vfx::{Vfx, VfxParticle, VfxParticleVisibility, VfxSound, VfxStep};
 
 // ── McFunction (sand-core-specific component) ─────────────────────────────────
@@ -582,6 +586,19 @@ impl sand_commands::selector::IntoEntityType for generated::EntityType {
 /// author-facing API surface.
 #[doc(hidden)]
 pub mod __private {
+    #[doc(hidden)]
+    pub use crate::entity::query::{StateQueryHandle, StateQuerySpec};
+    #[doc(hidden)]
+    pub use crate::entity::state::{
+        EntityStateScope, GlobalStateScope, LivingStateScope, PlayerStateScope, SameStateScope,
+        StateBundleMember, StateDataFieldDescriptor, StateScopeMarker, resolve_state_objective,
+        state_attach_commands, state_attached_condition, state_detach_commands,
+        state_presence_predicate,
+    };
+    #[doc(hidden)]
+    pub use crate::function::StateSystemDescriptor;
+    #[doc(hidden)]
+    pub use crate::state::StateMigrationDescriptor;
     /// Extracts an advancement trigger for generated proc-macro wiring.
     #[doc(hidden)]
     pub fn event_dispatch_advancement(

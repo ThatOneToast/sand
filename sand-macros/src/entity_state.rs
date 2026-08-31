@@ -6,7 +6,7 @@ use sand_api_contract::syntax::{
 };
 use syn::{
     Data, DeriveInput, Expr, ExprLit, ExprPath, Fields, GenericArgument, Lit, LitInt, LitStr, Path,
-    PathArguments, Type, ext::IdentExt, parse_quote,
+    PathArguments, Type, ext::IdentExt, parse_quote, spanned::Spanned,
 };
 
 pub(crate) fn derive_state(input: DeriveInput) -> syn::Result<proc_macro2::TokenStream> {
@@ -17,13 +17,14 @@ pub(crate) fn derive_state(input: DeriveInput) -> syn::Result<proc_macro2::Token
         ));
     }
     let config = parse_schema_config(&input)?;
-    let fields = match &input.data {
+    let fields: Vec<&syn::Field> = match &input.data {
         Data::Struct(data) => match &data.fields {
-            Fields::Named(fields) => &fields.named,
-            _ => {
+            Fields::Named(fields) => fields.named.iter().collect(),
+            Fields::Unit => Vec::new(),
+            Fields::Unnamed(_) => {
                 return Err(syn::Error::new_spanned(
                     &data.fields,
-                    "State requires a struct with named fields",
+                    "State requires named fields or a unit struct marker",
                 ));
             }
         },
@@ -42,7 +43,8 @@ pub(crate) fn derive_state(input: DeriveInput) -> syn::Result<proc_macro2::Token
     let mut descriptors = Vec::new();
     let mut bound_fields = Vec::new();
     let mut bound_values = Vec::new();
-    let mut lifecycle_submissions = Vec::new();
+    let mut lifecycle_fields = Vec::new();
+    let mut data_descriptors = Vec::new();
     let mut generated_contracts = Vec::new();
     for field in fields {
         let ident = field.ident.as_ref().expect("named field");
@@ -69,28 +71,71 @@ pub(crate) fn derive_state(input: DeriveInput) -> syn::Result<proc_macro2::Token
                 "`auto_tick` is only valid on EntityTimer and EntityCooldown fields",
             ));
         }
-        if matches!(config.scope, Scope::Entity | Scope::Living) {
-            if let Some(criterion) = &attrs.criterion {
-                return Err(syn::Error::new_spanned(
-                    criterion,
-                    "`criterion` is only supported on player/global State score fields; entity/living criteria require later archetype dirty-observer integration",
-                ));
-            }
-            if let Some(display_name) = &attrs.display_name {
-                return Err(syn::Error::new_spanned(
-                    display_name,
-                    "`display_name` is only supported on player/global State score fields; entity/living display names require later archetype objective lowering",
-                ));
-            }
-            if attrs.auto_tick {
-                return Err(syn::Error::new_spanned(
-                    field,
-                    "`auto_tick` is only supported on player/global State fields; entity/living ticking is owned by archetype reconciliation",
-                ));
-            }
-        }
         let namespace = &config.namespace;
         let schema_name = &config.name;
+        if let Wrapper::Data(ty) = &wrapper {
+            if !matches!(config.scope, Scope::Global) {
+                return Err(syn::Error::new_spanned(
+                    field,
+                    "Data<T> State fields currently require `scope = global`; entity/player storage needs a stable typed owner-key backend",
+                ));
+            }
+            reject_kind_or_bounds(&attrs, field)?;
+            let default_snbt = data_default_snbt(&attrs, field)?;
+            let storage = LitStr::new(&format!("{}:state", namespace.value()), field.span());
+            let path = LitStr::new(
+                &format!("components.{}.{}", schema_name.value(), field_name),
+                field.span(),
+            );
+            let constant_contract = generated_contract(
+                format!("{}::{field_name}", owner_ident.unraw()),
+                GeneratedApiKind::AssociatedConst,
+                format!("Provides the typed Data handle for the `{field_name}` State field."),
+                "The handle addresses one component-owned typed command-storage path.",
+                "Reads and writes the isolated storage path without using unreliable custom entity NBT.",
+                &["Accessing structured global State data through typed storage"],
+                &["Storing arbitrary custom data on an entity's top-level native NBT"],
+                &[],
+                Some("The definition-owned typed storage field handle."),
+                format!("let field = {}::{field_name};", owner_ident.unraw()),
+            );
+            let constant_docs = generated_contract_docs(&constant_contract);
+            generated_contracts.push(constant_contract);
+            constants.push(quote! {
+                #constant_docs
+                pub const #ident: ::sand::__private::Data<#ty> =
+                    ::sand::__private::Data::new(#storage, #path);
+            });
+            data_descriptors.push(quote! {
+                ::sand::__private::StateDataFieldDescriptor::new(#storage, #path, #default_snbt)
+            });
+            let bound_contract = generated_contract(
+                format!("{}Bound::{field_name}", owner_ident.unraw()),
+                GeneratedApiKind::Field,
+                format!("Provides the bound typed Data accessor for `{field_name}`."),
+                "Global State data retains its deterministic component-owned storage identity.",
+                "Operations lower to typed data-storage commands for the isolated path.",
+                &["Reading or replacing structured global State data"],
+                &["Using entity-native NBT as custom persistent component storage"],
+                &[],
+                Some("The typed component-owned storage accessor."),
+                format!("let value = bound.{field_name};"),
+            );
+            let bound_docs = generated_contract_docs(&bound_contract);
+            generated_contracts.push(bound_contract);
+            bound_fields.push(quote! {
+                #bound_docs
+                pub #ident: ::sand::__private::Data<#ty>
+            });
+            bound_values.push(quote!(#ident: Self::#ident));
+            continue;
+        }
+        if attrs.default_snbt.is_some() {
+            return Err(syn::Error::new_spanned(
+                field,
+                "`default_snbt` is only valid on Data<T> State fields",
+            ));
+        }
         let default = attrs.default.clone();
         let bounds = match (attrs.min, attrs.max) {
             (None, None) => quote!(None),
@@ -132,8 +177,9 @@ pub(crate) fn derive_state(input: DeriveInput) -> syn::Result<proc_macro2::Token
                 "cooldown",
                 "Stores the schema field as a non-negative scoreboard cooldown whose zero value is ready.",
             ),
+            Wrapper::Data(_) => unreachable!("Data fields return before scoreboard lowering"),
         };
-        let (constant, descriptor, accessor, lifecycle_default) = match wrapper {
+        let (constant, descriptor, accessor, _lifecycle_default) = match wrapper {
             Wrapper::Score(ty) => {
                 if attrs.kind.is_some() && !is_i32(&ty) {
                     return Err(syn::Error::new_spanned(
@@ -285,6 +331,7 @@ pub(crate) fn derive_state(input: DeriveInput) -> syn::Result<proc_macro2::Token
                     quote!(0),
                 )
             }
+            Wrapper::Data(_) => unreachable!("Data fields return before scoreboard lowering"),
         };
         let constant_contract = generated_contract(
             format!("{}::{field_name}", owner_ident.unraw()),
@@ -305,7 +352,7 @@ pub(crate) fn derive_state(input: DeriveInput) -> syn::Result<proc_macro2::Token
         let constant_docs = generated_contract_docs(&constant_contract);
         generated_contracts.push(constant_contract);
         constants.push(quote!(#constant_docs #constant));
-        descriptors.push(descriptor);
+        descriptors.push(descriptor.clone());
         let bound_contract = generated_contract(
             format!("{}Bound::{field_name}", owner_ident.unraw()),
             GeneratedApiKind::Field,
@@ -341,59 +388,36 @@ pub(crate) fn derive_state(input: DeriveInput) -> syn::Result<proc_macro2::Token
             )
         });
 
-        if matches!(config.scope, Scope::Player | Scope::Global) {
-            let logical_objective = LitStr::new(
-                &format!(
-                    "{}:{}.{}",
-                    namespace.value(),
-                    schema_name.value(),
-                    field_name
-                ),
-                ident.span(),
-            );
-            let criterion = attrs
-                .criterion
-                .as_ref()
-                .map(|criterion| quote!(.criterion(#criterion)))
-                .unwrap_or_default();
-            let display_name = attrs
-                .display_name
-                .as_ref()
-                .map(|display_name| quote!(.display_name(#display_name)))
-                .unwrap_or_default();
-            let lifecycle = if attrs.auto_tick {
-                quote! {
-                    ::sand::__private::StateLifecycle::score(#logical_objective)
-                        #criterion
-                        #display_name
-                        .default(#lifecycle_default)
-                        .auto_tick()
-                }
-            } else {
-                quote! {
-                    ::sand::__private::StateLifecycle::score(#logical_objective)
-                        #criterion
-                        #display_name
-                        .default(#lifecycle_default)
-                }
-            };
-            let lifecycle = if matches!(config.scope, Scope::Global) {
-                let holder = LitStr::new(
-                    &global_holder(&namespace.value(), &schema_name.value()),
-                    ident.span(),
-                );
-                quote! { (#lifecycle).global(#holder) }
-            } else {
-                lifecycle
-            };
-            lifecycle_submissions.push(quote! {
-                const _: () = {
-                    ::sand::__private::inventory::submit! {
-                        ::sand::__private::StateDescriptor::new(#lifecycle)
-                    }
-                };
-            });
-        }
+        let logical_objective = LitStr::new(
+            &format!(
+                "{}:{}.{}",
+                namespace.value(),
+                schema_name.value(),
+                field_name
+            ),
+            ident.span(),
+        );
+        let criterion = attrs
+            .criterion
+            .as_ref()
+            .map(|value| quote!(.criterion(#value)))
+            .unwrap_or_default();
+        let display_name = attrs
+            .display_name
+            .as_ref()
+            .map(|value| quote!(.display_name(#value)))
+            .unwrap_or_default();
+        let auto_tick = if attrs.auto_tick {
+            quote!(.auto_tick())
+        } else {
+            quote!()
+        };
+        lifecycle_fields.push(quote! {
+            ::sand::__private::StateLifecycleDescriptor::new(#logical_objective, #descriptor)
+                #criterion
+                #display_name
+                #auto_tick
+        });
     }
 
     let ident = owner_ident;
@@ -401,6 +425,56 @@ pub(crate) fn derive_state(input: DeriveInput) -> syn::Result<proc_macro2::Token
     let namespace = &config.namespace;
     let name = &config.name;
     let version = config.version;
+    let component_id = LitStr::new(
+        &format!("{}:{}", namespace.value(), name.value()),
+        input.ident.span(),
+    );
+    let presence_objective = LitStr::new(
+        &format!("{}:{}.presence", namespace.value(), name.value()),
+        input.ident.span(),
+    );
+    let suppression_objective = LitStr::new(
+        &format!("{}:{}.suppressed", namespace.value(), name.value()),
+        input.ident.span(),
+    );
+    let lifecycle_scope = match config.scope {
+        Scope::Player => quote!(::sand::__private::StateScope::Player),
+        Scope::Entity => quote!(::sand::__private::StateScope::Entity),
+        Scope::Living => quote!(::sand::__private::StateScope::Living),
+        Scope::Global => {
+            let holder = LitStr::new(
+                &global_holder(&namespace.value(), &name.value()),
+                input.ident.span(),
+            );
+            quote!(::sand::__private::StateScope::Global(#holder))
+        }
+    };
+    let scope_marker = match config.scope {
+        Scope::Player => quote!(::sand::__private::PlayerStateScope),
+        Scope::Entity => quote!(::sand::__private::EntityStateScope),
+        Scope::Living => quote!(::sand::__private::LivingStateScope),
+        Scope::Global => quote!(::sand::__private::GlobalStateScope),
+    };
+    let migration_steps = config
+        .migrations
+        .iter()
+        .map(|(from, to)| quote!(::sand::__private::StateMigrationDescriptor::new(#from, #to)));
+    let lifecycle_registration = quote! {
+        const _: () = {
+            ::sand::__private::inventory::submit! {
+                ::sand::__private::StateDescriptor::new(
+                    #component_id,
+                    #version,
+                    #lifecycle_scope,
+                    #presence_objective,
+                    #suppression_objective,
+                    #ident::__SAND_LIFECYCLE_FIELDS,
+                    #ident::__SAND_MIGRATIONS,
+                    #ident::__SAND_DATA_FIELDS,
+                )
+            }
+        };
+    };
     let (binding_contract, binding_method) = match config.scope {
         Scope::Player => {
             let contract = generated_contract(
@@ -535,6 +609,124 @@ pub(crate) fn derive_state(input: DeriveInput) -> syn::Result<proc_macro2::Token
         }
     };
     generated_contracts.push(binding_contract);
+    let mut presence_docs = Vec::new();
+    let presence_parameters: &[(&str, &str)] = if matches!(config.scope, Scope::Global) {
+        &[]
+    } else {
+        &[(
+            "_target",
+            "The typed current owner context for this component.",
+        )]
+    };
+    for (method, summary) in [
+        (
+            "attach",
+            "Attaches and idempotently initializes this State component.",
+        ),
+        (
+            "detach",
+            "Detaches this State component without touching unrelated state.",
+        ),
+        (
+            "is_attached",
+            "Tests whether this State component is present at its current version.",
+        ),
+    ] {
+        let contract = generated_contract(
+            format!("{}::{method}", ident.unraw()),
+            GeneratedApiKind::Method,
+            summary,
+            "The generated component lifecycle uses its independent version marker and ownership boundary.",
+            "Emits or tests scoreboard state for the bound owner; dependencies are provisioned by Sand's load lifecycle.",
+            &["Managing component presence through the canonical State lifecycle"],
+            &["Removing shared objectives or state owned by another component"],
+            presence_parameters,
+            Some("Generated commands or a typed runtime presence condition."),
+            format!("let _ = {}::{method}(...);", ident.unraw()),
+        );
+        presence_docs.push(generated_contract_docs(&contract));
+        generated_contracts.push(contract);
+    }
+    let attach_docs = &presence_docs[0];
+    let detach_docs = &presence_docs[1];
+    let attached_docs = &presence_docs[2];
+    let track_dirty = matches!(config.scope, Scope::Entity | Scope::Living);
+    let presence_methods = match config.scope {
+        Scope::Player => quote! {
+            #attach_docs
+            /// Attach this component to the current player.
+            pub fn attach(_target: ::sand::__private::EntityContext<::sand::__private::PlayerKind>) -> Vec<String> {
+                ::sand::__private::state_attach_commands::<Self>("@s", #presence_objective, #suppression_objective, true)
+            }
+            #detach_docs
+            /// Explicitly detach this component and suppress automatic re-observation.
+            pub fn detach(_target: ::sand::__private::EntityContext<::sand::__private::PlayerKind>) -> Vec<String> {
+                ::sand::__private::state_detach_commands::<Self>("@s", #presence_objective, #suppression_objective, false, true)
+            }
+            #attached_docs
+            /// Test whether this component is attached.
+            pub fn is_attached(_target: ::sand::__private::EntityContext<::sand::__private::PlayerKind>) -> ::sand::__private::condition::Condition {
+                ::sand::__private::state_attached_condition::<Self>("@s", #presence_objective)
+            }
+        },
+        Scope::Entity => quote! {
+            #attach_docs
+            /// Attach this component to the current entity.
+            pub fn attach<K: ::sand::__private::EntityKind>(_target: ::sand::__private::EntityContext<K>) -> Vec<String> {
+                ::sand::__private::state_attach_commands::<Self>("@s", #presence_objective, #suppression_objective, false)
+            }
+            #detach_docs
+            /// Detach this component from the current entity.
+            pub fn detach<K: ::sand::__private::EntityKind>(_target: ::sand::__private::EntityContext<K>) -> Vec<String> {
+                ::sand::__private::state_detach_commands::<Self>("@s", #presence_objective, #suppression_objective, #track_dirty, false)
+            }
+            #attached_docs
+            /// Test whether this component is attached.
+            pub fn is_attached<K: ::sand::__private::EntityKind>(_target: ::sand::__private::EntityContext<K>) -> ::sand::__private::condition::Condition {
+                ::sand::__private::state_attached_condition::<Self>("@s", #presence_objective)
+            }
+        },
+        Scope::Living => quote! {
+            #attach_docs
+            /// Attach this component to the current living entity.
+            pub fn attach<K: ::sand::__private::LivingEntityKind>(_target: ::sand::__private::EntityContext<K>) -> Vec<String> {
+                ::sand::__private::state_attach_commands::<Self>("@s", #presence_objective, #suppression_objective, false)
+            }
+            #detach_docs
+            /// Detach this component from the current living entity.
+            pub fn detach<K: ::sand::__private::LivingEntityKind>(_target: ::sand::__private::EntityContext<K>) -> Vec<String> {
+                ::sand::__private::state_detach_commands::<Self>("@s", #presence_objective, #suppression_objective, #track_dirty, false)
+            }
+            #attached_docs
+            /// Test whether this component is attached.
+            pub fn is_attached<K: ::sand::__private::LivingEntityKind>(_target: ::sand::__private::EntityContext<K>) -> ::sand::__private::condition::Condition {
+                ::sand::__private::state_attached_condition::<Self>("@s", #presence_objective)
+            }
+        },
+        Scope::Global => {
+            let holder = LitStr::new(
+                &global_holder(&namespace.value(), &name.value()),
+                input.ident.span(),
+            );
+            quote! {
+                #attach_docs
+                /// Attach and initialize this global component.
+                pub fn attach() -> Vec<String> {
+                    ::sand::__private::state_attach_commands::<Self>(#holder, #presence_objective, #suppression_objective, false)
+                }
+                #detach_docs
+                /// Detach this global component's owned values.
+                pub fn detach() -> Vec<String> {
+                    ::sand::__private::state_detach_commands::<Self>(#holder, #presence_objective, #suppression_objective, false, false)
+                }
+                #attached_docs
+                /// Test whether this global component is attached.
+                pub fn is_attached() -> ::sand::__private::condition::Condition {
+                    ::sand::__private::state_attached_condition::<Self>(#holder, #presence_objective)
+                }
+            }
+        }
+    };
     let bound_example = match config.scope {
         Scope::Player => format!("let bound = {}::on(player);", ident.unraw()),
         Scope::Entity => format!("let bound = {}::on(entity);", ident.unraw()),
@@ -585,6 +777,21 @@ pub(crate) fn derive_state(input: DeriveInput) -> syn::Result<proc_macro2::Token
         impl #ident {
             #(#constants)*
 
+            #[doc(hidden)]
+            const __SAND_LIFECYCLE_FIELDS: &'static [::sand::__private::StateLifecycleDescriptor] = &[
+                #(#lifecycle_fields),*
+            ];
+
+            #[doc(hidden)]
+            const __SAND_MIGRATIONS: &'static [::sand::__private::StateMigrationDescriptor] = &[
+                #(#migration_steps),*
+            ];
+
+            #[doc(hidden)]
+            const __SAND_DATA_FIELDS: &'static [::sand::__private::StateDataFieldDescriptor] = &[
+                #(#data_descriptors),*
+            ];
+
             #fields_docs
             /// Field metadata in declaration order.
             #[doc = concat!("API Contract: generated schema metadata `", module_path!(), "::", stringify!(#ident), "::FIELDS`.")]
@@ -599,6 +806,7 @@ pub(crate) fn derive_state(input: DeriveInput) -> syn::Result<proc_macro2::Token
             }
 
             #binding_method
+            #presence_methods
         }
 
         impl ::sand::__private::EntityState for #ident {
@@ -610,9 +818,45 @@ pub(crate) fn derive_state(input: DeriveInput) -> syn::Result<proc_macro2::Token
                     fields: Self::FIELDS,
                 }
             }
+
+            fn data_fields() -> &'static [::sand::__private::StateDataFieldDescriptor] {
+                Self::__SAND_DATA_FIELDS
+            }
         }
 
-        #(#lifecycle_submissions)*
+        impl ::sand::__private::StateBundleMember for #ident {
+            type Bound = #bound_ident;
+            type Scope = #scope_marker;
+
+            fn bind_member(holder: &'static str) -> Self::Bound {
+                Self::__sand_bind_to(holder)
+            }
+
+            fn attach_member(holder: &'static str) -> Vec<String> {
+                ::sand::__private::state_attach_commands::<Self>(
+                    holder,
+                    #presence_objective,
+                    #suppression_objective,
+                    false,
+                )
+            }
+
+            fn detach_member(holder: &'static str) -> Vec<String> {
+                ::sand::__private::state_detach_commands::<Self>(
+                    holder,
+                    #presence_objective,
+                    #suppression_objective,
+                    #track_dirty,
+                    false,
+                )
+            }
+
+            fn presence_requirements() -> Vec<(String, u32)> {
+                vec![(::sand::__private::resolve_state_objective(#presence_objective), #version)]
+            }
+        }
+
+        #lifecycle_registration
     };
     if matches!(input.vis, syn::Visibility::Public(_)) {
         validate_generated_expansion(
@@ -622,6 +866,581 @@ pub(crate) fn derive_state(input: DeriveInput) -> syn::Result<proc_macro2::Token
         )?;
     }
     Ok(expanded)
+}
+
+pub(crate) fn derive_bundle(input: DeriveInput) -> syn::Result<proc_macro2::TokenStream> {
+    if !input.generics.params.is_empty() {
+        return Err(syn::Error::new_spanned(
+            &input.generics,
+            "State bundles cannot be generic",
+        ));
+    }
+    let Data::Struct(data) = &input.data else {
+        return Err(syn::Error::new_spanned(
+            &input.ident,
+            "StateBundle can only be derived for a struct",
+        ));
+    };
+    let Fields::Named(fields) = &data.fields else {
+        return Err(syn::Error::new_spanned(
+            &data.fields,
+            "StateBundle requires named component or bundle fields",
+        ));
+    };
+    if fields.named.is_empty() {
+        return Err(syn::Error::new_spanned(
+            &data.fields,
+            "StateBundle requires at least one component",
+        ));
+    }
+
+    let ident = &input.ident;
+    let bound_ident = quote::format_ident!("{}Bound", ident);
+    let visibility = &input.vis;
+    let mut seen = BTreeSet::new();
+    let mut bound_fields = Vec::new();
+    let mut bound_values = Vec::new();
+    let mut attach = Vec::new();
+    let mut detach = Vec::new();
+    let mut presence = Vec::new();
+    let mut member_types = Vec::new();
+    let mut contracts = Vec::new();
+
+    for field in &fields.named {
+        let field_ident = field.ident.as_ref().expect("named field");
+        let field_name = field_ident.unraw().to_string();
+        if !seen.insert(field_name.clone()) {
+            return Err(syn::Error::new_spanned(
+                field_ident,
+                format!("duplicate StateBundle field `{field_name}`"),
+            ));
+        }
+        let ty = &field.ty;
+        if let syn::Type::Path(path) = ty
+            && path.qself.is_none()
+            && path
+                .path
+                .segments
+                .last()
+                .is_some_and(|segment| segment.ident == *ident)
+        {
+            return Err(syn::Error::new_spanned(
+                ty,
+                "StateBundle cannot contain itself; bundle nesting must be acyclic",
+            ));
+        }
+        member_types.push(ty);
+        let contract = generated_contract(
+            format!("{}Bound::{field_name}", ident.unraw()),
+            GeneratedApiKind::Field,
+            format!("Provides the bound `{field_name}` component or nested bundle view."),
+            "Bundle fields retain the original component identity and expose its concrete generated members.",
+            "Emits no storage of its own; operations lower through the referenced component backend.",
+            &["Navigating a named State bundle with field completion"],
+            &["Creating a second physical copy of a component"],
+            &[],
+            Some("The nested concrete bound view."),
+            format!("let component = bundle.{field_name};"),
+        );
+        let docs = generated_contract_docs(&contract);
+        contracts.push(contract);
+        bound_fields.push(quote! {
+            #docs
+            pub #field_ident: <#ty as ::sand::__private::StateBundleMember>::Bound
+        });
+        bound_values.push(quote! {
+            #field_ident: <#ty as ::sand::__private::StateBundleMember>::bind_member(holder)
+        });
+        attach.push(quote! {
+            commands.extend(<#ty as ::sand::__private::StateBundleMember>::attach_member(holder));
+        });
+        detach.push(quote! {
+            commands.extend(<#ty as ::sand::__private::StateBundleMember>::detach_member(holder));
+        });
+        presence.push(quote! {
+            objectives.extend(<#ty as ::sand::__private::StateBundleMember>::presence_requirements());
+        });
+    }
+    detach.reverse();
+
+    let type_contract = generated_contract(
+        bound_ident.unraw().to_string(),
+        GeneratedApiKind::Struct,
+        format!("Provides the concrete bound view for `{}`.", ident.unraw()),
+        "The view preserves every named component and nested bundle without merging their schemas.",
+        "Binding itself emits no commands; operations use each component's existing backend identity.",
+        &["Working with a recurring named composition of State components"],
+        &["Declaring a new component identity or version"],
+        &[],
+        None,
+        format!("let bundle = {}::on(entity);", ident.unraw()),
+    );
+    let type_docs = generated_contract_docs(&type_contract);
+    contracts.push(type_contract);
+    let mut method_docs = Vec::new();
+    for (method, summary) in [
+        ("on", "Binds every nested component to the current entity."),
+        ("attach", "Attaches every unique component in this bundle."),
+        (
+            "detach",
+            "Detaches every unique component in reverse composition order.",
+        ),
+    ] {
+        let contract = generated_contract(
+            format!("{}::{method}", ident.unraw()),
+            GeneratedApiKind::Method,
+            summary,
+            "Nested bundles flatten through the compiler-facing composition contract.",
+            "Repeated component commands are deduplicated while preserving deterministic declaration order.",
+            &["Using bundle composition through one named operation"],
+            &["Allocating independent storage for a bundle"],
+            &[(
+                "_target",
+                "The typed current entity context for this bundle.",
+            )],
+            Some("A concrete bound view or component lifecycle commands."),
+            format!("let _ = {}::{method}(entity);", ident.unraw()),
+        );
+        method_docs.push(generated_contract_docs(&contract));
+        contracts.push(contract);
+    }
+    let on_docs = &method_docs[0];
+    let attach_docs = &method_docs[1];
+    let detach_docs = &method_docs[2];
+    let first_ty = member_types[0];
+    let scope_bounds = member_types.iter().skip(1).map(|ty| {
+        quote! {
+            <#first_ty as ::sand::__private::StateBundleMember>::Scope:
+                ::sand::__private::SameStateScope<<#ty as ::sand::__private::StateBundleMember>::Scope>
+        }
+    });
+
+    let expanded = quote! {
+        #type_docs
+        #[derive(Debug, Clone, Copy)]
+        #visibility struct #bound_ident {
+            #(#bound_fields),*
+        }
+
+        impl #ident {
+            #on_docs
+            pub fn on<K: ::sand::__private::EntityKind>(
+                _target: ::sand::__private::EntityContext<K>,
+            ) -> #bound_ident {
+                <Self as ::sand::__private::StateBundleMember>::bind_member("@s")
+            }
+
+            #attach_docs
+            pub fn attach<K: ::sand::__private::EntityKind>(
+                _target: ::sand::__private::EntityContext<K>,
+            ) -> Vec<String> {
+                <Self as ::sand::__private::StateBundleMember>::attach_member("@s")
+            }
+
+            #detach_docs
+            pub fn detach<K: ::sand::__private::EntityKind>(
+                _target: ::sand::__private::EntityContext<K>,
+            ) -> Vec<String> {
+                <Self as ::sand::__private::StateBundleMember>::detach_member("@s")
+            }
+        }
+
+        impl ::sand::__private::StateBundleMember for #ident
+        where
+            #(#scope_bounds,)*
+        {
+            type Bound = #bound_ident;
+            type Scope = <#first_ty as ::sand::__private::StateBundleMember>::Scope;
+
+            fn bind_member(holder: &'static str) -> Self::Bound {
+                #bound_ident { #(#bound_values),* }
+            }
+
+            fn attach_member(holder: &'static str) -> Vec<String> {
+                let mut commands = Vec::new();
+                #(#attach)*
+                let mut seen = ::std::collections::BTreeSet::new();
+                commands.retain(|command| seen.insert(command.clone()));
+                commands
+            }
+
+            fn detach_member(holder: &'static str) -> Vec<String> {
+                let mut commands = Vec::new();
+                #(#detach)*
+                let mut seen = ::std::collections::BTreeSet::new();
+                commands.retain(|command| seen.insert(command.clone()));
+                commands
+            }
+
+            fn presence_requirements() -> Vec<(String, u32)> {
+                let mut objectives = Vec::new();
+                #(#presence)*
+                objectives.sort();
+                objectives.dedup();
+                objectives
+            }
+        }
+
+    };
+    if matches!(input.vis, syn::Visibility::Public(_)) {
+        validate_generated_expansion(
+            expanded.clone(),
+            [input.ident.unraw().to_string()],
+            &contracts,
+        )?;
+    }
+    Ok(expanded)
+}
+
+pub(crate) fn derive_query(input: DeriveInput) -> syn::Result<proc_macro2::TokenStream> {
+    if !input.generics.params.is_empty() {
+        return Err(syn::Error::new_spanned(
+            &input.generics,
+            "State queries cannot be generic",
+        ));
+    }
+    let Data::Struct(data) = &input.data else {
+        return Err(syn::Error::new_spanned(
+            &input.ident,
+            "StateQuery can only be derived for a struct",
+        ));
+    };
+    let Fields::Named(fields) = &data.fields else {
+        return Err(syn::Error::new_spanned(
+            &data.fields,
+            "StateQuery requires named component or bundle fields",
+        ));
+    };
+
+    let ident = &input.ident;
+    let query_scope = parse_query_scope(&input)?;
+    let item_ident = quote::format_ident!("{}Item", ident);
+    let visibility = &input.vis;
+    let mut item_fields = Vec::new();
+    let mut item_values = Vec::new();
+    let mut required = Vec::new();
+    let mut forbidden = Vec::new();
+    let mut optional_methods = Vec::new();
+    let mut contracts = Vec::new();
+    let mut component_modes = BTreeMap::<String, QueryFieldMode>::new();
+    let mut component_types = Vec::new();
+
+    for field in &fields.named {
+        let field_ident = field.ident.as_ref().expect("named field");
+        let ty = &field.ty;
+        let mode = parse_query_field_mode(field)?;
+        component_types.push(ty);
+        let component_key = quote!(#ty).to_string();
+        if let Some(previous) = component_modes.insert(component_key.clone(), mode)
+            && previous != mode
+        {
+            return Err(syn::Error::new_spanned(
+                field,
+                format!(
+                    "StateQuery component `{component_key}` has contradictory presence requirements"
+                ),
+            ));
+        }
+        match mode {
+            QueryFieldMode::Required => {
+                let contract = generated_contract(
+                    format!("{}::{field_ident}", item_ident.unraw()),
+                    GeneratedApiKind::Field,
+                    format!("Provides the bound required `{field_ident}` component or bundle."),
+                    "The query selector proves that every component represented by this field is attached at its current version.",
+                    "The concrete view binds its component operations to the current generated Minecraft iteration executor.",
+                    &["Accessing required State data inside a typed query callback"],
+                    &["Retaining the execution-scoped view after the generated callback"],
+                    &[],
+                    Some("A concrete holder-bound State component or bundle view."),
+                    format!("let component = item.{field_ident};"),
+                );
+                let docs = generated_contract_docs(&contract);
+                contracts.push(contract);
+                item_fields.push(quote! {
+                    #docs
+                    pub #field_ident: <#ty as ::sand::__private::StateBundleMember>::Bound
+                });
+                item_values.push(quote! {
+                    #field_ident: <#ty as ::sand::__private::StateBundleMember>::bind_member("@s")
+                });
+                required.push(quote! {
+                    requirements.extend(<#ty as ::sand::__private::StateBundleMember>::presence_requirements());
+                });
+            }
+            QueryFieldMode::Forbidden => {
+                forbidden.push(quote! {
+                    forbidden.extend(<#ty as ::sand::__private::StateBundleMember>::presence_requirements());
+                });
+            }
+            QueryFieldMode::Optional => {
+                let contract = generated_contract(
+                    format!("{}::{field_ident}", item_ident.unraw()),
+                    GeneratedApiKind::Method,
+                    format!("Runs a callback when optional `{field_ident}` State is present."),
+                    "Optional access is represented by generated Minecraft presence guards, not a Rust Option fabricated during compilation.",
+                    "Each returned command executes only when every component in the optional component or bundle is attached at its current version.",
+                    &["Conditionally using an optional State component inside a query callback"],
+                    &["Assuming optional State is present outside the guarded callback"],
+                    &[(
+                        "body",
+                        "Builds commands against the concrete optional bound view.",
+                    )],
+                    Some("Commands guarded by the optional component presence conditions."),
+                    format!("let commands = item.{field_ident}(|state| state.value.add(1));"),
+                );
+                let docs = generated_contract_docs(&contract);
+                contracts.push(contract);
+                optional_methods.push(quote! {
+                    #docs
+                    pub fn #field_ident(
+                        &self,
+                        body: impl FnOnce(<#ty as ::sand::__private::StateBundleMember>::Bound) -> Vec<String>,
+                    ) -> Vec<String> {
+                        let requirements = <#ty as ::sand::__private::StateBundleMember>::presence_requirements();
+                        let commands = body(<#ty as ::sand::__private::StateBundleMember>::bind_member("@s"));
+                        commands
+                            .into_iter()
+                            .map(|command| {
+                                let guards = requirements
+                                    .iter()
+                                    .map(|(objective, version)| format!("if score @s {objective} matches {version}"))
+                                    .collect::<Vec<_>>()
+                                    .join(" ");
+                                format!("execute {guards} run {command}")
+                            })
+                            .collect()
+                    }
+                });
+            }
+        }
+    }
+
+    let item_contract = generated_contract(
+        item_ident.unraw().to_string(),
+        GeneratedApiKind::Struct,
+        format!(
+            "Provides concrete bound State access for one `{}` query match.",
+            ident.unraw()
+        ),
+        "The value exists only while generating the callback body for one Minecraft iteration executor.",
+        "Required component presence is filtered in the selector and optional access emits runtime execute guards.",
+        &["Using named component fields inside a StateQuery callback"],
+        &["Treating a Minecraft entity as a persistent Rust reference"],
+        &[],
+        None,
+        format!("{}::each(|item| Vec::new());", ident.unraw()),
+    );
+    let item_docs = generated_contract_docs(&item_contract);
+    contracts.push(item_contract);
+    let each_contract = generated_contract(
+        format!("{}::each", ident.unraw()),
+        GeneratedApiKind::Method,
+        "Runs a generated Minecraft iteration over entities matching this State query.",
+        "Required components become typed score filters, forbidden components become runtime absence guards, and callback order is preserved.",
+        "Emits one execute-as/at iteration calling a deterministic generated function body.",
+        &["Processing loaded entities selected by State component presence"],
+        &["Performing a single-holder read without narrowing the query"],
+        &[(
+            "body",
+            "Builds commands for the concrete query item bound to @s.",
+        )],
+        Some("The command that invokes the generated query iteration."),
+        format!("let commands = {}::each(|item| Vec::new());", ident.unraw()),
+    );
+    let each_docs = generated_contract_docs(&each_contract);
+    contracts.push(each_contract);
+    let query_constructor = if matches!(query_scope, Some(Scope::Player)) {
+        quote!(::sand::__private::PlayerQuery::players())
+    } else {
+        quote!(::sand::__private::EntityQuery::entities())
+    };
+    let scope_assertions: Vec<_> = query_scope
+        .map(|scope| {
+            let marker = match scope {
+                Scope::Player => quote!(::sand::__private::PlayerStateScope),
+                Scope::Entity => quote!(::sand::__private::EntityStateScope),
+                Scope::Living => quote!(::sand::__private::LivingStateScope),
+                Scope::Global => quote!(::sand::__private::GlobalStateScope),
+            };
+            component_types
+                .iter()
+                .map(|ty| {
+                    quote!(let _ = assert_same::<#marker, <#ty as ::sand::__private::StateBundleMember>::Scope>;)
+                })
+                .collect()
+        })
+        .unwrap_or_default();
+
+    let expanded = quote! {
+        const _: () = {
+            fn assert_same<L, R>()
+            where
+                L: ::sand::__private::StateScopeMarker + ::sand::__private::SameStateScope<R>,
+                R: ::sand::__private::StateScopeMarker,
+            {}
+            #(#scope_assertions)*
+        };
+
+        #item_docs
+        #[derive(Debug, Clone, Copy)]
+        #visibility struct #item_ident {
+            #(#item_fields),*
+        }
+
+        impl #item_ident {
+            #(#optional_methods)*
+        }
+
+        impl #ident {
+            #each_docs
+            pub fn each(body: impl FnOnce(#item_ident) -> Vec<String>) -> Vec<String> {
+                let mut requirements: Vec<(String, u32)> = Vec::new();
+                #(#required)*
+                requirements.sort();
+                requirements.dedup();
+                let mut query = #query_constructor;
+                for (objective, version) in requirements {
+                    query = query
+                        .state(::sand::__private::state_presence_predicate(objective, version))
+                        .expect("StateQuery derives validated unique presence filters");
+                }
+
+                let mut forbidden: Vec<(String, u32)> = Vec::new();
+                #(#forbidden)*
+                forbidden.sort();
+                forbidden.dedup();
+                query.each(|_| {
+                    let item = #item_ident { #(#item_values),* };
+                    body(item)
+                        .into_iter()
+                        .map(|command| {
+                            let guards = forbidden
+                                .iter()
+                                .map(|(objective, version)| format!("unless score @s {objective} matches {version}"))
+                                .collect::<Vec<_>>()
+                                .join(" ");
+                            if guards.is_empty() {
+                                command
+                            } else {
+                                format!("execute {guards} run {command}")
+                            }
+                        })
+                        .collect()
+                })
+            }
+        }
+
+        impl ::sand::__private::StateQuerySpec for #ident {
+            type Item = #item_ident;
+
+            fn each(body: impl FnOnce(Self::Item) -> Vec<String>) -> Vec<String> {
+                Self::each(body)
+            }
+        }
+    };
+    if matches!(input.vis, syn::Visibility::Public(_)) {
+        validate_generated_expansion(
+            expanded.clone(),
+            [input.ident.unraw().to_string()],
+            &contracts,
+        )?;
+    }
+    Ok(expanded)
+}
+
+fn parse_query_scope(input: &DeriveInput) -> syn::Result<Option<Scope>> {
+    let attrs: Vec<_> = input
+        .attrs
+        .iter()
+        .filter(|attr| attr.path().is_ident("query"))
+        .collect();
+    if attrs.len() > 1 {
+        return Err(syn::Error::new_spanned(
+            &input.ident,
+            "StateQuery accepts at most one #[query(scope = ...)] attribute",
+        ));
+    }
+    let Some(attr) = attrs.first() else {
+        return Ok(None);
+    };
+    let mut scope = None;
+    attr.parse_nested_meta(|meta| {
+        if !meta.path.is_ident("scope") {
+            return Err(meta.error("unknown StateQuery option; expected `scope`"));
+        }
+        let value: syn::Ident = meta.value()?.parse()?;
+        let parsed = match value.to_string().as_str() {
+            "player" => Scope::Player,
+            "entity" => Scope::Entity,
+            "living" => Scope::Living,
+            "global" => {
+                return Err(syn::Error::new_spanned(
+                    value,
+                    "global State is a singleton resource and cannot be iterated by StateQuery",
+                ));
+            }
+            _ => {
+                return Err(syn::Error::new_spanned(
+                    value,
+                    "invalid query scope; expected player, entity, or living",
+                ));
+            }
+        };
+        set_once(&mut scope, parsed, &meta.path)
+    })?;
+    scope
+        .ok_or_else(|| syn::Error::new_spanned(attr, "StateQuery scope is required"))
+        .map(Some)
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum QueryFieldMode {
+    Required,
+    Optional,
+    Forbidden,
+}
+
+fn parse_query_field_mode(field: &syn::Field) -> syn::Result<QueryFieldMode> {
+    let mut selected = None;
+    for attr in &field.attrs {
+        let mode = if attr.path().is_ident("require") || attr.path().is_ident("required") {
+            Some(QueryFieldMode::Required)
+        } else if attr.path().is_ident("optional") {
+            Some(QueryFieldMode::Optional)
+        } else if attr.path().is_ident("without") || attr.path().is_ident("forbidden") {
+            Some(QueryFieldMode::Forbidden)
+        } else if attr.path().is_ident("state") {
+            let mut nested = None;
+            attr.parse_nested_meta(|meta| {
+                let candidate = if meta.path.is_ident("required") || meta.path.is_ident("require") {
+                    QueryFieldMode::Required
+                } else if meta.path.is_ident("optional") {
+                    QueryFieldMode::Optional
+                } else if meta.path.is_ident("forbidden") || meta.path.is_ident("without") {
+                    QueryFieldMode::Forbidden
+                } else {
+                    return Err(meta.error("expected `required`, `optional`, or `forbidden`"));
+                };
+                if nested.replace(candidate).is_some() {
+                    return Err(meta.error("a StateQuery field can declare only one presence mode"));
+                }
+                Ok(())
+            })?;
+            nested
+        } else {
+            None
+        };
+        if let Some(mode) = mode
+            && selected.replace(mode).is_some()
+        {
+            return Err(syn::Error::new_spanned(
+                attr,
+                "a StateQuery field cannot combine required, optional, and forbidden modes",
+            ));
+        }
+    }
+    Ok(selected.unwrap_or(QueryFieldMode::Required))
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -796,6 +1615,7 @@ struct SchemaConfig {
     name: LitStr,
     version: u32,
     scope: Scope,
+    migrations: Vec<(u32, u32)>,
 }
 
 #[derive(Clone, Copy)]
@@ -822,6 +1642,7 @@ fn parse_schema_config(input: &DeriveInput) -> syn::Result<SchemaConfig> {
     let mut name = None;
     let mut version = None;
     let mut scope = None;
+    let mut migrations = Vec::new();
     attrs[0].parse_nested_meta(|meta| {
         if meta.path.is_ident("namespace") {
             set_once(&mut namespace, meta.value()?.parse()?, &meta.path)
@@ -845,6 +1666,24 @@ fn parse_schema_config(input: &DeriveInput) -> syn::Result<SchemaConfig> {
                 }
             };
             set_once(&mut scope, parsed, &meta.path)
+        } else if meta.path.is_ident("migrate") {
+            let mut from = None;
+            let mut to = None;
+            meta.parse_nested_meta(|nested| {
+                if nested.path.is_ident("from") {
+                    let value: LitInt = nested.value()?.parse()?;
+                    set_once(&mut from, value.base10_parse()?, &nested.path)
+                } else if nested.path.is_ident("to") {
+                    let value: LitInt = nested.value()?.parse()?;
+                    set_once(&mut to, value.base10_parse()?, &nested.path)
+                } else {
+                    Err(nested.error("expected `from = N` or `to = N`"))
+                }
+            })?;
+            let from = from.ok_or_else(|| meta.error("migration requires `from = N`"))?;
+            let to = to.ok_or_else(|| meta.error("migration requires `to = N`"))?;
+            migrations.push((from, to));
+            Ok(())
         } else {
             Err(meta.error("unknown state schema option"))
         }
@@ -873,11 +1712,36 @@ fn parse_schema_config(input: &DeriveInput) -> syn::Result<SchemaConfig> {
             "State schema version zero is reserved for uninitialized entities",
         ));
     }
+    migrations.sort_unstable();
+    for (index, &(from, to)) in migrations.iter().enumerate() {
+        if from == 0 || to != from + 1 || to > version {
+            return Err(syn::Error::new_spanned(
+                attrs[0],
+                "State migrations must be contiguous `from = N, to = N + 1` transitions ending at or before the schema version",
+            ));
+        }
+        if index > 0 && migrations[index - 1].1 != from {
+            return Err(syn::Error::new_spanned(
+                attrs[0],
+                "State migration declarations contain a gap or conflicting transition",
+            ));
+        }
+    }
+    if !migrations.is_empty()
+        && (migrations.first().is_none_or(|step| step.0 != 1)
+            || migrations.last().is_none_or(|step| step.1 != version))
+    {
+        return Err(syn::Error::new_spanned(
+            attrs[0],
+            "State migration declarations must cover every transition from version 1 through the current version",
+        ));
+    }
     Ok(SchemaConfig {
         namespace,
         name,
         version,
         scope,
+        migrations,
     })
 }
 
@@ -890,6 +1754,7 @@ struct FieldConfig {
     criterion: Option<LitStr>,
     display_name: Option<LitStr>,
     auto_tick: bool,
+    default_snbt: Option<LitStr>,
 }
 
 fn parse_field_config(field: &syn::Field) -> syn::Result<FieldConfig> {
@@ -933,6 +1798,9 @@ fn parse_field_config(field: &syn::Field) -> syn::Result<FieldConfig> {
                     result.auto_tick = true;
                     Ok(())
                 }
+            } else if meta.path.is_ident("default_snbt") {
+                let value: LitStr = meta.value()?.parse()?;
+                set_once(&mut result.default_snbt, value, &meta.path)
             } else {
                 Err(meta.error("unknown state field option"))
             }
@@ -998,6 +1866,7 @@ enum Wrapper {
     Enum(Type),
     Timer,
     Cooldown,
+    Data(Type),
 }
 
 fn parse_wrapper(ty: &Type) -> syn::Result<Wrapper> {
@@ -1013,22 +1882,31 @@ fn parse_wrapper(ty: &Type) -> syn::Result<Wrapper> {
             segment,
             parse_quote!(i32),
         )?)),
-        "EntityEnum" => Ok(Wrapper::Enum(required_type_argument(segment)?)),
-        "EntityFlag" => {
+        "Score" => {
+            reject_arguments(segment)?;
+            Ok(Wrapper::Score(parse_quote!(i32)))
+        }
+        "FixedScore" => {
+            reject_arguments(segment)?;
+            Ok(Wrapper::Score(parse_quote!(i32)))
+        }
+        "EntityEnum" | "StateEnum" => Ok(Wrapper::Enum(required_type_argument(segment)?)),
+        "EntityFlag" | "Flag" => {
             reject_arguments(segment)?;
             Ok(Wrapper::Flag)
         }
-        "EntityTimer" => {
+        "EntityTimer" | "Timer" => {
             reject_arguments(segment)?;
             Ok(Wrapper::Timer)
         }
-        "EntityCooldown" => {
+        "EntityCooldown" | "Cooldown" => {
             reject_arguments(segment)?;
             Ok(Wrapper::Cooldown)
         }
+        "Data" => Ok(Wrapper::Data(required_type_argument(segment)?)),
         _ => Err(syn::Error::new_spanned(
             ty,
-            "unsupported State field wrapper; expected EntityScore<T>, EntityFlag, EntityEnum<T>, EntityTimer, or EntityCooldown",
+            "unsupported State field wrapper; expected Score, FixedScore, Flag, StateEnum<T>, Timer, Cooldown, Data<T>, or an advanced Entity-prefixed form",
         )),
     }
 }
@@ -1094,6 +1972,54 @@ fn numeric_default(default: Option<Expr>, field: &syn::Field) -> syn::Result<i32
     default.as_ref().map_or(Ok(0), parse_i32).map_err(|_| {
         syn::Error::new_spanned(field, "this state field requires an i32 literal default")
     })
+}
+
+fn data_default_snbt(config: &FieldConfig, field: &syn::Field) -> syn::Result<LitStr> {
+    if config.default.is_some() && config.default_snbt.is_some() {
+        return Err(syn::Error::new_spanned(
+            field,
+            "Data<T> fields cannot combine `default` and `default_snbt`",
+        ));
+    }
+    if let Some(value) = &config.default_snbt {
+        if value.value().trim().is_empty() {
+            return Err(syn::Error::new_spanned(
+                value,
+                "default SNBT must not be empty",
+            ));
+        }
+        return Ok(value.clone());
+    }
+    let Some(default) = &config.default else {
+        return Err(syn::Error::new_spanned(
+            field,
+            "Data<T> fields require `default = <integer|bool|string>` or `default_snbt = \"...\"`",
+        ));
+    };
+    let rendered = match default {
+        Expr::Lit(ExprLit {
+            lit: Lit::Int(value),
+            ..
+        }) => value.base10_digits().to_owned(),
+        Expr::Unary(unary) if matches!(unary.op, syn::UnOp::Neg(_)) => {
+            format!("-{}", parse_i32(&unary.expr)?)
+        }
+        Expr::Lit(ExprLit {
+            lit: Lit::Bool(value),
+            ..
+        }) => if value.value { "1b" } else { "0b" }.to_owned(),
+        Expr::Lit(ExprLit {
+            lit: Lit::Str(value),
+            ..
+        }) => format!("{:?}", value.value()),
+        _ => {
+            return Err(syn::Error::new_spanned(
+                default,
+                "typed Data default must be an integer, bool, or string literal; use `default_snbt` for compound/list SNBT",
+            ));
+        }
+    };
+    Ok(LitStr::new(&rendered, default.span()))
 }
 
 fn boolean_default(default: Option<Expr>, field: &syn::Field) -> syn::Result<bool> {

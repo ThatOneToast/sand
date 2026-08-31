@@ -43,6 +43,10 @@ pub use crate::vfx::{Vfx, VfxParticle, VfxParticleVisibility, VfxSound, VfxStep}
 
 // ── State variables ───────────────────────────────────────────────────────────
 
+pub use crate::state::lifecycle::{
+    StateCleanup, StateInit, StateLifecycle, StateMigrate, StateProvision, StateReconcile,
+    StateTick,
+};
 pub use crate::state::{
     BlockNbt, Cooldown, EntityNbt, Flag, FlagRef, GameState, GameStateRef, IntoStateCommands,
     NbtLocation, NbtPath, ScoreRef, ScoreVar, SnbtCompound, SnbtValue, StateFlow, StorageField,
@@ -71,18 +75,18 @@ pub use crate::ResourceLocation;
 
 pub use crate::entity::{
     Adoption, AdoptionSource, AnyEntity, AttributeBinding, AttributeModifierBinding,
-    CurrentHealthSync, CurveEvaluationError, CurveInputs, DEFAULT_FIXED_POINT_SCALE,
+    CurrentHealthSync, CurveEvaluationError, CurveInputs, DEFAULT_FIXED_POINT_SCALE, Data,
     DerivedScoreEncoding, EffectBinding, EntityAction, EntityArchetype, EntityContext,
     EntityCooldown, EntityDerivation, EntityDiagnostic, EntityEnum, EntityEnumValue, EntityEventId,
     EntityFlag, EntityKind, EntityNbtBinding, EntityNbtProperty, EntityNbtType, EntityNbtValue,
     EntityQueries, EntityQuery, EntityScope, EntityScore, EntityState, EntityStateField, EntityTag,
     EntityTeam, EntityText, EntityTextSegment, EntityTimer, EntityTransition, EnumEncoding,
-    EquipmentBinding, FixedPoint, FixedValue, HealthBinding, HealthResizePolicy, KnownEntityKind,
-    LivingEntityKind, MarkerKind, Migration, MutableLivingEntityKind, NameBinding,
+    EquipmentBinding, FixedPoint, FixedScore, FixedValue, HealthBinding, HealthResizePolicy,
+    KnownEntityKind, LivingEntityKind, MarkerKind, Migration, MutableLivingEntityKind, NameBinding,
     NumericPropertySource, OverflowPolicy, OwnershipPolicy, PlayerContext, PlayerKind,
     PlayerQueries, PlayerQuery, RawEntityProperty, RawEntityStateField, ReconcilePolicy,
     RefreshPolicy, Relation, RelationQuery, RoundingPolicy, SafeEntityDataWriteKind,
-    ScopedEntityRef, SingleEntityQuery, SinglePlayerQuery, SpecialEntityPolicy, StatCurve,
+    ScopedEntityRef, Score, SingleEntityQuery, SinglePlayerQuery, SpecialEntityPolicy, StatCurve,
     StateFieldDescriptor, StateFieldKind, StatePredicate, StateSchema, TagBinding, TeamBinding,
     ThresholdDirection, ZombieKind,
 };

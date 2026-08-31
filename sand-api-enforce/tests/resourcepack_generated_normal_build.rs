@@ -9,6 +9,6 @@ fn resourcepack_hud_handles_require_exact_consumer_contracts() {
     );
     consumer_fixture::assert_fixture_fails_with(
         "resourcepack-generated-missing",
-        "enforced API scope `sand` has missing contracts: sand::STATUS_ICON",
+        "enforced API scope `sand` has missing contracts: `sand::STATUS_ICON`",
     );
 }

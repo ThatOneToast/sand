@@ -153,7 +153,7 @@ fn enforced_scope_rejects_existing_and_new_uncontracted_items() {
         .unwrap_err();
     assert!(failures.contains(&ScopeFailure::MissingContracts {
         scope: "sand::command".into(),
-        identities: vec!["sand_core::cmd::say".into()],
+        identities: vec![("sand_core::cmd::say".into(), None)],
     }));
 
     let mut expanded = surface();
@@ -166,7 +166,7 @@ fn enforced_scope_rejects_existing_and_new_uncontracted_items() {
         .unwrap_err();
     assert!(failures.contains(&ScopeFailure::MissingContracts {
         scope: "sand::command".into(),
-        identities: vec!["sand_core::cmd::forgotten".into()],
+        identities: vec![("sand_core::cmd::forgotten".into(), None)],
     }));
 }
 
@@ -397,9 +397,10 @@ fn unscoped_reachable_items_fail_the_ratchet() {
     let failures = manifest()
         .evaluate(&surface, &[command_contract()], &BTreeSet::new())
         .unwrap_err();
-    assert!(failures.contains(&ScopeFailure::UnscopedItems(vec![
-        "sand_core::vfx::Vfx".into()
-    ])));
+    assert!(failures.contains(&ScopeFailure::UnscopedItems(vec![(
+        "sand_core::vfx::Vfx".into(),
+        None
+    )])));
 }
 
 #[test]

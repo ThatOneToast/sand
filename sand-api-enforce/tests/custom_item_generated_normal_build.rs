@@ -9,6 +9,6 @@ fn custom_item_generated_public_apis_require_exact_consumer_contracts() {
     );
     consumer_fixture::assert_fixture_fails_with(
         "custom-item-generated-missing",
-        "enforced API scope `sand` has missing contracts: sand::ShardBlade::DAMAGE",
+        "enforced API scope `sand` has missing contracts: `sand::ShardBlade::DAMAGE`",
     );
 }

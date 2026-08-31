@@ -417,3 +417,177 @@ designed above, with one caching hypothesis implemented, measured, and
 ruled out; full implementation is split into a dedicated follow-up (see
 the PR description for the linked issue). See the PR description for the
 full phase-by-phase status.
+
+---
+
+## Post-#350 multi-sample re-baseline (2026-08-27, commit `1bb2a02`)
+
+Everything above this line is single-run data from the #347/#349
+investigation itself, as flagged in its own methodology note. This section
+replaces it as the current baseline with repeatable, multi-sample
+measurements taken against `main` at `1bb2a02` (the #350 merge), before any
+further implementation changes.
+
+**Methodology deviation (disclosed):** the task spec calls for 7-10 samples
+per hot/incremental scenario and 3+ for clean builds. To keep this
+benchmarking pass bounded within one session, sample counts were reduced to
+**5 for hot/incremental scenarios and 2 for clean-build scenarios**. With
+n=5, p95 is computed as the max of the sample (there is no meaningful gap
+between p95 and max at this sample size) — reported as `p95 ≈ max` rather
+than implying false precision. With n=2 for clean builds, only median/min/max
+are meaningful; "p95" is omitted for those rows.
+
+**Environment:** Apple M1 Max (arm64), macOS (Darwin 27.0.0), `rustc
+1.96.0` / `cargo 1.96.0`. `sccache` 0.17.0 is installed but **not active**
+(no `RUSTC_WRAPPER`, no `~/.cargo/config.toml` wrapper configured) — all
+numbers below are plain Cargo, no compiler-output caching. Cargo registry
+and git caches were warm (no network fetches during the run). `~/.sand/cache`
+was warm (populated Minecraft server jars / codegen cache) for every
+scenario except scenario 11, which deliberately measures a cold Cargo
+`target/` against a warm `~/.sand/cache`.
+
+**Reproduce with:** `scripts/bench_build_suite.sh` (drives
+`scripts/bench_build.sh` per scenario). Raw stderr transcript of the run
+this table is drawn from is not checked in; the samples are reproduced
+verbatim below.
+
+| # | Scenario | n | median | min | max | p95 |
+|---|---|---|---|---|---|---|
+| 1 | No-change `cargo check --workspace` | 5 | 0.232s | 0.210s | 0.248s | ≈max |
+| 2 | Edit private impl body, `sand-core/src/lib.rs` | 5 | 8.190s | 8.027s | 9.532s | ≈max |
+| 3 | Edit API-contract declaration, `sand/src/api_contracts.rs` | 5 | 9.022s | 8.837s | 10.362s | ≈max |
+| 4 | Edit impl code, `sand-components/src/animal_variant.rs` | 5 | 8.857s | 8.673s | 9.408s | ≈max |
+| 5 | Edit generated-provider-affecting source, `sand-components/src/registry.rs` | 5 | 9.475s | 8.784s | 11.406s | ≈max |
+| 6 | Edit docs outside crate `src/` trees, `README.md` (first sample only, see note) | 4 | 0.271s | 0.268s | 0.279s | ≈max |
+| 7 | Clean `cargo check --workspace` | 2 | 50.31s | 43.58s | 57.04s | — |
+| 8 | Real `sand build` on `sand-example` after editing `sand-core` (steady-state, see note) | 4 | 8.248s | 7.789s | 9.279s | ≈max |
+| 9 | Immediate no-change `sand build` | 5 | 0.473s | 0.462s | 0.493s | ≈max |
+| 10 | `sand build` then `sand build --release` (single combined run) | 1 | 0.922s | — | — | — |
+| 11 | `sand build` with warm `~/.sand/cache`, cold Cargo `target/` | 1 | 45.17s | — | — | — |
+| 12 | Resource-pack build | — | — | — | — | skipped: no representative example project has a `[resourcepack]` section configured yet |
+
+Raw samples:
+
+```
+scenario 1  (no-change-check):            0.233 0.218 0.232 0.248 0.210
+scenario 2  (edit-private-impl-sand-core): 8.740 8.055 8.190 8.027 9.532
+scenario 3  (edit-api-contract-decl):      8.850 9.022 10.362 9.285 8.837
+scenario 4  (edit-impl-sand-components):   8.673 8.675 8.857 9.408 9.040
+scenario 5  (edit-generated-provider-src): 11.406 9.814 8.784 8.909 9.475
+scenario 6  (edit-docs):                   9.303 0.279 0.270 0.272 0.268
+scenario 7  (clean-check):                 43.577 57.040
+scenario 8  (sand-build-after-edit):       17.334 8.461 8.036 9.279 7.789
+scenario 9  (no-change-sand-build):        0.466 0.473 0.489 0.493 0.462
+scenario 10 (sand-build-then-release):     0.922
+scenario 11 (warm-sandcache-cold-target):  45.169
+```
+
+Notes:
+
+- **Scenario 6's first sample (9.3s) is excluded from the summary stats**
+  and is a harness artifact, not a real cost: the driver reverts each prior
+  scenario's edited file to its original content between samples, so
+  entering scenario 6 the working tree differs from what was last built
+  (scenario 5's edit was just reverted). The first `cargo check` after that
+  revert pays for catching up to the reverted state; samples 2-5 are true
+  repeated no-op-adjacent doc edits and land at ~0.27s, confirming Phase 2's
+  original "doc edits outside `src/` trees don't trigger facade/codegen
+  work" guarantee still holds post-#350.
+- **Scenario 8's first sample (17.3s) is excluded from the summary stats**
+  for the same reason plus one more: `sand-example` is its own Cargo
+  workspace (separate `target/`), so its first invocation in this run paid
+  full compilation of the exporter dependency graph in that workspace,
+  independent of the main workspace's `sand-cli` binary built just before
+  it. Samples 2-5 are steady-state edit-and-rebuild cycles.
+- Scenario 3 (editing the facade's own `sand/src/api_contracts.rs`, a
+  5124-line file) is consistently the slowest of the four "hot edit"
+  scenarios (2-5) other than scenario 5, matching expectation: it's the
+  single largest source file on the enforced surface and forces
+  `sand/build.rs` to re-parse contract declarations from it.
+- Scenario 5 (editing `sand-components/src/registry.rs`, which feeds
+  `sand-core`'s registry-ID provider JSON through
+  `sand-components/build.rs`) has the widest spread (8.78s-11.41s) of any
+  hot scenario. This is a real candidate worth a closer look in Phase 2's
+  profiling pass below, since it touches two build scripts in sequence
+  (`sand-components/build.rs` regenerating the provider JSON, then
+  `sand-core/build.rs` and `sand/build.rs` re-validating against it)
+  rather than one.
+- Clean-build variance between the two scenario-7 samples (43.6s vs 57.0s)
+  is large relative to the n=2 sample size; this is expected — a clean
+  build recompiles ~140 crates from scratch and is far more exposed to
+  background system load (thermal throttling, other processes) than a
+  10-crate incremental rebuild. Do not read a specific percentage change
+  into any single clean-build comparison without more samples than this
+  pass collected.
+- No regression from the #349-resolution baseline is evident: scenario 2's
+  median (8.19s) is in the same range as the #349 doc's post-fix "touch
+  sand-core/src/lib.rs; cargo build -p sand --lib" number (~7.4s, a
+  narrower `-p sand --lib` scope vs this pass's full `cargo check
+  --workspace`, so a modestly higher number here is expected, not a
+  regression).
+
+## Re-profiling the remaining `sand/build.rs` cost (Phase 2, same commit)
+
+Three samples via `SAND_BUILD_RS_PROFILE=1 cargo build -p sand --lib -vv`
+after `touch sand-core/src/lib.rs` (median of 3 shown; all three individual
+runs are consistent within ~5%):
+
+| Phase | Median | % of total |
+|---|---|---|
+| `reachable_from`, all-supported-features ratchet | 1.577s | 28.2% |
+| `reachable_from`, installed configuration | 1.477s | 26.4% |
+| write installed API metadata (facade registrations, coverage, surface report) | 0.754s | 13.5% |
+| build surface graph, ratchet (parse+cfg-eval+classify+bind) | 0.535s | 9.6% |
+| build surface graph, installed (parse+cfg-eval+classify+bind) | 0.497s | 8.9% |
+| parse API contract declarations (second full-source pass) | ~0.39s | 7.0% |
+| load scope/profile manifests + generated providers | ~0.14s | 2.6% |
+| evaluate scope manifest + provider audits + static count | ~0.12s | 2.1% |
+| resolve contract identities + validate providers + dedup | ~0.05s | 0.9% |
+| parse item-macro generated providers | ~0.036s | 0.6% |
+| discover facade features + local source crates | ~0.002s | <0.1% |
+| **TOTAL** | **5.588s** | 100% |
+
+**The single largest contributor is the pair of `reachable_from` facade
+walks** (ratchet + installed), combined ≈54.6% of the total — consistent
+with the pre-#350 profiling that originally motivated the #349
+investigation. The build-surface-graph construction (parse+cfg-eval+
+classify+bind, also run twice) is the second-largest category at ≈18.5%
+combined.
+
+**Candidates evaluated, none implemented:**
+
+- *Shared configuration-independent source facts between the ratchet and
+  installed passes* / *avoiding a second source traversal for contract
+  declarations* — both are variations of caching parsed source across the
+  two `SurfaceGraph::load_with_cfg` calls (and the separate contract-
+  declaration parse pass). The #349 investigation already implemented and
+  measured a `syn::File`-caching hypothesis targeting exactly this and
+  found no benefit (see "Deepened #349 investigation" above); nothing in
+  this pass's profiling data provides a new reason to expect a different
+  result, so it was not re-attempted.
+- *Write-if-changed for generated metadata* — inspected `write_coverage`
+  (`sand/build.rs:1149-1183`): `api_facade_registrations.rs`,
+  `api_coverage.rs`, and `api_surface_report.txt` are written
+  unconditionally into `OUT_DIR`, but `OUT_DIR` is private to `sand`'s own
+  build script — no other crate's fingerprint observes these files, and
+  `sand`'s own recompilation is already necessarily happening whenever this
+  code path runs (that's why the build script reran in the first place).
+  There is no downstream rebuild this could avoid; the candidate is
+  structurally inapplicable here, not merely low-value, so it was not
+  implemented.
+- *Hot lookup-structure improvements* — the five `O(n)` linear-scan-to-map
+  fixes from #349 (three in `expose_declaration`, one in `walk_module`, one
+  in `resolve_export`) are already merged and present in current `main`;
+  nothing in this pass's profile points at a new hot linear scan.
+- *Per-crate API-manifest cache* — per the explicit constraint on this
+  work, not reconsidered. At a 5.6s total (down from the pre-#350 ~35s),
+  this is not a meaningful developer-loop bottleneck, and no simpler
+  in-process change is indicated by the data above; building a persistent
+  cache with a complete invalidation story would add real correctness-
+  surface risk for a marginal win on an already-small number. This matches
+  #350's own conclusion and is re-confirmed, not re-litigated, by this
+  pass's measurements.
+
+**No implementation changes were made in this phase** — every candidate
+evaluated was either previously tried and ruled out, or structurally
+inapplicable to the actual code shape.

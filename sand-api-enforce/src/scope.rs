@@ -13,7 +13,8 @@ use std::path::Path;
 use serde::Deserialize;
 
 use crate::{
-    ContractIdentity, ReachableApi, ReachableKind, ReachableOrigin, audit_reachable_surface,
+    ContractIdentity, ReachableApi, ReachableKind, ReachableOrigin, SourceDefinition,
+    audit_reachable_surface,
 };
 
 const SCOPE_SCHEMA_VERSION: u32 = 1;
@@ -150,14 +151,14 @@ pub enum ScopeFailure {
     },
     DisconnectedEnforcedProvider(String),
     EmptyEnforcedScope(String),
-    UnscopedItems(Vec<String>),
+    UnscopedItems(Vec<(String, Option<SourceDefinition>)>),
     AmbiguousScope {
         identity: String,
         scopes: Vec<String>,
     },
     MissingContracts {
         scope: String,
-        identities: Vec<String>,
+        identities: Vec<(String, Option<SourceDefinition>)>,
     },
     InvalidContracts {
         scope: String,
@@ -244,7 +245,11 @@ impl fmt::Display for ScopeFailure {
             Self::UnscopedItems(identities) => write!(
                 formatter,
                 "reachable APIs are not assigned to a contract scope: {}",
-                identities.join(", ")
+                identities
+                    .iter()
+                    .map(|(identity, definition)| describe_located_identity(identity, definition))
+                    .collect::<Vec<_>>()
+                    .join(", ")
             ),
             Self::AmbiguousScope { identity, scopes } => write!(
                 formatter,
@@ -253,8 +258,12 @@ impl fmt::Display for ScopeFailure {
             ),
             Self::MissingContracts { scope, identities } => write!(
                 formatter,
-                "enforced API scope `{scope}` has missing contracts: {}",
-                identities.join(", ")
+                "enforced API scope `{scope}` has missing contracts: {}. Add `#[api]` to each item listed above, or make it non-public if it is an implementation detail.",
+                identities
+                    .iter()
+                    .map(|(identity, definition)| describe_located_identity(identity, definition))
+                    .collect::<Vec<_>>()
+                    .join(", ")
             ),
             Self::InvalidContracts { scope, diagnostics } => write!(
                 formatter,
@@ -278,6 +287,21 @@ impl fmt::Display for ScopeFailure {
                 "pending API scope count grew to {actual}, above committed ceiling {ceiling}"
             ),
         }
+    }
+}
+
+/// Render a reachable identity with its source location when one is known.
+/// Generated APIs have no source declaration (`definition` is `None`) and are
+/// rendered by bare identity, matching how `Violation` renders the same
+/// missing-`#[api]` case for the simpler `enforce()` entry point.
+fn describe_located_identity(identity: &str, definition: &Option<SourceDefinition>) -> String {
+    match definition {
+        Some(definition) => format!(
+            "{}:{}: `{identity}`",
+            definition.source.display(),
+            definition.line
+        ),
+        None => format!("`{identity}`"),
     }
 }
 
@@ -363,7 +387,7 @@ impl ScopeManifest {
                 .filter(|scope| scope.matches(item, &root_types))
                 .collect::<Vec<_>>();
             match candidates.as_slice() {
-                [] => unscoped.push(item.identity.clone()),
+                [] => unscoped.push((item.identity.clone(), item.definition.clone())),
                 [scope] => {
                     owners.insert(&item.identity, &scope.id);
                 }
@@ -450,7 +474,7 @@ impl ScopeManifest {
                     let missing = matched
                         .iter()
                         .filter(|item| !contracted.contains(item.identity.as_str()))
-                        .map(|item| item.identity.clone())
+                        .map(|item| (item.identity.clone(), item.definition.clone()))
                         .collect::<Vec<_>>();
                     if !missing.is_empty() {
                         failures.push(ScopeFailure::MissingContracts {

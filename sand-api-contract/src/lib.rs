@@ -316,7 +316,7 @@ impl ApiCatalog {
         let words = query
             .split_whitespace()
             .map(normalize_search_word)
-            .filter(|word| !word.is_empty())
+            .filter(|word| !word.is_empty() && !is_search_stopword(word))
             .collect::<Vec<_>>();
         if words.is_empty() {
             return Vec::new();
@@ -974,6 +974,21 @@ fn valid_module_path(path: &str) -> bool {
     path == "sand" || valid_path(path)
 }
 
+/// Common English function words carry no search signal on their own and,
+/// being short, substring-match almost every canonical path (e.g. `"a"` is
+/// a substring of most `sand::` paths) -- scoring them like content words
+/// drowns out the words that actually distinguish one API from another.
+/// Excluding them is a standard, fully deterministic search-quality
+/// practice, not a semantic/NLP layer.
+const SEARCH_STOPWORDS: &[&str] = &[
+    "a", "an", "the", "to", "of", "on", "in", "for", "with", "and", "or", "at", "is", "it", "by",
+    "as", "from", "into", "your", "this", "that", "these", "those",
+];
+
+fn is_search_stopword(word: &str) -> bool {
+    SEARCH_STOPWORDS.contains(&word)
+}
+
 fn normalize_search_word(word: &str) -> String {
     let word = word.trim_matches(|character: char| !character.is_ascii_alphanumeric());
     if let Some(stem) = word.strip_suffix("ies")
@@ -1010,6 +1025,7 @@ fn search_score(entry: &ApiEntry, query: &str, words: &[String]) -> Option<u32> 
         .chain(entry.use_when.iter().map(String::as_str))
         .chain(entry.avoid_when.iter().map(String::as_str))
         .chain(std::iter::once(entry.minecraft.as_str()))
+        .chain(std::iter::once(entry.context.as_str()))
         .collect::<Vec<_>>()
         .join(" ")
         .to_lowercase();

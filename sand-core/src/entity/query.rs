@@ -17,6 +17,15 @@ pub trait StateQuerySpec: 'static {
     type Item;
 
     fn each(body: impl FnOnce(Self::Item) -> Vec<String>) -> Vec<String>;
+
+    /// Run a query body against the current Minecraft executor.
+    ///
+    /// Unlike [`StateQuerySpec::each`], this does not create an entity scan.
+    /// Generated implementations guard every command with the query's
+    /// required and forbidden component-presence predicates. This is the
+    /// canonical bridge for event handlers, whose dispatcher has already
+    /// selected and bound the event owner as `@s`.
+    fn current(body: impl FnOnce(Self::Item) -> Vec<String>) -> Vec<String>;
 }
 
 /// Generated zero-sized query parameter used inside `#[system]` bodies.
@@ -34,6 +43,12 @@ impl<Q: StateQuerySpec> StateQueryHandle<Q> {
     #[doc(hidden)]
     pub fn each(self, body: impl FnOnce(Q::Item) -> Vec<String>) -> Vec<String> {
         Q::each(body)
+    }
+
+    /// Run once for the current executor when it satisfies the query.
+    #[doc(hidden)]
+    pub fn current(self, body: impl FnOnce(Q::Item) -> Vec<String>) -> Vec<String> {
+        Q::current(body)
     }
 }
 

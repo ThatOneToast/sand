@@ -305,9 +305,9 @@ pub mod entity {
         PlayerKind, PlayerQueries, PlayerQuery, PropertyNameError, RawEntityProperty,
         RawEntityStateField, RawPropertyAccess, RawStateBackend, ReconcilePolicy, RefreshPolicy,
         Relation, RelationQuery, RoundingPolicy, SafeEntityDataWriteKind, ScopedEntityRef, Score,
-        SingleEntityQuery, SinglePlayerQuery, SpecialEntityPolicy, StatCurve, StateFieldDescriptor,
-        StateFieldKind, StatePredicate, StateSchema, TagBinding, TeamBinding, ThresholdDirection,
-        ZombieKind,
+        SingleEntityQuery, SinglePlayerQuery, SpecialEntityPolicy, StatCurve, StateComposition,
+        StateFieldDescriptor, StateFieldKind, StatePredicate, StateSchema, TagBinding, TeamBinding,
+        ThresholdDirection, ZombieKind,
     };
 }
 
@@ -725,13 +725,13 @@ pub mod __private {
         pub use sand_core::entity::*;
     }
     pub use sand_core::__private::{
-        EntityStateScope, GlobalStateScope, LivingStateScope, PlayerStateScope, SameStateScope,
-        StateBundleMember, StateDataFieldDescriptor, StateMigrationDescriptor, StateQueryHandle,
-        StateQuerySpec, StateScopeMarker, StateSystemDescriptor, entity_score_new,
-        event_dispatch_advancement, event_dispatch_chain, event_dispatch_tick,
-        event_dispatch_tick_condition, event_dispatch_tracked, player_sneaking_tracked_source,
-        resolve_state_objective, state_attach_commands, state_attached_condition,
-        state_detach_commands, state_presence_predicate,
+        ArchetypeStateScope, EntityStateScope, GlobalStateScope, LivingStateScope,
+        PlayerStateScope, SameStateScope, StateBundleMember, StateDataFieldDescriptor,
+        StateMigrationDescriptor, StateQueryHandle, StateQuerySpec, StateScopeMarker,
+        StateSystemDescriptor, entity_score_new, event_dispatch_advancement, event_dispatch_chain,
+        event_dispatch_tick, event_dispatch_tick_condition, event_dispatch_tracked,
+        player_sneaking_tracked_source, resolve_state_objective, state_attach_commands,
+        state_attached_condition, state_detach_commands, state_presence_predicate,
     };
     pub use sand_core::entity::*;
     pub use sand_core::*;

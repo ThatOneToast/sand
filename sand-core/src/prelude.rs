@@ -87,8 +87,8 @@ pub use crate::entity::{
     PlayerQueries, PlayerQuery, RawEntityProperty, RawEntityStateField, ReconcilePolicy,
     RefreshPolicy, Relation, RelationQuery, RoundingPolicy, SafeEntityDataWriteKind,
     ScopedEntityRef, Score, SingleEntityQuery, SinglePlayerQuery, SpecialEntityPolicy, StatCurve,
-    StateFieldDescriptor, StateFieldKind, StatePredicate, StateSchema, TagBinding, TeamBinding,
-    ThresholdDirection, ZombieKind,
+    StateComposition, StateFieldDescriptor, StateFieldKind, StatePredicate, StateSchema,
+    TagBinding, TeamBinding, ThresholdDirection, ZombieKind,
 };
 
 // ── Function refs (IntoFunctionRef trait) ─────────────────────────────────────

@@ -78,6 +78,24 @@ impl CombatSystems {
 }
 ```
 
+Grouped event systems may take the query after the event parameter and use
+`current`. The existing event dispatcher has already bound the event owner as
+`@s`, so this applies required, optional, and forbidden presence guards without
+introducing another dispatcher or an entity scan.
+
+```rust,ignore
+#[event(PlayerAttack)]
+fn attack(event: PlayerAttack, query: Fighters) {
+    query.current(|owner| owner.combat.attack.damage.add(1));
+}
+```
+
+Archetypes compose independent components and nested bundles with
+`.components::<Combat>()`. Composition uses the same idempotent attachment,
+component migration, and ownership-safe detachment paths as direct author
+calls. Use a distinct marker as the archetype's primary schema; repeating that
+schema inside a composed bundle is rejected as a conflicting policy.
+
 Player components automatically observe online players. Explicit player
 detachment sets a suppression marker, so observation does not silently
 reattach it; calling `attach` clears suppression. Entity and living schemas

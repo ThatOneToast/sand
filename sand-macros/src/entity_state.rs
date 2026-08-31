@@ -1250,6 +1250,26 @@ pub(crate) fn derive_query(input: DeriveInput) -> syn::Result<proc_macro2::Token
     );
     let each_docs = generated_contract_docs(&each_contract);
     contracts.push(each_contract);
+    let current_contract = generated_contract(
+        format!("{}::current", ident.unraw()),
+        GeneratedApiKind::Method,
+        "Runs a State query against the current event or function executor.",
+        "The caller must already execute as the intended owner; required and forbidden component presence is checked at Minecraft runtime.",
+        "Emits guarded commands directly and never introduces an entity scan.",
+        &["Filtering an event executor before accessing its State components"],
+        &["Iterating a collection; use each for generated Minecraft iteration"],
+        &[(
+            "body",
+            "Builds commands for the concrete query item bound to @s.",
+        )],
+        Some("Commands guarded by the complete query presence predicate."),
+        format!(
+            "let commands = {}::current(|item| Vec::new());",
+            ident.unraw()
+        ),
+    );
+    let current_docs = generated_contract_docs(&current_contract);
+    contracts.push(current_contract);
     let query_constructor = if matches!(query_scope, Some(Scope::Player)) {
         quote!(::sand::__private::PlayerQuery::players())
     } else {
@@ -1329,6 +1349,37 @@ pub(crate) fn derive_query(input: DeriveInput) -> syn::Result<proc_macro2::Token
                         .collect()
                 })
             }
+
+
+            #current_docs
+            pub fn current(body: impl FnOnce(#item_ident) -> Vec<String>) -> Vec<String> {
+                let mut requirements: Vec<(String, u32)> = Vec::new();
+                #(#required)*
+                requirements.sort();
+                requirements.dedup();
+                let mut forbidden: Vec<(String, u32)> = Vec::new();
+                #(#forbidden)*
+                forbidden.sort();
+                forbidden.dedup();
+                let item = #item_ident { #(#item_values),* };
+                body(item)
+                    .into_iter()
+                    .map(|command| {
+                        let mut guards = requirements
+                            .iter()
+                            .map(|(objective, version)| format!("if score @s {objective} matches {version}"))
+                            .collect::<Vec<_>>();
+                        guards.extend(forbidden.iter().map(|(objective, version)| {
+                            format!("unless score @s {objective} matches {version}")
+                        }));
+                        if guards.is_empty() {
+                            command
+                        } else {
+                            format!("execute {} run {command}", guards.join(" "))
+                        }
+                    })
+                    .collect()
+            }
         }
 
         impl ::sand::__private::StateQuerySpec for #ident {
@@ -1336,6 +1387,11 @@ pub(crate) fn derive_query(input: DeriveInput) -> syn::Result<proc_macro2::Token
 
             fn each(body: impl FnOnce(Self::Item) -> Vec<String>) -> Vec<String> {
                 Self::each(body)
+            }
+
+
+            fn current(body: impl FnOnce(Self::Item) -> Vec<String>) -> Vec<String> {
+                Self::current(body)
             }
         }
     };

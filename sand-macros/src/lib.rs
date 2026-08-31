@@ -534,10 +534,10 @@ fn expand_state_system_impl(
                         ));
                     }
                 };
-                if method.sig.inputs.len() != 1 {
+                if !(1..=2).contains(&method.sig.inputs.len()) {
                     return Err(syn::Error::new_spanned(
                         &method.sig.inputs,
-                        "grouped event systems require exactly one typed event parameter",
+                        "grouped event systems require an event parameter and may optionally take one StateQuery parameter",
                     ));
                 }
                 let syn::FnArg::Typed(argument) = method.sig.inputs.first().expect("one argument")
@@ -554,14 +554,46 @@ fn expand_state_system_impl(
                         "#[event(EventType)] must match the method parameter type",
                     ));
                 }
+                let mut event_block = method.block.clone();
+                if method.sig.inputs.len() == 2 {
+                    let query_argument = method.sig.inputs.iter().nth(1).expect("two inputs");
+                    let syn::FnArg::Typed(query_argument) = query_argument else {
+                        return Err(syn::Error::new_spanned(
+                            query_argument,
+                            "grouped event systems cannot use self",
+                        ));
+                    };
+                    let syn::Pat::Ident(query_pattern) = query_argument.pat.as_ref() else {
+                        return Err(syn::Error::new_spanned(
+                            &query_argument.pat,
+                            "StateQuery event parameters must use a simple identifier",
+                        ));
+                    };
+                    let query_ident = &query_pattern.ident;
+                    let query_ty = query_argument.ty.as_ref();
+                    event_block.stmts.insert(
+                        0,
+                        syn::parse_quote!(let #query_ident = ::sand::__private::StateQueryHandle::<#query_ty>::new();),
+                    );
+                }
                 let mut signature = method.sig.clone();
+                while signature.inputs.len() > 1 {
+                    signature.inputs.pop();
+                }
+                // Keep the grouped impl itself valid and directly testable:
+                // shadow the declarative query marker with the same generated
+                // handle used by the exported event adapter.
+                method
+                    .attrs
+                    .push(syn::parse_quote!(#[allow(unused_variables)]));
+                method.block = event_block.clone();
                 let original = &method.sig.ident;
                 signature.ident = quote::format_ident!("__sand_system_event_{}", original);
                 let function = ItemFn {
                     attrs: method.attrs.clone(),
                     vis: syn::Visibility::Inherited,
                     sig: signature,
-                    block: Box::new(method.block.clone()),
+                    block: Box::new(event_block),
                 };
                 registrations.push(expand_event(TokenStream::new(), function)?);
             }

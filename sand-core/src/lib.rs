@@ -590,10 +590,10 @@ pub mod __private {
     pub use crate::entity::query::{StateQueryHandle, StateQuerySpec};
     #[doc(hidden)]
     pub use crate::entity::state::{
-        EntityStateScope, GlobalStateScope, LivingStateScope, PlayerStateScope, SameStateScope,
-        StateBundleMember, StateDataFieldDescriptor, StateScopeMarker, resolve_state_objective,
-        state_attach_commands, state_attached_condition, state_detach_commands,
-        state_presence_predicate,
+        ArchetypeStateScope, EntityStateScope, GlobalStateScope, LivingStateScope,
+        PlayerStateScope, SameStateScope, StateBundleMember, StateDataFieldDescriptor,
+        StateScopeMarker, resolve_state_objective, state_attach_commands, state_attached_condition,
+        state_detach_commands, state_presence_predicate,
     };
     #[doc(hidden)]
     pub use crate::function::StateSystemDescriptor;

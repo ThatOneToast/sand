@@ -215,16 +215,22 @@ def main() -> int:
             "scoreboard objectives add audit_external dummy",
             'summon minecraft:zombie 0 200 0 {Tags:["state_audit"],NoAI:1b,NoGravity:1b,Invulnerable:1b,PersistenceRequired:1b}',
         )
-        time.sleep(1.5)
-        command(
-            "scoreboard players set @e[tag=state_audit,limit=1] audit_external 41",
-            "execute as @e[tag=state_audit] at @s run function unified_state:attach_zombie_components",
-        )
+        attach_deadline = time.monotonic() + 5.0
         initial_armor, initial_out = score(armor)
-        check("nested_bundle_attached", initial_armor == 0, initial_out)
+        while initial_armor is None and time.monotonic() < attach_deadline:
+            time.sleep(0.25)
+            initial_armor, initial_out = score(armor)
+        check("archetype_nested_bundle_attached", initial_armor is not None, initial_out)
+        command("scoreboard players set @e[tag=state_audit,limit=1] audit_external 41")
         time.sleep(1.25)
         ticked_armor, ticked_out = score(armor)
-        check("typed_query_system_ticks_owner", ticked_armor in {1, 2}, ticked_out)
+        check(
+            "typed_query_system_ticks_owner",
+            initial_armor is not None
+            and ticked_armor is not None
+            and ticked_armor > initial_armor,
+            ticked_out,
+        )
 
         command(
             f"scoreboard players set @e[tag=state_audit] {attack_damage} 9",

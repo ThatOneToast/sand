@@ -79,5 +79,5 @@ pub use state::{
     Data, EntityCooldown, EntityCooldownAccessor, EntityEnum, EntityEnumAccessor, EntityEnumValue,
     EntityFlag, EntityFlagAccessor, EntityScore, EntityScoreAccessor, EntityState,
     EntityStateField, EntityTimer, EntityTimerAccessor, EnumEncoding, FixedScore, Score,
-    StateFieldDescriptor, StateFieldKind, StatePredicate, StateSchema,
+    StateComposition, StateFieldDescriptor, StateFieldKind, StatePredicate, StateSchema,
 };

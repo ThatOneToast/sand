@@ -55,6 +55,21 @@ impl CombatSystems {
     fn recharge(query: Combatants) {
         query.each(|combatant| combatant.combat.attack.damage.add(1));
     }
+
+
+    #[event(CombatPulse)]
+    fn pulse(_event: CombatPulse, query: Combatants) {
+        query.current(|combatant| combatant.combat.attack.damage.add(1));
+    }
+}
+
+
+struct CombatPulse;
+
+impl SandEvent for CombatPulse {
+    fn dispatch() -> impl Into<SandEventDispatch> {
+        SandEventDispatch::tick().as_players()
+    }
 }
 
 fn main() {
@@ -70,4 +85,8 @@ fn main() {
         commands.extend(combatant.boss(|_| vec!["say boss".into()]));
         commands
     });
+    let _: EntityArchetype<ZombieKind, Attack> = EntityArchetype::new(
+        ResourceLocation::new("rpg", "composed_zombie").unwrap(),
+    )
+    .components::<BossCombat>();
 }

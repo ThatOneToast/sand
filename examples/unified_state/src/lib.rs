@@ -60,6 +60,10 @@ pub struct Status {
 #[state(namespace = "rpg", scope = living)]
 pub struct Dead;
 
+#[derive(State)]
+#[state(namespace = "rpg", scope = living)]
+pub struct ManagedZombie;
+
 #[derive(StateBundle)]
 pub struct Combat {
     pub attack: Attack,
@@ -98,10 +102,12 @@ impl CombatSystems {
     }
 
     #[event(AttackPulse)]
-    fn attack(_event: AttackPulse) {
-        let combat = Combat::on(EntityContext::<PlayerKind>::default());
-        combat.attack.damage.add(1);
-        combat.attack.cooldown.start(Ticks::new(20));
+    fn attack(_event: AttackPulse, query: Combatants) {
+        query.current(|entity| {
+            let mut commands = entity.combat.attack.damage.add(1);
+            commands.extend(entity.combat.attack.cooldown.start(Ticks::new(20)));
+            commands
+        });
     }
 }
 
@@ -155,10 +161,10 @@ pub fn reattach_attack() {
 }
 
 #[entity_archetype]
-pub fn armored_zombie() -> EntityArchetype<ZombieKind, Attack> {
+pub fn armored_zombie() -> EntityArchetype<ZombieKind, ManagedZombie> {
     EntityArchetype::new(ResourceLocation::new("rpg", "armored_zombie").unwrap())
+        .components::<Character>()
         .adopt(Adoption::natural_and_external().every(Ticks::new(20)))
-        .initialize_with("rpg:attach_zombie_components".parse().unwrap())
 }
 
 #[function]

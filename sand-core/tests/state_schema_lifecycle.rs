@@ -50,6 +50,25 @@ struct LivingRuntimeState {
     timer: EntityTimer,
 }
 
+struct ComposedArchetypeRoot;
+
+impl EntityState for ComposedArchetypeRoot {
+    fn schema() -> StateSchema {
+        StateSchema {
+            namespace: "state_test",
+            name: "composed_archetype_root",
+            version: 1,
+            fields: &[],
+        }
+    }
+}
+
+#[entity_archetype]
+fn composed_state_archetype() -> EntityArchetype<ZombieKind, ComposedArchetypeRoot> {
+    EntityArchetype::new(ResourceLocation::new("statepack", "composed_state_archetype").unwrap())
+        .components::<LivingRuntimeState>()
+}
+
 #[allow(dead_code)]
 #[derive(State)]
 #[state(
@@ -186,6 +205,71 @@ fn state_query_lowers_required_optional_and_forbidden_presence_at_runtime() {
         optional[0].0, optional[0].1
     )));
     assert!(generated.contains(&charge));
+}
+
+#[test]
+fn state_query_current_filters_an_event_executor_without_scanning() {
+    let commands = RuntimeEntities::current(|item| item.runtime.charge.add(1));
+    assert!(!commands.is_empty());
+    let required =
+        <EntityRuntimeState as sand::__private::StateBundleMember>::presence_requirements();
+    let forbidden =
+        <LivingRuntimeState as sand::__private::StateBundleMember>::presence_requirements();
+    assert!(commands.iter().all(|command| {
+        command.starts_with("execute if score @s ")
+            && command.contains(&format!("{} matches {}", required[0].0, required[0].1))
+            && command.contains(&format!(
+                "unless score @s {} matches {}",
+                forbidden[0].0, forbidden[0].1
+            ))
+            && !command.contains("execute as @e")
+            && !command.contains("execute as @a")
+    }));
+}
+
+#[test]
+fn archetype_composition_uses_component_lifecycle_once() {
+    let records = records();
+    let requirement =
+        <LivingRuntimeState as sand::__private::StateBundleMember>::presence_requirements();
+    let initialize = records
+        .iter()
+        .filter(|record| record["dir"] == "function")
+        .filter_map(|record| record["content"].as_str())
+        .find(|content| {
+            content.contains(&format!(
+                "scoreboard players set @s {} {}",
+                requirement[0].0, requirement[0].1
+            )) && content.lines().last().is_some_and(|line| line.starts_with("tag @s add __sand.a."))
+        })
+        .expect("archetype initialize should attach the composed component before publishing completion");
+    assert_eq!(
+        initialize
+            .lines()
+            .filter(|line| {
+                line.ends_with(&format!(
+                    "scoreboard players set @s {} {}",
+                    requirement[0].0, requirement[0].1
+                ))
+            })
+            .count(),
+        1
+    );
+
+    let cleanup = records
+        .iter()
+        .filter(|record| record["dir"] == "function")
+        .filter_map(|record| record["content"].as_str())
+        .find(|content| {
+            content.contains(&format!("scoreboard players reset @s {}", requirement[0].0))
+                && content
+                    .lines()
+                    .last()
+                    .is_some_and(|line| line.starts_with("tag @s remove __sand.external."))
+        })
+        .expect("archetype cleanup should detach the composed component");
+    let unique = cleanup.lines().collect::<std::collections::BTreeSet<_>>();
+    assert_eq!(unique.len(), cleanup.lines().count());
 }
 
 #[test]

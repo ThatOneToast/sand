@@ -22,6 +22,6 @@ baseline = "api-surface-baseline-1.21.4.txt"
 
 [[profile]]
 minecraft_version = "26.2"
-static_surface_items = 11014
+static_surface_items = 11174
 pending_item_ceiling = 0
 baseline = "api-surface-baseline.txt"

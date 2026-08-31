@@ -51,13 +51,20 @@ enum Commands {
         /// output files were written, left unchanged, or removed.
         #[arg(long)]
         explain_rebuild: bool,
+        /// Build profile passed to `sand.build.rs` (dev, test, bench,
+        /// release, or a custom name). Defaults to `release` when
+        /// `--release` is passed, `dev` otherwise. Has no effect on
+        /// projects without a `sand.build.rs`.
+        #[arg(long)]
+        profile: Option<String>,
     },
     /// Build the datapack, download the server jar, and start a local server
     Run {
         /// JVM heap size, e.g. "4G" or "2048M" (default: 4G)
         #[arg(long, default_value = "4G")]
         ram: String,
-        /// Set online-mode=false in server.properties (easier local testing)
+        /// Set online-mode=false in server.properties (easier local testing).
+        /// Overrides a `sand.build.rs` ServerConfig's online_mode.
         #[arg(long)]
         offline: bool,
         /// Skip `sand build`; use whatever is already in dist/
@@ -73,6 +80,11 @@ enum Commands {
         /// Deprecated alias for `--server-log verbose`
         #[arg(long, hide = true)]
         verbose: bool,
+        /// Build profile passed to `sand.build.rs` (dev, test, bench,
+        /// release, or a custom name). Defaults to `dev`. Has no effect on
+        /// projects without a `sand.build.rs`.
+        #[arg(long, default_value = "dev")]
+        profile: String,
     },
     /// **Requires Prism Launcher**
     /// Either join the local dev server started by `sand run` or join the sand-dev world with the datapack + optional resource pack
@@ -92,6 +104,15 @@ enum Commands {
     },
     /// Add features to an existing Sand project
     Add(AddArgs),
+    /// Migrate legacy `sand.toml` world/server fields to a typed
+    /// `sand.build.rs` script (issue #317)
+    ///
+    /// Scaffolds a starter `sand.build.rs` (see `sand add worldbuild`) and
+    /// prints a checklist of any world/server-shaped `sand.toml` fields
+    /// found so they can be moved by hand. Currently `sand.toml` has no such
+    /// fields of its own — this command is forward-looking scaffolding, not
+    /// a migration away from an existing feature.
+    Migrate,
     /// Print the Sand version
     Version,
 }
@@ -175,6 +196,13 @@ enum AddFeature {
     ///   - src/lib.rs: appends __sand_resource_export hook if absent
     ///   - src/assets/: created if absent
     Resourcepack,
+    /// Add a typed `sand.build.rs` world/server-configuration script to an
+    /// existing Sand project (issue #317)
+    ///
+    /// Modifies the project in-place:
+    ///   - sand.build.rs: created if absent (a dev/release example)
+    ///   - Cargo.toml: adds a `[[bin]] name = "sand_build_world"` target
+    Worldbuild,
 }
 
 // ── Entry point ───────────────────────────────────────────────────────────────
@@ -197,18 +225,30 @@ fn run() -> Result<()> {
             resourcepack,
             timings,
             explain_rebuild,
-        } => build::run_with_options(build::BuildOptions {
-            release,
-            resourcepack,
-            print_timings: timings,
-            explain_rebuild,
-        }),
+            profile,
+        } => {
+            let profile = profile.unwrap_or_else(|| {
+                if release {
+                    "release".to_string()
+                } else {
+                    "dev".to_string()
+                }
+            });
+            build::run_with_options(build::BuildOptions {
+                release,
+                resourcepack,
+                print_timings: timings,
+                explain_rebuild,
+                profile,
+            })
+        }
         Commands::Run {
             ram,
             offline,
             no_build,
             server_log,
             verbose,
+            profile,
         } => {
             let server_log = if verbose {
                 eprintln!(
@@ -224,13 +264,16 @@ fn run() -> Result<()> {
                 offline,
                 no_build,
                 server_log,
+                profile,
             })
         }
         Commands::Join { local } => join_cmd::run(join_cmd::JoinArgs { local }),
         Commands::Clean { cargo, server } => cmd_clean(cargo, server),
         Commands::Add(args) => match args.feature {
             AddFeature::Resourcepack => add_cmd::run_resourcepack(),
+            AddFeature::Worldbuild => add_cmd::run_worldbuild(),
         },
+        Commands::Migrate => add_cmd::run_migrate(),
         Commands::Version => {
             println!("sand {}", env!("CARGO_PKG_VERSION"));
             Ok(())

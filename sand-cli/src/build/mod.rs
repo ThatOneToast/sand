@@ -8,9 +8,10 @@ mod resourcepack;
 pub mod timing;
 pub mod validate;
 pub mod validate_output;
+pub mod worldbuild;
 pub mod write;
 
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use anyhow::{Context, Result, bail};
 use colored::Colorize;
@@ -29,6 +30,12 @@ use timing::{Phase, Timings};
 use validate::validate_component_records_for_project;
 use write::{component_output, pack_mcmeta_output};
 
+/// Filename of the JSON manifest `sand build` writes alongside `dist/` (not
+/// inside `dist/<namespace>/`) when a project's `sand.build.rs` configures a
+/// `ServerConfig`. 🖥️ Server (host) only — never part of the datapack;
+/// `sand run` reads this file to apply local dev-server settings.
+pub const SERVER_CONFIG_FILE_NAME: &str = ".sand-server-config.json";
+
 pub fn run(release: bool, resourcepack: bool) -> Result<()> {
     run_with_timings(release, resourcepack, false)
 }
@@ -43,19 +50,23 @@ pub fn run_with_timings(release: bool, resourcepack: bool, print_timings: bool) 
         resourcepack,
         print_timings,
         explain_rebuild: false,
+        profile: "dev".to_string(),
     })
 }
 
 /// Flags controlling one `sand build` invocation's diagnostics. `release`
 /// and `resourcepack` control build semantics; `print_timings` and
 /// `explain_rebuild` are purely additive reporting (issue #347 Phases 0/8)
-/// and never change what gets built or written.
-#[derive(Debug, Clone, Copy, Default)]
+/// and never change what gets built or written. `profile` selects the
+/// `BuildProfile` a project's optional `sand.build.rs` receives (issue
+/// #317); defaults to `"dev"`.
+#[derive(Debug, Clone, Default)]
 pub struct BuildOptions {
     pub release: bool,
     pub resourcepack: bool,
     pub print_timings: bool,
     pub explain_rebuild: bool,
+    pub profile: String,
 }
 
 pub fn run_with_options(options: BuildOptions) -> Result<()> {
@@ -64,6 +75,7 @@ pub fn run_with_options(options: BuildOptions) -> Result<()> {
         resourcepack,
         print_timings,
         explain_rebuild,
+        profile,
     } = options;
     let mut timings = Timings::new();
 
@@ -224,6 +236,15 @@ pub fn run_with_options(options: BuildOptions) -> Result<()> {
         change_summary.removed
     );
 
+    // 7b. Typed world build (issue #317): if the project wired a
+    //    `sand.build.rs` in as the `sand_build_world` binary (`sand add
+    //    worldbuild`), compile and run it, then write its resources and
+    //    stash any `ServerConfig` for `sand run`. Entirely additive — a
+    //    project with no `sand.build.rs` sees no behavior change.
+    timings.record(Phase::WorldBuild, || {
+        run_worldbuild(&project_root, &dist, &mc_version, &profile)
+    })?;
+
     // 8. Zip if --release, otherwise hint how to install manually.
     timings.record(Phase::Packaging, || {
         if release {
@@ -278,6 +299,120 @@ pub fn run_with_options(options: BuildOptions) -> Result<()> {
     }
 
     Ok(())
+}
+
+/// Compiles and runs a project's optional `sand.build.rs` (issue #317),
+/// writing its 🌍 World resources into `dist` and stashing any 🖥️
+/// `ServerConfig` for `sand run` to apply. A no-op when the project has no
+/// `sand_build_world` bin target.
+fn run_worldbuild(project_root: &Path, dist: &Path, mc_version: &str, profile: &str) -> Result<()> {
+    if !worldbuild::project_has_worldbuild(project_root) {
+        return Ok(());
+    }
+
+    println!(
+        "{} sand.build.rs (profile: {})...",
+        "Building".cyan().bold(),
+        profile.yellow()
+    );
+
+    worldbuild::compile(project_root)?;
+    let target_dir = cargo_target_dir()?;
+    let binary = worldbuild::binary_path(&target_dir);
+    let (resources, server_config) = worldbuild::run(&binary, profile, mc_version)?;
+
+    let mut written = 0usize;
+    for resource in &resources {
+        let rel_path = format!(
+            "data/{}/{}/{}.{}",
+            resource.namespace, resource.dir, resource.path, resource.ext
+        );
+        let file_path = dist.join(&rel_path);
+        std::fs::create_dir_all(file_path.parent().unwrap()).with_context(|| {
+            format!("failed to create dir for '{}'", file_path.display())
+        })?;
+
+        // `minecraft:load` (and other function tag) contributions merge
+        // with whatever the ordinary component exporter already wrote,
+        // rather than overwriting it — both `sand_export` and
+        // `sand_build_world` can legitimately want to add entries to the
+        // same vanilla tag file.
+        if resource.dir == "tags/function" && file_path.exists() {
+            let existing = std::fs::read_to_string(&file_path)
+                .with_context(|| format!("failed to read '{}'", file_path.display()))?;
+            let merged = merge_function_tag_json(&existing, &resource.content).with_context(
+                || format!("failed to merge world-build tag output into '{}'", file_path.display()),
+            )?;
+            std::fs::write(&file_path, merged)
+                .with_context(|| format!("failed to write '{}'", file_path.display()))?;
+        } else {
+            std::fs::write(&file_path, &resource.content)
+                .with_context(|| format!("failed to write '{}'", file_path.display()))?;
+        }
+        written += 1;
+    }
+
+    // ServerConfig lives outside dist/<namespace>/ — it is never part of the
+    // datapack. `sand run` reads it directly; a stale file from a previous
+    // build (when this build's profile configured no ServerConfig) is
+    // removed so `sand run` doesn't apply settings from an old profile.
+    let server_config_path = dist
+        .parent()
+        .expect("dist/<namespace> always has a parent")
+        .join(SERVER_CONFIG_FILE_NAME);
+    match server_config {
+        Some(server) => {
+            let json = serde_json::json!({
+                "view_distance": server.view_distance,
+                "simulation_distance": server.simulation_distance,
+                "difficulty": server.difficulty.as_str(),
+                "online_mode": server.online_mode,
+                "world_reset_policy_always_reset": server.world_reset_policy,
+            });
+            std::fs::write(&server_config_path, serde_json::to_string_pretty(&json)?)
+                .with_context(|| format!("failed to write '{}'", server_config_path.display()))?;
+        }
+        None => {
+            if server_config_path.exists() {
+                std::fs::remove_file(&server_config_path).with_context(|| {
+                    format!("failed to remove stale '{}'", server_config_path.display())
+                })?;
+            }
+        }
+    }
+
+    println!(
+        "  {} {} world resource(s) from sand.build.rs",
+        "Done!".green().bold(),
+        written.to_string().white().bold()
+    );
+
+    Ok(())
+}
+
+/// Merges a `sand_build_world`-produced function tag JSON's `"values"`
+/// array into an existing tag file's `"values"` array (deduplicated,
+/// preserving the existing file's entries first).
+fn merge_function_tag_json(existing: &str, addition: &str) -> Result<String> {
+    let mut existing_json: serde_json::Value =
+        serde_json::from_str(existing).context("existing tag file is not valid JSON")?;
+    let addition_json: serde_json::Value =
+        serde_json::from_str(addition).context("world-build tag output is not valid JSON")?;
+
+    let mut values: Vec<serde_json::Value> = existing_json
+        .get("values")
+        .and_then(|v| v.as_array())
+        .cloned()
+        .unwrap_or_default();
+    if let Some(new_values) = addition_json.get("values").and_then(|v| v.as_array()) {
+        for value in new_values {
+            if !values.contains(value) {
+                values.push(value.clone());
+            }
+        }
+    }
+    existing_json["values"] = serde_json::Value::Array(values);
+    Ok(serde_json::to_string_pretty(&existing_json)?)
 }
 
 // ── Tests ─────────────────────────────────────────────────────────────────────

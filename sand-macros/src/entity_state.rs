@@ -57,7 +57,7 @@ pub(crate) fn derive_state(input: DeriveInput) -> syn::Result<proc_macro2::Token
         }
         let attrs = parse_field_config(field)?;
         let wrapper = parse_wrapper(&field.ty)?;
-        if !matches!(&wrapper, Wrapper::Score(_))
+        if !matches!(&wrapper, Wrapper::Score(_) | Wrapper::Fixed)
             && (attrs.criterion.is_some() || attrs.display_name.is_some())
         {
             return Err(syn::Error::new_spanned(
@@ -69,6 +69,12 @@ pub(crate) fn derive_state(input: DeriveInput) -> syn::Result<proc_macro2::Token
             return Err(syn::Error::new_spanned(
                 field,
                 "`auto_tick` is only valid on EntityTimer and EntityCooldown fields",
+            ));
+        }
+        if attrs.scale.is_some() && !matches!(&wrapper, Wrapper::Fixed) {
+            return Err(syn::Error::new_spanned(
+                field,
+                "`scale` is only valid on FixedScore State fields",
             ));
         }
         let namespace = &config.namespace;
@@ -161,6 +167,10 @@ pub(crate) fn derive_state(input: DeriveInput) -> syn::Result<proc_macro2::Token
                 "score",
                 "Reads and writes the schema field through its validated scoreboard objective.",
             ),
+            Wrapper::Fixed => (
+                "fixed score",
+                "Encodes decimal values as deterministic scaled scoreboard integers.",
+            ),
             Wrapper::Flag => (
                 "flag",
                 "Stores the schema field as a boolean scoreboard value with zero and one encodings.",
@@ -214,6 +224,63 @@ pub(crate) fn derive_state(input: DeriveInput) -> syn::Result<proc_macro2::Token
                         )
                     },
                     quote!(::sand::__private::EntityScoreAccessor<#ty>),
+                    quote!(#default),
+                )
+            }
+            Wrapper::Fixed => {
+                if attrs.kind.is_some() {
+                    return Err(syn::Error::new_spanned(
+                        field,
+                        "FixedScore does not accept an internal state field kind",
+                    ));
+                }
+                let scale = attrs.scale.unwrap_or(1_000);
+                if scale == 0 || scale > i32::MAX as u32 {
+                    return Err(syn::Error::new_spanned(
+                        field,
+                        "FixedScore scale must be between 1 and 2147483647",
+                    ));
+                }
+                let scale = scale as i32;
+                let default = fixed_default(default, scale, field)?;
+                let fixed_bounds = match (attrs.min, attrs.max) {
+                    (None, None) => quote!(None),
+                    (Some(min), Some(max)) => {
+                        if min > max {
+                            return Err(syn::Error::new_spanned(
+                                field,
+                                "state field minimum must not exceed its maximum",
+                            ));
+                        }
+                        let min = scale_fixed_integer(min, scale, field)?;
+                        let max = scale_fixed_integer(max, scale, field)?;
+                        quote!(Some((#min, #max)))
+                    }
+                    _ => {
+                        return Err(syn::Error::new_spanned(
+                            field,
+                            "`min` and `max` must be specified together",
+                        ));
+                    }
+                };
+                (
+                    quote! {
+                        #[doc = concat!("Typed fixed-point handle for the `", #field_name, "` State field.")]
+                        #[doc = concat!("API Contract: generated typed fixed-point handle `", module_path!(), "::", stringify!(#owner_ident), "::", stringify!(#ident), "`.")]
+                        pub const #ident: ::sand::__private::FixedScore =
+                            ::sand::__private::fixed_score_new(
+                                #namespace, #schema_name, #field_name, #scale, #default, #fixed_bounds
+                            );
+                    },
+                    quote! {
+                        ::sand::__private::StateFieldDescriptor::new(
+                            #field_name,
+                            ::sand::__private::StateFieldKind::Fixed(#scale),
+                            #default,
+                            #fixed_bounds,
+                        )
+                    },
+                    quote!(::sand::__private::FixedScoreAccessor),
                     quote!(#default),
                 )
             }
@@ -1811,6 +1878,7 @@ struct FieldConfig {
     display_name: Option<LitStr>,
     auto_tick: bool,
     default_snbt: Option<LitStr>,
+    scale: Option<u32>,
 }
 
 fn parse_field_config(field: &syn::Field) -> syn::Result<FieldConfig> {
@@ -1857,6 +1925,12 @@ fn parse_field_config(field: &syn::Field) -> syn::Result<FieldConfig> {
             } else if meta.path.is_ident("default_snbt") {
                 let value: LitStr = meta.value()?.parse()?;
                 set_once(&mut result.default_snbt, value, &meta.path)
+            } else if meta.path.is_ident("scale") {
+                let expression: Expr = meta.value()?.parse()?;
+                let value = parse_i32(&expression)?;
+                let value = u32::try_from(value)
+                    .map_err(|_| meta.error("FixedScore scale must be positive"))?;
+                set_once(&mut result.scale, value, &meta.path)
             } else {
                 Err(meta.error("unknown state field option"))
             }
@@ -1918,6 +1992,7 @@ fn global_holder(namespace: &str, schema: &str) -> String {
 
 enum Wrapper {
     Score(Type),
+    Fixed,
     Flag,
     Enum(Type),
     Timer,
@@ -1944,7 +2019,7 @@ fn parse_wrapper(ty: &Type) -> syn::Result<Wrapper> {
         }
         "FixedScore" => {
             reject_arguments(segment)?;
-            Ok(Wrapper::Score(parse_quote!(i32)))
+            Ok(Wrapper::Fixed)
         }
         "EntityEnum" | "StateEnum" => Ok(Wrapper::Enum(required_type_argument(segment)?)),
         "EntityFlag" | "Flag" => {
@@ -2027,6 +2102,60 @@ fn is_i32(ty: &Type) -> bool {
 fn numeric_default(default: Option<Expr>, field: &syn::Field) -> syn::Result<i32> {
     default.as_ref().map_or(Ok(0), parse_i32).map_err(|_| {
         syn::Error::new_spanned(field, "this state field requires an i32 literal default")
+    })
+}
+
+fn fixed_default(default: Option<Expr>, scale: i32, field: &syn::Field) -> syn::Result<i32> {
+    let Some(default) = default else {
+        return Ok(0);
+    };
+    let value = parse_f64(&default).map_err(|_| {
+        syn::Error::new_spanned(field, "FixedScore default must be a finite numeric literal")
+    })?;
+    encode_fixed_literal(value, scale, field)
+}
+
+fn parse_f64(expression: &Expr) -> syn::Result<f64> {
+    match expression {
+        Expr::Lit(ExprLit {
+            lit: Lit::Float(value),
+            ..
+        }) => value.base10_parse(),
+        Expr::Lit(ExprLit {
+            lit: Lit::Int(value),
+            ..
+        }) => value.base10_parse(),
+        Expr::Unary(unary) if matches!(unary.op, syn::UnOp::Neg(_)) => Ok(-parse_f64(&unary.expr)?),
+        _ => Err(syn::Error::new_spanned(
+            expression,
+            "expected a numeric literal",
+        )),
+    }
+}
+
+fn encode_fixed_literal(value: f64, scale: i32, field: &syn::Field) -> syn::Result<i32> {
+    if !value.is_finite() {
+        return Err(syn::Error::new_spanned(
+            field,
+            "FixedScore values must be finite",
+        ));
+    }
+    let scaled = value * f64::from(scale);
+    if scaled < f64::from(i32::MIN) || scaled > f64::from(i32::MAX) {
+        return Err(syn::Error::new_spanned(
+            field,
+            "FixedScore value does not fit the signed 32-bit scoreboard backend at this scale",
+        ));
+    }
+    Ok(scaled.round() as i32)
+}
+
+fn scale_fixed_integer(value: i32, scale: i32, field: &syn::Field) -> syn::Result<i32> {
+    value.checked_mul(scale).ok_or_else(|| {
+        syn::Error::new_spanned(
+            field,
+            "FixedScore bound does not fit the signed 32-bit scoreboard backend at this scale",
+        )
     })
 }
 

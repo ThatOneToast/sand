@@ -1,11 +1,9 @@
-# Unified State tutorial
+# A small State-powered RPG
 
-This isolated example demonstrates player progression, independent attack,
-defense, status, and marker components, nested `StateBundle` composition,
-required/optional/forbidden `StateQuery` fields, tick and event systems that
-filter the already-bound event executor, component migration hooks, direct
-archetype bundle composition, and a global
-score-plus-typed-data resource.
+This is the kitchen-sink example, but it is still meant to be readable. It has
+player progression, separate attack/defense/status components, nested bundles,
+presence-aware queries, tick and attack-event systems, migrations, an
+archetype, and one global resource with typed data.
 
 Run it from this directory:
 
@@ -14,5 +12,6 @@ cargo check
 cargo run --quiet --bin sand_export | jq
 ```
 
-The export is JSON component records rather than an installed world. For a
-server-ready pack, use Sand's normal CLI build flow from a generated project.
+That second command prints JSON component records; it does not install anything
+into a world. Use the normal Sand CLI build flow when you want a server-ready
+pack.

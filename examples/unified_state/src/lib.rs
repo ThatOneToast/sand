@@ -15,6 +15,8 @@ pub struct Progression {
     pub level: Score,
     #[state(default = 0, min = 0, max = 1_000_000)]
     pub experience: Score,
+    #[state(default = 1.0, min = 0, max = 10, scale = 100)]
+    pub experience_multiplier: FixedScore,
 }
 
 #[derive(State)]
@@ -173,6 +175,9 @@ pub fn advance_world() {
     Progression::on(EntityContext::<PlayerKind>::default())
         .experience
         .add(10);
+    Progression::on(EntityContext::<PlayerKind>::default())
+        .experience_multiplier
+        .add(0.05);
 }
 
 /// Export hook used by the isolated tutorial workspace.

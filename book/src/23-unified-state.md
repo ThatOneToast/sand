@@ -1,9 +1,10 @@
-# Unified State Components, Bundles, Queries, And Systems
+# State without the bookkeeping
 
-`State` is Sand's canonical persistent gameplay-data declaration. Each schema
-is an independently versioned component with one owner scope: `player`,
-`entity`, `living`, or `global`. Its generated bound type has concrete named
-fields, so normal Rust completion and navigation continue to work.
+`State` is where long-lived gameplay data goes. You write a normal Rust struct,
+pick who owns it (`player`, `entity`, `living`, or `global`), and Sand handles
+the scoreboard names, initialization, presence marker, and version. The view
+you use in gameplay code still has real named fields, so completion and “go to
+definition” work as you would expect.
 
 ```rust
 use sand::prelude::*;
@@ -31,11 +32,27 @@ pub struct Combat {
 }
 ```
 
-Attach components through the generated lifecycle. Initialization fills only
-missing owned values and publishes the component version last. Detachment runs
-the cleanup hook first and removes only that component's fields and
-bookkeeping. A bundle reuses its member components; it does not allocate a
-second copy or tick a component twice.
+Use `FixedScore` when whole numbers are too chunky. Its default scale is 1,000,
+or you can choose one explicitly. This stores `1.25` as `125`, rounds exact
+halves away from zero, and clamps values to the declared bounds:
+
+```rust
+#[derive(State)]
+#[state(namespace = "trailforge", scope = player)]
+pub struct Movement {
+    #[state(default = 1.25, min = 0, max = 8, scale = 100)]
+    pub speed: FixedScore,
+}
+
+let movement = Movement::on(EntityContext::<PlayerKind>::default());
+movement.speed.add(0.10);
+```
+
+Attaching is safe to repeat. Sand only fills in missing values and publishes
+the version marker after everything else succeeds. Detaching runs cleanup and
+removes that component's own values, leaving other components alone. Bundles
+are just named views over their members; they do not make a second copy or tick
+anything twice.
 
 ```rust
 #[function]
@@ -44,10 +61,10 @@ pub fn adopt_current_mob() {
 }
 ```
 
-Queries use ordinary named structs. Required and forbidden members become
-selector presence filters. Optional members expose a generated callback whose
-body is guarded by the actual runtime presence score; Sand does not fabricate
-a compile-time `Option` from world state.
+Queries are ordinary named structs too. Required and forbidden members become
+selector filters. Optional members use a callback guarded by the real runtime
+presence score—there is no pretend Rust `Option` decided while the pack is
+being built.
 
 Required membership is selected when the Minecraft iteration begins. Optional
 and forbidden guards are evaluated by the emitted `execute` commands, in body
@@ -78,10 +95,11 @@ impl CombatSystems {
 }
 ```
 
-Grouped event systems may take the query after the event parameter and use
-`current`. The existing event dispatcher has already bound the event owner as
-`@s`, so this applies required, optional, and forbidden presence guards without
-introducing another dispatcher or an entity scan.
+Event systems can take the query after the event and call `current`. The event
+dispatcher has already made the owner `@s`, so Sand checks the component
+filters without scanning the world again. Tick systems with the same cadence
+and selector share a scan when they are next to each other in deterministic
+system order; opaque command bodies stay separate.
 
 ```rust,ignore
 #[event(PlayerAttack)]
@@ -96,12 +114,11 @@ component migration, and ownership-safe detachment paths as direct author
 calls. Use a distinct marker as the archetype's primary schema; repeating that
 schema inside a composed bundle is rejected as a conflicting policy.
 
-Player components automatically observe online players. Explicit player
-detachment sets a suppression marker, so observation does not silently
-reattach it; calling `attach` clears suppression. Entity and living schemas
-never create an unconstrained adoption scan merely by being declared. Global
-schemas use a deterministic singleton score holder and may additionally own
-typed `Data<T>` paths in generated storage.
+Player components watch online players automatically. If you explicitly detach
+one, Sand remembers that choice instead of quietly putting it back; `attach`
+opts the player in again. Entity and living components never start a world-wide
+scan just because their type exists. Global state uses one deterministic holder
+and can also own typed `Data<T>` paths in command storage.
 
 Version changes are explicit and contiguous. Declare each transition and use
 an optional lifecycle implementation for transformation commands:
@@ -127,8 +144,7 @@ impl StateLifecycle for Status {
 }
 ```
 
-Changing a schema identity or generated objective naming is persisted-world
-data migration, not a source-only rename. Preserve the old objective, copy or
-transform its holder values in a declared migration, then remove it only after
-the upgraded version marker is published. The complete compilable example is
-in `examples/unified_state`.
+One last gotcha: changing a schema name or an objective identity changes saved
+world data. Treat that like a database rename. Keep the old value around, copy
+or transform it in a migration, and remove it only after the new version marker
+has been published. A complete project lives in `examples/unified_state`.

@@ -9,6 +9,8 @@ struct PlayerState {
     poisoned: EntityFlag,
     #[state(default = 0, auto_tick)]
     dash: EntityCooldown,
+    #[state(default = 1.255, min = -2, max = 2, scale = 100)]
+    speed: FixedScore,
 }
 
 #[derive(State)]
@@ -42,6 +44,9 @@ fn main() {
     let _: Vec<String> = player.health.add(1);
     let _: Vec<String> = player.poisoned.enable();
     let _: Vec<String> = player.dash.start(Ticks::new(20));
+    let _: Vec<String> = player.speed.add(0.25);
+    assert_eq!(PlayerState::speed.scale(), 100);
+    assert_eq!(PlayerState::speed.descriptor().default, 125);
 
     let entity = GenericState::on(EntityContext::<AnyEntity>::default());
     let _: Vec<String> = entity.value.set(1);

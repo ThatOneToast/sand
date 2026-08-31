@@ -668,6 +668,19 @@ pub mod __private {
     ) -> crate::entity::EntityScore<T> {
         crate::entity::EntityScore::__new(namespace, schema, name, kind, default, bounds)
     }
+
+    /// Constructs compiler-owned fixed-point fields for State derive output.
+    #[doc(hidden)]
+    pub const fn fixed_score_new(
+        namespace: &'static str,
+        schema: &'static str,
+        name: &'static str,
+        scale: i32,
+        default: i32,
+        bounds: Option<(i32, i32)>,
+    ) -> crate::entity::FixedScore {
+        crate::entity::FixedScore::__new(namespace, schema, name, scale, default, bounds)
+    }
 }
 
 impl From<generated::Item> for sand_components::registry::ItemId {

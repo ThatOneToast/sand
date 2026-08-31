@@ -81,14 +81,14 @@ pub use crate::entity::{
     EntityFlag, EntityKind, EntityNbtBinding, EntityNbtProperty, EntityNbtType, EntityNbtValue,
     EntityQueries, EntityQuery, EntityScope, EntityScore, EntityState, EntityStateField, EntityTag,
     EntityTeam, EntityText, EntityTextSegment, EntityTimer, EntityTransition, EnumEncoding,
-    EquipmentBinding, FixedPoint, FixedScore, FixedValue, HealthBinding, HealthResizePolicy,
-    KnownEntityKind, LivingEntityKind, MarkerKind, Migration, MutableLivingEntityKind, NameBinding,
-    NumericPropertySource, OverflowPolicy, OwnershipPolicy, PlayerContext, PlayerKind,
-    PlayerQueries, PlayerQuery, RawEntityProperty, RawEntityStateField, ReconcilePolicy,
-    RefreshPolicy, Relation, RelationQuery, RoundingPolicy, SafeEntityDataWriteKind,
-    ScopedEntityRef, Score, SingleEntityQuery, SinglePlayerQuery, SpecialEntityPolicy, StatCurve,
-    StateComposition, StateFieldDescriptor, StateFieldKind, StatePredicate, StateSchema,
-    TagBinding, TeamBinding, ThresholdDirection, ZombieKind,
+    EquipmentBinding, FixedPoint, FixedScore, FixedScoreAccessor, FixedScoreValue, FixedValue,
+    HealthBinding, HealthResizePolicy, KnownEntityKind, LivingEntityKind, MarkerKind, Migration,
+    MutableLivingEntityKind, NameBinding, NumericPropertySource, OverflowPolicy, OwnershipPolicy,
+    PlayerContext, PlayerKind, PlayerQueries, PlayerQuery, RawEntityProperty, RawEntityStateField,
+    ReconcilePolicy, RefreshPolicy, Relation, RelationQuery, RoundingPolicy,
+    SafeEntityDataWriteKind, ScopedEntityRef, Score, SingleEntityQuery, SinglePlayerQuery,
+    SpecialEntityPolicy, StatCurve, StateComposition, StateFieldDescriptor, StateFieldKind,
+    StatePredicate, StateSchema, TagBinding, TeamBinding, ThresholdDirection, ZombieKind,
 };
 
 // ── Function refs (IntoFunctionRef trait) ─────────────────────────────────────

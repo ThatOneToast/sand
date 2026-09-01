@@ -1,7 +1,8 @@
 //! [`SandBuild`] — the top-level value a `sand.build.rs` script returns.
 
+use super::context::BuildContext;
 use super::server::ServerConfig;
-use super::validate::{BuildDiagnostic, validate};
+use super::validate::{BuildDiagnostic, validate, validate_for_context};
 use super::world::World;
 use sand_macros::api;
 
@@ -160,6 +161,27 @@ impl SandBuild {
     )]
     pub fn validate(&self) -> Result<(), Vec<BuildDiagnostic>> {
         validate(self)
+    }
+
+    /// Same checks as [`SandBuild::validate`], plus a version-context note
+    /// on biome-registry failures when `ctx`'s target Minecraft version
+    /// doesn't match the version Sand's registry data was generated for
+    /// (issue #356).
+    #[api(
+        registry = sand_api_contract,
+        path = "sand::build::SandBuild::validate_for_context",
+        module = "sand::build",
+        summary = "Validates this build, adding a version-context note to biome-registry failures when the target Minecraft version differs from the compiled registry.",
+        context = "Called by run_and_print (the generated sand_build_world binary's entry point) so build scripts get this note automatically without changing their own validate() call sites.",
+        minecraft = "The bundled biome registry reflects one Minecraft version at a time (the one sand-core's own codegen ran against), the same limitation every generated Sand registry shares.",
+        use_when = ["Validating from a context that already has a BuildContext in hand, e.g. run_and_print"],
+        avoid_when = ["Simple validation with no BuildContext available; use SandBuild::validate"],
+        params(ctx = "The build context whose target Minecraft version is compared against the compiled registry."),
+        returns = "Ok(()) if every check passes, or every collected BuildDiagnostic, possibly with one extra version-context note appended.",
+        example = "let ctx = BuildContext::new(BuildProfile::Dev); assert!(SandBuild::new().validate_for_context(&ctx).is_ok());"
+    )]
+    pub fn validate_for_context(&self, ctx: &BuildContext) -> Result<(), Vec<BuildDiagnostic>> {
+        validate_for_context(self, ctx)
     }
 }
 

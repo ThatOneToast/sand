@@ -356,6 +356,14 @@ pub fn write_placeholder_codegen(out_dir: &Path, minecraft_version: &str) -> Res
     )?;
     std::fs::write(out_dir.join("block_states.rs"), "// Generation failed\n")?;
     std::fs::write(out_dir.join("commands.rs"), "// Generation failed\n")?;
+    std::fs::write(
+        out_dir.join("biomes.rs"),
+        format!(
+            "// Generation failed\n\
+             pub(crate) static CODEGEN_MINECRAFT_VERSION: &str = {minecraft_version:?};\n\
+             pub(crate) static VANILLA_BIOMES: &[&str] = &[];\n"
+        ),
+    )?;
     ApiProviderCatalog::placeholder("generated_commands", minecraft_version)
         .write_json(&out_dir.join("commands.api.json"))?;
     ApiProviderCatalog::placeholder("generated_registries", minecraft_version)

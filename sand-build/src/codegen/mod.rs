@@ -1,3 +1,4 @@
+mod biomes;
 mod blocks;
 pub mod cache;
 mod commands;
@@ -26,9 +27,13 @@ pub const CODEGEN_CACHE_FORMAT_VERSION: u32 = 1;
 /// Generate all source files from the data generator reports.
 ///
 /// Writes to `out_dir` (typically `$OUT_DIR` from Cargo):
-/// - `registries.rs` — enums for item, block, entity type, biome, etc.
+/// - `registries.rs` — enums for item, block, entity type, sound event, etc.
 /// - `block_states.rs` — per-block property structs and shared property enums.
 /// - `commands.rs`    — builder structs for Minecraft commands.
+/// - `biomes.rs`      — crate-internal `VANILLA_BIOMES` list for
+///   `sand_core::build`'s registry validation (issue #356). Not a public
+///   typed enum — see `biomes.rs`'s module docs for why biomes aren't
+///   generated the same way item/block/entity-type registries are.
 ///
 /// Always regenerates; does not consult the generated-code cache. Callers
 /// that want caching should use [`generate_all_cached`].
@@ -36,6 +41,7 @@ pub fn generate_all(reports_dir: &Path, out_dir: &Path, minecraft_version: &str)
     registries::generate(reports_dir, out_dir, minecraft_version)?;
     blocks::generate(reports_dir, out_dir)?;
     commands::generate(reports_dir, out_dir, minecraft_version)?;
+    biomes::generate(reports_dir, out_dir, minecraft_version)?;
     Ok(())
 }
 

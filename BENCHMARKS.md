@@ -13,12 +13,25 @@
 > **0.40s** for the `sand.build.rs` phase alone; a from-scratch `cargo
 > build` of the exporter + world-build binaries (cold `sand`/`sand-core`
 > artifacts) took ~38s, in line with the ordinary exporter-compile numbers
-> below. **What's still a follow-up, not done here:** this file measures
-> Cargo/exporter *build* time, not in-game world-generation or tick
-> *runtime* performance — there is no tooling yet that starts a real
-> Minecraft server against a `bench`-profile world and measures TPS/chunk-
-> generation throughput inside it. Tracked as a follow-up in `ROADMAP.md`
-> and filed as a GitHub issue (linked from the PR that added this note).
+> below.
+>
+> **Runtime harness (issue #357), v1 — real-server, honestly scoped:**
+> `scripts/bench_runtime.sh` starts a real Minecraft server (Java +
+> the cached `~/.sand/cache/<version>/server.jar`) via `sand run
+> --no-build --offline --profile bench` against `examples/book_project`
+> and measures wall-clock time from process launch to `sand run`'s own
+> "Minecraft \<version\> ready" console-health signal
+> (`sand-cli/src/console/health.rs`/`render.rs`). Because `bench` uses
+> full vanilla noise generation (not flat) with a fixed seed, this is a
+> real, reproducible cost: server boot + spawn-chunk generation for a
+> genuine world. Measured on this machine (2 samples, warm jar cache,
+> `examples/book_project`, macOS/Apple Silicon): **median 9.48s** (min
+> 9.20s, max 9.76s). **What this v1 still does not measure** (an
+> explicit, disclosed gap, not silently dropped): steady-state TPS or
+> chunk-generation throughput away from spawn — that needs a scripted
+> in-game workload (e.g. forcing exploration/teleports and sampling
+> tick-rate debug output) this harness doesn't attempt. Tracked as
+> remaining work on issue #357.
 
 This file tracks measured before/after numbers for the build-performance
 overhaul in #347. Numbers are wall-clock seconds from `/usr/bin/time -p`,

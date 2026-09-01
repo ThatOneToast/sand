@@ -75,6 +75,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   profile introduces `WorldResetPolicy` primitives but isn't yet wired into
   `BENCHMARKS.md`'s existing benchmark harness.
 
+### Fixed / Added — real-server validation follow-ups for #317 (#355, #357, #358)
+
+- Fixed (#358): `World::spawn`'s lowering generated `setworldspawn x y z
+  yaw` — real Minecraft 26.2 rejects this (`Incomplete (expected 2
+  coordinates)`) because the command's trailing argument is a two-value
+  rotation (yaw, pitch), not a single float. Now emits pitch as `0`.
+  Found and fixed via real end-to-end `sand run` verification against a
+  live server (not just unit tests). Along the way, also found and
+  disclosed (not a Sand bug, but a real footgun): Minecraft 26.2 renamed
+  many gamerules to snake_case (e.g. `doDaylightCycle` ->
+  `advance_time`) — `World::gamerule` takes a free-form string Sand
+  doesn't validate against the target version. Filed as #360 (systemic
+  fix — diagnostic, typed gamerule enum, or rename table — is out of
+  scope here).
+- Added (#355): `sand-vanilla-audit` now also builds and validates a
+  `sand::build` world (flat Overworld, spawn, dimension JSON) and merges
+  its generated resources into the real-server load/reload pass,
+  verified against a real Minecraft 26.2 server. Fixed a genuine
+  pre-existing bug found along the way: `Dialog::notice_local` requires
+  at least one `DialogButton` per Minecraft's schema, which
+  `sand-vanilla-audit`'s dialog fixture didn't have — this was silently
+  blocking all 26.x vanilla-reload CI validation.
+- Added (#357), v1: `scripts/bench_runtime.sh` — a real-server runtime
+  benchmark measuring wall-clock time from launching a `bench`-profile
+  server to it reporting ready (spawn-chunk generation with full vanilla
+  noise gen), documented honestly in `BENCHMARKS.md` alongside what it
+  does not yet measure (steady-state TPS/chunk throughput away from
+  spawn).
+
 ### Added — typed Villager/Wandering Trader trade authoring (26.1+) (#296)
 
 - Added `sand_components::villager_trade` (re-exported at the `sand_components`,

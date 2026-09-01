@@ -1,0 +1,11 @@
+{
+  "generator": {
+    "biome_source": {
+      "biome": "minecraft:desert",
+      "type": "minecraft:fixed"
+    },
+    "settings": "minecraft:overworld",
+    "type": "minecraft:noise"
+  },
+  "type": "minecraft:overworld"
+}

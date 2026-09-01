@@ -1,0 +1,13 @@
+{
+  "generator": {
+    "settings": {
+      "biome": "minecraft:the_void",
+      "features": false,
+      "lakes": false,
+      "layers": [],
+      "structure_overrides": []
+    },
+    "type": "minecraft:flat"
+  },
+  "type": "minecraft:overworld"
+}

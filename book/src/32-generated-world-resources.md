@@ -89,3 +89,15 @@ registry codegen pipeline to cover biomes/structures automatically, and/or
 wiring world-build resources into a real-server `sand-vanilla-audit` pass,
 are tracked follow-ups — see this feature's PR description for the linked
 issue.
+
+## Golden-file tests for generated output
+
+`sand-core/tests/build_snapshots.rs` byte-for-byte compares generated
+resources — flat, void, noise (vanilla and single-biome-override), and a
+custom dimension slot/type, plus the world-init function and its
+`minecraft:load` tag contribution — against fixtures under
+`sand-core/tests/fixtures/build/`. Run
+`UPDATE_SNAPSHOTS=1 cargo test -p sand-core --test build_snapshots` to
+regenerate a fixture after a deliberate output-format change; review the
+diff in the resulting fixture file the same way you'd review any other
+generated-code change before committing it.

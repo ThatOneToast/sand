@@ -6,6 +6,7 @@ from __future__ import annotations
 import argparse
 import json
 import re
+import secrets
 import socket
 import statistics
 import subprocess
@@ -110,7 +111,12 @@ def write_rcon_properties(project: Path, port: int, password: str) -> None:
         f"rcon.port={port}",
         "broadcast-rcon-to-ops=false",
     ])
-    properties.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    # Minecraft requires the RCON secret in server.properties. This disposable
+    # benchmark file is restricted to the current user.
+    properties.write_text(  # lgtm[py/clear-text-storage-sensitive-data]
+        "\n".join(lines) + "\n", encoding="utf-8"
+    )
+    properties.chmod(0o600)
 
 
 def loaded(response: str) -> bool:
@@ -120,7 +126,7 @@ def loaded(response: str) -> bool:
 
 def measure_sample(sand: Path, project: Path, sample: int, timeout: float, output: Path) -> dict[str, float]:
     port = available_port()
-    password = f"sand-bench-{port}"
+    password = secrets.token_urlsafe(24)
     write_rcon_properties(project, port, password)
     log = output / f"sample-{sample}.log"
     server = OwnedServer(

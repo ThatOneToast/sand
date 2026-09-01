@@ -32,16 +32,18 @@
 
 - [23. What Ships In The Datapack vs. What's Local To Your Dev Server](23-world-vs-server.md)
 - [24. Build Scripts (sand.build.rs)](24-build-scripts.md)
-- [25. Development And Release Profiles](25-development-and-release-profiles.md)
-- [26. Worlds, Dimensions, And Generators](26-worlds-dimensions-and-generators.md)
-- [27. Flat Worlds](27-flat-worlds.md)
-- [28. Void Worlds](28-void-worlds.md)
-- [29. Custom Dimensions](29-custom-dimensions.md)
-- [30. Server Configuration](30-server-configuration.md)
-- [31. Testing And Benchmark Worlds](31-testing-and-benchmark-worlds.md)
-- [32. Generated World Resources](32-generated-world-resources.md)
-- [33. Build Script Best Practices](33-build-script-best-practices.md)
-- [34. Migrating From Sand.toml](34-migrating-from-sand-toml.md)
+- [25. Development Profiles](25-development-profiles.md)
+- [26. Release Profiles](26-release-profiles.md)
+- [27. Worlds, Dimensions, And Generators](27-worlds-dimensions-and-generators.md)
+- [28. Flat Worlds](28-flat-worlds.md)
+- [29. Void Worlds](29-void-worlds.md)
+- [30. Custom Dimensions](30-custom-dimensions.md)
+- [31. Server Configuration](31-server-configuration.md)
+- [32. Testing Worlds](32-testing-worlds.md)
+- [33. Benchmark Worlds](33-benchmark-worlds.md)
+- [34. Generated World Resources](34-generated-world-resources.md)
+- [35. Best Practices](35-best-practices.md)
+- [36. Migrating From Sand.toml](36-migrating-from-sand-toml.md)
 
 # Reference
 

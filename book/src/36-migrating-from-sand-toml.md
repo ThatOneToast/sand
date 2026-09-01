@@ -1,4 +1,4 @@
-# 34. Migrating From `sand.toml`
+# 36. Migrating From `sand.toml`
 
 **Honest status:** as of this feature, `sand.toml`'s `[pack]` section
 (`namespace`, `description`, `mc_version`, `pack_format`,
@@ -51,13 +51,13 @@ If your project currently hand-authors `data/<namespace>/dimension/*.json`
 
 1. Run `sand add worldbuild` (or `sand migrate` — identical scaffolding).
 2. Move any hand-authored dimension JSON into the typed builders where they
-   fit ([Worlds, Dimensions, And Generators](./26-worlds-dimensions-and-generators.md)),
+   fit ([Worlds, Dimensions, And Generators](./27-worlds-dimensions-and-generators.md)),
    or reference them unchanged via `Generator::CustomReference`/
    `DimensionType::Custom` if they're too advanced for the typed API (see
-   [Custom Dimensions](./29-custom-dimensions.md#non-goal-advanced-worldgen-authoring)).
+   [Custom Dimensions](./30-custom-dimensions.md#non-goal-advanced-worldgen-authoring)).
 3. If your project's dev workflow has any manual `server.properties`
    editing you do by hand every time you set up a fresh test server, that's
-   a candidate for [`ServerConfig`](./30-server-configuration.md).
+   a candidate for [`ServerConfig`](./31-server-configuration.md).
 
 ## Follow-up: full `sand.toml` scope review
 

@@ -47,10 +47,10 @@ fn main() {
 ```
 
 `build` receives a `BuildContext` carrying the resolved
-[profile](./25-development-and-release-profiles.md) and target Minecraft
+[profile](./25-development-profiles.md) and target Minecraft
 version, and returns a `SandBuild` — the top-level value combining a 🌍
-[`World`](./26-worlds-dimensions-and-generators.md) and an optional 🖥️
-[`ServerConfig`](./30-server-configuration.md).
+[`World`](./27-worlds-dimensions-and-generators.md) and an optional 🖥️
+[`ServerConfig`](./31-server-configuration.md).
 
 ## `SandBuild`
 
@@ -65,7 +65,7 @@ assert!(built.validate().is_ok());
 ```
 
 `SandBuild::validate()` runs before anything is written to disk — see
-[Generated World Resources](./32-generated-world-resources.md) for what
+[Generated World Resources](./34-generated-world-resources.md) for what
 gets validated and how failures are reported.
 
 ## When it runs
@@ -101,5 +101,5 @@ fn build(ctx: &BuildContext) -> SandBuild {
 }
 ```
 
-See [Development Profiles](./25-development-and-release-profiles.md) for
+See [Development Profiles](./25-development-profiles.md) for
 the full `dev`/`test`/`bench`/`release` story.

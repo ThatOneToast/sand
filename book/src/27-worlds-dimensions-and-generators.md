@@ -1,4 +1,4 @@
-# 26. Worlds, Dimensions, And Generators
+# 27. Worlds, Dimensions, And Generators
 
 🌍 World (datapack) — everything in this chapter lowers into resources
 inside the exported datapack.
@@ -27,7 +27,7 @@ into vanilla's `minecraft:load` tag alongside anything your ordinary
 rather than overwriting it).
 
 The one exception is `World::preset` (`WorldPreset`) — see
-[Server Configuration](./30-server-configuration.md#worldpreset) for why
+[Server Configuration](./31-server-configuration.md#worldpreset) for why
 that field is 🖥️ despite living on `World`.
 
 ## Dimensions
@@ -85,6 +85,6 @@ advanced worldgen definitions stay hand-authored resources you reference,
 matching the project's explicit non-goal of not replacing general advanced
 Minecraft worldgen authoring.
 
-See [Custom Dimensions](./29-custom-dimensions.md) for the full custom-
-dimension workflow, and [Generated World Resources](./32-generated-world-resources.md)
+See [Custom Dimensions](./30-custom-dimensions.md) for the full custom-
+dimension workflow, and [Generated World Resources](./34-generated-world-resources.md)
 for exactly what JSON each generator variant produces.

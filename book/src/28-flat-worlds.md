@@ -1,4 +1,4 @@
-# 27. Flat Worlds
+# 28. Flat Worlds
 
 🌍 World (datapack).
 
@@ -23,7 +23,7 @@ let generator = Generator::Flat(
 - **Layers** — `FlatLayer::new(block, height)`, listed bottom-to-top. Total
   height is validated against the vanilla build-height limit (384 blocks);
   a zero-height layer or an empty layer list is also rejected — see
-  [Generated World Resources](./32-generated-world-resources.md#validation)
+  [Generated World Resources](./34-generated-world-resources.md#validation)
   for the exact diagnostics.
 - **Biome** — `FlatGenerator::biome(...)`. Defaults to `minecraft:plains`
   (vanilla's superflat default) if not set. A flat world uses exactly one
@@ -37,7 +37,7 @@ let generator = Generator::Flat(
 Flat generation is essentially free — there's no noise sampling, no biome
 blending, nothing to pre-generate. That makes it the natural choice for
 `dev` (fast iteration) and `test` (deterministic terrain a test can assert
-on) profiles; see [Development Profiles](./25-development-and-release-profiles.md).
+on) profiles; see [Development Profiles](./25-development-profiles.md).
 
 ```rust,ignore
 let overworld = if ctx.profile().is_dev() {
@@ -71,5 +71,5 @@ A flat generator lowers to:
 }
 ```
 
-See [Void Worlds](./28-void-worlds.md) for the special case of no terrain
+See [Void Worlds](./29-void-worlds.md) for the special case of no terrain
 at all.

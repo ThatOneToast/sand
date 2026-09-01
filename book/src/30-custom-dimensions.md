@@ -1,4 +1,4 @@
-# 29. Custom Dimensions
+# 30. Custom Dimensions
 
 🌍 World (datapack).
 

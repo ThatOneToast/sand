@@ -1,4 +1,4 @@
-# 28. Void Worlds
+# 29. Void Worlds
 
 🌍 World (datapack).
 
@@ -34,7 +34,7 @@ the `minecraft:the_void` biome:
 ## Pairing void worlds with a spawn platform
 
 A void world has nothing to stand on, so pair it with
-[`Spawn::platform`](./26-worlds-dimensions-and-generators.md) so players
+[`Spawn::platform`](./27-worlds-dimensions-and-generators.md) so players
 don't fall through on join:
 
 ```rust
@@ -57,5 +57,5 @@ datapack loads.
 Void is the right choice when the world's content is entirely
 player-placed or driven by your datapack's own structures/schematics — for
 example, a minigame arena. If players need any ambient terrain to look at
-or walk on without your intervention, [Flat Worlds](./27-flat-worlds.md) is
+or walk on without your intervention, [Flat Worlds](./28-flat-worlds.md) is
 usually a better fit.

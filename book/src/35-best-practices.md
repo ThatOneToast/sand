@@ -1,4 +1,4 @@
-# 33. Build Script Best Practices
+# 35. Best Practices
 
 - **Keep `sand.build.rs` free of side effects beyond `SandBuild`
   construction.** It runs on every `sand build`/`sand run`; treat it like
@@ -14,7 +14,7 @@
   exhaustive string match.
 - **Always give `test`/`bench` profiles a fixed `Seed`.** Reproducibility
   is the entire value of those profiles — see
-  [Testing And Benchmark Worlds](./31-testing-and-benchmark-worlds.md).
+  [Testing And Benchmark Worlds](./32-testing-worlds.md).
 - **Validate early, in your own tests too.** `SandBuild::validate()` is a
   plain function you can call directly in a `#[cfg(test)]` module, without
   going through `sand build` at all:

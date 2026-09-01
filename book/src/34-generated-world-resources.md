@@ -1,4 +1,4 @@
-# 32. Generated World Resources
+# 34. Generated World Resources
 
 Reference table for every resource a `sand.build.rs` script can produce,
 badged consistently with the rest of this section.

@@ -1,4 +1,4 @@
-# 30. Server Configuration
+# 31. Server Configuration
 
 🖥️ **Server (host) only.** Everything in this chapter configures Sand's own
 local dev server (`sand run`) or documents a `server.properties`-equivalent

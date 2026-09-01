@@ -26,9 +26,22 @@ fn build(ctx: &BuildContext) -> SandBuild {
                 FlatLayer::new(ResourceLocation::new("minecraft", "grass_block").unwrap(), 1),
             ])));
         (dimension, Seed::Fixed(1_337), WorldResetPolicy::AlwaysReset)
+    } else if ctx.profile().is_bench() {
+        // bench: full vanilla noise generation like release, but with a
+        // fixed seed and a persistent local world (WorldResetPolicy::Keep)
+        // so the same region generates once and stays generated across
+        // `sand run`s -- generation cost doesn't leak into whatever's
+        // actually being measured. See the book's "Testing And Benchmark
+        // Worlds" chapter.
+        let dimension = Dimension::new(DimensionSlot::Overworld, DimensionType::Overworld)
+            .generator(Generator::Noise(NoiseGenerator::vanilla(
+                VanillaNoiseSettings::Overworld,
+            )));
+        (dimension, Seed::Fixed(42), WorldResetPolicy::Keep)
     } else {
-        // release (and any other profile): full vanilla noise generation,
-        // random seed, and the local world persists across `sand run`s.
+        // release (and any other custom profile): full vanilla noise
+        // generation, random seed, and the local world persists across
+        // `sand run`s.
         let dimension = Dimension::new(DimensionSlot::Overworld, DimensionType::Overworld)
             .generator(Generator::Noise(NoiseGenerator::vanilla(
                 VanillaNoiseSettings::Overworld,

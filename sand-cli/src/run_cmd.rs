@@ -137,8 +137,7 @@ pub fn run(args: RunArgs) -> Result<()> {
     // 🖥️ Server (host) only — never part of the datapack. Only present when
     // the project has a sand.build.rs whose SandBuild configured a
     // ServerConfig for this profile.
-    let server_config_path =
-        PathBuf::from("dist").join(crate::build::SERVER_CONFIG_FILE_NAME);
+    let server_config_path = PathBuf::from("dist").join(crate::build::SERVER_CONFIG_FILE_NAME);
     let server_config: Option<ServerConfigFile> = if server_config_path.exists() {
         let raw = std::fs::read_to_string(&server_config_path)
             .with_context(|| format!("failed to read '{}'", server_config_path.display()))?;

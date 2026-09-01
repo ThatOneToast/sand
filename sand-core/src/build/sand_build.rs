@@ -1,9 +1,9 @@
 //! [`SandBuild`] — the top-level value a `sand.build.rs` script returns.
 
-use sand_macros::api;
 use super::server::ServerConfig;
 use super::validate::{BuildDiagnostic, validate};
 use super::world::World;
+use sand_macros::api;
 
 /// The complete typed build-time configuration for one profile: a
 /// [`World`] (🌍 lowers to datapack resources) and an optional

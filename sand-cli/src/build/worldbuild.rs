@@ -110,7 +110,11 @@ pub(super) fn run(
     binary: &Path,
     profile: &str,
     mc_version: &str,
-) -> Result<(Vec<WorldResourceRecord>, Option<ServerConfigRecord>, Option<i64>)> {
+) -> Result<(
+    Vec<WorldResourceRecord>,
+    Option<ServerConfigRecord>,
+    Option<i64>,
+)> {
     let output = std::process::Command::new(binary)
         .env("SAND_BUILD_PROFILE", profile)
         .env("SAND_EXPORT_MC_VERSION", mc_version)

@@ -28,7 +28,6 @@
 //! the `sand_build_world` binary (see `sand add worldbuild`) and invoked
 //! during `sand build`/`sand run`. See the "Build scripts" mdBook chapter.
 
-
 use sand_macros::api;
 mod context;
 mod dimension;
@@ -51,7 +50,9 @@ pub use resources::{WorldResource, lower as lower_world};
 pub use sand_build::SandBuild;
 pub use server::{Difficulty, ServerConfig, WorldResetPolicy};
 pub use validate::BuildDiagnostic;
-pub use world::{Seed, Spawn, SpawnPlatform, TimeConfig, WeatherConfig, World, WorldBorder, WorldPreset};
+pub use world::{
+    Seed, Spawn, SpawnPlatform, TimeConfig, WeatherConfig, World, WorldBorder, WorldPreset,
+};
 
 /// Runs a project's `build` function against the given profile, validates
 /// the result, and prints the lowered [`WorldResource`]s plus, if present,
@@ -93,10 +94,13 @@ where
     // `sand run` applies a fixed seed as server.properties' `level-seed`
     // when creating a fresh local world; a datapack has no way to set an
     // existing world's seed.
-    let seed = built.world_ref().and_then(|w| w.seed_ref()).and_then(|s| match s {
-        world::Seed::Fixed(value) => Some(*value),
-        world::Seed::Random => None,
-    });
+    let seed = built
+        .world_ref()
+        .and_then(|w| w.seed_ref())
+        .and_then(|s| match s {
+            world::Seed::Fixed(value) => Some(*value),
+            world::Seed::Random => None,
+        });
     let output = serde_json::json!({
         "resources": resources,
         "server_config": server.map(|s| serde_json::json!({

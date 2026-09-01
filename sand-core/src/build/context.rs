@@ -1,7 +1,7 @@
 //! Build-time context handed to a `sand.build.rs` script.
 
-use sand_macros::api;
 use super::profile::BuildProfile;
+use sand_macros::api;
 
 /// Context passed to a project's `sand.build.rs` entry point.
 ///

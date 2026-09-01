@@ -5,8 +5,8 @@
 //! exported datapack and works identically in singleplayer, LAN, and any
 //! vanilla-compatible server.
 
-use sand_macros::api;
 use sand_components::resource_location::ResourceLocation;
+use sand_macros::api;
 use serde_json::{Value, json};
 
 /// A single horizontal layer in a [`Generator::Flat`] world, from the
@@ -451,7 +451,10 @@ mod tests {
         assert_eq!(json["type"], "minecraft:flat");
         assert_eq!(json["settings"]["layers"][0]["block"], "minecraft:bedrock");
         assert_eq!(json["settings"]["layers"][0]["height"], 1);
-        assert_eq!(json["settings"]["layers"][2]["block"], "minecraft:grass_block");
+        assert_eq!(
+            json["settings"]["layers"][2]["block"],
+            "minecraft:grass_block"
+        );
         assert_eq!(json["settings"]["biome"], "minecraft:plains");
     }
 
@@ -489,8 +492,8 @@ mod tests {
             1,
         )]))
         .to_json();
-        let release = Generator::Noise(NoiseGenerator::vanilla(VanillaNoiseSettings::Overworld))
-            .to_json();
+        let release =
+            Generator::Noise(NoiseGenerator::vanilla(VanillaNoiseSettings::Overworld)).to_json();
         assert_ne!(dev["type"], release["type"]);
     }
 }

@@ -328,9 +328,8 @@ fn run_worldbuild(project_root: &Path, dist: &Path, mc_version: &str, profile: &
             resource.namespace, resource.dir, resource.path, resource.ext
         );
         let file_path = dist.join(&rel_path);
-        std::fs::create_dir_all(file_path.parent().unwrap()).with_context(|| {
-            format!("failed to create dir for '{}'", file_path.display())
-        })?;
+        std::fs::create_dir_all(file_path.parent().unwrap())
+            .with_context(|| format!("failed to create dir for '{}'", file_path.display()))?;
 
         // `minecraft:load` (and other function tag) contributions merge
         // with whatever the ordinary component exporter already wrote,
@@ -340,9 +339,13 @@ fn run_worldbuild(project_root: &Path, dist: &Path, mc_version: &str, profile: &
         if resource.dir == "tags/function" && file_path.exists() {
             let existing = std::fs::read_to_string(&file_path)
                 .with_context(|| format!("failed to read '{}'", file_path.display()))?;
-            let merged = merge_function_tag_json(&existing, &resource.content).with_context(
-                || format!("failed to merge world-build tag output into '{}'", file_path.display()),
-            )?;
+            let merged =
+                merge_function_tag_json(&existing, &resource.content).with_context(|| {
+                    format!(
+                        "failed to merge world-build tag output into '{}'",
+                        file_path.display()
+                    )
+                })?;
             std::fs::write(&file_path, merged)
                 .with_context(|| format!("failed to write '{}'", file_path.display()))?;
         } else {

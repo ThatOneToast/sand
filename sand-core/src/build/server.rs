@@ -12,7 +12,6 @@
 //! datapack to your own dedicated server, reproduce the equivalent settings
 //! by hand in that server's `server.properties`.
 
-
 use sand_macros::api;
 /// Server-reported difficulty default.
 ///

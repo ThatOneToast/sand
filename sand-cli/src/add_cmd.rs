@@ -32,14 +32,17 @@ pub fn run_worldbuild() -> Result<()> {
 
     let build_rs_path = std::path::PathBuf::from("sand.build.rs");
     if build_rs_path.exists() {
-        println!(
-            "  {} sand.build.rs already exists",
-            "skipped".dimmed()
-        );
+        println!("  {} sand.build.rs already exists", "skipped".dimmed());
     } else {
         let hbs = build_handlebars();
         let ctx = serde_json::json!({ "namespace": namespace });
-        write_rendered(&hbs, "sand_build_rs", SAND_BUILD_RS_HBS, &ctx, &build_rs_path)?;
+        write_rendered(
+            &hbs,
+            "sand_build_rs",
+            SAND_BUILD_RS_HBS,
+            &ctx,
+            &build_rs_path,
+        )?;
         println!("  {} sand.build.rs", "created".green());
     }
 
@@ -52,9 +55,8 @@ pub fn run_worldbuild() -> Result<()> {
         );
     } else {
         let mut new_content = cargo_toml_src.trim_end().to_string();
-        new_content.push_str(
-            "\n\n[[bin]]\nname = \"sand_build_world\"\npath = \"sand.build.rs\"\n",
-        );
+        new_content
+            .push_str("\n\n[[bin]]\nname = \"sand_build_world\"\npath = \"sand.build.rs\"\n");
         std::fs::write("Cargo.toml", new_content).context("failed to write Cargo.toml")?;
         println!("  {} Cargo.toml", "updated".green());
     }

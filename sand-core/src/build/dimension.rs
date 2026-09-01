@@ -5,8 +5,8 @@
 //! `data/<namespace>/dimension_type/<id>.json`). Both ship inside the
 //! exported datapack.
 
-use sand_macros::api;
 use sand_components::resource_location::ResourceLocation;
+use sand_macros::api;
 use serde_json::{Value, json};
 
 use super::generator::Generator;

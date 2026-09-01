@@ -119,10 +119,7 @@ pub fn lower(namespace: &str, build: &SandBuild) -> Vec<WorldResource> {
             "worldborder warning distance {}",
             border.warning_distance
         ));
-        commands.push(format!(
-            "worldborder warning time {}",
-            border.warning_time
-        ));
+        commands.push(format!("worldborder warning time {}", border.warning_time));
     }
     for (name, value) in &world.gamerules {
         commands.push(format!("gamerule {name} {value}"));

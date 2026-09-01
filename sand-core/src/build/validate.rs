@@ -7,10 +7,10 @@
 //! `sand-vanilla-audit` extension this is scoped down from, tracked as a
 //! follow-up.
 
-use sand_macros::api;
 use super::dimension::DimensionSlot;
 use super::generator::Generator;
 use super::sand_build::SandBuild;
+use sand_macros::api;
 
 /// A single validation failure, naming the offending builder call/field so
 /// the diagnostic is actionable without re-reading the whole build script.
@@ -160,54 +160,60 @@ mod tests {
     #[test]
     fn valid_build_passes() {
         let build = SandBuild::new().world(
-            World::new().border(WorldBorder::diameter(1000.0)).dimensions(
-                Dimensions::new().with(
+            World::new()
+                .border(WorldBorder::diameter(1000.0))
+                .dimensions(Dimensions::new().with(
                     Dimension::new(DimensionSlot::Overworld, DimensionType::Overworld).generator(
                         Generator::Flat(FlatGenerator::new(vec![FlatLayer::new(
                             ResourceLocation::new("minecraft", "stone").unwrap(),
                             64,
                         )])),
                     ),
-                ),
-            ),
+                )),
         );
         assert!(validate(&build).is_ok());
     }
 
     #[test]
     fn oversized_border_is_rejected() {
-        let build =
-            SandBuild::new().world(World::new().border(WorldBorder::diameter(1e10)));
+        let build = SandBuild::new().world(World::new().border(WorldBorder::diameter(1e10)));
         let errs = validate(&build).unwrap_err();
         assert!(errs.iter().any(|d| d.location == "World::border"));
     }
 
     #[test]
     fn empty_flat_layers_are_rejected_with_a_pointed_location() {
-        let build = SandBuild::new().world(World::new().dimensions(Dimensions::new().with(
-            Dimension::new(DimensionSlot::Overworld, DimensionType::Overworld)
-                .generator(Generator::Flat(FlatGenerator::new(vec![]))),
-        )));
+        let build = SandBuild::new().world(
+            World::new().dimensions(
+                Dimensions::new().with(
+                    Dimension::new(DimensionSlot::Overworld, DimensionType::Overworld)
+                        .generator(Generator::Flat(FlatGenerator::new(vec![]))),
+                ),
+            ),
+        );
         let errs = validate(&build).unwrap_err();
         assert!(
             errs.iter()
-                .any(|d| d.location.contains("minecraft:overworld") && d.message.contains("no layers"))
+                .any(|d| d.location.contains("minecraft:overworld")
+                    && d.message.contains("no layers"))
         );
     }
 
     #[test]
     fn duplicate_dimension_slots_are_rejected() {
-        let build = SandBuild::new().world(World::new().dimensions(
-            Dimensions::new()
-                .with(Dimension::new(
-                    DimensionSlot::Overworld,
-                    DimensionType::Overworld,
-                ))
-                .with(Dimension::new(
-                    DimensionSlot::Overworld,
-                    DimensionType::Overworld,
-                )),
-        ));
+        let build = SandBuild::new().world(
+            World::new().dimensions(
+                Dimensions::new()
+                    .with(Dimension::new(
+                        DimensionSlot::Overworld,
+                        DimensionType::Overworld,
+                    ))
+                    .with(Dimension::new(
+                        DimensionSlot::Overworld,
+                        DimensionType::Overworld,
+                    )),
+            ),
+        );
         let errs = validate(&build).unwrap_err();
         assert!(errs.iter().any(|d| d.message.contains("more than once")));
     }

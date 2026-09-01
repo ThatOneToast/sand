@@ -81,7 +81,7 @@ where
     F: FnOnce(&BuildContext) -> SandBuild,
 {
     let built = build_fn(&ctx);
-    if let Err(diagnostics) = built.validate() {
+    if let Err(diagnostics) = built.validate_for_context(&ctx) {
         eprintln!("sand.build.rs produced an invalid world configuration:");
         for d in &diagnostics {
             eprintln!("  - {d}");

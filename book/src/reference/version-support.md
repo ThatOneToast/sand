@@ -27,15 +27,23 @@ work around.
 
 ## Typed world/server configuration (`sand::build`)
 
-`sand::build`'s `SandBuild::validate()` (see the book's "Generated World
-Resources" chapter) performs structural/range validation — world border
-size, duplicate dimension slots, flat generator layer sanity — but does not
-currently gate any world-build field on a `VersionFeature` or resolve
-world-generation resource references against a version's real registries.
-Every `Generator`/`DimensionType` variant this issue shipped (flat, void,
-vanilla noise presets, custom references) is stable vanilla behavior across
-Sand's supported version range, so there was nothing to gate yet — but a
-future dimension/generator feature that *is* version-specific would need an
-explicit `VersionFeature` addition here, and a full `sand-vanilla-audit`
-registry audit of world-build resources remains a tracked follow-up (see
+`sand::build`'s `SandBuild::validate()`/`validate_for_context()` (see the
+book's "Generated World Resources" chapter) performs structural/range
+validation — world border size, duplicate dimension slots, flat generator
+layer sanity — plus a biome-registry check generated from real per-version
+Minecraft data (issue #356). The biome registry reflects exactly one
+Minecraft version at a time (whichever `sand-core` was compiled/codegen'd
+against); `validate_for_context` adds a clarifying diagnostic when a biome
+check fails and the build's target version differs from that compiled
+version, but does not re-validate against the actual target version's data
+(Sand's codegen only bundles one version's registry data per compile, the
+same limitation every generated registry in this crate shares). No
+world-build field is currently gated on a `VersionFeature` — every
+`Generator`/`DimensionType` variant shipped (flat, void, vanilla noise
+presets, custom references) is stable vanilla behavior across Sand's
+supported version range, so there was nothing to gate yet, but a future
+dimension/generator feature that *is* version-specific would need an
+explicit `VersionFeature` addition here. Extending the registry codegen to
+cover structures/noise settings, and a full `sand-vanilla-audit` real-server
+audit of world-build resources, remain tracked follow-ups (see
 `ROADMAP.md`).

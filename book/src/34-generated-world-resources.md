@@ -66,10 +66,12 @@ first), naming the offending builder call:
   build-height limit.
 - **Vanilla biome references** — a `minecraft:`-namespaced biome passed to
   `FlatGenerator::biome` or `NoiseGenerator::single_biome` must be a real
-  vanilla biome ID (checked against a bundled list of vanilla's
-  `worldgen/biome` registry contents). A custom mod/datapack namespace is
-  never checked — Sand cannot know about registry content it didn't
-  generate.
+  vanilla biome ID. Checked against a list **generated from real Minecraft
+  data generator output** (`sand-build/src/codegen/biomes.rs`, sourced from
+  the `biome_parameters` reports the same download/cache infrastructure
+  block/item registries use — not a hand-maintained list). A custom
+  mod/datapack namespace is never checked — Sand cannot know about registry
+  content it didn't generate.
 
 ```console
 $ sand build

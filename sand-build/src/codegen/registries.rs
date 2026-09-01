@@ -18,6 +18,14 @@ const REGISTRIES: &[(&str, &str, &str)] = &[
         "EntityType",
         "Minecraft entity type registry.",
     ),
+    // NOTE (issue #356): "minecraft:worldgen/biome" and "minecraft:enchantment"
+    // never appear as keys in the real `reports/registries.json` output --
+    // biomes and enchantments are data-driven registries, not network
+    // protocol registries, so `all.get(registry_key)` always misses and
+    // `generate` silently skips them (see the loop below). Left in place
+    // rather than removed to avoid unrelated scope creep; real, working
+    // biome data now comes from `biomes.rs` instead (a different report
+    // source -- see that module's docs).
     (
         "minecraft:worldgen/biome",
         "Biome",

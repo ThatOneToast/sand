@@ -157,7 +157,7 @@ pub fn run_with_options(options: BuildOptions) -> Result<()> {
                     // Cargo target error.
                     ensure_resource_export_source(&config, &project_root)?;
                 }
-                plan.compile()
+                plan.compile(&mc_version)
             },
         )
     })?;
@@ -324,7 +324,7 @@ fn prepare_worldbuild(
         profile.yellow()
     );
 
-    worldbuild::compile(project_root)?;
+    worldbuild::compile(project_root, mc_version)?;
     let target_dir = cargo_target_dir()?;
     let binary = worldbuild::binary_path(&target_dir);
     let output = worldbuild::run(&binary, profile, mc_version)?;

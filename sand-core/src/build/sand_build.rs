@@ -1,7 +1,8 @@
 //! [`SandBuild`] — the top-level value a `sand.build.rs` script returns.
 
+use super::context::BuildContext;
 use super::server::ServerConfig;
-use super::validate::{BuildDiagnostic, validate};
+use super::validate::{BuildDiagnostic, validate, validate_for_context};
 use super::world::World;
 use sand_macros::api;
 
@@ -160,6 +161,26 @@ impl SandBuild {
     )]
     pub fn validate(&self) -> Result<(), Vec<BuildDiagnostic>> {
         validate(self)
+    }
+
+    /// Same checks as [`SandBuild::validate`], plus a fail-closed check that
+    /// `ctx` targets the same Minecraft version used to generate Sand's
+    /// compiled registry data (issue #356).
+    #[api(
+        registry = sand_api_contract,
+        path = "sand::build::SandBuild::validate_for_context",
+        module = "sand::build",
+        summary = "Validates this build and rejects use of registry data generated for a different target Minecraft version.",
+        context = "Called by run_and_print; sand-cli compiles exporters with SAND_MC_VERSION set to the resolved target so registry checks use the matching snapshot.",
+        minecraft = "The bundled biome registry reflects the target version used when sand-core's codegen ran; mismatched registry snapshots fail closed.",
+        use_when = ["Validating from a context that already has a BuildContext in hand, e.g. run_and_print"],
+        avoid_when = ["Simple validation with no BuildContext available; use SandBuild::validate"],
+        params(ctx = "The build context whose target Minecraft version is compared against the compiled registry."),
+        returns = "Ok(()) if every check passes against the matching registry snapshot, or every collected BuildDiagnostic.",
+        example = "let ctx = BuildContext::new(BuildProfile::Dev); assert!(SandBuild::new().validate_for_context(&ctx).is_ok());"
+    )]
+    pub fn validate_for_context(&self, ctx: &BuildContext) -> Result<(), Vec<BuildDiagnostic>> {
+        validate_for_context(self, ctx)
     }
 }
 

@@ -43,9 +43,9 @@ retained as an explicit oldest-profile/compatibility boundary. See
 - Add a typed item stack builder with component API.
 - Harden dialog actions with typed function references.
 - Complete resource pack example crates.
-- Extend `sand-vanilla-audit`'s registry validation beyond biomes (e.g.
-  dimension-type/noise-settings references) against a selected
-  `VersionProfile`'s real registries (#356 follow-up).
+- Extend the registry codegen and audit beyond biomes (for example,
+  dimension-type, noise-settings, structure, and structure-set references)
+  against the selected `VersionProfile`'s real registries (#356 follow-up).
 - `World::gamerule` takes a free-form string Sand doesn't validate or
   translate across Minecraft versions; Minecraft 26.2 renamed many
   gamerules to snake_case (e.g. `doDaylightCycle` -> `advance_time`),

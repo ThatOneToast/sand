@@ -98,10 +98,11 @@ pub fn project_has_worldbuild(project_root: &Path) -> bool {
 }
 
 /// Compiles the `sand_build_world` binary.
-pub(super) fn compile(project_root: &Path) -> Result<()> {
+pub(super) fn compile(project_root: &Path, mc_version: &str) -> Result<()> {
     let _ = project_root;
     let status = std::process::Command::new("cargo")
         .args(["build", "--bin", WORLDBUILD_BIN_NAME])
+        .env("SAND_MC_VERSION", mc_version)
         .status()
         .context("failed to invoke `cargo build --bin sand_build_world`")?;
     if !status.success() {

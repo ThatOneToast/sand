@@ -3,7 +3,7 @@
 //!
 //! [`super::generate_all`] deterministically turns Minecraft data-generator
 //! reports into Rust source (`registries.rs`, `block_states.rs`,
-//! `commands.rs`) plus two API-provider manifests
+//! `commands.rs`, `biomes.rs`) plus two API-provider manifests
 //! (`registries.api.json`, `commands.api.json`). Given the same reports and
 //! the same codegen logic, it always produces the same bytes — so instead
 //! of re-running it on every build-script invocation whose `rerun-if-*`
@@ -17,6 +17,7 @@
 //!   block_states.rs
 //!   commands.rs
 //!   commands.api.json
+//!   biomes.rs
 //!   manifest.json
 //! ```
 //!
@@ -28,7 +29,7 @@
 //! adding, or removing any generator source file invalidates every cached
 //! entry without anyone needing to remember a manual bump or update a file
 //! list), [`super::CODEGEN_CACHE_FORMAT_VERSION`] (an explicit salt for
-//! cache-format-only changes), and the content of the three report files
+//! cache-format-only changes), and the content of the report files
 //! actually read ([`crate::report::ensure_reports`]
 //! already guarantees these exist and are version-pinned; this module
 //! hashes their bytes rather than trusting their path or mtime). This
@@ -94,11 +95,21 @@ const GENERATED_FILES: &[&str] = &[
     "block_states.rs",
     "commands.rs",
     "commands.api.json",
+    "biomes.rs",
 ];
 
-/// The three data-generator report files codegen reads, in the fixed order
-/// they're hashed into the fingerprint.
-const REPORT_FILES: &[&str] = &["registries.json", "blocks.json", "commands.json"];
+/// The data-generator report files codegen unconditionally requires. Their
+/// absence is a hard error, matching prior behavior exactly.
+const REQUIRED_REPORT_FILES: &[&str] = &["registries.json", "blocks.json", "commands.json"];
+
+/// The `biome_parameters` report files (issue #356), fed into `biomes.rs`'s
+/// vanilla biome list. Read leniently -- `biomes::generate` itself
+/// tolerates their absence (see its module docs), so the fingerprint
+/// treats a missing file as empty bytes rather than failing outright.
+const OPTIONAL_REPORT_FILES: &[&str] = &[
+    "biome_parameters/minecraft/overworld.json",
+    "biome_parameters/minecraft/nether.json",
+];
 
 #[derive(Debug, Serialize, Deserialize)]
 struct CacheManifestFile {
@@ -126,8 +137,13 @@ pub fn fingerprint(reports_dir: &Path, minecraft_version: &str) -> Result<String
         "mc-version".to_string(),
         minecraft_version.to_string(),
     ];
-    for report in REPORT_FILES {
+    for report in REQUIRED_REPORT_FILES {
         let bytes = std::fs::read(reports_dir.join(report))?;
+        parts.push(format!("report:{report}"));
+        parts.push(hash_bytes(&bytes));
+    }
+    for report in OPTIONAL_REPORT_FILES {
+        let bytes = std::fs::read(reports_dir.join(report)).unwrap_or_default();
         parts.push(format!("report:{report}"));
         parts.push(hash_bytes(&bytes));
     }
@@ -403,6 +419,18 @@ mod tests {
         std::fs::write(dir.join("registries.json"), b"{\"a\":1}").unwrap();
         std::fs::write(dir.join("blocks.json"), b"{\"b\":2}").unwrap();
         std::fs::write(dir.join("commands.json"), b"{\"c\":3}").unwrap();
+        let params_dir = dir.join("biome_parameters/minecraft");
+        std::fs::create_dir_all(&params_dir).unwrap();
+        std::fs::write(
+            params_dir.join("overworld.json"),
+            br#"{"biomes":[{"biome":"minecraft:plains","parameters":{}}]}"#,
+        )
+        .unwrap();
+        std::fs::write(
+            params_dir.join("nether.json"),
+            br#"{"biomes":[{"biome":"minecraft:nether_wastes","parameters":{}}]}"#,
+        )
+        .unwrap();
     }
 
     fn write_generated(dir: &Path) {
@@ -411,6 +439,7 @@ mod tests {
         std::fs::write(dir.join("block_states.rs"), b"// blocks").unwrap();
         std::fs::write(dir.join("commands.rs"), b"// commands").unwrap();
         std::fs::write(dir.join("commands.api.json"), b"{}").unwrap();
+        std::fs::write(dir.join("biomes.rs"), b"// biomes").unwrap();
     }
 
     /// A valid, fully-canonical manifest for a published entry whose files
@@ -517,8 +546,20 @@ mod tests {
     fn identical_report_bytes_fingerprint_identically_regardless_of_write_order() {
         let a = tempfile::tempdir().unwrap();
         let b = tempfile::tempdir().unwrap();
+        let a_params_dir = a.path().join("biome_parameters/minecraft");
+        std::fs::create_dir_all(&a_params_dir).unwrap();
+        std::fs::write(
+            a_params_dir.join("nether.json"),
+            br#"{"biomes":[{"biome":"minecraft:nether_wastes","parameters":{}}]}"#,
+        )
+        .unwrap();
         std::fs::write(a.path().join("commands.json"), b"{\"c\":3}").unwrap();
         std::fs::write(a.path().join("registries.json"), b"{\"a\":1}").unwrap();
+        std::fs::write(
+            a_params_dir.join("overworld.json"),
+            br#"{"biomes":[{"biome":"minecraft:plains","parameters":{}}]}"#,
+        )
+        .unwrap();
         std::fs::write(a.path().join("blocks.json"), b"{\"b\":2}").unwrap();
         write_reports(b.path());
         assert_eq!(

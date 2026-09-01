@@ -113,8 +113,9 @@ def write_rcon_properties(project: Path, port: int, password: str) -> None:
     ])
     # Minecraft requires the RCON secret in server.properties. This disposable
     # benchmark file is restricted to the current user.
-    properties.write_text(  # lgtm[py/clear-text-storage-sensitive-data]
-        "\n".join(lines) + "\n", encoding="utf-8"
+    properties.write_text(
+        "\n".join(lines) + "\n",  # lgtm[py/clear-text-storage-sensitive-data]
+        encoding="utf-8",
     )
     properties.chmod(0o600)
 

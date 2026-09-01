@@ -8,6 +8,7 @@ import json
 import os
 import queue
 import re
+import secrets
 import shlex
 import shutil
 import socket
@@ -22,7 +23,6 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 PACK_DIR = REPO_ROOT / "examples" / "unified_state"
 RCON_CLIENT = Path(__file__).resolve().parent / "rcon_client.py"
 JOIN_CLIENT = Path(__file__).resolve().parent / "minimal_join_client.py"
-PASSWORD = "sand-unified-state-audit"
 
 
 def available_port() -> int:
@@ -39,6 +39,7 @@ def main() -> int:
     parser.add_argument("--timeout", type=float, default=120)
     parser.add_argument("--evidence", type=Path)
     args = parser.parse_args()
+    rcon_token = secrets.token_urlsafe(24)
 
     if args.build:
         subprocess.run(
@@ -114,7 +115,7 @@ def main() -> int:
                 "level-name=world",
                 "online-mode=false",
                 "enable-rcon=true",
-                f"rcon.password={PASSWORD}",
+                f"rcon.password={rcon_token}",
                 f"rcon.port={rcon_port}",
                 f"server-port={server_port}",
                 "spawn-monsters=false",
@@ -153,7 +154,7 @@ def main() -> int:
                 str(RCON_CLIENT),
                 "127.0.0.1",
                 str(rcon_port),
-                PASSWORD,
+                rcon_token,
                 *commands,
             ],
             capture_output=True,
@@ -205,7 +206,7 @@ def main() -> int:
                     str(RCON_CLIENT),
                     "127.0.0.1",
                     str(rcon_port),
-                    PASSWORD,
+                    rcon_token,
                     "function unified_state:__sand_lifecycle_tick",
                 ]
             )

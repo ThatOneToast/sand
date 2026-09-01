@@ -312,6 +312,18 @@ fn automatic_lifecycle_from(
                     .push(format!("scoreboard objectives add {dirty} dummy"));
             }
         }
+        if matches!(component.scope, StateScope::Entity | StateScope::Living) {
+            let reconcile_dirty = component_reconcile_dirty(component.id);
+            claim_objective(
+                &mut objectives,
+                &reconcile_dirty,
+                "dummy",
+                &format!("{}::reconcile_dirty", component.id),
+            )?;
+            output
+                .load_commands
+                .push(format!("scoreboard objectives add {reconcile_dirty} dummy"));
+        }
         for field in component.data_fields.iter().filter(|field| field.keyed) {
             output.provision_commands.push(format!(
                 "execute unless data storage {} owners run data modify storage {} owners set value []",
@@ -354,9 +366,11 @@ fn emit_player(
         }
     }
     for field in component.data_fields {
-        output
-            .player_init_commands
-            .extend(crate::entity::state::state_data_initialize_commands(*field));
+        output.player_init_commands.extend(
+            crate::entity::state::state_data_initialize_commands(*field)
+                .into_iter()
+                .map(|command| format!("execute {guard} run {command}")),
+        );
     }
     if let Some(hook) = hook {
         for command in (hook.initialize)("@s") {
@@ -402,15 +416,33 @@ fn emit_entity(
     output: &mut AutomaticLifecycle,
 ) {
     let presence = objective_name(component.presence_objective);
+    let reconcile_dirty = component_reconcile_dirty(component.id);
     let mut body = Vec::new();
     for field in component.fields.iter().filter(|field| field.auto_tick) {
         let objective = objective_name(field.objective);
+        let dirty = objective_name(&format!("{}.dirty", field.objective));
+        body.push(format!(
+            "execute if score @s {objective} matches 1.. run scoreboard players set @s {dirty} 1"
+        ));
+        body.push(format!(
+            "execute if score @s {objective} matches 1.. run scoreboard players set @s {reconcile_dirty} 1"
+        ));
         body.push(format!(
             "execute if score @s {objective} matches 1.. run scoreboard players remove @s {objective} 1"
         ));
     }
     if let Some(hook) = hook {
         body.extend((hook.tick)("@s"));
+        let reconcile = (hook.reconcile)("@s");
+        if !reconcile.is_empty() {
+            let mut reconcile_body = reconcile;
+            reconcile_body.push(format!("scoreboard players reset @s {reconcile_dirty}"));
+            let reconcile_path =
+                crate::function::register_dyn_fn_dedup("sand/state_reconcile", reconcile_body);
+            body.push(format!(
+                "execute if score @s {reconcile_dirty} matches 1.. run function __sand_local:{reconcile_path}"
+            ));
+        }
     }
     if !body.is_empty() {
         let path = crate::function::register_dyn_fn_dedup("sand/state_tick", body);
@@ -419,6 +451,10 @@ fn emit_entity(
             component.version
         ));
     }
+}
+
+fn component_reconcile_dirty(id: &str) -> String {
+    objective_name(&format!("{id}.reconcile_dirty"))
 }
 
 fn emit_global(
@@ -582,8 +618,13 @@ mod tests {
         assert_eq!(callbacks.len(), 1);
         assert_eq!(
             callbacks[0].1,
-            [
-                "execute if score @s timer_obj matches 1.. run scoreboard players remove @s timer_obj 1"
+            vec![
+                "execute if score @s timer_obj matches 1.. run scoreboard players set @s timer_obj.dirty 1".to_owned(),
+                format!(
+                    "execute if score @s timer_obj matches 1.. run scoreboard players set @s {} 1",
+                    component_reconcile_dirty("demo:mob")
+                ),
+                "execute if score @s timer_obj matches 1.. run scoreboard players remove @s timer_obj 1".to_owned()
             ]
         );
     }

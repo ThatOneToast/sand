@@ -18,6 +18,8 @@ struct PlayerState {
     timer: EntityTimer,
     #[state(auto_tick)]
     dash: EntityCooldown,
+    #[state(default_snbt = "{announcements:1b}")]
+    preferences: Data<serde_json::Value>,
 }
 
 #[allow(dead_code)]
@@ -41,6 +43,13 @@ struct EntityRuntimeState {
     #[state(default = 0, min = 0, max = 10)]
     charge: EntityScore<i32>,
     cooldown: EntityCooldown,
+}
+
+#[state_lifecycle]
+impl StateLifecycle for EntityRuntimeState {
+    fn reconcile(_ctx: StateReconcile) -> Vec<String> {
+        vec!["say runtime reconciled".into()]
+    }
 }
 
 #[allow(dead_code)]
@@ -156,7 +165,7 @@ fn derived_state_lifecycle_is_scoped_deterministic_and_deduplicated() {
         .filter(|line| line.starts_with("scoreboard objectives add "))
         .collect();
     let unique: std::collections::BTreeSet<_> = objectives.iter().copied().collect();
-    assert_eq!(objectives.len(), 17);
+    assert_eq!(objectives.len(), 20);
     assert_eq!(unique.len(), objectives.len());
     assert!(load.contains("#sand_state_test_global_state"));
     assert!(load.contains("dummy \"Player mana\""));
@@ -166,8 +175,21 @@ fn derived_state_lifecycle_is_scoped_deterministic_and_deduplicated() {
     ));
 
     let init = function(&records, "__sand_lifecycle_init");
-    assert_eq!(init.lines().count(), 5);
-    assert!(init.lines().all(|line| line.contains("score @s ")));
+    assert_eq!(init.lines().count(), 10);
+    let suppression = PlayerState::detach(EntityContext::<PlayerKind>::default())
+        .last()
+        .and_then(|command| command.split_whitespace().nth(4))
+        .expect("player detach publishes its suppression score")
+        .to_owned();
+    for line in init
+        .lines()
+        .filter(|line| line.contains("__sand_owner") || line.contains("sand/state_data/keyed/"))
+    {
+        assert!(
+            line.contains(&format!("unless score @s {suppression} matches 1..")),
+            "player data initialization must remain suppressed after detach: {line}"
+        );
+    }
 
     let tick = function(&records, "__sand_lifecycle_tick");
     let generated = all_function_content(&records);
@@ -461,6 +483,13 @@ fn bound_views_emit_complete_scope_aware_command_vectors() {
 #[test]
 fn entity_and_living_bound_views_retain_archetype_dirty_semantics() {
     let entity = EntityRuntimeState::on(EntityContext::<AnyEntity>::default());
+    let runtime_schema = EntityRuntimeState::schema();
+    let runtime_reconcile_dirty = ObjectiveName::logical(format!(
+        "{}:{}.reconcile_dirty",
+        runtime_schema.namespace, runtime_schema.name
+    ))
+    .as_str()
+    .to_owned();
     let charge = EntityRuntimeState::charge.objective();
     let charge_dirty = EntityRuntimeState::charge.dirty_objective();
     assert_eq!(
@@ -474,6 +503,7 @@ fn entity_and_living_bound_views_retain_archetype_dirty_semantics() {
                 "execute if score @s {charge} matches 11.. run scoreboard players set @s {charge} 10"
             ),
             format!("scoreboard players set @s {charge_dirty} 1"),
+            format!("scoreboard players set @s {runtime_reconcile_dirty} 1"),
         ]
     );
     let cooldown = EntityRuntimeState::cooldown.objective();
@@ -486,10 +516,18 @@ fn entity_and_living_bound_views_retain_archetype_dirty_semantics() {
                 "execute if score @s {cooldown} matches ..-1 run scoreboard players set @s {cooldown} 0"
             ),
             format!("scoreboard players set @s {cooldown_dirty} 1"),
+            format!("scoreboard players set @s {runtime_reconcile_dirty} 1"),
         ]
     );
 
     let living = LivingRuntimeState::on(EntityContext::<ZombieKind>::default());
+    let living_schema = LivingRuntimeState::schema();
+    let living_reconcile_dirty = ObjectiveName::logical(format!(
+        "{}:{}.reconcile_dirty",
+        living_schema.namespace, living_schema.name
+    ))
+    .as_str()
+    .to_owned();
     let timer = LivingRuntimeState::timer.objective();
     let timer_dirty = LivingRuntimeState::timer.dirty_objective();
     assert_eq!(
@@ -500,6 +538,7 @@ fn entity_and_living_bound_views_retain_archetype_dirty_semantics() {
                 "execute if score @s {timer} matches ..-1 run scoreboard players set @s {timer} 0"
             ),
             format!("scoreboard players set @s {timer_dirty} 1"),
+            format!("scoreboard players set @s {living_reconcile_dirty} 1"),
         ]
     );
     assert_eq!(
@@ -509,10 +548,22 @@ fn entity_and_living_bound_views_retain_archetype_dirty_semantics() {
                 "execute if score @s {timer} matches 1.. run scoreboard players set @s {timer_dirty} 1"
             ),
             format!(
+                "execute if score @s {timer} matches 1.. run scoreboard players set @s {living_reconcile_dirty} 1"
+            ),
+            format!(
                 "execute if score @s {timer} matches 1.. run scoreboard players remove @s {timer} 1"
             ),
         ]
     );
+
+    let generated = all_function_content(&records());
+    assert!(generated.contains(&format!(
+        "execute if score @s {runtime_reconcile_dirty} matches 1.. run function statepack:sand/state_reconcile/"
+    )));
+    assert!(generated.contains("say runtime reconciled"));
+    assert!(generated.contains(&format!(
+        "scoreboard players reset @s {runtime_reconcile_dirty}"
+    )));
 }
 
 fn referenced_objectives(

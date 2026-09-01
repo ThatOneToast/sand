@@ -437,6 +437,12 @@ pub fn state_detach_commands<S: EntityState>(
             ));
         }
     }
+    if track_dirty {
+        commands.push(format!(
+            "scoreboard players reset {holder} {}",
+            component_dirty_name(schema.namespace, schema.name)
+        ));
+    }
     for field in S::data_fields() {
         commands.extend(state_data_remove_commands(*field));
     }
@@ -503,6 +509,10 @@ pub trait EntityStateField: Copy + 'static {
     /// passes `false` because its lifecycle owns only the primary objective.
     #[doc = "**API Contract:** Run `sand api show sand::entity::EntityStateField::bind_to` for the canonical contract."]
     fn bind_to(self, holder: &'static str, track_dirty: bool) -> Self::Accessor;
+}
+
+trait ComponentDirtyField: EntityStateField {
+    fn component_dirty_objective(self) -> String;
 }
 
 #[doc = "**API Contract:** Run `sand api show sand::entity::StatePredicate` for the canonical contract."]
@@ -653,6 +663,12 @@ impl EntityStateField for FixedScore {
     }
 }
 
+impl ComponentDirtyField for FixedScore {
+    fn component_dirty_objective(self) -> String {
+        component_dirty_name(self.namespace, self.schema)
+    }
+}
+
 /// A fixed-point field bound to one generated scoreboard holder.
 #[doc = "**API Contract:** Run `sand api show sand::entity::FixedScoreAccessor` for the canonical contract."]
 #[derive(Debug, Clone, Copy)]
@@ -699,7 +715,7 @@ impl FixedScoreAccessor {
             self.holder,
             self.track_dirty,
             "add",
-            self.field.encode(value),
+            encode_fixed(value, self.field.scale, None),
         )
     }
 
@@ -712,7 +728,7 @@ impl FixedScoreAccessor {
             self.holder,
             self.track_dirty,
             "remove",
-            self.field.encode(value),
+            encode_fixed(value, self.field.scale, None),
         )
     }
 
@@ -836,6 +852,12 @@ impl<T: 'static> EntityStateField for EntityScore<T> {
             holder,
             track_dirty,
         }
+    }
+}
+
+impl<T: 'static> ComponentDirtyField for EntityScore<T> {
+    fn component_dirty_objective(self) -> String {
+        component_dirty_name(self.namespace, self.schema)
     }
 }
 
@@ -986,6 +1008,12 @@ impl EntityStateField for EntityFlag {
             holder,
             track_dirty,
         }
+    }
+}
+
+impl ComponentDirtyField for EntityFlag {
+    fn component_dirty_objective(self) -> String {
+        component_dirty_name(self.namespace, self.schema)
     }
 }
 
@@ -1342,6 +1370,12 @@ impl<T: EntityEnumValue> EntityStateField for EntityEnum<T> {
     }
 }
 
+impl<T: EntityEnumValue> ComponentDirtyField for EntityEnum<T> {
+    fn component_dirty_objective(self) -> String {
+        component_dirty_name(self.namespace, self.schema)
+    }
+}
+
 #[doc = "**API Contract:** Run `sand api show sand::entity::EntityEnumAccessor` for the canonical contract."]
 /// An [`EntityEnum`] bound to its schema-selected score holder.
 ///
@@ -1439,6 +1473,12 @@ impl EntityStateField for EntityTimer {
     }
 }
 
+impl ComponentDirtyField for EntityTimer {
+    fn component_dirty_objective(self) -> String {
+        component_dirty_name(self.namespace, self.schema)
+    }
+}
+
 #[doc = "**API Contract:** Run `sand api show sand::entity::EntityTimerAccessor` for the canonical contract."]
 /// An [`EntityTimer`] bound to its schema-selected score holder.
 ///
@@ -1480,6 +1520,12 @@ impl EntityTimerAccessor {
                     "execute if score {2} {0} matches 1.. run scoreboard players set {2} {1} 1",
                     self.field.objective(),
                     self.field.dirty_objective(),
+                    self.holder,
+                ),
+                format!(
+                    "execute if score {2} {0} matches 1.. run scoreboard players set {2} {1} 1",
+                    self.field.objective(),
+                    self.field.component_dirty_objective(),
                     self.holder,
                 ),
                 decrement,
@@ -1546,6 +1592,12 @@ impl EntityStateField for EntityCooldown {
     }
 }
 
+impl ComponentDirtyField for EntityCooldown {
+    fn component_dirty_objective(self) -> String {
+        self.0.component_dirty_objective()
+    }
+}
+
 #[doc = "**API Contract:** Run `sand api show sand::entity::EntityCooldownAccessor` for the canonical contract."]
 /// An [`EntityCooldown`] bound to its schema-selected score holder.
 ///
@@ -1609,7 +1661,7 @@ fn validate_enum_encodings(
     Ok(())
 }
 
-fn mutation<F: EntityStateField>(
+fn mutation<F: EntityStateField + ComponentDirtyField>(
     field: F,
     holder: &str,
     track_dirty: bool,
@@ -1638,6 +1690,10 @@ fn mutation<F: EntityStateField>(
         commands.push(format!(
             "scoreboard players set {holder} {} 1",
             field.dirty_objective()
+        ));
+        commands.push(format!(
+            "scoreboard players set {holder} {} 1",
+            field.component_dirty_objective()
         ));
     }
     commands
@@ -1671,6 +1727,12 @@ pub(crate) fn dirty_name(namespace: &str, schema: &str, field: &str) -> String {
     sand_commands::ObjectiveName::logical(format!("{namespace}:{schema}.{field}.dirty"))
         .as_str()
         .to_string()
+}
+
+pub(crate) fn component_dirty_name(namespace: &str, schema: &str) -> String {
+    sand_commands::ObjectiveName::logical(format!("{namespace}:{schema}.reconcile_dirty"))
+        .as_str()
+        .to_owned()
 }
 
 fn exact_predicate(objective: String, value: i32) -> StatePredicate {
@@ -1762,7 +1824,7 @@ mod tests {
     }
 
     #[test]
-    fn write_marks_only_the_source_dirty() {
+    fn write_marks_field_and_component_reconciliation_dirty() {
         let field = EntityScore::<i32>::new("rpg", "mob", "level", 1, Some((1, 100)));
         let commands = field.bind().set(10);
         assert_eq!(
@@ -1780,6 +1842,10 @@ mod tests {
                     field.objective()
                 ),
                 format!("scoreboard players set @s {} 1", field.dirty_objective()),
+                format!(
+                    "scoreboard players set @s {} 1",
+                    component_dirty_name("rpg", "mob")
+                ),
             ]
         );
     }
@@ -1802,6 +1868,23 @@ mod tests {
         assert_eq!(
             bound.set(f64::INFINITY)[0],
             format!("scoreboard players set @s {} 20", field.objective())
+        );
+
+        let positive = FixedScore::__new("rpg", "mob", "power", 100, 100, Some((100, 1_000)));
+        let positive = positive.bind();
+        assert_eq!(
+            positive.add(0.05)[0],
+            format!(
+                "scoreboard players add @s {} 5",
+                FixedScore::__new("rpg", "mob", "power", 100, 100, Some((100, 1_000))).objective()
+            )
+        );
+        assert_eq!(
+            positive.subtract(0.05)[0],
+            format!(
+                "scoreboard players remove @s {} 5",
+                FixedScore::__new("rpg", "mob", "power", 100, 100, Some((100, 1_000))).objective()
+            )
         );
     }
 

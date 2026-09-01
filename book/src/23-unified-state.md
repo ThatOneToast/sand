@@ -34,7 +34,10 @@ pub struct Combat {
 
 Use `FixedScore` when whole numbers are too chunky. Its default scale is 1,000,
 or you can choose one explicitly. This stores `1.25` as `125`, rounds exact
-halves away from zero, and clamps values to the declared bounds:
+halves away from zero, and clamps the stored result to the declared bounds.
+An `add` or `subtract` argument is a delta: Sand scales it directly, then
+clamps the value after applying it. In other words, a minimum of `1.0` does
+not turn `add(0.10)` into `add(1.0)`:
 
 ```rust
 #[derive(State)]
@@ -116,9 +119,18 @@ schema inside a composed bundle is rejected as a conflicting policy.
 
 Player components watch online players automatically. If you explicitly detach
 one, Sand remembers that choice instead of quietly putting it back; `attach`
-opts the player in again. Entity and living components never start a world-wide
-scan just because their type exists. Global state uses one deterministic holder
-and can also own typed `Data<T>` paths in command storage.
+opts the player in again. This also applies to typed data: detaching removes
+the component's keyed storage, and the automatic player observer will leave it
+gone until you attach the component again. Entity and living components never
+start a world-wide scan just because their type exists. Global state uses one
+deterministic holder and can also own typed `Data<T>` paths in command storage.
+
+When a typed field changes, Sand marks both that field's archetype work and the
+component's lifecycle reconciliation as dirty. Those jobs are independent, so
+one cannot accidentally consume the other's update. A registered `reconcile`
+hook runs once for the dirty component on an eligible loaded owner, after which
+Sand clears the component marker. This keeps native properties in step with
+state without ticking unrelated components or starting an unbounded scan.
 
 `Data<T>` works for scoped components too. Sand keys those values by the
 current player's or entity's UUID in command storage. That means the data

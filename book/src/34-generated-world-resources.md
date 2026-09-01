@@ -79,16 +79,12 @@ sand.build.rs produced an invalid world configuration:
   - Dimension[minecraft:overworld].generator: FlatGenerator::biome 'minecraft:dessert' is not a known vanilla biome
 ```
 
-**Scope note:** this combines structural/range checks with a bundled,
-hand-maintained biome registry list — it is not a full audit against every
-Minecraft worldgen registry (structures, noise settings, block references,
-etc.) generated fresh per `VersionProfile` the way `sand-build`'s block/item
-registries are, and it is not a real Minecraft server load the way
-`sand-vanilla-audit` validates other datapack content. Extending Sand's
-registry codegen pipeline to cover biomes/structures automatically, and/or
-wiring world-build resources into a real-server `sand-vanilla-audit` pass,
-are tracked follow-ups — see this feature's PR description for the linked
-issue.
+**Scope note:** biome validation is generated from the selected Minecraft
+version's real Overworld and Nether biome-parameter reports and fails closed
+if the compiled snapshot does not match the requested target. Structures,
+noise settings, and other worldgen registries are not yet exhaustively
+validated. The vanilla audit does load the generated dimension, init function,
+and merged load-tag contribution on a real server.
 
 ## Golden-file tests for generated output
 

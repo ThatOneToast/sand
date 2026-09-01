@@ -15,23 +15,15 @@
 > artifacts) took ~38s, in line with the ordinary exporter-compile numbers
 > below.
 >
-> **Runtime harness (issue #357), v1 — real-server, honestly scoped:**
-> `scripts/bench_runtime.sh` starts a real Minecraft server (Java +
-> the cached `~/.sand/cache/<version>/server.jar`) via `sand run
-> --no-build --offline --profile bench` against `examples/book_project`
-> and measures wall-clock time from process launch to `sand run`'s own
-> "Minecraft \<version\> ready" console-health signal
-> (`sand-cli/src/console/health.rs`/`render.rs`). Because `bench` uses
-> full vanilla noise generation (not flat) with a fixed seed, this is a
-> real, reproducible cost: server boot + spawn-chunk generation for a
-> genuine world. Measured on this machine (2 samples, warm jar cache,
-> `examples/book_project`, macOS/Apple Silicon): **median 9.48s** (min
-> 9.20s, max 9.76s). **What this v1 still does not measure** (an
-> explicit, disclosed gap, not silently dropped): steady-state TPS or
-> chunk-generation throughput away from spawn — that needs a scripted
-> in-game workload (e.g. forcing exploration/teleports and sampling
-> tick-rate debug output) this harness doesn't attempt. Tracked as
-> remaining work on issue #357.
+> **Runtime harness (issue #357):** `scripts/bench_runtime.sh` starts a real
+> Minecraft server via `sand run --no-build --offline --profile bench`, uses
+> authenticated RCON to collect `/tick query`'s server-reported ms/tick, then
+> force-loads a fresh 16×16-chunk region and waits for representative points
+> to become loaded before reporting chunks/second. Results are written as
+> JSON under `target/bench-runtime/`. The harness shuts down through RCON and
+> its fallback signals only the exact process it launched; it never uses a
+> global Java/Minecraft `pkill`. Startup time is retained as useful context,
+> but the primary metrics are ms/tick and chunk throughput.
 
 This file tracks measured before/after numbers for the build-performance
 overhaul in #347. Numbers are wall-clock seconds from `/usr/bin/time -p`,

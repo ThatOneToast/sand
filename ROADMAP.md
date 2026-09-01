@@ -31,10 +31,11 @@ retained as an explicit oldest-profile/compatibility boundary. See
   for biomes (`SandBuild::validate_for_context`, generated from real
   per-version Mojang `biome_parameters` reports, #356) and
   `sand-vanilla-audit` exercises generated world resources against a real
-  running server (#355). `scripts/bench_runtime.sh` gives `BuildProfile::
-  Bench` a real, if v1-scoped, runtime measurement (server-ready wall
-  time, #357) — steady-state TPS/chunk throughput is still not measured.
-  See "Next work" below for what's left.
+  running server (#355). The path-filtered PR and scheduled CI also runs a
+  real dev-to-release profile switch (#358). `scripts/bench_runtime.py`
+  measures server-reported ms/tick and fresh chunk-generation throughput
+  through authenticated RCON, and only terminates the process it owns
+  (#357).
 
 ## Next work
 
@@ -45,9 +46,6 @@ retained as an explicit oldest-profile/compatibility boundary. See
 - Extend `sand-vanilla-audit`'s registry validation beyond biomes (e.g.
   dimension-type/noise-settings references) against a selected
   `VersionProfile`'s real registries (#356 follow-up).
-- Extend `scripts/bench_runtime.sh` (#357) to measure steady-state TPS or
-  chunk-generation throughput away from spawn, not just server-ready wall
-  time — needs a scripted in-game workload, not just log-scraping.
 - `World::gamerule` takes a free-form string Sand doesn't validate or
   translate across Minecraft versions; Minecraft 26.2 renamed many
   gamerules to snake_case (e.g. `doDaylightCycle` -> `advance_time`),

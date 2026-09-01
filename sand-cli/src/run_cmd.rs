@@ -44,12 +44,12 @@ struct ServerConfigFile {
     world_reset_policy_always_reset: Option<bool>,
     /// 🖥️ Server (host) only, despite coming from `World::seed` — see the
     /// module-level explanation on `run_worldbuild`/`World::seed`. Applied
-    /// as `server.properties`' `level-seed` on first launch only.
+    /// as `server.properties`' `level-seed` on every launch.
     #[serde(default)]
     seed: Option<i64>,
     /// 🖥️ Server (host) only, despite coming from `World::preset` — see
     /// `WorldPreset`'s docs. Applied as `server.properties`' `level-type`
-    /// on first launch only.
+    /// on every launch.
     #[serde(default)]
     level_type: Option<String>,
 }

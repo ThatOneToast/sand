@@ -101,6 +101,11 @@ where
             world::Seed::Fixed(value) => Some(*value),
             world::Seed::Random => None,
         });
+    // 🖥️ Server (host) only, despite living on World — see `WorldPreset`'s
+    // docs. `sand run` applies this as server.properties' `level-type` when
+    // creating a fresh local world; a datapack has no way to apply a preset
+    // to an existing world.
+    let level_type = built.world_ref().map(|w| w.preset_ref().level_type());
     let output = serde_json::json!({
         "resources": resources,
         "server_config": server.map(|s| serde_json::json!({
@@ -111,6 +116,7 @@ where
             "world_reset_policy": matches!(s.get_world_reset_policy(), WorldResetPolicy::AlwaysReset),
         })),
         "seed": seed,
+        "level_type": level_type,
     });
     println!("{}", serde_json::to_string(&output).expect("serializable"));
     std::process::exit(0);

@@ -47,6 +47,11 @@ struct ServerConfigFile {
     /// as `server.properties`' `level-seed` on first launch only.
     #[serde(default)]
     seed: Option<i64>,
+    /// 🖥️ Server (host) only, despite coming from `World::preset` — see
+    /// `WorldPreset`'s docs. Applied as `server.properties`' `level-type`
+    /// on first launch only.
+    #[serde(default)]
+    level_type: Option<String>,
 }
 
 /// The `server.properties` values `sand run` writes on first launch,
@@ -66,6 +71,12 @@ struct ResolvedServerProperties {
     /// empty one — both mean "let the server pick," but omitting matches
     /// what a hand-written server.properties would look like.
     seed: Option<i64>,
+    /// `Some` only when a `sand.build.rs` configured a `World` at all
+    /// (defaults to `"minecraft:normal"` for an unset `WorldPreset`,
+    /// matching vanilla's own default); `None` when there's no
+    /// `sand.build.rs`/`World` and `level-type` is simply omitted, letting
+    /// the server apply its own default.
+    level_type: Option<&'static str>,
 }
 
 impl ResolvedServerProperties {
@@ -88,6 +99,14 @@ impl ResolvedServerProperties {
                 _ => "normal",
             },
             seed: server_config.and_then(|s| s.seed),
+            level_type: match server_config.and_then(|s| s.level_type.as_deref()) {
+                Some("minecraft:normal") => Some("minecraft:normal"),
+                Some("minecraft:flat") => Some("minecraft:flat"),
+                Some("minecraft:large_biomes") => Some("minecraft:large_biomes"),
+                Some("minecraft:amplified") => Some("minecraft:amplified"),
+                Some("minecraft:single_biome_surface") => Some("minecraft:single_biome_surface"),
+                _ => None,
+            },
         }
     }
 
@@ -104,6 +123,9 @@ impl ResolvedServerProperties {
         );
         if let Some(seed) = self.seed {
             text.push_str(&format!("level-seed={seed}\n"));
+        }
+        if let Some(level_type) = self.level_type {
+            text.push_str(&format!("level-type={level_type}\n"));
         }
         text
     }
@@ -444,6 +466,7 @@ mod tests {
             online_mode: Some(online_mode),
             world_reset_policy_always_reset: Some(world_reset_policy_always_reset),
             seed: None,
+            level_type: None,
         }
     }
 
@@ -458,6 +481,7 @@ mod tests {
                 simulation_distance: 10,
                 difficulty: "normal",
                 seed: None,
+                level_type: None,
             }
         );
     }
@@ -528,6 +552,39 @@ mod tests {
         assert_eq!(resolved.view_distance, 10);
         assert_eq!(resolved.difficulty, "normal");
         assert!(resolved.online_mode);
+    }
+
+    #[test]
+    fn world_preset_becomes_level_type() {
+        let mut cfg = server_config(10, 10, "normal", true, false);
+        cfg.level_type = Some("minecraft:flat".to_string());
+        let resolved = ResolvedServerProperties::resolve(false, Some(&cfg));
+        assert_eq!(resolved.level_type, Some("minecraft:flat"));
+        assert!(
+            resolved
+                .to_properties_text()
+                .contains("level-type=minecraft:flat")
+        );
+    }
+
+    #[test]
+    fn unrecognized_level_type_string_is_dropped_rather_than_written_verbatim() {
+        // Defends against a future sand_build_world binary emitting a
+        // string WorldPreset::level_type() never produces; server.properties
+        // should never receive an unvalidated pass-through value.
+        let mut cfg = server_config(10, 10, "normal", true, false);
+        cfg.level_type = Some("not-a-real-preset".to_string());
+        let resolved = ResolvedServerProperties::resolve(false, Some(&cfg));
+        assert_eq!(resolved.level_type, None);
+        assert!(!resolved.to_properties_text().contains("level-type"));
+    }
+
+    #[test]
+    fn no_level_type_omits_the_line_entirely() {
+        let cfg = server_config(10, 10, "normal", true, false);
+        let resolved = ResolvedServerProperties::resolve(false, Some(&cfg));
+        assert_eq!(resolved.level_type, None);
+        assert!(!resolved.to_properties_text().contains("level-type"));
     }
 
     #[test]

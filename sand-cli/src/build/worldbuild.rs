@@ -69,16 +69,22 @@ impl DifficultyRecord {
     }
 }
 
+/// Everything one `sand_build_world` invocation prints, parsed. The `seed`
+/// and `level_type` fields are 🖥️ Server (host) only despite coming from
+/// `World::seed`/`World::preset` — both only take effect at world creation,
+/// which `sand run`'s local bootstrap applies via `server.properties`.
 #[derive(Debug, Deserialize)]
-struct WorldBuildOutput {
-    resources: Vec<WorldResourceRecord>,
-    server_config: Option<ServerConfigRecord>,
-    /// 🖥️ Server (host) only, despite coming from `World::seed` — a fixed
-    /// seed only takes effect at world creation, which `sand run`'s local
-    /// bootstrap applies via `server.properties`' `level-seed`. `None` for
-    /// an unset or `Seed::Random` world.
+pub(super) struct WorldBuildOutput {
+    pub(super) resources: Vec<WorldResourceRecord>,
+    pub(super) server_config: Option<ServerConfigRecord>,
+    /// `None` for an unset or `Seed::Random` world.
     #[serde(default)]
-    seed: Option<i64>,
+    pub(super) seed: Option<i64>,
+    /// `None` only when the build configured no `World` at all; otherwise
+    /// always `Some` (defaults to `"minecraft:normal"` for an unset
+    /// preset, matching vanilla's own default).
+    #[serde(default)]
+    pub(super) level_type: Option<String>,
 }
 
 /// Whether this project has a `sand.build.rs` wired in as the
@@ -106,15 +112,7 @@ pub(super) fn compile(project_root: &Path) -> Result<()> {
 
 /// Runs the compiled `sand_build_world` binary with the given profile and
 /// Minecraft version, and parses its JSON output.
-pub(super) fn run(
-    binary: &Path,
-    profile: &str,
-    mc_version: &str,
-) -> Result<(
-    Vec<WorldResourceRecord>,
-    Option<ServerConfigRecord>,
-    Option<i64>,
-)> {
+pub(super) fn run(binary: &Path, profile: &str, mc_version: &str) -> Result<WorldBuildOutput> {
     let output = std::process::Command::new(binary)
         .env("SAND_BUILD_PROFILE", profile)
         .env("SAND_EXPORT_MC_VERSION", mc_version)
@@ -126,9 +124,7 @@ pub(super) fn run(
             String::from_utf8_lossy(&output.stderr)
         );
     }
-    let parsed: WorldBuildOutput = serde_json::from_slice(&output.stdout)
-        .context("failed to parse sand_build_world JSON output")?;
-    Ok((parsed.resources, parsed.server_config, parsed.seed))
+    serde_json::from_slice(&output.stdout).context("failed to parse sand_build_world JSON output")
 }
 
 /// Resolves the compiled binary's path under Cargo's target directory.
@@ -177,6 +173,7 @@ mod tests {
                 "world_reset_policy": true,
             },
             "seed": 1337,
+            "level_type": "minecraft:flat",
         });
         let parsed: WorldBuildOutput = serde_json::from_value(json).unwrap();
         assert_eq!(parsed.resources.len(), 1);
@@ -186,24 +183,29 @@ mod tests {
         assert!(server.world_reset_policy);
         assert_eq!(server.difficulty.as_str(), "hard");
         assert_eq!(parsed.seed, Some(1337));
+        assert_eq!(parsed.level_type.as_deref(), Some("minecraft:flat"));
     }
 
     #[test]
     fn parses_world_build_output_without_server_config_or_seed() {
-        let json = serde_json::json!({ "resources": [], "server_config": null, "seed": null });
+        let json = serde_json::json!({
+            "resources": [], "server_config": null, "seed": null, "level_type": null,
+        });
         let parsed: WorldBuildOutput = serde_json::from_value(json).unwrap();
         assert!(parsed.resources.is_empty());
         assert!(parsed.server_config.is_none());
         assert!(parsed.seed.is_none());
+        assert!(parsed.level_type.is_none());
     }
 
     #[test]
-    fn seed_field_defaults_to_none_when_absent_entirely() {
-        // Older sand_build_world binaries (before this field existed) won't
-        // emit "seed" at all; #[serde(default)] keeps sand-cli forward
+    fn seed_and_level_type_default_to_none_when_absent_entirely() {
+        // Older sand_build_world binaries (before these fields existed)
+        // won't emit them at all; #[serde(default)] keeps sand-cli forward
         // compatible with them rather than failing to parse.
         let json = serde_json::json!({ "resources": [], "server_config": null });
         let parsed: WorldBuildOutput = serde_json::from_value(json).unwrap();
         assert!(parsed.seed.is_none());
+        assert!(parsed.level_type.is_none());
     }
 }

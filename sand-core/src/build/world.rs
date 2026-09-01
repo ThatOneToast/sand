@@ -80,6 +80,31 @@ pub enum WorldPreset {
     SingleBiomeSurface,
 }
 
+impl WorldPreset {
+    /// 🖥️ Server (host) only — `server.properties` `level-type`.
+    #[api(
+        registry = sand_api_contract,
+        path = "sand::build::WorldPreset::level_type",
+        module = "sand::build",
+        summary = "Returns the server.properties level-type value for this preset.",
+        context = "Used when sand run writes or updates server.properties from a World's configured preset.",
+        minecraft = "Matches server.properties' level-type key's namespaced accepted values (minecraft:normal, minecraft:flat, ...).",
+        use_when = ["Serializing a WorldPreset into server.properties text"],
+        avoid_when = ["Choosing a Generator for a specific Dimension; use Dimension::generator"],
+        returns = "The namespaced level-type value.",
+        example = "assert_eq!(WorldPreset::Flat.level_type(), \"minecraft:flat\");"
+    )]
+    pub fn level_type(&self) -> &'static str {
+        match self {
+            WorldPreset::Normal => "minecraft:normal",
+            WorldPreset::Flat => "minecraft:flat",
+            WorldPreset::LargeBiomes => "minecraft:large_biomes",
+            WorldPreset::Amplified => "minecraft:amplified",
+            WorldPreset::SingleBiomeSurface => "minecraft:single_biome_surface",
+        }
+    }
+}
+
 /// Player spawn configuration.
 ///
 /// 🌍 World (datapack) — lowers to `setworldspawn` (and, when
@@ -659,6 +684,23 @@ impl World {
     pub fn seed_ref(&self) -> Option<&Seed> {
         self.seed.as_ref()
     }
+
+    /// 🖥️ Server (host) only — see the module docs on [`WorldPreset`].
+    #[api(
+        registry = sand_api_contract,
+        path = "sand::build::World::preset_ref",
+        module = "sand::build",
+        summary = "Returns the configured world generation preset.",
+        context = "Read by sand run's local world-creation bootstrap (server.properties level-type); a datapack cannot itself apply a preset.",
+        minecraft = "Has no datapack representation; only affects sand run's own local world creation.",
+        use_when = ["Inspecting which preset a World configured"],
+        avoid_when = ["Setting the preset; use World::preset"],
+        returns = "The configured WorldPreset.",
+        example = "assert_eq!(World::new().preset_ref(), &WorldPreset::Normal);"
+    )]
+    pub fn preset_ref(&self) -> &WorldPreset {
+        &self.preset
+    }
 }
 
 #[cfg(test)]
@@ -680,5 +722,26 @@ mod tests {
     #[test]
     fn default_preset_is_normal() {
         assert_eq!(World::new().preset, WorldPreset::Normal);
+    }
+
+    #[test]
+    fn preset_level_type_matches_vanilla_namespaced_values() {
+        assert_eq!(WorldPreset::Normal.level_type(), "minecraft:normal");
+        assert_eq!(WorldPreset::Flat.level_type(), "minecraft:flat");
+        assert_eq!(
+            WorldPreset::LargeBiomes.level_type(),
+            "minecraft:large_biomes"
+        );
+        assert_eq!(WorldPreset::Amplified.level_type(), "minecraft:amplified");
+        assert_eq!(
+            WorldPreset::SingleBiomeSurface.level_type(),
+            "minecraft:single_biome_surface"
+        );
+    }
+
+    #[test]
+    fn preset_ref_reflects_configured_preset() {
+        let world = World::new().preset(WorldPreset::Amplified);
+        assert_eq!(world.preset_ref(), &WorldPreset::Amplified);
     }
 }

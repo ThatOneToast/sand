@@ -55,7 +55,10 @@ Attaching is safe to repeat. Sand only fills in missing values and publishes
 the version marker after everything else succeeds. Detaching runs cleanup and
 removes that component's own values, leaving other components alone. Bundles
 are just named views over their members; they do not make a second copy or tick
-anything twice.
+anything twice. Bundle operations keep the same owner rules as their members:
+a player bundle only accepts a player context, a living bundle only accepts a
+living context, and detaching a player bundle opts every member out of automatic
+re-observation until it is attached again.
 
 ```rust
 #[function]
@@ -64,10 +67,21 @@ pub fn adopt_current_mob() {
 }
 ```
 
+Global bundles do not borrow the current executor at all. Each member keeps
+its own deterministic singleton holder, even when several resources are
+grouped behind one view:
+
+```rust,ignore
+let world = WorldResources::global();
+world.progression.wave.add(1);
+WorldResources::attach_global();
+```
+
 Queries are ordinary named structs too. Required and forbidden members become
 selector filters. Optional members use a callback guarded by the real runtime
 presence score—there is no pretend Rust `Option` decided while the pack is
-being built.
+being built. Sand flattens nested bundles while checking the declaration, so a
+query cannot require a bundle and forbid one of that bundle's components.
 
 Required membership is selected when the Minecraft iteration begins. Optional
 and forbidden guards are evaluated by the emitted `execute` commands, in body

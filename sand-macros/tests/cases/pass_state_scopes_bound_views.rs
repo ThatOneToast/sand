@@ -33,6 +33,21 @@ struct GlobalState {
     value: EntityScore<i32>,
 }
 
+#[derive(StateBundle)]
+struct PlayerBundle {
+    state: PlayerState,
+}
+
+#[derive(StateBundle)]
+struct LivingBundle {
+    state: LivingState,
+}
+
+#[derive(StateBundle)]
+struct GlobalStateBundle {
+    state: GlobalState,
+}
+
 #[derive(StateQuery)]
 #[query(scope = player)]
 struct PlayersWithState {
@@ -56,6 +71,18 @@ fn main() {
 
     let global = GlobalState::global();
     let _: Vec<String> = global.value.set(2);
+
+    let player_context = EntityContext::<PlayerKind>::default();
+    let _: PlayerBundleBound = PlayerBundle::on(player_context);
+    let _: Vec<String> = PlayerBundle::attach(player_context);
+    let _: Vec<String> = PlayerBundle::detach(player_context);
+    let living_context = EntityContext::<ZombieKind>::default();
+    let _: LivingBundleBound = LivingBundle::on(living_context);
+    let _: Vec<String> = LivingBundle::attach(living_context);
+    let _: Vec<String> = LivingBundle::detach(living_context);
+    let _: GlobalStateBundleBound = GlobalStateBundle::global();
+    let _: Vec<String> = GlobalStateBundle::attach_global();
+    let _: Vec<String> = GlobalStateBundle::detach_global();
 
     let query = PlayersWithState::each(|item| item.state.health.add(1));
     assert!(query[0].starts_with("execute as @a["));

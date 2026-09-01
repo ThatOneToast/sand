@@ -1859,6 +1859,69 @@ register_entity_api! { path: "sand::entity::StateComposition", aliases: ["sand::
 register_entity_api! { path: "sand::entity::StateComposition::composition_attach", aliases: ["sand::prelude::StateComposition::composition_attach"], kind: TraitMethod, summary: "Lowers canonical idempotent attachment for a generated archetype composition." }
 register_entity_api! { path: "sand::entity::StateComposition::composition_detach", aliases: ["sand::prelude::StateComposition::composition_detach"], kind: TraitMethod, summary: "Lowers ownership-safe reverse detachment for a generated archetype composition." }
 register_entity_api! { path: "sand::entity::StateComposition::composition_identities", aliases: ["sand::prelude::StateComposition::composition_identities"], kind: TraitMethod, summary: "Returns the flattened component presence identities used to deduplicate and validate archetype composition." }
+register! {
+    path: "sand::entity::GlobalStateBundleOperations",
+    aliases: ["sand::prelude::GlobalStateBundleOperations"],
+    module: "sand::entity",
+    kind: Trait,
+    signature: "pub trait GlobalStateBundleOperations: StateBundleMember",
+    summary: "Provides singleton-holder operations for a generated bundle made entirely from global State components.",
+    context: "The StateBundle derive implements this extension automatically when every flattened member has global scope; importing the prelude makes its associated operations available on the bundle type.",
+    minecraft: "Every member retains its own deterministic fake-player holder, objective identities, version marker, typed storage path, and lifecycle instead of sharing the current executor or allocating bundle storage.",
+    use_when: ["Grouping several global State resources behind one concrete named view", "Attaching or detaching a global resource composition in deterministic order"],
+    avoid_when: ["Any member is player, entity, or living scoped", "A component should share the current executor rather than its global singleton"],
+    params: [],
+    returns: None,
+    example: "let world = WorldResources::global();"
+}
+
+register! {
+    path: "sand::entity::GlobalStateBundleOperations::global",
+    aliases: ["sand::prelude::GlobalStateBundleOperations::global"],
+    module: "sand::entity",
+    kind: TraitMethod,
+    signature: "fn global() -> Self::Bound",
+    summary: "Binds every component in a global State bundle to its own deterministic singleton holder.",
+    context: "The returned concrete bundle view preserves named-field completion while each nested component chooses the same holder as its generated component-level global method.",
+    minecraft: "Later field operations address each component's existing fake-player score holder or global command-storage path; no command is emitted merely by binding the view.",
+    use_when: ["Reading or mutating several related global resources through one named view"],
+    avoid_when: ["Binding a scoped owner represented by the current executor; use bundle on instead"],
+    params: [],
+    returns: Some("The concrete nested bundle view with every component bound to its singleton holder."),
+    example: "let world = WorldResources::global();"
+}
+
+register! {
+    path: "sand::entity::GlobalStateBundleOperations::attach_global",
+    aliases: ["sand::prelude::GlobalStateBundleOperations::attach_global"],
+    module: "sand::entity",
+    kind: TraitMethod,
+    signature: "fn attach_global() -> Vec<String>",
+    summary: "Attaches every unique component in a global State bundle through its singleton holder.",
+    context: "Nested bundles flatten to the canonical component lifecycle; repeated members are deduplicated without merging component versions or ownership.",
+    minecraft: "Emits idempotent initialization and migration commands in declaration order, publishing each component presence/version marker only after its owned values are ready.",
+    use_when: ["Explicitly attaching a named composition of global State resources"],
+    avoid_when: ["Provisioning objectives manually", "Resetting already initialized global progress"],
+    params: [],
+    returns: Some("Lifecycle commands for every unique global component in declaration order."),
+    example: "let commands = WorldResources::attach_global();"
+}
+
+register! {
+    path: "sand::entity::GlobalStateBundleOperations::detach_global",
+    aliases: ["sand::prelude::GlobalStateBundleOperations::detach_global"],
+    module: "sand::entity",
+    kind: TraitMethod,
+    signature: "fn detach_global() -> Vec<String>",
+    summary: "Detaches every unique component in reverse global bundle order without touching unrelated state.",
+    context: "The bundle delegates cleanup to each canonical component lifecycle and never removes shared objectives, another component's values, or external scores.",
+    minecraft: "Emits cleanup and owned-value removal against each component's deterministic holder in reverse composition order.",
+    use_when: ["Explicitly removing a complete global resource composition"],
+    avoid_when: ["Removing only one member; call that component's detach method", "Deleting shared scoreboard objectives"],
+    params: [],
+    returns: Some("Ownership-safe cleanup commands in reverse component order."),
+    example: "let commands = WorldResources::detach_global();"
+}
 register_entity_api! { path: "sand::entity::StateSchema", aliases: ["sand::prelude::StateSchema"], kind: Struct, summary: "Represents state schema in scoreboard-backed typed entity state." }
 register_entity_api! { path: "sand::entity::StateSchema::fields", aliases: ["sand::prelude::StateSchema::fields"], kind: Field, summary: "Carries the fields value required by this typed entity case." }
 register_entity_api! { path: "sand::entity::StateSchema::id", aliases: ["sand::prelude::StateSchema::id"], kind: Method, summary: "Returns id for the typed state entity API." }

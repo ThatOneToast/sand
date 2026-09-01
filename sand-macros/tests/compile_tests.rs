@@ -74,7 +74,9 @@ fn state_derive_compile_tests() {
     t.compile_fail("tests/cases/fail_state_bundle_cycle.rs");
     t.compile_fail("tests/cases/fail_state_migration_gap.rs");
     t.compile_fail("tests/cases/fail_state_query_contradiction.rs");
+    t.compile_fail("tests/cases/fail_state_query_nested_contradiction.rs");
     t.compile_fail("tests/cases/fail_state_query_scope_mismatch.rs");
+    t.compile_fail("tests/cases/fail_state_bundle_target_scope.rs");
     t.pass("tests/cases/pass_state_data_entity_scope.rs");
     t.compile_fail("tests/cases/fail_entity_state_enum_duplicate.rs");
     t.compile_fail("tests/cases/fail_entity_state_enum_payload.rs");

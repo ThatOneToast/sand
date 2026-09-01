@@ -82,13 +82,14 @@ pub use crate::entity::{
     EntityQueries, EntityQuery, EntityScope, EntityScore, EntityState, EntityStateField, EntityTag,
     EntityTeam, EntityText, EntityTextSegment, EntityTimer, EntityTransition, EnumEncoding,
     EquipmentBinding, FixedPoint, FixedScore, FixedScoreAccessor, FixedScoreValue, FixedValue,
-    HealthBinding, HealthResizePolicy, KeyedData, KnownEntityKind, LivingEntityKind, MarkerKind,
-    Migration, MutableLivingEntityKind, NameBinding, NumericPropertySource, OverflowPolicy,
-    OwnershipPolicy, PlayerContext, PlayerKind, PlayerQueries, PlayerQuery, RawEntityProperty,
-    RawEntityStateField, ReconcilePolicy, RefreshPolicy, Relation, RelationQuery, RoundingPolicy,
-    SafeEntityDataWriteKind, ScopedEntityRef, Score, SingleEntityQuery, SinglePlayerQuery,
-    SpecialEntityPolicy, StatCurve, StateComposition, StateFieldDescriptor, StateFieldKind,
-    StatePredicate, StateSchema, TagBinding, TeamBinding, ThresholdDirection, ZombieKind,
+    GlobalStateBundleOperations, HealthBinding, HealthResizePolicy, KeyedData, KnownEntityKind,
+    LivingEntityKind, MarkerKind, Migration, MutableLivingEntityKind, NameBinding,
+    NumericPropertySource, OverflowPolicy, OwnershipPolicy, PlayerContext, PlayerKind,
+    PlayerQueries, PlayerQuery, RawEntityProperty, RawEntityStateField, ReconcilePolicy,
+    RefreshPolicy, Relation, RelationQuery, RoundingPolicy, SafeEntityDataWriteKind,
+    ScopedEntityRef, Score, SingleEntityQuery, SinglePlayerQuery, SpecialEntityPolicy, StatCurve,
+    StateComposition, StateFieldDescriptor, StateFieldKind, StatePredicate, StateSchema,
+    TagBinding, TeamBinding, ThresholdDirection, ZombieKind,
 };
 
 // ── Function refs (IntoFunctionRef trait) ─────────────────────────────────────

@@ -23,6 +23,12 @@ struct PlayerState {
 }
 
 #[allow(dead_code)]
+#[derive(StateBundle)]
+struct PlayerStateBundle {
+    state: PlayerState,
+}
+
+#[allow(dead_code)]
 #[derive(State)]
 #[state(namespace = "state_test", scope = global)]
 struct GlobalState {
@@ -34,6 +40,20 @@ struct GlobalState {
     wave: EntityScore<i32>,
     #[state(default = 3)]
     settings: Data<i32>,
+}
+
+#[allow(dead_code)]
+#[derive(State)]
+#[state(namespace = "state_test", scope = global)]
+struct GlobalOptions {
+    enabled: Flag,
+}
+
+#[allow(dead_code)]
+#[derive(StateBundle)]
+struct GlobalResourcesBundle {
+    state: GlobalState,
+    options: GlobalOptions,
 }
 
 #[allow(dead_code)]
@@ -165,7 +185,7 @@ fn derived_state_lifecycle_is_scoped_deterministic_and_deduplicated() {
         .filter(|line| line.starts_with("scoreboard objectives add "))
         .collect();
     let unique: std::collections::BTreeSet<_> = objectives.iter().copied().collect();
-    assert_eq!(objectives.len(), 20);
+    assert_eq!(objectives.len(), 22);
     assert_eq!(unique.len(), objectives.len());
     assert!(load.contains("#sand_state_test_global_state"));
     assert!(load.contains("dummy \"Player mana\""));
@@ -360,6 +380,41 @@ fn repeated_bundle_members_reuse_one_component_lifecycle() {
     let bound = RepeatedMarkerBundle::on(entity);
     let _: OptionalMarkerBound = bound.first;
     let _: OptionalMarkerBound = bound.second;
+}
+
+#[test]
+fn player_bundle_lifecycle_preserves_explicit_observation_suppression() {
+    let player = EntityContext::<PlayerKind>::default();
+    assert_eq!(
+        PlayerStateBundle::attach(player),
+        PlayerState::attach(player)
+    );
+    assert_eq!(
+        PlayerStateBundle::detach(player),
+        PlayerState::detach(player)
+    );
+}
+
+#[test]
+fn global_bundle_uses_each_components_deterministic_singleton_holder() {
+    let bundle = GlobalResourcesBundle::global();
+    assert_eq!(bundle.state.wave.set(7), GlobalState::global().wave.set(7));
+    assert_eq!(
+        bundle.options.enabled.enable(),
+        GlobalOptions::global().enabled.enable()
+    );
+
+    let mut attach = GlobalState::attach();
+    attach.extend(GlobalOptions::attach());
+    let mut seen = std::collections::BTreeSet::new();
+    attach.retain(|command| seen.insert(command.clone()));
+    assert_eq!(GlobalResourcesBundle::attach_global(), attach);
+
+    let mut detach = GlobalOptions::detach();
+    detach.extend(GlobalState::detach());
+    let mut seen = std::collections::BTreeSet::new();
+    detach.retain(|command| seen.insert(command.clone()));
+    assert_eq!(GlobalResourcesBundle::detach_global(), detach);
 }
 
 #[test]

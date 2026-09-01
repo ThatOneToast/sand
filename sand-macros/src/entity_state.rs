@@ -541,6 +541,16 @@ pub(crate) fn derive_state(input: DeriveInput) -> syn::Result<proc_macro2::Token
         Scope::Living => quote!(::sand::__private::LivingStateScope),
         Scope::Global => quote!(::sand::__private::GlobalStateScope),
     };
+    let default_member_holder = if matches!(config.scope, Scope::Global) {
+        let holder = LitStr::new(
+            &global_holder(&namespace.value(), &name.value()),
+            input.ident.span(),
+        );
+        quote!(#holder)
+    } else {
+        quote!("@s")
+    };
+    let suppress_player_observation = matches!(config.scope, Scope::Player);
     let migration_steps = config
         .migrations
         .iter()
@@ -913,14 +923,29 @@ pub(crate) fn derive_state(input: DeriveInput) -> syn::Result<proc_macro2::Token
         impl ::sand::__private::StateBundleMember for #ident {
             type Bound = #bound_ident;
             type Scope = #scope_marker;
+            const COMPONENT_TREE: ::sand::__private::StateBundleTree =
+                ::sand::__private::StateBundleTree::Component(#component_id);
 
             fn bind_member(holder: &'static str) -> Self::Bound {
                 Self::__sand_bind_to(holder)
             }
 
+            fn bind_global_member() -> Self::Bound {
+                Self::__sand_bind_to(#default_member_holder)
+            }
+
             fn attach_member(holder: &'static str) -> Vec<String> {
                 ::sand::__private::state_attach_commands::<Self>(
                     holder,
+                    #presence_objective,
+                    #suppression_objective,
+                    #suppress_player_observation,
+                )
+            }
+
+            fn attach_global_member() -> Vec<String> {
+                ::sand::__private::state_attach_commands::<Self>(
+                    #default_member_holder,
                     #presence_objective,
                     #suppression_objective,
                     false,
@@ -933,6 +958,16 @@ pub(crate) fn derive_state(input: DeriveInput) -> syn::Result<proc_macro2::Token
                     #presence_objective,
                     #suppression_objective,
                     #track_dirty,
+                    #suppress_player_observation,
+                )
+            }
+
+            fn detach_global_member() -> Vec<String> {
+                ::sand::__private::state_detach_commands::<Self>(
+                    #default_member_holder,
+                    #presence_objective,
+                    #suppression_objective,
+                    false,
                     false,
                 )
             }
@@ -988,6 +1023,10 @@ pub(crate) fn derive_bundle(input: DeriveInput) -> syn::Result<proc_macro2::Toke
     let mut bound_values = Vec::new();
     let mut attach = Vec::new();
     let mut detach = Vec::new();
+    let mut global_bound_values = Vec::new();
+    let mut global_attach = Vec::new();
+    let mut global_detach = Vec::new();
+    let mut component_trees = Vec::new();
     let mut presence = Vec::new();
     let mut member_types = Vec::new();
     let mut contracts = Vec::new();
@@ -1037,17 +1076,30 @@ pub(crate) fn derive_bundle(input: DeriveInput) -> syn::Result<proc_macro2::Toke
         bound_values.push(quote! {
             #field_ident: <#ty as ::sand::__private::StateBundleMember>::bind_member(holder)
         });
+        global_bound_values.push(quote! {
+            #field_ident: <#ty as ::sand::__private::StateBundleMember>::bind_global_member()
+        });
         attach.push(quote! {
             commands.extend(<#ty as ::sand::__private::StateBundleMember>::attach_member(holder));
         });
         detach.push(quote! {
             commands.extend(<#ty as ::sand::__private::StateBundleMember>::detach_member(holder));
         });
+        global_attach.push(quote! {
+            commands.extend(<#ty as ::sand::__private::StateBundleMember>::attach_global_member());
+        });
+        global_detach.push(quote! {
+            commands.extend(<#ty as ::sand::__private::StateBundleMember>::detach_global_member());
+        });
+        component_trees.push(quote! {
+            <#ty as ::sand::__private::StateBundleMember>::COMPONENT_TREE
+        });
         presence.push(quote! {
             objectives.extend(<#ty as ::sand::__private::StateBundleMember>::presence_requirements());
         });
     }
     detach.reverse();
+    global_detach.reverse();
 
     let type_contract = generated_contract(
         bound_ident.unraw().to_string(),
@@ -1112,23 +1164,36 @@ pub(crate) fn derive_bundle(input: DeriveInput) -> syn::Result<proc_macro2::Toke
             #on_docs
             pub fn on<K: ::sand::__private::EntityKind>(
                 _target: ::sand::__private::EntityContext<K>,
-            ) -> #bound_ident {
+            ) -> #bound_ident
+            where
+                <#first_ty as ::sand::__private::StateBundleMember>::Scope:
+                    ::sand::__private::StateBundleTarget<K>,
+            {
                 <Self as ::sand::__private::StateBundleMember>::bind_member("@s")
             }
 
             #attach_docs
             pub fn attach<K: ::sand::__private::EntityKind>(
                 _target: ::sand::__private::EntityContext<K>,
-            ) -> Vec<String> {
+            ) -> Vec<String>
+            where
+                <#first_ty as ::sand::__private::StateBundleMember>::Scope:
+                    ::sand::__private::StateBundleTarget<K>,
+            {
                 <Self as ::sand::__private::StateBundleMember>::attach_member("@s")
             }
 
             #detach_docs
             pub fn detach<K: ::sand::__private::EntityKind>(
                 _target: ::sand::__private::EntityContext<K>,
-            ) -> Vec<String> {
+            ) -> Vec<String>
+            where
+                <#first_ty as ::sand::__private::StateBundleMember>::Scope:
+                    ::sand::__private::StateBundleTarget<K>,
+            {
                 <Self as ::sand::__private::StateBundleMember>::detach_member("@s")
             }
+
         }
 
         impl ::sand::__private::StateBundleMember for #ident
@@ -1137,9 +1202,15 @@ pub(crate) fn derive_bundle(input: DeriveInput) -> syn::Result<proc_macro2::Toke
         {
             type Bound = #bound_ident;
             type Scope = <#first_ty as ::sand::__private::StateBundleMember>::Scope;
+            const COMPONENT_TREE: ::sand::__private::StateBundleTree =
+                ::sand::__private::StateBundleTree::Bundle(&[#(#component_trees),*]);
 
             fn bind_member(holder: &'static str) -> Self::Bound {
                 #bound_ident { #(#bound_values),* }
+            }
+
+            fn bind_global_member() -> Self::Bound {
+                #bound_ident { #(#global_bound_values),* }
             }
 
             fn attach_member(holder: &'static str) -> Vec<String> {
@@ -1150,9 +1221,25 @@ pub(crate) fn derive_bundle(input: DeriveInput) -> syn::Result<proc_macro2::Toke
                 commands
             }
 
+            fn attach_global_member() -> Vec<String> {
+                let mut commands = Vec::new();
+                #(#global_attach)*
+                let mut seen = ::std::collections::BTreeSet::new();
+                commands.retain(|command| seen.insert(command.clone()));
+                commands
+            }
+
             fn detach_member(holder: &'static str) -> Vec<String> {
                 let mut commands = Vec::new();
                 #(#detach)*
+                let mut seen = ::std::collections::BTreeSet::new();
+                commands.retain(|command| seen.insert(command.clone()));
+                commands
+            }
+
+            fn detach_global_member() -> Vec<String> {
+                let mut commands = Vec::new();
+                #(#global_detach)*
                 let mut seen = ::std::collections::BTreeSet::new();
                 commands.retain(|command| seen.insert(command.clone()));
                 commands
@@ -1210,6 +1297,9 @@ pub(crate) fn derive_query(input: DeriveInput) -> syn::Result<proc_macro2::Token
     let mut contracts = Vec::new();
     let mut component_modes = BTreeMap::<String, QueryFieldMode>::new();
     let mut component_types = Vec::new();
+    let mut required_types = Vec::new();
+    let mut forbidden_types = Vec::new();
+    let mut optional_types = Vec::new();
 
     for field in &fields.named {
         let field_ident = field.ident.as_ref().expect("named field");
@@ -1229,6 +1319,7 @@ pub(crate) fn derive_query(input: DeriveInput) -> syn::Result<proc_macro2::Token
         }
         match mode {
             QueryFieldMode::Required => {
+                required_types.push(ty);
                 let contract = generated_contract(
                     format!("{}::{field_ident}", item_ident.unraw()),
                     GeneratedApiKind::Field,
@@ -1255,11 +1346,13 @@ pub(crate) fn derive_query(input: DeriveInput) -> syn::Result<proc_macro2::Token
                 });
             }
             QueryFieldMode::Forbidden => {
+                forbidden_types.push(ty);
                 forbidden.push(quote! {
                     forbidden.extend(<#ty as ::sand::__private::StateBundleMember>::presence_requirements());
                 });
             }
             QueryFieldMode::Optional => {
+                optional_types.push(ty);
                 let contract = generated_contract(
                     format!("{}::{field_ident}", item_ident.unraw()),
                     GeneratedApiKind::Method,
@@ -1377,6 +1470,25 @@ pub(crate) fn derive_query(input: DeriveInput) -> syn::Result<proc_macro2::Token
                 .collect()
         })
         .unwrap_or_default();
+    let mut contradiction_assertions = Vec::new();
+    for (left_group, right_group) in [
+        (&required_types, &forbidden_types),
+        (&required_types, &optional_types),
+        (&optional_types, &forbidden_types),
+    ] {
+        for left in left_group {
+            for right in right_group {
+                contradiction_assertions.push(quote! {
+                    if ::sand::__private::state_bundle_trees_overlap(
+                        &<#left as ::sand::__private::StateBundleMember>::COMPONENT_TREE,
+                        &<#right as ::sand::__private::StateBundleMember>::COMPONENT_TREE,
+                    ) {
+                        panic!("StateQuery members with different presence modes overlap after flattening nested bundles");
+                    }
+                });
+            }
+        }
+    }
 
     let expanded = quote! {
         const _: () = {
@@ -1386,6 +1498,7 @@ pub(crate) fn derive_query(input: DeriveInput) -> syn::Result<proc_macro2::Token
                 R: ::sand::__private::StateScopeMarker,
             {}
             #(#scope_assertions)*
+            #(#contradiction_assertions)*
         };
 
         #item_docs

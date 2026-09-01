@@ -262,14 +262,26 @@ pub trait StateBundleMember: 'static {
     /// Hidden owner-scope proof used to reject incompatible bundles.
     type Scope: StateScopeMarker;
 
+    /// Compile-time component tree used to reject nested query contradictions.
+    const COMPONENT_TREE: StateBundleTree;
+
     /// Bind every nested component to one execution-scoped holder.
     fn bind_member(holder: &'static str) -> Self::Bound;
+
+    /// Bind every nested global component to its own singleton holder.
+    fn bind_global_member() -> Self::Bound;
 
     /// Attach all unique nested components in declaration order.
     fn attach_member(holder: &'static str) -> Vec<String>;
 
+    /// Attach every nested global component through its singleton holder.
+    fn attach_global_member() -> Vec<String>;
+
     /// Detach all unique nested components in reverse declaration order.
     fn detach_member(holder: &'static str) -> Vec<String>;
+
+    /// Detach every nested global component through its singleton holder.
+    fn detach_global_member() -> Vec<String>;
 
     /// Resolved presence objectives and accepted component versions for query filtering.
     fn presence_requirements() -> Vec<(String, u32)>;
@@ -314,9 +326,100 @@ where
     }
 }
 
+/// A generated bundle whose members are all global State components.
+///
+/// Importing Sand's prelude makes these associated operations available on a
+/// global bundle. Each member keeps its own deterministic singleton holder.
+///
+/// **API Contract:** Run `sand api show sand::entity::GlobalStateBundleOperations`.
+pub trait GlobalStateBundleOperations: StateBundleMember {
+    /// Bind every component in this bundle to its own global holder.
+    ///
+    /// **API Contract:** Run `sand api show sand::entity::GlobalStateBundleOperations::global`.
+    fn global() -> Self::Bound {
+        Self::bind_global_member()
+    }
+
+    /// Attach every unique component in this global bundle.
+    ///
+    /// **API Contract:** Run `sand api show sand::entity::GlobalStateBundleOperations::attach_global`.
+    fn attach_global() -> Vec<String> {
+        Self::attach_global_member()
+    }
+
+    /// Detach every unique component in reverse bundle order.
+    ///
+    /// **API Contract:** Run `sand api show sand::entity::GlobalStateBundleOperations::detach_global`.
+    fn detach_global() -> Vec<String> {
+        Self::detach_global_member()
+    }
+}
+
+impl<T> GlobalStateBundleOperations for T
+where
+    T: StateBundleMember,
+    T::Scope: GlobalStateBundleScope,
+{
+}
+
 /// Hidden type-level owner-scope marker implemented by generated State components.
 #[doc(hidden)]
 pub trait StateScopeMarker: 'static {}
+
+/// Compile-time component identity tree retained across nested bundles.
+#[doc(hidden)]
+pub enum StateBundleTree {
+    Component(&'static str),
+    Bundle(&'static [StateBundleTree]),
+}
+
+/// Returns whether two component or bundle trees contain a shared component.
+#[doc(hidden)]
+pub const fn state_bundle_trees_overlap(left: &StateBundleTree, right: &StateBundleTree) -> bool {
+    match (left, right) {
+        (StateBundleTree::Component(left), StateBundleTree::Component(right)) => {
+            const_str_eq(left, right)
+        }
+        (StateBundleTree::Bundle(items), other) | (other, StateBundleTree::Bundle(items)) => {
+            let mut index = 0;
+            while index < items.len() {
+                if state_bundle_trees_overlap(&items[index], other) {
+                    return true;
+                }
+                index += 1;
+            }
+            false
+        }
+    }
+}
+
+const fn const_str_eq(left: &str, right: &str) -> bool {
+    let left = left.as_bytes();
+    let right = right.as_bytes();
+    if left.len() != right.len() {
+        return false;
+    }
+    let mut index = 0;
+    while index < left.len() {
+        if left[index] != right[index] {
+            return false;
+        }
+        index += 1;
+    }
+    true
+}
+
+/// Proof that an entity context is valid for a bundle owner scope.
+#[doc(hidden)]
+pub trait StateBundleTarget<K: crate::entity::EntityKind>: StateScopeMarker {}
+
+impl StateBundleTarget<crate::entity::PlayerKind> for PlayerStateScope {}
+impl<K: crate::entity::EntityKind> StateBundleTarget<K> for EntityStateScope {}
+impl<K: crate::entity::LivingEntityKind> StateBundleTarget<K> for LivingStateScope {}
+
+/// Proof that a bundle consists entirely of global components.
+#[doc(hidden)]
+pub trait GlobalStateBundleScope: StateScopeMarker {}
 
 /// Scope proof for components that may be composed into an entity archetype.
 #[doc(hidden)]
@@ -341,6 +444,7 @@ impl StateScopeMarker for PlayerStateScope {}
 impl StateScopeMarker for EntityStateScope {}
 impl StateScopeMarker for LivingStateScope {}
 impl StateScopeMarker for GlobalStateScope {}
+impl GlobalStateBundleScope for GlobalStateScope {}
 impl ArchetypeStateScope for EntityStateScope {}
 impl ArchetypeStateScope for LivingStateScope {}
 

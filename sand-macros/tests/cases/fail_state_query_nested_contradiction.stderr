@@ -1,0 +1,5 @@
+error[E0080]: evaluation panicked: StateQuery members with different presence modes overlap after flattening nested bundles
+  --> tests/cases/fail_state_query_nested_contradiction.rs:17:10
+   |
+17 | #[derive(StateQuery)]
+   |          ^^^^^^^^^^ evaluation of `_` failed here

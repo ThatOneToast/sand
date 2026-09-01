@@ -76,8 +76,9 @@ pub use query::{
 };
 pub use relation::{Relation, RelationQuery};
 pub use state::{
-    EntityCooldown, EntityCooldownAccessor, EntityEnum, EntityEnumAccessor, EntityEnumValue,
+    Data, EntityCooldown, EntityCooldownAccessor, EntityEnum, EntityEnumAccessor, EntityEnumValue,
     EntityFlag, EntityFlagAccessor, EntityScore, EntityScoreAccessor, EntityState,
-    EntityStateField, EntityTimer, EntityTimerAccessor, EnumEncoding, StateFieldDescriptor,
-    StateFieldKind, StatePredicate, StateSchema,
+    EntityStateField, EntityTimer, EntityTimerAccessor, EnumEncoding, FixedScore,
+    FixedScoreAccessor, FixedScoreValue, GlobalStateBundleOperations, KeyedData, Score,
+    StateComposition, StateFieldDescriptor, StateFieldKind, StatePredicate, StateSchema,
 };

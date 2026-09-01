@@ -74,13 +74,17 @@ pub use sand_macros::{
     schedule,
 };
 
+#[doc = include_str!("api_contract_rustdoc.md")]
+pub use sand_macros::state_lifecycle;
+#[doc = include_str!("api_contract_rustdoc.md")]
+pub use sand_macros::system;
 /// Derives scoped state schemas and stable finite-enum encodings.
 ///
 /// `State` validates schema metadata, generates concrete bound views, and
 /// registers scope-aware lifecycle metadata; `EntityStateEnum` maps fieldless
 /// enum variants to scoreboard integers.
 #[doc = include_str!("api_contract_rustdoc.md")]
-pub use sand_macros::{EntityStateEnum, State};
+pub use sand_macros::{EntityStateEnum, State, StateBundle, StateEnum, StateQuery};
 
 /// Defines the authoritative contract for a supported Sand public API item.
 #[doc = include_str!("api_contract_rustdoc.md")]
@@ -219,6 +223,11 @@ pub mod predicate {
 #[doc = include_str!("api_contract_rustdoc.md")]
 pub mod state {
     #[doc = include_str!("api_contract_rustdoc.md")]
+    pub use sand_core::state::lifecycle::{
+        StateCleanup, StateInit, StateLifecycle, StateMigrate, StateProvision, StateReconcile,
+        StateTick,
+    };
+    #[doc = include_str!("api_contract_rustdoc.md")]
     pub use sand_core::state::{
         BlockNbt, Cooldown, DataCommand, EntityNbt, Flag, FlagRef, FlowTransitionBuilder,
         GameState, GameStateRef, IntoStateCommands, Nbt, NbtLocation, NbtPath, NbtRef, NbtTarget,
@@ -282,7 +291,7 @@ pub mod entity {
     #[doc = include_str!("api_contract_rustdoc.md")]
     pub use sand_core::entity::{
         Adoption, AdoptionSource, AnyEntity, AttributeBinding, AttributeModifierBinding,
-        CurrentHealthSync, CurveEvaluationError, CurveInputs, DEFAULT_FIXED_POINT_SCALE,
+        CurrentHealthSync, CurveEvaluationError, CurveInputs, DEFAULT_FIXED_POINT_SCALE, Data,
         DerivedScoreEncoding, EffectBinding, EntityAction, EntityArchetype, EntityContext,
         EntityCooldown, EntityCooldownAccessor, EntityDerivation, EntityDiagnostic, EntityEnum,
         EntityEnumAccessor, EntityEnumValue, EntityEventId, EntityFlag, EntityFlagAccessor,
@@ -290,15 +299,16 @@ pub mod entity {
         EntityQueries, EntityQuery, EntityScope, EntityScore, EntityScoreAccessor, EntityState,
         EntityStateField, EntityTag, EntityTeam, EntityText, EntityTextSegment, EntityTimer,
         EntityTimerAccessor, EntityTransition, EntityTransitionField, EnumEncoding,
-        EquipmentBinding, FixedPoint, FixedValue, HealthBinding, HealthResizePolicy,
-        KnownEntityKind, LivingEntityKind, MarkerKind, Migration, MutableLivingEntityKind,
-        NameBinding, NumericPropertySource, OverflowPolicy, OwnershipPolicy, PlayerContext,
-        PlayerKind, PlayerQueries, PlayerQuery, PropertyNameError, RawEntityProperty,
-        RawEntityStateField, RawPropertyAccess, RawStateBackend, ReconcilePolicy, RefreshPolicy,
-        Relation, RelationQuery, RoundingPolicy, SafeEntityDataWriteKind, ScopedEntityRef,
-        SingleEntityQuery, SinglePlayerQuery, SpecialEntityPolicy, StatCurve, StateFieldDescriptor,
-        StateFieldKind, StatePredicate, StateSchema, TagBinding, TeamBinding, ThresholdDirection,
-        ZombieKind,
+        EquipmentBinding, FixedPoint, FixedScore, FixedScoreAccessor, FixedScoreValue, FixedValue,
+        GlobalStateBundleOperations, HealthBinding, HealthResizePolicy, KeyedData, KnownEntityKind,
+        LivingEntityKind, MarkerKind, Migration, MutableLivingEntityKind, NameBinding,
+        NumericPropertySource, OverflowPolicy, OwnershipPolicy, PlayerContext, PlayerKind,
+        PlayerQueries, PlayerQuery, PropertyNameError, RawEntityProperty, RawEntityStateField,
+        RawPropertyAccess, RawStateBackend, ReconcilePolicy, RefreshPolicy, Relation,
+        RelationQuery, RoundingPolicy, SafeEntityDataWriteKind, ScopedEntityRef, Score,
+        SingleEntityQuery, SinglePlayerQuery, SpecialEntityPolicy, StatCurve, StateComposition,
+        StateFieldDescriptor, StateFieldKind, StatePredicate, StateSchema, TagBinding, TeamBinding,
+        ThresholdDirection, ZombieKind,
     };
 }
 
@@ -758,8 +768,15 @@ pub mod __private {
         pub use sand_core::entity::*;
     }
     pub use sand_core::__private::{
-        entity_score_new, event_dispatch_advancement, event_dispatch_chain, event_dispatch_tick,
-        event_dispatch_tick_condition, event_dispatch_tracked, player_sneaking_tracked_source,
+        ArchetypeStateScope, EntityStateScope, GlobalStateBundleScope, GlobalStateScope,
+        LivingStateScope, PlayerStateScope, SameStateScope, StateBundleMember, StateBundleTarget,
+        StateBundleTree, StateDataFieldDescriptor, StateMigrationDescriptor, StateQueryHandle,
+        StateQuerySpec, StateScopeMarker, StateSystemDescriptor, entity_score_new,
+        event_dispatch_advancement, event_dispatch_chain, event_dispatch_tick,
+        event_dispatch_tick_condition, event_dispatch_tracked, fixed_score_new,
+        player_sneaking_tracked_source, resolve_state_objective, state_attach_commands,
+        state_attached_condition, state_bundle_trees_overlap, state_detach_commands,
+        state_presence_predicate,
     };
     pub use sand_core::entity::*;
     pub use sand_core::*;

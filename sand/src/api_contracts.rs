@@ -1038,6 +1038,86 @@ register! {
 }
 
 register! {
+    path: "sand::StateEnum",
+    aliases: ["sand::prelude::StateEnum"],
+    module: "sand",
+    kind: Macro,
+    signature: "#[derive(StateEnum)]",
+    summary: "Maps a fieldless Rust enum to the canonical stable State encoding.",
+    context: "The derive preserves explicit discriminants and exposes named variants through State enum fields.",
+    minecraft: "Stores each variant as its stable signed scoreboard encoding.",
+    use_when: ["Declaring a finite State field with named Rust variants"],
+    avoid_when: ["Variants carry payload data"],
+    params: [],
+    returns: None,
+    example: "#[derive(sand::StateEnum)]\nenum Phase { Idle, Alert }"
+}
+
+register! {
+    path: "sand::StateBundle",
+    aliases: ["sand::prelude::StateBundle"],
+    module: "sand",
+    kind: Macro,
+    signature: "#[derive(StateBundle)]",
+    summary: "Derives a concrete named view over reusable State components and nested bundles.",
+    context: "Bundles compose component APIs without merging storage, versions, presence, or lifecycle ownership.",
+    minecraft: "Reuses each referenced component's existing objectives and lifecycle commands.",
+    use_when: ["Several systems or archetypes share the same component composition"],
+    avoid_when: ["Declaring new physical state fields"],
+    params: [],
+    returns: None,
+    example: "#[derive(sand::StateBundle)]\nstruct Combat { attack: Attack, defense: Defense }"
+}
+
+register! {
+    path: "sand::StateQuery",
+    aliases: ["sand::prelude::StateQuery"],
+    module: "sand",
+    kind: Macro,
+    signature: "#[derive(StateQuery)]",
+    summary: "Derives a concrete query item and Minecraft iteration for State component presence.",
+    context: "Named fields declare required, optional, or forbidden components and bundles without public query tuples or borrowing wrappers.",
+    minecraft: "Required presence lowers into a typed scores selector; forbidden and optional presence lower into runtime execute guards inside the generated iteration.",
+    use_when: ["Processing loaded entities selected by attached State components"],
+    avoid_when: ["A persistent Rust reference to a Minecraft entity is required"],
+    params: [],
+    returns: None,
+    example: "#[derive(sand::StateQuery)]\nstruct Combatants { attack: Attack, #[without] dead: Dead }"
+}
+
+register! {
+    path: "sand::state_lifecycle",
+    aliases: ["sand::prelude::state_lifecycle"],
+    module: "sand",
+    kind: Macro,
+    signature: "#[state_lifecycle]",
+    summary: "Registers one optional StateLifecycle implementation for generated lifecycle planning.",
+    context: "The attribute connects ordinary trait hooks to the same immutable component descriptors used by State.",
+    minecraft: "Adds hook commands to generated provisioning, initialization, tick, reconciliation, migration, and cleanup phases.",
+    use_when: ["A component needs behavior beyond inferred field lifecycle work"],
+    avoid_when: ["Defaults and automatic timer/cooldown ticking are sufficient"],
+    params: [],
+    returns: None,
+    example: "#[sand::state_lifecycle]\nimpl sand::state::StateLifecycle for PlayerState {}"
+}
+
+register! {
+    path: "sand::system",
+    aliases: ["sand::prelude::system"],
+    module: "sand",
+    kind: Macro,
+    signature: "#[system(tick, every = N)]",
+    summary: "Registers a deterministic tick system over a concrete StateQuery.",
+    context: "Function and grouped-impl forms lower query callbacks through Sand's existing function, tick-tag, and dynamic-function machinery.",
+    minecraft: "Emits one globally scheduled system function at the requested cadence; the StateQuery performs entity iteration with the correct executor and position.",
+    use_when: ["Running component-filtered behavior every server tick or at a fixed cadence"],
+    avoid_when: ["Dispatching an existing typed event directly; use on_event"],
+    params: [],
+    returns: None,
+    example: "#[sand::system(tick, every = 20)]\nfn regenerate(query: Combatants) { query.each(|item| item.defense.armor.add(1)); }"
+}
+
+register! {
     path: "sand::SandStorage",
     aliases: ["sand::prelude::SandStorage"],
     module: "sand",
@@ -1158,6 +1238,7 @@ register_entity_api! { path: "sand::entity::EntityArchetype::attach", aliases: [
 register_entity_api! { path: "sand::entity::EntityArchetype::attribute", aliases: ["sand::prelude::EntityArchetype::attribute"], kind: Method, summary: "Configures or performs attribute for the typed archetype entity API." }
 register_entity_api! { path: "sand::entity::EntityArchetype::attribute_modifier", aliases: ["sand::prelude::EntityArchetype::attribute_modifier"], kind: Method, summary: "Configures or performs attribute modifier for the typed archetype entity API." }
 register_entity_api! { path: "sand::entity::EntityArchetype::cleanup_with", aliases: ["sand::prelude::EntityArchetype::cleanup_with"], kind: Method, summary: "Configures or performs cleanup with for the typed archetype entity API." }
+register_entity_api! { path: "sand::entity::EntityArchetype::components", aliases: ["sand::prelude::EntityArchetype::components"], kind: Method, summary: "Composes an independent State component or nested bundle into an archetype through canonical attach, migration, and cleanup lifecycle paths." }
 register_entity_api! { path: "sand::entity::EntityArchetype::derive", aliases: ["sand::prelude::EntityArchetype::derive"], kind: Method, summary: "Configures or performs derive for the typed archetype entity API." }
 register_entity_api! { path: "sand::entity::EntityArchetype::effect", aliases: ["sand::prelude::EntityArchetype::effect"], kind: Method, summary: "Configures or performs effect for the typed archetype entity API." }
 register_entity_api! { path: "sand::entity::EntityArchetype::effect_when", aliases: ["sand::prelude::EntityArchetype::effect_when"], kind: Method, summary: "Configures or performs effect when for the typed archetype entity API." }
@@ -1650,6 +1731,7 @@ register_entity_api! { path: "sand::entity::PlayerQuery::get", aliases: ["sand::
 register_entity_api! { path: "sand::entity::PlayerQuery::limit", aliases: ["sand::entity::PlayerQueries::limit", "sand::entity::SinglePlayerQuery::limit", "sand::prelude::PlayerQueries::limit", "sand::prelude::PlayerQuery::limit", "sand::prelude::SinglePlayerQuery::limit"], kind: Method, summary: "Configures or performs limit for the typed query entity API." }
 register_entity_api! { path: "sand::entity::PlayerQuery::nearest", aliases: ["sand::entity::PlayerQueries::nearest", "sand::entity::SinglePlayerQuery::nearest", "sand::prelude::PlayerQueries::nearest", "sand::prelude::PlayerQuery::nearest", "sand::prelude::SinglePlayerQuery::nearest"], kind: Method, summary: "Configures or performs nearest for the typed query entity API." }
 register_entity_api! { path: "sand::entity::PlayerQuery::players", aliases: ["sand::entity::PlayerQueries::players", "sand::entity::SinglePlayerQuery::players", "sand::prelude::PlayerQueries::players", "sand::prelude::PlayerQuery::players", "sand::prelude::SinglePlayerQuery::players"], kind: Method, summary: "Configures or performs players for the typed query entity API." }
+register_entity_api! { path: "sand::entity::PlayerQuery::state", aliases: ["sand::entity::PlayerQueries::state", "sand::entity::SinglePlayerQuery::state", "sand::prelude::PlayerQueries::state", "sand::prelude::PlayerQuery::state", "sand::prelude::SinglePlayerQuery::state"], kind: Method, summary: "Restricts a player query with a typed State presence or value predicate." }
 register_entity_api! { path: "sand::entity::PlayerQuery::selector", aliases: ["sand::entity::PlayerQueries::selector", "sand::entity::SinglePlayerQuery::selector", "sand::prelude::PlayerQueries::selector", "sand::prelude::PlayerQuery::selector", "sand::prelude::SinglePlayerQuery::selector"], kind: Method, summary: "Returns selector for the typed query entity API." }
 register_entity_api! { path: "sand::entity::PlayerQuery::sort", aliases: ["sand::entity::PlayerQueries::sort", "sand::entity::SinglePlayerQuery::sort", "sand::prelude::PlayerQueries::sort", "sand::prelude::PlayerQuery::sort", "sand::prelude::SinglePlayerQuery::sort"], kind: Method, summary: "Configures or performs sort for the typed query entity API." }
 register_entity_api! { path: "sand::entity::PlayerQuery::tag", aliases: ["sand::entity::PlayerQueries::tag", "sand::entity::SinglePlayerQuery::tag", "sand::prelude::PlayerQueries::tag", "sand::prelude::PlayerQuery::tag", "sand::prelude::SinglePlayerQuery::tag"], kind: Method, summary: "Configures or performs tag for the typed query entity API." }
@@ -1698,8 +1780,34 @@ register_entity_api! { path: "sand::entity::EntityFlagAccessor::enable", aliases
 register_entity_api! { path: "sand::entity::EntityFlagAccessor::is_disabled", aliases: [], kind: Method, summary: "Checks is disabled for the typed state entity API." }
 register_entity_api! { path: "sand::entity::EntityFlagAccessor::is_enabled", aliases: [], kind: Method, summary: "Checks is enabled for the typed state entity API." }
 register_entity_api! { path: "sand::entity::EntityScore", aliases: ["sand::prelude::EntityScore"], kind: Struct, summary: "Represents entity score in scoreboard-backed typed entity state." }
-register_entity_api! { path: "sand::entity::EntityScore::matches", aliases: ["sand::prelude::EntityScore::matches"], kind: Method, summary: "Configures or performs matches for the typed state entity API." }
-register_entity_api! { path: "sand::entity::EntityScore::new", aliases: ["sand::prelude::EntityScore::new"], kind: Method, summary: "Constructs new for the typed state entity API." }
+register_entity_api! { path: "sand::entity::Score", aliases: ["sand::prelude::Score"], kind: TypeAlias, summary: "Names the canonical signed integer field used by State declarations." }
+register_entity_api! { path: "sand::entity::FixedScore", aliases: ["sand::prelude::FixedScore"], kind: Struct, summary: "Defines a scaled fixed-point score field used by State declarations." }
+register_entity_api! { path: "sand::entity::FixedScore::matches", aliases: ["sand::prelude::FixedScore::matches"], kind: Method, summary: "Builds a typed decimal range predicate using the field's scale." }
+register_entity_api! { path: "sand::entity::FixedScore::scale", aliases: ["sand::prelude::FixedScore::scale"], kind: Method, summary: "Returns the number of stored scoreboard units per whole value." }
+register_entity_api! { path: "sand::entity::FixedScoreAccessor", aliases: ["sand::prelude::FixedScoreAccessor"], kind: Struct, summary: "Binds a scaled fixed-point field to its generated score holder." }
+register_entity_api! { path: "sand::entity::FixedScoreAccessor::add", aliases: ["sand::prelude::FixedScoreAccessor::add"], kind: Method, summary: "Adds a decimal value using deterministic fixed-point encoding." }
+register_entity_api! { path: "sand::entity::FixedScoreAccessor::get", aliases: ["sand::prelude::FixedScoreAccessor::get"], kind: Method, summary: "Returns the readable fixed-point score view." }
+register_entity_api! { path: "sand::entity::FixedScoreAccessor::matches", aliases: ["sand::prelude::FixedScoreAccessor::matches"], kind: Method, summary: "Builds a decimal condition for the bound holder." }
+register_entity_api! { path: "sand::entity::FixedScoreAccessor::set", aliases: ["sand::prelude::FixedScoreAccessor::set"], kind: Method, summary: "Assigns a decimal value using deterministic fixed-point encoding." }
+register_entity_api! { path: "sand::entity::FixedScoreAccessor::subtract", aliases: ["sand::prelude::FixedScoreAccessor::subtract"], kind: Method, summary: "Subtracts a decimal value using deterministic fixed-point encoding." }
+register_entity_api! { path: "sand::entity::FixedScoreValue", aliases: ["sand::prelude::FixedScoreValue"], kind: Struct, summary: "Carries a readable fixed-point scoreboard value and its scale." }
+register_entity_api! { path: "sand::entity::FixedScoreValue::command", aliases: ["sand::prelude::FixedScoreValue::command"], kind: Method, summary: "Emits the underlying scoreboard read command." }
+register_entity_api! { path: "sand::entity::FixedScoreValue::objective", aliases: ["sand::prelude::FixedScoreValue::objective"], kind: Method, summary: "Returns the resolved backing objective name." }
+register_entity_api! { path: "sand::entity::FixedScoreValue::scale", aliases: ["sand::prelude::FixedScoreValue::scale"], kind: Method, summary: "Returns the number of stored units per whole value." }
+register_entity_api! { path: "sand::entity::Data", aliases: ["sand::prelude::Data"], kind: Struct, summary: "Marks a typed storage-backed field in a State declaration." }
+register_entity_api! { path: "sand::entity::Data::new", aliases: ["sand::prelude::Data::new"], kind: Method, summary: "Constructs a typed storage handle; State-generated fields supply component-owned locations automatically." }
+register_entity_api! { path: "sand::entity::Data::get", aliases: ["sand::prelude::Data::get"], kind: Method, summary: "Builds a typed read of component-owned State storage." }
+register_entity_api! { path: "sand::entity::Data::set", aliases: ["sand::prelude::Data::set"], kind: Method, summary: "Replaces a component-owned typed State storage value." }
+register_entity_api! { path: "sand::entity::Data::exists", aliases: ["sand::prelude::Data::exists"], kind: Method, summary: "Tests runtime presence of a component-owned typed storage path." }
+register_entity_api! { path: "sand::entity::Data::remove", aliases: ["sand::prelude::Data::remove"], kind: Method, summary: "Removes one component-owned typed State storage value." }
+register_entity_api! { path: "sand::entity::KeyedData", aliases: ["sand::prelude::KeyedData"], kind: Struct, summary: "Addresses component-owned command storage keyed by the current entity or player UUID." }
+register_entity_api! { path: "sand::entity::KeyedData::new", aliases: ["sand::prelude::KeyedData::new"], kind: Method, summary: "Constructs a generated UUID-keyed typed storage handle." }
+register_entity_api! { path: "sand::entity::KeyedData::get", aliases: ["sand::prelude::KeyedData::get"], kind: Method, summary: "Reads the current owner's value through a generated storage macro." }
+register_entity_api! { path: "sand::entity::KeyedData::set", aliases: ["sand::prelude::KeyedData::set"], kind: Method, summary: "Replaces the current owner's isolated typed storage value." }
+register_entity_api! { path: "sand::entity::KeyedData::remove", aliases: ["sand::prelude::KeyedData::remove"], kind: Method, summary: "Removes the current owner's isolated typed storage value." }
+register_entity_api! { path: "sand::entity::KeyedData::if_present", aliases: ["sand::prelude::KeyedData::if_present"], kind: Method, summary: "Runs a callback only when the current owner's value exists at runtime." }
+register_entity_api! { path: "sand::entity::EntityScore::matches", aliases: ["sand::entity::Score::matches", "sand::prelude::EntityScore::matches", "sand::prelude::Score::matches"], kind: Method, summary: "Configures or performs matches for the typed state entity API." }
+register_entity_api! { path: "sand::entity::EntityScore::new", aliases: ["sand::entity::Score::new", "sand::prelude::EntityScore::new", "sand::prelude::Score::new"], kind: Method, summary: "Constructs new for the typed state entity API." }
 register_entity_api! { path: "sand::entity::EntityScoreAccessor", aliases: [], kind: Struct, summary: "Represents entity score accessor in scoreboard-backed typed entity state." }
 register_entity_api! { path: "sand::entity::EntityScoreAccessor::add", aliases: [], kind: Method, summary: "Configures or performs add for the typed state entity API." }
 register_entity_api! { path: "sand::entity::EntityScoreAccessor::get", aliases: [], kind: Method, summary: "Configures or performs get for the typed state entity API." }
@@ -1708,6 +1816,7 @@ register_entity_api! { path: "sand::entity::EntityScoreAccessor::set", aliases: 
 register_entity_api! { path: "sand::entity::EntityScoreAccessor::subtract", aliases: [], kind: Method, summary: "Configures or performs subtract for the typed state entity API." }
 register_entity_api! { path: "sand::entity::EntityState", aliases: ["sand::prelude::EntityState"], kind: Trait, summary: "Represents entity state in scoreboard-backed typed entity state." }
 register_entity_api! { path: "sand::entity::EntityState::schema", aliases: ["sand::prelude::EntityState::schema"], kind: TraitMethod, summary: "Defines how an entity type supplies schema to Sand's typed model." }
+register_entity_api! { path: "sand::entity::EntityState::data_fields", aliases: ["sand::prelude::EntityState::data_fields"], kind: TraitMethod, summary: "Lists component-owned typed storage paths generated by State." }
 register_entity_api! { path: "sand::entity::EntityStateField", aliases: ["sand::prelude::EntityStateField"], kind: Trait, summary: "Represents entity state field in scoreboard-backed typed entity state." }
 register_entity_api! { path: "sand::entity::EntityStateField::Accessor", aliases: ["sand::prelude::EntityStateField::Accessor"], kind: AssociatedType, summary: "Names the accessor type used by this typed entity abstraction." }
 register_entity_api! { path: "sand::entity::EntityStateField::bind", aliases: ["sand::prelude::EntityStateField::bind"], kind: TraitMethod, summary: "Defines how an entity type supplies bind to Sand's typed model." }
@@ -1737,6 +1846,8 @@ register_entity_api! { path: "sand::entity::StateFieldKind::Dirty", aliases: ["s
 register_entity_api! { path: "sand::entity::StateFieldKind::Enum", aliases: ["sand::prelude::StateFieldKind::Enum"], kind: Variant, summary: "Selects the enum semantic case for this typed entity definition." }
 register_entity_api! { path: "sand::entity::StateFieldKind::Enum::0", aliases: ["sand::prelude::StateFieldKind::Enum::0"], kind: Field, summary: "Carries the 0 value required by this typed entity case." }
 register_entity_api! { path: "sand::entity::StateFieldKind::Flag", aliases: ["sand::prelude::StateFieldKind::Flag"], kind: Variant, summary: "Selects the flag semantic case for this typed entity definition." }
+register_entity_api! { path: "sand::entity::StateFieldKind::Fixed", aliases: ["sand::prelude::StateFieldKind::Fixed"], kind: Variant, summary: "Selects scaled fixed-point scoreboard storage." }
+register_entity_api! { path: "sand::entity::StateFieldKind::Fixed::0", aliases: ["sand::prelude::StateFieldKind::Fixed::0"], kind: Field, summary: "Carries the positive number of stored units per whole value." }
 register_entity_api! { path: "sand::entity::StateFieldKind::Score", aliases: ["sand::prelude::StateFieldKind::Score"], kind: Variant, summary: "Selects the score semantic case for this typed entity definition." }
 register_entity_api! { path: "sand::entity::StateFieldKind::Timer", aliases: ["sand::prelude::StateFieldKind::Timer"], kind: Variant, summary: "Selects the timer semantic case for this typed entity definition." }
 register_entity_api! { path: "sand::entity::StateFieldKind::Version", aliases: ["sand::prelude::StateFieldKind::Version"], kind: Variant, summary: "Selects the version semantic case for this typed entity definition." }
@@ -1744,6 +1855,73 @@ register_entity_api! { path: "sand::entity::StatePredicate", aliases: ["sand::pr
 register_entity_api! { path: "sand::entity::StatePredicate::condition", aliases: ["sand::prelude::StatePredicate::condition"], kind: Method, summary: "Configures or performs condition for the typed state entity API." }
 register_entity_api! { path: "sand::entity::StatePredicate::objective", aliases: ["sand::prelude::StatePredicate::objective"], kind: Method, summary: "Returns objective for the typed state entity API." }
 register_entity_api! { path: "sand::entity::StatePredicate::selector_range", aliases: ["sand::prelude::StatePredicate::selector_range"], kind: Method, summary: "Returns selector range for the typed state entity API." }
+register_entity_api! { path: "sand::entity::StateComposition", aliases: ["sand::prelude::StateComposition"], kind: Trait, summary: "Marks a generated State component or nested bundle as legal archetype composition input." }
+register_entity_api! { path: "sand::entity::StateComposition::composition_attach", aliases: ["sand::prelude::StateComposition::composition_attach"], kind: TraitMethod, summary: "Lowers canonical idempotent attachment for a generated archetype composition." }
+register_entity_api! { path: "sand::entity::StateComposition::composition_detach", aliases: ["sand::prelude::StateComposition::composition_detach"], kind: TraitMethod, summary: "Lowers ownership-safe reverse detachment for a generated archetype composition." }
+register_entity_api! { path: "sand::entity::StateComposition::composition_identities", aliases: ["sand::prelude::StateComposition::composition_identities"], kind: TraitMethod, summary: "Returns the flattened component presence identities used to deduplicate and validate archetype composition." }
+register! {
+    path: "sand::entity::GlobalStateBundleOperations",
+    aliases: ["sand::prelude::GlobalStateBundleOperations"],
+    module: "sand::entity",
+    kind: Trait,
+    signature: "pub trait GlobalStateBundleOperations: StateBundleMember",
+    summary: "Provides singleton-holder operations for a generated bundle made entirely from global State components.",
+    context: "The StateBundle derive implements this extension automatically when every flattened member has global scope; importing the prelude makes its associated operations available on the bundle type.",
+    minecraft: "Every member retains its own deterministic fake-player holder, objective identities, version marker, typed storage path, and lifecycle instead of sharing the current executor or allocating bundle storage.",
+    use_when: ["Grouping several global State resources behind one concrete named view", "Attaching or detaching a global resource composition in deterministic order"],
+    avoid_when: ["Any member is player, entity, or living scoped", "A component should share the current executor rather than its global singleton"],
+    params: [],
+    returns: None,
+    example: "let world = WorldResources::global();"
+}
+
+register! {
+    path: "sand::entity::GlobalStateBundleOperations::global",
+    aliases: ["sand::prelude::GlobalStateBundleOperations::global"],
+    module: "sand::entity",
+    kind: TraitMethod,
+    signature: "fn global() -> Self::Bound",
+    summary: "Binds every component in a global State bundle to its own deterministic singleton holder.",
+    context: "The returned concrete bundle view preserves named-field completion while each nested component chooses the same holder as its generated component-level global method.",
+    minecraft: "Later field operations address each component's existing fake-player score holder or global command-storage path; no command is emitted merely by binding the view.",
+    use_when: ["Reading or mutating several related global resources through one named view"],
+    avoid_when: ["Binding a scoped owner represented by the current executor; use bundle on instead"],
+    params: [],
+    returns: Some("The concrete nested bundle view with every component bound to its singleton holder."),
+    example: "let world = WorldResources::global();"
+}
+
+register! {
+    path: "sand::entity::GlobalStateBundleOperations::attach_global",
+    aliases: ["sand::prelude::GlobalStateBundleOperations::attach_global"],
+    module: "sand::entity",
+    kind: TraitMethod,
+    signature: "fn attach_global() -> Vec<String>",
+    summary: "Attaches every unique component in a global State bundle through its singleton holder.",
+    context: "Nested bundles flatten to the canonical component lifecycle; repeated members are deduplicated without merging component versions or ownership.",
+    minecraft: "Emits idempotent initialization and migration commands in declaration order, publishing each component presence/version marker only after its owned values are ready.",
+    use_when: ["Explicitly attaching a named composition of global State resources"],
+    avoid_when: ["Provisioning objectives manually", "Resetting already initialized global progress"],
+    params: [],
+    returns: Some("Lifecycle commands for every unique global component in declaration order."),
+    example: "let commands = WorldResources::attach_global();"
+}
+
+register! {
+    path: "sand::entity::GlobalStateBundleOperations::detach_global",
+    aliases: ["sand::prelude::GlobalStateBundleOperations::detach_global"],
+    module: "sand::entity",
+    kind: TraitMethod,
+    signature: "fn detach_global() -> Vec<String>",
+    summary: "Detaches every unique component in reverse global bundle order without touching unrelated state.",
+    context: "The bundle delegates cleanup to each canonical component lifecycle and never removes shared objectives, another component's values, or external scores.",
+    minecraft: "Emits cleanup and owned-value removal against each component's deterministic holder in reverse composition order.",
+    use_when: ["Explicitly removing a complete global resource composition"],
+    avoid_when: ["Removing only one member; call that component's detach method", "Deleting shared scoreboard objectives"],
+    params: [],
+    returns: Some("Ownership-safe cleanup commands in reverse component order."),
+    example: "let commands = WorldResources::detach_global();"
+}
 register_entity_api! { path: "sand::entity::StateSchema", aliases: ["sand::prelude::StateSchema"], kind: Struct, summary: "Represents state schema in scoreboard-backed typed entity state." }
 register_entity_api! { path: "sand::entity::StateSchema::fields", aliases: ["sand::prelude::StateSchema::fields"], kind: Field, summary: "Carries the fields value required by this typed entity case." }
 register_entity_api! { path: "sand::entity::StateSchema::id", aliases: ["sand::prelude::StateSchema::id"], kind: Method, summary: "Returns id for the typed state entity API." }
@@ -1826,6 +2004,39 @@ register_state_api! { path: "sand::state::FlowTransitionBuilder::priority", alia
 register_state_api! { path: "sand::state::FlowTransitionBuilder::when", aliases: [], kind: Method, summary: "Configures or performs when for typed flow state." }
 register_state_api! { path: "sand::state::IntoStateCommands", aliases: ["sand::prelude::IntoStateCommands"], kind: Trait, summary: "Represents into state commands in Sand's typed flow state model." }
 register_state_api! { path: "sand::state::IntoStateCommands::into_state_commands", aliases: ["sand::prelude::IntoStateCommands::into_state_commands"], kind: TraitMethod, summary: "Defines how a typed state supplies into state commands." }
+register_state_api! { path: "sand::state::StateProvision", aliases: ["sand::prelude::StateProvision"], kind: Struct, summary: "Provides context while a component provisions shared backend dependencies." }
+register_state_api! { path: "sand::state::StateInit", aliases: ["sand::prelude::StateInit"], kind: Struct, summary: "Provides the bound owner context to a component initialization hook." }
+register_state_api! { path: "sand::state::StateInit::new", aliases: ["sand::prelude::StateInit::new"], kind: Method, summary: "Constructs the initialization hook context used by generated lifecycle code." }
+register_state_api! { path: "sand::state::StateInit::holder", aliases: ["sand::prelude::StateInit::holder"], kind: Method, summary: "Returns the score holder selected for component initialization." }
+register_state_api! { path: "sand::state::StateInit::entity", aliases: ["sand::prelude::StateInit::entity"], kind: Method, summary: "Returns typed current-entity access for initialization commands." }
+register_state_api! { path: "sand::state::StateInit::player", aliases: ["sand::prelude::StateInit::player"], kind: Method, summary: "Returns typed current-player access for initialization commands." }
+register_state_api! { path: "sand::state::StateTick", aliases: ["sand::prelude::StateTick"], kind: Struct, summary: "Provides the eligible bound owner context to a component tick hook." }
+register_state_api! { path: "sand::state::StateTick::new", aliases: ["sand::prelude::StateTick::new"], kind: Method, summary: "Constructs the tick hook context used by generated lifecycle code." }
+register_state_api! { path: "sand::state::StateTick::holder", aliases: ["sand::prelude::StateTick::holder"], kind: Method, summary: "Returns the score holder selected for component ticking." }
+register_state_api! { path: "sand::state::StateTick::entity", aliases: ["sand::prelude::StateTick::entity"], kind: Method, summary: "Returns typed current-entity access for tick commands." }
+register_state_api! { path: "sand::state::StateTick::player", aliases: ["sand::prelude::StateTick::player"], kind: Method, summary: "Returns typed current-player access for tick commands." }
+register_state_api! { path: "sand::state::StateReconcile", aliases: ["sand::prelude::StateReconcile"], kind: Struct, summary: "Provides the bound owner context to native-property reconciliation." }
+register_state_api! { path: "sand::state::StateReconcile::new", aliases: ["sand::prelude::StateReconcile::new"], kind: Method, summary: "Constructs the reconciliation hook context used by generated lifecycle code." }
+register_state_api! { path: "sand::state::StateReconcile::holder", aliases: ["sand::prelude::StateReconcile::holder"], kind: Method, summary: "Returns the score holder selected for reconciliation." }
+register_state_api! { path: "sand::state::StateReconcile::entity", aliases: ["sand::prelude::StateReconcile::entity"], kind: Method, summary: "Returns typed current-entity access for reconciliation commands." }
+register_state_api! { path: "sand::state::StateReconcile::player", aliases: ["sand::prelude::StateReconcile::player"], kind: Method, summary: "Returns typed current-player access for reconciliation commands." }
+register_state_api! { path: "sand::state::StateMigrate", aliases: ["sand::prelude::StateMigrate"], kind: Struct, summary: "Describes one explicit component version transition to a migration hook." }
+register_state_api! { path: "sand::state::StateMigrate::new", aliases: ["sand::prelude::StateMigrate::new"], kind: Method, summary: "Constructs the migration hook context used by generated lifecycle code." }
+register_state_api! { path: "sand::state::StateMigrate::holder", aliases: ["sand::prelude::StateMigrate::holder"], kind: Method, summary: "Returns the score holder whose component is being migrated." }
+register_state_api! { path: "sand::state::StateMigrate::from", aliases: ["sand::prelude::StateMigrate::from"], kind: Method, summary: "Returns the source component version for this transition." }
+register_state_api! { path: "sand::state::StateMigrate::to", aliases: ["sand::prelude::StateMigrate::to"], kind: Method, summary: "Returns the destination component version for this transition." }
+register_state_api! { path: "sand::state::StateCleanup", aliases: ["sand::prelude::StateCleanup"], kind: Struct, summary: "Provides the bound owner context before component-owned values are removed." }
+register_state_api! { path: "sand::state::StateCleanup::new", aliases: ["sand::prelude::StateCleanup::new"], kind: Method, summary: "Constructs the cleanup hook context used by generated lifecycle code." }
+register_state_api! { path: "sand::state::StateCleanup::holder", aliases: ["sand::prelude::StateCleanup::holder"], kind: Method, summary: "Returns the score holder whose component is being detached." }
+register_state_api! { path: "sand::state::StateCleanup::entity", aliases: ["sand::prelude::StateCleanup::entity"], kind: Method, summary: "Returns typed current-entity access for cleanup commands." }
+register_state_api! { path: "sand::state::StateCleanup::player", aliases: ["sand::prelude::StateCleanup::player"], kind: Method, summary: "Returns typed current-player access for cleanup commands." }
+register_state_api! { path: "sand::state::StateLifecycle", aliases: ["sand::prelude::StateLifecycle"], kind: Trait, summary: "Defines optional hooks around generated component lifecycle phases." }
+register_state_api! { path: "sand::state::StateLifecycle::provision", aliases: ["sand::prelude::StateLifecycle::provision"], kind: TraitMethod, summary: "Supplies commands that provision additional shared component dependencies." }
+register_state_api! { path: "sand::state::StateLifecycle::initialize", aliases: ["sand::prelude::StateLifecycle::initialize"], kind: TraitMethod, summary: "Supplies commands run before the component presence version is published." }
+register_state_api! { path: "sand::state::StateLifecycle::tick", aliases: ["sand::prelude::StateLifecycle::tick"], kind: TraitMethod, summary: "Supplies commands run once for each eligible attached owner." }
+register_state_api! { path: "sand::state::StateLifecycle::reconcile", aliases: ["sand::prelude::StateLifecycle::reconcile"], kind: TraitMethod, summary: "Supplies commands that reconcile component-owned native properties." }
+register_state_api! { path: "sand::state::StateLifecycle::migrate", aliases: ["sand::prelude::StateLifecycle::migrate"], kind: TraitMethod, summary: "Supplies commands for one declared component version transition." }
+register_state_api! { path: "sand::state::StateLifecycle::cleanup", aliases: ["sand::prelude::StateLifecycle::cleanup"], kind: TraitMethod, summary: "Supplies commands run before component-owned values and bookkeeping are removed." }
 register_state_api! { path: "sand::state::StateFlow", aliases: ["sand::prelude::StateFlow"], kind: Struct, summary: "Represents state flow in Sand's typed flow state model." }
 register_state_api! { path: "sand::state::StateFlow::for_subjects", aliases: ["sand::prelude::StateFlow::for_subjects"], kind: Method, summary: "Configures or performs for subjects for typed flow state." }
 register_state_api! { path: "sand::state::StateFlow::named", aliases: ["sand::prelude::StateFlow::named"], kind: Method, summary: "Configures or performs named for typed flow state." }

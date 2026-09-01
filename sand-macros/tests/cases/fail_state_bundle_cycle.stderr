@@ -1,0 +1,18 @@
+error: StateBundle cannot contain itself; bundle nesting must be acyclic
+ --> tests/cases/fail_state_bundle_cycle.rs:5:16
+  |
+5 |     recursive: Recursive,
+  |                ^^^^^^^^^
+
+error[E0072]: recursive type `Recursive` has infinite size
+ --> tests/cases/fail_state_bundle_cycle.rs:4:1
+  |
+4 | struct Recursive {
+  | ^^^^^^^^^^^^^^^^
+5 |     recursive: Recursive,
+  |                --------- recursive without indirection
+  |
+help: insert some indirection (e.g., a `Box`, `Rc`, or `&`) to break the cycle
+  |
+5 |     recursive: Box<Recursive>,
+  |                ++++         +

@@ -1,0 +1,12 @@
+error[E0277]: the trait bound `sand::__private::PlayerStateScope: sand::__private::SameStateScope<sand::__private::EntityStateScope>` is not satisfied
+ --> tests/cases/fail_state_query_scope_mismatch.rs:7:10
+  |
+7 | #[derive(StateQuery)]
+  |          ^^^^^^^^^^ the trait `sand::__private::SameStateScope<sand::__private::EntityStateScope>` is not implemented for `sand::__private::PlayerStateScope`
+  |
+note: required by a bound in `assert_same`
+ --> tests/cases/fail_state_query_scope_mismatch.rs:7:10
+  |
+7 | #[derive(StateQuery)]
+  |          ^^^^^^^^^^ required by this bound in `assert_same`
+  = note: this error originates in the derive macro `StateQuery` (in Nightly builds, run with -Z macro-backtrace for more info)

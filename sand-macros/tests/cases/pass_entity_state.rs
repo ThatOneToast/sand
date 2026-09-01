@@ -8,7 +8,14 @@ enum Phase {
 }
 
 #[derive(State)]
-#[state(namespace = "rpg", scope = entity, name = "mob/zombie", version = 3)]
+#[state(
+    namespace = "rpg",
+    scope = entity,
+    name = "mob/zombie",
+    version = 3,
+    migrate(from = 1, to = 2),
+    migrate(from = 2, to = 3)
+)]
 struct MobState {
     #[state(default = 10, min = 1, max = 100)]
     level: EntityScore<i32>,

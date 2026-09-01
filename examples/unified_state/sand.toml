@@ -1,0 +1,4 @@
+[pack]
+namespace = "unified_state"
+description = "Unified State components, bundles, queries, systems, and resources"
+mc_version = "26.2"

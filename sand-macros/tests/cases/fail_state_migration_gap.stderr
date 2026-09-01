@@ -1,0 +1,11 @@
+error: State migration declarations contain a gap or conflicting transition
+  --> tests/cases/fail_state_migration_gap.rs:4:1
+   |
+ 4 | / #[state(
+ 5 | |     namespace = "demo",
+ 6 | |     scope = entity,
+ 7 | |     version = 4,
+ 8 | |     migrate(from = 1, to = 2),
+ 9 | |     migrate(from = 3, to = 4)
+10 | | )]
+   | |__^

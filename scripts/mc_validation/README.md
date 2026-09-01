@@ -16,6 +16,27 @@ migration, macro-storage cleanup, unload/re-observation, explicit cleanup,
 and removal. See `docs/testing/entity-archetype-evidence.md` for the latest
 results and the explicit boundary around natural-spawn provenance.
 
+## Unified State validation (#298)
+
+`run_unified_state_audit.py` builds the full State tutorial and runs it on a
+real 26.2 server:
+
+```bash
+python3 scripts/mc_validation/run_unified_state_audit.py \
+  --build \
+  --jar ~/.sand/cache/26.2/server.jar \
+  --evidence /tmp/unified-state-evidence.json
+```
+
+The audit covers two players observed online together, independent player
+initialization, two UUID-keyed entity data records, nested bundle attachment,
+required/optional/forbidden queries, shared ordered system scans, migrations,
+reload preservation, and ownership-safe detachment. The tiny protocol clients
+still disconnect after the initial chunk stream, so the harness invokes the
+generated lifecycle tick through RCON while both real player entities are
+online. That proves Sand's generated player lifecycle and multiplayer
+isolation; it does not pretend the tiny clients are full gameplay bots.
+
 ## `sand run` diagnostics validation (#278)
 
 `run_harness.py` is separate, unrelated tooling from the rest of this

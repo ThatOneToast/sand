@@ -1,4 +1,4 @@
-error: unsupported State field wrapper; expected EntityScore<T>, EntityFlag, EntityEnum<T>, EntityTimer, or EntityCooldown
+error: unsupported State field wrapper; expected Score, FixedScore, Flag, StateEnum<T>, Timer, Cooldown, Data<T>, or an advanced Entity-prefixed form
  --> tests/cases/fail_entity_state_unknown_wrapper.rs:6:12
   |
 6 |     value: String,

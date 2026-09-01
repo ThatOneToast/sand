@@ -1,0 +1,6 @@
+error: StateQuery component `Attached` has contradictory presence requirements
+  --> tests/cases/fail_state_query_contradiction.rs:11:5
+   |
+11 | /     #[without]
+12 | |     forbidden: Attached,
+   | |_______________________^

@@ -1,0 +1,54 @@
+error[E0308]: mismatched types
+  --> tests/cases/fail_state_bundle_target_scope.rs:33:34
+   |
+33 |     let _ = PlayerBundle::attach(entity);
+   |             -------------------- ^^^^^^ expected `EntityContext<PlayerKind>`, found `EntityContext<ZombieKind>`
+   |             |
+   |             arguments to this function are incorrect
+   |
+   = note: expected struct `sand::prelude::EntityContext<PlayerKind>`
+              found struct `sand::prelude::EntityContext<sand::prelude::ZombieKind>`
+note: associated function defined here
+  --> tests/cases/fail_state_bundle_target_scope.rs:15:10
+   |
+15 | #[derive(StateBundle)]
+   |          ^^^^^^^^^^^
+   = note: this error originates in the derive macro `StateBundle` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0277]: the trait bound `sand::prelude::MarkerKind: LivingEntityKind` is not satisfied
+  --> tests/cases/fail_state_bundle_target_scope.rs:34:30
+   |
+34 |     let _ = LivingBundle::on(non_living);
+   |             ---------------- ^^^^^^^^^^ the trait `LivingEntityKind` is not implemented for `sand::prelude::MarkerKind`
+   |             |
+   |             required by a bound introduced by this call
+   |
+help: the following other types implement trait `LivingEntityKind`
+  --> $WORKSPACE/sand-core/src/entity/kind.rs
+   |
+   | impl LivingEntityKind for PlayerKind {}
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ `PlayerKind`
+   | impl LivingEntityKind for ZombieKind {}
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ `sand::prelude::ZombieKind`
+   = note: required for `sand::__private::LivingStateScope` to implement `sand::__private::StateBundleTarget<sand::prelude::MarkerKind>`
+note: required by a bound in `LivingBundle::on`
+  --> tests/cases/fail_state_bundle_target_scope.rs:20:10
+   |
+20 | #[derive(StateBundle)]
+   |          ^^^^^^^^^^^ required by this bound in `LivingBundle::on`
+   = note: this error originates in the derive macro `StateBundle` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0277]: the trait bound `sand::__private::GlobalStateScope: sand::__private::StateBundleTarget<_>` is not satisfied
+  --> tests/cases/fail_state_bundle_target_scope.rs:35:30
+   |
+35 |     let _ = GlobalBundle::on(entity);
+   |             ---------------- ^^^^^^ the trait `sand::__private::StateBundleTarget<_>` is not implemented for `sand::__private::GlobalStateScope`
+   |             |
+   |             required by a bound introduced by this call
+   |
+note: required by a bound in `GlobalBundle::on`
+  --> tests/cases/fail_state_bundle_target_scope.rs:25:10
+   |
+25 | #[derive(StateBundle)]
+   |          ^^^^^^^^^^^ required by this bound in `GlobalBundle::on`
+   = note: this error originates in the derive macro `StateBundle` (in Nightly builds, run with -Z macro-backtrace for more info)

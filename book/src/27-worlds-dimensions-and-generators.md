@@ -59,12 +59,12 @@ generation — Sand only overrides what you explicitly configure.
 use sand::build::{FlatGenerator, FlatLayer, Generator, NoiseGenerator, VanillaNoiseSettings};
 use sand::ResourceLocation;
 
-// Flat — see chapter 27
+// Flat — see chapter 28
 let flat = Generator::Flat(FlatGenerator::new(vec![
     FlatLayer::new(ResourceLocation::new("minecraft", "grass_block").unwrap(), 1),
 ]));
 
-// Void — see chapter 28
+// Void — see chapter 29
 let void = Generator::Void;
 
 // Noise — full vanilla or referenced custom settings

@@ -31,7 +31,7 @@ let world = World::new()
 produces:
 
 ```mcfunction
-setworldspawn 0 100 0 0
+setworldspawn 0 100 0 0 0
 worldborder center 0 0
 worldborder set 2000
 worldborder damage amount 0.2

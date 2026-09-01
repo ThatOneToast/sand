@@ -4,7 +4,7 @@ use sand_core::event::vanilla::{OnDeath, OnRespawn, PlayerStartsSneaking, Player
 use sand_core::events::{EventSetup, PlayerSneakEvent, SandEvent, SandEventDispatch, TickWindow};
 use sand_core::prelude::*;
 use sand_core::{FloatRange, IntRange, NumberProvider};
-use sand_macros::{State, datapack_component, on_event, function};
+use sand_macros::{State, datapack_component, function, on_event};
 
 fn item_id(path: &str) -> ItemId {
     ItemId::minecraft(path).unwrap()
@@ -341,9 +341,7 @@ pub fn stops_sneaking(event: sand_core::event::Event<PlayerStopsSneaking>) {
 pub fn audit_advancement() -> Advancement {
     Advancement::new("sand_audit:first_tick".parse().unwrap())
         .criterion("tick", Criterion::new(AdvancementTrigger::Tick))
-        .rewards(
-            AdvancementRewards::new().function("sand_audit:audit_command".parse().unwrap()),
-        )
+        .rewards(AdvancementRewards::new().function("sand_audit:audit_command".parse().unwrap()))
 }
 
 /// Real-vanilla load/reload coverage for the #231/#232 `placed_block` fix:
@@ -368,9 +366,7 @@ pub fn audit_placed_block_filtered() -> Advancement {
                 None,
             )),
         )
-        .rewards(
-            AdvancementRewards::new().function("sand_audit:audit_command".parse().unwrap()),
-        )
+        .rewards(AdvancementRewards::new().function("sand_audit:audit_command".parse().unwrap()))
 }
 
 /// Same coverage as [`audit_placed_block_filtered`] for `item_used_on_block`.
@@ -384,9 +380,7 @@ pub fn audit_item_used_on_block_filtered() -> Advancement {
                 location: None,
             }),
         )
-        .rewards(
-            AdvancementRewards::new().function("sand_audit:audit_command".parse().unwrap()),
-        )
+        .rewards(AdvancementRewards::new().function("sand_audit:audit_command".parse().unwrap()))
 }
 
 /// Client-driven semantic fixture. The reward revokes this advancement so a
@@ -571,16 +565,94 @@ pub fn audit_item_modifier() -> ItemModifier {
 #[cfg(sand_audit_dialogs)]
 #[datapack_component]
 pub fn audit_dialog() -> Dialog {
+    // A `notice` dialog requires at least one button (Minecraft's own
+    // dialog schema, enforced by DatapackComponent validation) -- this
+    // fixture was missing one, which made every 26.x vanilla-reload
+    // validation fail at datapack-export time before a server was even
+    // started. Found while investigating issue #355.
     Dialog::notice_local("status")
         .title("Sand audit")
         .body(DialogBody::text("Vanilla reload validation"))
+        .button(DialogButton::new("OK"))
+}
+
+/// A small, safe `sand::build`-generated dimension override for the audit
+/// pack: a flat Overworld (bedrock/dirt/grass) with a spawn platform.
+/// Real-server-load coverage for issue #355 -- until this, every real
+/// Minecraft server load/reload validation (`.github/workflows/
+/// vanilla-reload.yml`) only exercised ordinary component output, never
+/// world-build-generated dimension/function/tag resources. `sand-vanilla-audit`
+/// doesn't go through `sand-cli`'s `sand.build.rs` discovery (it has its own
+/// bespoke `export()` below), so this calls `sand_core::build` directly and
+/// merges the lowered `WorldResource`s into the same JSON array
+/// `try_export_components_json` produces -- both share byte-identical
+/// wire-format shapes (`namespace`/`dir`/`path`/`ext`/`content_type`/
+/// `content`) by design.
+fn audit_world_build() -> Vec<sand_core::build::WorldResource> {
+    use sand_core::build::{
+        Dimension, DimensionSlot, DimensionType, Dimensions, FlatGenerator, FlatLayer, Generator,
+        SandBuild, Spawn, World,
+    };
+
+    let overworld = Dimension::new(DimensionSlot::Overworld, DimensionType::Overworld).generator(
+        Generator::Flat(FlatGenerator::new(vec![
+            FlatLayer::new(ResourceLocation::new("minecraft", "bedrock").unwrap(), 1),
+            FlatLayer::new(ResourceLocation::new("minecraft", "dirt").unwrap(), 2),
+            FlatLayer::new(
+                ResourceLocation::new("minecraft", "grass_block").unwrap(),
+                1,
+            ),
+        ])),
+    );
+    let build = SandBuild::new().world(
+        World::new()
+            .spawn(Spawn::at(0, 5, 0))
+            .dimensions(Dimensions::new().with(overworld)),
+    );
+    if let Err(diagnostics) = build.validate() {
+        eprintln!("audit world-build validation failed:");
+        for d in &diagnostics {
+            eprintln!("  - {d}");
+        }
+        std::process::exit(1);
+    }
+    sand_core::build::lower_world("sand_audit", &build)
 }
 
 pub fn export(namespace: &str, version: &str) {
-    let json = sand_core::advanced::try_export_components_json(namespace, version)
-    .unwrap_or_else(|error| {
-        eprintln!("audit export failed: {error}");
-        std::process::exit(1);
-    });
-    println!("{json}");
+    let json = sand_core::advanced::try_export_components_json(namespace, version).unwrap_or_else(
+        |error| {
+            eprintln!("audit export failed: {error}");
+            std::process::exit(1);
+        },
+    );
+
+    let mut records: Vec<sand_core::serde_json::Value> = sand_core::serde_json::from_str(&json)
+        .unwrap_or_else(|error| {
+            eprintln!("audit export failed: could not parse component JSON: {error}");
+            std::process::exit(1);
+        });
+    for resource in audit_world_build() {
+        // Only merge the dimension resource itself. `sand-cli`'s real
+        // pipeline (sand-cli/src/build/mod.rs's run_worldbuild) merges a
+        // world-build minecraft:load tag contribution with whatever the
+        // ordinary component exporter already wrote for that same path
+        // (tested directly in sand-cli's own unit tests) -- this fixture's
+        // bespoke `sand_export` binary emits one flat ComponentRecord/
+        // WorldResource stream with no such merge step, so including the
+        // tag/function resources here would just collide with the
+        // audit's own #[function(Load)] output. The dimension resource
+        // alone is what actually needs a real server load to validate.
+        if resource.dir == "dimension" {
+            records.push(
+                sand_core::serde_json::to_value(resource)
+                    .expect("WorldResource is always serializable"),
+            );
+        }
+    }
+
+    println!(
+        "{}",
+        sand_core::serde_json::to_string(&records).expect("records are always serializable")
+    );
 }

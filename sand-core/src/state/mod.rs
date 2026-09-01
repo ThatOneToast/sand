@@ -8,6 +8,7 @@
 pub mod cooldown;
 pub mod flag;
 pub mod flow;
+pub mod lifecycle;
 pub(crate) mod registry;
 pub mod score;
 pub mod storage;
@@ -17,8 +18,15 @@ pub mod typed_state;
 pub use cooldown::Cooldown;
 pub use flag::{Flag, FlagRef};
 pub use flow::{FlowTransitionBuilder, IntoStateCommands, StateFlow, StateTransitionBuilder};
+pub use lifecycle::{
+    StateCleanup, StateInit, StateLifecycle, StateMigrate, StateProvision, StateReconcile,
+    StateTick,
+};
 #[doc(hidden)]
-pub use registry::{StateDescriptor, StateLifecycle};
+pub use registry::{
+    StateDescriptor, StateHookDescriptor, StateLifecycleDescriptor, StateMigrationDescriptor,
+    StateScope,
+};
 pub use score::{
     ScoreConst, ScoreConstants, ScoreExpr, ScoreOperand, ScoreOperation, ScoreRef, ScoreVar,
 };

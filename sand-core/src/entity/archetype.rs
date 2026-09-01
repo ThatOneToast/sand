@@ -29,7 +29,8 @@ use crate::entity::property::{
     TagBinding, TeamBinding, validate_native_ownership,
 };
 use crate::entity::state::{
-    EntityFlag, EntityState, EntityStateField, StateSchema, dirty_name, objective_name,
+    EntityFlag, EntityState, EntityStateField, StateComposition, StateSchema, dirty_name,
+    objective_name,
 };
 use crate::resource_ref::FunctionId;
 use crate::state::Ticks;
@@ -276,6 +277,7 @@ pub struct EntityArchetype<K, S> {
     derivations: Vec<EntityDerivation>,
     transitions: Vec<EntityTransitionRule>,
     properties: Vec<ArchetypeProperty>,
+    components: Vec<ArchetypeComponent>,
     _kind: PhantomData<fn() -> K>,
     _state: PhantomData<fn() -> S>,
 }
@@ -329,6 +331,7 @@ where
             derivations: Vec::new(),
             transitions: Vec::new(),
             properties: Vec::new(),
+            components: Vec::new(),
             _kind: PhantomData,
             _state: PhantomData,
         }
@@ -383,6 +386,36 @@ where
     #[must_use]
     pub fn migration(mut self, migration: Migration) -> Self {
         self.migrations.push(migration);
+        self
+    }
+
+    /// Compose an independent State component or nested bundle into this archetype.
+    ///
+    /// The generated initialize path attaches every unique component through
+    /// its canonical lifecycle, so existing values and per-component versions
+    /// are preserved. Cleanup detaches the same composition in reverse order.
+    /// Repeated composition declarations are deduplicated by their flattened
+    /// presence identities and never allocate a second copy of State.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::EntityArchetype::components` for the canonical contract."]
+    #[must_use]
+    pub fn components<B>(mut self) -> Self
+    where
+        B: StateComposition,
+    {
+        let mut identities = B::composition_identities();
+        identities.sort();
+        identities.dedup();
+        if !self
+            .components
+            .iter()
+            .any(|component| component.identities == identities)
+        {
+            self.components.push(ArchetypeComponent {
+                identities,
+                attach: B::composition_attach,
+                detach: B::composition_detach,
+            });
+        }
         self
     }
 
@@ -513,6 +546,7 @@ where
             derivations: self.derivations.clone(),
             transitions: self.transitions.clone(),
             properties: self.properties.clone(),
+            components: self.components.clone(),
         }
     }
 }
@@ -717,6 +751,22 @@ pub struct ArchetypeDefinition {
     transitions: Vec<EntityTransitionRule>,
     /// Typed native property declarations.
     pub properties: Vec<ArchetypeProperty>,
+    /// Independent components and bundles composed into this archetype.
+    pub components: Vec<ArchetypeComponent>,
+}
+
+/// Type-erased canonical component composition retained by an archetype.
+#[doc(hidden)]
+#[derive(Debug, Clone)]
+pub struct ArchetypeComponent {
+    identities: Vec<(String, u32)>,
+    attach: fn(&'static str) -> Vec<String>,
+    detach: fn(&'static str) -> Vec<String>,
+}
+
+fn dedup_commands(commands: &mut Vec<String>) {
+    let mut seen = BTreeSet::new();
+    commands.retain(|command| seen.insert(command.clone()));
 }
 
 #[doc = "**API Contract:** Run `sand api show sand::entity::EntityDerivation` for the canonical contract."]
@@ -1204,6 +1254,12 @@ fn compile_definition(
         "function {}:{provision_path}",
         definition.id.namespace()
     )];
+    let mut component_attach = Vec::new();
+    for component in &definition.components {
+        component_attach.extend((component.attach)("@s"));
+    }
+    dedup_commands(&mut component_attach);
+    initialize_commands.extend(component_attach);
 
     let derivations = compile_derivations(definition, &root)?;
     objectives.extend(derivations.objectives);
@@ -1419,12 +1475,19 @@ fn compile_definition(
     if let Some(callback) = &definition.cleanup {
         cleanup_commands.push(format!("function {callback}"));
     }
+    let mut component_cleanup = Vec::new();
+    for component in definition.components.iter().rev() {
+        component_cleanup.extend((component.detach)("@s"));
+    }
+    dedup_commands(&mut component_cleanup);
+    cleanup_commands.extend(component_cleanup);
     for property in &definition.properties {
         cleanup_commands.extend(property_cleanup_commands(property));
     }
     for objective in &objectives {
         cleanup_commands.push(format!("scoreboard players reset @s {objective}"));
     }
+    dedup_commands(&mut cleanup_commands);
     cleanup_commands.push(format!("tag @s remove {marker}"));
     cleanup_commands.push(format!("tag @s remove {external_marker}"));
     records.push(function_record(
@@ -3450,6 +3513,27 @@ fn validate_definition(definition: &ArchetypeDefinition) -> Result<(), EntityDia
             archetype: id,
             extension: "version".into(),
             detail: "version zero is reserved for uninitialized entities".into(),
+        });
+    }
+    let primary_presence = sand_commands::ObjectiveName::logical(format!(
+        "{}:{}.presence",
+        definition.schema.namespace, definition.schema.name
+    ))
+    .as_str()
+    .to_owned();
+    if definition.components.iter().any(|component| {
+        component
+            .identities
+            .iter()
+            .any(|(objective, _)| objective == &primary_presence)
+    }) {
+        return Err(EntityDiagnostic::InvalidRawExtension {
+            archetype: id,
+            extension: "components".into(),
+            detail: format!(
+                "the composition repeats primary State component `{}`; choose a distinct primary marker or remove the repeated bundle member",
+                definition.schema.id()
+            ),
         });
     }
     if let Some(adoption) = &definition.adoption {

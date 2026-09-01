@@ -1,0 +1,28 @@
+error[E0277]: the trait bound `sand::__private::PlayerStateScope: sand::__private::SameStateScope<sand::__private::LivingStateScope>` is not satisfied
+  --> tests/cases/fail_state_bundle_scope_mismatch.rs:11:10
+   |
+11 | #[derive(StateBundle)]
+   |          ^^^^^^^^^^^ the trait `sand::__private::SameStateScope<sand::__private::LivingStateScope>` is not implemented for `sand::__private::PlayerStateScope`
+   |
+   = note: this error originates in the derive macro `StateBundle` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0277]: the trait bound `sand::__private::PlayerStateScope: sand::__private::SameStateScope<sand::__private::LivingStateScope>` is not satisfied
+  --> tests/cases/fail_state_bundle_scope_mismatch.rs:11:10
+   |
+11 | #[derive(StateBundle)]
+   |          ^^^^^^^^^^^ the trait `sand::__private::SameStateScope<sand::__private::LivingStateScope>` is not implemented for `sand::__private::PlayerStateScope`
+   |
+help: the trait `sand::__private::StateBundleMember` is implemented for `InvalidBundle`
+  --> tests/cases/fail_state_bundle_scope_mismatch.rs:11:10
+   |
+11 | #[derive(StateBundle)]
+   |          ^^^^^^^^^^^
+note: required for `InvalidBundle` to implement `sand::__private::StateBundleMember`
+  --> tests/cases/fail_state_bundle_scope_mismatch.rs:12:8
+   |
+11 | #[derive(StateBundle)]
+   |          ----------- type parameter would need to implement `sand::__private::StateBundleMember`
+12 | struct InvalidBundle {
+   |        ^^^^^^^^^^^^^
+   = help: consider manually implementing `sand::__private::StateBundleMember` to avoid undesired bounds
+   = note: this error originates in the derive macro `StateBundle` (in Nightly builds, run with -Z macro-backtrace for more info)

@@ -234,14 +234,11 @@ def main():
             elif pid == PLAY_CLIENTBOUND_LOGIN:
                 joined = True
                 print("[play] LOGIN (join game) packet received -- player entity should now exist")
-                # Modern clients send serverbound "Player Loaded" (0x2c, no
-                # payload) once the "Loading terrain..." screen closes --
-                # some server implementations wait on this before the
-                # connection is considered fully established, and silently
-                # time it out otherwise. Send it eagerly since this minimal
-                # client has no loading screen to wait on.
-                conn.send_packet(0x2C, b"")
-                print("  -> sent player_loaded (0x2c)")
+                # Do not guess a Player Loaded packet id here. A wrong
+                # serverbound play id makes 26.2 drop the otherwise healthy
+                # offline-mode session before Sand's first tick can observe
+                # it. The server accepts this minimal client without that
+                # optional loading-screen acknowledgement.
                 if len(sys.argv) > 6:
                     import subprocess
                     print(f"  firing on-join command: {sys.argv[6]}")

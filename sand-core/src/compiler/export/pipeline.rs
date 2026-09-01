@@ -28,6 +28,7 @@ use super::events::{
     tick_event_export_error, xp_advance_command, xp_score_commands,
 };
 use super::functions::{drain_dynamic_functions_into, resolve_local_refs};
+use super::identities::{IDENTITY_PROBE_LIMIT, allocate_collision_safe_keys};
 use super::lifecycle::{
     ensure_private_lifecycle_path_available, ensure_private_transition_path_available,
     lifecycle_export_error, transition_export_error,
@@ -2072,6 +2073,153 @@ pub(crate) fn try_export_components_impl(
     // records are emitted in the inventory order collected above.
     emit_schedule_records(namespace, &schedules, &mut records, &mut tag_map)?;
 
+    // ── State systems ────────────────────────────────────────────────────────
+    // Systems are immutable declarations. Build and sort them for each export
+    // so cadence and function identity never depend on inventory order.
+    let mut systems: Vec<_> = inventory::iter::<crate::function::StateSystemDescriptor>
+        .into_iter()
+        .collect();
+    systems.sort_by_key(|system| system.id);
+    let mut system_ids = BTreeMap::<&str, (u32, Vec<String>)>::new();
+    let mut unique_systems = Vec::new();
+    let mut system_load = Vec::new();
+    let mut system_tick = Vec::new();
+    for system in systems {
+        if system.every == 0 {
+            return Err(lifecycle_export_error(format!(
+                "State system `{}` declares an invalid zero tick cadence",
+                system.id
+            )));
+        }
+        let body = (system.make)();
+        if let Some((every, existing)) = system_ids.get(system.id) {
+            if *every != system.every || existing != &body {
+                return Err(lifecycle_export_error(format!(
+                    "conflicting State system declarations for `{}`",
+                    system.id
+                )));
+            }
+            continue;
+        }
+        system_ids.insert(system.id, (system.every, body.clone()));
+        unique_systems.push((system.id, system.every, body));
+    }
+
+    // A derived StateQuery lowers to one or more exact
+    // `execute as <selector> at @s run function ...` commands. Adjacent
+    // systems with the same selector and cadence can safely share that scan:
+    // their generated callback functions still run in stable system-id order
+    // with the selected owner bound to @s and its position available through
+    // `at @s`. Anything else remains an opaque standalone system.
+    let mut planned = Vec::<(Vec<&str>, u32, Option<String>, Vec<String>)>::new();
+    for (id, every, body) in unique_systems {
+        let scan = state_system_scan(&body);
+        if let (Some((selector, callbacks)), Some(last)) = (scan.as_ref(), planned.last_mut())
+            && last.1 == every
+            && last.2.as_ref() == Some(selector)
+        {
+            last.0.push(id);
+            last.3.extend(callbacks.iter().cloned());
+            continue;
+        }
+        let (selector, commands) = scan.map_or((None, body), |(selector, callbacks)| {
+            (Some(selector), callbacks)
+        });
+        planned.push((vec![id], every, selector, commands));
+    }
+
+    let system_owners = planned
+        .iter()
+        .map(|(ids, _, _, _)| ids.join("+"))
+        .collect::<Vec<_>>();
+    let system_keys = allocate_collision_safe_keys(
+        system_owners.iter().map(String::as_str),
+        system_key_attempt,
+        validate_system_key,
+        |owner, previous, key| {
+            lifecycle_export_error(format!(
+                "State system group `{owner}` collides with `{previous}` on generated objective \
+                 `{key}` after {IDENTITY_PROBE_LIMIT} deterministic attempts; rename one of the \
+                 systems so their persisted cadence state can remain independent"
+            ))
+        },
+    )?;
+
+    for ((ids, every, selector, commands), owner) in planned.into_iter().zip(system_owners) {
+        debug_assert_eq!(owner, ids.join("+"));
+        let key = system_keys
+            .get(&owner)
+            .expect("every planned State system group receives a key")
+            .clone();
+        let path = format!("__sand_system/{key}");
+        let content = if selector.is_some() {
+            commands
+                .iter()
+                .map(|callback| format!("function {callback}"))
+                .collect::<Vec<_>>()
+                .join("\n")
+        } else {
+            commands.join("\n")
+        };
+        records.push(ComponentRecord {
+            namespace: namespace.to_string(),
+            dir: "function".to_string(),
+            path: path.clone(),
+            ext: "mcfunction".to_string(),
+            content_type: "text".to_string(),
+            content,
+        });
+        let invocation = selector.as_ref().map_or_else(
+            || format!("function {namespace}:{path}"),
+            |selector| format!("execute as {selector} at @s run function {namespace}:{path}"),
+        );
+        if every == 1 {
+            system_tick.push(invocation);
+        } else {
+            system_load.push(format!("scoreboard objectives add {key} dummy"));
+            system_load.push(format!("scoreboard players set #sand_system {key} 0"));
+            system_tick.push(format!("scoreboard players add #sand_system {key} 1"));
+            system_tick.push(format!(
+                "execute if score #sand_system {key} matches {every}.. run {invocation}",
+            ));
+            system_tick.push(format!(
+                "execute if score #sand_system {key} matches {every}.. run scoreboard players set #sand_system {key} 0",
+            ));
+        }
+    }
+    if !system_load.is_empty() {
+        let path = "__sand_system_load";
+        ensure_private_lifecycle_path_available(&records, path)?;
+        records.push(ComponentRecord {
+            namespace: namespace.to_string(),
+            dir: "function".to_string(),
+            path: path.to_string(),
+            ext: "mcfunction".to_string(),
+            content_type: "text".to_string(),
+            content: system_load.join("\n"),
+        });
+        tag_map
+            .entry("minecraft:load".to_string())
+            .or_default()
+            .push(format!("{namespace}:{path}"));
+    }
+    if !system_tick.is_empty() {
+        let path = "__sand_system_tick";
+        ensure_private_lifecycle_path_available(&records, path)?;
+        records.push(ComponentRecord {
+            namespace: namespace.to_string(),
+            dir: "function".to_string(),
+            path: path.to_string(),
+            ext: "mcfunction".to_string(),
+            content_type: "text".to_string(),
+            content: system_tick.join("\n"),
+        });
+        tag_map
+            .entry("minecraft:tick".to_string())
+            .or_default()
+            .push(format!("{namespace}:{path}"));
+    }
+
     // ── Entity archetypes ────────────────────────────────────────────────────
     //
     // Archetype descriptors are immutable link-time factories. Collect and
@@ -2356,6 +2504,7 @@ pub(crate) fn try_export_components_impl(
             .map(|(_, command)| command)
             .collect();
         let mut load_cmds = load_cmds;
+        load_cmds.append(&mut automatic.provision_commands);
         load_cmds.append(&mut automatic.global_init_commands);
         if !load_cmds.is_empty() {
             let path = "__sand_lifecycle_load";
@@ -2399,6 +2548,7 @@ pub(crate) fn try_export_components_impl(
                 .into_iter()
                 .map(|command| format!("execute as @a run {command}")),
         );
+        tick_cmds.extend(automatic.entity_tick_commands);
         tick_cmds.extend(automatic.global_tick_commands);
         tick_cmds.extend(transition_global_tick_commands);
         if !tick_cmds.is_empty() {
@@ -2535,4 +2685,84 @@ pub(crate) fn try_export_components_impl(
     validate_function_records(&mut records, &command_profile)?;
 
     Ok(records)
+}
+
+/// Recognize only the exact scan shape produced by typed EntityQuery and
+/// StateQuery lowering. Returning `None` keeps arbitrary or mixed commands on
+/// the conservative standalone path.
+fn state_system_scan(body: &[String]) -> Option<(String, Vec<String>)> {
+    const MIDDLE: &str = " at @s run function ";
+    let mut selector = None::<String>;
+    let mut callbacks = Vec::with_capacity(body.len());
+    if body.is_empty() {
+        return None;
+    }
+    for command in body {
+        let remainder = command.strip_prefix("execute as ")?;
+        let (candidate, callback) = remainder.split_once(MIDDLE)?;
+        if !(candidate.starts_with("@a[") || candidate.starts_with("@e["))
+            || callback.is_empty()
+            || callback.chars().any(char::is_whitespace)
+        {
+            return None;
+        }
+        if selector
+            .as_deref()
+            .is_some_and(|existing| existing != candidate)
+        {
+            return None;
+        }
+        selector.get_or_insert_with(|| candidate.to_owned());
+        callbacks.push(callback.to_owned());
+    }
+    Some((selector?, callbacks))
+}
+
+fn system_key_attempt(owner: &str, attempt: u32) -> String {
+    let logical = if attempt == 0 {
+        format!("sand:system:{owner}")
+    } else {
+        format!("sand:system:{owner}#{attempt}")
+    };
+    sand_commands::ObjectiveName::logical(logical)
+        .as_str()
+        .to_owned()
+}
+
+fn validate_system_key(owner: &str, key: &str) -> ExportResult<()> {
+    if key.is_empty() || key.len() > 16 {
+        return Err(lifecycle_export_error(format!(
+            "State system group `{owner}` generated invalid scoreboard objective `{key}`; \
+             objective names must contain 1 to 16 characters"
+        )));
+    }
+    Ok(())
+}
+
+#[cfg(test)]
+mod state_system_planning_tests {
+    use super::state_system_scan;
+
+    #[test]
+    fn recognizes_only_one_typed_selector_scan() {
+        let body = vec![
+            "execute as @e[tag=fighter] at @s run function __sand_local:first".into(),
+            "execute as @e[tag=fighter] at @s run function __sand_local:second".into(),
+        ];
+        assert_eq!(
+            state_system_scan(&body),
+            Some((
+                "@e[tag=fighter]".into(),
+                vec!["__sand_local:first".into(), "__sand_local:second".into()]
+            ))
+        );
+        assert!(state_system_scan(&["say opaque".into()]).is_none());
+        assert!(
+            state_system_scan(&[
+                "execute as @a[tag=a] at @s run function __sand_local:first".into(),
+                "execute as @a[tag=b] at @s run function __sand_local:second".into(),
+            ])
+            .is_none()
+        );
+    }
 }

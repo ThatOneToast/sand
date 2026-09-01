@@ -929,7 +929,14 @@ fn merge_where_clauses(left: &str, right: &str) -> String {
         .into_iter()
         .map(str::trim)
         .filter(|clause| !clause.is_empty())
-        .map(|clause| clause.strip_prefix("where ").unwrap_or(clause).trim())
+        .map(|clause| {
+            clause
+                .strip_prefix("where ")
+                .unwrap_or(clause)
+                .trim()
+                .trim_end_matches(',')
+                .trim()
+        })
         .filter(|clause| !clause.is_empty())
         .collect::<Vec<_>>();
     if predicates.is_empty() {

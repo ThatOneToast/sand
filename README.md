@@ -51,7 +51,7 @@ struct PlayerState {
         max = 100,
         display_name = "Discoveries"
     )]
-    discoveries: EntityScore<i32>,
+    discoveries: Score,
 }
 
 #[function]
@@ -71,11 +71,12 @@ field, and `#[function]` exports `discover_oasis` as a callable function. The
 result is still the vanilla format you would ship without Sand:
 
 Automatic provisioning, custom score criteria/display names, and `auto_tick`
-apply to player/global schemas. Entity/living bound accessors retain dirty
-writes for archetype reconciliation and require the schema to be attached to
-an archetype that provisions their objectives; standalone owner provisioning
-remains part of #298. This release establishes one canonical declaration path,
-not complete state-system consolidation.
+apply to every supported scope. Entity and living components are initialized
+through explicit attachment or an archetype adoption policy and tick only
+while eligible owners are loaded. `StateBundle` composes independently
+versioned components, `StateQuery` filters their runtime presence, and
+`#[system]` connects typed tick or event behavior to the existing scheduler and
+event dispatcher. See the [unified State tutorial](examples/unified_state/README.md).
 
 ```text
 dist/oasis/
@@ -107,7 +108,9 @@ not a runtime dependency.
   conditions, particles, sounds, scoreboards, NBT operations, and generated
   command builders.
 - **Typed state** — `#[derive(State)]` generates scoped, autocomplete-friendly
-  bound views for scores, flags, timers, cooldowns, and finite enums.
+  bound views for scores, flags, timers, cooldowns, finite enums, marker
+  components, and global typed-data resources; bundles and queries retain named
+  fields throughout composition.
 - **Data-driven resources** — builders for recipes, advancements, predicates,
   loot tables, item modifiers, tags, dialogs, enchantments, and more.
   Coverage varies by resource; explicit raw JSON, SNBT, component, and command

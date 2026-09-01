@@ -1,6 +1,17 @@
 name: Vanilla reload
 
 on:
+  pull_request:
+    paths:
+      - ".github/workflows/vanilla-reload.yml"
+      - "examples/book_project/**"
+      - "sand-cli/**"
+      - "sand-core/src/build/**"
+      - "sand-vanilla-audit/**"
+      - "scripts/bench_runtime.py"
+      - "scripts/validate_worldbuild_profiles.py"
+      - "scripts/validate-vanilla-reload.sh"
+      - "scripts/vanilla_reload_harness.py"
   workflow_dispatch:
   schedule:
     - cron: "17 7 * * 0"
@@ -22,12 +33,17 @@ jobs:
       - name: Resolve verified version and Java matrix
         id: matrix
         shell: bash
-        run: echo "value=$(cargo run --quiet -p sand-version --bin vanilla-reload-matrix)" >> "$GITHUB_OUTPUT"
+        run: |
+          matrix=$(cargo run --quiet -p sand-version --bin vanilla-reload-matrix)
+          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
+            matrix=$(jq -c '{include: [.include[] | select(.target == "latest")]}' <<< "$matrix")
+          fi
+          echo "value=$matrix" >> "$GITHUB_OUTPUT"
 
   validate:
     needs: versions
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 45
     strategy:
       fail-fast: false
       matrix: ${{ fromJSON(needs.versions.outputs.matrix) }}
@@ -74,7 +90,7 @@ jobs:
         env:
           SAND_MC_VERSION: ${{ matrix.version }}
           SAND_STRICT_CODEGEN: "1"
-        run: cargo run -p sand-cli -- build
+        run: cargo run --manifest-path ../sand-cli/Cargo.toml -- build
 
       - name: Validate initial load and reload
         run: |
@@ -83,11 +99,23 @@ jobs:
             --pack sand-vanilla-audit/dist/sand_audit \
             --output "target/vanilla-reload/${{ matrix.version }}"
 
+      - name: Validate dev to release world-build profile switching
+        if: matrix.target == 'latest'
+        run: |
+          python3 scripts/validate_worldbuild_profiles.py \
+            --output "target/vanilla-reload/${{ matrix.version }}/worldbuild-profiles"
+
+      - name: Measure real-server MSPT and chunk generation
+        if: matrix.target == 'latest' && github.event_name != 'pull_request'
+        run: |
+          python3 scripts/bench_runtime.py 1 \
+            --output "target/vanilla-reload/${{ matrix.version }}/bench-runtime"
+
       - name: Write validation summary
         if: success()
         run: |
           echo "### Minecraft ${{ matrix.version }} / Java ${{ matrix.java }}" >> "$GITHUB_STEP_SUMMARY"
-          echo "Initial load, actual reload, and clean shutdown passed." >> "$GITHUB_STEP_SUMMARY"
+          echo "Initial load, reload, clean shutdown, and configured world-build checks passed." >> "$GITHUB_STEP_SUMMARY"
 
       - name: Upload failure diagnostics
         if: failure()
@@ -98,4 +126,6 @@ jobs:
           retention-days: 14
           path: |
             target/vanilla-reload/${{ matrix.version }}/latest.log
+            target/vanilla-reload/${{ matrix.version }}/worldbuild-profiles
+            target/vanilla-reload/${{ matrix.version }}/bench-runtime
             sand-vanilla-audit/dist/sand_audit

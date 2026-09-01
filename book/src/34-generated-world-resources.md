@@ -66,10 +66,12 @@ first), naming the offending builder call:
   build-height limit.
 - **Vanilla biome references** — a `minecraft:`-namespaced biome passed to
   `FlatGenerator::biome` or `NoiseGenerator::single_biome` must be a real
-  vanilla biome ID (checked against a bundled list of vanilla's
-  `worldgen/biome` registry contents). A custom mod/datapack namespace is
-  never checked — Sand cannot know about registry content it didn't
-  generate.
+  vanilla biome ID. Checked against a list **generated from real Minecraft
+  data generator output** (`sand-build/src/codegen/biomes.rs`, sourced from
+  the `biome_parameters` reports the same download/cache infrastructure
+  block/item registries use — not a hand-maintained list). A custom
+  mod/datapack namespace is never checked — Sand cannot know about registry
+  content it didn't generate.
 
 ```console
 $ sand build
@@ -79,16 +81,29 @@ sand.build.rs produced an invalid world configuration:
   - Dimension[minecraft:overworld].generator: FlatGenerator::biome 'minecraft:dessert' is not a known vanilla biome
 ```
 
-**Scope note:** this combines structural/range checks with a bundled,
-hand-maintained biome registry list — it is not a full audit against every
+Like every other generated registry in this crate (`Block`, `Item`,
+`EntityType`, …), the biome list reflects exactly one Minecraft
+version — whichever `sand-core` itself was compiled against
+(`SAND_MC_VERSION`, defaulting to `sand_version::DEFAULT_CODEGEN_VERSION`).
+`SandBuild::validate_for_context(&ctx)` (what `run_and_print`/`sand build`
+actually call) adds one extra diagnostic when a biome check fails **and**
+`ctx`'s target version differs from the compiled registry's version,
+clarifying that the failure reflects the compiled snapshot, not necessarily
+the requested target:
+
+```console
+  - Dimension[minecraft:overworld].generator: FlatGenerator::biome 'minecraft:dessert' is not a known vanilla biome
+  - BuildContext::mc_version: the biome checks above were validated against Minecraft 26.2 (the version sand-core's registry data was generated for), not the requested target 1.19.4 — a biome flagged as unknown may exist in 1.19.4 but not in 26.2, or vice versa
+```
+
+**Scope note:** this combines structural/range checks with a generated,
+version-pinned biome registry — it is not a full audit against every
 Minecraft worldgen registry (structures, noise settings, block references,
-etc.) generated fresh per `VersionProfile` the way `sand-build`'s block/item
-registries are, and it is not a real Minecraft server load the way
-`sand-vanilla-audit` validates other datapack content. Extending Sand's
-registry codegen pipeline to cover biomes/structures automatically, and/or
-wiring world-build resources into a real-server `sand-vanilla-audit` pass,
-are tracked follow-ups — see this feature's PR description for the linked
-issue.
+etc.), and it is not a real Minecraft server load the way
+`sand-vanilla-audit` validates other datapack content. Extending the
+registry codegen further (structures, noise settings) and wiring
+world-build resources into a real-server `sand-vanilla-audit` pass remain
+tracked follow-ups — see this feature's PR description for linked issues.
 
 ## Golden-file tests for generated output
 

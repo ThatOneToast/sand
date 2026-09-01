@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added — version-aware world-build registry validation (#356)
+
+- `sand-build` now generates a real, per-Minecraft-version vanilla biome
+  list (`sand-build/src/codegen/biomes.rs`) from the data generator's
+  `biome_parameters` reports — the same download/cache infrastructure the
+  `Block`/`Item`/`EntityType`/`SoundEvent` registries already use — instead
+  of a bundled hand-maintained list.
+- New `SandBuild::validate_for_context(&self, ctx: &BuildContext)`: the same
+  checks as `SandBuild::validate()`, plus a clarifying diagnostic when a
+  biome-registry failure occurs and `ctx`'s requested Minecraft version
+  differs from the version the compiled registry data reflects. `sand
+  build`/`sand run` (via the generated `sand_build_world` binary's
+  `run_and_print`) now use this automatically.
+- Closes the last outstanding acceptance-criteria item from #317's initial
+  PR (#354): build-time world validation is generated from real registry
+  data rather than hand-maintained, and `BuildContext`'s target version is
+  now consulted by validation.
+
 ### Added — typed build-time world/server configuration, `sand.build.rs` (#317)
 
 - Added `sand::build` — a new façade module (implementation in

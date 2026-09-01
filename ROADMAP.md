@@ -23,13 +23,15 @@ retained as an explicit oldest-profile/compatibility boundary. See
 - **Resource pack generation** — functional but requires manual asset setup.
 - **crates.io publishing** — not yet available; install from the workspace
   (`cargo install --path sand-cli`).
-- **Typed build-time world/server configuration (#317)** — `sand::build`
+- **Typed build-time world/server configuration (#317, #356)** — `sand::build`
   (`SandBuild`/`BuildContext`/`BuildProfile`, `World`/`Dimensions`/
   generators, `ServerConfig`) shipped covering flat/void/noise generators,
   world border, spawn, gamerules/time/weather, and `sand build`/`sand run
-  --profile`. Validation is structural (ranges, duplicate slots, layer
-  sanity), not yet a full `sand-vanilla-audit` registry audit of world-build
-  resources — see "Next work" below.
+  --profile`. Validation combines structural checks (ranges, duplicate
+  slots, layer sanity) with a biome-registry check generated from real
+  per-version Minecraft data (`sand-build/src/codegen/biomes.rs`); not yet a
+  full `sand-vanilla-audit` real-server audit of world-build resources, or
+  registry coverage beyond biomes — see "Next work" below.
 
 ## Next work
 
@@ -37,11 +39,13 @@ retained as an explicit oldest-profile/compatibility boundary. See
 - Add a typed item stack builder with component API.
 - Harden dialog actions with typed function references.
 - Complete resource pack example crates.
-- Extend `sand-vanilla-audit` to validate `sand::build`-generated world
-  resources (dimension/generator/noise-settings references) against a
-  selected `VersionProfile`'s real registries, with diagnostics pointing at
-  the offending builder call — the current `SandBuild::validate()` is
-  structural/range-only (#317 follow-up).
-- Wire the `bench` `BuildProfile`/`WorldResetPolicy` primitives into
-  `BENCHMARKS.md`'s existing benchmark harness so a fixed-seed, pre-
-  generated benchmark world is produced automatically (#317 follow-up).
+- Extend the registry codegen pipeline (`sand-build/src/codegen/biomes.rs`)
+  to cover `worldgen/structure`/`worldgen/structure_set` alongside biomes,
+  and extend `sand-vanilla-audit` with a real-server load pass for
+  `sand::build`-generated world resources — broader coverage than the
+  generated biome check alone (#317 follow-up, tracked as issues #355/#356
+  follow-on work).
+- Wire the `bench` `BuildProfile`/`WorldResetPolicy` primitives into a real
+  in-game runtime benchmark harness (TPS/chunk-gen throughput) — today's
+  `BENCHMARKS.md` only measures Cargo/exporter build time (#317 follow-up,
+  tracked as issue #357).

@@ -507,6 +507,48 @@ pub mod version {
 #[doc = include_str!("api_contract_rustdoc.md")]
 pub use sand_core::vfx;
 
+/// Build-time, typed world and server configuration (issue #317):
+/// [`build::SandBuild`], [`build::BuildContext`]/[`build::BuildProfile`],
+/// [`build::World`]/[`build::Dimensions`]/generator builders, and the
+/// separate, host-only [`build::ServerConfig`].
+///
+/// A project's `sand.build.rs` script (compiled by `sand-cli` as the
+/// `sand_build_world` binary — see `sand add worldbuild`) exposes
+/// `fn build(ctx: &build::BuildContext) -> build::SandBuild` and is invoked
+/// during `sand build`/`sand run` to select world generation and, for `sand
+/// run` only, local dev-server settings.
+///
+/// **World vs. Server:** everything reachable from [`build::World`] lowers
+/// into the exported datapack (🌍 works in singleplayer, LAN, realms, any
+/// vanilla-compatible server). [`build::ServerConfig`] is a structurally
+/// separate type: it configures only Sand's own local dev server via `sand
+/// run` and is never written into `dist/<pack>/data/...` (🖥️ see its docs
+/// for why — view distance, simulation distance, a difficulty *default*,
+/// online-mode, and world-reset policy have no datapack representation at
+/// all). See the "Build scripts" and "Server configuration" mdBook chapters.
+#[doc = include_str!("api_contract_rustdoc.md")]
+#[api(
+    registry = sand_api_contract,
+    path = "sand::build",
+    module = "sand::build",
+    summary = "The build module exposes SandBuild, BuildContext/BuildProfile, World/Dimensions/generator builders, and the host-only ServerConfig for build-time world and server configuration.",
+    context = "A project's sand.build.rs script returns a SandBuild built from this module's types; sand-cli lowers it to datapack resources during sand build and applies ServerConfig during sand run.",
+    minecraft = "World-reachable types lower into data/<namespace>/... in the exported datapack; ServerConfig never does.",
+    use_when = ["Authoring dimensions, world generation, spawn, border, gamerules, time, or weather", "Configuring sand run's local dev server"],
+    avoid_when = ["Authoring ordinary function/component/event content; use the other topic modules"],
+    example = "use sand::build::{BuildContext, BuildProfile, SandBuild, World};"
+)]
+pub mod build {
+    #[doc = include_str!("api_contract_rustdoc.md")]
+    pub use sand_core::build::{
+        BiomeSource, BuildContext, BuildDiagnostic, BuildProfile, Difficulty, Dimension,
+        DimensionSlot, DimensionType, Dimensions, FlatGenerator, FlatLayer, Generator,
+        NoiseGenerator, NoiseSettingsRef, SandBuild, Seed, ServerConfig, Spawn, SpawnPlatform,
+        TimeConfig, VanillaNoiseSettings, WeatherConfig, World, WorldBorder, WorldPreset,
+        WorldResetPolicy, WorldResource, lower_world, run_and_print,
+    };
+}
+
 /// Optional higher-level gameplay systems built from Sand's typed state,
 /// event, entity, and inventory primitives.
 ///

@@ -11,11 +11,157 @@ pub struct RunArgs {
     /// JVM max heap size, e.g. "4G" or "2048M". Used for both -Xmx and -Xms.
     pub ram: String,
     /// Write `online-mode=false` to server.properties for offline testing.
+    /// Overrides a `sand.build.rs` `ServerConfig`'s `online_mode`.
     pub offline: bool,
     /// Skip `sand build`; use whatever is already in dist/.
     pub no_build: bool,
     /// How to present the Minecraft server's log output.
     pub server_log: OutputMode,
+    /// Build profile passed to `sand.build.rs` (issue #317). Defaults to
+    /// `"dev"`; has no effect on projects without a `sand.build.rs`.
+    pub profile: String,
+}
+
+/// 🖥️ Server (host) only — the local dev-server settings a `sand.build.rs`
+/// script's `ServerConfig` produces. Read from
+/// `dist/.sand-server-config.json` (written by `sand build`, never inside
+/// `dist/<namespace>/`) and applied only to `sand run`'s local server.
+#[derive(Debug, serde::Deserialize)]
+struct ServerConfigFile {
+    /// `None` when the project's `sand.build.rs` configured only a fixed
+    /// `World::seed` and no `ServerConfig` at all — the file still exists
+    /// so `sand run` can read the seed, but every `ServerConfig` field
+    /// falls back to its vanilla default in that case.
+    #[serde(default)]
+    view_distance: Option<u8>,
+    #[serde(default)]
+    simulation_distance: Option<u8>,
+    #[serde(default)]
+    difficulty: Option<String>,
+    #[serde(default)]
+    online_mode: Option<bool>,
+    #[serde(default)]
+    world_reset_policy_always_reset: Option<bool>,
+    /// 🖥️ Server (host) only, despite coming from `World::seed` — see the
+    /// module-level explanation on `run_worldbuild`/`World::seed`. Applied
+    /// as `server.properties`' `level-seed` on first launch only.
+    #[serde(default)]
+    seed: Option<i64>,
+    /// 🖥️ Server (host) only, despite coming from `World::preset` — see
+    /// `WorldPreset`'s docs. Applied as `server.properties`' `level-type`
+    /// on first launch only.
+    #[serde(default)]
+    level_type: Option<String>,
+}
+
+/// The managed `server.properties` values `sand run` reconciles on each run,
+/// resolved from `--offline`, a `sand.build.rs` `ServerConfig` (if any), and
+/// vanilla defaults. Pulled out as a pure function so the precedence rules
+/// (`--offline` always wins over `ServerConfig::online_mode`; everything
+/// else falls back to vanilla defaults when there's no `ServerConfig`) are
+/// unit-testable without spawning a server.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+struct ResolvedServerProperties {
+    online_mode: bool,
+    view_distance: u8,
+    simulation_distance: u8,
+    difficulty: &'static str,
+    /// `Some` only for a fixed `World::seed`; `None` (vanilla's own random
+    /// seed) omits the `level-seed` line entirely rather than writing an
+    /// empty one — both mean "let the server pick," but omitting matches
+    /// what a hand-written server.properties would look like.
+    seed: Option<i64>,
+    /// `Some` only when a `sand.build.rs` configured a `World` at all
+    /// (defaults to `"minecraft:normal"` for an unset `WorldPreset`,
+    /// matching vanilla's own default); `None` when there's no
+    /// `sand.build.rs`/`World` and `level-type` is simply omitted, letting
+    /// the server apply its own default.
+    level_type: Option<&'static str>,
+}
+
+impl ResolvedServerProperties {
+    fn resolve(offline_flag: bool, server_config: Option<&ServerConfigFile>) -> Self {
+        let online_mode = if offline_flag {
+            false
+        } else {
+            server_config.and_then(|s| s.online_mode).unwrap_or(true)
+        };
+        Self {
+            online_mode,
+            view_distance: server_config.and_then(|s| s.view_distance).unwrap_or(10),
+            simulation_distance: server_config
+                .and_then(|s| s.simulation_distance)
+                .unwrap_or(10),
+            difficulty: match server_config.and_then(|s| s.difficulty.as_deref()) {
+                Some("peaceful") => "peaceful",
+                Some("easy") => "easy",
+                Some("hard") => "hard",
+                _ => "normal",
+            },
+            seed: server_config.and_then(|s| s.seed),
+            level_type: match server_config.and_then(|s| s.level_type.as_deref()) {
+                Some("minecraft:normal") => Some("minecraft:normal"),
+                Some("minecraft:flat") => Some("minecraft:flat"),
+                Some("minecraft:large_biomes") => Some("minecraft:large_biomes"),
+                Some("minecraft:amplified") => Some("minecraft:amplified"),
+                Some("minecraft:single_biome_surface") => Some("minecraft:single_biome_surface"),
+                _ => None,
+            },
+        }
+    }
+
+    /// Replaces only Sand-managed keys, preserving comments and unrelated
+    /// server settings. Optional seed/preset keys are removed when the active
+    /// profile no longer supplies them, preventing a prior profile from
+    /// leaking into the next run.
+    fn reconcile_properties_text(self, existing: &str) -> String {
+        let managed = [
+            ("level-name", Some("world".to_string())),
+            ("online-mode", Some(self.online_mode.to_string())),
+            ("spawn-protection", Some("0".to_string())),
+            ("view-distance", Some(self.view_distance.to_string())),
+            (
+                "simulation-distance",
+                Some(self.simulation_distance.to_string()),
+            ),
+            ("difficulty", Some(self.difficulty.to_string())),
+            ("level-seed", self.seed.map(|seed| seed.to_string())),
+            ("level-type", self.level_type.map(str::to_string)),
+        ];
+        let mut seen = std::collections::BTreeSet::new();
+        let mut lines = Vec::new();
+
+        if existing.is_empty() {
+            lines.push("# Generated by `sand run` — unrelated settings are preserved".to_string());
+        } else {
+            for line in existing.lines() {
+                let key = line
+                    .split_once('=')
+                    .map(|(key, _)| key.trim())
+                    .unwrap_or("");
+                if let Some((_, value)) = managed.iter().find(|(managed, _)| *managed == key) {
+                    if seen.insert(key.to_string())
+                        && let Some(value) = value
+                    {
+                        lines.push(format!("{key}={value}"));
+                    }
+                } else {
+                    lines.push(line.to_string());
+                }
+            }
+        }
+
+        for (key, value) in managed {
+            if !seen.contains(key)
+                && let Some(value) = value
+            {
+                lines.push(format!("{key}={value}"));
+            }
+        }
+        let mut text = lines.join("\n");
+        text.push('\n');
+        text
+    }
 }
 
 pub fn run(args: RunArgs) -> Result<()> {
@@ -33,8 +179,30 @@ pub fn run(args: RunArgs) -> Result<()> {
     if args.no_build {
         println!("{}", "Skipping build (--no-build)".dimmed());
     } else {
-        crate::build::run(false, false)?;
+        crate::build::run_with_options(crate::build::BuildOptions {
+            release: false,
+            resourcepack: false,
+            print_timings: false,
+            explain_rebuild: false,
+            profile: args.profile.clone(),
+        })?;
     }
+
+    // ── 2b. Read any ServerConfig a sand.build.rs produced (issue #317) ─────
+    // 🖥️ Server (host) only — never part of the datapack. Only present when
+    // the project has a sand.build.rs whose SandBuild configured a
+    // ServerConfig for this profile.
+    let server_config_path = PathBuf::from("dist").join(crate::build::SERVER_CONFIG_FILE_NAME);
+    let server_config: Option<ServerConfigFile> = if server_config_path.exists() {
+        let raw = std::fs::read_to_string(&server_config_path)
+            .with_context(|| format!("failed to read '{}'", server_config_path.display()))?;
+        Some(
+            serde_json::from_str(&raw)
+                .with_context(|| format!("failed to parse '{}'", server_config_path.display()))?,
+        )
+    } else {
+        None
+    };
 
     // ── 3. Download / verify server jar ─────────────────────────────────────
     println!(
@@ -54,6 +222,25 @@ pub fn run(args: RunArgs) -> Result<()> {
     let server_dir = PathBuf::from("dist").join("server");
     std::fs::create_dir_all(&server_dir).context("failed to create dist/server/")?;
 
+    // ── 4b. World reset policy (issue #317) ──────────────────────────────────
+    // 🖥️ Server (host) only — governs Sand's own local dev world directory,
+    // never the datapack. `WorldResetPolicy::AlwaysReset` wipes the previous
+    // local world so `sand run` starts from a clean slate every time.
+    if server_config
+        .as_ref()
+        .is_some_and(|s| s.world_reset_policy_always_reset.unwrap_or(false))
+    {
+        let world_dir = server_dir.join("world");
+        if world_dir.exists() {
+            std::fs::remove_dir_all(&world_dir)
+                .with_context(|| format!("failed to reset '{}'", world_dir.display()))?;
+            println!(
+                "  {} local world (sand.build.rs ServerConfig: world_reset_policy = AlwaysReset)",
+                "Reset".dimmed()
+            );
+        }
+    }
+
     // ── 5. Accept EULA ───────────────────────────────────────────────────────
     let eula_path = server_dir.join("eula.txt");
     if !eula_path.exists() {
@@ -68,22 +255,37 @@ pub fn run(args: RunArgs) -> Result<()> {
     }
 
     // ── 6. Write server.properties ───────────────────────────────────────────
+    // 🖥️ Server (host) only. `--offline` always wins over a `sand.build.rs`
+    // ServerConfig's `online_mode` (it's an explicit, one-off CLI override);
+    // `view-distance`/`simulation-distance`/`difficulty` come from
+    // ServerConfig when present, otherwise vanilla defaults. Sand reconciles
+    // only the keys it owns; comments and unrelated hand-edited settings are
+    // preserved across profile changes.
     let props_path = server_dir.join("server.properties");
-    if !props_path.exists() {
-        let online_mode = if args.offline { "false" } else { "true" };
-        std::fs::write(
-            &props_path,
-            format!(
-                "# Generated by `sand run` — edit as needed\n\
-                 level-name=world\n\
-                 online-mode={online_mode}\n\
-                 spawn-protection=0\n"
-            ),
-        )
-        .context("failed to write server.properties")?;
+    let resolved = ResolvedServerProperties::resolve(args.offline, server_config.as_ref());
+    let existing_properties = if props_path.exists() {
+        std::fs::read_to_string(&props_path)
+            .with_context(|| format!("failed to read '{}'", props_path.display()))?
+    } else {
+        String::new()
+    };
+    let reconciled_properties = resolved.reconcile_properties_text(&existing_properties);
+    if reconciled_properties != existing_properties {
+        std::fs::write(&props_path, reconciled_properties)
+            .context("failed to write server.properties")?;
         println!(
-            "  {} server.properties (online-mode={online_mode})",
-            "Wrote".dimmed()
+            "  {} server.properties (online-mode={}, view-distance={}, \
+             simulation-distance={}, difficulty={})",
+            if existing_properties.is_empty() {
+                "Wrote"
+            } else {
+                "Updated"
+            }
+            .dimmed(),
+            resolved.online_mode,
+            resolved.view_distance,
+            resolved.simulation_distance,
+            resolved.difficulty
         );
     }
 
@@ -293,7 +495,194 @@ fn prune_stale(src: &Path, dest: &Path, stats: &mut SyncStats) -> Result<()> {
 
 #[cfg(test)]
 mod tests {
-    use super::sync_dir;
+    use super::{ResolvedServerProperties, ServerConfigFile, sync_dir};
+
+    fn server_config(
+        view_distance: u8,
+        simulation_distance: u8,
+        difficulty: &str,
+        online_mode: bool,
+        world_reset_policy_always_reset: bool,
+    ) -> ServerConfigFile {
+        ServerConfigFile {
+            view_distance: Some(view_distance),
+            simulation_distance: Some(simulation_distance),
+            difficulty: Some(difficulty.to_string()),
+            online_mode: Some(online_mode),
+            world_reset_policy_always_reset: Some(world_reset_policy_always_reset),
+            seed: None,
+            level_type: None,
+        }
+    }
+
+    #[test]
+    fn no_server_config_uses_vanilla_defaults() {
+        let resolved = ResolvedServerProperties::resolve(false, None);
+        assert_eq!(
+            resolved,
+            ResolvedServerProperties {
+                online_mode: true,
+                view_distance: 10,
+                simulation_distance: 10,
+                difficulty: "normal",
+                seed: None,
+                level_type: None,
+            }
+        );
+    }
+
+    #[test]
+    fn server_config_values_are_applied() {
+        let cfg = server_config(6, 4, "hard", false, true);
+        let resolved = ResolvedServerProperties::resolve(false, Some(&cfg));
+        assert_eq!(resolved.view_distance, 6);
+        assert_eq!(resolved.simulation_distance, 4);
+        assert_eq!(resolved.difficulty, "hard");
+        assert!(!resolved.online_mode);
+    }
+
+    #[test]
+    fn offline_flag_always_wins_over_server_config_online_mode() {
+        let cfg = server_config(10, 10, "normal", true, false);
+        let resolved = ResolvedServerProperties::resolve(true, Some(&cfg));
+        assert!(
+            !resolved.online_mode,
+            "--offline must override ServerConfig::online_mode(true)"
+        );
+    }
+
+    #[test]
+    fn offline_flag_with_no_server_config_still_disables_online_mode() {
+        let resolved = ResolvedServerProperties::resolve(true, None);
+        assert!(!resolved.online_mode);
+    }
+
+    #[test]
+    fn properties_text_contains_every_resolved_field() {
+        let cfg = server_config(6, 4, "peaceful", false, false);
+        let resolved = ResolvedServerProperties::resolve(false, Some(&cfg));
+        let text = resolved.reconcile_properties_text("");
+        assert!(text.contains("online-mode=false"));
+        assert!(text.contains("view-distance=6"));
+        assert!(text.contains("simulation-distance=4"));
+        assert!(text.contains("difficulty=peaceful"));
+    }
+
+    #[test]
+    fn profile_reconciliation_updates_managed_keys_and_preserves_custom_settings() {
+        let mut dev = server_config(6, 4, "peaceful", false, true);
+        dev.seed = Some(1337);
+        dev.level_type = Some("minecraft:flat".to_string());
+        let dev_text =
+            ResolvedServerProperties::resolve(false, Some(&dev)).reconcile_properties_text("");
+        let existing = format!("# operator note\nenable-rcon=true\n{dev_text}");
+
+        let release = server_config(10, 10, "normal", true, false);
+        let reconciled = ResolvedServerProperties::resolve(false, Some(&release))
+            .reconcile_properties_text(&existing);
+
+        assert!(reconciled.contains("# operator note"));
+        assert!(reconciled.contains("enable-rcon=true"));
+        assert!(reconciled.contains("online-mode=true"));
+        assert!(reconciled.contains("view-distance=10"));
+        assert!(reconciled.contains("difficulty=normal"));
+        assert!(!reconciled.contains("level-seed="));
+        assert!(!reconciled.contains("level-type="));
+        assert_eq!(reconciled.matches("view-distance=").count(), 1);
+    }
+
+    #[test]
+    fn fixed_world_seed_becomes_level_seed() {
+        let mut cfg = server_config(10, 10, "normal", true, false);
+        cfg.seed = Some(1337);
+        let resolved = ResolvedServerProperties::resolve(false, Some(&cfg));
+        assert_eq!(resolved.seed, Some(1337));
+        assert!(
+            resolved
+                .reconcile_properties_text("")
+                .contains("level-seed=1337")
+        );
+    }
+
+    #[test]
+    fn no_seed_omits_level_seed_entirely() {
+        let cfg = server_config(10, 10, "normal", true, false);
+        let resolved = ResolvedServerProperties::resolve(false, Some(&cfg));
+        assert_eq!(resolved.seed, None);
+        assert!(
+            !resolved
+                .reconcile_properties_text("")
+                .contains("level-seed")
+        );
+    }
+
+    #[test]
+    fn seed_only_file_with_no_server_config_fields_still_parses() {
+        // sand-cli writes this shape when a build script sets World::seed
+        // but never calls SandBuild::server(...).
+        let json = serde_json::json!({ "seed": 42 });
+        let cfg: ServerConfigFile = serde_json::from_value(json).unwrap();
+        let resolved = ResolvedServerProperties::resolve(false, Some(&cfg));
+        assert_eq!(resolved.seed, Some(42));
+        // Every ServerConfig-shaped field still falls back to vanilla defaults.
+        assert_eq!(resolved.view_distance, 10);
+        assert_eq!(resolved.difficulty, "normal");
+        assert!(resolved.online_mode);
+    }
+
+    #[test]
+    fn world_preset_becomes_level_type() {
+        let mut cfg = server_config(10, 10, "normal", true, false);
+        cfg.level_type = Some("minecraft:flat".to_string());
+        let resolved = ResolvedServerProperties::resolve(false, Some(&cfg));
+        assert_eq!(resolved.level_type, Some("minecraft:flat"));
+        assert!(
+            resolved
+                .reconcile_properties_text("")
+                .contains("level-type=minecraft:flat")
+        );
+    }
+
+    #[test]
+    fn unrecognized_level_type_string_is_dropped_rather_than_written_verbatim() {
+        // Defends against a future sand_build_world binary emitting a
+        // string WorldPreset::level_type() never produces; server.properties
+        // should never receive an unvalidated pass-through value.
+        let mut cfg = server_config(10, 10, "normal", true, false);
+        cfg.level_type = Some("not-a-real-preset".to_string());
+        let resolved = ResolvedServerProperties::resolve(false, Some(&cfg));
+        assert_eq!(resolved.level_type, None);
+        assert!(
+            !resolved
+                .reconcile_properties_text("")
+                .contains("level-type")
+        );
+    }
+
+    #[test]
+    fn no_level_type_omits_the_line_entirely() {
+        let cfg = server_config(10, 10, "normal", true, false);
+        let resolved = ResolvedServerProperties::resolve(false, Some(&cfg));
+        assert_eq!(resolved.level_type, None);
+        assert!(
+            !resolved
+                .reconcile_properties_text("")
+                .contains("level-type")
+        );
+    }
+
+    #[test]
+    fn dev_and_release_server_configs_resolve_differently() {
+        // Mirrors the acceptance criterion that dev/release profiles
+        // produce genuinely different results — here, for the server-only
+        // half of a `SandBuild` rather than the datapack half (covered by
+        // sand-core's `dev_and_release_worlds_produce_different_dimension_json`).
+        let dev = server_config(8, 6, "peaceful", false, true);
+        let release = server_config(10, 10, "normal", true, false);
+        let dev_resolved = ResolvedServerProperties::resolve(false, Some(&dev));
+        let release_resolved = ResolvedServerProperties::resolve(false, Some(&release));
+        assert_ne!(dev_resolved, release_resolved);
+    }
 
     #[test]
     fn sync_skips_unchanged_files() {

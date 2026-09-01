@@ -55,6 +55,7 @@
 //!   a stable authoring surface.
 
 pub mod advanced;
+pub mod build;
 pub mod cmd;
 pub mod component;
 pub mod components;

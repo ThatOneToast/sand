@@ -29,6 +29,23 @@
 - [22. Parameterized Functions](22-function-macros.md)
 - [23. Unified State Components, Bundles, Queries, And Systems](23-unified-state.md)
 
+# Typed World & Server Configuration
+
+- [24. What Ships In The Datapack vs. What's Local To Your Dev Server](23-world-vs-server.md)
+- [25. Build Scripts (sand.build.rs)](24-build-scripts.md)
+- [26. Development Profiles](25-development-profiles.md)
+- [27. Release Profiles](26-release-profiles.md)
+- [28. Worlds, Dimensions, And Generators](27-worlds-dimensions-and-generators.md)
+- [29. Flat Worlds](28-flat-worlds.md)
+- [30. Void Worlds](29-void-worlds.md)
+- [31. Custom Dimensions](30-custom-dimensions.md)
+- [32. Server Configuration](31-server-configuration.md)
+- [33. Testing Worlds](32-testing-worlds.md)
+- [34. Benchmark Worlds](33-benchmark-worlds.md)
+- [35. Generated World Resources](34-generated-world-resources.md)
+- [36. Best Practices](35-best-practices.md)
+- [37. Migrating From Sand.toml](36-migrating-from-sand-toml.md)
+
 # Reference
 
 - [Vanilla Limitations](reference/vanilla-limitations.md)

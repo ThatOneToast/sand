@@ -1,5 +1,25 @@
 # Sand build-performance benchmarks (issue #347)
 
+> **Note (issue #317):** the typed `sand::build` API added a `BuildProfile::Bench`
+> profile and `WorldResetPolicy` server-integration primitives for
+> reproducible, fixed-seed "benchmark worlds" (see the book's "Testing And
+> Benchmark Worlds" chapter). `examples/book_project/sand.build.rs` gives
+> `bench` a real, distinct configuration (full vanilla noise generation,
+> fixed seed `42`, `WorldResetPolicy::Keep` so the same region persists
+> across `sand run`s instead of regenerating) — `sand build --profile
+> bench` is a genuine, runnable build, not just documented API surface.
+> Measured: `sand build --profile bench` against `examples/book_project`
+> (warm target/, `[[bin]] sand_build_world` already compiled once) took
+> **0.40s** for the `sand.build.rs` phase alone; a from-scratch `cargo
+> build` of the exporter + world-build binaries (cold `sand`/`sand-core`
+> artifacts) took ~38s, in line with the ordinary exporter-compile numbers
+> below. **What's still a follow-up, not done here:** this file measures
+> Cargo/exporter *build* time, not in-game world-generation or tick
+> *runtime* performance — there is no tooling yet that starts a real
+> Minecraft server against a `bench`-profile world and measures TPS/chunk-
+> generation throughput inside it. Tracked as a follow-up in `ROADMAP.md`
+> and filed as a GitHub issue (linked from the PR that added this note).
+
 This file tracks measured before/after numbers for the build-performance
 overhaul in #347. Numbers are wall-clock seconds from `/usr/bin/time -p`,
 single run, on the machine used for development (Apple Silicon macOS,

@@ -8,9 +8,11 @@ mod resourcepack;
 pub mod timing;
 pub mod validate;
 pub mod validate_output;
+pub mod worldbuild;
 pub mod write;
 
-use std::path::PathBuf;
+use std::collections::BTreeMap;
+use std::path::{Component, Path, PathBuf};
 
 use anyhow::{Context, Result, bail};
 use colored::Colorize;
@@ -29,6 +31,12 @@ use timing::{Phase, Timings};
 use validate::validate_component_records_for_project;
 use write::{component_output, pack_mcmeta_output};
 
+/// Filename of the JSON manifest `sand build` writes alongside `dist/` (not
+/// inside `dist/<namespace>/`) when a project's `sand.build.rs` configures a
+/// `ServerConfig`. 🖥️ Server (host) only — never part of the datapack;
+/// `sand run` reads this file to apply local dev-server settings.
+pub const SERVER_CONFIG_FILE_NAME: &str = ".sand-server-config.json";
+
 pub fn run(release: bool, resourcepack: bool) -> Result<()> {
     run_with_timings(release, resourcepack, false)
 }
@@ -43,19 +51,23 @@ pub fn run_with_timings(release: bool, resourcepack: bool, print_timings: bool) 
         resourcepack,
         print_timings,
         explain_rebuild: false,
+        profile: "dev".to_string(),
     })
 }
 
 /// Flags controlling one `sand build` invocation's diagnostics. `release`
 /// and `resourcepack` control build semantics; `print_timings` and
 /// `explain_rebuild` are purely additive reporting (issue #347 Phases 0/8)
-/// and never change what gets built or written.
-#[derive(Debug, Clone, Copy, Default)]
+/// and never change what gets built or written. `profile` selects the
+/// `BuildProfile` a project's optional `sand.build.rs` receives (issue
+/// #317); defaults to `"dev"`.
+#[derive(Debug, Clone, Default)]
 pub struct BuildOptions {
     pub release: bool,
     pub resourcepack: bool,
     pub print_timings: bool,
     pub explain_rebuild: bool,
+    pub profile: String,
 }
 
 pub fn run_with_options(options: BuildOptions) -> Result<()> {
@@ -64,6 +76,7 @@ pub fn run_with_options(options: BuildOptions) -> Result<()> {
         resourcepack,
         print_timings,
         explain_rebuild,
+        profile,
     } = options;
     let mut timings = Timings::new();
 
@@ -183,6 +196,14 @@ pub fn run_with_options(options: BuildOptions) -> Result<()> {
         })
     })?;
 
+    // 4b. Compile and run the optional typed world build before any output is
+    // written. This keeps ordinary component output and world-build output in
+    // one transaction: a broken sand.build.rs cannot leave a half-updated
+    // datapack behind.
+    let worldbuild_output = timings.record(Phase::WorldBuild, || {
+        prepare_worldbuild(&project_root, &mc_version, &profile)
+    })?;
+
     // 5. Validate every record before creating the output directory.  A build
     // must fail before it produces a partially valid datapack.
     let dist = PathBuf::from("dist").join(config.pack.namespace.as_str());
@@ -190,7 +211,18 @@ pub fn run_with_options(options: BuildOptions) -> Result<()> {
         validate_component_records_for_project(&dist, &project_root, &records)
     })?;
 
-    // 6-7. Write pack.mcmeta and every component file through the output
+    // Prepare the complete output set before touching dist. World-build
+    // resources participate in the same ownership manifest as component
+    // resources, so switching profiles prunes files that disappeared.
+    let outputs = prepare_datapack_outputs(
+        &project_root,
+        &config,
+        pack_format,
+        &records,
+        worldbuild_output.as_ref(),
+    )?;
+
+    // 6-7. Write pack.mcmeta and every generated file through the output
     //    manifest (issue #347 Phase 7): unchanged content is left untouched
     //    (mtime included), changed content is rewritten atomically, and
     //    anything the previous build wrote that this build no longer
@@ -198,19 +230,13 @@ pub fn run_with_options(options: BuildOptions) -> Result<()> {
     let change_summary = timings.record(Phase::DatapackWriting, || {
         std::fs::create_dir_all(&dist)?;
         let mut manifest = OutputManifest::load(&dist);
-        let (mcmeta_path, mcmeta_bytes) = pack_mcmeta_output(
-            &config.pack.description,
-            pack_format,
-            config.pack.supported_formats,
-            &config.pack.overlays,
-        )?;
-        manifest.write_if_changed(&mcmeta_path, &mcmeta_bytes)?;
-        for record in &records {
-            let (rel_path, bytes) = component_output(&project_root, record)?;
-            manifest.write_if_changed(&rel_path, &bytes)?;
+        for (rel_path, bytes) in &outputs {
+            manifest.write_if_changed(rel_path, bytes)?;
         }
         manifest.finish()
     })?;
+
+    write_server_config(&dist, worldbuild_output.as_ref())?;
 
     println!(
         "{} {} component(s) written to {} ({} written, {} unchanged, {} removed)",
@@ -280,12 +306,174 @@ pub fn run_with_options(options: BuildOptions) -> Result<()> {
     Ok(())
 }
 
+/// Compiles and runs a project's optional `sand.build.rs` (issue #317)
+/// without writing output. The returned records are combined with ordinary
+/// component output before the manifest transaction begins.
+fn prepare_worldbuild(
+    project_root: &Path,
+    mc_version: &str,
+    profile: &str,
+) -> Result<Option<worldbuild::WorldBuildOutput>> {
+    if !worldbuild::project_has_worldbuild(project_root) {
+        return Ok(None);
+    }
+
+    println!(
+        "{} sand.build.rs (profile: {})...",
+        "Building".cyan().bold(),
+        profile.yellow()
+    );
+
+    worldbuild::compile(project_root)?;
+    let target_dir = cargo_target_dir()?;
+    let binary = worldbuild::binary_path(&target_dir);
+    let output = worldbuild::run(&binary, profile, mc_version)?;
+    Ok(Some(output))
+}
+
+fn prepare_datapack_outputs(
+    project_root: &Path,
+    config: &SandConfig,
+    pack_format: u32,
+    records: &[ComponentRecord],
+    worldbuild: Option<&worldbuild::WorldBuildOutput>,
+) -> Result<BTreeMap<String, Vec<u8>>> {
+    let mut outputs = BTreeMap::new();
+    let (mcmeta_path, mcmeta_bytes) = pack_mcmeta_output(
+        &config.pack.description,
+        pack_format,
+        config.pack.supported_formats,
+        &config.pack.overlays,
+    )?;
+    outputs.insert(mcmeta_path, mcmeta_bytes);
+
+    for record in records {
+        let (rel_path, bytes) = component_output(project_root, record)?;
+        if outputs.insert(rel_path.clone(), bytes).is_some() {
+            bail!("multiple component records produce '{rel_path}'");
+        }
+    }
+
+    if let Some(worldbuild) = worldbuild {
+        for resource in &worldbuild.resources {
+            let (rel_path, bytes) = world_resource_output(resource)?;
+            if let Some(existing) = outputs.get_mut(&rel_path) {
+                if resource.dir != "tags/function" {
+                    bail!(
+                        "sand.build.rs resource '{rel_path}' collides with ordinary component output"
+                    );
+                }
+                let existing_text = std::str::from_utf8(existing)
+                    .context("existing function-tag output is not UTF-8")?;
+                *existing = merge_function_tag_json(existing_text, &resource.content)?.into_bytes();
+            } else {
+                outputs.insert(rel_path, bytes);
+            }
+        }
+    }
+    Ok(outputs)
+}
+
+fn world_resource_output(resource: &worldbuild::WorldResourceRecord) -> Result<(String, Vec<u8>)> {
+    for (label, value) in [
+        ("namespace", resource.namespace.as_str()),
+        ("directory", resource.dir.as_str()),
+        ("path", resource.path.as_str()),
+        ("extension", resource.ext.as_str()),
+    ] {
+        let path = Path::new(value);
+        if value.is_empty()
+            || path.is_absolute()
+            || path.components().any(|part| {
+                matches!(
+                    part,
+                    Component::ParentDir | Component::RootDir | Component::Prefix(_)
+                )
+            })
+        {
+            bail!("sand.build.rs resource has unsafe {label} '{value}'");
+        }
+    }
+    Ok((
+        format!(
+            "data/{}/{}/{}.{}",
+            resource.namespace, resource.dir, resource.path, resource.ext
+        ),
+        resource.content.as_bytes().to_vec(),
+    ))
+}
+
+fn write_server_config(dist: &Path, output: Option<&worldbuild::WorldBuildOutput>) -> Result<()> {
+    let server_config_path = dist
+        .parent()
+        .expect("dist/<namespace> always has a parent")
+        .join(SERVER_CONFIG_FILE_NAME);
+    let Some(output) = output else {
+        if server_config_path.exists() {
+            std::fs::remove_file(&server_config_path).with_context(|| {
+                format!("failed to remove stale '{}'", server_config_path.display())
+            })?;
+        }
+        return Ok(());
+    };
+    if output.server_config.is_some() || output.seed.is_some() || output.level_type.is_some() {
+        let mut json = output
+            .server_config
+            .map(|server| {
+                serde_json::json!({
+                    "view_distance": server.view_distance,
+                    "simulation_distance": server.simulation_distance,
+                    "difficulty": server.difficulty.as_str(),
+                    "online_mode": server.online_mode,
+                    "world_reset_policy_always_reset": server.world_reset_policy,
+                })
+            })
+            .unwrap_or_else(|| serde_json::json!({}));
+        json["seed"] = serde_json::json!(output.seed);
+        json["level_type"] = serde_json::json!(output.level_type);
+        std::fs::write(&server_config_path, serde_json::to_string_pretty(&json)?)
+            .with_context(|| format!("failed to write '{}'", server_config_path.display()))?;
+    } else if server_config_path.exists() {
+        std::fs::remove_file(&server_config_path).with_context(|| {
+            format!("failed to remove stale '{}'", server_config_path.display())
+        })?;
+    }
+
+    Ok(())
+}
+
+/// Merges a `sand_build_world`-produced function tag JSON's `"values"`
+/// array into an existing tag file's `"values"` array (deduplicated,
+/// preserving the existing file's entries first).
+fn merge_function_tag_json(existing: &str, addition: &str) -> Result<String> {
+    let mut existing_json: serde_json::Value =
+        serde_json::from_str(existing).context("existing tag file is not valid JSON")?;
+    let addition_json: serde_json::Value =
+        serde_json::from_str(addition).context("world-build tag output is not valid JSON")?;
+
+    let mut values: Vec<serde_json::Value> = existing_json
+        .get("values")
+        .and_then(|v| v.as_array())
+        .cloned()
+        .unwrap_or_default();
+    if let Some(new_values) = addition_json.get("values").and_then(|v| v.as_array()) {
+        for value in new_values {
+            if !values.contains(value) {
+                values.push(value.clone());
+            }
+        }
+    }
+    existing_json["values"] = serde_json::Value::Array(values);
+    Ok(serde_json::to_string_pretty(&existing_json)?)
+}
+
 // ── Tests ─────────────────────────────────────────────────────────────────────
 
 #[cfg(test)]
 mod tests {
     use std::path::{Path, PathBuf};
 
+    use super::output_manifest::OutputManifest;
     use super::package::zip_dir;
     use super::records::{
         ComponentContentType, ComponentRecord, ContentType, OutputExt, ResourcePackRecord,
@@ -295,9 +483,11 @@ mod tests {
         validate_function_tag, validate_resourcepack_records,
         validate_resourcepack_records_for_project,
     };
+    use super::worldbuild::{WorldBuildOutput, WorldResourceRecord};
     use super::write::{
         write_component, write_pack_mcmeta, write_resourcepack_mcmeta, write_rp_record,
     };
+    use super::{prepare_datapack_outputs, world_resource_output, write_server_config};
     use sand_components::registry_coverage::{REGISTRY_COVERAGE, TAG_COVERAGE};
 
     /// Construct a valid ComponentRecord from parts via JSON deserialization.
@@ -331,6 +521,79 @@ mod tests {
             "[pack]\nnamespace = {namespace:?}\ndescription = \"test\"\nmc_version = \"1.21\"\n"
         );
         toml::from_str(&toml)
+    }
+
+    fn world_resource(dir: &str, path: &str, content: &str) -> WorldResourceRecord {
+        WorldResourceRecord {
+            namespace: "audit".to_string(),
+            dir: dir.to_string(),
+            path: path.to_string(),
+            ext: "json".to_string(),
+            content_type: "text".to_string(),
+            content: content.to_string(),
+        }
+    }
+
+    #[test]
+    fn worldbuild_outputs_share_manifest_ownership_and_prune_across_profiles() {
+        let dir = tempfile::tempdir().unwrap();
+        let config = parse_config("audit").unwrap();
+        let dev = WorldBuildOutput {
+            resources: vec![world_resource("dimension", "dev_only", "{}")],
+            server_config: None,
+            seed: None,
+            level_type: None,
+        };
+        let dev_outputs =
+            prepare_datapack_outputs(dir.path(), &config, 61, &[], Some(&dev)).unwrap();
+        let pack_root = dir.path().join("dist/audit");
+        std::fs::create_dir_all(&pack_root).unwrap();
+        let mut first = OutputManifest::load(&pack_root);
+        for (path, bytes) in dev_outputs {
+            first.write_if_changed(&path, &bytes).unwrap();
+        }
+        first.finish().unwrap();
+        let stale = pack_root.join("data/audit/dimension/dev_only.json");
+        assert!(stale.exists());
+
+        let release_outputs = prepare_datapack_outputs(dir.path(), &config, 61, &[], None).unwrap();
+        let mut second = OutputManifest::load(&pack_root);
+        for (path, bytes) in release_outputs {
+            second.write_if_changed(&path, &bytes).unwrap();
+        }
+        let summary = second.finish().unwrap();
+        assert!(!stale.exists());
+        assert_eq!(summary.removed, 1);
+    }
+
+    #[test]
+    fn worldbuild_rejects_traversal_and_non_tag_collisions() {
+        let unsafe_resource = world_resource("dimension", "../escape", "{}");
+        assert!(world_resource_output(&unsafe_resource).is_err());
+
+        let dir = tempfile::tempdir().unwrap();
+        let config = parse_config("audit").unwrap();
+        let ordinary = record("dimension", "same", "json", "{}");
+        let world = WorldBuildOutput {
+            resources: vec![world_resource("dimension", "same", "{}")],
+            server_config: None,
+            seed: None,
+            level_type: None,
+        };
+        let error = prepare_datapack_outputs(dir.path(), &config, 61, &[ordinary], Some(&world))
+            .unwrap_err();
+        assert!(error.to_string().contains("collides"));
+    }
+
+    #[test]
+    fn removing_worldbuild_removes_stale_server_config() {
+        let dir = tempfile::tempdir().unwrap();
+        let dist = dir.path().join("dist/audit");
+        std::fs::create_dir_all(dist.parent().unwrap()).unwrap();
+        let config_path = dir.path().join("dist/.sand-server-config.json");
+        std::fs::write(&config_path, "{}").unwrap();
+        write_server_config(&dist, None).unwrap();
+        assert!(!config_path.exists());
     }
 
     #[test]

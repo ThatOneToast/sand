@@ -1,0 +1,50 @@
+//! Typed build-time world configuration for {{namespace}}.
+//!
+//! Compiled by `sand-cli` as the `sand_build_world` binary (see the
+//! `[[bin]] name = "sand_build_world"` entry in Cargo.toml) and run during
+//! `sand build` / `sand run`. Select a profile with `sand build --profile
+//! dev|test|bench|release` (default `dev`).
+//!
+//! See the "Build scripts" chapter in the book for the full API.
+
+use sand::build::{
+    BuildContext, Dimension, DimensionSlot, DimensionType, FlatGenerator, FlatLayer, Generator,
+    NoiseGenerator, SandBuild, Spawn, VanillaNoiseSettings, World,
+};
+use sand::ResourceLocation;
+
+/// Builds the world configuration for the active profile.
+fn build(ctx: &BuildContext) -> SandBuild {
+    let overworld = if ctx.profile().is_dev() || ctx.profile().is_test() {
+        // dev/test: flat world, fast to generate, deterministic.
+        Dimension::new(DimensionSlot::Overworld, DimensionType::Overworld).generator(
+            Generator::Flat(FlatGenerator::new(vec![
+                FlatLayer::new(ResourceLocation::new("minecraft", "bedrock").unwrap(), 1),
+                FlatLayer::new(ResourceLocation::new("minecraft", "dirt").unwrap(), 2),
+                FlatLayer::new(ResourceLocation::new("minecraft", "grass_block").unwrap(), 1),
+            ])),
+        )
+    } else {
+        // release (and any other profile): full vanilla noise generation.
+        Dimension::new(DimensionSlot::Overworld, DimensionType::Overworld)
+            .generator(Generator::Noise(NoiseGenerator::vanilla(
+                VanillaNoiseSettings::Overworld,
+            )))
+    };
+
+    SandBuild::new().world(
+        World::new()
+            .spawn(Spawn::at(0, 65, 0))
+            .dimensions(sand::build::Dimensions::new().with(overworld)),
+    )
+}
+
+fn main() {
+    let profile = sand::build::BuildProfile::parse(
+        &std::env::var("SAND_BUILD_PROFILE").unwrap_or_else(|_| "dev".to_string()),
+    );
+    let mc_version =
+        std::env::var("SAND_EXPORT_MC_VERSION").unwrap_or_else(|_| "latest".to_string());
+    let ctx = BuildContext::new(profile).with_mc_version(mc_version);
+    sand::build::run_and_print("{{namespace}}", ctx, build);
+}

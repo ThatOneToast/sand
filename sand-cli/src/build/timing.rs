@@ -27,6 +27,7 @@ pub enum Phase {
     RecordParsing,
     Validation,
     DatapackWriting,
+    WorldBuild,
     ResourcePackExport,
     Packaging,
 }
@@ -40,6 +41,7 @@ impl Phase {
             Phase::RecordParsing => "Record parsing",
             Phase::Validation => "Validation",
             Phase::DatapackWriting => "Datapack writing",
+            Phase::WorldBuild => "Typed world build (sand.build.rs)",
             Phase::ResourcePackExport => "Resource-pack export",
             Phase::Packaging => "Packaging",
         }

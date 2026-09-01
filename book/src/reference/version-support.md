@@ -24,3 +24,18 @@ use `sand::advanced::try_export_components_json`, which resolves capabilities
 internally, and
 [Vanilla Limitations](vanilla-limitations.md) for what no version of Sand can
 work around.
+
+## Typed world/server configuration (`sand::build`)
+
+`sand::build`'s `SandBuild::validate()` (see the book's "Generated World
+Resources" chapter) performs structural/range validation — world border
+size, duplicate dimension slots, flat generator layer sanity — but does not
+currently gate any world-build field on a `VersionFeature` or resolve
+world-generation resource references against a version's real registries.
+Every `Generator`/`DimensionType` variant this issue shipped (flat, void,
+vanilla noise presets, custom references) is stable vanilla behavior across
+Sand's supported version range, so there was nothing to gate yet — but a
+future dimension/generator feature that *is* version-specific would need an
+explicit `VersionFeature` addition here, and a full `sand-vanilla-audit`
+registry audit of world-build resources remains a tracked follow-up (see
+`ROADMAP.md`).

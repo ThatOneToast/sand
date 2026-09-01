@@ -113,6 +113,18 @@ mod cached_generation_tests {
             serde_json::json!({ "type": "root", "children": {} }).to_string(),
         )
         .unwrap();
+        let biome_dir = dir.join("biome_parameters/minecraft");
+        std::fs::create_dir_all(&biome_dir).unwrap();
+        std::fs::write(
+            biome_dir.join("overworld.json"),
+            r#"{"biomes":[{"biome":"minecraft:plains","parameters":{}}]}"#,
+        )
+        .unwrap();
+        std::fs::write(
+            biome_dir.join("nether.json"),
+            r#"{"biomes":[{"biome":"minecraft:nether_wastes","parameters":{}}]}"#,
+        )
+        .unwrap();
     }
 
     #[test]
@@ -139,6 +151,7 @@ mod cached_generation_tests {
             "block_states.rs",
             "commands.rs",
             "commands.api.json",
+            "biomes.rs",
         ] {
             assert_eq!(
                 std::fs::read(uncached_out.path().join(file)).unwrap(),
@@ -174,7 +187,12 @@ mod cached_generation_tests {
         )
         .unwrap();
 
-        for file in ["registries.rs", "block_states.rs", "commands.rs"] {
+        for file in [
+            "registries.rs",
+            "block_states.rs",
+            "commands.rs",
+            "biomes.rs",
+        ] {
             assert_eq!(
                 std::fs::read(first_out.path().join(file)).unwrap(),
                 std::fs::read(second_out.path().join(file)).unwrap(),

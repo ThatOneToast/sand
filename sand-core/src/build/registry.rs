@@ -47,8 +47,8 @@ mod tests {
 
     #[test]
     fn generated_list_is_non_empty_and_has_no_duplicates() {
-        // A real codegen run always includes at least the five fixed End
-        // biomes (see biomes.rs's module docs), so an empty list here means
+        // A real codegen run always includes the fixed biomes absent from the
+        // noise reports (see biomes.rs's module docs), so an empty list means
         // codegen silently produced nothing -- fail loudly instead.
         assert!(
             !VANILLA_BIOMES.is_empty(),
@@ -61,17 +61,18 @@ mod tests {
     }
 
     #[test]
-    fn generated_list_includes_the_fixed_end_biomes() {
-        for end_biome in [
+    fn generated_list_includes_the_fixed_biomes() {
+        for fixed_biome in [
             "the_end",
             "end_highlands",
             "end_midlands",
             "small_end_islands",
             "end_barrens",
+            "the_void",
         ] {
             assert!(
-                is_known_vanilla_biome(end_biome),
-                "expected fixed End biome '{end_biome}' in generated VANILLA_BIOMES"
+                is_known_vanilla_biome(fixed_biome),
+                "expected fixed biome '{fixed_biome}' in generated VANILLA_BIOMES"
             );
         }
     }

@@ -17,8 +17,9 @@
 //! The five fixed-position End biomes (`the_end`, `end_highlands`,
 //! `end_midlands`, `small_end_islands`, `end_barrens`) use a different,
 //! non-noise placement algorithm and never appear in a `biome_parameters`
-//! report; they're appended as a small, stable, hand-maintained list (this
-//! set has been unchanged since 1.9 and is extremely unlikely to change).
+//! report. `the_void` is likewise a valid built-in biome used by vanilla's
+//! void preset but absent from the noise reports. These six IDs are appended
+//! as a small, stable, hand-maintained list.
 
 use std::collections::BTreeSet;
 use std::path::Path;
@@ -27,14 +28,14 @@ use serde::Deserialize;
 
 use crate::error::Result;
 
-/// The five fixed-position End biomes. Not part of any noise-parameter
-/// report (see module docs) — stable across every version Sand supports.
-const FIXED_END_BIOMES: &[&str] = &[
+/// Valid built-in biomes that are not part of either noise-parameter report.
+const FIXED_BIOMES: &[&str] = &[
     "minecraft:the_end",
     "minecraft:end_highlands",
     "minecraft:end_midlands",
     "minecraft:small_end_islands",
     "minecraft:end_barrens",
+    "minecraft:the_void",
 ];
 
 /// The two `biome_parameters` report files that enumerate noise-placed
@@ -68,17 +69,13 @@ struct BiomeParameterEntry {
 /// `sand::vanilla::Biome` enum is deliberately not part of this issue's
 /// scope).
 pub fn generate(reports_dir: &Path, out_dir: &Path, minecraft_version: &str) -> Result<()> {
-    let mut biomes: BTreeSet<String> = FIXED_END_BIOMES.iter().map(|s| s.to_string()).collect();
+    let mut biomes: BTreeSet<String> = FIXED_BIOMES.iter().map(|s| s.to_string()).collect();
 
     for report in BIOME_PARAMETER_REPORTS {
         let path = reports_dir.join(report);
-        let Ok(content) = std::fs::read_to_string(&path) else {
-            // A dimension's biome_parameters report can legitimately be
-            // absent (e.g. a future version restructures Nether placement)
-            // -- skip rather than fail the whole codegen run over one
-            // report this module doesn't strictly require.
-            continue;
-        };
+        // Missing input must fail closed. Silently emitting a partial list
+        // turns valid target-version biomes into false validation failures.
+        let content = std::fs::read_to_string(&path)?;
         let parsed: BiomeParameters = serde_json::from_str(&content)?;
         for entry in parsed.biomes {
             biomes.insert(entry.biome);
@@ -92,8 +89,9 @@ pub fn generate(reports_dir: &Path, out_dir: &Path, minecraft_version: &str) -> 
     ));
     code.push_str(
         "/// Real vanilla biome IDs for the target Minecraft version, sourced from\n\
-         /// the data generator's `biome_parameters` reports plus the five fixed\n\
-         /// End biomes. See `sand-build/src/codegen/biomes.rs` for how this is\n\
+         /// the data generator's `biome_parameters` reports plus the valid fixed\n\
+         /// biomes absent from those reports. See `sand-build/src/codegen/biomes.rs`\n\
+         /// for how this is\n\
          /// derived.\n",
     );
     code.push_str("pub(crate) static VANILLA_BIOMES: &[&str] = &[\n");
@@ -135,18 +133,18 @@ mod tests {
         assert!(generated.contains("\"minecraft:nether_wastes\""));
         assert!(generated.contains("\"minecraft:the_end\""));
         assert!(generated.contains("\"minecraft:end_barrens\""));
+        assert!(generated.contains("\"minecraft:the_void\""));
         // Deduplicated: "minecraft:plains" appears in both reports but
         // should be emitted exactly once.
         assert_eq!(generated.matches("\"minecraft:plains\"").count(), 1);
     }
 
     #[test]
-    fn missing_report_files_do_not_fail_generation() {
+    fn missing_report_files_fail_generation() {
         let dir = tempfile::tempdir().unwrap();
         let out = tempfile::tempdir().unwrap();
-        generate(dir.path(), out.path(), "26.2").unwrap();
-        let generated = std::fs::read_to_string(out.path().join("biomes.rs")).unwrap();
-        // Fixed End biomes are still present even with no reports at all.
-        assert!(generated.contains("\"minecraft:the_end\""));
+        let error = generate(dir.path(), out.path(), "26.2").unwrap_err();
+        assert!(error.to_string().contains("I/O error"));
+        assert!(!out.path().join("biomes.rs").exists());
     }
 }

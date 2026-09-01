@@ -82,12 +82,12 @@ The verified profiles are:
 
 | Minecraft version | Enforced identities | Commands | Registries | Baseline |
 | --- | ---: | ---: | ---: | --- |
-| 1.21.4 (compatibility) | 10,104 | 902 | 4,288 | `api-surface-baseline-1.21.4.txt` |
-| 26.2 (latest/default) | 11,014 | 1,233 | 4,867 | `api-surface-baseline.txt` |
+| 1.21.4 (compatibility) | 10,344 | 902 | 4,288 | `api-surface-baseline-1.21.4.txt` |
+| 26.2 (latest/default) | 11,254 | 1,233 | 4,867 | `api-surface-baseline.txt` |
 
-The handwritten source contribution is 4,646 identities in both profiles.
+The handwritten source contribution is 4,886 identities in both profiles.
 An explicit `SAND_ALLOW_PLACEHOLDER_CODEGEN=1` fallback uses a third,
-`placeholder-codegen` profile with 4,914 identities (4,646 source identities
+`placeholder-codegen` profile with 5,154 identities (4,886 source identities
 plus 268 checked-in generator identities). The fallback writer
 atomically replaces generated Rust and both provider catalogs; the catalogs
 are machine-marked empty placeholders and must agree. The facade keeps the
@@ -102,23 +102,23 @@ The following detailed kind count describes the latest/default 26.2 surface:
 
 | Kind | Count |
 | --- | ---: |
-| Modules | 35 |
-| Attribute procedural macros | 8 |
-| Derive procedural macros | 3 |
+| Modules | 36 |
+| Attribute procedural macros | 10 |
+| Derive procedural macros | 6 |
 | Function-like procedural macros | 4 |
 | Declarative macros | 3 |
-| Structs | 933 |
-| Enums | 151 |
-| Traits | 38 |
-| Type aliases | 12 |
+| Structs | 960 |
+| Enums | 163 |
+| Traits | 41 |
+| Type aliases | 13 |
 | Constants | 2 |
-| Free functions | 521 |
-| Inherent methods | 2,772 |
-| Trait methods | 54 |
+| Free functions | 523 |
+| Inherent methods | 2,883 |
+| Trait methods | 67 |
 | Associated constants | 17 |
 | Associated types | 2 |
-| Public fields | 706 |
-| Enum variants | 5,751 |
+| Public fields | 727 |
+| Enum variants | 5,797 |
 
 Generated static families account for 6,368 identities:
 
@@ -130,8 +130,8 @@ Generated static families account for 6,368 identities:
 - effect registry enums: 95 identities;
 - generated event marker types: 25 identities.
 
-The remaining 4,646 identities come from ordinary source declarations,
-including the 15 exported procedural macros. Input-dependent items emitted
+The remaining 4,886 identities come from ordinary source declarations,
+including the 20 exported procedural macros. Input-dependent items emitted
 into downstream crates by attributes and derives are parametric families, so
 they do not have an honest finite installed count and are not represented as
 zero-item static scopes. API-producing proc macros validate their actual
@@ -235,7 +235,7 @@ isolated downstream fixtures exercise the same expansion-time guards used by
 ordinary consumer builds. The static report therefore cannot be made complete
 by blessing a named zero-item consumer scope.
 
-The exact 26.2 profile records 11,014 enforced static identities across 28
+The exact 26.2 profile records 11,254 enforced static identities across 29
 scopes, with zero pending scopes and zero pending items. The 1.21.4 and explicit
 placeholder profiles enforce the same source and checked-in-generator boundary
 against their independently generated totals. Every reachable identity maps to

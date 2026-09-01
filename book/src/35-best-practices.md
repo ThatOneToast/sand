@@ -36,7 +36,7 @@
 - **Keep `ServerConfig` minimal.** Only set fields you actually need to
   differ from vanilla defaults — every field you set is one more thing to
   remember doesn't travel with the datapack (see
-  [chapter 23](./23-world-vs-server.md)).
+  [chapter 24](./23-world-vs-server.md)).
 - **Remember the badge when writing your own docs.** If your project
   exposes any of its own build-time toggles that end up in `World` vs.
   `ServerConfig`, badge them the same way (🌍/🖥️) so downstream users of

@@ -25,14 +25,15 @@
 //! paths, the key, and the affected objectives, rather than emitting a pack
 //! with shared state.
 
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::BTreeMap;
 
+use super::identities::{IDENTITY_PROBE_LIMIT, allocate_collision_safe_keys};
 use super::records::{ComponentRecord, ExportResult};
 use crate::component::ComponentExportError;
 
 /// Maximum number of deterministic rehash probes tried for a single schedule
 /// path before allocation is declared impossible and the export fails.
-pub(crate) const SCHEDULE_KEY_PROBE_LIMIT: u32 = 64;
+pub(crate) const SCHEDULE_KEY_PROBE_LIMIT: u32 = IDENTITY_PROBE_LIMIT;
 
 /// Minecraft's hard limit on scoreboard objective name length.
 pub(crate) const OBJECTIVE_NAME_LIMIT: usize = 16;
@@ -138,49 +139,20 @@ pub(crate) fn allocate_schedule_objective_keys<'a, I>(
 where
     I: IntoIterator<Item = &'a str>,
 {
-    let unique: BTreeSet<&str> = paths.into_iter().collect();
-    let mut claimed: BTreeMap<String, &str> = BTreeMap::new();
-    let mut allocated: BTreeMap<String, String> = BTreeMap::new();
-
-    for path in unique {
-        let mut chosen: Option<String> = None;
-        let mut first_owner: Option<(&str, String)> = None;
-
-        for attempt in 0..SCHEDULE_KEY_PROBE_LIMIT {
-            let key = source(path, attempt);
-            ensure_objective_names_fit(path, &key)?;
-            match claimed.get(&key) {
-                Some(owner) => {
-                    if first_owner.is_none() {
-                        first_owner = Some((owner, key));
-                    }
-                }
-                None => {
-                    chosen = Some(key);
-                    break;
-                }
-            }
-        }
-
-        let key = match chosen {
-            Some(key) => key,
-            None => {
-                let (owner, key) = first_owner.expect("probe limit is non-zero");
-                let (obj_t, obj_p) = schedule_objective_names(&key);
-                return Err(schedule_export_error(format!(
-                    "schedule path `{path}` collides with schedule path `{owner}` on generated \
-                     key `{key}` (objectives `{obj_t}` / `{obj_p}`); {SCHEDULE_KEY_PROBE_LIMIT} \
-                     deterministic rehash attempts all collided, so the two schedules cannot be \
-                     given independent scoreboard state — rename one of the schedule functions"
-                )));
-            }
-        };
-
-        claimed.insert(key.clone(), path);
-        allocated.insert(path.to_string(), key);
-    }
-
-    Ok(allocated)
+    allocate_collision_safe_keys(
+        paths,
+        source,
+        ensure_objective_names_fit,
+        |path, owner, key| {
+            let (obj_t, obj_p) = schedule_objective_names(key);
+            schedule_export_error(format!(
+                "schedule path `{path}` collides with schedule path `{owner}` on generated \
+                 key `{key}` (objectives `{obj_t}` / `{obj_p}`); {SCHEDULE_KEY_PROBE_LIMIT} \
+                 deterministic rehash attempts all collided, so the two schedules cannot be \
+                 given independent scoreboard state — rename one of the schedule functions"
+            ))
+        },
+    )
 }
 
 /// Lower every registered [`crate::function::ScheduleDescriptor`] into records

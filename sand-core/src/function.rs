@@ -692,6 +692,18 @@ pub struct ScheduleDescriptor {
 }
 inventory::collect!(ScheduleDescriptor);
 
+/// Immutable tick-system declaration emitted by `#[system]`.
+#[doc(hidden)]
+pub struct StateSystemDescriptor {
+    /// Stable Rust module/function identity.
+    pub id: &'static str,
+    /// Global tick cadence. One runs every server tick.
+    pub every: u32,
+    /// Builds structured commands for the system body.
+    pub make: fn() -> Vec<String>,
+}
+inventory::collect!(StateSystemDescriptor);
+
 /// Which inventory slot to watch for [`ArmorEventDescriptor`] events.
 ///
 /// Slot IDs match Minecraft's NBT slot bytes:

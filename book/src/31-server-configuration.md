@@ -4,7 +4,7 @@
 local dev server (`sand run`) or documents a `server.properties`-equivalent
 value you set yourself on a real dedicated server. **None of it is
 packaged into the exported datapack.** See
-[chapter 23](./23-world-vs-server.md) if you haven't read the World vs.
+[chapter 24](./23-world-vs-server.md) if you haven't read the World vs.
 Server explainer yet — it covers *why* these settings have no datapack
 representation at all.
 

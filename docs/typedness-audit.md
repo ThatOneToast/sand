@@ -50,19 +50,19 @@ lowering use their operations directly. They are not the canonical declaration
 API, and their parallel lifecycle registration methods have been removed.
 Player/global score fields retain custom vanilla criteria and JSON-safe
 objective display names through
-`#[state(criterion = "...", display_name = "...")]`. Entity/living fields
-reject that metadata until archetype descriptor lowering, collision
-validation, and dirty-observer integration land in a later #298 slice. Direct
-entity/living binding likewise requires archetype-provisioned objectives.
+`#[state(criterion = "...", display_name = "...")]`. Entity/living fields use
+dummy objectives provisioned through the same load path as direct attachment,
+archetype adoption, and query/system execution. Their typed writes feed both
+archetype field reconciliation and component lifecycle reconciliation without
+sharing a consumable dirty marker.
 
-This slice establishes one canonical declaration path for the migrated
-surface. It is not complete state-system consolidation.
+The unified state foundation now uses that one declaration path for scoped
+components, bundles, queries, systems, lifecycle, migrations, archetypes, and
+global resources. Low-level command primitives remain available for advanced
+work, but they are no longer a second state framework.
 
 ## Ordered remaining slices
 
 1. Complete #175 around a single typed function-reference resolution path.
 2. Canonicalize score holders and player/entity target cardinality.
 3. Canonicalize storage/NBT and registry/resource identifiers.
-4. Complete #298 entity/living owner lifecycle integration, bundles/presence,
-   queries/systems, migrations, and generated
-   archetype/global-resource integration.

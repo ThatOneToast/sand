@@ -117,14 +117,15 @@ impl ExportBuildPlan {
 
     /// Compiles every planned exporter with one `cargo build`.
     ///
-    /// Intentionally does not set `RUSTFLAGS` or any other compiler flag that
-    /// would change Cargo's fingerprint for the exporter dependency graph:
+    /// Sets only `SAND_MC_VERSION`, which deliberately selects the generated
+    /// registry snapshot. It does not set `RUSTFLAGS` or another compiler flag:
     /// doing so used to split the artifact cache between `cargo
     /// build`/`cargo check` run directly and exporter compilation triggered
     /// by `sand build`, so equivalent work was paid for twice.
-    pub(super) fn compile(&self) -> Result<()> {
+    pub(super) fn compile(&self, mc_version: &str) -> Result<()> {
         let mut cmd = std::process::Command::new("cargo");
-        cmd.args(self.cargo_args());
+        cmd.args(self.cargo_args())
+            .env("SAND_MC_VERSION", mc_version);
         let status = cmd
             .status()
             .with_context(|| format!("failed to invoke `{}`", self.command_line()))?;

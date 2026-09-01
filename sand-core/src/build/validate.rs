@@ -1,14 +1,16 @@
 //! Build-time validation of a [`super::sand_build::SandBuild`] before it is
 //! lowered to datapack resources.
 //!
-//! This is intentionally structural validation (ranges, duplicate slots,
-//! non-empty layer stacks) rather than a full audit against Minecraft's
-//! actual registries — see the crate-level build-module docs for the
-//! `sand-vanilla-audit` extension this is scoped down from, tracked as a
-//! follow-up.
+//! Combines structural checks (ranges, duplicate slots, non-empty layer
+//! stacks) with a registry-level check against `minecraft:`-namespaced
+//! biome references (see [`super::registry`]). This is not a full audit
+//! against every world-generation registry (structures, noise settings,
+//! etc.) or a real Minecraft server load — see [`super::registry`]'s module
+//! docs and the PR that introduced this module for the tracked follow-up.
 
 use super::dimension::DimensionSlot;
-use super::generator::Generator;
+use super::generator::{BiomeSource, Generator};
+use super::registry::is_known_vanilla_biome;
 use super::sand_build::SandBuild;
 use sand_macros::api;
 
@@ -121,8 +123,38 @@ pub(crate) fn validate(build: &SandBuild) -> Result<(), Vec<BuildDiagnostic>> {
                             ),
                         });
                     }
+                    // Registry check (issue #317 §3.4): a `minecraft:`-
+                    // namespaced biome must be a real vanilla biome ID.
+                    // Modded/datapack namespaces are accepted unconditionally
+                    // — see `registry.rs`'s module docs for why this is a
+                    // bundled static list, not a full VersionProfile-aware
+                    // registry audit.
+                    if flat.biome.namespace() == "minecraft"
+                        && !is_known_vanilla_biome(flat.biome.path())
+                    {
+                        diagnostics.push(BuildDiagnostic {
+                            location: format!("Dimension[{key}].generator"),
+                            message: format!(
+                                "FlatGenerator::biome '{}' is not a known vanilla biome",
+                                flat.biome
+                            ),
+                        });
+                    }
                 }
-                Generator::Void | Generator::Noise(_) | Generator::CustomReference(_) => {}
+                Generator::Noise(noise) => {
+                    if let BiomeSource::Fixed(biome) = &noise.biome_source
+                        && biome.namespace() == "minecraft"
+                        && !is_known_vanilla_biome(biome.path())
+                    {
+                        diagnostics.push(BuildDiagnostic {
+                            location: format!("Dimension[{key}].generator"),
+                            message: format!(
+                                "NoiseGenerator::single_biome '{biome}' is not a known vanilla biome"
+                            ),
+                        });
+                    }
+                }
+                Generator::Void | Generator::CustomReference(_) => {}
             }
 
             if matches!(dim.slot, DimensionSlot::Custom(_))
@@ -230,5 +262,91 @@ mod tests {
         )));
         let errs = validate(&build).unwrap_err();
         assert!(errs.iter().any(|d| d.message.contains("384")));
+    }
+
+    #[test]
+    fn flat_generator_with_a_misspelled_vanilla_biome_is_rejected() {
+        let build = SandBuild::new().world(
+            World::new().dimensions(
+                Dimensions::new().with(
+                    Dimension::new(DimensionSlot::Overworld, DimensionType::Overworld).generator(
+                        Generator::Flat(
+                            FlatGenerator::new(vec![FlatLayer::new(
+                                ResourceLocation::new("minecraft", "stone").unwrap(),
+                                1,
+                            )])
+                            .biome(ResourceLocation::new("minecraft", "dessert").unwrap()),
+                        ),
+                    ),
+                ),
+            ),
+        );
+        let errs = validate(&build).unwrap_err();
+        assert!(
+            errs.iter().any(|d| d.message.contains("dessert")
+                && d.message.contains("not a known vanilla biome"))
+        );
+    }
+
+    #[test]
+    fn flat_generator_with_a_real_vanilla_biome_passes() {
+        let build = SandBuild::new().world(
+            World::new().dimensions(
+                Dimensions::new().with(
+                    Dimension::new(DimensionSlot::Overworld, DimensionType::Overworld).generator(
+                        Generator::Flat(
+                            FlatGenerator::new(vec![FlatLayer::new(
+                                ResourceLocation::new("minecraft", "sand").unwrap(),
+                                1,
+                            )])
+                            .biome(ResourceLocation::new("minecraft", "desert").unwrap()),
+                        ),
+                    ),
+                ),
+            ),
+        );
+        assert!(validate(&build).is_ok());
+    }
+
+    #[test]
+    fn flat_generator_with_a_custom_namespaced_biome_is_never_registry_checked() {
+        let build = SandBuild::new().world(
+            World::new().dimensions(
+                Dimensions::new().with(
+                    Dimension::new(DimensionSlot::Overworld, DimensionType::Overworld).generator(
+                        Generator::Flat(
+                            FlatGenerator::new(vec![FlatLayer::new(
+                                ResourceLocation::new("minecraft", "stone").unwrap(),
+                                1,
+                            )])
+                            .biome(ResourceLocation::new("my_pack", "mystic_forest").unwrap()),
+                        ),
+                    ),
+                ),
+            ),
+        );
+        assert!(validate(&build).is_ok());
+    }
+
+    #[test]
+    fn noise_generator_single_biome_override_is_registry_checked() {
+        let build = SandBuild::new().world(
+            World::new().dimensions(
+                Dimensions::new().with(
+                    Dimension::new(DimensionSlot::Overworld, DimensionType::Overworld).generator(
+                        Generator::Noise(
+                            crate::build::generator::NoiseGenerator::vanilla(
+                                crate::build::generator::VanillaNoiseSettings::Overworld,
+                            )
+                            .single_biome(
+                                ResourceLocation::new("minecraft", "not_a_real_biome").unwrap(),
+                            ),
+                        ),
+                    ),
+                ),
+            ),
+        );
+        let errs = validate(&build).unwrap_err();
+        assert!(errs.iter().any(|d| d.message.contains("not_a_real_biome")));
     }
 }

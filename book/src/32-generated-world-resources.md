@@ -64,17 +64,28 @@ first), naming the offending builder call:
 - **Flat generator layers** — at least one layer required; each layer's
   height must be `> 0`; total layer height must not exceed the 384-block
   build-height limit.
+- **Vanilla biome references** — a `minecraft:`-namespaced biome passed to
+  `FlatGenerator::biome` or `NoiseGenerator::single_biome` must be a real
+  vanilla biome ID (checked against a bundled list of vanilla's
+  `worldgen/biome` registry contents). A custom mod/datapack namespace is
+  never checked — Sand cannot know about registry content it didn't
+  generate.
 
 ```console
 $ sand build
 sand.build.rs produced an invalid world configuration:
   - World::border: diameter 100000000 is out of range (0, 59999968]
   - Dimension[minecraft:overworld].generator: FlatGenerator has no layers — a flat world needs at least one
+  - Dimension[minecraft:overworld].generator: FlatGenerator::biome 'minecraft:dessert' is not a known vanilla biome
 ```
 
-**Scope note:** this is structural/range validation, not a full audit
-against Minecraft's actual registries via `sand-vanilla-audit` (e.g. it
-does not verify that a referenced biome or noise-settings resource location
-actually exists in the target `VersionProfile`'s registry catalog). Full
-`sand-vanilla-audit` integration for world-build resources is a tracked
-follow-up — see this feature's PR description for the exact status.
+**Scope note:** this combines structural/range checks with a bundled,
+hand-maintained biome registry list — it is not a full audit against every
+Minecraft worldgen registry (structures, noise settings, block references,
+etc.) generated fresh per `VersionProfile` the way `sand-build`'s block/item
+registries are, and it is not a real Minecraft server load the way
+`sand-vanilla-audit` validates other datapack content. Extending Sand's
+registry codegen pipeline to cover biomes/structures automatically, and/or
+wiring world-build resources into a real-server `sand-vanilla-audit` pass,
+are tracked follow-ups — see this feature's PR description for the linked
+issue.

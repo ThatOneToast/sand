@@ -33,6 +33,7 @@ mod context;
 mod dimension;
 mod generator;
 mod profile;
+mod registry;
 mod resources;
 mod sand_build;
 mod server;

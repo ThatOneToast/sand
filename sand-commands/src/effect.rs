@@ -8,39 +8,72 @@ use crate::error::{CommandError, CommandResult};
 use crate::render::{CommandProfile, RenderCommand, Validate};
 use crate::selector::Selector;
 
-#[doc = "**API Contract:** Run `sand api show sand::command::EffectDuration` for the canonical contract."]
+#[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::command::EffectDuration",
+    aliases = ["sand::cmd::EffectDuration", "sand::prelude::EffectDuration", "sand::prelude::cmd::EffectDuration"],
+    module = "sand::command",
+    summary = "Minecraft's effect duration representation.",
+    context = "Minecraft's effect duration representation. This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
+    minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
+    use_when = ["Constructing Minecraft commands through Sand's typed command model"],
+    avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
+    example = "use sand::command::EffectDuration;",
+    variants(Infinite = "Persist until explicitly cleared. Supported by Java 1.19.4+.", Seconds = "An explicit whole-second duration.", Ticks = "Compatibility input expressed in ticks; validation requires exact divisibility by 20."),
+    variant_fields(Seconds = ["An explicit whole-second duration."], Ticks = ["Compatibility input expressed in ticks; validation requires exact divisibility by 20."]),
+)]
 /// Minecraft's effect duration representation.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum EffectDuration {
-    #[doc = "**API Contract:** Run `sand api show sand::command::EffectDuration::Infinite` for the canonical contract."]
     /// Persist until explicitly cleared. Supported by Java 1.19.4+.
     Infinite,
-    #[doc = "**API Contract:** Run `sand api show sand::command::EffectDuration::Seconds` for the canonical contract."]
     /// An explicit whole-second duration.
-    Seconds(
-        #[doc = "The `Seconds` variant carries the value described by its variant semantics: An explicit whole-second duration."]
-        #[doc = "**API Contract:** Run `sand api show sand::command::EffectDuration::Seconds::0` for the canonical contract."]
-        u32,
-    ),
-    #[doc = "**API Contract:** Run `sand api show sand::command::EffectDuration::Ticks` for the canonical contract."]
+    Seconds(#[doc = "An explicit whole-second duration."] u32),
     /// Compatibility input expressed in ticks; validation requires exact
     /// divisibility by 20.
     Ticks(
-        #[doc = "The `Ticks` variant carries the value described by its variant semantics: Compatibility input expressed in ticks; validation requires exact divisibility by 20."]
-        #[doc = "**API Contract:** Run `sand api show sand::command::EffectDuration::Ticks::0` for the canonical contract."]
-        u32,
+        #[doc = "Compatibility input expressed in ticks; validation requires exact divisibility by 20."]
+         u32,
     ),
 }
 
 impl EffectDuration {
     /// Creates an effect duration measured in whole seconds.
-    #[doc = "**API Contract:** Run `sand api show sand::command::EffectDuration::seconds` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::command::EffectDuration::seconds",
+        aliases = ["sand::cmd::EffectDuration::seconds", "sand::prelude::EffectDuration::seconds", "sand::prelude::cmd::EffectDuration::seconds"],
+        module = "sand::command",
+        kind = "method",
+        summary = "Creates an effect duration measured in whole seconds.",
+        context = "Creates an effect duration measured in whole seconds. This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
+        minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
+        use_when = ["Constructing Minecraft commands through Sand's typed command model"],
+        avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
+        params(seconds = "`seconds` supplies the seconds value used to create an effect duration measured in whole seconds."),
+        returns = "A newly constructed `EffectDuration` configured to create an effect duration measured in whole seconds.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(seconds: u32)  {\n    let effect_duration = sand::command::EffectDuration::seconds(seconds);\n}",
+    )]
     pub const fn seconds(seconds: u32) -> Self {
         Self::Seconds(seconds)
     }
 
     /// Creates an effect duration measured in game ticks.
-    #[doc = "**API Contract:** Run `sand api show sand::command::EffectDuration::ticks` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::command::EffectDuration::ticks",
+        aliases = ["sand::cmd::EffectDuration::ticks", "sand::prelude::EffectDuration::ticks", "sand::prelude::cmd::EffectDuration::ticks"],
+        module = "sand::command",
+        kind = "method",
+        summary = "Creates an effect duration measured in game ticks.",
+        context = "Creates an effect duration measured in game ticks. This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
+        minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
+        use_when = ["Constructing Minecraft commands through Sand's typed command model"],
+        avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
+        params(ticks = "`ticks` provides the Minecraft tick duration used to create an effect duration measured in game ticks."),
+        returns = "A newly constructed `EffectDuration` configured to create an effect duration measured in game ticks.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(ticks: u32)  {\n    let effect_duration = sand::command::EffectDuration::ticks(ticks);\n}",
+    )]
     pub const fn ticks(ticks: u32) -> Self {
         Self::Ticks(ticks)
     }
@@ -54,7 +87,18 @@ impl EffectDuration {
     }
 }
 
-#[doc = "**API Contract:** Run `sand api show sand::command::EffectCommand` for the canonical contract."]
+#[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::command::EffectCommand",
+    aliases = ["sand::cmd::EffectCommand", "sand::prelude::cmd::EffectCommand"],
+    module = "sand::command",
+    summary = "Structured `effect give` terminal command.",
+    context = "Structured `effect give` terminal command. This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
+    minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
+    use_when = ["Constructing Minecraft commands through Sand's typed command model"],
+    avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
+    example = "use sand::command::EffectCommand;",
+)]
 /// Structured `effect give` terminal command.
 #[derive(Debug, Clone)]
 pub struct EffectCommand {
@@ -68,7 +112,21 @@ pub struct EffectCommand {
 
 impl EffectCommand {
     /// Creates a typed effect command builder from the supplied command inputs.
-    #[doc = "**API Contract:** Run `sand api show sand::command::EffectCommand::give` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::command::EffectCommand::give",
+        aliases = ["sand::cmd::EffectCommand::give", "sand::prelude::cmd::EffectCommand::give"],
+        module = "sand::command",
+        kind = "method",
+        summary = "Creates a typed effect command builder from the supplied command inputs.",
+        context = "Creates a typed effect command builder from the supplied command inputs. This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
+        minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
+        use_when = ["Constructing Minecraft commands through Sand's typed command model"],
+        avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
+        params(target = "`target` provides the entity, block, or command target used to create a typed effect command builder from the supplied command inputs.", effect = "`effect` supplies the effect value used to create a typed effect command builder from the supplied command inputs."),
+        returns = "A newly constructed `EffectCommand` configured to create a typed effect command builder from the supplied command inputs.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(target: sand::command::Selector, effect: impl Into < String >)  {\n    let effect_command = sand::command::EffectCommand::give(target, effect);\n}",
+    )]
     pub fn give(target: Selector, effect: impl Into<String>) -> Self {
         Self {
             target,
@@ -81,7 +139,21 @@ impl EffectCommand {
     }
 
     /// Uses the explicit raw give escape hatch on the effect command builder.
-    #[doc = "**API Contract:** Run `sand api show sand::command::EffectCommand::give_raw` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::command::EffectCommand::give_raw",
+        aliases = ["sand::cmd::EffectCommand::give_raw", "sand::prelude::cmd::EffectCommand::give_raw"],
+        module = "sand::command",
+        kind = "method",
+        summary = "Uses the explicit raw give escape hatch on the effect command builder.",
+        context = "Uses the explicit raw give escape hatch on the effect command builder. This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
+        minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
+        use_when = ["Constructing Minecraft commands through Sand's typed command model"],
+        avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
+        params(target = "`target` provides the entity, block, or command target used to use the explicit raw give escape hatch on the effect command builder.", effect = "`effect` supplies the effect value used to use the explicit raw give escape hatch on the effect command builder."),
+        returns = "A newly constructed `EffectCommand` configured to use the explicit raw give escape hatch on the effect command builder.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(target: sand::command::Selector, effect: impl Into < String >)  {\n    let effect_command = sand::command::EffectCommand::give_raw(target, effect);\n}",
+    )]
     pub fn give_raw(target: Selector, effect: impl Into<String>) -> Self {
         Self {
             raw_effect: true,
@@ -90,21 +162,63 @@ impl EffectCommand {
     }
 
     /// Sets the effect duration on this command builder.
-    #[doc = "**API Contract:** Run `sand api show sand::command::EffectCommand::duration` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::command::EffectCommand::duration",
+        aliases = ["sand::cmd::EffectCommand::duration", "sand::prelude::cmd::EffectCommand::duration"],
+        module = "sand::command",
+        kind = "method",
+        summary = "Sets the effect duration on this command builder.",
+        context = "Sets the effect duration on this command builder. This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
+        minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
+        use_when = ["Constructing Minecraft commands through Sand's typed command model"],
+        avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
+        params(duration = "`duration` provides the Minecraft tick duration used to set the effect duration on this command builder."),
+        returns = "The `EffectCommand` value with the documented change applied to set the effect duration on this command builder.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(effect_command_value: sand::command::EffectCommand, duration: sand::command::EffectDuration)  {\n    let updated_effect_command = effect_command_value.duration(duration);\n}",
+    )]
     pub fn duration(mut self, duration: EffectDuration) -> Self {
         self.duration = Some(duration);
         self
     }
 
     /// Sets the zero-based effect amplifier on this command builder.
-    #[doc = "**API Contract:** Run `sand api show sand::command::EffectCommand::amplifier` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::command::EffectCommand::amplifier",
+        aliases = ["sand::cmd::EffectCommand::amplifier", "sand::prelude::cmd::EffectCommand::amplifier"],
+        module = "sand::command",
+        kind = "method",
+        summary = "Sets the zero-based effect amplifier on this command builder.",
+        context = "Sets the zero-based effect amplifier on this command builder. This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
+        minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
+        use_when = ["Constructing Minecraft commands through Sand's typed command model"],
+        avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
+        params(amplifier = "`amplifier` supplies the amplifier value used to set the zero-based effect amplifier on this command builder."),
+        returns = "The `EffectCommand` value with the documented change applied to set the zero-based effect amplifier on this command builder.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(effect_command_value: sand::command::EffectCommand, amplifier: u8)  {\n    let updated_effect_command = effect_command_value.amplifier(amplifier);\n}",
+    )]
     pub fn amplifier(mut self, amplifier: u8) -> Self {
         self.amplifier = Some(amplifier);
         self
     }
 
     /// Controls whether applying the effect displays particles.
-    #[doc = "**API Contract:** Run `sand api show sand::command::EffectCommand::particles` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::command::EffectCommand::particles",
+        aliases = ["sand::cmd::EffectCommand::particles", "sand::prelude::cmd::EffectCommand::particles"],
+        module = "sand::command",
+        kind = "method",
+        summary = "Controls whether applying the effect displays particles.",
+        context = "Controls whether applying the effect displays particles. This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
+        minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
+        use_when = ["Constructing Minecraft commands through Sand's typed command model"],
+        avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
+        params(show_particles = "`show_particles` provides the switch that enables or disables the behavior used to control whether applying the effect displays particles."),
+        returns = "The `EffectCommand` value with the documented change applied to control whether applying the effect displays particles.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(effect_command_value: sand::command::EffectCommand, show_particles: bool)  {\n    let updated_effect_command = effect_command_value.particles(show_particles);\n}",
+    )]
     pub fn particles(mut self, show_particles: bool) -> Self {
         self.show_particles = show_particles;
         self

@@ -32,19 +32,28 @@ fn json_value<T: Serialize, E: serde::ser::Error>(value: &T) -> Result<Value, E>
 
 // ── AdvancementFrame ──────────────────────────────────────────────────────────
 
-#[doc = "**API Contract:** Run `sand api show sand::component::AdvancementFrame` for the canonical contract."]
+#[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::component::AdvancementFrame",
+    aliases = ["sand::prelude::AdvancementFrame"],
+    module = "sand::component",
+    summary = "The visual frame style for an advancement in the advancement screen.",
+    context = "The visual frame style for an advancement in the advancement screen. Determines how the advancement appears to the player when completed.",
+    minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+    use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+    avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+    example = "use sand::component::AdvancementFrame;",
+    variants(Challenge = "Selects the challenge form in this typed Minecraft component schema.", Goal = "Selects the goal form in this typed Minecraft component schema.", Task = "Selects the task form in this typed Minecraft component schema."),
+)]
 /// The visual frame style for an advancement in the advancement screen.
 ///
 /// Determines how the advancement appears to the player when completed.
 pub enum AdvancementFrame {
     #[doc = "Selects the task form in this typed Minecraft component schema."]
-    #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementFrame::Task` for the canonical contract."]
     Task,
     #[doc = "Selects the goal form in this typed Minecraft component schema."]
-    #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementFrame::Goal` for the canonical contract."]
     Goal,
     #[doc = "Selects the challenge form in this typed Minecraft component schema."]
-    #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementFrame::Challenge` for the canonical contract."]
     Challenge,
 }
 
@@ -60,7 +69,18 @@ impl AdvancementFrame {
 
 // ── AdvancementIcon ───────────────────────────────────────────────────────────
 
-#[doc = "**API Contract:** Run `sand api show sand::component::AdvancementIcon` for the canonical contract."]
+#[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::component::AdvancementIcon",
+    aliases = ["sand::prelude::AdvancementIcon"],
+    module = "sand::component",
+    summary = "The icon displayed for an advancement, with optional item components.",
+    context = "The icon displayed for an advancement, with optional item components. The normal constructor accepts only item-registry IDs, so a block tag or another registry kind cannot be passed accidentally:",
+    minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+    use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+    avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+    example = "use sand::component::AdvancementIcon;",
+)]
 /// The icon displayed for an advancement, with optional item components.
 ///
 /// The normal constructor accepts only item-registry IDs, so a block tag or
@@ -79,7 +99,21 @@ pub struct AdvancementIcon {
 
 impl AdvancementIcon {
     /// Creates a new advancement icon through the typed item-ID path.
-    #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementIcon::new` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::AdvancementIcon::new",
+        aliases = ["sand::prelude::AdvancementIcon::new"],
+        module = "sand::component",
+        kind = "method",
+        summary = "Creates a new advancement icon through the typed item-ID path.",
+        context = "Creates a new advancement icon through the typed item-ID path. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(id = "`id` provides the typed resource identifier or location used to create a new advancement icon through the typed item-ID path."),
+        returns = "A newly constructed `AdvancementIcon` configured to create a new advancement icon through the typed item-ID path.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(id: sand::registry::ItemId)  {\n    let advancement_icon = sand::component::AdvancementIcon::new(id);\n}",
+    )]
     pub fn new(id: ItemId) -> Self {
         Self {
             id: id.to_string(),
@@ -88,7 +122,21 @@ impl AdvancementIcon {
     }
 
     /// Creates an advancement icon through the explicit raw compatibility path.
-    #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementIcon::raw` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::AdvancementIcon::raw",
+        aliases = ["sand::prelude::AdvancementIcon::raw"],
+        module = "sand::component",
+        kind = "method",
+        summary = "Creates an advancement icon through the explicit raw compatibility path.",
+        context = "Creates an advancement icon through the explicit raw compatibility path. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(id = "`id` provides the typed resource identifier or location used to create an advancement icon through the explicit raw compatibility path."),
+        returns = "A newly constructed `AdvancementIcon` configured to create an advancement icon through the explicit raw compatibility path.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(id: impl Into < String >)  {\n    let advancement_icon = sand::component::AdvancementIcon::raw(id);\n}",
+    )]
     pub fn raw(id: impl Into<String>) -> Self {
         Self {
             id: id.into(),
@@ -100,7 +148,21 @@ impl AdvancementIcon {
     ///
     /// Use this for icon component overrides (e.g. enchantments, custom model data)
     /// that are not yet modelled by the typed item component API.
-    #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementIcon::components` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::AdvancementIcon::components",
+        aliases = ["sand::prelude::AdvancementIcon::components"],
+        module = "sand::component",
+        kind = "method",
+        summary = "Sets the item components for this icon using an explicit [`RawJson`] escape hatch.",
+        context = "Sets the item components for this icon using an explicit [`RawJson`] escape hatch. Use this for icon component overrides (e.g. enchantments, custom model data) that are not yet modelled by the typed item component API.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Use this for icon component overrides (e.g. enchantments, custom model data) that are not yet modelled by the typed item component API."],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(components = "`components` supplies the components value used to set the item components for this icon using an explicit [`RawJson`] escape hatch."),
+        returns = "The `AdvancementIcon` value with the documented change applied to set the item components for this icon using an explicit [`RawJson`] escape hatch.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(advancement_icon_value: sand::component::AdvancementIcon, components: sand::component::RawJson)  {\n    let updated_advancement_icon = advancement_icon_value.components(components);\n}",
+    )]
     pub fn components(mut self, components: RawJson) -> Self {
         self.components = Some(components);
         self
@@ -158,7 +220,18 @@ impl Serialize for AdvancementText {
     }
 }
 
-#[doc = "**API Contract:** Run `sand api show sand::component::AdvancementDisplay` for the canonical contract."]
+#[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::component::AdvancementDisplay",
+    aliases = ["sand::prelude::AdvancementDisplay"],
+    module = "sand::component",
+    summary = "The display information shown for an advancement in the advancement screen and toast.",
+    context = "The display information shown for an advancement in the advancement screen and toast. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+    minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+    use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+    avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+    example = "use sand::component::AdvancementDisplay;",
+)]
 /// The display information shown for an advancement in the advancement screen and toast.
 pub struct AdvancementDisplay {
     icon: AdvancementIcon,
@@ -184,7 +257,21 @@ impl AdvancementDisplay {
     ///     Text::new("Find a diamond"),
     /// );
     /// ```
-    #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementDisplay::new` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::AdvancementDisplay::new",
+        aliases = ["sand::prelude::AdvancementDisplay::new"],
+        module = "sand::component",
+        kind = "method",
+        summary = "Creates a display using typed Minecraft text components.",
+        context = "Creates a display using typed Minecraft text components. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(icon = "`icon` supplies the icon value used to create a display using typed Minecraft text components.", title = "`title` provides the player-visible text value used to create a display using typed Minecraft text components.", description = "`description` provides the player-visible text value used to create a display using typed Minecraft text components."),
+        returns = "A newly constructed `AdvancementDisplay` configured to create a display using typed Minecraft text components.",
+        example = "use sand::text::Text;\nuse {sand::component::AdvancementDisplay, sand::component::AdvancementIcon, sand::registry::ItemId};\nlet display = AdvancementDisplay::new(\nAdvancementIcon::new(ItemId::minecraft(\"diamond\").unwrap()),\nText::new(\"Diamond Collector\").aqua().bold(true),\nText::new(\"Find a diamond\"),\n);",
+    )]
     pub fn new(icon: AdvancementIcon, title: TextComponent, description: TextComponent) -> Self {
         Self {
             icon,
@@ -199,7 +286,21 @@ impl AdvancementDisplay {
     }
 
     /// Creates a display with explicitly raw Minecraft text JSON.
-    #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementDisplay::raw_text` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::AdvancementDisplay::raw_text",
+        aliases = ["sand::prelude::AdvancementDisplay::raw_text"],
+        module = "sand::component",
+        kind = "method",
+        summary = "Creates a display with explicitly raw Minecraft text JSON.",
+        context = "Creates a display with explicitly raw Minecraft text JSON. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(icon = "`icon` supplies the icon value used to create a display with explicitly raw Minecraft text JSON.", title = "`title` supplies the title value used to create a display with explicitly raw Minecraft text JSON.", description = "`description` supplies the description value used to create a display with explicitly raw Minecraft text JSON."),
+        returns = "A newly constructed `AdvancementDisplay` configured to create a display with explicitly raw Minecraft text JSON.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(icon: sand::component::AdvancementIcon, title: sand::component::RawJson, description: sand::component::RawJson)  {\n    let advancement_display = sand::component::AdvancementDisplay::raw_text(icon, title, description);\n}",
+    )]
     pub fn raw_text(icon: AdvancementIcon, title: RawJson, description: RawJson) -> Self {
         Self {
             icon,
@@ -214,7 +315,21 @@ impl AdvancementDisplay {
     }
 
     /// Replaces the title through the explicit raw text escape hatch.
-    #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementDisplay::raw_title` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::AdvancementDisplay::raw_title",
+        aliases = ["sand::prelude::AdvancementDisplay::raw_title"],
+        module = "sand::component",
+        kind = "method",
+        summary = "Replaces the title through the explicit raw text escape hatch.",
+        context = "Replaces the title through the explicit raw text escape hatch. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(title = "`title` supplies the title value used to replace the title through the explicit raw text escape hatch."),
+        returns = "The `AdvancementDisplay` value with the documented change applied to replace the title through the explicit raw text escape hatch.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(advancement_display_value: sand::component::AdvancementDisplay, title: sand::component::RawJson)  {\n    let updated_advancement_display = advancement_display_value.raw_title(title);\n}",
+    )]
     pub fn raw_title(mut self, title: RawJson) -> Self {
         self.title = AdvancementText::Raw(title);
         self
@@ -224,28 +339,84 @@ impl AdvancementDisplay {
     ///
     /// `description` is an unchecked raw JSON text payload, not a typed
     /// player-visible [`TextComponent`].
-    #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementDisplay::raw_description` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::AdvancementDisplay::raw_description",
+        aliases = ["sand::prelude::AdvancementDisplay::raw_description"],
+        module = "sand::component",
+        kind = "method",
+        summary = "Replaces the description through the explicit raw text escape hatch.",
+        context = "Replaces the description through the explicit raw text escape hatch. `description` is an unchecked raw JSON text payload, not a typed player-visible [`TextComponent`].",
+        minecraft = "`description` is an unchecked raw JSON text payload, not a typed player-visible [`TextComponent`].",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(description = "`description` is an unchecked raw JSON text payload, not a typed player-visible [`TextComponent`]."),
+        returns = "The `AdvancementDisplay` value with the documented change applied to replace the description through the explicit raw text escape hatch.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(advancement_display_value: sand::component::AdvancementDisplay, description: sand::component::RawJson)  {\n    let updated_advancement_display = advancement_display_value.raw_description(description);\n}",
+    )]
     pub fn raw_description(mut self, description: RawJson) -> Self {
         self.description = AdvancementText::Raw(description);
         self
     }
 
     /// Sets the typed background texture for the advancement tab.
-    #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementDisplay::background` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::AdvancementDisplay::background",
+        aliases = ["sand::prelude::AdvancementDisplay::background"],
+        module = "sand::component",
+        kind = "method",
+        summary = "Sets the typed background texture for the advancement tab.",
+        context = "Sets the typed background texture for the advancement tab. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(bg = "`bg` provides the typed Minecraft resource identifier used to set the typed background texture for the advancement tab."),
+        returns = "The `AdvancementDisplay` value with the documented change applied to set the typed background texture for the advancement tab.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(advancement_display_value: sand::component::AdvancementDisplay, bg: sand::ResourceLocation)  {\n    let updated_advancement_display = advancement_display_value.background(bg);\n}",
+    )]
     pub fn background(mut self, bg: ResourceLocation) -> Self {
         self.background = Some(bg.to_string());
         self
     }
 
     /// Sets the background through the explicit raw compatibility path.
-    #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementDisplay::raw_background` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::AdvancementDisplay::raw_background",
+        aliases = ["sand::prelude::AdvancementDisplay::raw_background"],
+        module = "sand::component",
+        kind = "method",
+        summary = "Sets the background through the explicit raw compatibility path.",
+        context = "Sets the background through the explicit raw compatibility path. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(bg = "`bg` supplies the bg value used to set the background through the explicit raw compatibility path."),
+        returns = "The `AdvancementDisplay` value with the documented change applied to set the background through the explicit raw compatibility path.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(advancement_display_value: sand::component::AdvancementDisplay, bg: impl Into < String >)  {\n    let updated_advancement_display = advancement_display_value.raw_background(bg);\n}",
+    )]
     pub fn raw_background(mut self, bg: impl Into<String>) -> Self {
         self.background = Some(bg.into());
         self
     }
 
     /// Sets the frame style for this advancement display.
-    #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementDisplay::frame` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::AdvancementDisplay::frame",
+        aliases = ["sand::prelude::AdvancementDisplay::frame"],
+        module = "sand::component",
+        kind = "method",
+        summary = "Sets the frame style for this advancement display.",
+        context = "Sets the frame style for this advancement display. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(frame = "`frame` supplies the frame value used to set the frame style for this advancement display."),
+        returns = "The `AdvancementDisplay` value with the documented change applied to set the frame style for this advancement display.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(advancement_display_value: sand::component::AdvancementDisplay, frame: sand::component::AdvancementFrame)  {\n    let updated_advancement_display = advancement_display_value.frame(frame);\n}",
+    )]
     pub fn frame(mut self, frame: AdvancementFrame) -> Self {
         self.frame = frame;
         self
@@ -273,24 +444,63 @@ impl AdvancementDisplay {
     /// assert_eq!(json["show_toast"], false);
     /// ```
     ///
-    /// # API Contract
-    ///
-    /// Inspect the complete contract with
-    /// `sand api show sand::component::AdvancementDisplay::show_toast`.
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::AdvancementDisplay::show_toast",
+        aliases = ["sand::prelude::AdvancementDisplay::show_toast"],
+        module = "sand::component",
+        kind = "method",
+        summary = "Sets whether a toast notification is shown when this advancement is completed.",
+        context = "Sets whether a toast notification is shown when this advancement is completed. `v` enables or suppresses only the top-right completion toast; chat announcements and advancement-screen visibility remain independently controlled by their own display settings.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(v = "`v` enables or suppresses only the top-right completion toast; chat announcements and advancement-screen visibility remain independently controlled by their own display settings."),
+        returns = "The `AdvancementDisplay` value with the documented change applied to set whether a toast notification is shown when this advancement is completed.",
+        example = "use sand::text::Text;\nuse {sand::component::AdvancementDisplay, sand::component::AdvancementIcon, sand::registry::ItemId};\nlet display = AdvancementDisplay::new(\nAdvancementIcon::new(ItemId::minecraft(\"diamond\").unwrap()),\nText::new(\"Hidden toast\"),\nText::new(\"This advancement does not pop up a toast\"),\n)\n.show_toast(false);\nlet json = serde_json::to_value(display).unwrap();\nassert_eq!(json[\"show_toast\"], false);",
+    )]
     pub fn show_toast(mut self, v: bool) -> Self {
         self.show_toast = v;
         self
     }
 
     /// Sets whether this advancement completion is announced in chat.
-    #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementDisplay::announce_to_chat` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::AdvancementDisplay::announce_to_chat",
+        aliases = ["sand::prelude::AdvancementDisplay::announce_to_chat"],
+        module = "sand::component",
+        kind = "method",
+        summary = "Sets whether this advancement completion is announced in chat.",
+        context = "Sets whether this advancement completion is announced in chat. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(v = "`v` provides the switch that enables or disables the behavior used to set whether this advancement completion is announced in chat."),
+        returns = "The `AdvancementDisplay` value with the documented change applied to set whether this advancement completion is announced in chat.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(advancement_display_value: sand::component::AdvancementDisplay, v: bool)  {\n    let updated_advancement_display = advancement_display_value.announce_to_chat(v);\n}",
+    )]
     pub fn announce_to_chat(mut self, v: bool) -> Self {
         self.announce_to_chat = v;
         self
     }
 
     /// Sets whether this advancement is hidden until completed.
-    #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementDisplay::hidden` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::AdvancementDisplay::hidden",
+        aliases = ["sand::prelude::AdvancementDisplay::hidden"],
+        module = "sand::component",
+        kind = "method",
+        summary = "Sets whether this advancement is hidden until completed.",
+        context = "Sets whether this advancement is hidden until completed. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(v = "`v` provides the switch that enables or disables the behavior used to set whether this advancement is hidden until completed."),
+        returns = "The `AdvancementDisplay` value with the documented change applied to set whether this advancement is hidden until completed.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(advancement_display_value: sand::component::AdvancementDisplay, v: bool)  {\n    let updated_advancement_display = advancement_display_value.hidden(v);\n}",
+    )]
     pub fn hidden(mut self, v: bool) -> Self {
         self.hidden = v;
         self
@@ -316,7 +526,20 @@ impl Serialize for AdvancementDisplay {
 
 // ── AdvancementTrigger ────────────────────────────────────────────────────────
 
-#[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger` for the canonical contract."]
+#[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::component::AdvancementTrigger",
+    aliases = ["sand::prelude::AdvancementTrigger"],
+    module = "sand::component",
+    summary = "Represents a trigger condition for an advancement criterion.",
+    context = "Represents a trigger condition for an advancement criterion. Each variant uses typed predicate structs from [`sand::predicate`] instead of raw `serde_json::Value`. Prefer the typed associated constructors for variants whose public fields remain strings for source compatibility. The [`Custom`](AdvancementTrigger::Custom) variant is the legacy raw shape; [`AdvancementTrigger::custom_trigger`] is the validated normal path for custom/modded triggers.",
+    minecraft = "Each variant uses typed predicate structs from [`sand::predicate`] instead of raw `serde_json::Value`. Prefer the typed associated constructors for variants whose public fields remain strings for source compatibility. The [`Custom`](AdvancementTrigger::Custom) variant is the legacy raw shape; [`AdvancementTrigger::custom_trigger`] is the validated normal path for custom/modded triggers.",
+    use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+    avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+    example = "use sand::component::AdvancementTrigger;",
+    variants(AllayDropItemOnBlock = "Player causes an allay to drop an item on a block (1.19+).", AvoidVibration = "Player avoids triggering a sculk sensor vibration (1.19+).", BeeNestDestroyed = "Player destroys a bee nest or beehive.", BredAnimals = "Selects the bred animals form in this typed Minecraft component schema.", BrewedPotion = "Player brews a potion.", ChangedDimension = "Selects the changed dimension form in this typed Minecraft component schema.", ChanneledLightning = "A lightning bolt hits an entity the player summoned with a trident.", ConstructBeacon = "Selects the construct beacon form in this typed Minecraft component schema.", ConsumeItem = "Selects the consume item form in this typed Minecraft component schema.", CraftedItem = "Player crafts an item.", CuredZombieVillager = "Selects the cured zombie villager form in this typed Minecraft component schema.", Custom = "Any trigger not covered by the typed variants. Use this to target triggers that were added to or removed from Minecraft after a given version, or for modded triggers.", EffectsChanged = "Selects the effects changed form in this typed Minecraft component schema.", EmptiedBucket = "Player empties a bucket.", EnchantedItem = "Player enchants an item.", EnterBlock = "Selects the enter block form in this typed Minecraft component schema.", EntityHurtPlayer = "Entity deals damage to the player.", EntityKilledPlayer = "Selects the entity killed player form in this typed Minecraft component schema.", FallFromHeight = "Selects the fall from height form in this typed Minecraft component schema.", FilledBucket = "Player fills a bucket.", FishingRodHooked = "Player uses a fishing rod and it hooks something.", HeroOfTheVillage = "Selects the hero of the village form in this typed Minecraft component schema.", Impossible = "Selects the impossible form in this typed Minecraft component schema.", InventoryChanged = "Selects the inventory changed form in this typed Minecraft component schema.", ItemDurabilityChanged = "An item in the player's inventory loses durability.", ItemUsedOnBlock = "Player right-clicks on a block while holding an item (1.19.4+).", KillMobNearSculkCatalyst = "Player kills a mob near a sculk catalyst (1.19+).", KilledByArrow = "Player kills one or more entities with a projectile weapon.", KilledByCrossbow = "Player kills an entity using a crossbow.", LeveledUp = "Selects the leveled up form in this typed Minecraft component schema.", LightningStrike = "A lightning bolt strikes near the player.", Location = "Selects the location form in this typed Minecraft component schema.", NetherTravel = "Selects the nether travel form in this typed Minecraft component schema.", PlacedBlock = "Selects the placed block form in this typed Minecraft component schema.", PlayerGeneratesContainerLoot = "Selects the player generates container loot form in this typed Minecraft component schema.", PlayerHurtEntity = "Player deals damage to an entity.", PlayerInteractedWithEntity = "Selects the player interacted with entity form in this typed Minecraft component schema.", PlayerKilledEntity = "Selects the player killed entity form in this typed Minecraft component schema.", RecipeCrafted = "Player completes a recipe. Vanilla exposes recipe and ingredient predicates, not the crafted result item.", RecipeUnlocked = "Selects the recipe unlocked form in this typed Minecraft component schema.", RideEntityInLava = "Player rides an entity in lava (1.16+).", ShotCrossbow = "Player shoots a crossbow.", SleptInBed = "Selects the slept in bed form in this typed Minecraft component schema.", SlideDownBlock = "Selects the slide down block form in this typed Minecraft component schema.", StartedRiding = "Selects the started riding form in this typed Minecraft component schema.", SummonedEntity = "Selects the summoned entity form in this typed Minecraft component schema.", TamedAnimal = "Selects the tamed animal form in this typed Minecraft component schema.", TamedAnimalInteracted = "Selects the tamed animal interacted form in this typed Minecraft component schema.", TargetHit = "Selects the target hit form in this typed Minecraft component schema.", ThrownItemPickedUp = "A thrown item is picked up by an entity.", ThrownItemPickedUpByEntity = "A thrown item is picked up by a non-player entity.", ThrownItemPickedUpByPlayer = "A thrown item is picked up by the player.", Tick = "Selects the tick form in this typed Minecraft component schema.", UsedEnderEye = "Selects the used ender eye form in this typed Minecraft component schema.", UsedItem = "Selects the used item form in this typed Minecraft component schema.", UsedTotem = "Player activates a totem of undying.", UsingItem = "Selects the using item form in this typed Minecraft component schema.", VillagerTrade = "Selects the villager trade form in this typed Minecraft component schema."),
+    variant_fields(AllayDropItemOnBlock(item = "`item` optionally restricts the dropped item that satisfies this trigger.", location = "`location` optionally narrows the location predicate matched when a player causes an allay to drop an item on a block."), BeeNestDestroyed(block = "`block` optionally narrows the block matched when a player destroys a bee nest or beehive.", item = "`item` optionally narrows the item predicate matched when a player destroys a bee nest or beehive.", num_bees_inside = "`num_bees_inside` optionally provides the num bees inside when a player destroys a bee nest or beehive."), BredAnimals(child = "`child` optionally narrows the child predicate matched when the variant selects the bred animals form in this typed Minecraft component schema.", parent = "`parent` optionally narrows the parent predicate matched when the variant selects the bred animals form in this typed Minecraft component schema.", partner = "`partner` optionally narrows the partner predicate matched when the variant selects the bred animals form in this typed Minecraft component schema."), BrewedPotion(potion = "`potion` optionally provides the potion when a player brews a potion."), ChangedDimension(from = "`from` optionally narrows the source value matched when the variant selects the changed dimension form in this typed Minecraft component schema.", to = "`to` optionally narrows the destination value matched when the variant selects the changed dimension form in this typed Minecraft component schema."), ChanneledLightning(victims = "`victims` optionally narrows the victims predicate matched when a lightning bolt hits an entity the player summoned with a trident."), ConstructBeacon(level = "`level` optionally narrows the level range matched when the variant selects the construct beacon form in this typed Minecraft component schema."), ConsumeItem(item = "`item` optionally narrows the item predicate matched when the variant selects the consume item form in this typed Minecraft component schema."), CraftedItem(item = "`item` optionally narrows the item predicate matched when a player crafts an item."), CuredZombieVillager(villager = "`villager` optionally narrows the villager predicate matched when the variant selects the cured zombie villager form in this typed Minecraft component schema.", zombie = "`zombie` optionally narrows the zombie predicate matched when the variant selects the cured zombie villager form in this typed Minecraft component schema."), Custom(conditions = "Raw JSON conditions block.  Use [`RawJson`] to signal intentional opt-out of the typed predicate API.", trigger = "`trigger` provides the trigger when any trigger not covered by the typed variants. Use this to target triggers that were added to or removed from Minecraft after a given version, or for modded triggers."), EffectsChanged(effects = "`effects` optionally narrows the effects predicate matched when the variant selects the effects changed form in this typed Minecraft component schema.", source = "`source` optionally narrows the source predicate matched when the variant selects the effects changed form in this typed Minecraft component schema."), EmptiedBucket(item = "`item` optionally narrows the item predicate matched when a player empties a bucket.", location = "`location` optionally narrows the location predicate matched when a player empties a bucket."), EnchantedItem(item = "`item` optionally narrows the item predicate matched when a player enchants an item.", levels = "`levels` optionally narrows the level range matched when a player enchants an item."), EnterBlock(block = "`block` optionally narrows the block matched when the variant selects the enter block form in this typed Minecraft component schema.", state = "`state` optionally provides the state when the variant selects the enter block form in this typed Minecraft component schema."), EntityHurtPlayer(damage = "`damage` optionally narrows the damage predicate matched when entity deals damage to the player.", entity = "`entity` optionally narrows the entity predicate matched when entity deals damage to the player."), EntityKilledPlayer(entity = "`entity` optionally narrows the entity predicate matched when the variant selects the entity killed player form in this typed Minecraft component schema.", killing_blow = "`killing_blow` optionally narrows the killing blow predicate matched when the variant selects the entity killed player form in this typed Minecraft component schema."), FallFromHeight(distance = "`distance` optionally narrows the distance predicate matched when the variant selects the fall from height form in this typed Minecraft component schema.", start_position = "`start_position` optionally narrows the start position predicate matched when the variant selects the fall from height form in this typed Minecraft component schema."), FilledBucket(item = "`item` optionally narrows the item predicate matched when a player fills a bucket."), FishingRodHooked(entity = "`entity` optionally narrows the entity predicate matched when a player uses a fishing rod and it hooks something.", item = "`item` optionally narrows the item predicate matched when a player uses a fishing rod and it hooks something.", rod = "`rod` optionally narrows the rod predicate matched when a player uses a fishing rod and it hooks something."), HeroOfTheVillage(location = "`location` optionally narrows the location predicate matched when the variant selects the hero of the village form in this typed Minecraft component schema."), InventoryChanged(items = "`items` provides the items predicate when the variant selects the inventory changed form in this typed Minecraft component schema.", slots = "`slots` optionally narrows the slots predicate matched when the variant selects the inventory changed form in this typed Minecraft component schema."), ItemDurabilityChanged(delta = "`delta` optionally provides the delta when an item in the player's inventory loses durability.", durability = "`durability` optionally provides the durability when an item in the player's inventory loses durability.", item = "`item` optionally narrows the item predicate matched when an item in the player's inventory loses durability."), ItemUsedOnBlock(item = "`item` optionally narrows the item predicate matched when a player right-clicks on a block while holding an item.", location = "`location` optionally narrows the location predicate matched when a player right-clicks on a block while holding an item."), KillMobNearSculkCatalyst(entity = "`entity` optionally narrows the entity predicate matched when a player kills a mob near a sculk catalyst.", killing_blow = "`killing_blow` optionally narrows the killing blow predicate matched when a player kills a mob near a sculk catalyst."), KilledByArrow(fired_from_weapon = "`fired_from_weapon` optionally narrows the fired from weapon predicate matched when a player kills one or more entities with a projectile weapon.", unique_entity_types = "`unique_entity_types` optionally provides the unique entity types when a player kills one or more entities with a projectile weapon.", victims = "`victims` optionally narrows the victims predicate matched when a player kills one or more entities with a projectile weapon."), KilledByCrossbow(unique_entity_types = "`unique_entity_types` optionally provides the unique entity types when a player kills an entity using a crossbow.", victims = "`victims` optionally narrows the victims predicate matched when a player kills an entity using a crossbow."), LeveledUp(level = "`level` optionally narrows the level range matched when the variant selects the leveled up form in this typed Minecraft component schema."), LightningStrike(bystander = "`bystander` optionally narrows the bystander predicate matched when a lightning bolt strikes near the player.", lightning = "`lightning` optionally narrows the lightning predicate matched when a lightning bolt strikes near the player."), Location(location = "`location` optionally narrows the location predicate matched when the variant selects the location form in this typed Minecraft component schema."), NetherTravel(distance = "`distance` optionally narrows the distance predicate matched when the variant selects the nether travel form in this typed Minecraft component schema.", entered = "`entered` optionally narrows the entered predicate matched when the variant selects the nether travel form in this typed Minecraft component schema.", exited = "`exited` optionally narrows the exited predicate matched when the variant selects the nether travel form in this typed Minecraft component schema."), PlacedBlock(block = "`block` optionally narrows the block matched when the variant selects the placed block form in this typed Minecraft component schema.", item = "`item` optionally narrows the item predicate matched when the variant selects the placed block form in this typed Minecraft component schema.", location = "`location` optionally narrows the location predicate matched when the variant selects the placed block form in this typed Minecraft component schema.", state = "`state` optionally provides the state when the variant selects the placed block form in this typed Minecraft component schema."), PlayerGeneratesContainerLoot(loot_table = "`loot_table` optionally provides the loot table when the variant selects the player generates container loot form in this typed Minecraft component schema."), PlayerHurtEntity(damage = "`damage` optionally narrows the damage predicate matched when a player deals damage to an entity.", entity = "`entity` optionally narrows the entity predicate matched when a player deals damage to an entity."), PlayerInteractedWithEntity(entity = "`entity` optionally narrows the entity predicate matched when the variant selects the player interacted with entity form in this typed Minecraft component schema.", item = "`item` optionally narrows the item predicate matched when the variant selects the player interacted with entity form in this typed Minecraft component schema."), PlayerKilledEntity(entity = "`entity` optionally narrows the entity predicate matched when the variant selects the player killed entity form in this typed Minecraft component schema.", killing_blow = "`killing_blow` optionally narrows the killing blow predicate matched when the variant selects the player killed entity form in this typed Minecraft component schema."), RecipeCrafted(ingredients = "`ingredients` provides the ingredients predicate when a player completes a recipe. Vanilla exposes recipe and ingredient predicates, not the crafted result item.", recipe_id = "`recipe_id` provides the recipe id when a player completes a recipe. Vanilla exposes recipe and ingredient predicates, not the crafted result item."), RecipeUnlocked(recipe = "`recipe` provides the recipe when the variant selects the recipe unlocked form in this typed Minecraft component schema."), RideEntityInLava(distance = "`distance` optionally narrows the distance predicate matched when a player rides an entity in lava.", start_position = "`start_position` optionally narrows the start position predicate matched when a player rides an entity in lava."), ShotCrossbow(item = "`item` optionally narrows the item predicate matched when a player shoots a crossbow."), SleptInBed(location = "`location` optionally narrows the location predicate matched when the variant selects the slept in bed form in this typed Minecraft component schema."), SlideDownBlock(block = "`block` optionally narrows the block matched when the variant selects the slide down block form in this typed Minecraft component schema."), SummonedEntity(entity = "`entity` optionally narrows the entity predicate matched when the variant selects the summoned entity form in this typed Minecraft component schema."), TamedAnimal(entity = "`entity` optionally narrows the entity predicate matched when the variant selects the tamed animal form in this typed Minecraft component schema."), TamedAnimalInteracted(entity = "`entity` optionally narrows the entity predicate matched when the variant selects the tamed animal interacted form in this typed Minecraft component schema.", item = "`item` optionally narrows the item predicate matched when the variant selects the tamed animal interacted form in this typed Minecraft component schema."), TargetHit(projectile = "`projectile` optionally narrows the projectile predicate matched when the variant selects the target hit form in this typed Minecraft component schema.", signal_strength = "`signal_strength` optionally provides the signal strength when the variant selects the target hit form in this typed Minecraft component schema."), ThrownItemPickedUp(entity = "`entity` optionally narrows the entity predicate matched when a thrown item is picked up by an entity.", item = "`item` optionally narrows the item predicate matched when a thrown item is picked up by an entity."), ThrownItemPickedUpByEntity(entity = "`entity` optionally narrows the entity predicate matched when a thrown item is picked up by a non-player entity.", item = "`item` optionally narrows the item predicate matched when a thrown item is picked up by a non-player entity."), ThrownItemPickedUpByPlayer(entity = "`entity` optionally narrows the entity predicate matched when a thrown item is picked up by the player.", item = "`item` optionally narrows the item predicate matched when a thrown item is picked up by the player."), UsedEnderEye(distance = "`distance` optionally narrows the distance matched when the variant selects the used ender eye form in this typed Minecraft component schema."), UsedItem(item = "`item` optionally narrows the item predicate matched when the variant selects the used item form in this typed Minecraft component schema."), UsedTotem(item = "`item` optionally narrows the item predicate matched when a player activates a totem of undying."), UsingItem(item = "`item` optionally narrows the item predicate matched when the variant selects the using item form in this typed Minecraft component schema."), VillagerTrade(item = "`item` optionally narrows the item predicate matched when the variant selects the villager trade form in this typed Minecraft component schema.", villager = "`villager` optionally narrows the villager predicate matched when the variant selects the villager trade form in this typed Minecraft component schema.")),
+)]
 /// Represents a trigger condition for an advancement criterion.
 ///
 /// Each variant uses typed predicate structs from [`crate::predicates`]
@@ -340,483 +563,344 @@ impl Serialize for AdvancementDisplay {
 #[allow(clippy::large_enum_variant)]
 pub enum AdvancementTrigger {
     #[doc = "Selects the tick form in this typed Minecraft component schema."]
-    #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::Tick` for the canonical contract."]
     Tick,
     #[doc = "Selects the impossible form in this typed Minecraft component schema."]
-    #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::Impossible` for the canonical contract."]
     Impossible,
 
     // ── Kill / combat ─────────────────────────────────────────────────────────
     #[doc = "Selects the player killed entity form in this typed Minecraft component schema."]
-    #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::PlayerKilledEntity` for the canonical contract."]
     PlayerKilledEntity {
         /// `entity` optionally narrows the entity predicate matched when the variant selects the player killed entity form in this typed Minecraft component schema.
-        #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::PlayerKilledEntity::entity` for the canonical contract."]
         entity: Option<EntityPredicate>,
         /// `killing_blow` optionally narrows the killing blow predicate matched when the variant selects the player killed entity form in this typed Minecraft component schema.
-        #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::PlayerKilledEntity::killing_blow` for the canonical contract."]
         killing_blow: Option<DamagePredicate>,
     },
     #[doc = "Selects the entity killed player form in this typed Minecraft component schema."]
-    #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::EntityKilledPlayer` for the canonical contract."]
     EntityKilledPlayer {
         /// `entity` optionally narrows the entity predicate matched when the variant selects the entity killed player form in this typed Minecraft component schema.
-        #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::EntityKilledPlayer::entity` for the canonical contract."]
         entity: Option<EntityPredicate>,
         /// `killing_blow` optionally narrows the killing blow predicate matched when the variant selects the entity killed player form in this typed Minecraft component schema.
-        #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::EntityKilledPlayer::killing_blow` for the canonical contract."]
         killing_blow: Option<DamagePredicate>,
     },
-    #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::PlayerHurtEntity` for the canonical contract."]
     /// Player deals damage to an entity.
     PlayerHurtEntity {
         /// `entity` optionally narrows the entity predicate matched when a player deals damage to an entity.
-        #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::PlayerHurtEntity::entity` for the canonical contract."]
         entity: Option<EntityPredicate>,
         /// `damage` optionally narrows the damage predicate matched when a player deals damage to an entity.
-        #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::PlayerHurtEntity::damage` for the canonical contract."]
         damage: Option<DamagePredicate>,
     },
-    #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::EntityHurtPlayer` for the canonical contract."]
     /// Entity deals damage to the player.
     EntityHurtPlayer {
         /// `entity` optionally narrows the entity predicate matched when entity deals damage to the player.
-        #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::EntityHurtPlayer::entity` for the canonical contract."]
         entity: Option<EntityPredicate>,
         /// `damage` optionally narrows the damage predicate matched when entity deals damage to the player.
-        #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::EntityHurtPlayer::damage` for the canonical contract."]
         damage: Option<DamagePredicate>,
     },
-    #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::KilledByCrossbow` for the canonical contract."]
     /// Player kills an entity using a crossbow.
     KilledByCrossbow {
         /// `unique_entity_types` optionally provides the unique entity types when a player kills an entity using a crossbow.
-        #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::KilledByCrossbow::unique_entity_types` for the canonical contract."]
         unique_entity_types: Option<IntRange>,
         /// `victims` optionally narrows the victims predicate matched when a player kills an entity using a crossbow.
-        #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::KilledByCrossbow::victims` for the canonical contract."]
         victims: Option<Vec<EntityPredicate>>,
     },
-    #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::KilledByArrow` for the canonical contract."]
     /// Player kills one or more entities with a projectile weapon.
     KilledByArrow {
         /// `unique_entity_types` optionally provides the unique entity types when a player kills one or more entities with a projectile weapon.
-        #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::KilledByArrow::unique_entity_types` for the canonical contract."]
         unique_entity_types: Option<IntRange>,
         /// `fired_from_weapon` optionally narrows the fired from weapon predicate matched when a player kills one or more entities with a projectile weapon.
-        #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::KilledByArrow::fired_from_weapon` for the canonical contract."]
         fired_from_weapon: Option<ItemPredicate>,
         /// `victims` optionally narrows the victims predicate matched when a player kills one or more entities with a projectile weapon.
-        #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::KilledByArrow::victims` for the canonical contract."]
         victims: Option<Vec<EntityPredicate>>,
     },
-    #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::ChanneledLightning` for the canonical contract."]
     /// A lightning bolt hits an entity the player summoned with a trident.
     ChanneledLightning {
         /// `victims` optionally narrows the victims predicate matched when a lightning bolt hits an entity the player summoned with a trident.
-        #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::ChanneledLightning::victims` for the canonical contract."]
         victims: Option<Vec<EntityPredicate>>,
     },
-    #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::LightningStrike` for the canonical contract."]
     /// A lightning bolt strikes near the player.
     LightningStrike {
         /// `lightning` optionally narrows the lightning predicate matched when a lightning bolt strikes near the player.
-        #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::LightningStrike::lightning` for the canonical contract."]
         lightning: Option<EntityPredicate>,
         /// `bystander` optionally narrows the bystander predicate matched when a lightning bolt strikes near the player.
-        #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::LightningStrike::bystander` for the canonical contract."]
         bystander: Option<EntityPredicate>,
     },
 
     // ── Inventory / items ─────────────────────────────────────────────────────
     #[doc = "Selects the inventory changed form in this typed Minecraft component schema."]
-    #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::InventoryChanged` for the canonical contract."]
     InventoryChanged {
         /// `slots` optionally narrows the slots predicate matched when the variant selects the inventory changed form in this typed Minecraft component schema.
-        #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::InventoryChanged::slots` for the canonical contract."]
         slots: Option<InventorySlotsPredicate>,
         /// `items` provides the items predicate when the variant selects the inventory changed form in this typed Minecraft component schema.
-        #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::InventoryChanged::items` for the canonical contract."]
         items: Vec<ItemPredicate>,
     },
     #[doc = "Selects the recipe unlocked form in this typed Minecraft component schema."]
-    #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::RecipeUnlocked` for the canonical contract."]
     RecipeUnlocked {
         /// `recipe` provides the recipe when the variant selects the recipe unlocked form in this typed Minecraft component schema.
-        #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::RecipeUnlocked::recipe` for the canonical contract."]
         recipe: String,
     },
     #[doc = "Selects the used item form in this typed Minecraft component schema."]
-    #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::UsedItem` for the canonical contract."]
     UsedItem {
         /// `item` optionally narrows the item predicate matched when the variant selects the used item form in this typed Minecraft component schema.
-        #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::UsedItem::item` for the canonical contract."]
         item: Option<ItemPredicate>,
     },
     #[doc = "Selects the consume item form in this typed Minecraft component schema."]
-    #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::ConsumeItem` for the canonical contract."]
     ConsumeItem {
         /// `item` optionally narrows the item predicate matched when the variant selects the consume item form in this typed Minecraft component schema.
-        #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::ConsumeItem::item` for the canonical contract."]
         item: Option<ItemPredicate>,
     },
     #[doc = "Selects the using item form in this typed Minecraft component schema."]
-    #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::UsingItem` for the canonical contract."]
     UsingItem {
         /// `item` optionally narrows the item predicate matched when the variant selects the using item form in this typed Minecraft component schema.
-        #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::UsingItem::item` for the canonical contract."]
         item: Option<ItemPredicate>,
     },
-    #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::CraftedItem` for the canonical contract."]
     /// Player crafts an item.
     CraftedItem {
         /// `item` optionally narrows the item predicate matched when a player crafts an item.
-        #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::CraftedItem::item` for the canonical contract."]
         item: Option<ItemPredicate>,
     },
-    #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::RecipeCrafted` for the canonical contract."]
     /// Player completes a recipe. Vanilla exposes recipe and ingredient
     /// predicates, not the crafted result item.
     RecipeCrafted {
         /// `recipe_id` provides the recipe id when a player completes a recipe. Vanilla exposes recipe and ingredient predicates, not the crafted result item.
-        #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::RecipeCrafted::recipe_id` for the canonical contract."]
         recipe_id: String,
         /// `ingredients` provides the ingredients predicate when a player completes a recipe. Vanilla exposes recipe and ingredient predicates, not the crafted result item.
-        #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::RecipeCrafted::ingredients` for the canonical contract."]
         ingredients: Vec<ItemPredicate>,
     },
-    #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::FilledBucket` for the canonical contract."]
     /// Player fills a bucket.
     FilledBucket {
         /// `item` optionally narrows the item predicate matched when a player fills a bucket.
-        #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::FilledBucket::item` for the canonical contract."]
         item: Option<ItemPredicate>,
     },
-    #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::EmptiedBucket` for the canonical contract."]
     /// Player empties a bucket.
     EmptiedBucket {
         /// `item` optionally narrows the item predicate matched when a player empties a bucket.
-        #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::EmptiedBucket::item` for the canonical contract."]
         item: Option<ItemPredicate>,
         /// `location` optionally narrows the location predicate matched when a player empties a bucket.
-        #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::EmptiedBucket::location` for the canonical contract."]
         location: Option<LocationPredicate>,
     },
-    #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::ShotCrossbow` for the canonical contract."]
     /// Player shoots a crossbow.
     ShotCrossbow {
         /// `item` optionally narrows the item predicate matched when a player shoots a crossbow.
-        #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::ShotCrossbow::item` for the canonical contract."]
         item: Option<ItemPredicate>,
     },
-    #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::UsedTotem` for the canonical contract."]
     /// Player activates a totem of undying.
     UsedTotem {
         /// `item` optionally narrows the item predicate matched when a player activates a totem of undying.
-        #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::UsedTotem::item` for the canonical contract."]
         item: Option<ItemPredicate>,
     },
-    #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::ThrownItemPickedUp` for the canonical contract."]
     /// A thrown item is picked up by an entity.
     ThrownItemPickedUp {
         /// `item` optionally narrows the item predicate matched when a thrown item is picked up by an entity.
-        #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::ThrownItemPickedUp::item` for the canonical contract."]
         item: Option<ItemPredicate>,
         /// `entity` optionally narrows the entity predicate matched when a thrown item is picked up by an entity.
-        #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::ThrownItemPickedUp::entity` for the canonical contract."]
         entity: Option<EntityPredicate>,
     },
-    #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::ThrownItemPickedUpByEntity` for the canonical contract."]
     /// A thrown item is picked up by a non-player entity.
     ThrownItemPickedUpByEntity {
         /// `item` optionally narrows the item predicate matched when a thrown item is picked up by a non-player entity.
-        #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::ThrownItemPickedUpByEntity::item` for the canonical contract."]
         item: Option<ItemPredicate>,
         /// `entity` optionally narrows the entity predicate matched when a thrown item is picked up by a non-player entity.
-        #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::ThrownItemPickedUpByEntity::entity` for the canonical contract."]
         entity: Option<EntityPredicate>,
     },
-    #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::ThrownItemPickedUpByPlayer` for the canonical contract."]
     /// A thrown item is picked up by the player.
     ThrownItemPickedUpByPlayer {
         /// `item` optionally narrows the item predicate matched when a thrown item is picked up by the player.
-        #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::ThrownItemPickedUpByPlayer::item` for the canonical contract."]
         item: Option<ItemPredicate>,
         /// `entity` optionally narrows the entity predicate matched when a thrown item is picked up by the player.
-        #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::ThrownItemPickedUpByPlayer::entity` for the canonical contract."]
         entity: Option<EntityPredicate>,
     },
-    #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::ItemDurabilityChanged` for the canonical contract."]
     /// An item in the player's inventory loses durability.
     ItemDurabilityChanged {
         /// `item` optionally narrows the item predicate matched when an item in the player's inventory loses durability.
-        #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::ItemDurabilityChanged::item` for the canonical contract."]
         item: Option<ItemPredicate>,
         /// `delta` optionally provides the delta when an item in the player's inventory loses durability.
-        #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::ItemDurabilityChanged::delta` for the canonical contract."]
         delta: Option<IntRange>,
         /// `durability` optionally provides the durability when an item in the player's inventory loses durability.
-        #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::ItemDurabilityChanged::durability` for the canonical contract."]
         durability: Option<IntRange>,
     },
-    #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::BrewedPotion` for the canonical contract."]
     /// Player brews a potion.
     BrewedPotion {
         /// `potion` optionally provides the potion when a player brews a potion.
-        #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::BrewedPotion::potion` for the canonical contract."]
         potion: Option<String>,
     },
-    #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::BeeNestDestroyed` for the canonical contract."]
     /// Player destroys a bee nest or beehive.
     BeeNestDestroyed {
         /// `block` optionally narrows the block matched when a player destroys a bee nest or beehive.
-        #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::BeeNestDestroyed::block` for the canonical contract."]
         block: Option<String>,
         /// `item` optionally narrows the item predicate matched when a player destroys a bee nest or beehive.
-        #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::BeeNestDestroyed::item` for the canonical contract."]
         item: Option<ItemPredicate>,
         /// `num_bees_inside` optionally provides the num bees inside when a player destroys a bee nest or beehive.
-        #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::BeeNestDestroyed::num_bees_inside` for the canonical contract."]
         num_bees_inside: Option<IntRange>,
     },
 
-    #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::EnchantedItem` for the canonical contract."]
     /// Player enchants an item.
     EnchantedItem {
         /// `item` optionally narrows the item predicate matched when a player enchants an item.
-        #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::EnchantedItem::item` for the canonical contract."]
         item: Option<ItemPredicate>,
         /// `levels` optionally narrows the level range matched when a player enchants an item.
-        #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::EnchantedItem::levels` for the canonical contract."]
         levels: Option<IntRange>,
     },
 
     // ── Entities / interactions ───────────────────────────────────────────────
     #[doc = "Selects the bred animals form in this typed Minecraft component schema."]
-    #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::BredAnimals` for the canonical contract."]
     BredAnimals {
         /// `parent` optionally narrows the parent predicate matched when the variant selects the bred animals form in this typed Minecraft component schema.
-        #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::BredAnimals::parent` for the canonical contract."]
         parent: Option<EntityPredicate>,
         /// `partner` optionally narrows the partner predicate matched when the variant selects the bred animals form in this typed Minecraft component schema.
-        #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::BredAnimals::partner` for the canonical contract."]
         partner: Option<EntityPredicate>,
         /// `child` optionally narrows the child predicate matched when the variant selects the bred animals form in this typed Minecraft component schema.
-        #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::BredAnimals::child` for the canonical contract."]
         child: Option<EntityPredicate>,
     },
     #[doc = "Selects the tamed animal form in this typed Minecraft component schema."]
-    #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::TamedAnimal` for the canonical contract."]
     TamedAnimal {
         /// `entity` optionally narrows the entity predicate matched when the variant selects the tamed animal form in this typed Minecraft component schema.
-        #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::TamedAnimal::entity` for the canonical contract."]
         entity: Option<EntityPredicate>,
     },
     #[doc = "Selects the summoned entity form in this typed Minecraft component schema."]
-    #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::SummonedEntity` for the canonical contract."]
     SummonedEntity {
         /// `entity` optionally narrows the entity predicate matched when the variant selects the summoned entity form in this typed Minecraft component schema.
-        #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::SummonedEntity::entity` for the canonical contract."]
         entity: Option<EntityPredicate>,
     },
     #[doc = "Selects the player interacted with entity form in this typed Minecraft component schema."]
-    #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::PlayerInteractedWithEntity` for the canonical contract."]
     PlayerInteractedWithEntity {
         /// `item` optionally narrows the item predicate matched when the variant selects the player interacted with entity form in this typed Minecraft component schema.
-        #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::PlayerInteractedWithEntity::item` for the canonical contract."]
         item: Option<ItemPredicate>,
         /// `entity` optionally narrows the entity predicate matched when the variant selects the player interacted with entity form in this typed Minecraft component schema.
-        #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::PlayerInteractedWithEntity::entity` for the canonical contract."]
         entity: Option<EntityPredicate>,
     },
-    #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::FishingRodHooked` for the canonical contract."]
     /// Player uses a fishing rod and it hooks something.
     FishingRodHooked {
         /// `rod` optionally narrows the rod predicate matched when a player uses a fishing rod and it hooks something.
-        #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::FishingRodHooked::rod` for the canonical contract."]
         rod: Option<ItemPredicate>,
         /// `entity` optionally narrows the entity predicate matched when a player uses a fishing rod and it hooks something.
-        #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::FishingRodHooked::entity` for the canonical contract."]
         entity: Option<EntityPredicate>,
         /// `item` optionally narrows the item predicate matched when a player uses a fishing rod and it hooks something.
-        #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::FishingRodHooked::item` for the canonical contract."]
         item: Option<ItemPredicate>,
     },
     #[doc = "Selects the tamed animal interacted form in this typed Minecraft component schema."]
-    #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::TamedAnimalInteracted` for the canonical contract."]
     TamedAnimalInteracted {
         /// `entity` optionally narrows the entity predicate matched when the variant selects the tamed animal interacted form in this typed Minecraft component schema.
-        #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::TamedAnimalInteracted::entity` for the canonical contract."]
         entity: Option<EntityPredicate>,
         /// `item` optionally narrows the item predicate matched when the variant selects the tamed animal interacted form in this typed Minecraft component schema.
-        #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::TamedAnimalInteracted::item` for the canonical contract."]
         item: Option<ItemPredicate>,
     },
     #[doc = "Selects the villager trade form in this typed Minecraft component schema."]
-    #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::VillagerTrade` for the canonical contract."]
     VillagerTrade {
         /// `item` optionally narrows the item predicate matched when the variant selects the villager trade form in this typed Minecraft component schema.
-        #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::VillagerTrade::item` for the canonical contract."]
         item: Option<ItemPredicate>,
         /// `villager` optionally narrows the villager predicate matched when the variant selects the villager trade form in this typed Minecraft component schema.
-        #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::VillagerTrade::villager` for the canonical contract."]
         villager: Option<EntityPredicate>,
     },
     #[doc = "Selects the cured zombie villager form in this typed Minecraft component schema."]
-    #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::CuredZombieVillager` for the canonical contract."]
     CuredZombieVillager {
         /// `villager` optionally narrows the villager predicate matched when the variant selects the cured zombie villager form in this typed Minecraft component schema.
-        #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::CuredZombieVillager::villager` for the canonical contract."]
         villager: Option<EntityPredicate>,
         /// `zombie` optionally narrows the zombie predicate matched when the variant selects the cured zombie villager form in this typed Minecraft component schema.
-        #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::CuredZombieVillager::zombie` for the canonical contract."]
         zombie: Option<EntityPredicate>,
     },
 
     // ── Location / world ──────────────────────────────────────────────────────
     #[doc = "Selects the placed block form in this typed Minecraft component schema."]
-    #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::PlacedBlock` for the canonical contract."]
     PlacedBlock {
         /// `block` optionally narrows the block matched when the variant selects the placed block form in this typed Minecraft component schema.
-        #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::PlacedBlock::block` for the canonical contract."]
         block: Option<String>,
         /// `item` optionally narrows the item predicate matched when the variant selects the placed block form in this typed Minecraft component schema.
-        #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::PlacedBlock::item` for the canonical contract."]
         item: Option<ItemPredicate>,
         /// `location` optionally narrows the location predicate matched when the variant selects the placed block form in this typed Minecraft component schema.
-        #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::PlacedBlock::location` for the canonical contract."]
         location: Option<LocationPredicate>,
         /// `state` optionally provides the state when the variant selects the placed block form in this typed Minecraft component schema.
-        #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::PlacedBlock::state` for the canonical contract."]
         state: Option<HashMap<String, String>>,
     },
     #[doc = "Selects the enter block form in this typed Minecraft component schema."]
-    #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::EnterBlock` for the canonical contract."]
     EnterBlock {
         /// `block` optionally narrows the block matched when the variant selects the enter block form in this typed Minecraft component schema.
-        #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::EnterBlock::block` for the canonical contract."]
         block: Option<String>,
         /// `state` optionally provides the state when the variant selects the enter block form in this typed Minecraft component schema.
-        #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::EnterBlock::state` for the canonical contract."]
         state: Option<HashMap<String, String>>,
     },
     #[doc = "Selects the location form in this typed Minecraft component schema."]
-    #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::Location` for the canonical contract."]
     Location {
         /// `location` optionally narrows the location predicate matched when the variant selects the location form in this typed Minecraft component schema.
-        #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::Location::location` for the canonical contract."]
         location: Option<LocationPredicate>,
     },
     #[doc = "Selects the nether travel form in this typed Minecraft component schema."]
-    #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::NetherTravel` for the canonical contract."]
     NetherTravel {
         /// `entered` optionally narrows the entered predicate matched when the variant selects the nether travel form in this typed Minecraft component schema.
-        #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::NetherTravel::entered` for the canonical contract."]
         entered: Option<LocationPredicate>,
         /// `exited` optionally narrows the exited predicate matched when the variant selects the nether travel form in this typed Minecraft component schema.
-        #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::NetherTravel::exited` for the canonical contract."]
         exited: Option<LocationPredicate>,
         /// `distance` optionally narrows the distance predicate matched when the variant selects the nether travel form in this typed Minecraft component schema.
-        #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::NetherTravel::distance` for the canonical contract."]
         distance: Option<DistancePredicate>,
     },
     #[doc = "Selects the changed dimension form in this typed Minecraft component schema."]
-    #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::ChangedDimension` for the canonical contract."]
     ChangedDimension {
         /// `from` optionally narrows the source value matched when the variant selects the changed dimension form in this typed Minecraft component schema.
-        #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::ChangedDimension::from` for the canonical contract."]
         from: Option<String>,
         /// `to` optionally narrows the destination value matched when the variant selects the changed dimension form in this typed Minecraft component schema.
-        #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::ChangedDimension::to` for the canonical contract."]
         to: Option<String>,
     },
     #[doc = "Selects the slept in bed form in this typed Minecraft component schema."]
-    #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::SleptInBed` for the canonical contract."]
     SleptInBed {
         /// `location` optionally narrows the location predicate matched when the variant selects the slept in bed form in this typed Minecraft component schema.
-        #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::SleptInBed::location` for the canonical contract."]
         location: Option<LocationPredicate>,
     },
     #[doc = "Selects the fall from height form in this typed Minecraft component schema."]
-    #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::FallFromHeight` for the canonical contract."]
     FallFromHeight {
         /// `distance` optionally narrows the distance predicate matched when the variant selects the fall from height form in this typed Minecraft component schema.
-        #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::FallFromHeight::distance` for the canonical contract."]
         distance: Option<DistancePredicate>,
         /// `start_position` optionally narrows the start position predicate matched when the variant selects the fall from height form in this typed Minecraft component schema.
-        #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::FallFromHeight::start_position` for the canonical contract."]
         start_position: Option<LocationPredicate>,
     },
     #[doc = "Selects the slide down block form in this typed Minecraft component schema."]
-    #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::SlideDownBlock` for the canonical contract."]
     SlideDownBlock {
         /// `block` optionally narrows the block matched when the variant selects the slide down block form in this typed Minecraft component schema.
-        #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::SlideDownBlock::block` for the canonical contract."]
         block: Option<String>,
     },
     #[doc = "Selects the target hit form in this typed Minecraft component schema."]
-    #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::TargetHit` for the canonical contract."]
     TargetHit {
         /// `signal_strength` optionally provides the signal strength when the variant selects the target hit form in this typed Minecraft component schema.
-        #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::TargetHit::signal_strength` for the canonical contract."]
         signal_strength: Option<IntRange>,
         /// `projectile` optionally narrows the projectile predicate matched when the variant selects the target hit form in this typed Minecraft component schema.
-        #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::TargetHit::projectile` for the canonical contract."]
         projectile: Option<EntityPredicate>,
     },
     #[doc = "Selects the hero of the village form in this typed Minecraft component schema."]
-    #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::HeroOfTheVillage` for the canonical contract."]
     HeroOfTheVillage {
         /// `location` optionally narrows the location predicate matched when the variant selects the hero of the village form in this typed Minecraft component schema.
-        #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::HeroOfTheVillage::location` for the canonical contract."]
         location: Option<LocationPredicate>,
     },
     #[doc = "Selects the player generates container loot form in this typed Minecraft component schema."]
-    #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::PlayerGeneratesContainerLoot` for the canonical contract."]
     PlayerGeneratesContainerLoot {
         /// `loot_table` optionally provides the loot table when the variant selects the player generates container loot form in this typed Minecraft component schema.
-        #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::PlayerGeneratesContainerLoot::loot_table` for the canonical contract."]
         loot_table: Option<String>,
     },
 
     // ── Player state ──────────────────────────────────────────────────────────
     #[doc = "Selects the leveled up form in this typed Minecraft component schema."]
-    #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::LeveledUp` for the canonical contract."]
     LeveledUp {
         /// `level` optionally narrows the level range matched when the variant selects the leveled up form in this typed Minecraft component schema.
-        #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::LeveledUp::level` for the canonical contract."]
         level: Option<IntRange>,
     },
     #[doc = "Selects the effects changed form in this typed Minecraft component schema."]
-    #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::EffectsChanged` for the canonical contract."]
     EffectsChanged {
         /// `effects` optionally narrows the effects predicate matched when the variant selects the effects changed form in this typed Minecraft component schema.
-        #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::EffectsChanged::effects` for the canonical contract."]
         effects: Option<HashMap<String, EffectPredicate>>,
         /// `source` optionally narrows the source predicate matched when the variant selects the effects changed form in this typed Minecraft component schema.
-        #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::EffectsChanged::source` for the canonical contract."]
         source: Option<EntityPredicate>,
     },
     #[doc = "Selects the started riding form in this typed Minecraft component schema."]
-    #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::StartedRiding` for the canonical contract."]
     StartedRiding,
     #[doc = "Selects the construct beacon form in this typed Minecraft component schema."]
-    #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::ConstructBeacon` for the canonical contract."]
     ConstructBeacon {
         /// `level` optionally narrows the level range matched when the variant selects the construct beacon form in this typed Minecraft component schema.
-        #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::ConstructBeacon::level` for the canonical contract."]
         level: Option<IntRange>,
     },
     #[doc = "Selects the used ender eye form in this typed Minecraft component schema."]
-    #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::UsedEnderEye` for the canonical contract."]
     UsedEnderEye {
         /// `distance` optionally narrows the distance matched when the variant selects the used ender eye form in this typed Minecraft component schema.
-        #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::UsedEnderEye::distance` for the canonical contract."]
         distance: Option<FloatRange>,
     },
 
     // ── 1.19+ triggers ───────────────────────────────────────────────────────
-    #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::AllayDropItemOnBlock` for the canonical contract."]
     /// Player causes an allay to drop an item on a block (1.19+).
     AllayDropItemOnBlock {
         /// `item` optionally restricts the dropped item that satisfies this trigger.
@@ -829,50 +913,37 @@ pub enum AdvancementTrigger {
         ///     location: None,
         /// };
         /// ```
-        #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::AllayDropItemOnBlock::item` for the canonical contract."]
         item: Option<ItemPredicate>,
         /// `location` optionally narrows the location predicate matched when a player causes an allay to drop an item on a block.
-        #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::AllayDropItemOnBlock::location` for the canonical contract."]
         location: Option<LocationPredicate>,
     },
-    #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::AvoidVibration` for the canonical contract."]
     /// Player avoids triggering a sculk sensor vibration (1.19+).
     AvoidVibration,
-    #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::KillMobNearSculkCatalyst` for the canonical contract."]
     /// Player kills a mob near a sculk catalyst (1.19+).
     KillMobNearSculkCatalyst {
         /// `entity` optionally narrows the entity predicate matched when a player kills a mob near a sculk catalyst.
-        #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::KillMobNearSculkCatalyst::entity` for the canonical contract."]
         entity: Option<EntityPredicate>,
         /// `killing_blow` optionally narrows the killing blow predicate matched when a player kills a mob near a sculk catalyst.
-        #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::KillMobNearSculkCatalyst::killing_blow` for the canonical contract."]
         killing_blow: Option<DamagePredicate>,
     },
-    #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::ItemUsedOnBlock` for the canonical contract."]
     /// Player right-clicks on a block while holding an item (1.19.4+).
     ItemUsedOnBlock {
         /// `item` optionally narrows the item predicate matched when a player right-clicks on a block while holding an item.
-        #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::ItemUsedOnBlock::item` for the canonical contract."]
         item: Option<ItemPredicate>,
         /// `location` optionally narrows the location predicate matched when a player right-clicks on a block while holding an item.
-        #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::ItemUsedOnBlock::location` for the canonical contract."]
         location: Option<LocationPredicate>,
     },
 
     // ── 1.16+ triggers ───────────────────────────────────────────────────────
-    #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::RideEntityInLava` for the canonical contract."]
     /// Player rides an entity in lava (1.16+).
     RideEntityInLava {
         /// `start_position` optionally narrows the start position predicate matched when a player rides an entity in lava.
-        #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::RideEntityInLava::start_position` for the canonical contract."]
         start_position: Option<LocationPredicate>,
         /// `distance` optionally narrows the distance predicate matched when a player rides an entity in lava.
-        #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::RideEntityInLava::distance` for the canonical contract."]
         distance: Option<DistancePredicate>,
     },
 
     // ── Custom (escape hatch) ─────────────────────────────────────────────────
-    #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::Custom` for the canonical contract."]
     /// Any trigger not covered by the typed variants.
     ///
     /// Use this to target triggers that were added to or removed from Minecraft
@@ -887,9 +958,7 @@ pub enum AdvancementTrigger {
     /// ```
     Custom {
         /// `trigger` provides the trigger when any trigger not covered by the typed variants. Use this to target triggers that were added to or removed from Minecraft after a given version, or for modded triggers.
-        #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::Custom::trigger` for the canonical contract."]
         trigger: String,
-        #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::Custom::conditions` for the canonical contract."]
         /// Raw JSON conditions block.  Use [`RawJson`] to signal intentional
         /// opt-out of the typed predicate API.
         conditions: Option<RawJson>,
@@ -902,19 +971,27 @@ pub enum AdvancementTrigger {
 ///
 /// Controls how many inventory slots must be occupied, full, or empty.
 /// This is a *count* predicate, not a slot-position selector.
-#[doc = "**API Contract:** Run `sand api show sand::component::InventorySlotsPredicate` for the canonical contract."]
+#[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::component::InventorySlotsPredicate",
+    module = "sand::component",
+    summary = "Slot-count conditions for [`AdvancementTrigger::InventoryChanged`].",
+    context = "Slot-count conditions for [`AdvancementTrigger::InventoryChanged`]. Controls how many inventory slots must be occupied, full, or empty. This is a *count* predicate, not a slot-position selector.",
+    minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+    use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+    avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+    example = "use sand::component::InventorySlotsPredicate;",
+    fields(empty = "Limits how many inventory slots contain no items.", full = "Limits how many inventory slots contain a full stack.", occupied = "Limits how many inventory slots contain any item stack."),
+)]
 #[derive(Debug, Clone, Default, Serialize)]
 pub struct InventorySlotsPredicate {
     /// Limits how many inventory slots contain any item stack.
-    #[doc = "**API Contract:** Run `sand api show sand::component::InventorySlotsPredicate::occupied` for the canonical contract."]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub occupied: Option<IntRange>,
     /// Limits how many inventory slots contain a full stack.
-    #[doc = "**API Contract:** Run `sand api show sand::component::InventorySlotsPredicate::full` for the canonical contract."]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub full: Option<IntRange>,
     /// Limits how many inventory slots contain no items.
-    #[doc = "**API Contract:** Run `sand api show sand::component::InventorySlotsPredicate::empty` for the canonical contract."]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub empty: Option<IntRange>,
 }
@@ -934,30 +1011,94 @@ impl InventorySlotsPredicate {
     }
 
     /// Creates a slot-count predicate with no occupied, full, or empty limit.
-    #[doc = "**API Contract:** Run `sand api show sand::component::InventorySlotsPredicate::new` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::InventorySlotsPredicate::new",
+        module = "sand::component",
+        kind = "method",
+        summary = "Creates a slot-count predicate with no occupied, full, or empty limit.",
+        context = "Creates a slot-count predicate with no occupied, full, or empty limit. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        returns = "A newly constructed `InventorySlotsPredicate` configured to create a slot-count predicate with no occupied, full, or empty limit.",
+        example = "use sand::prelude::*;\n\nfn demonstrate()  {\n    let inventory_slots_predicate = sand::component::InventorySlotsPredicate::new();\n}",
+    )]
     pub fn new() -> Self {
         Self::default()
     }
     /// Requires at least `n` inventory slots to contain an item stack.
-    #[doc = "**API Contract:** Run `sand api show sand::component::InventorySlotsPredicate::occupied_min` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::InventorySlotsPredicate::occupied_min",
+        module = "sand::component",
+        kind = "method",
+        summary = "Requires at least `n` inventory slots to contain an item stack.",
+        context = "Requires at least `n` inventory slots to contain an item stack. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(n = "Requires at least `n` inventory slots to contain an item stack."),
+        returns = "The `InventorySlotsPredicate` value with the documented change applied to require at least `n` inventory slots to contain an item stack.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(inventory_slots_predicate_value: sand::component::InventorySlotsPredicate, n: i64)  {\n    let updated_inventory_slots_predicate = inventory_slots_predicate_value.occupied_min(n);\n}",
+    )]
     pub fn occupied_min(mut self, n: i64) -> Self {
         self.occupied = Some(IntRange::at_least(n));
         self
     }
     /// Allows at most `n` inventory slots to contain an item stack.
-    #[doc = "**API Contract:** Run `sand api show sand::component::InventorySlotsPredicate::occupied_max` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::InventorySlotsPredicate::occupied_max",
+        module = "sand::component",
+        kind = "method",
+        summary = "Allows at most `n` inventory slots to contain an item stack.",
+        context = "Allows at most `n` inventory slots to contain an item stack. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(n = "Allows at most `n` inventory slots to contain an item stack."),
+        returns = "The `InventorySlotsPredicate` value with the documented change applied to allow at most `n` inventory slots to contain an item stack.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(inventory_slots_predicate_value: sand::component::InventorySlotsPredicate, n: i64)  {\n    let updated_inventory_slots_predicate = inventory_slots_predicate_value.occupied_max(n);\n}",
+    )]
     pub fn occupied_max(mut self, n: i64) -> Self {
         self.occupied = Some(IntRange::at_most(n));
         self
     }
     /// Requires at least `n` inventory slots to be empty.
-    #[doc = "**API Contract:** Run `sand api show sand::component::InventorySlotsPredicate::empty_min` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::InventorySlotsPredicate::empty_min",
+        module = "sand::component",
+        kind = "method",
+        summary = "Requires at least `n` inventory slots to be empty.",
+        context = "Requires at least `n` inventory slots to be empty. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(n = "Requires at least `n` inventory slots to be empty."),
+        returns = "The `InventorySlotsPredicate` value with the documented change applied to require at least `n` inventory slots to be empty.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(inventory_slots_predicate_value: sand::component::InventorySlotsPredicate, n: i64)  {\n    let updated_inventory_slots_predicate = inventory_slots_predicate_value.empty_min(n);\n}",
+    )]
     pub fn empty_min(mut self, n: i64) -> Self {
         self.empty = Some(IntRange::at_least(n));
         self
     }
     /// Requires at least `n` inventory slots to contain a full stack.
-    #[doc = "**API Contract:** Run `sand api show sand::component::InventorySlotsPredicate::full_min` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::InventorySlotsPredicate::full_min",
+        module = "sand::component",
+        kind = "method",
+        summary = "Requires at least `n` inventory slots to contain a full stack.",
+        context = "Requires at least `n` inventory slots to contain a full stack. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(n = "Requires at least `n` inventory slots to contain a full stack."),
+        returns = "The `InventorySlotsPredicate` value with the documented change applied to require at least `n` inventory slots to contain a full stack.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(inventory_slots_predicate_value: sand::component::InventorySlotsPredicate, n: i64)  {\n    let updated_inventory_slots_predicate = inventory_slots_predicate_value.full_min(n);\n}",
+    )]
     pub fn full_min(mut self, n: i64) -> Self {
         self.full = Some(IntRange::at_least(n));
         self
@@ -968,7 +1109,21 @@ impl InventorySlotsPredicate {
 
 impl AdvancementTrigger {
     /// Create a recipe-unlocked trigger from a validated recipe reference.
-    #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::recipe_unlocked` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::AdvancementTrigger::recipe_unlocked",
+        aliases = ["sand::prelude::AdvancementTrigger::recipe_unlocked"],
+        module = "sand::component",
+        kind = "method",
+        summary = "Create a recipe-unlocked trigger from a validated recipe reference.",
+        context = "Create a recipe-unlocked trigger from a validated recipe reference. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(recipe = "`recipe` provides the typed Minecraft resource identifier used to create a recipe-unlocked trigger from a validated recipe reference."),
+        returns = "A newly constructed `AdvancementTrigger` configured to create a recipe-unlocked trigger from a validated recipe reference.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(recipe: sand::ResourceLocation)  {\n    let advancement_trigger = sand::component::AdvancementTrigger::recipe_unlocked(recipe);\n}",
+    )]
     pub fn recipe_unlocked(recipe: ResourceLocation) -> Self {
         Self::RecipeUnlocked {
             recipe: recipe.to_string(),
@@ -976,7 +1131,21 @@ impl AdvancementTrigger {
     }
 
     /// Create a brewed-potion trigger using the shared potion registry ID.
-    #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::brewed_potion` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::AdvancementTrigger::brewed_potion",
+        aliases = ["sand::prelude::AdvancementTrigger::brewed_potion"],
+        module = "sand::component",
+        kind = "method",
+        summary = "Create a brewed-potion trigger using the shared potion registry ID.",
+        context = "Create a brewed-potion trigger using the shared potion registry ID. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(potion = "`potion` supplies the potion value used to create a brewed-potion trigger using the shared potion registry ID."),
+        returns = "A newly constructed `AdvancementTrigger` configured to create a brewed-potion trigger using the shared potion registry ID.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(potion: impl Into < sand::registry::PotionRegistryId >)  {\n    let advancement_trigger = sand::component::AdvancementTrigger::brewed_potion(potion);\n}",
+    )]
     pub fn brewed_potion(potion: impl Into<PotionRegistryId>) -> Self {
         Self::BrewedPotion {
             potion: Some(potion.into().to_string()),
@@ -984,13 +1153,40 @@ impl AdvancementTrigger {
     }
 
     /// Create an unfiltered brewed-potion trigger.
-    #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::brewed_any_potion` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::AdvancementTrigger::brewed_any_potion",
+        aliases = ["sand::prelude::AdvancementTrigger::brewed_any_potion"],
+        module = "sand::component",
+        kind = "method",
+        summary = "Create an unfiltered brewed-potion trigger.",
+        context = "Create an unfiltered brewed-potion trigger. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        returns = "A newly constructed `AdvancementTrigger` configured to create an unfiltered brewed-potion trigger.",
+        example = "use sand::prelude::*;\n\nfn demonstrate()  {\n    let advancement_trigger = sand::component::AdvancementTrigger::brewed_any_potion();\n}",
+    )]
     pub fn brewed_any_potion() -> Self {
         Self::BrewedPotion { potion: None }
     }
 
     /// Create a bee-nest-destroyed trigger with typed block identity.
-    #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::bee_nest_destroyed` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::AdvancementTrigger::bee_nest_destroyed",
+        aliases = ["sand::prelude::AdvancementTrigger::bee_nest_destroyed"],
+        module = "sand::component",
+        kind = "method",
+        summary = "Create a bee-nest-destroyed trigger with typed block identity.",
+        context = "Create a bee-nest-destroyed trigger with typed block identity. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(block = "`block` provides the block value or block predicate used to create a bee-nest-destroyed trigger with typed block identity.", item = "`item` provides the item value or item predicate used to create a bee-nest-destroyed trigger with typed block identity.", num_bees_inside = "`num_bees_inside` provides the accepted numeric range used to create a bee-nest-destroyed trigger with typed block identity."),
+        returns = "A newly constructed `AdvancementTrigger` configured to create a bee-nest-destroyed trigger with typed block identity.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(block: Option < sand::registry::BlockId >, item: Option < sand::predicate::ItemPredicate >, num_bees_inside: Option < sand::predicate::IntRange >)  {\n    let advancement_trigger = sand::component::AdvancementTrigger::bee_nest_destroyed(block, item, num_bees_inside);\n}",
+    )]
     pub fn bee_nest_destroyed(
         block: Option<BlockId>,
         item: Option<ItemPredicate>,
@@ -1004,7 +1200,21 @@ impl AdvancementTrigger {
     }
 
     /// Create a placed-block trigger with typed block identity.
-    #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::placed_block` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::AdvancementTrigger::placed_block",
+        aliases = ["sand::prelude::AdvancementTrigger::placed_block"],
+        module = "sand::component",
+        kind = "method",
+        summary = "Create a placed-block trigger with typed block identity.",
+        context = "Create a placed-block trigger with typed block identity. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(block = "`block` provides the block value or block predicate used to create a placed-block trigger with typed block identity.", item = "`item` provides the item value or item predicate used to create a placed-block trigger with typed block identity.", location = "`location` provides the typed resource identifier or location used to create a placed-block trigger with typed block identity.", state = "`state` supplies the state value used to create a placed-block trigger with typed block identity."),
+        returns = "A newly constructed `AdvancementTrigger` configured to create a placed-block trigger with typed block identity.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(block: Option < sand::registry::BlockId >, item: Option < sand::predicate::ItemPredicate >, location: Option < sand::predicate::LocationPredicate >, state: Option < std::collections::HashMap < String , String > >)  {\n    let advancement_trigger = sand::component::AdvancementTrigger::placed_block(block, item, location, state);\n}",
+    )]
     pub fn placed_block(
         block: Option<BlockId>,
         item: Option<ItemPredicate>,
@@ -1020,7 +1230,21 @@ impl AdvancementTrigger {
     }
 
     /// Create an enter-block trigger with typed block identity.
-    #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::enter_block` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::AdvancementTrigger::enter_block",
+        aliases = ["sand::prelude::AdvancementTrigger::enter_block"],
+        module = "sand::component",
+        kind = "method",
+        summary = "Create an enter-block trigger with typed block identity.",
+        context = "Create an enter-block trigger with typed block identity. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(block = "`block` provides the block value or block predicate used to create an enter-block trigger with typed block identity.", state = "`state` supplies the state value used to create an enter-block trigger with typed block identity."),
+        returns = "A newly constructed `AdvancementTrigger` configured to create an enter-block trigger with typed block identity.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(block: Option < sand::registry::BlockId >, state: Option < std::collections::HashMap < String , String > >)  {\n    let advancement_trigger = sand::component::AdvancementTrigger::enter_block(block, state);\n}",
+    )]
     pub fn enter_block(block: Option<BlockId>, state: Option<HashMap<String, String>>) -> Self {
         Self::EnterBlock {
             block: block.map(|id| id.to_string()),
@@ -1029,7 +1253,21 @@ impl AdvancementTrigger {
     }
 
     /// Create a dimension-change trigger with typed dimension identities.
-    #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::changed_dimension` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::AdvancementTrigger::changed_dimension",
+        aliases = ["sand::prelude::AdvancementTrigger::changed_dimension"],
+        module = "sand::component",
+        kind = "method",
+        summary = "Create a dimension-change trigger with typed dimension identities.",
+        context = "Create a dimension-change trigger with typed dimension identities. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(from = "`from` supplies the from value used to create a dimension-change trigger with typed dimension identities.", to = "`to` supplies the to value used to create a dimension-change trigger with typed dimension identities."),
+        returns = "A newly constructed `AdvancementTrigger` configured to create a dimension-change trigger with typed dimension identities.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(from: Option < sand::registry::DimensionId >, to: Option < sand::registry::DimensionId >)  {\n    let advancement_trigger = sand::component::AdvancementTrigger::changed_dimension(from, to);\n}",
+    )]
     pub fn changed_dimension(from: Option<DimensionId>, to: Option<DimensionId>) -> Self {
         Self::ChangedDimension {
             from: from.map(|id| id.to_string()),
@@ -1038,7 +1276,21 @@ impl AdvancementTrigger {
     }
 
     /// Create a slide-down-block trigger with typed block identity.
-    #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::slide_down_block` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::AdvancementTrigger::slide_down_block",
+        aliases = ["sand::prelude::AdvancementTrigger::slide_down_block"],
+        module = "sand::component",
+        kind = "method",
+        summary = "Create a slide-down-block trigger with typed block identity.",
+        context = "Create a slide-down-block trigger with typed block identity. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(block = "`block` provides the block value or block predicate used to create a slide-down-block trigger with typed block identity."),
+        returns = "A newly constructed `AdvancementTrigger` configured to create a slide-down-block trigger with typed block identity.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(block: Option < sand::registry::BlockId >)  {\n    let advancement_trigger = sand::component::AdvancementTrigger::slide_down_block(block);\n}",
+    )]
     pub fn slide_down_block(block: Option<BlockId>) -> Self {
         Self::SlideDownBlock {
             block: block.map(|id| id.to_string()),
@@ -1046,7 +1298,21 @@ impl AdvancementTrigger {
     }
 
     /// Create a container-loot trigger from a validated loot-table reference.
-    #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::player_generates_container_loot` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::AdvancementTrigger::player_generates_container_loot",
+        aliases = ["sand::prelude::AdvancementTrigger::player_generates_container_loot"],
+        module = "sand::component",
+        kind = "method",
+        summary = "Create a container-loot trigger from a validated loot-table reference.",
+        context = "Create a container-loot trigger from a validated loot-table reference. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(loot_table = "`loot_table` provides the typed Minecraft resource identifier used to create a container-loot trigger from a validated loot-table reference."),
+        returns = "A newly constructed `AdvancementTrigger` configured to create a container-loot trigger from a validated loot-table reference.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(loot_table: Option < sand::ResourceLocation >)  {\n    let advancement_trigger = sand::component::AdvancementTrigger::player_generates_container_loot(loot_table);\n}",
+    )]
     pub fn player_generates_container_loot(loot_table: Option<ResourceLocation>) -> Self {
         Self::PlayerGeneratesContainerLoot {
             loot_table: loot_table.map(|id| id.to_string()),
@@ -1054,7 +1320,21 @@ impl AdvancementTrigger {
     }
 
     /// Create an effects-changed trigger with typed status-effect map keys.
-    #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::effects_changed` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::AdvancementTrigger::effects_changed",
+        aliases = ["sand::prelude::AdvancementTrigger::effects_changed"],
+        module = "sand::component",
+        kind = "method",
+        summary = "Create an effects-changed trigger with typed status-effect map keys.",
+        context = "Create an effects-changed trigger with typed status-effect map keys. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(effects = "`effects` supplies the effects value used to create an effects-changed trigger with typed status-effect map keys.", source = "`source` provides the typed predicate that must match used to create an effects-changed trigger with typed status-effect map keys."),
+        returns = "A newly constructed `AdvancementTrigger` configured to create an effects-changed trigger with typed status-effect map keys.",
+        example = "use sand::prelude::*;\n\nfn demonstrate<I: 'static, E: 'static>(effects: I, source: Option < sand::predicate::EntityPredicate >) where I : IntoIterator < Item = (E , sand::predicate::EffectPredicate) > , E : Into < sand::registry::StatusEffectId > {\n    let advancement_trigger = sand::component::AdvancementTrigger::effects_changed::<I, E>(effects, source);\n}",
+    )]
     pub fn effects_changed<I, E>(effects: I, source: Option<EntityPredicate>) -> Self
     where
         I: IntoIterator<Item = (E, EffectPredicate)>,
@@ -1071,7 +1351,21 @@ impl AdvancementTrigger {
     }
 
     /// Create an unfiltered effects-changed trigger.
-    #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::effects_changed_any` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::AdvancementTrigger::effects_changed_any",
+        aliases = ["sand::prelude::AdvancementTrigger::effects_changed_any"],
+        module = "sand::component",
+        kind = "method",
+        summary = "Create an unfiltered effects-changed trigger.",
+        context = "Create an unfiltered effects-changed trigger. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(source = "`source` provides the typed predicate that must match used to create an unfiltered effects-changed trigger."),
+        returns = "A newly constructed `AdvancementTrigger` configured to create an unfiltered effects-changed trigger.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(source: Option < sand::predicate::EntityPredicate >)  {\n    let advancement_trigger = sand::component::AdvancementTrigger::effects_changed_any(source);\n}",
+    )]
     pub fn effects_changed_any(source: Option<EntityPredicate>) -> Self {
         Self::EffectsChanged {
             effects: None,
@@ -1082,7 +1376,21 @@ impl AdvancementTrigger {
     /// Create a custom/modded trigger with a validated trigger ID.
     ///
     /// The conditions remain an explicit opaque [`RawJson`] escape hatch.
-    #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::custom_trigger` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::AdvancementTrigger::custom_trigger",
+        aliases = ["sand::prelude::AdvancementTrigger::custom_trigger"],
+        module = "sand::component",
+        kind = "method",
+        summary = "Create a custom/modded trigger with a validated trigger ID.",
+        context = "Create a custom/modded trigger with a validated trigger ID. The conditions remain an explicit opaque [`RawJson`] escape hatch.",
+        minecraft = "The conditions remain an explicit opaque [`RawJson`] escape hatch.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(trigger = "`trigger` provides the typed Minecraft resource identifier used to create a custom/modded trigger with a validated trigger ID.", conditions = "`conditions` supplies the conditions value used to create a custom/modded trigger with a validated trigger ID."),
+        returns = "A newly constructed `AdvancementTrigger` configured to create a custom/modded trigger with a validated trigger ID.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(trigger: sand::ResourceLocation, conditions: Option < sand::component::RawJson >)  {\n    let advancement_trigger = sand::component::AdvancementTrigger::custom_trigger(trigger, conditions);\n}",
+    )]
     pub fn custom_trigger(trigger: ResourceLocation, conditions: Option<RawJson>) -> Self {
         Self::Custom {
             trigger: trigger.to_string(),
@@ -1418,7 +1726,20 @@ impl AdvancementTrigger {
     }
 
     /// Return the vanilla trigger ID selected by this typed trigger.
-    #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::trigger_id` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::AdvancementTrigger::trigger_id",
+        aliases = ["sand::prelude::AdvancementTrigger::trigger_id"],
+        module = "sand::component",
+        kind = "method",
+        summary = "Return the vanilla trigger ID selected by this typed trigger.",
+        context = "Return the vanilla trigger ID selected by this typed trigger. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        returns = "Return the vanilla trigger ID selected by this typed trigger.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(advancement_trigger_value: &sand::component::AdvancementTrigger)  {\n    let trigger_id = advancement_trigger_value.trigger_id();\n}",
+    )]
     pub fn trigger_id(&self) -> &str {
         match self {
             AdvancementTrigger::Tick => "minecraft:tick",
@@ -1498,7 +1819,20 @@ impl AdvancementTrigger {
     ///
     /// This intentionally fails before an advancement JSON file is emitted for
     /// IDs known to be absent from the vanilla registry.
-    #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::validate_for_target` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::AdvancementTrigger::validate_for_target",
+        aliases = ["sand::prelude::AdvancementTrigger::validate_for_target"],
+        module = "sand::component",
+        kind = "method",
+        summary = "Validate this trigger against Sand's supported vanilla target profiles.",
+        context = "Validate this trigger against Sand's supported vanilla target profiles. This intentionally fails before an advancement JSON file is emitted for IDs known to be absent from the vanilla registry.",
+        minecraft = "This intentionally fails before an advancement JSON file is emitted for IDs known to be absent from the vanilla registry.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        returns = "On success, the value produced to validate this trigger against Sand's supported vanilla target profiles; otherwise, the documented validation or export diagnostic.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(advancement_trigger_value: &sand::component::AdvancementTrigger)  {\n    let validate_for_target = advancement_trigger_value.validate_for_target();\n}",
+    )]
     pub fn validate_for_target(&self) -> Result<(), String> {
         self.validate_for_caps(None)
     }
@@ -1506,7 +1840,21 @@ impl AdvancementTrigger {
     /// Validate this typed trigger's ID and version range for a resolved
     /// target. Raw [`AdvancementTrigger::Custom`] values bypass Sand-owned
     /// compatibility claims and remain user-owned.
-    #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::validate_for_caps` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::AdvancementTrigger::validate_for_caps",
+        aliases = ["sand::prelude::AdvancementTrigger::validate_for_caps"],
+        module = "sand::component",
+        kind = "method",
+        summary = "Validate this typed trigger's ID and version range for a resolved target. Raw [`AdvancementTrigger::Custom`] values bypass Sand-owned compatibility claims and remain user-owned.",
+        context = "Validate this typed trigger's ID and version range for a resolved target. Raw [`AdvancementTrigger::Custom`] values bypass Sand-owned compatibility claims and remain user-owned. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(caps = "`caps` supplies the caps value used to validate this typed trigger's ID and version range for a resolved target. Raw [`AdvancementTrigger::Custom`] values bypass Sand-owned compatibility claims and remain user-owned."),
+        returns = "On success, the value produced to validate this typed trigger's ID and version range for a resolved target. Raw [`AdvancementTrigger::Custom`] values bypass Sand-owned compatibility claims and remain user-owned; otherwise, the documented validation or export diagnostic.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(advancement_trigger_value: &sand::component::AdvancementTrigger, caps: Option < & sand::version::VersionCaps >)  {\n    let validate_for_caps = advancement_trigger_value.validate_for_caps(caps);\n}",
+    )]
     pub fn validate_for_caps(
         &self,
         caps: Option<&sand_version::VersionCaps>,
@@ -1582,7 +1930,21 @@ impl AdvancementTrigger {
     /// Build an `InventoryChanged` trigger matching any of the given item IDs.
     ///
     /// Items are generated registry values implementing `Display`.
-    #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::inventory_changed` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::AdvancementTrigger::inventory_changed",
+        aliases = ["sand::prelude::AdvancementTrigger::inventory_changed"],
+        module = "sand::component",
+        kind = "method",
+        summary = "Build an `InventoryChanged` trigger matching any of the given item IDs.",
+        context = "Build an `InventoryChanged` trigger matching any of the given item IDs. Items are generated registry values implementing `Display`.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(items = "`items` supplies the items value used to build an `InventoryChanged` trigger matching any of the given item IDs."),
+        returns = "A newly constructed `AdvancementTrigger` configured to build an `InventoryChanged` trigger matching any of the given item IDs.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(items: Vec < impl Into < sand::registry::ItemId > >)  {\n    let advancement_trigger = sand::component::AdvancementTrigger::inventory_changed(items);\n}",
+    )]
     pub fn inventory_changed(items: Vec<impl Into<ItemId>>) -> Self {
         AdvancementTrigger::InventoryChanged {
             slots: None,
@@ -2299,7 +2661,21 @@ impl AdvancementTrigger {
     /// fails with an actionable error instead of emitting an item-component-era
     /// JSON shape (`components`/`predicates`) that legacy profiles don't
     /// recognize — see [`AdvancementSchemaFamily::Legacy`]'s docs.
-    #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::render_for` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::AdvancementTrigger::render_for",
+        aliases = ["sand::prelude::AdvancementTrigger::render_for"],
+        module = "sand::component",
+        kind = "method",
+        summary = "Render this trigger's `{\"trigger\": ..., \"conditions\": ...}` JSON for a specific Minecraft version's predicate schema.",
+        context = "Render this trigger's `{\"trigger\": ..., \"conditions\": ...}` JSON for a specific Minecraft version's predicate schema. Every typed trigger is validated and lowered through the selected [`AdvancementSchemaFamily`]. Variants that consume item, entity, location, or damage predicates use consumer-aware conversion so nested schemas follow the target profile too. In particular, [`AdvancementTrigger::PlacedBlock`] and [`AdvancementTrigger::ItemUsedOnBlock`] render differently across the legacy and modern families. Minecraft's modern (1.20.5+ item-component era) schema expresses that filter as a `conditions.location` array of `minecraft:location_check` / `minecraft:match_tool` loot conditions, not the direct `block`/`item` fields this crate used to emit. Emitting the direct fields makes the generated advancement fire unconditionally in-game — see #231/#233. This never silently drops a filter: if a caller supplies both the trigger-level `block`/`state` shorthand *and* a `location` predicate that already sets `block`, rendering fails with an actionable [`SandError`](sand::component::SandError) instead of picking one silently. Likewise, requesting an item filter on [`AdvancementSchemaFamily::L...",
+        minecraft = "Every typed trigger is validated and lowered through the selected [`AdvancementSchemaFamily`]. Variants that consume item, entity, location, or damage predicates use consumer-aware conversion so nested schemas follow the target profile too. In particular, [`AdvancementTrigger::PlacedBlock`] and [`AdvancementTrigger::ItemUsedOnBlock`] render differently across the legacy and modern families. Minecraft's modern (1.20.5+ item-component era) schema expresses that filter as a `conditions.location` array of `minecraft:location_check` / `minecraft:match_tool` loot conditions, not the direct `block`/`item` fields this crate used to emit. Emitting the direct fields makes the generated advancement fire unconditionally in-game — see #231/#233.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(caps = "`caps` supplies the caps value used to render this trigger's `{\"trigger\": ..., \"conditions\": ...}` JSON for a specific Minecraft version's predicate schema."),
+        returns = "The `sand :: component :: Result < Value >` value produced to render this trigger's `{\"trigger\": ..., \"conditions\": ...}` JSON for a specific Minecraft version's predicate schema.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(advancement_trigger_value: &sand::component::AdvancementTrigger, caps: Option < & sand::version::VersionCaps >)  {\n    let render_for = advancement_trigger_value.render_for(caps);\n}",
+    )]
     pub fn render_for(
         &self,
         caps: Option<&sand_version::VersionCaps>,
@@ -2978,17 +3354,42 @@ fn render_location_condition_trigger(
 
 // ── Criterion ─────────────────────────────────────────────────────────────────
 
-#[doc = "**API Contract:** Run `sand api show sand::component::Criterion` for the canonical contract."]
+#[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::component::Criterion",
+    aliases = ["sand::prelude::Criterion"],
+    module = "sand::component",
+    summary = "A single criterion for an advancement that must be met for progress.",
+    context = "A single criterion for an advancement that must be met for progress. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+    minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+    use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+    avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+    example = "use sand::component::Criterion;",
+    fields(trigger = "`trigger` provides the trigger when a single criterion for an advancement that must be met for progress."),
+)]
 /// A single criterion for an advancement that must be met for progress.
 pub struct Criterion {
     /// `trigger` provides the trigger when a single criterion for an advancement that must be met for progress.
-    #[doc = "**API Contract:** Run `sand api show sand::component::Criterion::trigger` for the canonical contract."]
     pub trigger: AdvancementTrigger,
 }
 
 impl Criterion {
     /// Creates a new criterion with the specified trigger.
-    #[doc = "**API Contract:** Run `sand api show sand::component::Criterion::new` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::Criterion::new",
+        aliases = ["sand::prelude::Criterion::new"],
+        module = "sand::component",
+        kind = "method",
+        summary = "Creates a new criterion with the specified trigger.",
+        context = "Creates a new criterion with the specified trigger. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(trigger = "`trigger` supplies the trigger value used to create a new criterion with the specified trigger."),
+        returns = "A newly constructed `Criterion` configured to create a new criterion with the specified trigger.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(trigger: sand::component::AdvancementTrigger)  {\n    let criterion = sand::component::Criterion::new(trigger);\n}",
+    )]
     pub fn new(trigger: AdvancementTrigger) -> Self {
         Self { trigger }
     }
@@ -3002,7 +3403,18 @@ impl Serialize for Criterion {
 
 // ── AdvancementRewards ────────────────────────────────────────────────────────
 
-#[doc = "**API Contract:** Run `sand api show sand::component::AdvancementRewards` for the canonical contract."]
+#[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::component::AdvancementRewards",
+    aliases = ["sand::prelude::AdvancementRewards"],
+    module = "sand::component",
+    summary = "Rewards granted to the player when an advancement is completed.",
+    context = "Rewards granted to the player when an advancement is completed. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+    minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+    use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+    avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+    example = "use sand::component::AdvancementRewards;",
+)]
 /// Rewards granted to the player when an advancement is completed.
 pub struct AdvancementRewards {
     recipes: Vec<String>,
@@ -3013,7 +3425,20 @@ pub struct AdvancementRewards {
 
 impl AdvancementRewards {
     /// Creates a new advancement rewards container with no rewards set.
-    #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementRewards::new` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::AdvancementRewards::new",
+        aliases = ["sand::prelude::AdvancementRewards::new"],
+        module = "sand::component",
+        kind = "method",
+        summary = "Creates a new advancement rewards container with no rewards set.",
+        context = "Creates a new advancement rewards container with no rewards set. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        returns = "A newly constructed `AdvancementRewards` configured to create a new advancement rewards container with no rewards set.",
+        example = "use sand::prelude::*;\n\nfn demonstrate()  {\n    let advancement_rewards = sand::component::AdvancementRewards::new();\n}",
+    )]
     pub fn new() -> Self {
         Self {
             recipes: Vec::new(),
@@ -3027,49 +3452,147 @@ impl AdvancementRewards {
     ///
     /// Custom pack IDs remain typed: parse them as [`RecipeId`] or construct
     /// them from a validated [`ResourceLocation`].
-    #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementRewards::recipe` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::AdvancementRewards::recipe",
+        aliases = ["sand::prelude::AdvancementRewards::recipe"],
+        module = "sand::component",
+        kind = "method",
+        summary = "Adds a recipe unlock reward. Custom pack IDs remain typed: parse them as [`RecipeId`] or construct them from a validated [`ResourceLocation`].",
+        context = "Adds a recipe unlock reward. Custom pack IDs remain typed: parse them as [`RecipeId`] or construct them from a validated [`ResourceLocation`]. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(recipe = "`recipe` provides the typed Minecraft resource identifier used to add a recipe unlock reward. Custom pack IDs remain typed: parse them as [`RecipeId`] or construct them from a validated [`ResourceLocation`]."),
+        returns = "The `AdvancementRewards` value with the documented change applied to add a recipe unlock reward. Custom pack IDs remain typed: parse them as [`RecipeId`] or construct them from a validated [`ResourceLocation`].",
+        example = "use sand::prelude::*;\n\nfn demonstrate(advancement_rewards_value: sand::component::AdvancementRewards, recipe: sand::resource_ref::RecipeId)  {\n    let updated_advancement_rewards = advancement_rewards_value.recipe(recipe);\n}",
+    )]
     pub fn recipe(mut self, recipe: RecipeId) -> Self {
         self.recipes.push(recipe.to_string());
         self
     }
 
     /// Adds a recipe reward through the explicit raw compatibility path.
-    #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementRewards::raw_recipe` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::AdvancementRewards::raw_recipe",
+        aliases = ["sand::prelude::AdvancementRewards::raw_recipe"],
+        module = "sand::component",
+        kind = "method",
+        summary = "Adds a recipe reward through the explicit raw compatibility path.",
+        context = "Adds a recipe reward through the explicit raw compatibility path. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(recipe = "`recipe` supplies the recipe value used to add a recipe reward through the explicit raw compatibility path."),
+        returns = "The `AdvancementRewards` value with the documented change applied to add a recipe reward through the explicit raw compatibility path.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(advancement_rewards_value: sand::component::AdvancementRewards, recipe: impl Into < String >)  {\n    let updated_advancement_rewards = advancement_rewards_value.raw_recipe(recipe);\n}",
+    )]
     pub fn raw_recipe(mut self, recipe: impl Into<String>) -> Self {
         self.recipes.push(recipe.into());
         self
     }
 
     /// Adds a loot table reward.
-    #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementRewards::loot` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::AdvancementRewards::loot",
+        aliases = ["sand::prelude::AdvancementRewards::loot"],
+        module = "sand::component",
+        kind = "method",
+        summary = "Adds a loot table reward.",
+        context = "Adds a loot table reward. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(loot = "`loot` provides the typed Minecraft resource identifier used to add a loot table reward."),
+        returns = "The `AdvancementRewards` value with the documented change applied to add a loot table reward.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(advancement_rewards_value: sand::component::AdvancementRewards, loot: sand::resource_ref::LootTableId)  {\n    let updated_advancement_rewards = advancement_rewards_value.loot(loot);\n}",
+    )]
     pub fn loot(mut self, loot: LootTableId) -> Self {
         self.loot.push(loot.to_string());
         self
     }
 
     /// Adds a loot-table reward through the explicit raw compatibility path.
-    #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementRewards::raw_loot` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::AdvancementRewards::raw_loot",
+        aliases = ["sand::prelude::AdvancementRewards::raw_loot"],
+        module = "sand::component",
+        kind = "method",
+        summary = "Adds a loot-table reward through the explicit raw compatibility path.",
+        context = "Adds a loot-table reward through the explicit raw compatibility path. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(loot = "`loot` supplies the loot value used to add a loot-table reward through the explicit raw compatibility path."),
+        returns = "The `AdvancementRewards` value with the documented change applied to add a loot-table reward through the explicit raw compatibility path.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(advancement_rewards_value: sand::component::AdvancementRewards, loot: impl Into < String >)  {\n    let updated_advancement_rewards = advancement_rewards_value.raw_loot(loot);\n}",
+    )]
     pub fn raw_loot(mut self, loot: impl Into<String>) -> Self {
         self.loot.push(loot.into());
         self
     }
 
     /// Sets the experience points awarded.
-    #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementRewards::experience` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::AdvancementRewards::experience",
+        aliases = ["sand::prelude::AdvancementRewards::experience"],
+        module = "sand::component",
+        kind = "method",
+        summary = "Sets the experience points awarded.",
+        context = "Sets the experience points awarded. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(xp = "`xp` supplies the xp value used to set the experience points awarded."),
+        returns = "The `AdvancementRewards` value with the documented change applied to set the experience points awarded.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(advancement_rewards_value: sand::component::AdvancementRewards, xp: i32)  {\n    let updated_advancement_rewards = advancement_rewards_value.experience(xp);\n}",
+    )]
     pub fn experience(mut self, xp: i32) -> Self {
         self.experience = xp;
         self
     }
 
     /// Sets a function to execute as a reward.
-    #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementRewards::function` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::AdvancementRewards::function",
+        aliases = ["sand::prelude::AdvancementRewards::function"],
+        module = "sand::component",
+        kind = "method",
+        summary = "Sets a function to execute as a reward.",
+        context = "Sets a function to execute as a reward. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(func = "`func` provides the typed Minecraft resource identifier used to set a function to execute as a reward."),
+        returns = "The `AdvancementRewards` value with the documented change applied to set a function to execute as a reward.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(advancement_rewards_value: sand::component::AdvancementRewards, func: sand::resource_ref::FunctionId)  {\n    let updated_advancement_rewards = advancement_rewards_value.function(func);\n}",
+    )]
     pub fn function(mut self, func: FunctionId) -> Self {
         self.function = Some(func.to_string());
         self
     }
 
     /// Sets a reward function through the explicit raw compatibility path.
-    #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementRewards::raw_function` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::AdvancementRewards::raw_function",
+        aliases = ["sand::prelude::AdvancementRewards::raw_function"],
+        module = "sand::component",
+        kind = "method",
+        summary = "Sets a reward function through the explicit raw compatibility path.",
+        context = "Sets a reward function through the explicit raw compatibility path. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(func = "`func` supplies the func value used to set a reward function through the explicit raw compatibility path."),
+        returns = "The `AdvancementRewards` value with the documented change applied to set a reward function through the explicit raw compatibility path.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(advancement_rewards_value: sand::component::AdvancementRewards, func: impl Into < String >)  {\n    let updated_advancement_rewards = advancement_rewards_value.raw_function(func);\n}",
+    )]
     pub fn raw_function(mut self, func: impl Into<String>) -> Self {
         self.function = Some(func.into());
         self
@@ -3131,7 +3654,18 @@ impl Serialize for AdvancementRewards {
 
 // ── Advancement ───────────────────────────────────────────────────────────────
 
-#[doc = "**API Contract:** Run `sand api show sand::component::Advancement` for the canonical contract."]
+#[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::component::Advancement",
+    aliases = ["sand::prelude::Advancement"],
+    module = "sand::component",
+    summary = "A complete advancement definition for a Minecraft datapack.",
+    context = "A complete advancement definition for a Minecraft datapack. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+    minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+    use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+    avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+    example = "use sand::component::Advancement;",
+)]
 /// A complete advancement definition for a Minecraft datapack.
 pub struct Advancement {
     location: ResourceLocation,
@@ -3145,7 +3679,21 @@ pub struct Advancement {
 
 impl Advancement {
     /// Creates a new advancement with the specified resource location.
-    #[doc = "**API Contract:** Run `sand api show sand::component::Advancement::new` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::Advancement::new",
+        aliases = ["sand::prelude::Advancement::new"],
+        module = "sand::component",
+        kind = "method",
+        summary = "Creates a new advancement with the specified resource location.",
+        context = "Creates a new advancement with the specified resource location. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(location = "`location` provides the typed resource identifier or location used to create a new advancement with the specified resource location."),
+        returns = "A newly constructed `Advancement` configured to create a new advancement with the specified resource location.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(location: sand::ResourceLocation)  {\n    let advancement = sand::component::Advancement::new(location);\n}",
+    )]
     pub fn new(location: ResourceLocation) -> Self {
         Self {
             location,
@@ -3166,52 +3714,147 @@ impl Advancement {
     /// let advancement = Advancement::new(ResourceLocation::new("demo", "child").unwrap())
     ///     .parent("demo:root".parse::<AdvancementId>().unwrap());
     /// ```
-    ///
-    /// # API Contract
-    ///
-    /// `sand api show sand::component::Advancement::parent`
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::Advancement::parent",
+        aliases = ["sand::prelude::Advancement::parent"],
+        module = "sand::component",
+        kind = "method",
+        summary = "Sets the parent advancement.",
+        context = "Sets the parent advancement. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(parent = "`parent` provides the typed Minecraft resource identifier used to set the parent advancement."),
+        returns = "The `Advancement` value with the documented change applied to set the parent advancement.",
+        example = "use {sand::component::Advancement, sand::resource_ref::AdvancementId, sand::ResourceLocation};\nlet advancement = Advancement::new(ResourceLocation::new(\"demo\", \"child\").unwrap())\n.parent(\"demo:root\".parse::<AdvancementId>().unwrap());",
+    )]
     pub fn parent(mut self, parent: AdvancementId) -> Self {
         self.parent = Some(parent.to_string());
         self
     }
 
     /// Sets the parent through the explicit raw compatibility path.
-    #[doc = "**API Contract:** Run `sand api show sand::component::Advancement::raw_parent` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::Advancement::raw_parent",
+        aliases = ["sand::prelude::Advancement::raw_parent"],
+        module = "sand::component",
+        kind = "method",
+        summary = "Sets the parent through the explicit raw compatibility path.",
+        context = "Sets the parent through the explicit raw compatibility path. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(parent = "`parent` supplies the parent value used to set the parent through the explicit raw compatibility path."),
+        returns = "The `Advancement` value with the documented change applied to set the parent through the explicit raw compatibility path.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(advancement_value: sand::component::Advancement, parent: impl Into < String >)  {\n    let updated_advancement = advancement_value.raw_parent(parent);\n}",
+    )]
     pub fn raw_parent(mut self, parent: impl Into<String>) -> Self {
         self.parent = Some(parent.into());
         self
     }
 
     /// Sets the display information for this advancement.
-    #[doc = "**API Contract:** Run `sand api show sand::component::Advancement::display` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::Advancement::display",
+        aliases = ["sand::prelude::Advancement::display"],
+        module = "sand::component",
+        kind = "method",
+        summary = "Sets the display information for this advancement.",
+        context = "Sets the display information for this advancement. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(display = "`display` supplies the display value used to set the display information for this advancement."),
+        returns = "The `Advancement` value with the documented change applied to set the display information for this advancement.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(advancement_value: sand::component::Advancement, display: sand::component::AdvancementDisplay)  {\n    let updated_advancement = advancement_value.display(display);\n}",
+    )]
     pub fn display(mut self, display: AdvancementDisplay) -> Self {
         self.display = Some(display);
         self
     }
 
     /// Adds a criterion with the specified name.
-    #[doc = "**API Contract:** Run `sand api show sand::component::Advancement::criterion` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::Advancement::criterion",
+        aliases = ["sand::prelude::Advancement::criterion"],
+        module = "sand::component",
+        kind = "method",
+        summary = "Adds a criterion with the specified name.",
+        context = "Adds a criterion with the specified name. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(name = "`name` provides the author-visible text value used to add a criterion with the specified name.", criterion = "`criterion` supplies the criterion value used to add a criterion with the specified name."),
+        returns = "The `Advancement` value with the documented change applied to add a criterion with the specified name.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(advancement_value: sand::component::Advancement, name: impl Into < String >, criterion: sand::component::Criterion)  {\n    let updated_advancement = advancement_value.criterion(name, criterion);\n}",
+    )]
     pub fn criterion(mut self, name: impl Into<String>, criterion: Criterion) -> Self {
         self.criteria.insert(name.into(), criterion);
         self
     }
 
     /// Sets the requirements specifying how criteria must be completed.
-    #[doc = "**API Contract:** Run `sand api show sand::component::Advancement::requirements` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::Advancement::requirements",
+        aliases = ["sand::prelude::Advancement::requirements"],
+        module = "sand::component",
+        kind = "method",
+        summary = "Sets the requirements specifying how criteria must be completed.",
+        context = "Sets the requirements specifying how criteria must be completed. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(requirements = "`requirements` supplies the requirements value used to set the requirements specifying how criteria must be completed."),
+        returns = "The `Advancement` value with the documented change applied to set the requirements specifying how criteria must be completed.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(advancement_value: sand::component::Advancement, requirements: Vec < Vec < String > >)  {\n    let updated_advancement = advancement_value.requirements(requirements);\n}",
+    )]
     pub fn requirements(mut self, requirements: Vec<Vec<String>>) -> Self {
         self.requirements = Some(requirements);
         self
     }
 
     /// Sets the rewards given when this advancement is completed.
-    #[doc = "**API Contract:** Run `sand api show sand::component::Advancement::rewards` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::Advancement::rewards",
+        aliases = ["sand::prelude::Advancement::rewards"],
+        module = "sand::component",
+        kind = "method",
+        summary = "Sets the rewards given when this advancement is completed.",
+        context = "Sets the rewards given when this advancement is completed. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(rewards = "`rewards` supplies the rewards value used to set the rewards given when this advancement is completed."),
+        returns = "The `Advancement` value with the documented change applied to set the rewards given when this advancement is completed.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(advancement_value: sand::component::Advancement, rewards: sand::component::AdvancementRewards)  {\n    let updated_advancement = advancement_value.rewards(rewards);\n}",
+    )]
     pub fn rewards(mut self, rewards: AdvancementRewards) -> Self {
         self.rewards = Some(rewards);
         self
     }
 
     /// Sets whether telemetry data is sent for this advancement.
-    #[doc = "**API Contract:** Run `sand api show sand::component::Advancement::sends_telemetry_data` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::Advancement::sends_telemetry_data",
+        aliases = ["sand::prelude::Advancement::sends_telemetry_data"],
+        module = "sand::component",
+        kind = "method",
+        summary = "Sets whether telemetry data is sent for this advancement.",
+        context = "Sets whether telemetry data is sent for this advancement. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(v = "`v` provides the switch that enables or disables the behavior used to set whether telemetry data is sent for this advancement."),
+        returns = "The `Advancement` value with the documented change applied to set whether telemetry data is sent for this advancement.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(advancement_value: sand::component::Advancement, v: bool)  {\n    let updated_advancement = advancement_value.sends_telemetry_data(v);\n}",
+    )]
     pub fn sends_telemetry_data(mut self, v: bool) -> Self {
         self.sends_telemetry_data = v;
         self

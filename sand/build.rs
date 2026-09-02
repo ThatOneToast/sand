@@ -942,11 +942,6 @@ fn write_coverage(
         })
         .collect::<Vec<_>>();
     installed_facades.sort_by_key(|(declaration, _)| declaration.canonical_path.as_str());
-    let documented_family_paths = installed_facades
-        .iter()
-        .filter(|(_, facade)| facade.family && facade.kind != sand_api_contract::ApiKind::Module)
-        .map(|(declaration, _)| declaration.canonical_path.as_str())
-        .collect::<BTreeSet<_>>();
     let mut facade_registrations = String::new();
     for (declaration, facade) in &installed_facades {
         facade_registrations.push_str(
@@ -1072,20 +1067,21 @@ fn write_coverage(
     let all_definition_shapes = sand_api_enforce::definition_shapes(reachable)
         .unwrap_or_else(|error| panic!("failed to derive structural API metadata: {error}"));
     generated.push_str("pub static INSTALLED_API_SHAPES: &[InstalledApiShape] = &[\n");
-    let missing_family_docs = reachable
+    let pointer_only_docs = reachable
         .iter()
         .filter_map(|item| {
-            let canonical_path = item
-                .paths
-                .iter()
-                .find(|path| documented_family_paths.contains(path.as_str()))?;
             let shape = all_definition_shapes.get(&item.identity)?;
-            if source_documentation_is_substantive(&shape.documentation)
-                && source_documentation_has_contract_lookup(&shape.documentation, canonical_path)
+            if !shape.documentation.contains("sand api show")
+                || source_documentation_is_substantive(&shape.documentation)
             {
                 return None;
             }
             let definition = item.definition.as_ref()?;
+            let canonical_path = item
+                .paths
+                .iter()
+                .find(|path| path.starts_with("sand::"))
+                .map_or(item.identity.as_str(), String::as_str);
             Some(format!(
                 "{canonical_path}\t{}\t{}",
                 definition.source.display(),
@@ -1093,14 +1089,14 @@ fn write_coverage(
             ))
         })
         .collect::<Vec<_>>();
-    if !missing_family_docs.is_empty() {
+    if !pointer_only_docs.is_empty() {
         let output_dir = PathBuf::from(env::var_os("OUT_DIR").expect("Cargo provides OUT_DIR"));
         let report = output_dir.join("api_contract_doc_gaps.txt");
-        fs::write(&report, missing_family_docs.join("\n"))
+        fs::write(&report, pointer_only_docs.join("\n"))
             .unwrap_or_else(|error| panic!("failed to write {}: {error}", report.display()));
         panic!(
-            "{} supported family callables or placeholder-backed members lack substantive source Rustdoc with their exact `sand api show <canonical-path>` lookup; every forwarded member must carry API-specific semantic documentation and direct contract discovery at its defining item (details: {})",
-            missing_family_docs.len(),
+            "{} public APIs use `sand api show` as their only substantive source Rustdoc; endpoint documentation must explain the API locally (details: {})",
+            pointer_only_docs.len(),
             report.display()
         );
     }
@@ -1211,11 +1207,6 @@ fn write_coverage(
 
 fn source_documentation_is_substantive(documentation: &str) -> bool {
     sand_api_contract::rustdoc_has_specific_semantics(documentation)
-}
-
-fn source_documentation_has_contract_lookup(documentation: &str, canonical_path: &str) -> bool {
-    documentation.contains("API Contract")
-        && documentation.contains(&format!("sand api show {canonical_path}"))
 }
 
 fn kind_name(kind: ReachableKind) -> &'static str {

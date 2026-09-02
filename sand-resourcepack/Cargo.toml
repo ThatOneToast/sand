@@ -18,3 +18,5 @@ inventory = "0.3"
 png = "0.17"
 base64 = "0.22"
 sand-core = { path = "../sand-core" }
+sand-api-contract = { path = "../sand-api-contract" }
+sand-macros = { path = "../sand-macros" }

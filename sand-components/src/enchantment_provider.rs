@@ -20,38 +20,71 @@ use crate::registry::{EnchantmentId, TagId};
 use crate::resource_location::ResourceLocation;
 use crate::validation;
 
-#[doc = "**API Contract:** Run `sand api show sand::component::EnchantmentProviderInt` for the canonical contract."]
+#[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::component::EnchantmentProviderInt",
+    aliases = ["sand::prelude::EnchantmentProviderInt"],
+    module = "sand::component",
+    summary = "A positive integer provider used for enchantment levels and enchanting costs.",
+    context = "A positive integer provider used for enchantment levels and enchanting costs. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+    minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+    use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+    avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+    example = "use sand::component::EnchantmentProviderInt;",
+    variants(Constant = "A fixed positive integer.", Uniform = "A uniformly sampled inclusive positive range."),
+    variant_fields(Constant = ["A fixed positive integer."], Uniform(max_inclusive = "`max_inclusive` provides the max inclusive when a uniformly sampled inclusive positive range.", min_inclusive = "`min_inclusive` provides the min inclusive when a uniformly sampled inclusive positive range.")),
+)]
 /// A positive integer provider used for enchantment levels and enchanting costs.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum EnchantmentProviderInt {
-    #[doc = "**API Contract:** Run `sand api show sand::component::EnchantmentProviderInt::Constant` for the canonical contract."]
     /// A fixed positive integer.
-    Constant(
-        #[doc = "The `Constant` variant carries the value described by its variant semantics: A fixed positive integer."]
-        #[doc = "**API Contract:** Run `sand api show sand::component::EnchantmentProviderInt::Constant::0` for the canonical contract."]
-        i32,
-    ),
-    #[doc = "**API Contract:** Run `sand api show sand::component::EnchantmentProviderInt::Uniform` for the canonical contract."]
+    Constant(#[doc = "A fixed positive integer."] i32),
     /// A uniformly sampled inclusive positive range.
     Uniform {
         /// `min_inclusive` provides the min inclusive when a uniformly sampled inclusive positive range.
-        #[doc = "**API Contract:** Run `sand api show sand::component::EnchantmentProviderInt::Uniform::min_inclusive` for the canonical contract."]
         min_inclusive: i32,
         /// `max_inclusive` provides the max inclusive when a uniformly sampled inclusive positive range.
-        #[doc = "**API Contract:** Run `sand api show sand::component::EnchantmentProviderInt::Uniform::max_inclusive` for the canonical contract."]
         max_inclusive: i32,
     },
 }
 
 impl EnchantmentProviderInt {
     /// Create a fixed integer provider.
-    #[doc = "**API Contract:** Run `sand api show sand::component::EnchantmentProviderInt::constant` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::EnchantmentProviderInt::constant",
+        aliases = ["sand::prelude::EnchantmentProviderInt::constant"],
+        module = "sand::component",
+        kind = "method",
+        summary = "Create a fixed integer provider.",
+        context = "Create a fixed integer provider. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(value = "`value` provides the value being applied or compared used to create a fixed integer provider."),
+        returns = "A newly constructed `EnchantmentProviderInt` configured to create a fixed integer provider.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(value: i32)  {\n    let enchantment_provider_int = sand::component::EnchantmentProviderInt::constant(value);\n}",
+    )]
     pub fn constant(value: i32) -> Self {
         Self::Constant(value)
     }
 
     /// Create a uniformly sampled inclusive integer provider.
-    #[doc = "**API Contract:** Run `sand api show sand::component::EnchantmentProviderInt::uniform` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::EnchantmentProviderInt::uniform",
+        aliases = ["sand::prelude::EnchantmentProviderInt::uniform"],
+        module = "sand::component",
+        kind = "method",
+        summary = "Create a uniformly sampled inclusive integer provider.",
+        context = "Create a uniformly sampled inclusive integer provider. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(min_inclusive = "`min_inclusive` supplies the min inclusive value used to create a uniformly sampled inclusive integer provider.", max_inclusive = "`max_inclusive` supplies the max inclusive value used to create a uniformly sampled inclusive integer provider."),
+        returns = "A newly constructed `EnchantmentProviderInt` configured to create a uniformly sampled inclusive integer provider.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(min_inclusive: i32, max_inclusive: i32)  {\n    let enchantment_provider_int = sand::component::EnchantmentProviderInt::uniform(min_inclusive, max_inclusive);\n}",
+    )]
     pub fn uniform(min_inclusive: i32, max_inclusive: i32) -> Self {
         Self::Uniform {
             min_inclusive,
@@ -107,36 +140,48 @@ impl From<i32> for EnchantmentProviderInt {
     }
 }
 
-#[doc = "**API Contract:** Run `sand api show sand::component::EnchantmentSelection` for the canonical contract."]
+#[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::component::EnchantmentSelection",
+    aliases = ["sand::prelude::EnchantmentSelection"],
+    module = "sand::component",
+    summary = "A typed set of enchantments accepted by cost-based providers.",
+    context = "A typed set of enchantments accepted by cost-based providers. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+    minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+    use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+    avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+    example = "use sand::component::EnchantmentSelection;",
+    variants(List = "A non-empty list of concrete enchantments.", Single = "One concrete enchantment.", Tag = "Every enchantment in a typed enchantment tag."),
+    variant_fields(List = ["A non-empty list of concrete enchantments."], Single = ["One concrete enchantment."], Tag = ["Every enchantment in a typed enchantment tag."]),
+)]
 /// A typed set of enchantments accepted by cost-based providers.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum EnchantmentSelection {
-    #[doc = "**API Contract:** Run `sand api show sand::component::EnchantmentSelection::Single` for the canonical contract."]
     /// One concrete enchantment.
-    Single(
-        #[doc = "The `Single` variant carries the value described by its variant semantics: One concrete enchantment."]
-        #[doc = "**API Contract:** Run `sand api show sand::component::EnchantmentSelection::Single::0` for the canonical contract."]
-        EnchantmentId,
-    ),
-    #[doc = "**API Contract:** Run `sand api show sand::component::EnchantmentSelection::List` for the canonical contract."]
+    Single(#[doc = "One concrete enchantment."] EnchantmentId),
     /// A non-empty list of concrete enchantments.
-    List(
-        #[doc = "The `List` variant carries the value described by its variant semantics: A non-empty list of concrete enchantments."]
-        #[doc = "**API Contract:** Run `sand api show sand::component::EnchantmentSelection::List::0` for the canonical contract."]
-        Vec<EnchantmentId>,
-    ),
-    #[doc = "**API Contract:** Run `sand api show sand::component::EnchantmentSelection::Tag` for the canonical contract."]
+    List(#[doc = "A non-empty list of concrete enchantments."] Vec<EnchantmentId>),
     /// Every enchantment in a typed enchantment tag.
-    Tag(
-        #[doc = "The `Tag` variant carries the value described by its variant semantics: Every enchantment in a typed enchantment tag."]
-        #[doc = "**API Contract:** Run `sand api show sand::component::EnchantmentSelection::Tag::0` for the canonical contract."]
-        TagId<EnchantmentId>,
-    ),
+    Tag(#[doc = "Every enchantment in a typed enchantment tag."] TagId<EnchantmentId>),
 }
 
 impl EnchantmentSelection {
     /// Select one concrete enchantment.
-    #[doc = "**API Contract:** Run `sand api show sand::component::EnchantmentSelection::one` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::EnchantmentSelection::one",
+        aliases = ["sand::prelude::EnchantmentSelection::one"],
+        module = "sand::component",
+        kind = "method",
+        summary = "Select one concrete enchantment.",
+        context = "Select one concrete enchantment. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(enchantment = "`enchantment` provides the typed Minecraft resource identifier used to select one concrete enchantment."),
+        returns = "A newly constructed `EnchantmentSelection` configured to select one concrete enchantment.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(enchantment: sand::registry::EnchantmentId)  {\n    let enchantment_selection = sand::component::EnchantmentSelection::one(enchantment);\n}",
+    )]
     pub fn one(enchantment: EnchantmentId) -> Self {
         Self::Single(enchantment)
     }
@@ -144,13 +189,41 @@ impl EnchantmentSelection {
     /// Select multiple concrete enchantments.
     ///
     /// Empty collections are rejected during component validation.
-    #[doc = "**API Contract:** Run `sand api show sand::component::EnchantmentSelection::many` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::EnchantmentSelection::many",
+        aliases = ["sand::prelude::EnchantmentSelection::many"],
+        module = "sand::component",
+        kind = "method",
+        summary = "Select multiple concrete enchantments. Empty collections are rejected during component validation.",
+        context = "Select multiple concrete enchantments. Empty collections are rejected during component validation. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(enchantments = "`enchantments` supplies the enchantments value used to select multiple concrete enchantments. Empty collections are rejected during component validation."),
+        returns = "A newly constructed `EnchantmentSelection` configured to select multiple concrete enchantments. Empty collections are rejected during component validation.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(enchantments: impl IntoIterator < Item = sand::registry::EnchantmentId >)  {\n    let enchantment_selection = sand::component::EnchantmentSelection::many(enchantments);\n}",
+    )]
     pub fn many(enchantments: impl IntoIterator<Item = EnchantmentId>) -> Self {
         Self::List(enchantments.into_iter().collect())
     }
 
     /// Select all enchantments in a tag.
-    #[doc = "**API Contract:** Run `sand api show sand::component::EnchantmentSelection::tag` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::EnchantmentSelection::tag",
+        aliases = ["sand::prelude::EnchantmentSelection::tag"],
+        module = "sand::component",
+        kind = "method",
+        summary = "Select all enchantments in a tag.",
+        context = "Select all enchantments in a tag. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(tag = "`tag` supplies the tag value used to select all enchantments in a tag."),
+        returns = "A newly constructed `EnchantmentSelection` configured to select all enchantments in a tag.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(tag: sand::component::TagId < sand::registry::EnchantmentId >)  {\n    let enchantment_selection = sand::component::EnchantmentSelection::tag(tag);\n}",
+    )]
     pub fn tag(tag: TagId<EnchantmentId>) -> Self {
         Self::Tag(tag)
     }
@@ -232,7 +305,18 @@ enum EnchantmentProviderKind {
     Raw(RawJson),
 }
 
-#[doc = "**API Contract:** Run `sand api show sand::component::EnchantmentProvider` for the canonical contract."]
+#[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::component::EnchantmentProvider",
+    aliases = ["sand::prelude::EnchantmentProvider"],
+    module = "sand::component",
+    summary = "A data-driven enchantment provider definition (Minecraft 1.21+).",
+    context = "A data-driven enchantment provider definition (Minecraft 1.21+). This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+    minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+    use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+    avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+    example = "use sand::component::EnchantmentProvider;",
+)]
 /// A data-driven enchantment provider definition (Minecraft 1.21+).
 #[derive(Debug, Clone, PartialEq)]
 pub struct EnchantmentProvider {
@@ -242,7 +326,21 @@ pub struct EnchantmentProvider {
 
 impl EnchantmentProvider {
     /// Always provide one enchantment at a fixed or randomized positive level.
-    #[doc = "**API Contract:** Run `sand api show sand::component::EnchantmentProvider::single` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::EnchantmentProvider::single",
+        aliases = ["sand::prelude::EnchantmentProvider::single"],
+        module = "sand::component",
+        kind = "method",
+        summary = "Always provide one enchantment at a fixed or randomized positive level.",
+        context = "Always provide one enchantment at a fixed or randomized positive level. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(location = "`location` provides the typed resource identifier or location used to use always provide one enchantment at a fixed or randomized positive level.", enchantment = "`enchantment` provides the typed Minecraft resource identifier used to use always provide one enchantment at a fixed or randomized positive level.", level = "`level` supplies the level value used to use always provide one enchantment at a fixed or randomized positive level."),
+        returns = "A newly constructed `EnchantmentProvider` configured to use always provide one enchantment at a fixed or randomized positive level.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(location: sand::ResourceLocation, enchantment: sand::registry::EnchantmentId, level: impl Into < sand::component::EnchantmentProviderInt >)  {\n    let enchantment_provider = sand::component::EnchantmentProvider::single(location, enchantment, level);\n}",
+    )]
     pub fn single(
         location: ResourceLocation,
         enchantment: EnchantmentId,
@@ -258,7 +356,21 @@ impl EnchantmentProvider {
     }
 
     /// Choose compatible enchantments from a typed set using an enchanting cost.
-    #[doc = "**API Contract:** Run `sand api show sand::component::EnchantmentProvider::by_cost` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::EnchantmentProvider::by_cost",
+        aliases = ["sand::prelude::EnchantmentProvider::by_cost"],
+        module = "sand::component",
+        kind = "method",
+        summary = "Choose compatible enchantments from a typed set using an enchanting cost.",
+        context = "Choose compatible enchantments from a typed set using an enchanting cost. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Choose compatible enchantments from a typed set using an enchanting cost."],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(location = "`location` provides the typed resource identifier or location used to choose compatible enchantments from a typed set using an enchanting cost.", enchantments = "`enchantments` supplies the enchantments value used to choose compatible enchantments from a typed set using an enchanting cost.", cost = "`cost` supplies the cost value used to choose compatible enchantments from a typed set using an enchanting cost."),
+        returns = "A newly constructed `EnchantmentProvider` configured to choose compatible enchantments from a typed set using an enchanting cost.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(location: sand::ResourceLocation, enchantments: impl Into < sand::component::EnchantmentSelection >, cost: impl Into < sand::component::EnchantmentProviderInt >)  {\n    let enchantment_provider = sand::component::EnchantmentProvider::by_cost(location, enchantments, cost);\n}",
+    )]
     pub fn by_cost(
         location: ResourceLocation,
         enchantments: impl Into<EnchantmentSelection>,
@@ -274,7 +386,21 @@ impl EnchantmentProvider {
     }
 
     /// Choose enchantments using a cost influenced by local difficulty.
-    #[doc = "**API Contract:** Run `sand api show sand::component::EnchantmentProvider::by_cost_with_difficulty` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::EnchantmentProvider::by_cost_with_difficulty",
+        aliases = ["sand::prelude::EnchantmentProvider::by_cost_with_difficulty"],
+        module = "sand::component",
+        kind = "method",
+        summary = "Choose enchantments using a cost influenced by local difficulty.",
+        context = "Choose enchantments using a cost influenced by local difficulty. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Choose enchantments using a cost influenced by local difficulty."],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(location = "`location` provides the typed resource identifier or location used to choose enchantments using a cost influenced by local difficulty.", enchantments = "`enchantments` supplies the enchantments value used to choose enchantments using a cost influenced by local difficulty.", min_cost = "`min_cost` supplies the min cost value used to choose enchantments using a cost influenced by local difficulty.", max_cost_span = "`max_cost_span` supplies the max cost span value used to choose enchantments using a cost influenced by local difficulty."),
+        returns = "A newly constructed `EnchantmentProvider` configured to choose enchantments using a cost influenced by local difficulty.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(location: sand::ResourceLocation, enchantments: impl Into < sand::component::EnchantmentSelection >, min_cost: u32, max_cost_span: u32)  {\n    let enchantment_provider = sand::component::EnchantmentProvider::by_cost_with_difficulty(location, enchantments, min_cost, max_cost_span);\n}",
+    )]
     pub fn by_cost_with_difficulty(
         location: ResourceLocation,
         enchantments: impl Into<EnchantmentSelection>,
@@ -295,7 +421,21 @@ impl EnchantmentProvider {
     ///
     /// The export boundary still requires an object with a valid namespaced
     /// `type` string. Nested fields remain intentionally opaque.
-    #[doc = "**API Contract:** Run `sand api show sand::component::EnchantmentProvider::raw` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::EnchantmentProvider::raw",
+        aliases = ["sand::prelude::EnchantmentProvider::raw"],
+        module = "sand::component",
+        kind = "method",
+        summary = "Use an explicit raw provider object for unsupported or modded shapes.",
+        context = "Use an explicit raw provider object for unsupported or modded shapes. The export boundary still requires an object with a valid namespaced `type` string. Nested fields remain intentionally opaque.",
+        minecraft = "The export boundary still requires an object with a valid namespaced `type` string. Nested fields remain intentionally opaque.",
+        use_when = ["Use an explicit raw provider object for unsupported or modded shapes."],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(location = "`location` provides the typed resource identifier or location used to use an explicit raw provider object for unsupported or modded shapes.", provider = "`provider` supplies the provider value used to use an explicit raw provider object for unsupported or modded shapes."),
+        returns = "A newly constructed `EnchantmentProvider` configured to use an explicit raw provider object for unsupported or modded shapes.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(location: sand::ResourceLocation, provider: sand::component::RawJson)  {\n    let enchantment_provider = sand::component::EnchantmentProvider::raw(location, provider);\n}",
+    )]
     pub fn raw(location: ResourceLocation, provider: RawJson) -> Self {
         Self {
             location,

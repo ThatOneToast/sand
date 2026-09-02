@@ -2,7 +2,7 @@ use std::collections::{BTreeMap, BTreeSet};
 
 use quote::quote;
 use sand_api_contract::syntax::{
-    GeneratedApiContract, GeneratedApiKind, validate_generated_expansion,
+    GeneratedApiContract, GeneratedApiKind, render_generated_rustdoc, validate_generated_expansion,
 };
 use syn::{
     Data, DeriveInput, Expr, ExprLit, ExprPath, Fields, GenericArgument, Lit, LitInt, LitStr, Path,
@@ -231,7 +231,6 @@ pub(crate) fn derive_state(input: DeriveInput) -> syn::Result<proc_macro2::Token
                 (
                     quote! {
                         #[doc = concat!("Typed handle for the `", #field_name, "` State field.")]
-                        #[doc = concat!("API Contract: generated typed score handle `", module_path!(), "::", stringify!(#owner_ident), "::", stringify!(#ident), "`.")]
                         pub const #ident: ::sand::__private::EntityScore<#ty> =
                             ::sand::__private::entity_score_new(
                                 #namespace, #schema_name, #field_name, #kind, #default, #bounds
@@ -285,7 +284,6 @@ pub(crate) fn derive_state(input: DeriveInput) -> syn::Result<proc_macro2::Token
                 (
                     quote! {
                         #[doc = concat!("Typed fixed-point handle for the `", #field_name, "` State field.")]
-                        #[doc = concat!("API Contract: generated typed fixed-point handle `", module_path!(), "::", stringify!(#owner_ident), "::", stringify!(#ident), "`.")]
                         pub const #ident: ::sand::__private::FixedScore =
                             ::sand::__private::fixed_score_new(
                                 #namespace, #schema_name, #field_name, #scale, #default, #fixed_bounds
@@ -309,7 +307,6 @@ pub(crate) fn derive_state(input: DeriveInput) -> syn::Result<proc_macro2::Token
                 (
                     quote! {
                         #[doc = concat!("Typed handle for the `", #field_name, "` State field.")]
-                        #[doc = concat!("API Contract: generated typed flag handle `", module_path!(), "::", stringify!(#owner_ident), "::", stringify!(#ident), "`.")]
                         pub const #ident: ::sand::__private::EntityFlag =
                             ::sand::__private::EntityFlag::new(
                                 #namespace, #schema_name, #field_name, #default
@@ -333,7 +330,6 @@ pub(crate) fn derive_state(input: DeriveInput) -> syn::Result<proc_macro2::Token
                 (
                     quote! {
                         #[doc = concat!("Typed handle for the `", #field_name, "` State field.")]
-                        #[doc = concat!("API Contract: generated typed enum handle `", module_path!(), "::", stringify!(#owner_ident), "::", stringify!(#ident), "`.")]
                         pub const #ident: ::sand::__private::EntityEnum<#ty> =
                             ::sand::__private::EntityEnum::new(
                                 #namespace, #schema_name, #field_name, #default
@@ -365,7 +361,6 @@ pub(crate) fn derive_state(input: DeriveInput) -> syn::Result<proc_macro2::Token
                 (
                     quote! {
                         #[doc = concat!("Typed handle for the `", #field_name, "` State field.")]
-                        #[doc = concat!("API Contract: generated typed timer handle `", module_path!(), "::", stringify!(#owner_ident), "::", stringify!(#ident), "`.")]
                         pub const #ident: ::sand::__private::EntityTimer =
                             ::sand::__private::EntityTimer::new(
                                 #namespace, #schema_name, #field_name, #default
@@ -399,7 +394,6 @@ pub(crate) fn derive_state(input: DeriveInput) -> syn::Result<proc_macro2::Token
                 (
                     quote! {
                         #[doc = concat!("Typed handle for the `", #field_name, "` State field.")]
-                        #[doc = concat!("API Contract: generated typed cooldown handle `", module_path!(), "::", stringify!(#owner_ident), "::", stringify!(#ident), "`.")]
                         pub const #ident: ::sand::__private::EntityCooldown =
                             ::sand::__private::EntityCooldown::new(
                                 #namespace, #schema_name, #field_name
@@ -462,7 +456,6 @@ pub(crate) fn derive_state(input: DeriveInput) -> syn::Result<proc_macro2::Token
         bound_fields.push(quote! {
             #bound_docs
             #[doc = concat!("Bound accessor for the `", #field_name, "` state field.")]
-            #[doc = concat!("API Contract: generated bound accessor `", module_path!(), "::", stringify!(#bound_ident), "::", stringify!(#ident), "`.")]
             pub #ident: #accessor
         });
         let track_dirty = matches!(config.scope, Scope::Entity | Scope::Living);
@@ -598,7 +591,6 @@ pub(crate) fn derive_state(input: DeriveInput) -> syn::Result<proc_macro2::Token
                 quote! {
                     #docs
                     /// Bind this schema to the current execution-scoped player.
-                    #[doc = concat!("API Contract: generated player binding `", module_path!(), "::", stringify!(#ident), "::on`.")]
                     pub fn on(
                         _target: ::sand::__private::EntityContext<::sand::__private::PlayerKind>
                     ) -> #bound_ident {
@@ -629,7 +621,6 @@ pub(crate) fn derive_state(input: DeriveInput) -> syn::Result<proc_macro2::Token
                 quote! {
                     #docs
                     /// Bind this schema to the current execution-scoped entity.
-                    #[doc = concat!("API Contract: generated entity binding `", module_path!(), "::", stringify!(#ident), "::on`.")]
                     pub fn on<K: ::sand::__private::EntityKind>(
                         _target: ::sand::__private::EntityContext<K>
                     ) -> #bound_ident {
@@ -662,7 +653,6 @@ pub(crate) fn derive_state(input: DeriveInput) -> syn::Result<proc_macro2::Token
                 quote! {
                     #docs
                     /// Bind this schema to the current execution-scoped living entity.
-                    #[doc = concat!("API Contract: generated living-entity binding `", module_path!(), "::", stringify!(#ident), "::on`.")]
                     pub fn on<K: ::sand::__private::LivingEntityKind>(
                         _target: ::sand::__private::EntityContext<K>
                     ) -> #bound_ident {
@@ -696,7 +686,6 @@ pub(crate) fn derive_state(input: DeriveInput) -> syn::Result<proc_macro2::Token
                 quote! {
                     #docs
                     /// Bind this schema to its deterministic global fake-player holder.
-                    #[doc = concat!("API Contract: generated global binding `", module_path!(), "::", stringify!(#ident), "::global`.")]
                     pub fn global() -> #bound_ident {
                         Self::__sand_bind_to(#holder)
                     }
@@ -863,7 +852,6 @@ pub(crate) fn derive_state(input: DeriveInput) -> syn::Result<proc_macro2::Token
     let expanded = quote! {
         #bound_type_docs
         #[doc = concat!("Typed bound view generated for `", module_path!(), "::", stringify!(#ident), "`.")]
-        #[doc = concat!("API Contract: generated State bound view `", module_path!(), "::", stringify!(#bound_ident), "`.")]
         #[derive(Debug, Clone, Copy)]
         #visibility struct #bound_ident {
             #(#bound_fields),*
@@ -890,7 +878,6 @@ pub(crate) fn derive_state(input: DeriveInput) -> syn::Result<proc_macro2::Token
 
             #fields_docs
             /// Field metadata in declaration order.
-            #[doc = concat!("API Contract: generated schema metadata `", module_path!(), "::", stringify!(#ident), "::FIELDS`.")]
             pub const FIELDS: &'static [::sand::__private::StateFieldDescriptor] = &[
                 #(#descriptors),*
             ];
@@ -1729,66 +1716,11 @@ fn generated_contract(
 }
 
 fn generated_contract_docs(contract: &GeneratedApiContract) -> proc_macro2::TokenStream {
-    let summary = LitStr::new(&contract.summary, proc_macro2::Span::call_site());
-    let context = LitStr::new(
-        &format!("**Context:** {}", contract.context),
-        proc_macro2::Span::call_site(),
-    );
-    let minecraft = LitStr::new(
-        &format!("**Minecraft behavior:** {}", contract.minecraft),
-        proc_macro2::Span::call_site(),
-    );
-    let use_when = LitStr::new(
-        &format!("**Use when:** {}", contract.use_when.join("; ")),
-        proc_macro2::Span::call_site(),
-    );
-    let avoid_when = LitStr::new(
-        &format!("**Avoid when:** {}", contract.avoid_when.join("; ")),
-        proc_macro2::Span::call_site(),
-    );
-    let parameters = (!contract.parameters.is_empty()).then(|| {
-        LitStr::new(
-            &format!(
-                "**Parameters:** {}",
-                contract
-                    .parameters
-                    .iter()
-                    .map(|(name, description)| format!("`{name}` — {description}"))
-                    .collect::<Vec<_>>()
-                    .join("; ")
-            ),
-            proc_macro2::Span::call_site(),
-        )
-    });
-    let returns = contract.returns.as_ref().map(|value| {
-        LitStr::new(
-            &format!("**Returns:** {value}"),
-            proc_macro2::Span::call_site(),
-        )
-    });
-    let example = LitStr::new(
-        &format!("**Example:** `{}`", contract.example),
-        proc_macro2::Span::call_site(),
-    );
-    let parameter_doc = parameters
-        .map(|value| quote!(#[doc = #value]))
-        .unwrap_or_default();
-    let return_doc = returns
-        .map(|value| quote!(#[doc = #value]))
-        .unwrap_or_default();
-    quote! {
-        #[doc = #summary]
-        #[doc = ""]
-        #[doc = "# API Contract"]
-        #[doc = ""]
-        #[doc = #context]
-        #[doc = #minecraft]
-        #[doc = #use_when]
-        #[doc = #avoid_when]
-        #parameter_doc
-        #return_doc
-        #[doc = #example]
-    }
+    let lines = render_generated_rustdoc(contract);
+    let lines = lines
+        .iter()
+        .map(|line| LitStr::new(line, proc_macro2::Span::call_site()));
+    quote!(#(#[doc = #lines])*)
 }
 
 pub(crate) fn derive_enum(input: DeriveInput) -> syn::Result<proc_macro2::TokenStream> {
@@ -2656,7 +2588,7 @@ mod generated_surface_tests {
             validate_generated_expansion(expansion, ["Stats".to_owned()], &[contract])
                 .unwrap_err()
                 .to_string()
-                .contains("API Contract Rustdoc")
+                .contains("contract-derived Rustdoc")
         );
 
         let mut contract = fixture_contract(
@@ -2682,10 +2614,9 @@ mod generated_surface_tests {
     #[test]
     fn real_state_expansion_contracts_every_generated_public_item() {
         let expansion = derive_state(state_input()).unwrap().to_string();
-        assert!(
-            expansion.matches("# API Contract").count() >= 5,
-            "{expansion}"
-        );
+        assert!(expansion.matches("# Minecraft behavior").count() >= 5);
+        assert!(expansion.matches("# Example").count() >= 5);
+        assert!(!expansion.contains("sand api show"));
         assert!(expansion.contains("StatsBound"));
         assert!(expansion.contains("FIELDS"));
         assert!(expansion.contains("on"));

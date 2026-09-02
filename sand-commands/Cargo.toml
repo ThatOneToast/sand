@@ -15,3 +15,5 @@ categories = ["game-development"]
 serde_json = "1"
 thiserror = "2"
 sand-version = { path = "../sand-version" }
+sand-api-contract = { path = "../sand-api-contract" }
+sand-macros = { path = "../sand-macros" }

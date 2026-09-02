@@ -6,50 +6,52 @@ use crate::resource_location::ResourceLocation;
 
 /// Errors that can occur in sand-components.
 ///
-/// **API Contract:** Run `sand api show sand::component::SandError` for the canonical contract.
+#[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::component::SandError",
+    module = "sand::component",
+    summary = "Errors that can occur in sand-components.",
+    context = "Errors that can occur in sand-components. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+    minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+    use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+    avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+    example = "use sand::component::SandError;",
+    variants(ComponentValidation = "A datapack component failed builder-invariant validation.", InvalidNamespace = "Namespace failed validation (must match `[a-z0-9_.-]+` and be non-empty).", InvalidPath = "Resource location path failed validation (must match `[a-z0-9_./-]+` and be non-empty).", Io = "File I/O error.", Serialization = "JSON serialization or deserialization error.", VersionGating = "A component or generated event requires a feature not available in the target Minecraft version."),
+    variant_fields(ComponentValidation(field = "The field or validation path where the failure was detected.", kind = "The component kind or directory (e.g. `\"recipe\"`, `\"advancement\"`).", location = "The resource location of the failed component.", message = "Human-readable explanation of the violated invariant."), InvalidNamespace = ["Namespace failed validation (must match `[a-z0-9_.-]+` and be non-empty)."], InvalidPath = ["Resource location path failed validation (must match `[a-z0-9_./-]+` and be non-empty)."], Io = ["File I/O error."], Serialization = ["JSON serialization or deserialization error."], VersionGating(fallback_note = "Extra fallback note appended to the diagnostic when `is_fallback` is true.", feature_name = "The required feature identifier (e.g. `\"dialogs\"`).", is_fallback = "Whether the profile is a conservative fallback (not an exact match).", kind = "The component kind or trigger identifier.", location = "The resource location of the rejected component or event.", requested_version = "The requested Minecraft version string.")),
+)]
 #[derive(Debug, Error)]
 pub enum SandError {
-    #[doc = "**API Contract:** Run `sand api show sand::component::SandError::InvalidNamespace` for the canonical contract."]
     /// Namespace failed validation (must match `[a-z0-9_.-]+` and be non-empty).
     #[error("Invalid namespace '{0}': must only contain [a-z0-9_.-] and be non-empty")]
     InvalidNamespace(
-        #[doc = "The `InvalidNamespace` variant carries the value described by its variant semantics: Namespace failed validation (must match `[a-z0-9_.-]+` and be non-empty)."]
-        #[doc = "**API Contract:** Run `sand api show sand::component::SandError::InvalidNamespace::0` for the canonical contract."]
-        String,
+        #[doc = "Namespace failed validation (must match `[a-z0-9_.-]+` and be non-empty)."] String,
     ),
 
-    #[doc = "**API Contract:** Run `sand api show sand::component::SandError::InvalidPath` for the canonical contract."]
     /// Resource location path failed validation (must match `[a-z0-9_./-]+` and be non-empty).
     #[error(
         "Invalid resource location path '{0}': must only contain [a-z0-9_./-] and be non-empty"
     )]
     InvalidPath(
-        #[doc = "The `InvalidPath` variant carries the value described by its variant semantics: Resource location path failed validation (must match `[a-z0-9_./-]+` and be non-empty)."]
-        #[doc = "**API Contract:** Run `sand api show sand::component::SandError::InvalidPath::0` for the canonical contract."]
-        String,
+        #[doc = "Resource location path failed validation (must match `[a-z0-9_./-]+` and be non-empty)."]
+         String,
     ),
 
-    #[doc = "**API Contract:** Run `sand api show sand::component::SandError::Serialization` for the canonical contract."]
     /// JSON serialization or deserialization error.
     #[error("Serialization error: {0}")]
     Serialization(
-        #[doc = "The `Serialization` variant carries the value described by its variant semantics: JSON serialization or deserialization error."]
-        #[doc = "**API Contract:** Run `sand api show sand::component::SandError::Serialization::0` for the canonical contract."]
+        #[doc = "JSON serialization or deserialization error."]
         #[from]
         serde_json::Error,
     ),
 
-    #[doc = "**API Contract:** Run `sand api show sand::component::SandError::Io` for the canonical contract."]
     /// File I/O error.
     #[error("I/O error: {0}")]
     Io(
-        #[doc = "The `Io` variant carries the value described by its variant semantics: File I/O error."]
-        #[doc = "**API Contract:** Run `sand api show sand::component::SandError::Io::0` for the canonical contract."]
+        #[doc = "File I/O error."]
         #[from]
         std::io::Error,
     ),
 
-    #[doc = "**API Contract:** Run `sand api show sand::component::SandError::ComponentValidation` for the canonical contract."]
     /// A datapack component failed builder-invariant validation.
     ///
     /// Includes the resource location, the component kind/directory, the field
@@ -57,21 +59,16 @@ pub enum SandError {
     /// message explaining the invariant that was violated.
     #[error("component `{location}` ({kind}): {message} [field: {field}]")]
     ComponentValidation {
-        #[doc = "**API Contract:** Run `sand api show sand::component::SandError::ComponentValidation::location` for the canonical contract."]
         /// The resource location of the failed component.
         location: ResourceLocation,
-        #[doc = "**API Contract:** Run `sand api show sand::component::SandError::ComponentValidation::kind` for the canonical contract."]
         /// The component kind or directory (e.g. `"recipe"`, `"advancement"`).
         kind: String,
-        #[doc = "**API Contract:** Run `sand api show sand::component::SandError::ComponentValidation::field` for the canonical contract."]
         /// The field or validation path where the failure was detected.
         field: String,
-        #[doc = "**API Contract:** Run `sand api show sand::component::SandError::ComponentValidation::message` for the canonical contract."]
         /// Human-readable explanation of the violated invariant.
         message: String,
     },
 
-    #[doc = "**API Contract:** Run `sand api show sand::component::SandError::VersionGating` for the canonical contract."]
     /// A component or generated event requires a feature not available in the
     /// target Minecraft version.
     ///
@@ -84,22 +81,16 @@ pub enum SandError {
          {fallback_note} — select a supported target or remove the component"
     )]
     VersionGating {
-        #[doc = "**API Contract:** Run `sand api show sand::component::SandError::VersionGating::location` for the canonical contract."]
         /// The resource location of the rejected component or event.
         location: String,
-        #[doc = "**API Contract:** Run `sand api show sand::component::SandError::VersionGating::kind` for the canonical contract."]
         /// The component kind or trigger identifier.
         kind: String,
-        #[doc = "**API Contract:** Run `sand api show sand::component::SandError::VersionGating::requested_version` for the canonical contract."]
         /// The requested Minecraft version string.
         requested_version: String,
-        #[doc = "**API Contract:** Run `sand api show sand::component::SandError::VersionGating::is_fallback` for the canonical contract."]
         /// Whether the profile is a conservative fallback (not an exact match).
         is_fallback: bool,
-        #[doc = "**API Contract:** Run `sand api show sand::component::SandError::VersionGating::feature_name` for the canonical contract."]
         /// The required feature identifier (e.g. `"dialogs"`).
         feature_name: String,
-        #[doc = "**API Contract:** Run `sand api show sand::component::SandError::VersionGating::fallback_note` for the canonical contract."]
         /// Extra fallback note appended to the diagnostic when `is_fallback` is true.
         fallback_note: String,
     },
@@ -107,7 +98,17 @@ pub enum SandError {
 
 /// Convenience type alias for `Result<T, SandError>`.
 ///
-/// **API Contract:** Run `sand api show sand::component::Result` for the canonical contract.
+#[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::component::Result",
+    module = "sand::component",
+    summary = "Convenience type alias for `Result<T, SandError>`.",
+    context = "Convenience type alias for `Result<T, SandError>`. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+    minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+    use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+    avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+    example = "use sand::component::Result;",
+)]
 pub type Result<T> = std::result::Result<T, SandError>;
 
 /// Build a [`SandError::VersionGating`] error for a component that requires

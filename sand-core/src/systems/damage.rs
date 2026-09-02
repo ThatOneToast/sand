@@ -61,7 +61,21 @@ pub const DAMAGE_HURT_AGE_OBJ: &str = "sd_dmg_hurt";
 
 // ── DamageThreshold ───────────────────────────────────────────────────────────
 
-#[doc = "**API Contract:** Run `sand api show sand::systems::damage::DamageThreshold` for the canonical contract."]
+#[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::systems::damage::DamageThreshold",
+    aliases = ["sand::prelude::DamageThreshold"],
+    module = "sand::systems",
+    summary = "A damage amount threshold for querying [`DamageTracker`] conditions.",
+    context = "A damage amount threshold for querying [`DamageTracker`] conditions. Prefer [`DamageThreshold::hearts`] for user-facing values: - `1.0` heart = one full heart = 10 internal stat units - `0.5` hearts = half a heart = 5 stat units - threshold queries require a positive finite value that rounds to at least 1 internal stat unit Use [`DamageThreshold::raw_stat`] only when you need to match the raw Minecraft scoreboard stat value directly. Threshold queries require a positive raw stat value.",
+    minecraft = "Use [`DamageThreshold::raw_stat`] only when you need to match the raw Minecraft scoreboard stat value directly. Threshold queries require a positive raw stat value.",
+    use_when = ["Prefer [`DamageThreshold::hearts`] for user-facing values: - `1.0` heart = one full heart = 10 internal stat units - `0.5` hearts = half a heart = 5 stat units - threshold queries require a positive finite value that rounds to at least 1 internal stat unit", "Use [`DamageThreshold::raw_stat`] only when you need to match the raw Minecraft scoreboard stat value directly. Threshold queries require a positive raw stat value."],
+    avoid_when = ["Using the API outside its documented system scope or feature configuration"],
+    example = "use sand::systems::damage::DamageThreshold;",
+    availability = ["Cargo feature: systems-damage"],
+    variants(Hearts = "Number of hearts (1.0 = 1 heart = 10 stat units).", RawStat = "Raw Minecraft stat units (same scale as `minecraft.damage_taken`)."),
+    variant_fields(Hearts = ["Configures the 0 value used by this gameplay system."], RawStat = ["Configures the 0 value used by this gameplay system."]),
+)]
 /// A damage amount threshold for querying [`DamageTracker`] conditions.
 ///
 /// # Units
@@ -77,25 +91,30 @@ pub const DAMAGE_HURT_AGE_OBJ: &str = "sd_dmg_hurt";
 /// positive raw stat value.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum DamageThreshold {
-    #[doc = "**API Contract:** Run `sand api show sand::systems::damage::DamageThreshold::Hearts` for the canonical contract."]
     /// Number of hearts (1.0 = 1 heart = 10 stat units).
-    Hearts(
-        #[doc = "Configures the 0 value used by this gameplay system."]
-        #[doc = "**API Contract:** Run `sand api show sand::systems::damage::DamageThreshold::Hearts::0` for the canonical contract."]
-        f32,
-    ),
-    #[doc = "**API Contract:** Run `sand api show sand::systems::damage::DamageThreshold::RawStat` for the canonical contract."]
+    Hearts(#[doc = "Configures the 0 value used by this gameplay system."] f32),
     /// Raw Minecraft stat units (same scale as `minecraft.damage_taken`).
-    RawStat(
-        #[doc = "Configures the 0 value used by this gameplay system."]
-        #[doc = "**API Contract:** Run `sand api show sand::systems::damage::DamageThreshold::RawStat::0` for the canonical contract."]
-        i32,
-    ),
+    RawStat(#[doc = "Configures the 0 value used by this gameplay system."] i32),
 }
 
 impl DamageThreshold {
     /// Threshold in hearts (1.0 = one heart, 0.5 = half a heart).
-    #[doc = "**API Contract:** Run `sand api show sand::systems::damage::DamageThreshold::hearts` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::systems::damage::DamageThreshold::hearts",
+        aliases = ["sand::prelude::DamageThreshold::hearts"],
+        module = "sand::systems",
+        kind = "method",
+        summary = "Threshold in hearts (1.0 = one heart, 0.5 = half a heart).",
+        context = "Threshold in hearts (1.0 = one heart, 0.5 = half a heart). This opt-in system composes Sand's typed primitives into a higher-level gameplay behavior; exporter registries and generated tick bookkeeping are private.",
+        minecraft = "The exact commands, resources, and lifecycle behavior are described by the defining item's source documentation for the selected feature and Minecraft profile.",
+        use_when = ["Opting into the documented higher-level gameplay behavior instead of assembling its commands manually"],
+        avoid_when = ["Using the API outside its documented system scope or feature configuration"],
+        params(h = "`h` supplies the h value used to threshold in hearts (1.0 = one heart, 0.5 = half a heart)."),
+        returns = "A newly constructed `DamageThreshold` configured to threshold in hearts (1.0 = one heart, 0.5 = half a heart).",
+        example = "use sand::prelude::*;\n\nfn demonstrate(h: f32)  {\n    let damage_threshold = sand::systems::damage::DamageThreshold::hearts(h);\n}",
+        availability = ["Cargo feature: systems-damage"],
+    )]
     pub fn hearts(h: f32) -> Self {
         Self::Hearts(h)
     }
@@ -105,13 +124,43 @@ impl DamageThreshold {
     /// Values must be finite, greater than `0.0`, and round to at least
     /// 1 raw Minecraft damage stat unit. One raw stat unit is 0.1 heart, so
     /// values below 0.05 heart are not meaningful for `*_at_least` queries.
-    #[doc = "**API Contract:** Run `sand api show sand::systems::damage::DamageThreshold::try_hearts` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::systems::damage::DamageThreshold::try_hearts",
+        aliases = ["sand::prelude::DamageThreshold::try_hearts"],
+        module = "sand::systems",
+        kind = "method",
+        summary = "Fallible threshold in hearts. Values must be finite, greater than `0.0`, and round to at least 1 raw Minecraft damage stat unit. One raw stat unit is 0.1 heart, so values below 0.05 heart are not meaningful for `*_at_least` queries.",
+        context = "Fallible threshold in hearts. Values must be finite, greater than `0.0`, and round to at least 1 raw Minecraft damage stat unit. One raw stat unit is 0.1 heart, so values below 0.05 heart are not meaningful for `*_at_least` queries. This opt-in system composes Sand's typed primitives into a higher-level gameplay behavior; exporter registries and generated tick bookkeeping are private.",
+        minecraft = "Values must be finite, greater than `0.0`, and round to at least 1 raw Minecraft damage stat unit. One raw stat unit is 0.1 heart, so values below 0.05 heart are not meaningful for `*_at_least` queries.",
+        use_when = ["Opting into the documented higher-level gameplay behavior instead of assembling its commands manually"],
+        avoid_when = ["Using the API outside its documented system scope or feature configuration"],
+        params(h = "`h` supplies the h value used to use fallible threshold in hearts. Values must be finite, greater than `0.0`, and round to at least 1 raw Minecraft damage stat unit. One raw stat unit is 0.1 heart, so values below 0.05 heart are not meaningful for `*_at_least` queries."),
+        returns = "On success, the value produced to use fallible threshold in hearts. Values must be finite, greater than `0.0`, and round to at least 1 raw Minecraft damage stat unit. One raw stat unit is 0.1 heart, so values below 0.05 heart are not meaningful for `*_at_least` queries; otherwise, the documented validation or export diagnostic.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(h: f32)  {\n    let try_hearts = sand::systems::damage::DamageThreshold::try_hearts(h);\n}",
+        availability = ["Cargo feature: systems-damage"],
+    )]
     pub fn try_hearts(h: f32) -> Result<Self, String> {
         Self::validate_hearts(h).map(|_| Self::Hearts(h))
     }
 
     /// Raw scoreboard stat units — advanced use only.
-    #[doc = "**API Contract:** Run `sand api show sand::systems::damage::DamageThreshold::raw_stat` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::systems::damage::DamageThreshold::raw_stat",
+        aliases = ["sand::prelude::DamageThreshold::raw_stat"],
+        module = "sand::systems",
+        kind = "method",
+        summary = "Raw scoreboard stat units — advanced use only.",
+        context = "Raw scoreboard stat units — advanced use only. This opt-in system composes Sand's typed primitives into a higher-level gameplay behavior; exporter registries and generated tick bookkeeping are private.",
+        minecraft = "The exact commands, resources, and lifecycle behavior are described by the defining item's source documentation for the selected feature and Minecraft profile.",
+        use_when = ["Opting into the documented higher-level gameplay behavior instead of assembling its commands manually"],
+        avoid_when = ["Using the API outside its documented system scope or feature configuration"],
+        params(v = "`v` supplies the v value used to use raw scoreboard stat units — advanced use only."),
+        returns = "A newly constructed `DamageThreshold` configured to use raw scoreboard stat units — advanced use only.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(v: i32)  {\n    let damage_threshold = sand::systems::damage::DamageThreshold::raw_stat(v);\n}",
+        availability = ["Cargo feature: systems-damage"],
+    )]
     pub fn raw_stat(v: i32) -> Self {
         Self::RawStat(v)
     }
@@ -119,13 +168,42 @@ impl DamageThreshold {
     /// Fallible raw scoreboard stat threshold.
     ///
     /// Values must be greater than zero for `*_at_least` queries.
-    #[doc = "**API Contract:** Run `sand api show sand::systems::damage::DamageThreshold::try_raw_stat` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::systems::damage::DamageThreshold::try_raw_stat",
+        aliases = ["sand::prelude::DamageThreshold::try_raw_stat"],
+        module = "sand::systems",
+        kind = "method",
+        summary = "Fallible raw scoreboard stat threshold. Values must be greater than zero for `*_at_least` queries.",
+        context = "Fallible raw scoreboard stat threshold. Values must be greater than zero for `*_at_least` queries. This opt-in system composes Sand's typed primitives into a higher-level gameplay behavior; exporter registries and generated tick bookkeeping are private.",
+        minecraft = "The exact commands, resources, and lifecycle behavior are described by the defining item's source documentation for the selected feature and Minecraft profile.",
+        use_when = ["Opting into the documented higher-level gameplay behavior instead of assembling its commands manually"],
+        avoid_when = ["Using the API outside its documented system scope or feature configuration"],
+        params(v = "`v` supplies the v value used to use fallible raw scoreboard stat threshold. Values must be greater than zero for `*_at_least` queries."),
+        returns = "On success, the value produced to use fallible raw scoreboard stat threshold. Values must be greater than zero for `*_at_least` queries; otherwise, the documented validation or export diagnostic.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(v: i32)  {\n    let try_raw_stat = sand::systems::damage::DamageThreshold::try_raw_stat(v);\n}",
+        availability = ["Cargo feature: systems-damage"],
+    )]
     pub fn try_raw_stat(v: i32) -> Result<Self, String> {
         Self::validate_raw_stat(v).map(|_| Self::RawStat(v))
     }
 
     /// Convert to the raw Minecraft scoreboard stat integer used internally.
-    #[doc = "**API Contract:** Run `sand api show sand::systems::damage::DamageThreshold::to_raw_stat` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::systems::damage::DamageThreshold::to_raw_stat",
+        aliases = ["sand::prelude::DamageThreshold::to_raw_stat"],
+        module = "sand::systems",
+        kind = "method",
+        summary = "Convert to the raw Minecraft scoreboard stat integer used internally.",
+        context = "Convert to the raw Minecraft scoreboard stat integer used internally. This opt-in system composes Sand's typed primitives into a higher-level gameplay behavior; exporter registries and generated tick bookkeeping are private.",
+        minecraft = "The exact commands, resources, and lifecycle behavior are described by the defining item's source documentation for the selected feature and Minecraft profile.",
+        use_when = ["Opting into the documented higher-level gameplay behavior instead of assembling its commands manually"],
+        avoid_when = ["Using the API outside its documented system scope or feature configuration"],
+        returns = "The `i32` value produced to convert to the raw Minecraft scoreboard stat integer used internally.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(damage_threshold_value: sand::systems::damage::DamageThreshold)  {\n    let to_raw_stat = damage_threshold_value.to_raw_stat();\n}",
+        availability = ["Cargo feature: systems-damage"],
+    )]
     pub fn to_raw_stat(self) -> i32 {
         match self {
             Self::Hearts(h) => (h * 10.0).round() as i32,
@@ -184,7 +262,19 @@ impl DamageThreshold {
 
 // ── DamageTracker ─────────────────────────────────────────────────────────────
 
-#[doc = "**API Contract:** Run `sand api show sand::systems::damage::DamageTracker` for the canonical contract."]
+#[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::systems::damage::DamageTracker",
+    aliases = ["sand::prelude::DamageTracker"],
+    module = "sand::systems",
+    summary = "Tracks per-tick damage state for players via cumulative scoreboard stats.",
+    context = "Tracks per-tick damage state for players via cumulative scoreboard stats. Maintains five objectives: - `sd_dmg_stat` — mirrors `minecraft.custom:minecraft.damage_taken` - `sd_dmg_prev` — previous-tick snapshot - `sd_dmg_delta` — damage this tick (0 when not hurt) - `sd_dmg_last` — last non-zero delta (persists between hurt events) - `sd_dmg_hurt` — ticks since last damage; `0` on the hurt tick",
+    minecraft = "Maintains five objectives: - `sd_dmg_stat` — mirrors `minecraft.custom:minecraft.damage_taken` - `sd_dmg_prev` — previous-tick snapshot - `sd_dmg_delta` — damage this tick (0 when not hurt) - `sd_dmg_last` — last non-zero delta (persists between hurt events) - `sd_dmg_hurt` — ticks since last damage; `0` on the hurt tick",
+    use_when = ["Opting into the documented higher-level gameplay behavior instead of assembling its commands manually"],
+    avoid_when = ["Using the API outside its documented system scope or feature configuration"],
+    example = "use sand::systems::damage::DamageTracker;",
+    availability = ["Cargo feature: systems-damage"],
+)]
 /// Tracks per-tick damage state for players via cumulative scoreboard stats.
 ///
 /// Maintains five objectives:
@@ -199,7 +289,21 @@ impl DamageTracker {
     /// Define all five required scoreboard objectives.
     ///
     /// Call once in a `#[datapack_component(Load)]` function.
-    #[doc = "**API Contract:** Run `sand api show sand::systems::damage::DamageTracker::define` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::systems::damage::DamageTracker::define",
+        aliases = ["sand::prelude::DamageTracker::define"],
+        module = "sand::systems",
+        kind = "method",
+        summary = "Define all five required scoreboard objectives. Call once in a `#[datapack_component(Load)]` function.",
+        context = "Define all five required scoreboard objectives. Call once in a `#[datapack_component(Load)]` function. This opt-in system composes Sand's typed primitives into a higher-level gameplay behavior; exporter registries and generated tick bookkeeping are private.",
+        minecraft = "Call once in a `#[datapack_component(Load)]` function.",
+        use_when = ["Call once in a `#[datapack_component(Load)]` function."],
+        avoid_when = ["Using the API outside its documented system scope or feature configuration"],
+        returns = "The ordered values produced to define all five required scoreboard objectives. Call once in a `#[datapack_component(Load)]` function.",
+        example = "use sand::prelude::*;\n\nfn demonstrate()  {\n    let values = sand::systems::damage::DamageTracker::define();\n}",
+        availability = ["Cargo feature: systems-damage"],
+    )]
     pub fn define() -> Vec<String> {
         vec![
             format!(
@@ -222,7 +326,22 @@ impl DamageTracker {
     /// 4. If `delta > 0`: `hurt_age = 0`
     /// 5. Unless `delta > 0`: `hurt_age += 1`
     /// 6. `prev = stat`
-    #[doc = "**API Contract:** Run `sand api show sand::systems::damage::DamageTracker::tick` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::systems::damage::DamageTracker::tick",
+        aliases = ["sand::prelude::DamageTracker::tick"],
+        module = "sand::systems",
+        kind = "method",
+        summary = "Update damage tracking for one entity (call every tick).",
+        context = "Update damage tracking for one entity (call every tick). Algorithm (in order): 1. `delta = stat` 2. `delta -= prev` 3. If `delta > 0`: `last = delta` 4. If `delta > 0`: `hurt_age = 0` 5. Unless `delta > 0`: `hurt_age += 1` 6. `prev = stat`",
+        minecraft = "The exact commands, resources, and lifecycle behavior are described by the defining item's source documentation for the selected feature and Minecraft profile.",
+        use_when = ["Opting into the documented higher-level gameplay behavior instead of assembling its commands manually"],
+        avoid_when = ["Using the API outside its documented system scope or feature configuration"],
+        params(target = "`target` provides the entity, block, or command target used to update damage tracking for one entity (call every tick)."),
+        returns = "The ordered values produced to update damage tracking for one entity (call every tick).",
+        example = "use sand::prelude::*;\n\nfn demonstrate(target: sand::command::SingleEntity)  {\n    let values = sand::systems::damage::DamageTracker::tick(target);\n}",
+        availability = ["Cargo feature: systems-damage"],
+    )]
     pub fn tick(target: SingleEntity) -> Vec<String> {
         Self::tick_selector(target.to_string())
     }
@@ -231,7 +350,22 @@ impl DamageTracker {
     /// model. Passing a multi-entity selector produces invalid scoreboard
     /// operation sources; prefer [`tick`](Self::tick) or
     /// [`tick_players`](Self::tick_players).
-    #[doc = "**API Contract:** Run `sand api show sand::systems::damage::DamageTracker::tick_raw` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::systems::damage::DamageTracker::tick_raw",
+        aliases = ["sand::prelude::DamageTracker::tick_raw"],
+        module = "sand::systems",
+        kind = "method",
+        summary = "Explicit unchecked compatibility path for selector syntax Sand cannot model. Passing a multi-entity selector produces invalid scoreboard operation sources; prefer [`tick`](Self::tick) or [`tick_players`](Self::tick_players).",
+        context = "Explicit unchecked compatibility path for selector syntax Sand cannot model. Passing a multi-entity selector produces invalid scoreboard operation sources; prefer [`tick`](Self::tick) or [`tick_players`](Self::tick_players). This opt-in system composes Sand's typed primitives into a higher-level gameplay behavior; exporter registries and generated tick bookkeeping are private.",
+        minecraft = "The exact commands, resources, and lifecycle behavior are described by the defining item's source documentation for the selected feature and Minecraft profile.",
+        use_when = ["Opting into the documented higher-level gameplay behavior instead of assembling its commands manually"],
+        avoid_when = ["Using the API outside its documented system scope or feature configuration"],
+        params(selector = "`selector` provides the Minecraft target selection used to use explicit unchecked compatibility path for selector syntax Sand cannot model. Passing a multi-entity selector produces invalid scoreboard operation sources; prefer [`tick`](Self::tick) or [`tick_players`](Self::tick_players)."),
+        returns = "The ordered values produced to use explicit unchecked compatibility path for selector syntax Sand cannot model. Passing a multi-entity selector produces invalid scoreboard operation sources; prefer [`tick`](Self::tick) or [`tick_players`](Self::tick_players).",
+        example = "use std::fmt;\nuse sand::prelude::*;\n\nfn demonstrate(selector: impl std::fmt::Display)  {\n    let values = sand::systems::damage::DamageTracker::tick_raw(selector);\n}",
+        availability = ["Cargo feature: systems-damage"],
+    )]
     pub fn tick_raw(selector: impl std::fmt::Display) -> Vec<String> {
         Self::tick_selector(selector.to_string())
     }
@@ -271,7 +405,21 @@ impl DamageTracker {
     ///
     /// Scoreboard operation sources must resolve to one holder, so this lowers
     /// through `execute as @a` and uses `@s` on both sides of each operation.
-    #[doc = "**API Contract:** Run `sand api show sand::systems::damage::DamageTracker::tick_players` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::systems::damage::DamageTracker::tick_players",
+        aliases = ["sand::prelude::DamageTracker::tick_players"],
+        module = "sand::systems",
+        kind = "method",
+        summary = "Tick every online player independently. Scoreboard operation sources must resolve to one holder, so this lowers through `execute as @a` and uses `@s` on both sides of each operation.",
+        context = "Tick every online player independently. Scoreboard operation sources must resolve to one holder, so this lowers through `execute as @a` and uses `@s` on both sides of each operation. This opt-in system composes Sand's typed primitives into a higher-level gameplay behavior; exporter registries and generated tick bookkeeping are private.",
+        minecraft = "Scoreboard operation sources must resolve to one holder, so this lowers through `execute as @a` and uses `@s` on both sides of each operation.",
+        use_when = ["Opting into the documented higher-level gameplay behavior instead of assembling its commands manually"],
+        avoid_when = ["Using the API outside its documented system scope or feature configuration"],
+        returns = "The ordered values produced to tick every online player independently. Scoreboard operation sources must resolve to one holder, so this lowers through `execute as @a` and uses `@s` on both sides of each operation.",
+        example = "use sand::prelude::*;\n\nfn demonstrate()  {\n    let values = sand::systems::damage::DamageTracker::tick_players();\n}",
+        availability = ["Cargo feature: systems-damage"],
+    )]
     pub fn tick_players() -> Vec<String> {
         Self::tick(SingleEntity::self_())
             .into_iter()
@@ -287,7 +435,22 @@ impl DamageTracker {
     // ── Conditions ────────────────────────────────────────────────────────────
 
     /// Condition: `selector` was damaged this tick (delta > 0).
-    #[doc = "**API Contract:** Run `sand api show sand::systems::damage::DamageTracker::damaged_this_tick` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::systems::damage::DamageTracker::damaged_this_tick",
+        aliases = ["sand::prelude::DamageTracker::damaged_this_tick"],
+        module = "sand::systems",
+        kind = "method",
+        summary = "Condition: `selector` was damaged this tick (delta > 0).",
+        context = "Condition: `selector` was damaged this tick (delta > 0). This opt-in system composes Sand's typed primitives into a higher-level gameplay behavior; exporter registries and generated tick bookkeeping are private.",
+        minecraft = "The exact commands, resources, and lifecycle behavior are described by the defining item's source documentation for the selected feature and Minecraft profile.",
+        use_when = ["Opting into the documented higher-level gameplay behavior instead of assembling its commands manually"],
+        avoid_when = ["Using the API outside its documented system scope or feature configuration"],
+        params(selector = "Condition: `selector` was damaged this tick (delta > 0)."),
+        returns = "The `Condition` value produced to condition `selector` was damaged this tick (delta > 0).",
+        example = "use sand::prelude::*;\n\nfn demonstrate(selector: & str)  {\n    let damaged_this_tick = sand::systems::damage::DamageTracker::damaged_this_tick(selector);\n}",
+        availability = ["Cargo feature: systems-damage"],
+    )]
     pub fn damaged_this_tick(selector: &str) -> Condition {
         Condition::score(
             selector.to_string(),
@@ -297,7 +460,22 @@ impl DamageTracker {
     }
 
     /// Condition: `selector` was NOT damaged this tick (delta == 0).
-    #[doc = "**API Contract:** Run `sand api show sand::systems::damage::DamageTracker::not_damaged_this_tick` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::systems::damage::DamageTracker::not_damaged_this_tick",
+        aliases = ["sand::prelude::DamageTracker::not_damaged_this_tick"],
+        module = "sand::systems",
+        kind = "method",
+        summary = "Condition: `selector` was NOT damaged this tick (delta == 0).",
+        context = "Condition: `selector` was NOT damaged this tick (delta == 0). This opt-in system composes Sand's typed primitives into a higher-level gameplay behavior; exporter registries and generated tick bookkeeping are private.",
+        minecraft = "The exact commands, resources, and lifecycle behavior are described by the defining item's source documentation for the selected feature and Minecraft profile.",
+        use_when = ["Opting into the documented higher-level gameplay behavior instead of assembling its commands manually"],
+        avoid_when = ["Using the API outside its documented system scope or feature configuration"],
+        params(selector = "Condition: `selector` was NOT damaged this tick (delta == 0)."),
+        returns = "The `Condition` value produced to condition `selector` was NOT damaged this tick (delta == 0).",
+        example = "use sand::prelude::*;\n\nfn demonstrate(selector: & str)  {\n    let not_damaged_this_tick = sand::systems::damage::DamageTracker::not_damaged_this_tick(selector);\n}",
+        availability = ["Cargo feature: systems-damage"],
+    )]
     pub fn not_damaged_this_tick(selector: &str) -> Condition {
         Condition::score(
             selector.to_string(),
@@ -307,7 +485,22 @@ impl DamageTracker {
     }
 
     /// Condition: `selector` took at least `threshold` damage this tick.
-    #[doc = "**API Contract:** Run `sand api show sand::systems::damage::DamageTracker::current_damage_at_least` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::systems::damage::DamageTracker::current_damage_at_least",
+        aliases = ["sand::prelude::DamageTracker::current_damage_at_least"],
+        module = "sand::systems",
+        kind = "method",
+        summary = "Condition: `selector` took at least `threshold` damage this tick.",
+        context = "Condition: `selector` took at least `threshold` damage this tick. This opt-in system composes Sand's typed primitives into a higher-level gameplay behavior; exporter registries and generated tick bookkeeping are private.",
+        minecraft = "The exact commands, resources, and lifecycle behavior are described by the defining item's source documentation for the selected feature and Minecraft profile.",
+        use_when = ["Opting into the documented higher-level gameplay behavior instead of assembling its commands manually"],
+        avoid_when = ["Using the API outside its documented system scope or feature configuration"],
+        params(selector = "Condition: `selector` took at least `threshold` damage this tick.", threshold = "Condition: `selector` took at least `threshold` damage this tick."),
+        returns = "The `Condition` value produced to condition `selector` took at least `threshold` damage this tick.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(selector: & str, threshold: sand::systems::damage::DamageThreshold)  {\n    let current_damage_at_least = sand::systems::damage::DamageTracker::current_damage_at_least(selector, threshold);\n}",
+        availability = ["Cargo feature: systems-damage"],
+    )]
     pub fn current_damage_at_least(selector: &str, threshold: DamageThreshold) -> Condition {
         let min_raw = threshold.to_query_raw_stat("current_damage_at_least");
         Condition::score(
@@ -320,7 +513,22 @@ impl DamageTracker {
     /// Condition: the last recorded damage for `selector` was at least `threshold`.
     ///
     /// Uses `sd_dmg_last`, which persists between damage events.
-    #[doc = "**API Contract:** Run `sand api show sand::systems::damage::DamageTracker::last_damage_at_least` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::systems::damage::DamageTracker::last_damage_at_least",
+        aliases = ["sand::prelude::DamageTracker::last_damage_at_least"],
+        module = "sand::systems",
+        kind = "method",
+        summary = "Condition: the last recorded damage for `selector` was at least `threshold`.",
+        context = "Condition: the last recorded damage for `selector` was at least `threshold`. Uses `sd_dmg_last`, which persists between damage events.",
+        minecraft = "The exact commands, resources, and lifecycle behavior are described by the defining item's source documentation for the selected feature and Minecraft profile.",
+        use_when = ["Opting into the documented higher-level gameplay behavior instead of assembling its commands manually"],
+        avoid_when = ["Using the API outside its documented system scope or feature configuration"],
+        params(selector = "Condition: the last recorded damage for `selector` was at least `threshold`.", threshold = "Condition: the last recorded damage for `selector` was at least `threshold`."),
+        returns = "The `Condition` value produced to condition the last recorded damage for `selector` was at least `threshold`.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(selector: & str, threshold: sand::systems::damage::DamageThreshold)  {\n    let last_damage_at_least = sand::systems::damage::DamageTracker::last_damage_at_least(selector, threshold);\n}",
+        availability = ["Cargo feature: systems-damage"],
+    )]
     pub fn last_damage_at_least(selector: &str, threshold: DamageThreshold) -> Condition {
         let min_raw = threshold.to_query_raw_stat("last_damage_at_least");
         Condition::score(
@@ -331,7 +539,22 @@ impl DamageTracker {
     }
 
     /// Condition: `selector` was last hurt within `ticks` ticks ago.
-    #[doc = "**API Contract:** Run `sand api show sand::systems::damage::DamageTracker::hurt_within` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::systems::damage::DamageTracker::hurt_within",
+        aliases = ["sand::prelude::DamageTracker::hurt_within"],
+        module = "sand::systems",
+        kind = "method",
+        summary = "Condition: `selector` was last hurt within `ticks` ticks ago.",
+        context = "Condition: `selector` was last hurt within `ticks` ticks ago. This opt-in system composes Sand's typed primitives into a higher-level gameplay behavior; exporter registries and generated tick bookkeeping are private.",
+        minecraft = "The exact commands, resources, and lifecycle behavior are described by the defining item's source documentation for the selected feature and Minecraft profile.",
+        use_when = ["Opting into the documented higher-level gameplay behavior instead of assembling its commands manually"],
+        avoid_when = ["Using the API outside its documented system scope or feature configuration"],
+        params(selector = "Condition: `selector` was last hurt within `ticks` ticks ago.", ticks = "Condition: `selector` was last hurt within `ticks` ticks ago."),
+        returns = "The `Condition` value produced to condition `selector` was last hurt within `ticks` ticks ago.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(selector: & str, ticks: sand::state::Ticks)  {\n    let hurt_within = sand::systems::damage::DamageTracker::hurt_within(selector, ticks);\n}",
+        availability = ["Cargo feature: systems-damage"],
+    )]
     pub fn hurt_within(selector: &str, ticks: Ticks) -> Condition {
         Condition::score(
             selector.to_string(),
@@ -343,7 +566,22 @@ impl DamageTracker {
     // ── Raw score accessors (advanced use) ────────────────────────────────────
 
     /// The raw current-tick delta objective name.
-    #[doc = "**API Contract:** Run `sand api show sand::systems::damage::DamageTracker::current_damage_raw` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::systems::damage::DamageTracker::current_damage_raw",
+        aliases = ["sand::prelude::DamageTracker::current_damage_raw"],
+        module = "sand::systems",
+        kind = "method",
+        summary = "The raw current-tick delta objective name.",
+        context = "The raw current-tick delta objective name. This opt-in system composes Sand's typed primitives into a higher-level gameplay behavior; exporter registries and generated tick bookkeeping are private.",
+        minecraft = "The exact commands, resources, and lifecycle behavior are described by the defining item's source documentation for the selected feature and Minecraft profile.",
+        use_when = ["Opting into the documented higher-level gameplay behavior instead of assembling its commands manually"],
+        avoid_when = ["Using the API outside its documented system scope or feature configuration"],
+        params(selector = "`selector` provides the Minecraft target selection used to use the raw current-tick delta objective name."),
+        returns = "The `Condition` value produced to use the raw current-tick delta objective name.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(selector: & str)  {\n    let current_damage_raw = sand::systems::damage::DamageTracker::current_damage_raw(selector);\n}",
+        availability = ["Cargo feature: systems-damage"],
+    )]
     pub fn current_damage_raw(selector: &str) -> Condition {
         Condition::score(
             selector.to_string(),
@@ -353,7 +591,22 @@ impl DamageTracker {
     }
 
     /// The raw last-damage objective name.
-    #[doc = "**API Contract:** Run `sand api show sand::systems::damage::DamageTracker::last_damage_raw` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::systems::damage::DamageTracker::last_damage_raw",
+        aliases = ["sand::prelude::DamageTracker::last_damage_raw"],
+        module = "sand::systems",
+        kind = "method",
+        summary = "The raw last-damage objective name.",
+        context = "The raw last-damage objective name. This opt-in system composes Sand's typed primitives into a higher-level gameplay behavior; exporter registries and generated tick bookkeeping are private.",
+        minecraft = "The exact commands, resources, and lifecycle behavior are described by the defining item's source documentation for the selected feature and Minecraft profile.",
+        use_when = ["Opting into the documented higher-level gameplay behavior instead of assembling its commands manually"],
+        avoid_when = ["Using the API outside its documented system scope or feature configuration"],
+        params(selector = "`selector` provides the Minecraft target selection used to use the raw last-damage objective name."),
+        returns = "The `Condition` value produced to use the raw last-damage objective name.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(selector: & str)  {\n    let last_damage_raw = sand::systems::damage::DamageTracker::last_damage_raw(selector);\n}",
+        availability = ["Cargo feature: systems-damage"],
+    )]
     pub fn last_damage_raw(selector: &str) -> Condition {
         Condition::score(
             selector.to_string(),
@@ -363,7 +616,22 @@ impl DamageTracker {
     }
 
     /// The ticks-since-hurt objective name (for use with ScoreVar).
-    #[doc = "**API Contract:** Run `sand api show sand::systems::damage::DamageTracker::ticks_since_hurt` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::systems::damage::DamageTracker::ticks_since_hurt",
+        aliases = ["sand::prelude::DamageTracker::ticks_since_hurt"],
+        module = "sand::systems",
+        kind = "method",
+        summary = "The ticks-since-hurt objective name (for use with ScoreVar).",
+        context = "The ticks-since-hurt objective name (for use with ScoreVar). This opt-in system composes Sand's typed primitives into a higher-level gameplay behavior; exporter registries and generated tick bookkeeping are private.",
+        minecraft = "The exact commands, resources, and lifecycle behavior are described by the defining item's source documentation for the selected feature and Minecraft profile.",
+        use_when = ["Opting into the documented higher-level gameplay behavior instead of assembling its commands manually"],
+        avoid_when = ["Using the API outside its documented system scope or feature configuration"],
+        params(selector = "`selector` provides the Minecraft target selection used to use the ticks-since-hurt objective name (for use with ScoreVar)."),
+        returns = "The `Condition` value produced to use the ticks-since-hurt objective name (for use with ScoreVar).",
+        example = "use sand::prelude::*;\n\nfn demonstrate(selector: & str)  {\n    let ticks_since_hurt = sand::systems::damage::DamageTracker::ticks_since_hurt(selector);\n}",
+        availability = ["Cargo feature: systems-damage"],
+    )]
     pub fn ticks_since_hurt(selector: &str) -> Condition {
         Condition::score(
             selector.to_string(),
@@ -383,7 +651,22 @@ impl DamageTracker {
     ///
     /// Does **not** tell you the cause, attacker, damage type, or weapon.
     /// Use advancement predicate events for cause-specific logic.
-    #[doc = "**API Contract:** Run `sand api show sand::systems::damage::DamageTracker::was_hurt` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::systems::damage::DamageTracker::was_hurt",
+        aliases = ["sand::prelude::DamageTracker::was_hurt"],
+        module = "sand::systems",
+        kind = "method",
+        summary = "Condition: `selector` was hurt this tick (same as `damaged_this_tick`).",
+        context = "Condition: `selector` was hurt this tick (same as `damaged_this_tick`). Convenient alias for common event-gating patterns: Does not tell you the cause, attacker, damage type, or weapon. Use advancement predicate events for cause-specific logic.",
+        minecraft = "The exact commands, resources, and lifecycle behavior are described by the defining item's source documentation for the selected feature and Minecraft profile.",
+        use_when = ["Opting into the documented higher-level gameplay behavior instead of assembling its commands manually"],
+        avoid_when = ["Using the API outside its documented system scope or feature configuration"],
+        params(selector = "Condition: `selector` was hurt this tick (same as `damaged_this_tick`)."),
+        returns = "The `Condition` value produced to condition `selector` was hurt this tick (same as `damaged_this_tick`).",
+        example = "if DamageTracker::was_hurt(\"@s\") { ... }",
+        availability = ["Cargo feature: systems-damage"],
+    )]
     pub fn was_hurt(selector: &str) -> Condition {
         Self::damaged_this_tick(selector)
     }
@@ -395,7 +678,22 @@ impl DamageTracker {
     /// - `not_hurt_for(n)` → age > n → safe for at least n ticks
     ///
     /// Useful for ability cooldown windows that reset on damage.
-    #[doc = "**API Contract:** Run `sand api show sand::systems::damage::DamageTracker::not_hurt_for` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::systems::damage::DamageTracker::not_hurt_for",
+        aliases = ["sand::prelude::DamageTracker::not_hurt_for"],
+        module = "sand::systems",
+        kind = "method",
+        summary = "Condition: `selector` has not been hurt for at least `ticks` ticks.",
+        context = "Condition: `selector` has not been hurt for at least `ticks` ticks. This is the complement of [`hurt_within`](DamageTracker::hurt_within): - `hurt_within(n)` → age ≤ n → hurt recently - `not_hurt_for(n)` → age > n → safe for at least n ticks Useful for ability cooldown windows that reset on damage.",
+        minecraft = "The exact commands, resources, and lifecycle behavior are described by the defining item's source documentation for the selected feature and Minecraft profile.",
+        use_when = ["Opting into the documented higher-level gameplay behavior instead of assembling its commands manually"],
+        avoid_when = ["Using the API outside its documented system scope or feature configuration"],
+        params(selector = "Condition: `selector` has not been hurt for at least `ticks` ticks.", ticks = "Condition: `selector` has not been hurt for at least `ticks` ticks."),
+        returns = "The `Condition` value produced to condition `selector` has not been hurt for at least `ticks` ticks.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(selector: & str, ticks: sand::state::Ticks)  {\n    let not_hurt_for = sand::systems::damage::DamageTracker::not_hurt_for(selector, ticks);\n}",
+        availability = ["Cargo feature: systems-damage"],
+    )]
     pub fn not_hurt_for(selector: &str, ticks: Ticks) -> Condition {
         Condition::score(
             selector.to_string(),
@@ -410,7 +708,22 @@ impl DamageTracker {
     /// condition checks on the next tick.
     ///
     /// Returns a single scoreboard `set ... 0` command.
-    #[doc = "**API Contract:** Run `sand api show sand::systems::damage::DamageTracker::clear_recent_damage` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::systems::damage::DamageTracker::clear_recent_damage",
+        aliases = ["sand::prelude::DamageTracker::clear_recent_damage"],
+        module = "sand::systems",
+        kind = "method",
+        summary = "Reset the last-recorded damage delta for `selector` to 0.",
+        context = "Reset the last-recorded damage delta for `selector` to 0. Useful after consuming a damage event so stale deltas don't re-fire condition checks on the next tick. Returns a single scoreboard `set ... 0` command.",
+        minecraft = "Returns a single scoreboard `set ... 0` command.",
+        use_when = ["Opting into the documented higher-level gameplay behavior instead of assembling its commands manually"],
+        avoid_when = ["Using the API outside its documented system scope or feature configuration"],
+        params(selector = "Reset the last-recorded damage delta for `selector` to 0."),
+        returns = "Returns a single scoreboard `set ... 0` command.",
+        example = "use std::fmt;\nuse sand::prelude::*;\n\nfn demonstrate(selector: impl std::fmt::Display)  {\n    let clear_recent_damage = sand::systems::damage::DamageTracker::clear_recent_damage(selector);\n}",
+        availability = ["Cargo feature: systems-damage"],
+    )]
     pub fn clear_recent_damage(selector: impl std::fmt::Display) -> String {
         format!("scoreboard players set {} {DAMAGE_LAST_OBJ} 0", selector)
     }
@@ -421,7 +734,21 @@ impl DamageTracker {
 /// Condition shorthand: player at `selector` took damage this tick.
 ///
 /// Requires `DamageTracker::tick()` to run every game tick.
-#[doc = "**API Contract:** Run `sand api show sand::systems::damage::recently_damaged` for the canonical contract."]
+#[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::systems::damage::recently_damaged",
+    aliases = ["sand::prelude::recently_damaged"],
+    module = "sand::systems",
+    summary = "Condition shorthand: player at `selector` took damage this tick.",
+    context = "Condition shorthand: player at `selector` took damage this tick. Requires `DamageTracker::tick()` to run every game tick.",
+    minecraft = "The exact commands, resources, and lifecycle behavior are described by the defining item's source documentation for the selected feature and Minecraft profile.",
+    use_when = ["Opting into the documented higher-level gameplay behavior instead of assembling its commands manually"],
+    avoid_when = ["Using the API outside its documented system scope or feature configuration"],
+    params(selector = "Condition shorthand: player at `selector` took damage this tick."),
+    returns = "The `Condition` value produced to condition shorthand: player at `selector` took damage this tick.",
+    example = "use sand::prelude::*;\n\nfn demonstrate(selector: & str)  {\n    let recently_damaged = sand::systems::damage::recently_damaged(selector);\n}",
+    availability = ["Cargo feature: systems-damage"],
+)]
 pub fn recently_damaged(selector: &str) -> Condition {
     DamageTracker::damaged_this_tick(selector)
 }

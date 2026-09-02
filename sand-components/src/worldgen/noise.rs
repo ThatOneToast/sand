@@ -33,7 +33,18 @@ const MAX_FIRST_OCTAVE: i32 = 32;
 /// Vanilla caps the total number of octaves a noise may declare.
 const MAX_AMPLITUDES: usize = 32;
 
-#[doc = "**API Contract:** Run `sand api show sand::component::Noise` for the canonical contract."]
+#[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::component::Noise",
+    aliases = ["sand::prelude::Noise"],
+    module = "sand::component",
+    summary = "A noise-parameter definition (`data/<namespace>/worldgen/noise/<id>.json`).",
+    context = "A noise-parameter definition (`data/<namespace>/worldgen/noise/<id>.json`). This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+    minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+    use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+    avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+    example = "use sand::component::Noise;",
+)]
 /// A noise-parameter definition (`data/<namespace>/worldgen/noise/<id>.json`).
 ///
 /// ```
@@ -59,7 +70,21 @@ pub struct Noise {
 impl Noise {
     /// Create a noise-parameter definition from its first octave and
     /// amplitudes.
-    #[doc = "**API Contract:** Run `sand api show sand::component::Noise::new` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::Noise::new",
+        aliases = ["sand::prelude::Noise::new"],
+        module = "sand::component",
+        kind = "method",
+        summary = "Create a noise-parameter definition from its first octave and amplitudes.",
+        context = "Create a noise-parameter definition from its first octave and amplitudes. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(location = "`location` provides the typed resource identifier or location used to create a noise-parameter definition from its first octave and amplitudes.", first_octave = "`first_octave` supplies the first octave value used to create a noise-parameter definition from its first octave and amplitudes.", amplitudes = "`amplitudes` supplies the amplitudes value used to create a noise-parameter definition from its first octave and amplitudes."),
+        returns = "A newly constructed `Noise` configured to create a noise-parameter definition from its first octave and amplitudes.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(location: sand::ResourceLocation, first_octave: i32, amplitudes: impl IntoIterator < Item = f64 >)  {\n    let noise = sand::component::Noise::new(location, first_octave, amplitudes);\n}",
+    )]
     pub fn new(
         location: ResourceLocation,
         first_octave: i32,
@@ -86,27 +111,82 @@ impl Noise {
     /// );
     /// assert_eq!(noise.id().to_string(), "example:ridges");
     /// ```
-    #[doc = "**API Contract:** Run `sand api show sand::component::Noise::id` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::Noise::id",
+        aliases = ["sand::prelude::Noise::id"],
+        module = "sand::component",
+        kind = "method",
+        summary = "The typed registry ID other worldgen files use to reference this noise.",
+        context = "The typed registry ID other worldgen files use to reference this noise. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        returns = "The `NoiseId` value produced to use the typed registry ID other worldgen files use to reference this noise.",
+        example = "use sand::component::Noise;\nuse sand::ResourceLocation;\nlet noise = Noise::new(\nResourceLocation::new(\"example\", \"ridges\").unwrap(),\n-7,\n[1.0],\n);\nassert_eq!(noise.id().to_string(), \"example:ridges\");",
+    )]
     pub fn id(&self) -> NoiseId {
         NoiseId::custom(self.location.clone())
     }
 
     /// Set the first (lowest) octave.
-    #[doc = "**API Contract:** Run `sand api show sand::component::Noise::first_octave` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::Noise::first_octave",
+        aliases = ["sand::prelude::Noise::first_octave"],
+        module = "sand::component",
+        kind = "method",
+        summary = "Set the first (lowest) octave.",
+        context = "Set the first (lowest) octave. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(first_octave = "`first_octave` supplies the first octave value used to set the first (lowest) octave."),
+        returns = "The `Noise` value with the documented change applied to set the first (lowest) octave.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(noise_value: sand::component::Noise, first_octave: i32)  {\n    let updated_noise = noise_value.first_octave(first_octave);\n}",
+    )]
     pub fn first_octave(mut self, first_octave: i32) -> Self {
         self.first_octave = first_octave;
         self
     }
 
     /// Replace the octave amplitudes.
-    #[doc = "**API Contract:** Run `sand api show sand::component::Noise::amplitudes` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::Noise::amplitudes",
+        aliases = ["sand::prelude::Noise::amplitudes"],
+        module = "sand::component",
+        kind = "method",
+        summary = "Replace the octave amplitudes.",
+        context = "Replace the octave amplitudes. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(amplitudes = "`amplitudes` supplies the amplitudes value used to replace the octave amplitudes."),
+        returns = "The `Noise` value with the documented change applied to replace the octave amplitudes.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(noise_value: sand::component::Noise, amplitudes: impl IntoIterator < Item = f64 >)  {\n    let updated_noise = noise_value.amplitudes(amplitudes);\n}",
+    )]
     pub fn amplitudes(mut self, amplitudes: impl IntoIterator<Item = f64>) -> Self {
         self.amplitudes = amplitudes.into_iter().collect();
         self
     }
 
     /// Append a single octave amplitude.
-    #[doc = "**API Contract:** Run `sand api show sand::component::Noise::amplitude` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::Noise::amplitude",
+        aliases = ["sand::prelude::Noise::amplitude"],
+        module = "sand::component",
+        kind = "method",
+        summary = "Append a single octave amplitude.",
+        context = "Append a single octave amplitude. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(amplitude = "`amplitude` supplies the amplitude value used to append a single octave amplitude."),
+        returns = "The `Noise` value with the documented change applied to append a single octave amplitude.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(noise_value: sand::component::Noise, amplitude: f64)  {\n    let updated_noise = noise_value.amplitude(amplitude);\n}",
+    )]
     pub fn amplitude(mut self, amplitude: f64) -> Self {
         self.amplitudes.push(amplitude);
         self
@@ -115,7 +195,21 @@ impl Noise {
     /// Add a modded or version-specific field not represented by the typed API.
     ///
     /// Typed field names cannot be overridden through this escape hatch.
-    #[doc = "**API Contract:** Run `sand api show sand::component::Noise::raw_field` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::Noise::raw_field",
+        aliases = ["sand::prelude::Noise::raw_field"],
+        module = "sand::component",
+        kind = "method",
+        summary = "Add a modded or version-specific field not represented by the typed API.",
+        context = "Add a modded or version-specific field not represented by the typed API. Typed field names cannot be overridden through this escape hatch.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(key = "`key` provides the key that identifies the setting or entry used to add a modded or version-specific field not represented by the typed API.", value = "`value` provides the value being applied or compared used to add a modded or version-specific field not represented by the typed API."),
+        returns = "The `Noise` value with the documented change applied to add a modded or version-specific field not represented by the typed API.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(noise_value: sand::component::Noise, key: impl Into < String >, value: sand::component::RawJson)  {\n    let updated_noise = noise_value.raw_field(key, value);\n}",
+    )]
     pub fn raw_field(mut self, key: impl Into<String>, value: RawJson) -> Self {
         self.raw_fields.insert(key.into(), value);
         self

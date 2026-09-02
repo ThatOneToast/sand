@@ -770,7 +770,20 @@ pub fn try_damage(
     Ok(format!("damage {target} {amount} {damage_type}"))
 }
 
-#[doc = "**API Contract:** Run `sand api show sand::command::DamageAmount` for the canonical contract."]
+#[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::command::DamageAmount",
+    aliases = ["sand::cmd::DamageAmount", "sand::prelude::DamageAmount", "sand::prelude::cmd::DamageAmount"],
+    module = "sand::command",
+    summary = "A damage amount that Sand can lower to Minecraft commands.",
+    context = "A damage amount that Sand can lower to Minecraft commands. All safe constructors produce [`Fixed`](DamageAmount::Fixed) — a concrete hit-point value that maps directly to the vanilla `damage` command. Score-backed or per-event amounts are not yet supported; if you need them, track damage via Sand's typed damage tracker and emit the value from a scoreboard operation instead. The `Score` and `SameAsEvent` variants were removed in this release because they panicked at command-generation time and could never produce valid output. Use `DamageAmount::fixed`, `DamageAmount::hearts`, or `DamageAmount::points` instead.",
+    minecraft = "All safe constructors produce [`Fixed`](DamageAmount::Fixed) — a concrete hit-point value that maps directly to the vanilla `damage` command. Score-backed or per-event amounts are not yet supported; if you need them, track damage via Sand's typed damage tracker and emit the value from a scoreboard operation instead.",
+    use_when = ["Constructing Minecraft commands through Sand's typed command model"],
+    avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
+    example = "use sand::command::DamageAmount;",
+    variants(Fixed = "A fixed number of hit points."),
+    variant_fields(Fixed = ["A fixed number of hit points."]),
+)]
 /// A damage amount that Sand can lower to Minecraft commands.
 ///
 /// All safe constructors produce [`Fixed`](DamageAmount::Fixed) — a concrete
@@ -787,13 +800,8 @@ pub fn try_damage(
 #[non_exhaustive]
 #[derive(Debug, Clone)]
 pub enum DamageAmount {
-    #[doc = "**API Contract:** Run `sand api show sand::command::DamageAmount::Fixed` for the canonical contract."]
     /// A fixed number of hit points.
-    Fixed(
-        #[doc = "The `Fixed` variant carries the value described by its variant semantics: A fixed number of hit points."]
-        #[doc = "**API Contract:** Run `sand api show sand::command::DamageAmount::Fixed::0` for the canonical contract."]
-        f64,
-    ),
+    Fixed(#[doc = "A fixed number of hit points."] f64),
 }
 
 impl DamageAmount {
@@ -803,13 +811,41 @@ impl DamageAmount {
     /// [`Damage::run`] would format directly into command text. Prefer
     /// [`try_fixed`](Self::try_fixed) on the validated path, or
     /// [`Damage::try_run`] to validate at build time.
-    #[doc = "**API Contract:** Run `sand api show sand::command::DamageAmount::fixed` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::command::DamageAmount::fixed",
+        aliases = ["sand::cmd::DamageAmount::fixed", "sand::prelude::DamageAmount::fixed", "sand::prelude::cmd::DamageAmount::fixed"],
+        module = "sand::command",
+        kind = "method",
+        summary = "Fixed hit-point damage. Raw/unchecked: accepts non-finite amounts (`NaN`/`±inf`), which [`Damage::run`] would format directly into command text. Prefer [`try_fixed`](Self::try_fixed) on the validated path, or [`Damage::try_run`] to validate at build time.",
+        context = "Fixed hit-point damage. Raw/unchecked: accepts non-finite amounts (`NaN`/`±inf`), which [`Damage::run`] would format directly into command text. Prefer [`try_fixed`](Self::try_fixed) on the validated path, or [`Damage::try_run`] to validate at build time. This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
+        minecraft = "Raw/unchecked: accepts non-finite amounts (`NaN`/`±inf`), which [`Damage::run`] would format directly into command text. Prefer [`try_fixed`](Self::try_fixed) on the validated path, or [`Damage::try_run`] to validate at build time.",
+        use_when = ["Constructing Minecraft commands through Sand's typed command model"],
+        avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
+        params(amount = "`amount` provides the requested numeric amount used to fixed hit-point damage. Raw/unchecked: accepts non-finite amounts (`NaN`/`±inf`), which [`Damage::run`] would format directly into command text. Prefer [`try_fixed`](Self::try_fixed) on the validated path, or [`Damage::try_run`] to validate at build time."),
+        returns = "A newly constructed `DamageAmount` configured to fixed hit-point damage. Raw/unchecked: accepts non-finite amounts (`NaN`/`±inf`), which [`Damage::run`] would format directly into command text. Prefer [`try_fixed`](Self::try_fixed) on the validated path, or [`Damage::try_run`] to validate at build time.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(amount: f64)  {\n    let damage_amount = sand::command::DamageAmount::fixed(amount);\n}",
+    )]
     pub fn fixed(amount: f64) -> Self {
         Self::Fixed(amount)
     }
 
     /// Fallible [`fixed`](Self::fixed) — rejects a non-finite amount.
-    #[doc = "**API Contract:** Run `sand api show sand::command::DamageAmount::try_fixed` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::command::DamageAmount::try_fixed",
+        aliases = ["sand::cmd::DamageAmount::try_fixed", "sand::prelude::DamageAmount::try_fixed", "sand::prelude::cmd::DamageAmount::try_fixed"],
+        module = "sand::command",
+        kind = "method",
+        summary = "Fallible [`fixed`](Self::fixed) — rejects a non-finite amount.",
+        context = "Fallible [`fixed`](Self::fixed) — rejects a non-finite amount. This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
+        minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
+        use_when = ["Constructing Minecraft commands through Sand's typed command model"],
+        avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
+        params(amount = "`amount` provides the requested numeric amount used to use fallible [`fixed`](Self::fixed) — rejects a non-finite amount."),
+        returns = "On success, the value produced to use fallible [`fixed`](Self::fixed) — rejects a non-finite amount; otherwise, the documented validation or export diagnostic.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(amount: f64)  {\n    let try_fixed = sand::command::DamageAmount::try_fixed(amount);\n}",
+    )]
     pub fn try_fixed(amount: f64) -> CommandResult<Self> {
         validate::finite(amount, "DamageAmount::try_fixed", "amount")?;
         Ok(Self::Fixed(amount))
@@ -819,7 +855,21 @@ impl DamageAmount {
     ///
     /// This is the preferred user-facing constructor. The `damage` command takes
     /// HP (hit points), so `hearts(1.0)` emits `2.0` to the command.
-    #[doc = "**API Contract:** Run `sand api show sand::command::DamageAmount::hearts` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::command::DamageAmount::hearts",
+        aliases = ["sand::cmd::DamageAmount::hearts", "sand::prelude::DamageAmount::hearts", "sand::prelude::cmd::DamageAmount::hearts"],
+        module = "sand::command",
+        kind = "method",
+        summary = "Damage in hearts (1.0 = one heart = 2 HP). This is the preferred user-facing constructor. The `damage` command takes HP (hit points), so `hearts(1.0)` emits `2.0` to the command.",
+        context = "Damage in hearts (1.0 = one heart = 2 HP). This is the preferred user-facing constructor. The `damage` command takes HP (hit points), so `hearts(1.0)` emits `2.0` to the command. This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
+        minecraft = "This is the preferred user-facing constructor. The `damage` command takes HP (hit points), so `hearts(1.0)` emits `2.0` to the command.",
+        use_when = ["Constructing Minecraft commands through Sand's typed command model"],
+        avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
+        params(h = "`h` supplies the h value used to damage in hearts (1.0 = one heart = 2 HP). This is the preferred user-facing constructor. The `damage` command takes HP (hit points), so `hearts(1.0)` emits `2.0` to the command."),
+        returns = "A newly constructed `DamageAmount` configured to damage in hearts (1.0 = one heart = 2 HP). This is the preferred user-facing constructor. The `damage` command takes HP (hit points), so `hearts(1.0)` emits `2.0` to the command.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(h: f32)  {\n    let damage_amount = sand::command::DamageAmount::hearts(h);\n}",
+    )]
     pub fn hearts(h: f32) -> Self {
         Self::Fixed(h as f64 * 2.0)
     }
@@ -828,7 +878,21 @@ impl DamageAmount {
     ///
     /// Equivalent to [`fixed`](DamageAmount::fixed). Use when you are already
     /// thinking in HP rather than hearts.
-    #[doc = "**API Contract:** Run `sand api show sand::command::DamageAmount::points` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::command::DamageAmount::points",
+        aliases = ["sand::cmd::DamageAmount::points", "sand::prelude::DamageAmount::points", "sand::prelude::cmd::DamageAmount::points"],
+        module = "sand::command",
+        kind = "method",
+        summary = "Damage in vanilla hit points (1.0 HP = 0.5 hearts).",
+        context = "Damage in vanilla hit points (1.0 HP = 0.5 hearts). Equivalent to [`fixed`](DamageAmount::fixed). Use when you are already thinking in HP rather than hearts.",
+        minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
+        use_when = ["Constructing Minecraft commands through Sand's typed command model"],
+        avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
+        params(p = "`p` supplies the p value used to damage in vanilla hit points (1.0 HP = 0.5 hearts)."),
+        returns = "A newly constructed `DamageAmount` configured to damage in vanilla hit points (1.0 HP = 0.5 hearts).",
+        example = "use sand::prelude::*;\n\nfn demonstrate(p: f32)  {\n    let damage_amount = sand::command::DamageAmount::points(p);\n}",
+    )]
     pub fn points(p: f32) -> Self {
         Self::Fixed(p as f64)
     }
@@ -852,30 +916,50 @@ impl From<f32> for DamageAmount {
     }
 }
 
-#[doc = "**API Contract:** Run `sand api show sand::command::DamageKind` for the canonical contract."]
+#[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::command::DamageKind",
+    aliases = ["sand::cmd::DamageKind", "sand::prelude::DamageKind", "sand::prelude::cmd::DamageKind"],
+    module = "sand::command",
+    summary = "Built-in vanilla damage type IDs for command damage.",
+    context = "Built-in vanilla damage type IDs for command damage. This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
+    minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
+    use_when = ["Constructing Minecraft commands through Sand's typed command model"],
+    avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
+    example = "use sand::command::DamageKind;",
+    variants(Freeze = "`minecraft:freeze`", Generic = "`minecraft:generic`", LightningBolt = "`minecraft:lightning_bolt`", Magic = "`minecraft:magic`", Thorns = "`minecraft:thorns`"),
+)]
 /// Built-in vanilla damage type IDs for command damage.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum DamageKind {
-    #[doc = "**API Contract:** Run `sand api show sand::command::DamageKind::Generic` for the canonical contract."]
     /// `minecraft:generic`
     Generic,
-    #[doc = "**API Contract:** Run `sand api show sand::command::DamageKind::Magic` for the canonical contract."]
     /// `minecraft:magic`
     Magic,
-    #[doc = "**API Contract:** Run `sand api show sand::command::DamageKind::Thorns` for the canonical contract."]
     /// `minecraft:thorns`
     Thorns,
-    #[doc = "**API Contract:** Run `sand api show sand::command::DamageKind::Freeze` for the canonical contract."]
     /// `minecraft:freeze`
     Freeze,
-    #[doc = "**API Contract:** Run `sand api show sand::command::DamageKind::LightningBolt` for the canonical contract."]
     /// `minecraft:lightning_bolt`
     LightningBolt,
 }
 
 impl DamageKind {
     /// Returns the exact Minecraft command token represented by this damage kind value.
-    #[doc = "**API Contract:** Run `sand api show sand::command::DamageKind::as_str` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::command::DamageKind::as_str",
+        aliases = ["sand::cmd::DamageKind::as_str", "sand::prelude::DamageKind::as_str", "sand::prelude::cmd::DamageKind::as_str"],
+        module = "sand::command",
+        kind = "method",
+        summary = "Returns the exact Minecraft command token represented by this damage kind value.",
+        context = "Returns the exact Minecraft command token represented by this damage kind value. This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
+        minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
+        use_when = ["Constructing Minecraft commands through Sand's typed command model"],
+        avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
+        returns = "Returns the exact Minecraft command token represented by this damage kind value.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(damage_kind_value: sand::command::DamageKind)  {\n    let as_str = damage_kind_value.as_str();\n}",
+    )]
     pub fn as_str(self) -> &'static str {
         match self {
             Self::Generic => "minecraft:generic",
@@ -899,7 +983,18 @@ impl From<DamageKind> for String {
     }
 }
 
-#[doc = "**API Contract:** Run `sand api show sand::command::DamageBuilder` for the canonical contract."]
+#[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::command::DamageBuilder",
+    aliases = ["sand::cmd::DamageBuilder", "sand::prelude::Damage", "sand::prelude::DamageBuilder", "sand::prelude::cmd::DamageBuilder"],
+    module = "sand::command",
+    summary = "High-level damage builder that knows how to lower multi-target damage safely.",
+    context = "High-level damage builder that knows how to lower multi-target damage safely. This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
+    minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
+    use_when = ["Constructing Minecraft commands through Sand's typed command model"],
+    avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
+    example = "use sand::command::DamageBuilder;",
+)]
 /// High-level damage builder that knows how to lower multi-target damage safely.
 #[derive(Debug, Clone)]
 pub struct Damage {
@@ -918,7 +1013,20 @@ pub enum DamageTargets {
 
 impl Damage {
     /// Create a damage builder with default generic fixed 1.0 damage to `@s`.
-    #[doc = "**API Contract:** Run `sand api show sand::command::DamageBuilder::new` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::command::DamageBuilder::new",
+        aliases = ["sand::cmd::DamageBuilder::new", "sand::prelude::Damage::new", "sand::prelude::DamageBuilder::new", "sand::prelude::cmd::DamageBuilder::new"],
+        module = "sand::command",
+        kind = "method",
+        summary = "Create a damage builder with default generic fixed 1.0 damage to `@s`.",
+        context = "Create a damage builder with default generic fixed 1.0 damage to `@s`. This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
+        minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
+        use_when = ["Constructing Minecraft commands through Sand's typed command model"],
+        avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
+        returns = "A newly constructed `DamageBuilder` configured to create a damage builder with default generic fixed 1.0 damage to `@s`.",
+        example = "use sand::prelude::*;\n\nfn demonstrate()  {\n    let damage_builder = sand::command::DamageBuilder::new();\n}",
+    )]
     pub fn new() -> Self {
         Self {
             targets: DamageTargets::One(SingleEntity::self_()),
@@ -930,55 +1038,166 @@ impl Damage {
     }
 
     /// Start a reflected-damage builder centered on `source`.
-    #[doc = "**API Contract:** Run `sand api show sand::command::DamageBuilder::reflect_from` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::command::DamageBuilder::reflect_from",
+        aliases = ["sand::cmd::DamageBuilder::reflect_from", "sand::prelude::Damage::reflect_from", "sand::prelude::DamageBuilder::reflect_from", "sand::prelude::cmd::DamageBuilder::reflect_from"],
+        module = "sand::command",
+        kind = "method",
+        summary = "Start a reflected-damage builder centered on `source`.",
+        context = "Start a reflected-damage builder centered on `source`. This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
+        minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
+        use_when = ["Constructing Minecraft commands through Sand's typed command model"],
+        avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
+        params(source = "Start a reflected-damage builder centered on `source`."),
+        returns = "A newly constructed `DamageBuilder` configured to start a reflected-damage builder centered on `source`.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(source: impl Into < sand::command::SingleEntity >)  {\n    let damage_builder = sand::command::DamageBuilder::reflect_from(source);\n}",
+    )]
     pub fn reflect_from(source: impl Into<SingleEntity>) -> Self {
         let source = source.into();
         Self::new().centered_at(source)
     }
 
     /// Set target entity or entities.
-    #[doc = "**API Contract:** Run `sand api show sand::command::DamageBuilder::to` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::command::DamageBuilder::to",
+        aliases = ["sand::cmd::DamageBuilder::to", "sand::prelude::Damage::to", "sand::prelude::DamageBuilder::to", "sand::prelude::cmd::DamageBuilder::to"],
+        module = "sand::command",
+        kind = "method",
+        summary = "Set target entity or entities.",
+        context = "Set target entity or entities. This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
+        minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
+        use_when = ["Constructing Minecraft commands through Sand's typed command model"],
+        avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
+        params(targets = "`targets` provides the Minecraft target selection used to set target entity or entities."),
+        returns = "The `DamageBuilder` value with the documented change applied to set target entity or entities.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(damage_builder_value: sand::command::DamageBuilder, targets: impl sand::command::IntoDamageTargets)  {\n    let updated_damage_builder = damage_builder_value.to(targets);\n}",
+    )]
     pub fn to(mut self, targets: impl IntoDamageTargets) -> Self {
         self.targets = targets.into_damage_targets();
         self
     }
 
     /// Set damage amount.
-    #[doc = "**API Contract:** Run `sand api show sand::command::DamageBuilder::amount` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::command::DamageBuilder::amount",
+        aliases = ["sand::cmd::DamageBuilder::amount", "sand::prelude::Damage::amount", "sand::prelude::DamageBuilder::amount", "sand::prelude::cmd::DamageBuilder::amount"],
+        module = "sand::command",
+        kind = "method",
+        summary = "Set damage amount.",
+        context = "Set damage amount. This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
+        minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
+        use_when = ["Constructing Minecraft commands through Sand's typed command model"],
+        avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
+        params(amount = "`amount` provides the requested numeric amount used to set damage amount."),
+        returns = "The `DamageBuilder` value with the documented change applied to set damage amount.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(damage_builder_value: sand::command::DamageBuilder, amount: impl Into < sand::command::DamageAmount >)  {\n    let updated_damage_builder = damage_builder_value.amount(amount);\n}",
+    )]
     pub fn amount(mut self, amount: impl Into<DamageAmount>) -> Self {
         self.amount = amount.into();
         self
     }
 
     /// Set damage type/resource ID.
-    #[doc = "**API Contract:** Run `sand api show sand::command::DamageBuilder::damage_type` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::command::DamageBuilder::damage_type",
+        aliases = ["sand::cmd::DamageBuilder::damage_type", "sand::prelude::Damage::damage_type", "sand::prelude::DamageBuilder::damage_type", "sand::prelude::cmd::DamageBuilder::damage_type"],
+        module = "sand::command",
+        kind = "method",
+        summary = "Set damage type/resource ID.",
+        context = "Set damage type/resource ID. This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
+        minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
+        use_when = ["Constructing Minecraft commands through Sand's typed command model"],
+        avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
+        params(damage_type = "`damage_type` supplies the damage type value used to set damage type/resource ID."),
+        returns = "The `DamageBuilder` value with the documented change applied to set damage type/resource ID.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(damage_builder_value: sand::command::DamageBuilder, damage_type: impl Into < String >)  {\n    let updated_damage_builder = damage_builder_value.damage_type(damage_type);\n}",
+    )]
     pub fn damage_type(mut self, damage_type: impl Into<String>) -> Self {
         self.damage_type = damage_type.into();
         self
     }
 
     /// Alias for [`damage_type`](Damage::damage_type).
-    #[doc = "**API Contract:** Run `sand api show sand::command::DamageBuilder::kind` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::command::DamageBuilder::kind",
+        aliases = ["sand::cmd::DamageBuilder::kind", "sand::prelude::Damage::kind", "sand::prelude::DamageBuilder::kind", "sand::prelude::cmd::DamageBuilder::kind"],
+        module = "sand::command",
+        kind = "method",
+        summary = "Alias for [`damage_type`](Damage::damage_type).",
+        context = "Alias for [`damage_type`](Damage::damage_type). This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
+        minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
+        use_when = ["Constructing Minecraft commands through Sand's typed command model"],
+        avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
+        params(damage_type = "Alias for [`damage_type`](Damage::damage_type)."),
+        returns = "The `DamageBuilder` value with the documented change applied to use alias for [`damage_type`](Damage::damage_type).",
+        example = "use sand::prelude::*;\n\nfn demonstrate(damage_builder_value: sand::command::DamageBuilder, damage_type: impl Into < String >)  {\n    let updated_damage_builder = damage_builder_value.kind(damage_type);\n}",
+    )]
     pub fn kind(self, damage_type: impl Into<String>) -> Self {
         self.damage_type(damage_type)
     }
 
     /// Attribute the damage source to a single entity.
-    #[doc = "**API Contract:** Run `sand api show sand::command::DamageBuilder::source` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::command::DamageBuilder::source",
+        aliases = ["sand::cmd::DamageBuilder::source", "sand::prelude::Damage::source", "sand::prelude::DamageBuilder::source", "sand::prelude::cmd::DamageBuilder::source"],
+        module = "sand::command",
+        kind = "method",
+        summary = "Attribute the damage source to a single entity.",
+        context = "Attribute the damage source to a single entity. This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
+        minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
+        use_when = ["Constructing Minecraft commands through Sand's typed command model"],
+        avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
+        params(source = "`source` supplies the source value used to attribute the damage source to a single entity."),
+        returns = "The `DamageBuilder` value with the documented change applied to attribute the damage source to a single entity.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(damage_builder_value: sand::command::DamageBuilder, source: impl Into < sand::command::SingleEntity >)  {\n    let updated_damage_builder = damage_builder_value.source(source);\n}",
+    )]
     pub fn source(mut self, source: impl Into<SingleEntity>) -> Self {
         self.source = Some(source.into());
         self
     }
 
     /// Explicitly omit source attribution.
-    #[doc = "**API Contract:** Run `sand api show sand::command::DamageBuilder::without_source` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::command::DamageBuilder::without_source",
+        aliases = ["sand::cmd::DamageBuilder::without_source", "sand::prelude::Damage::without_source", "sand::prelude::DamageBuilder::without_source", "sand::prelude::cmd::DamageBuilder::without_source"],
+        module = "sand::command",
+        kind = "method",
+        summary = "Explicitly omit source attribution.",
+        context = "Explicitly omit source attribution. This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
+        minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
+        use_when = ["Constructing Minecraft commands through Sand's typed command model"],
+        avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
+        returns = "The `DamageBuilder` value with the documented change applied to explicitly omit source attribution.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(damage_builder_value: sand::command::DamageBuilder)  {\n    let updated_damage_builder = damage_builder_value.without_source();\n}",
+    )]
     pub fn without_source(mut self) -> Self {
         self.source = None;
         self
     }
 
     /// Run target selection at another single entity's position.
-    #[doc = "**API Contract:** Run `sand api show sand::command::DamageBuilder::centered_at` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::command::DamageBuilder::centered_at",
+        aliases = ["sand::cmd::DamageBuilder::centered_at", "sand::prelude::Damage::centered_at", "sand::prelude::DamageBuilder::centered_at", "sand::prelude::cmd::DamageBuilder::centered_at"],
+        module = "sand::command",
+        kind = "method",
+        summary = "Run target selection at another single entity's position.",
+        context = "Run target selection at another single entity's position. This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
+        minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
+        use_when = ["Constructing Minecraft commands through Sand's typed command model"],
+        avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
+        params(center = "`center` supplies the center value used to run target selection at another single entity's position."),
+        returns = "The `DamageBuilder` value with the documented change applied to run target selection at another single entity's position.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(damage_builder_value: sand::command::DamageBuilder, center: impl Into < sand::command::SingleEntity >)  {\n    let updated_damage_builder = damage_builder_value.centered_at(center);\n}",
+    )]
     pub fn centered_at(mut self, center: impl Into<SingleEntity>) -> Self {
         self.centered_at = Some(center.into());
         self
@@ -989,7 +1208,20 @@ impl Damage {
     /// Raw/unchecked: accepts a non-finite [`DamageAmount`] and an empty/
     /// malformed `damage_type`. Prefer [`try_run`](Self::try_run) on the
     /// validated path.
-    #[doc = "**API Contract:** Run `sand api show sand::command::DamageBuilder::run` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::command::DamageBuilder::run",
+        aliases = ["sand::cmd::DamageBuilder::run", "sand::prelude::Damage::run", "sand::prelude::DamageBuilder::run", "sand::prelude::cmd::DamageBuilder::run"],
+        module = "sand::command",
+        kind = "method",
+        summary = "Build one or more valid Minecraft command lines.",
+        context = "Build one or more valid Minecraft command lines. Raw/unchecked: accepts a non-finite [`DamageAmount`] and an empty/ malformed `damage_type`. Prefer [`try_run`](Self::try_run) on the validated path.",
+        minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
+        use_when = ["Constructing Minecraft commands through Sand's typed command model"],
+        avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
+        returns = "The ordered values produced to build one or more valid Minecraft command lines.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(damage_builder_value: sand::command::DamageBuilder)  {\n    let values = damage_builder_value.run();\n}",
+    )]
     pub fn run(self) -> Vec<String> {
         let Self {
             targets,
@@ -1023,7 +1255,20 @@ impl Damage {
     /// Fallible [`run`](Self::run) — rejects a non-finite damage amount or a
     /// `damage_type` that isn't a valid `namespace:path` resource location
     /// before producing command text.
-    #[doc = "**API Contract:** Run `sand api show sand::command::DamageBuilder::try_run` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::command::DamageBuilder::try_run",
+        aliases = ["sand::cmd::DamageBuilder::try_run", "sand::prelude::Damage::try_run", "sand::prelude::DamageBuilder::try_run", "sand::prelude::cmd::DamageBuilder::try_run"],
+        module = "sand::command",
+        kind = "method",
+        summary = "Fallible [`run`](Self::run) — rejects a non-finite damage amount or a `damage_type` that isn't a valid `namespace:path` resource location before producing command text.",
+        context = "Fallible [`run`](Self::run) — rejects a non-finite damage amount or a `damage_type` that isn't a valid `namespace:path` resource location before producing command text. This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
+        minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
+        use_when = ["Constructing Minecraft commands through Sand's typed command model"],
+        avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
+        returns = "On success, the value produced to use fallible [`run`](Self::run) — rejects a non-finite damage amount or a `damage_type` that isn't a valid `namespace:path` resource location before producing command text; otherwise, the documented validation or export diagnostic.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(damage_builder_value: sand::command::DamageBuilder)  {\n    let try_run = damage_builder_value.try_run();\n}",
+    )]
     pub fn try_run(self) -> CommandResult<Vec<String>> {
         validate::finite(self.amount.as_fixed(), "Damage::try_run", "amount")?;
         validate::resource_location_shape(&self.damage_type, "Damage::try_run", "damage_type")?;
@@ -1051,11 +1296,34 @@ impl Default for Damage {
 }
 
 /// Converts typed target wrappers into the damage builder's target model.
-#[doc = "**API Contract:** Run `sand api show sand::command::IntoDamageTargets` for the canonical contract."]
+#[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::command::IntoDamageTargets",
+    aliases = ["sand::cmd::IntoDamageTargets", "sand::prelude::cmd::IntoDamageTargets"],
+    module = "sand::command",
+    summary = "Converts typed target wrappers into the damage builder's target model.",
+    context = "Converts typed target wrappers into the damage builder's target model. This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
+    minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
+    use_when = ["Constructing Minecraft commands through Sand's typed command model"],
+    avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
+    example = "use sand::command::IntoDamageTargets;",
+)]
 pub trait IntoDamageTargets {
     /// Converts the receiver into either one entity or a selector-backed set
     /// of entities accepted by [`Damage::to`].
-    #[doc = "**API Contract:** Run `sand api show sand::command::IntoDamageTargets::into_damage_targets` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::command::IntoDamageTargets::into_damage_targets",
+        aliases = ["sand::cmd::IntoDamageTargets::into_damage_targets", "sand::prelude::cmd::IntoDamageTargets::into_damage_targets"],
+        module = "sand::command",
+        summary = "Converts the receiver into either one entity or a selector-backed set of entities accepted by [`Damage::to`].",
+        context = "Converts the receiver into either one entity or a selector-backed set of entities accepted by [`Damage::to`]. This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
+        minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
+        use_when = ["Constructing Minecraft commands through Sand's typed command model"],
+        avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
+        returns = "The `DamageTargets` value produced to convert the receiver into either one entity or a selector-backed set of entities accepted by [`Damage::to`].",
+        example = "use sand::prelude::*;\n\nfn demonstrate<T: sand::command::IntoDamageTargets>(into_damage_targets_value: T)  {\n    let into_damage_targets = into_damage_targets_value.into_damage_targets();\n}",
+    )]
     fn into_damage_targets(self) -> DamageTargets;
 }
 

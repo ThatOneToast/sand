@@ -45,7 +45,18 @@ pub struct FunctionPointerTypeEntry {
 }
 inventory::collect!(FunctionPointerTypeEntry);
 
-#[doc = "**API Contract:** Run `sand api show sand::command::IntoFunctionRef` for the canonical contract."]
+#[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::command::IntoFunctionRef",
+    aliases = ["sand::cmd::IntoFunctionRef", "sand::prelude::IntoFunctionRef", "sand::prelude::cmd::IntoFunctionRef"],
+    module = "sand::command",
+    summary = "Trait for types that can be resolved to a `function <id>` command string.",
+    context = "Trait for types that can be resolved to a `function <id>` command string. This enables `cmd::call(...)` to accept local function pointers, [`FunctionId`](sand::resource_ref::FunctionId) values, [`ResourceLocation`](sand::ResourceLocation) values, and raw path strings. | Type | Resolution | |---|---| | [`FunctionId`](sand::resource_ref::FunctionId) | Uses the ID's `Display` → `\"function namespace:path\"` | | `&FunctionId` | Same as above | | [`ResourceLocation`](sand::ResourceLocation) | Uses the location's `Display` → `\"function namespace:path\"` | | `&str` | Used as-is → `\"function raw_path\"` | | `String` | Used as-is → `\"function raw_path\"` | | `fn() -> Vec<String>` or function item | Looks up the registered path from `#[function]` inventory | An unregistered `fn() -> Vec<String>`  (not annotated with `#[function]`) will panic with a clear message.",
+    minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
+    use_when = ["Constructing Minecraft commands through Sand's typed command model"],
+    avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
+    example = "use sand::command::IntoFunctionRef;",
+)]
 /// Trait for types that can be resolved to a `function <id>` command string.
 ///
 /// This enables `cmd::call(...)` to accept local function pointers,
@@ -68,11 +79,35 @@ inventory::collect!(FunctionPointerTypeEntry);
 /// will panic with a clear message.
 pub trait IntoFunctionRef {
     /// Resolve to a complete `function <id>` Minecraft command string.
-    #[doc = "**API Contract:** Run `sand api show sand::command::IntoFunctionRef::into_function_command` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::command::IntoFunctionRef::into_function_command",
+        aliases = ["sand::cmd::IntoFunctionRef::into_function_command", "sand::prelude::IntoFunctionRef::into_function_command", "sand::prelude::cmd::IntoFunctionRef::into_function_command"],
+        module = "sand::command",
+        summary = "Resolve to a complete `function <id>` Minecraft command string.",
+        context = "Resolve to a complete `function <id>` Minecraft command string. This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
+        minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
+        use_when = ["Constructing Minecraft commands through Sand's typed command model"],
+        avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
+        returns = "The rendered Minecraft command text produced to resolve to a complete `function <id>` Minecraft command string.",
+        example = "use sand::prelude::*;\n\nfn demonstrate<T: sand::command::IntoFunctionRef>(into_function_ref_value: T)  {\n    let command = into_function_ref_value.into_function_command();\n}",
+    )]
     fn into_function_command(self) -> String;
 
     /// Resolve to just the `namespace:path` resource location string.
-    #[doc = "**API Contract:** Run `sand api show sand::command::IntoFunctionRef::into_function_id` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::command::IntoFunctionRef::into_function_id",
+        aliases = ["sand::cmd::IntoFunctionRef::into_function_id", "sand::prelude::IntoFunctionRef::into_function_id", "sand::prelude::cmd::IntoFunctionRef::into_function_id"],
+        module = "sand::command",
+        summary = "Resolve to just the `namespace:path` resource location string.",
+        context = "Resolve to just the `namespace:path` resource location string. This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
+        minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
+        use_when = ["Constructing Minecraft commands through Sand's typed command model"],
+        avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
+        returns = "The string value produced to resolve to just the `namespace:path` resource location string.",
+        example = "use sand::prelude::*;\n\nfn demonstrate<T: sand::command::IntoFunctionRef>(into_function_ref_value: T)  {\n    let into_function_id = into_function_ref_value.into_function_id();\n}",
+    )]
     fn into_function_id(self) -> String;
 }
 

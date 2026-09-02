@@ -194,7 +194,18 @@ impl BoundedItemSchema {
     }
 }
 
-#[doc = "**API Contract:** Run `sand api show sand::participant::BoundedItemSnapshot` for the canonical contract."]
+#[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::participant::BoundedItemSnapshot",
+    aliases = ["sand::prelude::BoundedItemSnapshot"],
+    module = "sand::participant",
+    summary = "A read-only handle to a bounded, per-subject item snapshot — the item-side counterpart of [`ItemSnapshot`] for values that must survive across a `.within(...)` correlation window rather than just one synchronous invocation. See the [module doc](self) for the full storage and safety contract, including why these accessors name a staged path rather than the durable per-subject one.",
+    context = "A read-only handle to a bounded, per-subject item snapshot — the item-side counterpart of [`ItemSnapshot`] for values that must survive across a `.within(...)` correlation window rather than just one synchronous invocation. See the [module doc](self) for the full storage and safety contract, including why these accessors name a staged path rather than the durable per-subject one. Participants are available only when the event plan declares a real observation or a valid same-cycle inheritance path; the exporter rejects unsupported transport.",
+    minecraft = "Entity relationships use the matching execute relation, while item snapshots are copied into Sand-owned command storage and cleaned up at the end of their declared lifetime.",
+    use_when = ["Declaring or reading a typed participant whose lifecycle is guaranteed by the event plan"],
+    avoid_when = ["Assuming an entity or item remains live beyond its declared invocation, event-cycle, or bounded correlation lifetime"],
+    example = "use sand::participant::BoundedItemSnapshot;",
+)]
 /// A read-only handle to a bounded, per-subject item snapshot — the
 /// item-side counterpart of [`ItemSnapshot`] for values that must survive
 /// across a `.within(...)` correlation window rather than just one
@@ -234,14 +245,40 @@ impl BoundedItemSnapshot {
     /// itself is, only how long the copy remains readable (see
     /// [`crate::participant::ParticipantLifetime::BoundedWindow`] for the
     /// lifetime half of that distinction).
-    #[doc = "**API Contract:** Run `sand api show sand::participant::BoundedItemSnapshot::reliability` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::participant::BoundedItemSnapshot::reliability",
+        aliases = ["sand::prelude::BoundedItemSnapshot::reliability"],
+        module = "sand::participant",
+        kind = "method",
+        summary = "The reliability this snapshot's *item data* carries, preserved unchanged from the source capture — persisting a copy across a bounded window changes nothing about how trustworthy the item data itself is, only how long the copy remains readable (see [`sand::participant::ParticipantLifetime::BoundedWindow`] for the lifetime half of that distinction).",
+        context = "The reliability this snapshot's *item data* carries, preserved unchanged from the source capture — persisting a copy across a bounded window changes nothing about how trustworthy the item data itself is, only how long the copy remains readable (see [`sand::participant::ParticipantLifetime::BoundedWindow`] for the lifetime half of that distinction). Participants are available only when the event plan declares a real observation or a valid same-cycle inheritance path; the exporter rejects unsupported transport.",
+        minecraft = "Entity relationships use the matching execute relation, while item snapshots are copied into Sand-owned command storage and cleaned up at the end of their declared lifetime.",
+        use_when = ["Declaring or reading a typed participant whose lifecycle is guaranteed by the event plan"],
+        avoid_when = ["Assuming an entity or item remains live beyond its declared invocation, event-cycle, or bounded correlation lifetime"],
+        returns = "The `SnapshotReliability` value produced to use the reliability this snapshot's *item data* carries, preserved unchanged from the source capture — persisting a copy across a bounded window changes nothing about how trustworthy the item data itself is, only how long the copy remains readable (see [`sand::participant::ParticipantLifetime::BoundedWindow`] for the lifetime half of that distinction).",
+        example = "use sand::prelude::*;\n\nfn demonstrate(bounded_item_snapshot_value: &sand::participant::BoundedItemSnapshot)  {\n    let reliability = bounded_item_snapshot_value.reliability();\n}",
+    )]
     pub fn reliability(&self) -> SnapshotReliability {
         self.reliability
     }
 
     /// The [`crate::item::ItemLocation::kind`] the *source* snapshot was
     /// originally captured from.
-    #[doc = "**API Contract:** Run `sand api show sand::participant::BoundedItemSnapshot::source_kind` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::participant::BoundedItemSnapshot::source_kind",
+        aliases = ["sand::prelude::BoundedItemSnapshot::source_kind"],
+        module = "sand::participant",
+        kind = "method",
+        summary = "The [`sand::inventory::ItemLocation::kind`] the *source* snapshot was originally captured from.",
+        context = "The [`sand::inventory::ItemLocation::kind`] the *source* snapshot was originally captured from. Participants are available only when the event plan declares a real observation or a valid same-cycle inheritance path; the exporter rejects unsupported transport.",
+        minecraft = "Entity relationships use the matching execute relation, while item snapshots are copied into Sand-owned command storage and cleaned up at the end of their declared lifetime.",
+        use_when = ["Declaring or reading a typed participant whose lifecycle is guaranteed by the event plan"],
+        avoid_when = ["Assuming an entity or item remains live beyond its declared invocation, event-cycle, or bounded correlation lifetime"],
+        returns = "The string value produced to use the [`sand::inventory::ItemLocation::kind`] the *source* snapshot was originally captured from.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(bounded_item_snapshot_value: &sand::participant::BoundedItemSnapshot)  {\n    let source_kind = bounded_item_snapshot_value.source_kind();\n}",
+    )]
     pub fn source_kind(&self) -> &'static str {
         self.source_kind
     }
@@ -252,7 +289,20 @@ impl BoundedItemSnapshot {
     /// conflated with "the window has not been refreshed yet": the persist
     /// function always writes a definite present/absent value on every
     /// source occurrence.
-    #[doc = "**API Contract:** Run `sand api show sand::participant::BoundedItemSnapshot::is_present` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::participant::BoundedItemSnapshot::is_present",
+        aliases = ["sand::prelude::BoundedItemSnapshot::is_present"],
+        module = "sand::participant",
+        kind = "method",
+        summary = "`if data storage <storage> cur.<key>{present:1b}` — true when the source occurrence that most recently wrote this subject's storage actually had an item present at capture time. Absence here is never conflated with \"the window has not been refreshed yet\": the persist function always writes a definite present/absent value on every source occurrence.",
+        context = "`if data storage <storage> cur.<key>{present:1b}` — true when the source occurrence that most recently wrote this subject's storage actually had an item present at capture time. Absence here is never conflated with \"the window has not been refreshed yet\": the persist function always writes a definite present/absent value on every source occurrence. Participants are available only when the event plan declares a real observation or a valid same-cycle inheritance path; the exporter rejects unsupported transport.",
+        minecraft = "Entity relationships use the matching execute relation, while item snapshots are copied into Sand-owned command storage and cleaned up at the end of their declared lifetime.",
+        use_when = ["Declaring or reading a typed participant whose lifecycle is guaranteed by the event plan"],
+        avoid_when = ["Assuming an entity or item remains live beyond its declared invocation, event-cycle, or bounded correlation lifetime"],
+        returns = "The `sand :: condition :: Condition` value produced to emit the documented `if data storage <storage> cur.<key>{present:1b}` — true when the source occurrence that most recently wrote this subject's storage actually had an item present at capture time. Absence here is never conflated with \"the window has not been refreshed yet\": the persist function always writes a definite present/absent value on every source occurrence form.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(bounded_item_snapshot_value: &sand::participant::BoundedItemSnapshot)  {\n    let is_present = bounded_item_snapshot_value.is_present();\n}",
+    )]
     pub fn is_present(&self) -> crate::condition::Condition {
         let base = self.schema.staged_base();
         crate::condition::Condition::nbt_exists(
@@ -262,32 +312,97 @@ impl BoundedItemSnapshot {
     }
 
     /// The negation of [`Self::is_present`].
-    #[doc = "**API Contract:** Run `sand api show sand::participant::BoundedItemSnapshot::is_absent` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::participant::BoundedItemSnapshot::is_absent",
+        aliases = ["sand::prelude::BoundedItemSnapshot::is_absent"],
+        module = "sand::participant",
+        kind = "method",
+        summary = "The negation of [`Self::is_present`].",
+        context = "The negation of [`Self::is_present`]. Participants are available only when the event plan declares a real observation or a valid same-cycle inheritance path; the exporter rejects unsupported transport.",
+        minecraft = "Entity relationships use the matching execute relation, while item snapshots are copied into Sand-owned command storage and cleaned up at the end of their declared lifetime.",
+        use_when = ["Declaring or reading a typed participant whose lifecycle is guaranteed by the event plan"],
+        avoid_when = ["Assuming an entity or item remains live beyond its declared invocation, event-cycle, or bounded correlation lifetime"],
+        returns = "The `sand :: condition :: Condition` value produced to use the negation of [`Self::is_present`].",
+        example = "use sand::prelude::*;\n\nfn demonstrate(bounded_item_snapshot_value: &sand::participant::BoundedItemSnapshot)  {\n    let is_absent = bounded_item_snapshot_value.is_absent();\n}",
+    )]
     pub fn is_absent(&self) -> crate::condition::Condition {
         crate::condition::Condition::negate(self.is_present())
     }
 
     /// The typed NBT path to the persisted item compound.
-    #[doc = "**API Contract:** Run `sand api show sand::participant::BoundedItemSnapshot::item_path` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::participant::BoundedItemSnapshot::item_path",
+        aliases = ["sand::prelude::BoundedItemSnapshot::item_path"],
+        module = "sand::participant",
+        kind = "method",
+        summary = "The typed NBT path to the persisted item compound.",
+        context = "The typed NBT path to the persisted item compound. Participants are available only when the event plan declares a real observation or a valid same-cycle inheritance path; the exporter rejects unsupported transport.",
+        minecraft = "Entity relationships use the matching execute relation, while item snapshots are copied into Sand-owned command storage and cleaned up at the end of their declared lifetime.",
+        use_when = ["Declaring or reading a typed participant whose lifecycle is guaranteed by the event plan"],
+        avoid_when = ["Assuming an entity or item remains live beyond its declared invocation, event-cycle, or bounded correlation lifetime"],
+        returns = "The `NbtRef < UntypedNbt >` value produced to use the typed NBT path to the persisted item compound.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(bounded_item_snapshot_value: &sand::participant::BoundedItemSnapshot)  {\n    let item_path = bounded_item_snapshot_value.item_path();\n}",
+    )]
     pub fn item_path(&self) -> NbtRef<UntypedNbt> {
         self.schema.staged_base().field("item")
     }
 
     /// The typed NBT path to the persisted item's `id` field.
-    #[doc = "**API Contract:** Run `sand api show sand::participant::BoundedItemSnapshot::id_path` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::participant::BoundedItemSnapshot::id_path",
+        aliases = ["sand::prelude::BoundedItemSnapshot::id_path"],
+        module = "sand::participant",
+        kind = "method",
+        summary = "The typed NBT path to the persisted item's `id` field.",
+        context = "The typed NBT path to the persisted item's `id` field. Participants are available only when the event plan declares a real observation or a valid same-cycle inheritance path; the exporter rejects unsupported transport.",
+        minecraft = "Entity relationships use the matching execute relation, while item snapshots are copied into Sand-owned command storage and cleaned up at the end of their declared lifetime.",
+        use_when = ["Declaring or reading a typed participant whose lifecycle is guaranteed by the event plan"],
+        avoid_when = ["Assuming an entity or item remains live beyond its declared invocation, event-cycle, or bounded correlation lifetime"],
+        returns = "The `NbtRef < UntypedNbt >` value produced to use the typed NBT path to the persisted item's `id` field.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(bounded_item_snapshot_value: &sand::participant::BoundedItemSnapshot)  {\n    let id_path = bounded_item_snapshot_value.id_path();\n}",
+    )]
     pub fn id_path(&self) -> NbtRef<UntypedNbt> {
         self.item_path().field("id")
     }
 
     /// The typed NBT path to the persisted item's `count` field.
-    #[doc = "**API Contract:** Run `sand api show sand::participant::BoundedItemSnapshot::count_path` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::participant::BoundedItemSnapshot::count_path",
+        aliases = ["sand::prelude::BoundedItemSnapshot::count_path"],
+        module = "sand::participant",
+        kind = "method",
+        summary = "The typed NBT path to the persisted item's `count` field.",
+        context = "The typed NBT path to the persisted item's `count` field. Participants are available only when the event plan declares a real observation or a valid same-cycle inheritance path; the exporter rejects unsupported transport.",
+        minecraft = "Entity relationships use the matching execute relation, while item snapshots are copied into Sand-owned command storage and cleaned up at the end of their declared lifetime.",
+        use_when = ["Declaring or reading a typed participant whose lifecycle is guaranteed by the event plan"],
+        avoid_when = ["Assuming an entity or item remains live beyond its declared invocation, event-cycle, or bounded correlation lifetime"],
+        returns = "The `NbtRef < UntypedNbt >` value produced to use the typed NBT path to the persisted item's `count` field.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(bounded_item_snapshot_value: &sand::participant::BoundedItemSnapshot)  {\n    let count_path = bounded_item_snapshot_value.count_path();\n}",
+    )]
     pub fn count_path(&self) -> NbtRef<UntypedNbt> {
         self.item_path().field("count")
     }
 
     /// The typed NBT path to the persisted item's version-appropriate
     /// component/tag data.
-    #[doc = "**API Contract:** Run `sand api show sand::participant::BoundedItemSnapshot::components_path` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::participant::BoundedItemSnapshot::components_path",
+        aliases = ["sand::prelude::BoundedItemSnapshot::components_path"],
+        module = "sand::participant",
+        kind = "method",
+        summary = "The typed NBT path to the persisted item's version-appropriate component/tag data.",
+        context = "The typed NBT path to the persisted item's version-appropriate component/tag data. Participants are available only when the event plan declares a real observation or a valid same-cycle inheritance path; the exporter rejects unsupported transport.",
+        minecraft = "Entity relationships use the matching execute relation, while item snapshots are copied into Sand-owned command storage and cleaned up at the end of their declared lifetime.",
+        use_when = ["Declaring or reading a typed participant whose lifecycle is guaranteed by the event plan"],
+        avoid_when = ["Assuming an entity or item remains live beyond its declared invocation, event-cycle, or bounded correlation lifetime"],
+        returns = "The `NbtRef < UntypedNbt >` value produced to use the typed NBT path to the persisted item's version-appropriate component/tag data.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(bounded_item_snapshot_value: &sand::participant::BoundedItemSnapshot)  {\n    let components_path = bounded_item_snapshot_value.components_path();\n}",
+    )]
     pub fn components_path(&self) -> NbtRef<UntypedNbt> {
         self.item_path().field("components")
     }
@@ -303,7 +418,20 @@ impl BoundedItemSnapshot {
     /// durable per-subject copy; clearing the durable copy requires the
     /// subject's slot and therefore a macro call, which the export pipeline
     /// generates for window expiry (see `expire_macro_body`).
-    #[doc = "**API Contract:** Run `sand api show sand::participant::BoundedItemSnapshot::reset_commands` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::participant::BoundedItemSnapshot::reset_commands",
+        aliases = ["sand::prelude::BoundedItemSnapshot::reset_commands"],
+        module = "sand::participant",
+        kind = "method",
+        summary = "Commands that unconditionally reset this bounded snapshot's *staged* storage back to explicit absence, for explicit/manual reset paths (e.g. a handler wanting to invalidate what it just read rather than acting on it twice). Identical in shape to [`ItemSnapshot::cleanup_commands`] — cheap, deterministic, and idempotent to call unconditionally.",
+        context = "Commands that unconditionally reset this bounded snapshot's *staged* storage back to explicit absence, for explicit/manual reset paths (e.g. a handler wanting to invalidate what it just read rather than acting on it twice). Identical in shape to [`ItemSnapshot::cleanup_commands`] — cheap, deterministic, and idempotent to call unconditionally. Note this clears what the *current* call tree can see, not the durable per-subject copy; clearing the durable copy requires the subject's slot and therefore a macro call, which the export pipeline generates for window expiry (see `expire_macro_body`).",
+        minecraft = "Note this clears what the *current* call tree can see, not the durable per-subject copy; clearing the durable copy requires the subject's slot and therefore a macro call, which the export pipeline generates for window expiry (see `expire_macro_body`).",
+        use_when = ["Declaring or reading a typed participant whose lifecycle is guaranteed by the event plan"],
+        avoid_when = ["Assuming an entity or item remains live beyond its declared invocation, event-cycle, or bounded correlation lifetime"],
+        returns = "The ordered values produced to command that unconditionally reset this bounded snapshot's *staged* storage back to explicit absence, for explicit/manual reset paths (e.g. a handler wanting to invalidate what it just read rather than acting on it twice). Identical in shape to [`ItemSnapshot::cleanup_commands`] — cheap, deterministic, and idempotent to call unconditionally.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(bounded_item_snapshot_value: &sand::participant::BoundedItemSnapshot)  {\n    let values = bounded_item_snapshot_value.reset_commands();\n}",
+    )]
     pub fn reset_commands(&self) -> Vec<String> {
         reset_to_absence(&self.schema.staged_base())
     }

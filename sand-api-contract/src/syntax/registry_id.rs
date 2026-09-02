@@ -792,49 +792,7 @@ fn self_type_is(ty: &syn::Type, name: &syn::Ident) -> bool {
 }
 
 fn doc_attributes(entry: &ApiEntry) -> Vec<Attribute> {
-    let mut lines = vec![
-        entry.summary.clone(),
-        String::new(),
-        "# Context".into(),
-        entry.context.clone(),
-        String::new(),
-        "# Minecraft behavior".into(),
-        entry.minecraft.clone(),
-    ];
-    if !entry.parameters.is_empty() {
-        lines.extend([String::new(), "# Parameters".into()]);
-        lines.extend(
-            entry
-                .parameters
-                .iter()
-                .map(|parameter| format!("- `{}` — {}", parameter.name, parameter.description)),
-        );
-    }
-    if let Some(returns) = &entry.returns {
-        lines.extend([String::new(), "# Returns".into(), returns.clone()]);
-    }
-    lines.extend([String::new(), "# Use when".into()]);
-    lines.extend(entry.use_when.iter().map(|value| format!("- {value}")));
-    lines.extend([String::new(), "# Avoid when".into()]);
-    lines.extend(entry.avoid_when.iter().map(|value| format!("- {value}")));
-    if entry.availability != ["all configurations"] {
-        lines.extend([String::new(), "# Availability".into()]);
-        lines.extend(entry.availability.iter().map(|value| format!("- {value}")));
-    }
-    lines.extend([
-        String::new(),
-        "# Example".into(),
-        "```rust,ignore".into(),
-        entry.example.clone(),
-        "```".into(),
-        String::new(),
-        "# API Contract".into(),
-        "View this API with:".into(),
-        "```text".into(),
-        format!("sand api show {}", entry.canonical_path),
-        "```".into(),
-    ]);
-    lines
+    crate::render_rustdoc(entry)
         .into_iter()
         .map(|line| syn::parse_quote!(#[doc = #line]))
         .collect()
@@ -957,8 +915,10 @@ mod tests {
             })
             .unwrap();
         let type_docs = docs(&structure.attrs).join("\n");
-        assert!(type_docs.contains("# API Contract"));
-        assert!(type_docs.contains("sand api show sand::predicate::DocumentedId"));
+        assert!(type_docs.contains("standalone predicate resource"));
+        assert!(type_docs.contains("# Minecraft behavior"));
+        assert!(type_docs.contains("# Example"));
+        assert!(!type_docs.contains("sand api show"));
         let implementation = file
             .items
             .iter()
@@ -977,10 +937,9 @@ mod tests {
                 })
                 .unwrap();
             let method_docs = docs(&item.attrs).join("\n");
-            assert!(method_docs.contains("# API Contract"));
-            assert!(method_docs.contains(&format!(
-                "sand api show sand::predicate::DocumentedId::{method}"
-            )));
+            assert!(method_docs.contains("# Minecraft behavior"));
+            assert!(method_docs.contains("# Example"));
+            assert!(!method_docs.contains("sand api show"), "{method_docs}");
         }
     }
 
@@ -1025,7 +984,9 @@ mod tests {
             .unwrap();
         let local_docs = docs(&local_method.attrs).join("\n");
         assert!(local_docs.contains("# Availability"));
-        assert!(local_docs.contains("sand api show sand::resource_ref::DialogId::local"));
+        assert!(local_docs.contains("Minecraft Java 1.21.6+"));
+        assert!(local_docs.contains("# Minecraft behavior"));
+        assert!(!local_docs.contains("sand api show"));
     }
 
     #[test]

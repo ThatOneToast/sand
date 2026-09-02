@@ -13,57 +13,123 @@ use crate::validate;
 
 // ── Coord ─────────────────────────────────────────────────────────────────────
 
-#[doc = "**API Contract:** Run `sand api show sand::command::Coord` for the canonical contract."]
+#[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::command::Coord",
+    aliases = ["sand::cmd::Coord", "sand::prelude::Coord", "sand::prelude::cmd::Coord"],
+    module = "sand::command",
+    summary = "A single coordinate value: absolute, relative (`~`), or local (`^`).",
+    context = "A single coordinate value: absolute, relative (`~`), or local (`^`). This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
+    minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
+    use_when = ["Constructing Minecraft commands through Sand's typed command model"],
+    avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
+    example = "use sand::command::Coord;",
+    variants(Absolute = "Absolute world coordinate.", Local = "Local (`^`) coordinate. `0.0` renders as `^`, otherwise `^N`.", Relative = "Relative (`~`) coordinate. `0.0` renders as `~`, otherwise `~N`."),
+    variant_fields(Absolute = ["Absolute world coordinate."], Local = ["Local (`^`) coordinate. `0.0` renders as `^`, otherwise `^N`."], Relative = ["Relative (`~`) coordinate. `0.0` renders as `~`, otherwise `~N`."]),
+)]
 /// A single coordinate value: absolute, relative (`~`), or local (`^`).
 #[derive(Debug, Clone, PartialEq)]
 #[must_use = "coordinates do nothing until passed to a command"]
 pub enum Coord {
-    #[doc = "**API Contract:** Run `sand api show sand::command::Coord::Absolute` for the canonical contract."]
     /// Absolute world coordinate.
-    Absolute(
-        #[doc = "The `Absolute` variant carries the value described by its variant semantics: Absolute world coordinate."]
-        #[doc = "**API Contract:** Run `sand api show sand::command::Coord::Absolute::0` for the canonical contract."]
-        f64,
-    ),
-    #[doc = "**API Contract:** Run `sand api show sand::command::Coord::Relative` for the canonical contract."]
+    Absolute(#[doc = "Absolute world coordinate."] f64),
     /// Relative (`~`) coordinate. `0.0` renders as `~`, otherwise `~N`.
-    Relative(
-        #[doc = "The `Relative` variant carries the value described by its variant semantics: Relative (`~`) coordinate. `0.0` renders as `~`, otherwise `~N`."]
-        #[doc = "**API Contract:** Run `sand api show sand::command::Coord::Relative::0` for the canonical contract."]
-        f64,
-    ),
-    #[doc = "**API Contract:** Run `sand api show sand::command::Coord::Local` for the canonical contract."]
+    Relative(#[doc = "Relative (`~`) coordinate. `0.0` renders as `~`, otherwise `~N`."] f64),
     /// Local (`^`) coordinate. `0.0` renders as `^`, otherwise `^N`.
-    Local(
-        #[doc = "The `Local` variant carries the value described by its variant semantics: Local (`^`) coordinate. `0.0` renders as `^`, otherwise `^N`."]
-        #[doc = "**API Contract:** Run `sand api show sand::command::Coord::Local::0` for the canonical contract."]
-        f64,
-    ),
+    Local(#[doc = "Local (`^`) coordinate. `0.0` renders as `^`, otherwise `^N`."] f64),
 }
 
 impl Coord {
     /// Absolute coordinate.
-    #[doc = "**API Contract:** Run `sand api show sand::command::Coord::abs` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::command::Coord::abs",
+        aliases = ["sand::cmd::Coord::abs", "sand::prelude::Coord::abs", "sand::prelude::cmd::Coord::abs"],
+        module = "sand::command",
+        kind = "method",
+        summary = "Absolute coordinate.",
+        context = "Absolute coordinate. This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
+        minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
+        use_when = ["Constructing Minecraft commands through Sand's typed command model"],
+        avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
+        params(v = "`v` supplies the v value used to use absolute coordinate."),
+        returns = "A newly constructed `Coord` configured to use absolute coordinate.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(v: impl Into < f64 >)  {\n    let coord = sand::command::Coord::abs(v);\n}",
+    )]
     pub fn abs(v: impl Into<f64>) -> Self {
         Coord::Absolute(v.into())
     }
     /// Relative coordinate at the executor's position (`~`).
-    #[doc = "**API Contract:** Run `sand api show sand::command::Coord::rel` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::command::Coord::rel",
+        aliases = ["sand::cmd::Coord::rel", "sand::prelude::Coord::rel", "sand::prelude::cmd::Coord::rel"],
+        module = "sand::command",
+        kind = "method",
+        summary = "Relative coordinate at the executor's position (`~`).",
+        context = "Relative coordinate at the executor's position (`~`). This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
+        minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
+        use_when = ["Constructing Minecraft commands through Sand's typed command model"],
+        avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
+        returns = "A newly constructed `Coord` configured to use relative coordinate at the executor's position (`~`).",
+        example = "use sand::prelude::*;\n\nfn demonstrate()  {\n    let coord = sand::command::Coord::rel();\n}",
+    )]
     pub fn rel() -> Self {
         Coord::Relative(0.0)
     }
     /// Relative coordinate with an offset (`~N`).
-    #[doc = "**API Contract:** Run `sand api show sand::command::Coord::rel_n` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::command::Coord::rel_n",
+        aliases = ["sand::cmd::Coord::rel_n", "sand::prelude::Coord::rel_n", "sand::prelude::cmd::Coord::rel_n"],
+        module = "sand::command",
+        kind = "method",
+        summary = "Relative coordinate with an offset (`~N`).",
+        context = "Relative coordinate with an offset (`~N`). This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
+        minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
+        use_when = ["Constructing Minecraft commands through Sand's typed command model"],
+        avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
+        params(v = "`v` supplies the v value used to use relative coordinate with an offset (`~N`)."),
+        returns = "A newly constructed `Coord` configured to use relative coordinate with an offset (`~N`).",
+        example = "use sand::prelude::*;\n\nfn demonstrate(v: impl Into < f64 >)  {\n    let coord = sand::command::Coord::rel_n(v);\n}",
+    )]
     pub fn rel_n(v: impl Into<f64>) -> Self {
         Coord::Relative(v.into())
     }
     /// Local coordinate (along executor's facing direction, `^`).
-    #[doc = "**API Contract:** Run `sand api show sand::command::Coord::local` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::command::Coord::local",
+        aliases = ["sand::cmd::Coord::local", "sand::prelude::Coord::local", "sand::prelude::cmd::Coord::local"],
+        module = "sand::command",
+        kind = "method",
+        summary = "Local coordinate (along executor's facing direction, `^`).",
+        context = "Local coordinate (along executor's facing direction, `^`). This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
+        minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
+        use_when = ["Constructing Minecraft commands through Sand's typed command model"],
+        avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
+        returns = "A newly constructed `Coord` configured to local coordinate (along executor's facing direction, `^`).",
+        example = "use sand::prelude::*;\n\nfn demonstrate()  {\n    let coord = sand::command::Coord::local();\n}",
+    )]
     pub fn local() -> Self {
         Coord::Local(0.0)
     }
     /// Local coordinate with an offset (`^N`).
-    #[doc = "**API Contract:** Run `sand api show sand::command::Coord::local_n` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::command::Coord::local_n",
+        aliases = ["sand::cmd::Coord::local_n", "sand::prelude::Coord::local_n", "sand::prelude::cmd::Coord::local_n"],
+        module = "sand::command",
+        kind = "method",
+        summary = "Local coordinate with an offset (`^N`).",
+        context = "Local coordinate with an offset (`^N`). This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
+        minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
+        use_when = ["Constructing Minecraft commands through Sand's typed command model"],
+        avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
+        params(v = "`v` supplies the v value used to local coordinate with an offset (`^N`)."),
+        returns = "A newly constructed `Coord` configured to local coordinate with an offset (`^N`).",
+        example = "use sand::prelude::*;\n\nfn demonstrate(v: impl Into < f64 >)  {\n    let coord = sand::command::Coord::local_n(v);\n}",
+    )]
     pub fn local_n(v: impl Into<f64>) -> Self {
         Coord::Local(v.into())
     }
@@ -127,7 +193,19 @@ impl RenderCommand for Coord {
 
 // ── BlockPos ──────────────────────────────────────────────────────────────────
 
-#[doc = "**API Contract:** Run `sand api show sand::command::BlockPos` for the canonical contract."]
+#[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::command::BlockPos",
+    aliases = ["sand::cmd::BlockPos", "sand::prelude::BlockPos", "sand::prelude::cmd::BlockPos"],
+    module = "sand::command",
+    summary = "Integer/relative block position used in commands like `setblock`, `fill`, `clone`, and block-targeted `data`.",
+    context = "Integer/relative block position used in commands like `setblock`, `fill`, `clone`, and block-targeted `data`. `BlockPos` models Minecraft's block-position grammar, which is stricter than the generic position grammar accepted by [`Vec3`]: - absolute coordinates (`10 64 -5`) must be integers — fractional absolute values are rejected by [`Validate::validate`]; - relative coordinates (`~N`) must also be integral offsets; - local (`^`) coordinates are rejected — block-position commands do not accept them in vanilla Minecraft. Use [`Vec3`] (which does accept local coordinates) for commands with generic position grammar, such as `execute positioned`, `particle`, `summon`, or `tp`. Do not reuse `BlockPos` as a generic fractional/local position — use [`Vec3`] for that instead so the type itself documents the grammar a command accepts.",
+    minecraft = "`BlockPos` models Minecraft's block-position grammar, which is stricter than the generic position grammar accepted by [`Vec3`]:",
+    use_when = ["Constructing Minecraft commands through Sand's typed command model"],
+    avoid_when = ["Do not reuse `BlockPos` as a generic fractional/local position — use [`Vec3`] for that instead so the type itself documents the grammar a command accepts."],
+    example = "use sand::command::BlockPos;",
+    fields(x = "`x` provides the x coordinate when integer/relative block position used in commands like `setblock`, `fill`, `clone`, and block-targeted `data`.", y = "`y` provides the y coordinate when integer/relative block position used in commands like `setblock`, `fill`, `clone`, and block-targeted `data`.", z = "`z` provides the z coordinate when integer/relative block position used in commands like `setblock`, `fill`, `clone`, and block-targeted `data`."),
+)]
 /// Integer/relative block position used in commands like `setblock`, `fill`,
 /// `clone`, and block-targeted `data`.
 ///
@@ -160,13 +238,10 @@ impl RenderCommand for Coord {
 #[must_use = "positions do nothing until passed to a command"]
 pub struct BlockPos {
     /// `x` provides the x coordinate when integer/relative block position used in commands like `setblock`, `fill`, `clone`, and block-targeted `data`.
-    #[doc = "**API Contract:** Run `sand api show sand::command::BlockPos::x` for the canonical contract."]
     pub x: Coord,
     /// `y` provides the y coordinate when integer/relative block position used in commands like `setblock`, `fill`, `clone`, and block-targeted `data`.
-    #[doc = "**API Contract:** Run `sand api show sand::command::BlockPos::y` for the canonical contract."]
     pub y: Coord,
     /// `z` provides the z coordinate when integer/relative block position used in commands like `setblock`, `fill`, `clone`, and block-targeted `data`.
-    #[doc = "**API Contract:** Run `sand api show sand::command::BlockPos::z` for the canonical contract."]
     pub z: Coord,
 }
 
@@ -180,7 +255,21 @@ impl Eq for BlockPos {}
 
 impl BlockPos {
     /// Create a block position from three coordinates.
-    #[doc = "**API Contract:** Run `sand api show sand::command::BlockPos::new` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::command::BlockPos::new",
+        aliases = ["sand::cmd::BlockPos::new", "sand::prelude::BlockPos::new", "sand::prelude::cmd::BlockPos::new"],
+        module = "sand::command",
+        kind = "method",
+        summary = "Create a block position from three coordinates.",
+        context = "Create a block position from three coordinates. This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
+        minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
+        use_when = ["Constructing Minecraft commands through Sand's typed command model"],
+        avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
+        params(x = "`x` provides the x-coordinate used to create a block position from three coordinates.", y = "`y` provides the y-coordinate used to create a block position from three coordinates.", z = "`z` provides the z-coordinate used to create a block position from three coordinates."),
+        returns = "A newly constructed `BlockPos` configured to create a block position from three coordinates.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(x: impl Into < sand::command::Coord >, y: impl Into < sand::command::Coord >, z: impl Into < sand::command::Coord >)  {\n    let block_pos = sand::command::BlockPos::new(x, y, z);\n}",
+    )]
     pub fn new(x: impl Into<Coord>, y: impl Into<Coord>, z: impl Into<Coord>) -> Self {
         Self {
             x: x.into(),
@@ -189,22 +278,77 @@ impl BlockPos {
         }
     }
     /// Current position (`~ ~ ~`).
-    #[doc = "**API Contract:** Run `sand api show sand::command::BlockPos::here` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::command::BlockPos::here",
+        aliases = ["sand::cmd::BlockPos::here", "sand::prelude::BlockPos::here", "sand::prelude::cmd::BlockPos::here"],
+        module = "sand::command",
+        kind = "method",
+        summary = "Current position (`~ ~ ~`).",
+        context = "Current position (`~ ~ ~`). This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
+        minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
+        use_when = ["Constructing Minecraft commands through Sand's typed command model"],
+        avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
+        returns = "A newly constructed `BlockPos` configured to current position (`~ ~ ~`).",
+        example = "use sand::prelude::*;\n\nfn demonstrate()  {\n    let block_pos = sand::command::BlockPos::here();\n}",
+    )]
     pub fn here() -> Self {
         Self::new(Coord::rel(), Coord::rel(), Coord::rel())
     }
     /// Exact block coordinates (`X Y Z`).
-    #[doc = "**API Contract:** Run `sand api show sand::command::BlockPos::absolute` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::command::BlockPos::absolute",
+        aliases = ["sand::cmd::BlockPos::absolute", "sand::prelude::BlockPos::absolute", "sand::prelude::cmd::BlockPos::absolute"],
+        module = "sand::command",
+        kind = "method",
+        summary = "Exact block coordinates (`X Y Z`).",
+        context = "Exact block coordinates (`X Y Z`). This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
+        minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
+        use_when = ["Constructing Minecraft commands through Sand's typed command model"],
+        avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
+        params(x = "`x` provides the x-coordinate used to use exact block coordinates (`X Y Z`).", y = "`y` provides the y-coordinate used to use exact block coordinates (`X Y Z`).", z = "`z` provides the z-coordinate used to use exact block coordinates (`X Y Z`)."),
+        returns = "A newly constructed `BlockPos` configured to use exact block coordinates (`X Y Z`).",
+        example = "use sand::prelude::*;\n\nfn demonstrate(x: i32, y: i32, z: i32)  {\n    let block_pos = sand::command::BlockPos::absolute(x, y, z);\n}",
+    )]
     pub fn absolute(x: i32, y: i32, z: i32) -> Self {
         Self::new(Coord::abs(x), Coord::abs(y), Coord::abs(z))
     }
     /// Position N blocks above current (`~ ~N ~`).
-    #[doc = "**API Contract:** Run `sand api show sand::command::BlockPos::above` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::command::BlockPos::above",
+        aliases = ["sand::cmd::BlockPos::above", "sand::prelude::BlockPos::above", "sand::prelude::cmd::BlockPos::above"],
+        module = "sand::command",
+        kind = "method",
+        summary = "Position N blocks above current (`~ ~N ~`).",
+        context = "Position N blocks above current (`~ ~N ~`). This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
+        minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
+        use_when = ["Constructing Minecraft commands through Sand's typed command model"],
+        avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
+        params(n = "`n` supplies the n value used to position N blocks above current (`~ ~N ~`)."),
+        returns = "A newly constructed `BlockPos` configured to position N blocks above current (`~ ~N ~`).",
+        example = "use sand::prelude::*;\n\nfn demonstrate(n: i32)  {\n    let block_pos = sand::command::BlockPos::above(n);\n}",
+    )]
     pub fn above(n: i32) -> Self {
         Self::new(Coord::rel(), Coord::rel_n(n), Coord::rel())
     }
     /// Position N blocks below current (`~ ~-N ~`).
-    #[doc = "**API Contract:** Run `sand api show sand::command::BlockPos::below` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::command::BlockPos::below",
+        aliases = ["sand::cmd::BlockPos::below", "sand::prelude::BlockPos::below", "sand::prelude::cmd::BlockPos::below"],
+        module = "sand::command",
+        kind = "method",
+        summary = "Position N blocks below current (`~ ~-N ~`).",
+        context = "Position N blocks below current (`~ ~-N ~`). This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
+        minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
+        use_when = ["Constructing Minecraft commands through Sand's typed command model"],
+        avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
+        params(n = "`n` supplies the n value used to position N blocks below current (`~ ~-N ~`)."),
+        returns = "A newly constructed `BlockPos` configured to position N blocks below current (`~ ~-N ~`).",
+        example = "use sand::prelude::*;\n\nfn demonstrate(n: i32)  {\n    let block_pos = sand::command::BlockPos::below(n);\n}",
+    )]
     pub fn below(n: i32) -> Self {
         Self::new(Coord::rel(), Coord::rel_n(-n), Coord::rel())
     }
@@ -250,30 +394,47 @@ impl RenderCommand for BlockPos {
 // ── Vec3 ──────────────────────────────────────────────────────────────────────
 
 /// Floating-point position used in commands like `tp`, `summon`, `particle`.
-///
-/// # API Contract
-///
-/// `sand api show sand::command::Vec3`
+#[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::command::Vec3",
+    aliases = ["sand::cmd::Vec3", "sand::prelude::Vec3", "sand::prelude::cmd::Vec3"],
+    module = "sand::command",
+    summary = "Floating-point position used in commands like `tp`, `summon`, `particle`.",
+    context = "Floating-point position used in commands like `tp`, `summon`, `particle`. This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
+    minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
+    use_when = ["Constructing Minecraft commands through Sand's typed command model"],
+    avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
+    example = "use sand::command::Vec3;",
+    fields(x = "`x` provides the x coordinate when floating-point position used in commands like `tp`, `summon`, `particle`.", y = "`y` provides the y coordinate when floating-point position used in commands like `tp`, `summon`, `particle`.", z = "`z` provides the z coordinate when floating-point position used in commands like `tp`, `summon`, `particle`."),
+)]
 #[derive(Debug, Clone)]
 #[must_use = "positions do nothing until passed to a command"]
 pub struct Vec3 {
     /// `x` provides the x coordinate when floating-point position used in commands like `tp`, `summon`, `particle`.
-    #[doc = "**API Contract:** Run `sand api show sand::command::Vec3::x` for the canonical contract."]
     pub x: Coord,
     /// `y` provides the y coordinate when floating-point position used in commands like `tp`, `summon`, `particle`.
-    #[doc = "**API Contract:** Run `sand api show sand::command::Vec3::y` for the canonical contract."]
     pub y: Coord,
     /// `z` provides the z coordinate when floating-point position used in commands like `tp`, `summon`, `particle`.
-    #[doc = "**API Contract:** Run `sand api show sand::command::Vec3::z` for the canonical contract."]
     pub z: Coord,
 }
 
 impl Vec3 {
     /// Create a 3D position from three coordinates.
-    ///
-    /// # API Contract
-    ///
-    /// `sand api show sand::command::Vec3::new`
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::command::Vec3::new",
+        aliases = ["sand::cmd::Vec3::new", "sand::prelude::Vec3::new", "sand::prelude::cmd::Vec3::new"],
+        module = "sand::command",
+        kind = "method",
+        summary = "Create a 3D position from three coordinates.",
+        context = "Create a 3D position from three coordinates. This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
+        minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
+        use_when = ["Constructing Minecraft commands through Sand's typed command model"],
+        avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
+        params(x = "`x` provides the x-coordinate used to create a 3D position from three coordinates.", y = "`y` provides the y-coordinate used to create a 3D position from three coordinates.", z = "`z` provides the z-coordinate used to create a 3D position from three coordinates."),
+        returns = "A newly constructed `Vec3` configured to create a 3D position from three coordinates.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(x: impl Into < sand::command::Coord >, y: impl Into < sand::command::Coord >, z: impl Into < sand::command::Coord >)  {\n    let vec3 = sand::command::Vec3::new(x, y, z);\n}",
+    )]
     pub fn new(x: impl Into<Coord>, y: impl Into<Coord>, z: impl Into<Coord>) -> Self {
         Self {
             x: x.into(),
@@ -282,12 +443,39 @@ impl Vec3 {
         }
     }
     /// Current position (`~ ~ ~`).
-    #[doc = "**API Contract:** Run `sand api show sand::command::Vec3::here` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::command::Vec3::here",
+        aliases = ["sand::cmd::Vec3::here", "sand::prelude::Vec3::here", "sand::prelude::cmd::Vec3::here"],
+        module = "sand::command",
+        kind = "method",
+        summary = "Current position (`~ ~ ~`).",
+        context = "Current position (`~ ~ ~`). This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
+        minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
+        use_when = ["Constructing Minecraft commands through Sand's typed command model"],
+        avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
+        returns = "A newly constructed `Vec3` configured to current position (`~ ~ ~`).",
+        example = "use sand::prelude::*;\n\nfn demonstrate()  {\n    let vec3 = sand::command::Vec3::here();\n}",
+    )]
     pub fn here() -> Self {
         Self::new(Coord::rel(), Coord::rel(), Coord::rel())
     }
     /// Exact world coordinates (`X Y Z`).
-    #[doc = "**API Contract:** Run `sand api show sand::command::Vec3::absolute` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::command::Vec3::absolute",
+        aliases = ["sand::cmd::Vec3::absolute", "sand::prelude::Vec3::absolute", "sand::prelude::cmd::Vec3::absolute"],
+        module = "sand::command",
+        kind = "method",
+        summary = "Exact world coordinates (`X Y Z`).",
+        context = "Exact world coordinates (`X Y Z`). This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
+        minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
+        use_when = ["Constructing Minecraft commands through Sand's typed command model"],
+        avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
+        params(x = "`x` provides the x-coordinate used to use exact world coordinates (`X Y Z`).", y = "`y` provides the y-coordinate used to use exact world coordinates (`X Y Z`).", z = "`z` provides the z-coordinate used to use exact world coordinates (`X Y Z`)."),
+        returns = "A newly constructed `Vec3` configured to use exact world coordinates (`X Y Z`).",
+        example = "use sand::prelude::*;\n\nfn demonstrate(x: f64, y: f64, z: f64)  {\n    let vec3 = sand::command::Vec3::absolute(x, y, z);\n}",
+    )]
     pub fn absolute(x: f64, y: f64, z: f64) -> Self {
         Self::new(Coord::abs(x), Coord::abs(y), Coord::abs(z))
     }
@@ -313,22 +501,46 @@ impl RenderCommand for Vec3 {
 
 // ── Vec2 ──────────────────────────────────────────────────────────────────────
 
-#[doc = "**API Contract:** Run `sand api show sand::command::Vec2` for the canonical contract."]
+#[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::command::Vec2",
+    aliases = ["sand::cmd::Vec2", "sand::prelude::Vec2", "sand::prelude::cmd::Vec2"],
+    module = "sand::command",
+    summary = "2D column position (X Z), used in `locatebiome` etc.",
+    context = "2D column position (X Z), used in `locatebiome` etc. This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
+    minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
+    use_when = ["Constructing Minecraft commands through Sand's typed command model"],
+    avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
+    example = "use sand::command::Vec2;",
+    fields(x = "`x` provides the x coordinate when 2D column position (X Z), used in `locatebiome` etc.", z = "`z` provides the z coordinate when 2D column position (X Z), used in `locatebiome` etc."),
+)]
 /// 2D column position (X Z), used in `locatebiome` etc.
 #[derive(Debug, Clone)]
 #[must_use = "positions do nothing until passed to a command"]
 pub struct Vec2 {
     /// `x` provides the x coordinate when 2D column position (X Z), used in `locatebiome` etc.
-    #[doc = "**API Contract:** Run `sand api show sand::command::Vec2::x` for the canonical contract."]
     pub x: Coord,
     /// `z` provides the z coordinate when 2D column position (X Z), used in `locatebiome` etc.
-    #[doc = "**API Contract:** Run `sand api show sand::command::Vec2::z` for the canonical contract."]
     pub z: Coord,
 }
 
 impl Vec2 {
     /// Create a 2D position (column) from X and Z coordinates.
-    #[doc = "**API Contract:** Run `sand api show sand::command::Vec2::new` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::command::Vec2::new",
+        aliases = ["sand::cmd::Vec2::new", "sand::prelude::Vec2::new", "sand::prelude::cmd::Vec2::new"],
+        module = "sand::command",
+        kind = "method",
+        summary = "Create a 2D position (column) from X and Z coordinates.",
+        context = "Create a 2D position (column) from X and Z coordinates. This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
+        minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
+        use_when = ["Constructing Minecraft commands through Sand's typed command model"],
+        avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
+        params(x = "`x` provides the x-coordinate used to create a 2D position (column) from X and Z coordinates.", z = "`z` provides the z-coordinate used to create a 2D position (column) from X and Z coordinates."),
+        returns = "A newly constructed `Vec2` configured to create a 2D position (column) from X and Z coordinates.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(x: impl Into < sand::command::Coord >, z: impl Into < sand::command::Coord >)  {\n    let vec2 = sand::command::Vec2::new(x, z);\n}",
+    )]
     pub fn new(x: impl Into<Coord>, z: impl Into<Coord>) -> Self {
         Self {
             x: x.into(),
@@ -370,22 +582,46 @@ impl RenderCommand for Vec2 {
 
 // ── Rotation ──────────────────────────────────────────────────────────────────
 
-#[doc = "**API Contract:** Run `sand api show sand::command::Rotation` for the canonical contract."]
+#[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::command::Rotation",
+    aliases = ["sand::cmd::Rotation", "sand::prelude::Rotation", "sand::prelude::cmd::Rotation"],
+    module = "sand::command",
+    summary = "Yaw + pitch rotation (`yaw pitch`), used in `tp` and `execute rotated`.",
+    context = "Yaw + pitch rotation (`yaw pitch`), used in `tp` and `execute rotated`. This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
+    minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
+    use_when = ["Constructing Minecraft commands through Sand's typed command model"],
+    avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
+    example = "use sand::command::Rotation;",
+    fields(pitch = "`pitch` provides the pitch rotation when yaw + pitch rotation (`yaw pitch`), used in `tp` and `execute rotated`.", yaw = "`yaw` provides the yaw rotation when yaw + pitch rotation (`yaw pitch`), used in `tp` and `execute rotated`."),
+)]
 /// Yaw + pitch rotation (`yaw pitch`), used in `tp` and `execute rotated`.
 #[derive(Debug, Clone)]
 #[must_use = "rotations do nothing until passed to a command"]
 pub struct Rotation {
     /// `yaw` provides the yaw rotation when yaw + pitch rotation (`yaw pitch`), used in `tp` and `execute rotated`.
-    #[doc = "**API Contract:** Run `sand api show sand::command::Rotation::yaw` for the canonical contract."]
     pub yaw: Coord,
     /// `pitch` provides the pitch rotation when yaw + pitch rotation (`yaw pitch`), used in `tp` and `execute rotated`.
-    #[doc = "**API Contract:** Run `sand api show sand::command::Rotation::pitch` for the canonical contract."]
     pub pitch: Coord,
 }
 
 impl Rotation {
     /// Create a rotation from yaw and pitch coordinates.
-    #[doc = "**API Contract:** Run `sand api show sand::command::Rotation::new` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::command::Rotation::new",
+        aliases = ["sand::cmd::Rotation::new", "sand::prelude::Rotation::new", "sand::prelude::cmd::Rotation::new"],
+        module = "sand::command",
+        kind = "method",
+        summary = "Create a rotation from yaw and pitch coordinates.",
+        context = "Create a rotation from yaw and pitch coordinates. This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
+        minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
+        use_when = ["Constructing Minecraft commands through Sand's typed command model"],
+        avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
+        params(yaw = "`yaw` supplies the yaw value used to create a rotation from yaw and pitch coordinates.", pitch = "`pitch` supplies the pitch value used to create a rotation from yaw and pitch coordinates."),
+        returns = "A newly constructed `Rotation` configured to create a rotation from yaw and pitch coordinates.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(yaw: impl Into < sand::command::Coord >, pitch: impl Into < sand::command::Coord >)  {\n    let rotation = sand::command::Rotation::new(yaw, pitch);\n}",
+    )]
     pub fn new(yaw: impl Into<Coord>, pitch: impl Into<Coord>) -> Self {
         Self {
             yaw: yaw.into(),
@@ -393,12 +629,39 @@ impl Rotation {
         }
     }
     /// Current rotation (`~ ~`).
-    #[doc = "**API Contract:** Run `sand api show sand::command::Rotation::here` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::command::Rotation::here",
+        aliases = ["sand::cmd::Rotation::here", "sand::prelude::Rotation::here", "sand::prelude::cmd::Rotation::here"],
+        module = "sand::command",
+        kind = "method",
+        summary = "Current rotation (`~ ~`).",
+        context = "Current rotation (`~ ~`). This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
+        minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
+        use_when = ["Constructing Minecraft commands through Sand's typed command model"],
+        avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
+        returns = "A newly constructed `Rotation` configured to current rotation (`~ ~`).",
+        example = "use sand::prelude::*;\n\nfn demonstrate()  {\n    let rotation = sand::command::Rotation::here();\n}",
+    )]
     pub fn here() -> Self {
         Self::new(Coord::rel(), Coord::rel())
     }
     /// Absolute yaw and pitch angles.
-    #[doc = "**API Contract:** Run `sand api show sand::command::Rotation::absolute` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::command::Rotation::absolute",
+        aliases = ["sand::cmd::Rotation::absolute", "sand::prelude::Rotation::absolute", "sand::prelude::cmd::Rotation::absolute"],
+        module = "sand::command",
+        kind = "method",
+        summary = "Absolute yaw and pitch angles.",
+        context = "Absolute yaw and pitch angles. This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
+        minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
+        use_when = ["Constructing Minecraft commands through Sand's typed command model"],
+        avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
+        params(yaw = "`yaw` supplies the yaw value used to use absolute yaw and pitch angles.", pitch = "`pitch` supplies the pitch value used to use absolute yaw and pitch angles."),
+        returns = "A newly constructed `Rotation` configured to use absolute yaw and pitch angles.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(yaw: f64, pitch: f64)  {\n    let rotation = sand::command::Rotation::absolute(yaw, pitch);\n}",
+    )]
     pub fn absolute(yaw: f64, pitch: f64) -> Self {
         Self::new(Coord::abs(yaw), Coord::abs(pitch))
     }

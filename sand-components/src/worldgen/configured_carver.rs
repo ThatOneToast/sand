@@ -41,7 +41,18 @@ fn f32_to_json(value: f32) -> Value {
 /// override these.
 const TYPED_CONFIG_FIELDS: &[&str] = &["probability", "y", "yScale", "lava_level"];
 
-#[doc = "**API Contract:** Run `sand api show sand::component::CarverFloatRange` for the canonical contract."]
+#[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::component::CarverFloatRange",
+    aliases = ["sand::prelude::CarverFloatRange"],
+    module = "sand::component",
+    summary = "A `minecraft:uniform` float provider (`{\"type\": \"minecraft:uniform\", \"min_inclusive\": …, \"max_inclusive\": …}`), used for the `yScale` field of cave-shaped carver configs.",
+    context = "A `minecraft:uniform` float provider (`{\"type\": \"minecraft:uniform\", \"min_inclusive\": …, \"max_inclusive\": …}`), used for the `yScale` field of cave-shaped carver configs. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+    minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+    use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+    avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+    example = "use sand::component::CarverFloatRange;",
+)]
 /// A `minecraft:uniform` float provider (`{"type": "minecraft:uniform",
 /// "min_inclusive": …, "max_inclusive": …}`), used for the `yScale` field of
 /// cave-shaped carver configs.
@@ -53,7 +64,21 @@ pub struct CarverFloatRange {
 
 impl CarverFloatRange {
     /// Create a uniformly sampled inclusive float range.
-    #[doc = "**API Contract:** Run `sand api show sand::component::CarverFloatRange::new` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::CarverFloatRange::new",
+        aliases = ["sand::prelude::CarverFloatRange::new"],
+        module = "sand::component",
+        kind = "method",
+        summary = "Create a uniformly sampled inclusive float range.",
+        context = "Create a uniformly sampled inclusive float range. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(min_inclusive = "`min_inclusive` supplies the min inclusive value used to create a uniformly sampled inclusive float range.", max_inclusive = "`max_inclusive` supplies the max inclusive value used to create a uniformly sampled inclusive float range."),
+        returns = "A newly constructed `CarverFloatRange` configured to create a uniformly sampled inclusive float range.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(min_inclusive: f32, max_inclusive: f32)  {\n    let carver_float_range = sand::component::CarverFloatRange::new(min_inclusive, max_inclusive);\n}",
+    )]
     pub fn new(min_inclusive: f32, max_inclusive: f32) -> Self {
         Self {
             min_inclusive,
@@ -97,7 +122,18 @@ impl CarverFloatRange {
     }
 }
 
-#[doc = "**API Contract:** Run `sand api show sand::component::CaveCarverConfig` for the canonical contract."]
+#[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::component::CaveCarverConfig",
+    aliases = ["sand::prelude::CaveCarverConfig"],
+    module = "sand::component",
+    summary = "Config shared by the `minecraft:cave` and `minecraft:nether_cave` carver types.",
+    context = "Config shared by the `minecraft:cave` and `minecraft:nether_cave` carver types. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+    minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+    use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+    avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+    example = "use sand::component::CaveCarverConfig;",
+)]
 /// Config shared by the `minecraft:cave` and `minecraft:nether_cave` carver
 /// types.
 #[derive(Debug, Clone, PartialEq)]
@@ -113,7 +149,21 @@ impl CaveCarverConfig {
     /// Create a cave-shaped carver config.
     ///
     /// `probability` (`0..=1`) is the per-chunk chance this carver runs.
-    #[doc = "**API Contract:** Run `sand api show sand::component::CaveCarverConfig::new` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::CaveCarverConfig::new",
+        aliases = ["sand::prelude::CaveCarverConfig::new"],
+        module = "sand::component",
+        kind = "method",
+        summary = "Create a cave-shaped carver config. `probability` (`0..=1`) is the per-chunk chance this carver runs.",
+        context = "Create a cave-shaped carver config. `probability` (`0..=1`) is the per-chunk chance this carver runs. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(probability = "`probability` (`0..=1`) is the per-chunk chance this carver runs.", y = "`y` provides the y-coordinate used to create a cave-shaped carver config. `probability` (`0..=1`) is the per-chunk chance this carver runs.", y_scale = "`y_scale` provides the accepted numeric range used to create a cave-shaped carver config. `probability` (`0..=1`) is the per-chunk chance this carver runs.", lava_level = "`lava_level` supplies the lava level value used to create a cave-shaped carver config. `probability` (`0..=1`) is the per-chunk chance this carver runs."),
+        returns = "A newly constructed `CaveCarverConfig` configured to create a cave-shaped carver config. `probability` (`0..=1`) is the per-chunk chance this carver runs.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(probability: f32, y: sand::component::HeightProvider, y_scale: sand::component::CarverFloatRange, lava_level: sand::component::VerticalAnchor)  {\n    let cave_carver_config = sand::component::CaveCarverConfig::new(probability, y, y_scale, lava_level);\n}",
+    )]
     pub fn new(
         probability: f32,
         y: HeightProvider,
@@ -134,7 +184,21 @@ impl CaveCarverConfig {
     ///
     /// Typed field names (`probability`, `y`, `yScale`, `lava_level`) cannot
     /// be overridden through this escape hatch.
-    #[doc = "**API Contract:** Run `sand api show sand::component::CaveCarverConfig::config_field` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::CaveCarverConfig::config_field",
+        aliases = ["sand::prelude::CaveCarverConfig::config_field"],
+        module = "sand::component",
+        kind = "method",
+        summary = "Add a modded or version-specific config key not represented by the typed fields (for example `horizontal_radius_multiplier`).",
+        context = "Add a modded or version-specific config key not represented by the typed fields (for example `horizontal_radius_multiplier`). Typed field names (`probability`, `y`, `yScale`, `lava_level`) cannot be overridden through this escape hatch.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(key = "`key` provides the key that identifies the setting or entry used to add a modded or version-specific config key not represented by the typed fields (for example `horizontal_radius_multiplier`).", value = "`value` provides the value being applied or compared used to add a modded or version-specific config key not represented by the typed fields (for example `horizontal_radius_multiplier`)."),
+        returns = "The `CaveCarverConfig` value with the documented change applied to add a modded or version-specific config key not represented by the typed fields (for example `horizontal_radius_multiplier`).",
+        example = "use sand::prelude::*;\n\nfn demonstrate(cave_carver_config_value: sand::component::CaveCarverConfig, key: impl Into < String >, value: sand::component::RawJson)  {\n    let updated_cave_carver_config = cave_carver_config_value.config_field(key, value);\n}",
+    )]
     pub fn config_field(mut self, key: impl Into<String>, value: RawJson) -> Self {
         self.extra_fields.insert(key.into(), value);
         self
@@ -214,7 +278,18 @@ impl Carver {
     }
 }
 
-#[doc = "**API Contract:** Run `sand api show sand::component::ConfiguredCarver` for the canonical contract."]
+#[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::component::ConfiguredCarver",
+    aliases = ["sand::prelude::ConfiguredCarver"],
+    module = "sand::component",
+    summary = "A configured carver definition (`data/<namespace>/worldgen/configured_carver/<id>.json`).",
+    context = "A configured carver definition (`data/<namespace>/worldgen/configured_carver/<id>.json`). This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+    minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+    use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+    avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+    example = "use sand::component::ConfiguredCarver;",
+)]
 /// A configured carver definition
 /// (`data/<namespace>/worldgen/configured_carver/<id>.json`).
 ///
@@ -244,7 +319,21 @@ pub struct ConfiguredCarver {
 
 impl ConfiguredCarver {
     /// A `minecraft:cave` carver.
-    #[doc = "**API Contract:** Run `sand api show sand::component::ConfiguredCarver::cave` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::ConfiguredCarver::cave",
+        aliases = ["sand::prelude::ConfiguredCarver::cave"],
+        module = "sand::component",
+        kind = "method",
+        summary = "A `minecraft:cave` carver.",
+        context = "A `minecraft:cave` carver. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(location = "`location` provides the typed resource identifier or location used to use a `minecraft:cave` carver.", config = "`config` supplies the config value used to use a `minecraft:cave` carver."),
+        returns = "A newly constructed `ConfiguredCarver` configured to use a `minecraft:cave` carver.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(location: sand::ResourceLocation, config: sand::component::CaveCarverConfig)  {\n    let configured_carver = sand::component::ConfiguredCarver::cave(location, config);\n}",
+    )]
     pub fn cave(location: ResourceLocation, config: CaveCarverConfig) -> Self {
         Self {
             location,
@@ -253,7 +342,21 @@ impl ConfiguredCarver {
     }
 
     /// A `minecraft:nether_cave` carver.
-    #[doc = "**API Contract:** Run `sand api show sand::component::ConfiguredCarver::nether_cave` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::ConfiguredCarver::nether_cave",
+        aliases = ["sand::prelude::ConfiguredCarver::nether_cave"],
+        module = "sand::component",
+        kind = "method",
+        summary = "A `minecraft:nether_cave` carver.",
+        context = "A `minecraft:nether_cave` carver. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(location = "`location` provides the typed resource identifier or location used to use a `minecraft:nether_cave` carver.", config = "`config` supplies the config value used to use a `minecraft:nether_cave` carver."),
+        returns = "A newly constructed `ConfiguredCarver` configured to use a `minecraft:nether_cave` carver.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(location: sand::ResourceLocation, config: sand::component::CaveCarverConfig)  {\n    let configured_carver = sand::component::ConfiguredCarver::nether_cave(location, config);\n}",
+    )]
     pub fn nether_cave(location: ResourceLocation, config: CaveCarverConfig) -> Self {
         Self {
             location,
@@ -268,7 +371,21 @@ impl ConfiguredCarver {
     /// This escape hatch exists for modded carver types and for vanilla
     /// configs outside the typed slice. The config must still be a JSON
     /// object.
-    #[doc = "**API Contract:** Run `sand api show sand::component::ConfiguredCarver::raw` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::ConfiguredCarver::raw",
+        aliases = ["sand::prelude::ConfiguredCarver::raw"],
+        module = "sand::component",
+        kind = "method",
+        summary = "Author a configured carver from an explicitly raw carver type and config object.",
+        context = "Author a configured carver from an explicitly raw carver type and config object. Prefer [`ConfiguredCarver::cave`] / [`ConfiguredCarver::nether_cave`]. This escape hatch exists for modded carver types and for vanilla configs outside the typed slice. The config must still be a JSON object.",
+        minecraft = "Prefer [`ConfiguredCarver::cave`] / [`ConfiguredCarver::nether_cave`]. This escape hatch exists for modded carver types and for vanilla configs outside the typed slice. The config must still be a JSON object.",
+        use_when = ["Prefer [`ConfiguredCarver::cave`] / [`ConfiguredCarver::nether_cave`]. This escape hatch exists for modded carver types and for vanilla configs outside the typed slice. The config must still be a JSON object."],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(location = "`location` provides the typed resource identifier or location used to use author a configured carver from an explicitly raw carver type and config object.", carver_type = "`carver_type` provides the typed Minecraft resource identifier used to use author a configured carver from an explicitly raw carver type and config object.", config = "`config` supplies the config value used to use author a configured carver from an explicitly raw carver type and config object."),
+        returns = "A newly constructed `ConfiguredCarver` configured to use author a configured carver from an explicitly raw carver type and config object.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(location: sand::ResourceLocation, carver_type: sand::ResourceLocation, config: sand::component::RawJson)  {\n    let configured_carver = sand::component::ConfiguredCarver::raw(location, carver_type, config);\n}",
+    )]
     pub fn raw(location: ResourceLocation, carver_type: ResourceLocation, config: RawJson) -> Self {
         Self {
             location,
@@ -299,7 +416,20 @@ impl ConfiguredCarver {
     /// let id = carver.id();
     /// assert_eq!(id.as_resource_location().to_string(), "example:shallow_cave");
     /// ```
-    #[doc = "**API Contract:** Run `sand api show sand::component::ConfiguredCarver::id` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::ConfiguredCarver::id",
+        aliases = ["sand::prelude::ConfiguredCarver::id"],
+        module = "sand::component",
+        kind = "method",
+        summary = "The typed ID other worldgen components use to reference this carver.",
+        context = "The typed ID other worldgen components use to reference this carver. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        returns = "The `ConfiguredCarverId` value produced to use the typed ID other worldgen components use to reference this carver.",
+        example = "use sand::ResourceLocation;\nuse {sand::component::CarverFloatRange, sand::component::CaveCarverConfig};\nuse {sand::component::HeightProvider, sand::component::VerticalAnchor};\nuse sand::component::ConfiguredCarver;\nlet carver = ConfiguredCarver::cave(\nResourceLocation::new(\"example\", \"shallow_cave\").unwrap(),\nCaveCarverConfig::new(\n0.15,\nHeightProvider::absolute(0),\nCarverFloatRange::new(0.1, 0.9),\nVerticalAnchor::Absolute(-54),\n),\n);\nlet id = carver.id();\nassert_eq!(id.as_resource_location().to_string(), \"example:shallow_cave\");",
+    )]
     pub fn id(&self) -> ConfiguredCarverId {
         ConfiguredCarverId::custom(self.location.clone())
     }

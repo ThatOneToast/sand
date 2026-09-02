@@ -239,7 +239,18 @@
 use crate::participant::plan::{DuplicateParticipantRole, EventParticipantPlan};
 use crate::participant::role::{EntityParticipantRole, ItemParticipantRole, ParticipantHand};
 
-#[doc = "**API Contract:** Run `sand api show sand::participant::ParticipantBuilder` for the canonical contract."]
+#[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::participant::ParticipantBuilder",
+    aliases = ["sand::prelude::ParticipantBuilder"],
+    module = "sand::participant",
+    summary = "Builds an immutable [`EventParticipantPlan`] from ordinary typed method calls — the normal-Rust replacement for attribute-macro-parameter-style participant declarations. See the [module doc](self) for the full model.",
+    context = "Builds an immutable [`EventParticipantPlan`] from ordinary typed method calls — the normal-Rust replacement for attribute-macro-parameter-style participant declarations. See the [module doc](self) for the full model. Participants are available only when the event plan declares a real observation or a valid same-cycle inheritance path; the exporter rejects unsupported transport.",
+    minecraft = "Entity relationships use the matching execute relation, while item snapshots are copied into Sand-owned command storage and cleaned up at the end of their declared lifetime.",
+    use_when = ["Declaring or reading a typed participant whose lifecycle is guaranteed by the event plan"],
+    avoid_when = ["Assuming an entity or item remains live beyond its declared invocation, event-cycle, or bounded correlation lifetime"],
+    example = "use sand::participant::ParticipantBuilder;",
+)]
 /// Builds an immutable [`EventParticipantPlan`] from ordinary typed method
 /// calls — the normal-Rust replacement for attribute-macro-parameter-style
 /// participant declarations. See the [module doc](self) for the full model.
@@ -250,7 +261,20 @@ pub struct ParticipantBuilder {
 
 impl ParticipantBuilder {
     /// Start building an empty plan.
-    #[doc = "**API Contract:** Run `sand api show sand::participant::ParticipantBuilder::new` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::participant::ParticipantBuilder::new",
+        aliases = ["sand::prelude::ParticipantBuilder::new"],
+        module = "sand::participant",
+        kind = "method",
+        summary = "Start building an empty plan.",
+        context = "Start building an empty plan. Participants are available only when the event plan declares a real observation or a valid same-cycle inheritance path; the exporter rejects unsupported transport.",
+        minecraft = "Entity relationships use the matching execute relation, while item snapshots are copied into Sand-owned command storage and cleaned up at the end of their declared lifetime.",
+        use_when = ["Declaring or reading a typed participant whose lifecycle is guaranteed by the event plan"],
+        avoid_when = ["Assuming an entity or item remains live beyond its declared invocation, event-cycle, or bounded correlation lifetime"],
+        returns = "A newly constructed `ParticipantBuilder` configured to start building an empty plan.",
+        example = "use sand::prelude::*;\n\nfn demonstrate()  {\n    let participant_builder = sand::participant::ParticipantBuilder::new();\n}",
+    )]
     pub fn new() -> Self {
         Self {
             plan: EventParticipantPlan::new(),
@@ -282,7 +306,21 @@ impl ParticipantBuilder {
     ///     .build();
     /// assert!(!plan.is_empty());
     /// ```
-    #[doc = "**API Contract:** Run `sand api show sand::participant::ParticipantBuilder::observe_entity` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::participant::ParticipantBuilder::observe_entity",
+        aliases = ["sand::prelude::ParticipantBuilder::observe_entity"],
+        module = "sand::participant",
+        kind = "method",
+        summary = "Declare a direct correlated observation of `role` on this event's own dispatch.",
+        context = "Declare a direct correlated observation of `role` on this event's own dispatch. Captures at setup time and cleans up after every synchronous descendant has run (see the [module doc](self)'s lifetime note). Duplicate role declarations within one builder are rejected — see [`Self::build`]. Only [`EntityParticipantRole::Attacker`]/[`EntityParticipantRole::Killer`] have a direct-observation backend today. Panics immediately if `role` has no direct-observation backend — this is a fully local, statically-knowable mistake (it does not depend on the event graph), unlike the graph-dependent validation `sand build` performs.",
+        minecraft = "Entity relationships use the matching execute relation, while item snapshots are copied into Sand-owned command storage and cleaned up at the end of their declared lifetime.",
+        use_when = ["Declaring or reading a typed participant whose lifecycle is guaranteed by the event plan"],
+        avoid_when = ["Assuming an entity or item remains live beyond its declared invocation, event-cycle, or bounded correlation lifetime"],
+        params(role = "Declare a direct correlated observation of `role` on this event's own dispatch."),
+        returns = "The `ParticipantBuilder` value with the documented change applied to declare a direct correlated observation of `role` on this event's own dispatch.",
+        example = "use {sand::participant::EntityParticipantRole, sand::participant::ParticipantBuilder};\nlet plan = ParticipantBuilder::new()\n.observe_entity(EntityParticipantRole::Attacker)\n.build();\nassert!(!plan.is_empty());",
+    )]
     pub fn observe_entity(mut self, role: EntityParticipantRole) -> Self {
         if !matches!(
             role,
@@ -312,7 +350,21 @@ impl ParticipantBuilder {
     ///     .build();
     /// assert!(!plan.is_empty());
     /// ```
-    #[doc = "**API Contract:** Run `sand api show sand::participant::ParticipantBuilder::observe_item` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::participant::ParticipantBuilder::observe_item",
+        aliases = ["sand::prelude::ParticipantBuilder::observe_item"],
+        module = "sand::participant",
+        kind = "method",
+        summary = "Declare a direct held-item snapshot of `role`, captured from `hand`.",
+        context = "Declare a direct held-item snapshot of `role`, captured from `hand`. Always an exact snapshot — addressing a hand slot on `@s` is a directly queryable NBT path, never a correlated guess. Has no separate cleanup step (see the [module doc](self)).",
+        minecraft = "Always an exact snapshot — addressing a hand slot on `@s` is a directly queryable NBT path, never a correlated guess. Has no separate cleanup step (see the [module doc](self)).",
+        use_when = ["Declaring or reading a typed participant whose lifecycle is guaranteed by the event plan"],
+        avoid_when = ["Assuming an entity or item remains live beyond its declared invocation, event-cycle, or bounded correlation lifetime"],
+        params(role = "Declare a direct held-item snapshot of `role`, captured from `hand`.", hand = "Declare a direct held-item snapshot of `role`, captured from `hand`."),
+        returns = "The `ParticipantBuilder` value with the documented change applied to declare a direct held-item snapshot of `role`, captured from `hand`.",
+        example = "use {sand::participant::ItemParticipantRole, sand::participant::ParticipantBuilder, sand::participant::ParticipantHand};\nlet plan = ParticipantBuilder::new()\n.observe_item(ItemParticipantRole::Weapon, ParticipantHand::MainHand)\n.build();\nassert!(!plan.is_empty());",
+    )]
     pub fn observe_item(mut self, role: ItemParticipantRole, hand: ParticipantHand) -> Self {
         self.plan = self.plan.observe_held_item(role, hand);
         self
@@ -351,7 +403,21 @@ impl ParticipantBuilder {
     ///     .build();
     /// assert!(!plan.is_empty());
     /// ```
-    #[doc = "**API Contract:** Run `sand api show sand::participant::ParticipantBuilder::inherit_entity` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::participant::ParticipantBuilder::inherit_entity",
+        aliases = ["sand::prelude::ParticipantBuilder::inherit_entity"],
+        module = "sand::participant",
+        kind = "method",
+        summary = "Declare that this event borrows `role` from `Source`'s own same-cycle direct capture, instead of capturing it independently.",
+        context = "Declare that this event borrows `role` from `Source`'s own same-cycle direct capture, instead of capturing it independently. `Source` must be a real same-cycle graph ancestor of this event, reached through an unbroken chain of single-parent, unbounded `.after(...)`/`chain::<...>()` edges, and must itself directly capture `role` (not itself inherit it — transitive inheritance is not supported). Neither condition is checked here; both are validated by `sand build` against the fully resolved event graph, with an actionable diagnostic on failure. `Source` may be a [`SandEvent`](sand::events::SandEvent) or (through the same-cycle advancement bridge, #269) an [`AdvancementEvent`](sand::event::AdvancementEvent) that also implements `SandEvent`. Contributes zero setup/cleanup commands — `Source` fully owns both.",
+        minecraft = "Contributes zero setup/cleanup commands — `Source` fully owns both.",
+        use_when = ["Declaring or reading a typed participant whose lifecycle is guaranteed by the event plan"],
+        avoid_when = ["Assuming an entity or item remains live beyond its declared invocation, event-cycle, or bounded correlation lifetime"],
+        params(role = "Declare that this event borrows `role` from `Source`'s own same-cycle direct capture, instead of capturing it independently."),
+        returns = "The `ParticipantBuilder` value with the documented change applied to declare that this event borrows `role` from `Source`'s own same-cycle direct capture, instead of capturing it independently.",
+        example = "use sand::events::SandEvent;\nuse {sand::participant::EntityParticipantRole, sand::participant::ParticipantBuilder};\nstruct Parent;\nimpl SandEvent for Parent {\nfn dispatch() -> impl Into<sand::events::SandEventDispatch> {\nsand::events::SandEventDispatch::tick().as_players()\n}\n}\nlet plan = ParticipantBuilder::new()\n.inherit_entity::<Parent>(EntityParticipantRole::Attacker)\n.build();\nassert!(!plan.is_empty());",
+    )]
     pub fn inherit_entity<Source: crate::events::SandEvent + 'static>(
         mut self,
         role: EntityParticipantRole,
@@ -363,7 +429,21 @@ impl ParticipantBuilder {
     /// The item-snapshot counterpart to [`Self::inherit_entity`]. `hand`
     /// must match the hand `Source`'s own declaration captured from — this
     /// builder does not look `Source`'s declaration up for you.
-    #[doc = "**API Contract:** Run `sand api show sand::participant::ParticipantBuilder::inherit_item` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::participant::ParticipantBuilder::inherit_item",
+        aliases = ["sand::prelude::ParticipantBuilder::inherit_item"],
+        module = "sand::participant",
+        kind = "method",
+        summary = "The item-snapshot counterpart to [`Self::inherit_entity`]. `hand` must match the hand `Source`'s own declaration captured from — this builder does not look `Source`'s declaration up for you.",
+        context = "The item-snapshot counterpart to [`Self::inherit_entity`]. `hand` must match the hand `Source`'s own declaration captured from — this builder does not look `Source`'s declaration up for you. Participants are available only when the event plan declares a real observation or a valid same-cycle inheritance path; the exporter rejects unsupported transport.",
+        minecraft = "Entity relationships use the matching execute relation, while item snapshots are copied into Sand-owned command storage and cleaned up at the end of their declared lifetime.",
+        use_when = ["Declaring or reading a typed participant whose lifecycle is guaranteed by the event plan"],
+        avoid_when = ["Assuming an entity or item remains live beyond its declared invocation, event-cycle, or bounded correlation lifetime"],
+        params(role = "`role` supplies the role value used to use the item-snapshot counterpart to [`Self::inherit_entity`]. `hand` must match the hand `Source`'s own declaration captured from — this builder does not look `Source`'s declaration up for you.", hand = "The item-snapshot counterpart to [`Self::inherit_entity`]. `hand` must match the hand `Source`'s own declaration captured from — this builder does not look `Source`'s declaration up for you."),
+        returns = "The `ParticipantBuilder` value with the documented change applied to use the item-snapshot counterpart to [`Self::inherit_entity`]. `hand` must match the hand `Source`'s own declaration captured from — this builder does not look `Source`'s declaration up for you.",
+        example = "use sand::prelude::*;\n\nfn demonstrate<Source : sand::events::SandEvent + 'static>(participant_builder_value: sand::participant::ParticipantBuilder, role: sand::participant::ItemParticipantRole, hand: sand::participant::ParticipantHand)  {\n    let updated_participant_builder = participant_builder_value.inherit_item::<Source>(role, hand);\n}",
+    )]
     pub fn inherit_item<Source: crate::events::SandEvent + 'static>(
         mut self,
         role: ItemParticipantRole,
@@ -383,7 +463,20 @@ impl ParticipantBuilder {
     /// invariant (it depends only on this builder's own declarations, never
     /// on the event graph), so it is checked here rather than deferred to
     /// `sand build`.
-    #[doc = "**API Contract:** Run `sand api show sand::participant::ParticipantBuilder::build` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::participant::ParticipantBuilder::build",
+        aliases = ["sand::prelude::ParticipantBuilder::build"],
+        module = "sand::participant",
+        kind = "method",
+        summary = "Finish building, producing the immutable, compiler-facing [`EventParticipantPlan`].",
+        context = "Finish building, producing the immutable, compiler-facing [`EventParticipantPlan`]. Panics with an actionable message if the same entity or item role was declared more than once — a fully local, immediately-knowable invariant (it depends only on this builder's own declarations, never on the event graph), so it is checked here rather than deferred to `sand build`.",
+        minecraft = "Entity relationships use the matching execute relation, while item snapshots are copied into Sand-owned command storage and cleaned up at the end of their declared lifetime.",
+        use_when = ["Declaring or reading a typed participant whose lifecycle is guaranteed by the event plan"],
+        avoid_when = ["Assuming an entity or item remains live beyond its declared invocation, event-cycle, or bounded correlation lifetime"],
+        returns = "The `EventParticipantPlan` value produced to finish building, producing the immutable, compiler-facing [`EventParticipantPlan`].",
+        example = "use sand::prelude::*;\n\nfn demonstrate(participant_builder_value: sand::participant::ParticipantBuilder)  {\n    let build = participant_builder_value.build();\n}",
+    )]
     pub fn build(self) -> EventParticipantPlan {
         match self.plan.validate() {
             Ok(()) => {}

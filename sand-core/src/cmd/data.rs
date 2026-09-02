@@ -51,18 +51,28 @@ use sand_commands::{CommandResult, DataModify, DataTarget, NbtValue, Validate};
 
 // ── StorageKind ───────────────────────────────────────────────────────────────
 
-#[doc = "**API Contract:** Run `sand api show sand::command::StorageKind` for the canonical contract."]
+#[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::command::StorageKind",
+    aliases = ["sand::cmd::StorageKind", "sand::prelude::cmd::StorageKind"],
+    module = "sand::command",
+    summary = "Declares the intended scope of a [`Storage`] namespace.",
+    context = "Declares the intended scope of a [`Storage`] namespace. This is a semantic annotation — Minecraft does not enforce it.",
+    minecraft = "This is a semantic annotation — Minecraft does not enforce it.",
+    use_when = ["Constructing Minecraft commands through Sand's typed command model"],
+    avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
+    example = "use sand::command::StorageKind;",
+    variants(Global = "One namespace shared by all players and functions. Use for world state, boss phases, global flags, server-wide counters.", PerPlayer = "Conceptually per-player. Callers scope paths by player identity (e.g. `\"players.<uuid>.kills\"`)."),
+)]
 /// Declares the intended scope of a [`Storage`] namespace.
 ///
 /// This is a semantic annotation — Minecraft does not enforce it.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum StorageKind {
-    #[doc = "**API Contract:** Run `sand api show sand::command::StorageKind::Global` for the canonical contract."]
     /// One namespace shared by all players and functions. Use for world state,
     /// boss phases, global flags, server-wide counters.
     Global,
 
-    #[doc = "**API Contract:** Run `sand api show sand::command::StorageKind::PerPlayer` for the canonical contract."]
     /// Conceptually per-player. Callers scope paths by player identity
     /// (e.g. `"players.<uuid>.kills"`).
     ///
@@ -73,7 +83,18 @@ pub enum StorageKind {
 
 // ── Storage ───────────────────────────────────────────────────────────────────
 
-#[doc = "**API Contract:** Run `sand api show sand::command::Storage` for the canonical contract."]
+#[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::command::Storage",
+    aliases = ["sand::cmd::Storage", "sand::prelude::cmd::Storage"],
+    module = "sand::command",
+    summary = "A named Minecraft NBT storage namespace — used like a `HashMap<String, NbtValue>`.",
+    context = "A named Minecraft NBT storage namespace — used like a `HashMap<String, NbtValue>`. Keys are dot-separated NBT paths (e.g. `\"boss_phase\"`, `\"players.health\"`). Values are typed Rust values that are automatically serialized to SNBT.",
+    minecraft = "Keys are dot-separated NBT paths (e.g. `\"boss_phase\"`, `\"players.health\"`). Values are typed Rust values that are automatically serialized to SNBT.",
+    use_when = ["Constructing Minecraft commands through Sand's typed command model"],
+    avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
+    example = "use sand::command::Storage;",
+)]
 /// A named Minecraft NBT storage namespace — used like a `HashMap<String, NbtValue>`.
 ///
 /// Keys are dot-separated NBT paths (e.g. `"boss_phase"`, `"players.health"`).
@@ -123,7 +144,21 @@ impl Storage {
     /// ```rust,ignore
     /// static WORLD: Storage = Storage::global("my_pack:world");
     /// ```
-    #[doc = "**API Contract:** Run `sand api show sand::command::Storage::global` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::command::Storage::global",
+        aliases = ["sand::cmd::Storage::global", "sand::prelude::cmd::Storage::global"],
+        module = "sand::command",
+        kind = "method",
+        summary = "Construct a global storage namespace at compile time.",
+        context = "Construct a global storage namespace at compile time. This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
+        minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
+        use_when = ["Constructing Minecraft commands through Sand's typed command model"],
+        avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
+        params(id = "`id` provides the typed resource identifier or location used to construct a global storage namespace at compile time."),
+        returns = "A newly constructed `Storage` configured to construct a global storage namespace at compile time.",
+        example = "static WORLD: Storage = Storage::global(\"my_pack:world\");",
+    )]
     pub const fn global(id: &'static str) -> Self {
         Self {
             id: Cow::Borrowed(id),
@@ -136,7 +171,21 @@ impl Storage {
     /// ```rust,ignore
     /// static PLAYERS: Storage = Storage::per_player("my_pack:players");
     /// ```
-    #[doc = "**API Contract:** Run `sand api show sand::command::Storage::per_player` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::command::Storage::per_player",
+        aliases = ["sand::cmd::Storage::per_player", "sand::prelude::cmd::Storage::per_player"],
+        module = "sand::command",
+        kind = "method",
+        summary = "Construct a per-player storage namespace at compile time.",
+        context = "Construct a per-player storage namespace at compile time. This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
+        minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
+        use_when = ["Constructing Minecraft commands through Sand's typed command model"],
+        avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
+        params(id = "`id` provides the typed resource identifier or location used to construct a per-player storage namespace at compile time."),
+        returns = "A newly constructed `Storage` configured to construct a per-player storage namespace at compile time.",
+        example = "static PLAYERS: Storage = Storage::per_player(\"my_pack:players\");",
+    )]
     pub const fn per_player(id: &'static str) -> Self {
         Self {
             id: Cow::Borrowed(id),
@@ -145,7 +194,21 @@ impl Storage {
     }
 
     /// Dynamic constructor for runtime-determined IDs.
-    #[doc = "**API Contract:** Run `sand api show sand::command::Storage::new` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::command::Storage::new",
+        aliases = ["sand::cmd::Storage::new", "sand::prelude::cmd::Storage::new"],
+        module = "sand::command",
+        kind = "method",
+        summary = "Dynamic constructor for runtime-determined IDs.",
+        context = "Dynamic constructor for runtime-determined IDs. This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
+        minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
+        use_when = ["Constructing Minecraft commands through Sand's typed command model"],
+        avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
+        params(id = "`id` provides the typed resource identifier or location used to dynamic constructor for runtime-determined IDs.", kind = "`kind` supplies the kind value used to dynamic constructor for runtime-determined IDs."),
+        returns = "A newly constructed `Storage` configured to dynamic constructor for runtime-determined IDs.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(id: impl Into < String >, kind: sand::command::StorageKind)  {\n    let storage = sand::command::Storage::new(id, kind);\n}",
+    )]
     pub fn new(id: impl Into<String>, kind: StorageKind) -> Self {
         Self {
             id: Cow::Owned(id.into()),
@@ -154,13 +217,39 @@ impl Storage {
     }
 
     /// The resource-location string for this storage namespace.
-    #[doc = "**API Contract:** Run `sand api show sand::command::Storage::id` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::command::Storage::id",
+        aliases = ["sand::cmd::Storage::id", "sand::prelude::cmd::Storage::id"],
+        module = "sand::command",
+        kind = "method",
+        summary = "The resource-location string for this storage namespace.",
+        context = "The resource-location string for this storage namespace. This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
+        minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
+        use_when = ["Constructing Minecraft commands through Sand's typed command model"],
+        avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
+        returns = "The string value produced to use the resource-location string for this storage namespace.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(storage_value: &sand::command::Storage)  {\n    let id = storage_value.id();\n}",
+    )]
     pub fn id(&self) -> &str {
         &self.id
     }
 
     /// The declared scope of this storage namespace.
-    #[doc = "**API Contract:** Run `sand api show sand::command::Storage::kind` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::command::Storage::kind",
+        aliases = ["sand::cmd::Storage::kind", "sand::prelude::cmd::Storage::kind"],
+        module = "sand::command",
+        kind = "method",
+        summary = "The declared scope of this storage namespace.",
+        context = "The declared scope of this storage namespace. This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
+        minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
+        use_when = ["Constructing Minecraft commands through Sand's typed command model"],
+        avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
+        returns = "The `StorageKind` value produced to use the declared scope of this storage namespace.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(storage_value: &sand::command::Storage)  {\n    let kind = storage_value.kind();\n}",
+    )]
     pub fn kind(&self) -> StorageKind {
         self.kind
     }
@@ -184,7 +273,21 @@ impl Storage {
     /// WORLD.insert("active",     true)    // → data modify storage … set value 1b
     /// WORLD.insert("name",       "Boss")  // → data modify storage … set value "Boss"
     /// ```
-    #[doc = "**API Contract:** Run `sand api show sand::command::Storage::insert` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::command::Storage::insert",
+        aliases = ["sand::cmd::Storage::insert", "sand::prelude::cmd::Storage::insert"],
+        module = "sand::command",
+        kind = "method",
+        summary = "Set `key` to `value`. Equivalent to `HashMap::insert`. Overwrites any existing value.",
+        context = "Set `key` to `value`. Equivalent to `HashMap::insert`. Overwrites any existing value. This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
+        minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
+        use_when = ["Constructing Minecraft commands through Sand's typed command model"],
+        avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
+        params(key = "Set `key` to `value`.", value = "Set `key` to `value`."),
+        returns = "The string value produced to set `key` to `value`. Equivalent to `HashMap::insert`. Overwrites any existing value.",
+        example = "WORLD.insert(\"boss_phase\", 2_i32)   // → data modify storage … set value 2\nWORLD.insert(\"active\",     true)    // → data modify storage … set value 1b\nWORLD.insert(\"name\",       \"Boss\")  // → data modify storage … set value \"Boss\"",
+    )]
     pub fn insert(&self, key: impl Into<String>, value: impl Into<NbtValue>) -> String {
         DataModify::new(self.target(), key.into()).set(value)
     }
@@ -196,7 +299,21 @@ impl Storage {
     /// Raw/unchecked: hand-formats the command without routing the storage
     /// id or NBT path through the typed [`DataTarget`]/[`NbtPath`](sand_commands::NbtPath)
     /// validators. Prefer [`Storage::try_remove`].
-    #[doc = "**API Contract:** Run `sand api show sand::command::Storage::remove` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::command::Storage::remove",
+        aliases = ["sand::cmd::Storage::remove", "sand::prelude::cmd::Storage::remove"],
+        module = "sand::command",
+        kind = "method",
+        summary = "Delete `key` from storage. Equivalent to `HashMap::remove`.",
+        context = "Delete `key` from storage. Equivalent to `HashMap::remove`. Raw/unchecked: hand-formats the command without routing the storage id or NBT path through the typed [`DataTarget`]/[`NbtPath`](sand::data::NbtPath) validators. Prefer [`Storage::try_remove`].",
+        minecraft = "Raw/unchecked: hand-formats the command without routing the storage id or NBT path through the typed [`DataTarget`]/[`NbtPath`](sand::data::NbtPath) validators. Prefer [`Storage::try_remove`].",
+        use_when = ["Constructing Minecraft commands through Sand's typed command model"],
+        avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
+        params(key = "Delete `key` from storage."),
+        returns = "The string value produced to delete `key` from storage. Equivalent to `HashMap::remove`.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(storage_value: &sand::command::Storage, key: impl Into < String >)  {\n    let remove = storage_value.remove(key);\n}",
+    )]
     pub fn remove(&self, key: impl Into<String>) -> String {
         format!("data remove storage {} {}", self.id, key.into())
     }
@@ -207,7 +324,21 @@ impl Storage {
     /// [`sand_commands::DataCommand`]: the storage id must be a valid
     /// `namespace:path` resource location and `key` must be a
     /// structurally valid NBT path.
-    #[doc = "**API Contract:** Run `sand api show sand::command::Storage::try_remove` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::command::Storage::try_remove",
+        aliases = ["sand::cmd::Storage::try_remove", "sand::prelude::cmd::Storage::try_remove"],
+        module = "sand::command",
+        kind = "method",
+        summary = "Validated counterpart to [`Storage::remove`]. Routes through the same [`DataTarget`]/NBT-path validation as [`sand::data::DataCommand`]: the storage id must be a valid `namespace:path` resource location and `key` must be a structurally valid NBT path.",
+        context = "Validated counterpart to [`Storage::remove`]. Routes through the same [`DataTarget`]/NBT-path validation as [`sand::data::DataCommand`]: the storage id must be a valid `namespace:path` resource location and `key` must be a structurally valid NBT path. This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
+        minecraft = "Routes through the same [`DataTarget`]/NBT-path validation as [`sand::data::DataCommand`]: the storage id must be a valid `namespace:path` resource location and `key` must be a structurally valid NBT path.",
+        use_when = ["Constructing Minecraft commands through Sand's typed command model"],
+        avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
+        params(key = "Routes through the same [`DataTarget`]/NBT-path validation as [`sand::data::DataCommand`]: the storage id must be a valid `namespace:path` resource location and `key` must be a structurally valid NBT path."),
+        returns = "On success, the value produced to use validated counterpart to [`Storage::remove`]. Routes through the same [`DataTarget`]/NBT-path validation as [`sand::data::DataCommand`]: the storage id must be a valid `namespace:path` resource location and `key` must be a structurally valid NBT path; otherwise, the documented validation or export diagnostic.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(storage_value: &sand::command::Storage, key: impl Into < String >)  {\n    let try_remove = storage_value.try_remove(key);\n}",
+    )]
     pub fn try_remove(&self, key: impl Into<String>) -> CommandResult<String> {
         self.target()
             .path(key.into())
@@ -227,13 +358,41 @@ impl Storage {
     ///     .store_result_score(ScoreHolder::entity(Selector::self_()), "my_obj")
     ///     .run(WORLD.get("boss_phase"))
     /// ```
-    #[doc = "**API Contract:** Run `sand api show sand::command::Storage::get` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::command::Storage::get",
+        aliases = ["sand::cmd::Storage::get", "sand::prelude::cmd::Storage::get"],
+        module = "sand::command",
+        kind = "method",
+        summary = "Returns a `data get storage` command that reads `key`.",
+        context = "Returns a `data get storage` command that reads `key`. Use this as the `run` argument of an `execute store result score` chain to load the value into a scoreboard objective.",
+        minecraft = "Use this as the `run` argument of an `execute store result score` chain to load the value into a scoreboard objective.",
+        use_when = ["Use this as the `run` argument of an `execute store result score` chain to load the value into a scoreboard objective."],
+        avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
+        params(key = "Returns a `data get storage` command that reads `key`."),
+        returns = "Returns a `data get storage` command that reads `key`.",
+        example = "Execute::new()\n.store_result_score(ScoreHolder::entity(Selector::self_()), \"my_obj\")\n.run(WORLD.get(\"boss_phase\"))",
+    )]
     pub fn get(&self, key: impl Into<String>) -> String {
         format!("data get storage {} {}", self.id, key.into())
     }
 
     /// Validated counterpart to [`Storage::get`].
-    #[doc = "**API Contract:** Run `sand api show sand::command::Storage::try_get` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::command::Storage::try_get",
+        aliases = ["sand::cmd::Storage::try_get", "sand::prelude::cmd::Storage::try_get"],
+        module = "sand::command",
+        kind = "method",
+        summary = "Validated counterpart to [`Storage::get`].",
+        context = "Validated counterpart to [`Storage::get`]. This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
+        minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
+        use_when = ["Constructing Minecraft commands through Sand's typed command model"],
+        avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
+        params(key = "`key` provides the key that identifies the setting or entry used to use validated counterpart to [`Storage::get`]."),
+        returns = "On success, the value produced to use validated counterpart to [`Storage::get`]; otherwise, the documented validation or export diagnostic.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(storage_value: &sand::command::Storage, key: impl Into < String >)  {\n    let try_get = storage_value.try_get(key);\n}",
+    )]
     pub fn try_get(&self, key: impl Into<String>) -> CommandResult<String> {
         self.target()
             .path(key.into())
@@ -247,7 +406,21 @@ impl Storage {
     ///
     /// Raw/unchecked: accepts a non-finite `scale`. Prefer
     /// [`Storage::try_get_scaled`].
-    #[doc = "**API Contract:** Run `sand api show sand::command::Storage::get_scaled` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::command::Storage::get_scaled",
+        aliases = ["sand::cmd::Storage::get_scaled", "sand::prelude::cmd::Storage::get_scaled"],
+        module = "sand::command",
+        kind = "method",
+        summary = "Like [`get`](Self::get) but scales the numeric result by `scale`.",
+        context = "Like [`get`](Self::get) but scales the numeric result by `scale`. Useful when piping float NBT (e.g. `Health`) into integer scoreboards. Raw/unchecked: accepts a non-finite `scale`. Prefer [`Storage::try_get_scaled`].",
+        minecraft = "Useful when piping float NBT (e.g. `Health`) into integer scoreboards.",
+        use_when = ["Constructing Minecraft commands through Sand's typed command model"],
+        avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
+        params(key = "`key` provides the key that identifies the setting or entry used to use like [`get`](Self::get) but scales the numeric result by `scale`.", scale = "Like [`get`](Self::get) but scales the numeric result by `scale`."),
+        returns = "The string value produced to use like [`get`](Self::get) but scales the numeric result by `scale`.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(storage_value: &sand::command::Storage, key: impl Into < String >, scale: f64)  {\n    let get_scaled = storage_value.get_scaled(key, scale);\n}",
+    )]
     pub fn get_scaled(&self, key: impl Into<String>, scale: f64) -> String {
         format!("data get storage {} {} {scale}", self.id, key.into())
     }
@@ -255,7 +428,21 @@ impl Storage {
     /// Validated counterpart to [`Storage::get_scaled`]. Rejects a
     /// non-finite `scale` in addition to the storage id/path validation
     /// shared with [`Storage::try_get`].
-    #[doc = "**API Contract:** Run `sand api show sand::command::Storage::try_get_scaled` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::command::Storage::try_get_scaled",
+        aliases = ["sand::cmd::Storage::try_get_scaled", "sand::prelude::cmd::Storage::try_get_scaled"],
+        module = "sand::command",
+        kind = "method",
+        summary = "Validated counterpart to [`Storage::get_scaled`]. Rejects a non-finite `scale` in addition to the storage id/path validation shared with [`Storage::try_get`].",
+        context = "Validated counterpart to [`Storage::get_scaled`]. Rejects a non-finite `scale` in addition to the storage id/path validation shared with [`Storage::try_get`]. This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
+        minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
+        use_when = ["Constructing Minecraft commands through Sand's typed command model"],
+        avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
+        params(key = "`key` provides the key that identifies the setting or entry used to use validated counterpart to [`Storage::get_scaled`]. Rejects a non-finite `scale` in addition to the storage id/path validation shared with [`Storage::try_get`].", scale = "Validated counterpart to [`Storage::get_scaled`]. Rejects a non-finite `scale` in addition to the storage id/path validation shared with [`Storage::try_get`]."),
+        returns = "On success, the value produced to use validated counterpart to [`Storage::get_scaled`]. Rejects a non-finite `scale` in addition to the storage id/path validation shared with [`Storage::try_get`]; otherwise, the documented validation or export diagnostic.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(storage_value: &sand::command::Storage, key: impl Into < String >, scale: f64)  {\n    let try_get_scaled = storage_value.try_get_scaled(key, scale);\n}",
+    )]
     pub fn try_get_scaled(&self, key: impl Into<String>, scale: f64) -> CommandResult<String> {
         self.target()
             .path(key.into())
@@ -269,7 +456,21 @@ impl Storage {
     ///
     /// Equivalent to `HashMap::contains_key`. Use in `Execute::if_` to branch
     /// on whether `key` is present.
-    #[doc = "**API Contract:** Run `sand api show sand::command::Storage::contains` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::command::Storage::contains",
+        aliases = ["sand::cmd::Storage::contains", "sand::prelude::cmd::Storage::contains"],
+        module = "sand::command",
+        kind = "method",
+        summary = "Returns a condition fragment for use with `execute if data storage …`.",
+        context = "Returns a condition fragment for use with `execute if data storage …`. Equivalent to `HashMap::contains_key`. Use in `Execute::if_` to branch on whether `key` is present.",
+        minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
+        use_when = ["Constructing Minecraft commands through Sand's typed command model"],
+        avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
+        params(key = "Equivalent to `HashMap::contains_key`. Use in `Execute::if_` to branch on whether `key` is present."),
+        returns = "Returns a condition fragment for use with `execute if data storage …`.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(storage_value: &sand::command::Storage, key: impl Into < String >)  {\n    let contains = storage_value.contains(key);\n}",
+    )]
     pub fn contains(&self, key: impl Into<String>) -> String {
         format!("data storage {} {}", self.id, key.into())
     }
@@ -280,7 +481,21 @@ impl Storage {
     /// `DataCommand`, so this validates the storage id and NBT path through
     /// the same [`sand_commands`] validators (via a throwaway `data get`
     /// read-shaped check) without changing the emitted fragment's syntax.
-    #[doc = "**API Contract:** Run `sand api show sand::command::Storage::try_contains` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::command::Storage::try_contains",
+        aliases = ["sand::cmd::Storage::try_contains", "sand::prelude::cmd::Storage::try_contains"],
+        module = "sand::command",
+        kind = "method",
+        summary = "Validated counterpart to [`Storage::contains`]. `data storage <id> <key>` is a condition fragment, not a standalone `DataCommand`, so this validates the storage id and NBT path through the same [`sand_commands`] validators (via a throwaway `data get` read-shaped check) without changing the emitted fragment's syntax.",
+        context = "Validated counterpart to [`Storage::contains`]. `data storage <id> <key>` is a condition fragment, not a standalone `DataCommand`, so this validates the storage id and NBT path through the same [`sand_commands`] validators (via a throwaway `data get` read-shaped check) without changing the emitted fragment's syntax. This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
+        minecraft = "`data storage <id> <key>` is a condition fragment, not a standalone `DataCommand`, so this validates the storage id and NBT path through the same [`sand_commands`] validators (via a throwaway `data get` read-shaped check) without changing the emitted fragment's syntax.",
+        use_when = ["Constructing Minecraft commands through Sand's typed command model"],
+        avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
+        params(key = "`key` provides the key that identifies the setting or entry used to use validated counterpart to [`Storage::contains`]. `data storage <id> <key>` is a condition fragment, not a standalone `DataCommand`, so this validates the storage id and NBT path through the same [`sand_commands`] validators (via a throwaway `data get` read-shaped check) without changing the emitted fragment's syntax."),
+        returns = "On success, the value produced to use validated counterpart to [`Storage::contains`]. `data storage <id> <key>` is a condition fragment, not a standalone `DataCommand`, so this validates the storage id and NBT path through the same [`sand_commands`] validators (via a throwaway `data get` read-shaped check) without changing the emitted fragment's syntax; otherwise, the documented validation or export diagnostic.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(storage_value: &sand::command::Storage, key: impl Into < String >)  {\n    let try_contains = storage_value.try_contains(key);\n}",
+    )]
     pub fn try_contains(&self, key: impl Into<String>) -> CommandResult<String> {
         let key = key.into();
         self.target()
@@ -296,7 +511,21 @@ impl Storage {
     /// `execute unless data storage … run data modify …` command.
     ///
     /// Raw/unchecked: prefer [`Storage::try_get_or_insert`].
-    #[doc = "**API Contract:** Run `sand api show sand::command::Storage::get_or_insert` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::command::Storage::get_or_insert",
+        aliases = ["sand::cmd::Storage::get_or_insert", "sand::prelude::cmd::Storage::get_or_insert"],
+        module = "sand::command",
+        kind = "method",
+        summary = "Set `key` to `default` only if it is not already present.",
+        context = "Set `key` to `default` only if it is not already present. Equivalent to `HashMap::entry(k).or_insert(v)`. Returns a single `execute unless data storage … run data modify …` command. Raw/unchecked: prefer [`Storage::try_get_or_insert`].",
+        minecraft = "Equivalent to `HashMap::entry(k).or_insert(v)`. Returns a single `execute unless data storage … run data modify …` command.",
+        use_when = ["Constructing Minecraft commands through Sand's typed command model"],
+        avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
+        params(key = "Set `key` to `default` only if it is not already present.", default = "Set `key` to `default` only if it is not already present."),
+        returns = "Equivalent to `HashMap::entry(k).or_insert(v)`. Returns a single `execute unless data storage … run data modify …` command.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(storage_value: &sand::command::Storage, key: impl Into < String >, default: impl Into < sand::data::NbtValue >)  {\n    let get_or_insert = storage_value.get_or_insert(key, default);\n}",
+    )]
     pub fn get_or_insert(&self, key: impl Into<String>, default: impl Into<NbtValue>) -> String {
         let key = key.into();
         let val = default.into();
@@ -307,7 +536,21 @@ impl Storage {
     }
 
     /// Validated counterpart to [`Storage::get_or_insert`].
-    #[doc = "**API Contract:** Run `sand api show sand::command::Storage::try_get_or_insert` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::command::Storage::try_get_or_insert",
+        aliases = ["sand::cmd::Storage::try_get_or_insert", "sand::prelude::cmd::Storage::try_get_or_insert"],
+        module = "sand::command",
+        kind = "method",
+        summary = "Validated counterpart to [`Storage::get_or_insert`].",
+        context = "Validated counterpart to [`Storage::get_or_insert`]. This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
+        minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
+        use_when = ["Constructing Minecraft commands through Sand's typed command model"],
+        avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
+        params(key = "`key` provides the key that identifies the setting or entry used to use validated counterpart to [`Storage::get_or_insert`].", default = "`default` supplies the default value used to use validated counterpart to [`Storage::get_or_insert`]."),
+        returns = "On success, the value produced to use validated counterpart to [`Storage::get_or_insert`]; otherwise, the documented validation or export diagnostic.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(storage_value: &sand::command::Storage, key: impl Into < String >, default: impl Into < sand::data::NbtValue >)  {\n    let try_get_or_insert = storage_value.try_get_or_insert(key, default);\n}",
+    )]
     pub fn try_get_or_insert(
         &self,
         key: impl Into<String>,
@@ -326,13 +569,41 @@ impl Storage {
     // ── List operations ───────────────────────────────────────────────────
 
     /// Append `value` to the end of the list at `key`.
-    #[doc = "**API Contract:** Run `sand api show sand::command::Storage::push` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::command::Storage::push",
+        aliases = ["sand::cmd::Storage::push", "sand::prelude::cmd::Storage::push"],
+        module = "sand::command",
+        kind = "method",
+        summary = "Append `value` to the end of the list at `key`.",
+        context = "Append `value` to the end of the list at `key`. This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
+        minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
+        use_when = ["Constructing Minecraft commands through Sand's typed command model"],
+        avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
+        params(key = "Append `value` to the end of the list at `key`.", value = "Append `value` to the end of the list at `key`."),
+        returns = "The string value produced to append `value` to the end of the list at `key`.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(storage_value: &sand::command::Storage, key: impl Into < String >, value: impl Into < sand::data::NbtValue >)  {\n    let push = storage_value.push(key, value);\n}",
+    )]
     pub fn push(&self, key: impl Into<String>, value: impl Into<NbtValue>) -> String {
         DataModify::new(self.target(), key.into()).append(value)
     }
 
     /// Prepend `value` to the front of the list at `key`.
-    #[doc = "**API Contract:** Run `sand api show sand::command::Storage::push_front` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::command::Storage::push_front",
+        aliases = ["sand::cmd::Storage::push_front", "sand::prelude::cmd::Storage::push_front"],
+        module = "sand::command",
+        kind = "method",
+        summary = "Prepend `value` to the front of the list at `key`.",
+        context = "Prepend `value` to the front of the list at `key`. This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
+        minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
+        use_when = ["Constructing Minecraft commands through Sand's typed command model"],
+        avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
+        params(key = "Prepend `value` to the front of the list at `key`.", value = "Prepend `value` to the front of the list at `key`."),
+        returns = "The string value produced to prepend `value` to the front of the list at `key`.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(storage_value: &sand::command::Storage, key: impl Into < String >, value: impl Into < sand::data::NbtValue >)  {\n    let push_front = storage_value.push_front(key, value);\n}",
+    )]
     pub fn push_front(&self, key: impl Into<String>, value: impl Into<NbtValue>) -> String {
         DataModify::new(self.target(), key.into()).prepend(value)
     }
@@ -342,7 +613,21 @@ impl Storage {
     /// `data merge storage <id> <nbt>` — merge a compound into the root.
     ///
     /// Raw/unchecked: prefer [`Storage::try_merge`].
-    #[doc = "**API Contract:** Run `sand api show sand::command::Storage::merge` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::command::Storage::merge",
+        aliases = ["sand::cmd::Storage::merge", "sand::prelude::cmd::Storage::merge"],
+        module = "sand::command",
+        kind = "method",
+        summary = "`data merge storage <id> <nbt>` — merge a compound into the root.",
+        context = "`data merge storage <id> <nbt>` — merge a compound into the root. Raw/unchecked: prefer [`Storage::try_merge`].",
+        minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
+        use_when = ["Constructing Minecraft commands through Sand's typed command model"],
+        avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
+        params(value = "`value` provides the value being applied or compared used to emit the documented `data merge storage <id> <nbt>` — merge a compound into the root form."),
+        returns = "The string value produced to emit the documented `data merge storage <id> <nbt>` — merge a compound into the root form.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(storage_value: &sand::command::Storage, value: impl Into < sand::data::NbtValue >)  {\n    let merge = storage_value.merge(value);\n}",
+    )]
     pub fn merge(&self, value: impl Into<NbtValue>) -> String {
         format!("data merge storage {} {}", self.id, value.into())
     }
@@ -355,7 +640,21 @@ impl Storage {
     /// structured `NbtCompound`, while this compatibility API keeps
     /// accepting any [`NbtValue`] (including [`NbtValue::raw`] escape
     /// hatches) for the merge payload.
-    #[doc = "**API Contract:** Run `sand api show sand::command::Storage::try_merge` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::command::Storage::try_merge",
+        aliases = ["sand::cmd::Storage::try_merge", "sand::prelude::cmd::Storage::try_merge"],
+        module = "sand::command",
+        kind = "method",
+        summary = "Validated counterpart to [`Storage::merge`]. Validates the storage id through the same resource-location shape check used by [`DataTarget::Storage`]. `value`'s NBT structure is not re-validated here: [`sand::data::DataCommand::Merge`] requires a structured `NbtCompound`, while this compatibility API keeps accepting any [`NbtValue`] (including [`NbtValue::raw`] escape hatches) for the merge payload.",
+        context = "Validated counterpart to [`Storage::merge`]. Validates the storage id through the same resource-location shape check used by [`DataTarget::Storage`]. `value`'s NBT structure is not re-validated here: [`sand::data::DataCommand::Merge`] requires a structured `NbtCompound`, while this compatibility API keeps accepting any [`NbtValue`] (including [`NbtValue::raw`] escape hatches) for the merge payload. This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
+        minecraft = "Validates the storage id through the same resource-location shape check used by [`DataTarget::Storage`]. `value`'s NBT structure is not re-validated here: [`sand::data::DataCommand::Merge`] requires a structured `NbtCompound`, while this compatibility API keeps accepting any [`NbtValue`] (including [`NbtValue::raw`] escape hatches) for the merge payload.",
+        use_when = ["Constructing Minecraft commands through Sand's typed command model"],
+        avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
+        params(value = "Validates the storage id through the same resource-location shape check used by [`DataTarget::Storage`]. `value`'s NBT structure is not re-validated here: [`sand::data::DataCommand::Merge`] requires a structured `NbtCompound`, while this compatibility API keeps accepting any [`NbtValue`] (including [`NbtValue::raw`] escape hatches) for the merge payload."),
+        returns = "On success, the value produced to use validated counterpart to [`Storage::merge`]. Validates the storage id through the same resource-location shape check used by [`DataTarget::Storage`]. `value`'s NBT structure is not re-validated here: [`sand::data::DataCommand::Merge`] requires a structured `NbtCompound`, while this compatibility API keeps accepting any [`NbtValue`] (including [`NbtValue::raw`] escape hatches) for the merge payload; otherwise, the documented validation or export diagnostic.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(storage_value: &sand::command::Storage, value: impl Into < sand::data::NbtValue >)  {\n    let try_merge = storage_value.try_merge(value);\n}",
+    )]
     pub fn try_merge(&self, value: impl Into<NbtValue>) -> CommandResult<String> {
         sand_commands::validate::resource_location_shape(&self.id, "Storage::try_merge", "id")?;
         Ok(format!("data merge storage {} {}", self.id, value.into()))
@@ -364,7 +663,21 @@ impl Storage {
     // ── Copy from other locations ─────────────────────────────────────────
 
     /// Copy a value from entity NBT into this storage.
-    #[doc = "**API Contract:** Run `sand api show sand::command::Storage::copy_from_entity` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::command::Storage::copy_from_entity",
+        aliases = ["sand::cmd::Storage::copy_from_entity", "sand::prelude::cmd::Storage::copy_from_entity"],
+        module = "sand::command",
+        kind = "method",
+        summary = "Copy a value from entity NBT into this storage.",
+        context = "Copy a value from entity NBT into this storage. This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
+        minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
+        use_when = ["Constructing Minecraft commands through Sand's typed command model"],
+        avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
+        params(key = "`key` provides the key that identifies the setting or entry used to copy a value from entity NBT into this storage.", entity = "`entity` provides the entity participant or predicate used to copy a value from entity NBT into this storage.", src_path = "`src_path` supplies the src path value used to copy a value from entity NBT into this storage."),
+        returns = "The string value produced to copy a value from entity NBT into this storage.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(storage_value: &sand::command::Storage, key: impl Into < String >, entity: sand::command::Selector, src_path: impl Into < String >)  {\n    let copy_from_entity = storage_value.copy_from_entity(key, entity, src_path);\n}",
+    )]
     pub fn copy_from_entity(
         &self,
         key: impl Into<String>,
@@ -376,7 +689,21 @@ impl Storage {
     }
 
     /// Copy a value from another storage namespace.
-    #[doc = "**API Contract:** Run `sand api show sand::command::Storage::copy_from_storage` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::command::Storage::copy_from_storage",
+        aliases = ["sand::cmd::Storage::copy_from_storage", "sand::prelude::cmd::Storage::copy_from_storage"],
+        module = "sand::command",
+        kind = "method",
+        summary = "Copy a value from another storage namespace.",
+        context = "Copy a value from another storage namespace. This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
+        minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
+        use_when = ["Constructing Minecraft commands through Sand's typed command model"],
+        avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
+        params(key = "`key` provides the key that identifies the setting or entry used to copy a value from another storage namespace.", src_id = "`src_id` supplies the src id value used to copy a value from another storage namespace.", src_path = "`src_path` supplies the src path value used to copy a value from another storage namespace."),
+        returns = "The string value produced to copy a value from another storage namespace.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(storage_value: &sand::command::Storage, key: impl Into < String >, src_id: impl Into < String >, src_path: impl Into < String >)  {\n    let copy_from_storage = storage_value.copy_from_storage(key, src_id, src_path);\n}",
+    )]
     pub fn copy_from_storage(
         &self,
         key: impl Into<String>,

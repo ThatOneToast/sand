@@ -29,57 +29,53 @@ use crate::selector::Selector;
 
 // ── ChatColor ─────────────────────────────────────────────────────────────────
 
-#[doc = "**API Contract:** Run `sand api show sand::text::ChatColor` for the canonical contract."]
+#[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::text::ChatColor",
+    aliases = ["sand::cmd::ChatColor", "sand::command::ChatColor", "sand::prelude::ChatColor", "sand::prelude::cmd::ChatColor"],
+    module = "sand::text",
+    summary = "The 16 standard Minecraft text colors for chat, titles, and JSON text components.",
+    context = "The 16 standard Minecraft text colors for chat, titles, and JSON text components. Sand text values preserve Minecraft's structured JSON component model, including styling and validated click or hover interactions.",
+    minecraft = "The component serializes to the JSON text format consumed by tellraw, titles, books, dialogs, and other vanilla text fields.",
+    use_when = ["Building player-visible text with typed styling or interactions"],
+    avoid_when = ["Passing an unvalidated JSON string when a typed text component can express the same value"],
+    example = "use sand::text::ChatColor;",
+    variants(Aqua = "Selects the aqua Minecraft text behavior.", Black = "Selects the black Minecraft text behavior.", Blue = "Selects the blue Minecraft text behavior.", DarkAqua = "Selects the dark aqua Minecraft text behavior.", DarkBlue = "Selects the dark blue Minecraft text behavior.", DarkGray = "Selects the dark gray Minecraft text behavior.", DarkGreen = "Selects the dark green Minecraft text behavior.", DarkPurple = "Selects the dark purple Minecraft text behavior.", DarkRed = "Selects the dark red Minecraft text behavior.", Gold = "Selects the gold Minecraft text behavior.", Gray = "Selects the gray Minecraft text behavior.", Green = "Selects the green Minecraft text behavior.", LightPurple = "Selects the light purple Minecraft text behavior.", Red = "Selects the red Minecraft text behavior.", White = "Selects the white Minecraft text behavior.", Yellow = "Selects the yellow Minecraft text behavior."),
+)]
 /// The 16 standard Minecraft text colors for chat, titles, and JSON text components.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ChatColor {
     #[doc = "Selects the black Minecraft text behavior."]
-    #[doc = "**API Contract:** Run `sand api show sand::text::ChatColor::Black` for the canonical contract."]
     Black,
     #[doc = "Selects the dark blue Minecraft text behavior."]
-    #[doc = "**API Contract:** Run `sand api show sand::text::ChatColor::DarkBlue` for the canonical contract."]
     DarkBlue,
     #[doc = "Selects the dark green Minecraft text behavior."]
-    #[doc = "**API Contract:** Run `sand api show sand::text::ChatColor::DarkGreen` for the canonical contract."]
     DarkGreen,
     #[doc = "Selects the dark aqua Minecraft text behavior."]
-    #[doc = "**API Contract:** Run `sand api show sand::text::ChatColor::DarkAqua` for the canonical contract."]
     DarkAqua,
     #[doc = "Selects the dark red Minecraft text behavior."]
-    #[doc = "**API Contract:** Run `sand api show sand::text::ChatColor::DarkRed` for the canonical contract."]
     DarkRed,
     #[doc = "Selects the dark purple Minecraft text behavior."]
-    #[doc = "**API Contract:** Run `sand api show sand::text::ChatColor::DarkPurple` for the canonical contract."]
     DarkPurple,
     #[doc = "Selects the gold Minecraft text behavior."]
-    #[doc = "**API Contract:** Run `sand api show sand::text::ChatColor::Gold` for the canonical contract."]
     Gold,
     #[doc = "Selects the gray Minecraft text behavior."]
-    #[doc = "**API Contract:** Run `sand api show sand::text::ChatColor::Gray` for the canonical contract."]
     Gray,
     #[doc = "Selects the dark gray Minecraft text behavior."]
-    #[doc = "**API Contract:** Run `sand api show sand::text::ChatColor::DarkGray` for the canonical contract."]
     DarkGray,
     #[doc = "Selects the blue Minecraft text behavior."]
-    #[doc = "**API Contract:** Run `sand api show sand::text::ChatColor::Blue` for the canonical contract."]
     Blue,
     #[doc = "Selects the green Minecraft text behavior."]
-    #[doc = "**API Contract:** Run `sand api show sand::text::ChatColor::Green` for the canonical contract."]
     Green,
     #[doc = "Selects the aqua Minecraft text behavior."]
-    #[doc = "**API Contract:** Run `sand api show sand::text::ChatColor::Aqua` for the canonical contract."]
     Aqua,
     #[doc = "Selects the red Minecraft text behavior."]
-    #[doc = "**API Contract:** Run `sand api show sand::text::ChatColor::Red` for the canonical contract."]
     Red,
     #[doc = "Selects the light purple Minecraft text behavior."]
-    #[doc = "**API Contract:** Run `sand api show sand::text::ChatColor::LightPurple` for the canonical contract."]
     LightPurple,
     #[doc = "Selects the yellow Minecraft text behavior."]
-    #[doc = "**API Contract:** Run `sand api show sand::text::ChatColor::Yellow` for the canonical contract."]
     Yellow,
     #[doc = "Selects the white Minecraft text behavior."]
-    #[doc = "**API Contract:** Run `sand api show sand::text::ChatColor::White` for the canonical contract."]
     White,
 }
 
@@ -109,75 +105,67 @@ impl fmt::Display for ChatColor {
 
 // ── Click / Hover events ──────────────────────────────────────────────────────
 
-#[doc = "**API Contract:** Run `sand api show sand::text::ClickEvent` for the canonical contract."]
+#[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::text::ClickEvent",
+    aliases = ["sand::cmd::ClickEvent", "sand::command::ClickEvent", "sand::prelude::ClickEvent", "sand::prelude::cmd::ClickEvent"],
+    module = "sand::text",
+    summary = "A click event attached to a [`TextComponent`].",
+    context = "A click event attached to a [`TextComponent`]. Sand text values preserve Minecraft's structured JSON component model, including styling and validated click or hover interactions.",
+    minecraft = "The component serializes to the JSON text format consumed by tellraw, titles, books, dialogs, and other vanilla text fields.",
+    use_when = ["Building player-visible text with typed styling or interactions"],
+    avoid_when = ["Passing an unvalidated JSON string when a typed text component can express the same value"],
+    example = "use sand::text::ClickEvent;",
+    variants(ChangePage = "Emit `change_page` with a numeric page value (written books only).", CopyToClipboard = "Copy text to the clipboard.", OpenUrl = "Open a URL in the player's browser.", RunCommand = "Execute a command when clicked.", SuggestCommand = "Fill the chat bar with a command suggestion."),
+    variant_fields(ChangePage = ["Emit `change_page` with a numeric page value (written books only)."], CopyToClipboard = ["Copy text to the clipboard."], OpenUrl = ["Open a URL in the player's browser."], RunCommand = ["Execute a command when clicked."], SuggestCommand = ["Fill the chat bar with a command suggestion."]),
+)]
 /// A click event attached to a [`TextComponent`].
 #[derive(Debug, Clone)]
 pub enum ClickEvent {
-    #[doc = "**API Contract:** Run `sand api show sand::text::ClickEvent::RunCommand` for the canonical contract."]
     /// Execute a command when clicked.
-    RunCommand(
-        #[doc = "The `RunCommand` variant carries the value described by its variant semantics: Execute a command when clicked."]
-        #[doc = "**API Contract:** Run `sand api show sand::text::ClickEvent::RunCommand::0` for the canonical contract."]
-        String,
-    ),
-    #[doc = "**API Contract:** Run `sand api show sand::text::ClickEvent::SuggestCommand` for the canonical contract."]
+    RunCommand(#[doc = "Execute a command when clicked."] String),
     /// Fill the chat bar with a command suggestion.
-    SuggestCommand(
-        #[doc = "The `SuggestCommand` variant carries the value described by its variant semantics: Fill the chat bar with a command suggestion."]
-        #[doc = "**API Contract:** Run `sand api show sand::text::ClickEvent::SuggestCommand::0` for the canonical contract."]
-        String,
-    ),
-    #[doc = "**API Contract:** Run `sand api show sand::text::ClickEvent::OpenUrl` for the canonical contract."]
+    SuggestCommand(#[doc = "Fill the chat bar with a command suggestion."] String),
     /// Open a URL in the player's browser.
-    OpenUrl(
-        #[doc = "The `OpenUrl` variant carries the value described by its variant semantics: Open a URL in the player's browser."]
-        #[doc = "**API Contract:** Run `sand api show sand::text::ClickEvent::OpenUrl::0` for the canonical contract."]
-        String,
-    ),
-    #[doc = "**API Contract:** Run `sand api show sand::text::ClickEvent::CopyToClipboard` for the canonical contract."]
+    OpenUrl(#[doc = "Open a URL in the player's browser."] String),
     /// Copy text to the clipboard.
-    CopyToClipboard(
-        #[doc = "The `CopyToClipboard` variant carries the value described by its variant semantics: Copy text to the clipboard."]
-        #[doc = "**API Contract:** Run `sand api show sand::text::ClickEvent::CopyToClipboard::0` for the canonical contract."]
-        String,
-    ),
-    #[doc = "**API Contract:** Run `sand api show sand::text::ClickEvent::ChangePage` for the canonical contract."]
+    CopyToClipboard(#[doc = "Copy text to the clipboard."] String),
     /// Emit `change_page` with a numeric page value (written books only).
     ///
     /// The value is serialized unchanged. Minecraft book pages are normally
     /// one-indexed, but Sand retains page `0` for backward compatibility.
-    ChangePage(
-        #[doc = "The `ChangePage` variant carries the value described by its variant semantics: Emit `change_page` with a numeric page value (written books only)."]
-        #[doc = "**API Contract:** Run `sand api show sand::text::ClickEvent::ChangePage::0` for the canonical contract."]
-        u32,
-    ),
+    ChangePage(#[doc = "Emit `change_page` with a numeric page value (written books only)."] u32),
 }
 
-#[doc = "**API Contract:** Run `sand api show sand::text::HoverEvent` for the canonical contract."]
+#[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::text::HoverEvent",
+    aliases = ["sand::cmd::HoverEvent", "sand::command::HoverEvent", "sand::prelude::HoverEvent", "sand::prelude::cmd::HoverEvent"],
+    module = "sand::text",
+    summary = "A hover event attached to a [`TextComponent`].",
+    context = "A hover event attached to a [`TextComponent`]. Sand text values preserve Minecraft's structured JSON component model, including styling and validated click or hover interactions.",
+    minecraft = "The component serializes to the JSON text format consumed by tellraw, titles, books, dialogs, and other vanilla text fields.",
+    use_when = ["Building player-visible text with typed styling or interactions"],
+    avoid_when = ["Passing an unvalidated JSON string when a typed text component can express the same value"],
+    example = "use sand::text::HoverEvent;",
+    variants(ShowEntity = "Show a legacy entity tooltip using raw strings, including a plain name.", ShowItem = "Show an item tooltip using a raw item registry string and optional count.", ShowText = "Show another text component as a tooltip."),
+    variant_fields(ShowEntity(entity_type = "`entity_type` provides the entity type when show a legacy entity tooltip using raw strings, including a plain name.", id = "`id` optionally provides the identifier when show a legacy entity tooltip using raw strings, including a plain name.", name = "`name` provides the name when show a legacy entity tooltip using raw strings, including a plain name."), ShowItem(count = "`count` optionally provides the count when show an item tooltip using a raw item registry string and optional count.", id = "`id` provides the identifier when show an item tooltip using a raw item registry string and optional count."), ShowText = ["Show another text component as a tooltip."]),
+)]
 /// A hover event attached to a [`TextComponent`].
 #[derive(Debug, Clone)]
 pub enum HoverEvent {
-    #[doc = "**API Contract:** Run `sand api show sand::text::HoverEvent::ShowText` for the canonical contract."]
     /// Show another text component as a tooltip.
-    ShowText(
-        #[doc = "The `ShowText` variant carries the value described by its variant semantics: Show another text component as a tooltip."]
-        #[doc = "**API Contract:** Run `sand api show sand::text::HoverEvent::ShowText::0` for the canonical contract."]
-        Box<TextComponent>,
-    ),
-    #[doc = "**API Contract:** Run `sand api show sand::text::HoverEvent::ShowItem` for the canonical contract."]
+    ShowText(#[doc = "Show another text component as a tooltip."] Box<TextComponent>),
     /// Show an item tooltip using a raw item registry string and optional count.
     ///
     /// This existing compatibility representation does not validate the item
     /// ID. The count is omitted from JSON when it is [`None`].
     ShowItem {
         #[doc = "`id` provides the identifier when show an item tooltip using a raw item registry string and optional count."]
-        #[doc = "**API Contract:** Run `sand api show sand::text::HoverEvent::ShowItem::id` for the canonical contract."]
         id: String,
         #[doc = "`count` optionally provides the count when show an item tooltip using a raw item registry string and optional count."]
-        #[doc = "**API Contract:** Run `sand api show sand::text::HoverEvent::ShowItem::count` for the canonical contract."]
         count: Option<u32>,
     },
-    #[doc = "**API Contract:** Run `sand api show sand::text::HoverEvent::ShowEntity` for the canonical contract."]
     /// Show a legacy entity tooltip using raw strings, including a plain name.
     ///
     /// New code should use [`TextComponent::hover_entity`] or
@@ -185,18 +173,26 @@ pub enum HoverEvent {
     /// optional UUID is validated, and the name remains a styled component.
     ShowEntity {
         /// `name` provides the name when show a legacy entity tooltip using raw strings, including a plain name.
-        #[doc = "**API Contract:** Run `sand api show sand::text::HoverEvent::ShowEntity::name` for the canonical contract."]
         name: String,
         /// `entity_type` provides the entity type when show a legacy entity tooltip using raw strings, including a plain name.
-        #[doc = "**API Contract:** Run `sand api show sand::text::HoverEvent::ShowEntity::entity_type` for the canonical contract."]
         entity_type: String,
         /// `id` optionally provides the identifier when show a legacy entity tooltip using raw strings, including a plain name.
-        #[doc = "**API Contract:** Run `sand api show sand::text::HoverEvent::ShowEntity::id` for the canonical contract."]
         id: Option<String>,
     },
 }
 
-#[doc = "**API Contract:** Run `sand api show sand::text::IntoTextEntityType` for the canonical contract."]
+#[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::text::IntoTextEntityType",
+    aliases = ["sand::cmd::IntoTextEntityType", "sand::command::IntoTextEntityType", "sand::prelude::IntoTextEntityType", "sand::prelude::cmd::IntoTextEntityType"],
+    module = "sand::text",
+    summary = "Conversion implemented by Sand's typed entity registry identifiers.",
+    context = "Conversion implemented by Sand's typed entity registry identifiers. [`TextComponent::hover_entity`] accepts this trait instead of an arbitrary string. `EntityTypeId` validates manually constructed IDs, while Sand's profile-generated vanilla entity enum supplies built-in IDs when available. Use [`TextComponent::hover_entity_raw`] only when an untyped compatibility escape hatch is required.",
+    minecraft = "The component serializes to the JSON text format consumed by tellraw, titles, books, dialogs, and other vanilla text fields.",
+    use_when = ["Building player-visible text with typed styling or interactions"],
+    avoid_when = ["Passing an unvalidated JSON string when a typed text component can express the same value"],
+    example = "use sand::text::IntoTextEntityType;",
+)]
 /// Conversion implemented by Sand's typed entity registry identifiers.
 ///
 /// [`TextComponent::hover_entity`] accepts this trait instead of an arbitrary
@@ -206,11 +202,34 @@ pub enum HoverEvent {
 /// escape hatch is required.
 pub trait IntoTextEntityType {
     /// Convert the validated entity registry identifier to its resource location.
-    #[doc = "**API Contract:** Run `sand api show sand::text::IntoTextEntityType::into_text_entity_type` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::text::IntoTextEntityType::into_text_entity_type",
+        aliases = ["sand::cmd::IntoTextEntityType::into_text_entity_type", "sand::command::IntoTextEntityType::into_text_entity_type", "sand::prelude::IntoTextEntityType::into_text_entity_type", "sand::prelude::cmd::IntoTextEntityType::into_text_entity_type"],
+        module = "sand::text",
+        summary = "Convert the validated entity registry identifier to its resource location.",
+        context = "Convert the validated entity registry identifier to its resource location. Sand text values preserve Minecraft's structured JSON component model, including styling and validated click or hover interactions.",
+        minecraft = "The component serializes to the JSON text format consumed by tellraw, titles, books, dialogs, and other vanilla text fields.",
+        use_when = ["Building player-visible text with typed styling or interactions"],
+        avoid_when = ["Passing an unvalidated JSON string when a typed text component can express the same value"],
+        returns = "The string value produced to convert the validated entity registry identifier to its resource location.",
+        example = "use sand::prelude::*;\n\nfn demonstrate<T: sand::text::IntoTextEntityType>(into_text_entity_type_value: T)  {\n    let into_text_entity_type = into_text_entity_type_value.into_text_entity_type();\n}",
+    )]
     fn into_text_entity_type(self) -> String;
 }
 
-#[doc = "**API Contract:** Run `sand api show sand::text::EntityHoverId` for the canonical contract."]
+#[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::text::EntityHoverId",
+    aliases = ["sand::cmd::EntityHoverId", "sand::command::EntityHoverId", "sand::prelude::EntityHoverId", "sand::prelude::cmd::EntityHoverId"],
+    module = "sand::text",
+    summary = "A validated UUID for a Minecraft `show_entity` hover tooltip.",
+    context = "A validated UUID for a Minecraft `show_entity` hover tooltip. Parsing is fallible and accepts only canonical hyphenated UUID text. It never panics for user input.",
+    minecraft = "The component serializes to the JSON text format consumed by tellraw, titles, books, dialogs, and other vanilla text fields.",
+    use_when = ["Building player-visible text with typed styling or interactions"],
+    avoid_when = ["Passing an unvalidated JSON string when a typed text component can express the same value"],
+    example = "use sand::text::EntityHoverId;",
+)]
 /// A validated UUID for a Minecraft `show_entity` hover tooltip.
 ///
 /// Parsing is fallible and accepts only canonical hyphenated UUID text. It
@@ -231,7 +250,21 @@ impl EntityHoverId {
     ///
     /// Returns a [`CommandError`] naming the `id` field when the input has the
     /// wrong length, hyphen placement, or contains non-hexadecimal digits.
-    #[doc = "**API Contract:** Run `sand api show sand::text::EntityHoverId::parse` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::text::EntityHoverId::parse",
+        aliases = ["sand::cmd::EntityHoverId::parse", "sand::command::EntityHoverId::parse", "sand::prelude::EntityHoverId::parse", "sand::prelude::cmd::EntityHoverId::parse"],
+        module = "sand::text",
+        kind = "method",
+        summary = "Parse a canonical hyphenated UUID (`8-4-4-4-12` hexadecimal digits).",
+        context = "Parse a canonical hyphenated UUID (`8-4-4-4-12` hexadecimal digits). Returns a [`CommandError`] naming the `id` field when the input has the wrong length, hyphen placement, or contains non-hexadecimal digits.",
+        minecraft = "The component serializes to the JSON text format consumed by tellraw, titles, books, dialogs, and other vanilla text fields.",
+        use_when = ["Building player-visible text with typed styling or interactions"],
+        avoid_when = ["Passing an unvalidated JSON string when a typed text component can express the same value"],
+        params(value = "`value` provides the value being applied or compared used to parse a canonical hyphenated UUID (`8-4-4-4-12` hexadecimal digits)."),
+        returns = "Returns a [`CommandError`] naming the `id` field when the input has the wrong length, hyphen placement, or contains non-hexadecimal digits.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(value: impl Into < String >)  {\n    let entity_hover_id_result = sand::text::EntityHoverId::parse(value);\n}",
+    )]
     pub fn parse(value: impl Into<String>) -> CommandResult<Self> {
         let value = value.into();
         let valid = value.len() == 36
@@ -302,7 +335,18 @@ enum TextHoverEvent {
 
 // ── TextComponent ─────────────────────────────────────────────────────────────
 
-#[doc = "**API Contract:** Run `sand api show sand::text::TextComponent` for the canonical contract."]
+#[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::text::TextComponent",
+    aliases = ["sand::cmd::TextComponent", "sand::command::TextComponent", "sand::prelude::TextComponent", "sand::prelude::cmd::TextComponent"],
+    module = "sand::text",
+    summary = "A Minecraft JSON text component — the universal format for styled in-game text.",
+    context = "A Minecraft JSON text component — the universal format for styled in-game text. Used by commands like `tellraw`, `title`, and `bossbar` to display richly formatted messages. Build with a factory method, chain formatting and extra segments, then convert to JSON via `Display` / `.to_string()`.",
+    minecraft = "Used by commands like `tellraw`, `title`, and `bossbar` to display richly formatted messages. Build with a factory method, chain formatting and extra segments, then convert to JSON via `Display` / `.to_string()`.",
+    use_when = ["Building player-visible text with typed styling or interactions"],
+    avoid_when = ["Passing an unvalidated JSON string when a typed text component can express the same value"],
+    example = "use sand::text::TextComponent;",
+)]
 /// A Minecraft JSON text component — the universal format for styled in-game text.
 ///
 /// Used by commands like `tellraw`, `title`, and `bossbar` to display richly
@@ -337,7 +381,18 @@ pub struct TextComponent {
 
 // ── Text (ergonomic alias) ────────────────────────────────────────────────────
 
-#[doc = "**API Contract:** Run `sand api show sand::text::Text` for the canonical contract."]
+#[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::text::Text",
+    aliases = ["sand::cmd::Text", "sand::command::Text", "sand::prelude::Text", "sand::prelude::cmd::Text"],
+    module = "sand::text",
+    summary = "Ergonomic alias — `Text::new(\"hi\")` creates a `TextComponent::literal(\"hi\")`.",
+    context = "Ergonomic alias — `Text::new(\"hi\")` creates a `TextComponent::literal(\"hi\")`. Sand text values preserve Minecraft's structured JSON component model, including styling and validated click or hover interactions.",
+    minecraft = "The component serializes to the JSON text format consumed by tellraw, titles, books, dialogs, and other vanilla text fields.",
+    use_when = ["Building player-visible text with typed styling or interactions"],
+    avoid_when = ["Passing an unvalidated JSON string when a typed text component can express the same value"],
+    example = "use sand::text::Text;",
+)]
 /// Ergonomic alias — `Text::new("hi")` creates a `TextComponent::literal("hi")`.
 ///
 /// ```
@@ -349,7 +404,21 @@ pub struct Text;
 
 impl Text {
     /// Create a plain-text component from `s`.
-    #[doc = "**API Contract:** Run `sand api show sand::text::Text::new` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::text::Text::new",
+        aliases = ["sand::cmd::Text::new", "sand::command::Text::new", "sand::prelude::Text::new", "sand::prelude::cmd::Text::new"],
+        module = "sand::text",
+        kind = "method",
+        summary = "Create a plain-text component from `s`.",
+        context = "Create a plain-text component from `s`. Sand text values preserve Minecraft's structured JSON component model, including styling and validated click or hover interactions.",
+        minecraft = "The component serializes to the JSON text format consumed by tellraw, titles, books, dialogs, and other vanilla text fields.",
+        use_when = ["Building player-visible text with typed styling or interactions"],
+        avoid_when = ["Passing an unvalidated JSON string when a typed text component can express the same value"],
+        params(s = "Create a plain-text component from `s`."),
+        returns = "The `TextComponent` value produced to create a plain-text component from `s`.",
+        example = "let text = sand::text::Text::new(\"Ready\").gold();",
+    )]
     #[allow(clippy::new_ret_no_self)]
     pub fn new(s: impl Into<String>) -> TextComponent {
         TextComponent::literal(s)
@@ -358,7 +427,21 @@ impl Text {
     /// Embed a pre-serialized JSON string directly (escape hatch).
     ///
     /// No formatting is applied — the string is returned as-is.
-    #[doc = "**API Contract:** Run `sand api show sand::text::Text::raw_json` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::text::Text::raw_json",
+        aliases = ["sand::cmd::Text::raw_json", "sand::command::Text::raw_json", "sand::prelude::Text::raw_json", "sand::prelude::cmd::Text::raw_json"],
+        module = "sand::text",
+        kind = "method",
+        summary = "Embed a pre-serialized JSON string directly (escape hatch).",
+        context = "Embed a pre-serialized JSON string directly (escape hatch). No formatting is applied — the string is returned as-is.",
+        minecraft = "The component serializes to the JSON text format consumed by tellraw, titles, books, dialogs, and other vanilla text fields.",
+        use_when = ["Building player-visible text with typed styling or interactions"],
+        avoid_when = ["Passing an unvalidated JSON string when a typed text component can express the same value"],
+        params(json = "`json` provides the raw JSON payload used to embed a pre-serialized JSON string directly (escape hatch)."),
+        returns = "The string value produced to embed a pre-serialized JSON string directly (escape hatch).",
+        example = "use sand::prelude::*;\n\nfn demonstrate(json: impl Into < String >)  {\n    let raw_json = sand::text::Text::raw_json(json);\n}",
+    )]
     pub fn raw_json(json: impl Into<String>) -> String {
         json.into()
     }
@@ -368,13 +451,41 @@ impl TextComponent {
     // ── Constructors ──────────────────────────────────────────────────────────
 
     /// `{"text": "..."}` — render a plain string literal.
-    #[doc = "**API Contract:** Run `sand api show sand::text::TextComponent::literal` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::text::TextComponent::literal",
+        aliases = ["sand::cmd::TextComponent::literal", "sand::command::TextComponent::literal", "sand::prelude::TextComponent::literal", "sand::prelude::cmd::TextComponent::literal"],
+        module = "sand::text",
+        kind = "method",
+        summary = "`{\"text\": \"...\"}` — render a plain string literal.",
+        context = "`{\"text\": \"...\"}` — render a plain string literal. Sand text values preserve Minecraft's structured JSON component model, including styling and validated click or hover interactions.",
+        minecraft = "The component serializes to the JSON text format consumed by tellraw, titles, books, dialogs, and other vanilla text fields.",
+        use_when = ["Building player-visible text with typed styling or interactions"],
+        avoid_when = ["Passing an unvalidated JSON string when a typed text component can express the same value"],
+        params(text = "`text` provides the author-visible text value used to emit the documented `{\"text\": \"...\"}` — render a plain string literal form."),
+        returns = "A newly constructed `TextComponent` configured to emit the documented `{\"text\": \"...\"}` — render a plain string literal form.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(text: impl Into < String >)  {\n    let text_component = sand::text::TextComponent::literal(text);\n}",
+    )]
     pub fn literal(text: impl Into<String>) -> Self {
         Self::new(TextContent::Literal(text.into()))
     }
 
     /// `{"score": {"name": "...", "objective": "..."}}` — render a scoreboard value inline.
-    #[doc = "**API Contract:** Run `sand api show sand::text::TextComponent::score` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::text::TextComponent::score",
+        aliases = ["sand::cmd::TextComponent::score", "sand::command::TextComponent::score", "sand::prelude::TextComponent::score", "sand::prelude::cmd::TextComponent::score"],
+        module = "sand::text",
+        kind = "method",
+        summary = "`{\"score\": {\"name\": \"...\", \"objective\": \"...\"}}` — render a scoreboard value inline.",
+        context = "`{\"score\": {\"name\": \"...\", \"objective\": \"...\"}}` — render a scoreboard value inline. Sand text values preserve Minecraft's structured JSON component model, including styling and validated click or hover interactions.",
+        minecraft = "The component serializes to the JSON text format consumed by tellraw, titles, books, dialogs, and other vanilla text fields.",
+        use_when = ["Building player-visible text with typed styling or interactions"],
+        avoid_when = ["Passing an unvalidated JSON string when a typed text component can express the same value"],
+        params(name = "`name` provides the author-visible text value used to emit the documented `{\"score\": {\"name\": \"...\", \"objective\": \"...\"}}` — render a scoreboard value inline form.", objective = "`objective` supplies the objective value used to emit the documented `{\"score\": {\"name\": \"...\", \"objective\": \"...\"}}` — render a scoreboard value inline form."),
+        returns = "A newly constructed `TextComponent` configured to emit the documented `{\"score\": {\"name\": \"...\", \"objective\": \"...\"}}` — render a scoreboard value inline form.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(name: impl Into < String >, objective: impl Into < String >)  {\n    let text_component = sand::text::TextComponent::score(name, objective);\n}",
+    )]
     pub fn score(name: impl Into<String>, objective: impl Into<String>) -> Self {
         Self::new(TextContent::Score {
             name: name.into(),
@@ -383,7 +494,21 @@ impl TextComponent {
     }
 
     /// `{"selector": "..."}` — render the display name(s) of matched entities.
-    #[doc = "**API Contract:** Run `sand api show sand::text::TextComponent::selector` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::text::TextComponent::selector",
+        aliases = ["sand::cmd::TextComponent::selector", "sand::command::TextComponent::selector", "sand::prelude::TextComponent::selector", "sand::prelude::cmd::TextComponent::selector"],
+        module = "sand::text",
+        kind = "method",
+        summary = "`{\"selector\": \"...\"}` — render the display name(s) of matched entities.",
+        context = "`{\"selector\": \"...\"}` — render the display name(s) of matched entities. Sand text values preserve Minecraft's structured JSON component model, including styling and validated click or hover interactions.",
+        minecraft = "The component serializes to the JSON text format consumed by tellraw, titles, books, dialogs, and other vanilla text fields.",
+        use_when = ["Building player-visible text with typed styling or interactions"],
+        avoid_when = ["Passing an unvalidated JSON string when a typed text component can express the same value"],
+        params(selector = "`selector` provides the Minecraft target selection used to emit the documented `{\"selector\": \"...\"}` — render the display name(s) of matched entities form."),
+        returns = "A newly constructed `TextComponent` configured to emit the documented `{\"selector\": \"...\"}` — render the display name(s) of matched entities form.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(selector: impl Into < String >)  {\n    let text_component = sand::text::TextComponent::selector(selector);\n}",
+    )]
     pub fn selector(selector: impl Into<String>) -> Self {
         Self::new(TextContent::Selector {
             value: selector.into(),
@@ -392,7 +517,21 @@ impl TextComponent {
     }
 
     /// Create selector text from Sand's canonical typed selector.
-    #[doc = "**API Contract:** Run `sand api show sand::text::TextComponent::selector_typed` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::text::TextComponent::selector_typed",
+        aliases = ["sand::cmd::TextComponent::selector_typed", "sand::command::TextComponent::selector_typed", "sand::prelude::TextComponent::selector_typed", "sand::prelude::cmd::TextComponent::selector_typed"],
+        module = "sand::text",
+        kind = "method",
+        summary = "Create selector text from Sand's canonical typed selector.",
+        context = "Create selector text from Sand's canonical typed selector. Sand text values preserve Minecraft's structured JSON component model, including styling and validated click or hover interactions.",
+        minecraft = "The component serializes to the JSON text format consumed by tellraw, titles, books, dialogs, and other vanilla text fields.",
+        use_when = ["Building player-visible text with typed styling or interactions"],
+        avoid_when = ["Passing an unvalidated JSON string when a typed text component can express the same value"],
+        params(selector = "`selector` provides the Minecraft target selection used to create selector text from Sand's canonical typed selector."),
+        returns = "A newly constructed `TextComponent` configured to create selector text from Sand's canonical typed selector.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(selector: sand::command::Selector)  {\n    let text_component = sand::text::TextComponent::selector_typed(selector);\n}",
+    )]
     pub fn selector_typed(selector: Selector) -> Self {
         Self::selector(selector.to_string())
     }
@@ -400,7 +539,21 @@ impl TextComponent {
     /// Create intentionally opaque selector text.
     ///
     /// The value is rendered unchanged and selector compatibility is user-owned.
-    #[doc = "**API Contract:** Run `sand api show sand::text::TextComponent::selector_raw` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::text::TextComponent::selector_raw",
+        aliases = ["sand::cmd::TextComponent::selector_raw", "sand::command::TextComponent::selector_raw", "sand::prelude::TextComponent::selector_raw", "sand::prelude::cmd::TextComponent::selector_raw"],
+        module = "sand::text",
+        kind = "method",
+        summary = "Create intentionally opaque selector text. The value is rendered unchanged and selector compatibility is user-owned.",
+        context = "Create intentionally opaque selector text. The value is rendered unchanged and selector compatibility is user-owned. Sand text values preserve Minecraft's structured JSON component model, including styling and validated click or hover interactions.",
+        minecraft = "The component serializes to the JSON text format consumed by tellraw, titles, books, dialogs, and other vanilla text fields.",
+        use_when = ["Building player-visible text with typed styling or interactions"],
+        avoid_when = ["Passing an unvalidated JSON string when a typed text component can express the same value"],
+        params(selector = "`selector` provides the Minecraft target selection used to create intentionally opaque selector text. The value is rendered unchanged and selector compatibility is user-owned."),
+        returns = "A newly constructed `TextComponent` configured to create intentionally opaque selector text. The value is rendered unchanged and selector compatibility is user-owned.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(selector: impl Into < String >)  {\n    let text_component = sand::text::TextComponent::selector_raw(selector);\n}",
+    )]
     pub fn selector_raw(selector: impl Into<String>) -> Self {
         Self::new(TextContent::Selector {
             value: selector.into(),
@@ -409,7 +562,21 @@ impl TextComponent {
     }
 
     /// `{"translate": "..."}` — a localization key from Minecraft's language files.
-    #[doc = "**API Contract:** Run `sand api show sand::text::TextComponent::translate` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::text::TextComponent::translate",
+        aliases = ["sand::cmd::TextComponent::translate", "sand::command::TextComponent::translate", "sand::prelude::TextComponent::translate", "sand::prelude::cmd::TextComponent::translate"],
+        module = "sand::text",
+        kind = "method",
+        summary = "`{\"translate\": \"...\"}` — a localization key from Minecraft's language files.",
+        context = "`{\"translate\": \"...\"}` — a localization key from Minecraft's language files. Sand text values preserve Minecraft's structured JSON component model, including styling and validated click or hover interactions.",
+        minecraft = "The component serializes to the JSON text format consumed by tellraw, titles, books, dialogs, and other vanilla text fields.",
+        use_when = ["Building player-visible text with typed styling or interactions"],
+        avoid_when = ["Passing an unvalidated JSON string when a typed text component can express the same value"],
+        params(key = "`key` provides the key that identifies the setting or entry used to emit the documented `{\"translate\": \"...\"}` — a localization key from Minecraft's language files form."),
+        returns = "A newly constructed `TextComponent` configured to emit the documented `{\"translate\": \"...\"}` — a localization key from Minecraft's language files form.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(key: impl Into < String >)  {\n    let text_component = sand::text::TextComponent::translate(key);\n}",
+    )]
     pub fn translate(key: impl Into<String>) -> Self {
         Self::new(TextContent::Translate {
             key: key.into(),
@@ -418,7 +585,21 @@ impl TextComponent {
     }
 
     /// `{"translate": "...", "with": [...]}` — localization key with interpolation arguments.
-    #[doc = "**API Contract:** Run `sand api show sand::text::TextComponent::translate_with` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::text::TextComponent::translate_with",
+        aliases = ["sand::cmd::TextComponent::translate_with", "sand::command::TextComponent::translate_with", "sand::prelude::TextComponent::translate_with", "sand::prelude::cmd::TextComponent::translate_with"],
+        module = "sand::text",
+        kind = "method",
+        summary = "`{\"translate\": \"...\", \"with\": [...]}` — localization key with interpolation arguments.",
+        context = "`{\"translate\": \"...\", \"with\": [...]}` — localization key with interpolation arguments. Sand text values preserve Minecraft's structured JSON component model, including styling and validated click or hover interactions.",
+        minecraft = "The component serializes to the JSON text format consumed by tellraw, titles, books, dialogs, and other vanilla text fields.",
+        use_when = ["Building player-visible text with typed styling or interactions"],
+        avoid_when = ["Passing an unvalidated JSON string when a typed text component can express the same value"],
+        params(key = "`key` provides the key that identifies the setting or entry used to emit the documented `{\"translate\": \"...\", \"with\": [...]}` — localization key with interpolation arguments form.", with = "`with` provides the player-visible text value used to emit the documented `{\"translate\": \"...\", \"with\": [...]}` — localization key with interpolation arguments form."),
+        returns = "A newly constructed `TextComponent` configured to emit the documented `{\"translate\": \"...\", \"with\": [...]}` — localization key with interpolation arguments form.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(key: impl Into < String >, with: Vec < sand::text::TextComponent >)  {\n    let text_component = sand::text::TextComponent::translate_with(key, with);\n}",
+    )]
     pub fn translate_with(key: impl Into<String>, with: Vec<TextComponent>) -> Self {
         Self::new(TextContent::Translate {
             key: key.into(),
@@ -427,7 +608,21 @@ impl TextComponent {
     }
 
     /// `{"keybind": "..."}` — display the key currently bound to a Minecraft action.
-    #[doc = "**API Contract:** Run `sand api show sand::text::TextComponent::keybind` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::text::TextComponent::keybind",
+        aliases = ["sand::cmd::TextComponent::keybind", "sand::command::TextComponent::keybind", "sand::prelude::TextComponent::keybind", "sand::prelude::cmd::TextComponent::keybind"],
+        module = "sand::text",
+        kind = "method",
+        summary = "`{\"keybind\": \"...\"}` — display the key currently bound to a Minecraft action.",
+        context = "`{\"keybind\": \"...\"}` — display the key currently bound to a Minecraft action. Sand text values preserve Minecraft's structured JSON component model, including styling and validated click or hover interactions.",
+        minecraft = "The component serializes to the JSON text format consumed by tellraw, titles, books, dialogs, and other vanilla text fields.",
+        use_when = ["Building player-visible text with typed styling or interactions"],
+        avoid_when = ["Passing an unvalidated JSON string when a typed text component can express the same value"],
+        params(key = "`key` provides the key that identifies the setting or entry used to emit the documented `{\"keybind\": \"...\"}` — display the key currently bound to a Minecraft action form."),
+        returns = "A newly constructed `TextComponent` configured to emit the documented `{\"keybind\": \"...\"}` — display the key currently bound to a Minecraft action form.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(key: impl Into < String >)  {\n    let text_component = sand::text::TextComponent::keybind(key);\n}",
+    )]
     pub fn keybind(key: impl Into<String>) -> Self {
         Self::new(TextContent::Keybind(key.into()))
     }
@@ -452,21 +647,63 @@ impl TextComponent {
     // ── Formatting ────────────────────────────────────────────────────────────
 
     /// Apply a standard Minecraft named color.
-    #[doc = "**API Contract:** Run `sand api show sand::text::TextComponent::color` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::text::TextComponent::color",
+        aliases = ["sand::cmd::TextComponent::color", "sand::command::TextComponent::color", "sand::prelude::TextComponent::color", "sand::prelude::cmd::TextComponent::color"],
+        module = "sand::text",
+        kind = "method",
+        summary = "Apply a standard Minecraft named color.",
+        context = "Apply a standard Minecraft named color. Sand text values preserve Minecraft's structured JSON component model, including styling and validated click or hover interactions.",
+        minecraft = "The component serializes to the JSON text format consumed by tellraw, titles, books, dialogs, and other vanilla text fields.",
+        use_when = ["Building player-visible text with typed styling or interactions"],
+        avoid_when = ["Passing an unvalidated JSON string when a typed text component can express the same value"],
+        params(color = "`color` supplies the color value used to apply a standard Minecraft named color."),
+        returns = "The `TextComponent` value with the documented change applied to apply a standard Minecraft named color.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(text_component_value: sand::text::TextComponent, color: sand::text::ChatColor)  {\n    let updated_text_component = text_component_value.color(color);\n}",
+    )]
     pub fn color(mut self, color: ChatColor) -> Self {
         self.color = Some(color.to_string());
         self
     }
 
     /// Apply an arbitrary hex color code (Minecraft 1.16+), e.g. `"#FF5733"`.
-    #[doc = "**API Contract:** Run `sand api show sand::text::TextComponent::color_hex` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::text::TextComponent::color_hex",
+        aliases = ["sand::cmd::TextComponent::color_hex", "sand::command::TextComponent::color_hex", "sand::prelude::TextComponent::color_hex", "sand::prelude::cmd::TextComponent::color_hex"],
+        module = "sand::text",
+        kind = "method",
+        summary = "Apply an arbitrary hex color code (Minecraft 1.16+), e.g. `\"#FF5733\"`.",
+        context = "Apply an arbitrary hex color code (Minecraft 1.16+), e.g. `\"#FF5733\"`. Sand text values preserve Minecraft's structured JSON component model, including styling and validated click or hover interactions.",
+        minecraft = "The component serializes to the JSON text format consumed by tellraw, titles, books, dialogs, and other vanilla text fields.",
+        use_when = ["Building player-visible text with typed styling or interactions"],
+        avoid_when = ["Passing an unvalidated JSON string when a typed text component can express the same value"],
+        params(hex = "`hex` supplies the hex value used to apply an arbitrary hex color code (Minecraft 1.16+), e.g. `\"#FF5733\"`."),
+        returns = "The `TextComponent` value with the documented change applied to apply an arbitrary hex color code (Minecraft 1.16+), e.g. `\"#FF5733\"`.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(text_component_value: sand::text::TextComponent, hex: impl Into < String >)  {\n    let updated_text_component = text_component_value.color_hex(hex);\n}",
+    )]
     pub fn color_hex(mut self, hex: impl Into<String>) -> Self {
         self.color = Some(hex.into());
         self
     }
 
     /// Set the font resource location used to render this component.
-    #[doc = "**API Contract:** Run `sand api show sand::text::TextComponent::font` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::text::TextComponent::font",
+        aliases = ["sand::cmd::TextComponent::font", "sand::command::TextComponent::font", "sand::prelude::TextComponent::font", "sand::prelude::cmd::TextComponent::font"],
+        module = "sand::text",
+        kind = "method",
+        summary = "Set the font resource location used to render this component.",
+        context = "Set the font resource location used to render this component. Sand text values preserve Minecraft's structured JSON component model, including styling and validated click or hover interactions.",
+        minecraft = "The component serializes to the JSON text format consumed by tellraw, titles, books, dialogs, and other vanilla text fields.",
+        use_when = ["Building player-visible text with typed styling or interactions"],
+        avoid_when = ["Passing an unvalidated JSON string when a typed text component can express the same value"],
+        params(font = "`font` supplies the font value used to set the font resource location used to render this component."),
+        returns = "The `TextComponent` value with the documented change applied to set the font resource location used to render this component.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(text_component_value: sand::text::TextComponent, font: impl Into < String >)  {\n    let updated_text_component = text_component_value.font(font);\n}",
+    )]
     pub fn font(mut self, font: impl Into<String>) -> Self {
         self.font = Some(font.into());
         self
@@ -475,82 +712,290 @@ impl TextComponent {
     // ── Ergonomic color shortcuts ─────────────────────────────────────────────
 
     /// Apply `ChatColor::Black`.
-    #[doc = "**API Contract:** Run `sand api show sand::text::TextComponent::black` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::text::TextComponent::black",
+        aliases = ["sand::cmd::TextComponent::black", "sand::command::TextComponent::black", "sand::prelude::TextComponent::black", "sand::prelude::cmd::TextComponent::black"],
+        module = "sand::text",
+        kind = "method",
+        summary = "Apply `ChatColor::Black`.",
+        context = "Apply `ChatColor::Black`. Sand text values preserve Minecraft's structured JSON component model, including styling and validated click or hover interactions.",
+        minecraft = "The component serializes to the JSON text format consumed by tellraw, titles, books, dialogs, and other vanilla text fields.",
+        use_when = ["Building player-visible text with typed styling or interactions"],
+        avoid_when = ["Passing an unvalidated JSON string when a typed text component can express the same value"],
+        returns = "The `TextComponent` value with the documented change applied to apply `ChatColor::Black`.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(text_component_value: sand::text::TextComponent)  {\n    let updated_text_component = text_component_value.black();\n}",
+    )]
     pub fn black(self) -> Self {
         self.color(ChatColor::Black)
     }
     /// Apply `ChatColor::DarkBlue`.
-    #[doc = "**API Contract:** Run `sand api show sand::text::TextComponent::dark_blue` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::text::TextComponent::dark_blue",
+        aliases = ["sand::cmd::TextComponent::dark_blue", "sand::command::TextComponent::dark_blue", "sand::prelude::TextComponent::dark_blue", "sand::prelude::cmd::TextComponent::dark_blue"],
+        module = "sand::text",
+        kind = "method",
+        summary = "Apply `ChatColor::DarkBlue`.",
+        context = "Apply `ChatColor::DarkBlue`. Sand text values preserve Minecraft's structured JSON component model, including styling and validated click or hover interactions.",
+        minecraft = "The component serializes to the JSON text format consumed by tellraw, titles, books, dialogs, and other vanilla text fields.",
+        use_when = ["Building player-visible text with typed styling or interactions"],
+        avoid_when = ["Passing an unvalidated JSON string when a typed text component can express the same value"],
+        returns = "The `TextComponent` value with the documented change applied to apply `ChatColor::DarkBlue`.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(text_component_value: sand::text::TextComponent)  {\n    let updated_text_component = text_component_value.dark_blue();\n}",
+    )]
     pub fn dark_blue(self) -> Self {
         self.color(ChatColor::DarkBlue)
     }
     /// Apply `ChatColor::DarkGreen`.
-    #[doc = "**API Contract:** Run `sand api show sand::text::TextComponent::dark_green` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::text::TextComponent::dark_green",
+        aliases = ["sand::cmd::TextComponent::dark_green", "sand::command::TextComponent::dark_green", "sand::prelude::TextComponent::dark_green", "sand::prelude::cmd::TextComponent::dark_green"],
+        module = "sand::text",
+        kind = "method",
+        summary = "Apply `ChatColor::DarkGreen`.",
+        context = "Apply `ChatColor::DarkGreen`. Sand text values preserve Minecraft's structured JSON component model, including styling and validated click or hover interactions.",
+        minecraft = "The component serializes to the JSON text format consumed by tellraw, titles, books, dialogs, and other vanilla text fields.",
+        use_when = ["Building player-visible text with typed styling or interactions"],
+        avoid_when = ["Passing an unvalidated JSON string when a typed text component can express the same value"],
+        returns = "The `TextComponent` value with the documented change applied to apply `ChatColor::DarkGreen`.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(text_component_value: sand::text::TextComponent)  {\n    let updated_text_component = text_component_value.dark_green();\n}",
+    )]
     pub fn dark_green(self) -> Self {
         self.color(ChatColor::DarkGreen)
     }
     /// Apply `ChatColor::DarkAqua`.
-    #[doc = "**API Contract:** Run `sand api show sand::text::TextComponent::dark_aqua` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::text::TextComponent::dark_aqua",
+        aliases = ["sand::cmd::TextComponent::dark_aqua", "sand::command::TextComponent::dark_aqua", "sand::prelude::TextComponent::dark_aqua", "sand::prelude::cmd::TextComponent::dark_aqua"],
+        module = "sand::text",
+        kind = "method",
+        summary = "Apply `ChatColor::DarkAqua`.",
+        context = "Apply `ChatColor::DarkAqua`. Sand text values preserve Minecraft's structured JSON component model, including styling and validated click or hover interactions.",
+        minecraft = "The component serializes to the JSON text format consumed by tellraw, titles, books, dialogs, and other vanilla text fields.",
+        use_when = ["Building player-visible text with typed styling or interactions"],
+        avoid_when = ["Passing an unvalidated JSON string when a typed text component can express the same value"],
+        returns = "The `TextComponent` value with the documented change applied to apply `ChatColor::DarkAqua`.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(text_component_value: sand::text::TextComponent)  {\n    let updated_text_component = text_component_value.dark_aqua();\n}",
+    )]
     pub fn dark_aqua(self) -> Self {
         self.color(ChatColor::DarkAqua)
     }
     /// Apply `ChatColor::DarkRed`.
-    #[doc = "**API Contract:** Run `sand api show sand::text::TextComponent::dark_red` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::text::TextComponent::dark_red",
+        aliases = ["sand::cmd::TextComponent::dark_red", "sand::command::TextComponent::dark_red", "sand::prelude::TextComponent::dark_red", "sand::prelude::cmd::TextComponent::dark_red"],
+        module = "sand::text",
+        kind = "method",
+        summary = "Apply `ChatColor::DarkRed`.",
+        context = "Apply `ChatColor::DarkRed`. Sand text values preserve Minecraft's structured JSON component model, including styling and validated click or hover interactions.",
+        minecraft = "The component serializes to the JSON text format consumed by tellraw, titles, books, dialogs, and other vanilla text fields.",
+        use_when = ["Building player-visible text with typed styling or interactions"],
+        avoid_when = ["Passing an unvalidated JSON string when a typed text component can express the same value"],
+        returns = "The `TextComponent` value with the documented change applied to apply `ChatColor::DarkRed`.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(text_component_value: sand::text::TextComponent)  {\n    let updated_text_component = text_component_value.dark_red();\n}",
+    )]
     pub fn dark_red(self) -> Self {
         self.color(ChatColor::DarkRed)
     }
     /// Apply `ChatColor::DarkPurple`.
-    #[doc = "**API Contract:** Run `sand api show sand::text::TextComponent::dark_purple` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::text::TextComponent::dark_purple",
+        aliases = ["sand::cmd::TextComponent::dark_purple", "sand::command::TextComponent::dark_purple", "sand::prelude::TextComponent::dark_purple", "sand::prelude::cmd::TextComponent::dark_purple"],
+        module = "sand::text",
+        kind = "method",
+        summary = "Apply `ChatColor::DarkPurple`.",
+        context = "Apply `ChatColor::DarkPurple`. Sand text values preserve Minecraft's structured JSON component model, including styling and validated click or hover interactions.",
+        minecraft = "The component serializes to the JSON text format consumed by tellraw, titles, books, dialogs, and other vanilla text fields.",
+        use_when = ["Building player-visible text with typed styling or interactions"],
+        avoid_when = ["Passing an unvalidated JSON string when a typed text component can express the same value"],
+        returns = "The `TextComponent` value with the documented change applied to apply `ChatColor::DarkPurple`.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(text_component_value: sand::text::TextComponent)  {\n    let updated_text_component = text_component_value.dark_purple();\n}",
+    )]
     pub fn dark_purple(self) -> Self {
         self.color(ChatColor::DarkPurple)
     }
     /// Apply `ChatColor::Gold`.
-    #[doc = "**API Contract:** Run `sand api show sand::text::TextComponent::gold` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::text::TextComponent::gold",
+        aliases = ["sand::cmd::TextComponent::gold", "sand::command::TextComponent::gold", "sand::prelude::TextComponent::gold", "sand::prelude::cmd::TextComponent::gold"],
+        module = "sand::text",
+        kind = "method",
+        summary = "Apply `ChatColor::Gold`.",
+        context = "Apply `ChatColor::Gold`. Sand text values preserve Minecraft's structured JSON component model, including styling and validated click or hover interactions.",
+        minecraft = "The component serializes to the JSON text format consumed by tellraw, titles, books, dialogs, and other vanilla text fields.",
+        use_when = ["Building player-visible text with typed styling or interactions"],
+        avoid_when = ["Passing an unvalidated JSON string when a typed text component can express the same value"],
+        returns = "The `TextComponent` value with the documented change applied to apply `ChatColor::Gold`.",
+        example = "let text = sand::text::Text::new(\"Ready\").gold();",
+    )]
     pub fn gold(self) -> Self {
         self.color(ChatColor::Gold)
     }
     /// Apply `ChatColor::Gray`.
-    #[doc = "**API Contract:** Run `sand api show sand::text::TextComponent::gray` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::text::TextComponent::gray",
+        aliases = ["sand::cmd::TextComponent::gray", "sand::command::TextComponent::gray", "sand::prelude::TextComponent::gray", "sand::prelude::cmd::TextComponent::gray"],
+        module = "sand::text",
+        kind = "method",
+        summary = "Apply `ChatColor::Gray`.",
+        context = "Apply `ChatColor::Gray`. Sand text values preserve Minecraft's structured JSON component model, including styling and validated click or hover interactions.",
+        minecraft = "The component serializes to the JSON text format consumed by tellraw, titles, books, dialogs, and other vanilla text fields.",
+        use_when = ["Building player-visible text with typed styling or interactions"],
+        avoid_when = ["Passing an unvalidated JSON string when a typed text component can express the same value"],
+        returns = "The `TextComponent` value with the documented change applied to apply `ChatColor::Gray`.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(text_component_value: sand::text::TextComponent)  {\n    let updated_text_component = text_component_value.gray();\n}",
+    )]
     pub fn gray(self) -> Self {
         self.color(ChatColor::Gray)
     }
     /// Apply `ChatColor::DarkGray`.
-    #[doc = "**API Contract:** Run `sand api show sand::text::TextComponent::dark_gray` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::text::TextComponent::dark_gray",
+        aliases = ["sand::cmd::TextComponent::dark_gray", "sand::command::TextComponent::dark_gray", "sand::prelude::TextComponent::dark_gray", "sand::prelude::cmd::TextComponent::dark_gray"],
+        module = "sand::text",
+        kind = "method",
+        summary = "Apply `ChatColor::DarkGray`.",
+        context = "Apply `ChatColor::DarkGray`. Sand text values preserve Minecraft's structured JSON component model, including styling and validated click or hover interactions.",
+        minecraft = "The component serializes to the JSON text format consumed by tellraw, titles, books, dialogs, and other vanilla text fields.",
+        use_when = ["Building player-visible text with typed styling or interactions"],
+        avoid_when = ["Passing an unvalidated JSON string when a typed text component can express the same value"],
+        returns = "The `TextComponent` value with the documented change applied to apply `ChatColor::DarkGray`.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(text_component_value: sand::text::TextComponent)  {\n    let updated_text_component = text_component_value.dark_gray();\n}",
+    )]
     pub fn dark_gray(self) -> Self {
         self.color(ChatColor::DarkGray)
     }
     /// Apply `ChatColor::Blue`.
-    #[doc = "**API Contract:** Run `sand api show sand::text::TextComponent::blue` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::text::TextComponent::blue",
+        aliases = ["sand::cmd::TextComponent::blue", "sand::command::TextComponent::blue", "sand::prelude::TextComponent::blue", "sand::prelude::cmd::TextComponent::blue"],
+        module = "sand::text",
+        kind = "method",
+        summary = "Apply `ChatColor::Blue`.",
+        context = "Apply `ChatColor::Blue`. Sand text values preserve Minecraft's structured JSON component model, including styling and validated click or hover interactions.",
+        minecraft = "The component serializes to the JSON text format consumed by tellraw, titles, books, dialogs, and other vanilla text fields.",
+        use_when = ["Building player-visible text with typed styling or interactions"],
+        avoid_when = ["Passing an unvalidated JSON string when a typed text component can express the same value"],
+        returns = "The `TextComponent` value with the documented change applied to apply `ChatColor::Blue`.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(text_component_value: sand::text::TextComponent)  {\n    let updated_text_component = text_component_value.blue();\n}",
+    )]
     pub fn blue(self) -> Self {
         self.color(ChatColor::Blue)
     }
     /// Apply `ChatColor::Green`.
-    #[doc = "**API Contract:** Run `sand api show sand::text::TextComponent::green` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::text::TextComponent::green",
+        aliases = ["sand::cmd::TextComponent::green", "sand::command::TextComponent::green", "sand::prelude::TextComponent::green", "sand::prelude::cmd::TextComponent::green"],
+        module = "sand::text",
+        kind = "method",
+        summary = "Apply `ChatColor::Green`.",
+        context = "Apply `ChatColor::Green`. Sand text values preserve Minecraft's structured JSON component model, including styling and validated click or hover interactions.",
+        minecraft = "The component serializes to the JSON text format consumed by tellraw, titles, books, dialogs, and other vanilla text fields.",
+        use_when = ["Building player-visible text with typed styling or interactions"],
+        avoid_when = ["Passing an unvalidated JSON string when a typed text component can express the same value"],
+        returns = "The `TextComponent` value with the documented change applied to apply `ChatColor::Green`.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(text_component_value: sand::text::TextComponent)  {\n    let updated_text_component = text_component_value.green();\n}",
+    )]
     pub fn green(self) -> Self {
         self.color(ChatColor::Green)
     }
     /// Apply `ChatColor::Aqua`.
-    #[doc = "**API Contract:** Run `sand api show sand::text::TextComponent::aqua` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::text::TextComponent::aqua",
+        aliases = ["sand::cmd::TextComponent::aqua", "sand::command::TextComponent::aqua", "sand::prelude::TextComponent::aqua", "sand::prelude::cmd::TextComponent::aqua"],
+        module = "sand::text",
+        kind = "method",
+        summary = "Apply `ChatColor::Aqua`.",
+        context = "Apply `ChatColor::Aqua`. Sand text values preserve Minecraft's structured JSON component model, including styling and validated click or hover interactions.",
+        minecraft = "The component serializes to the JSON text format consumed by tellraw, titles, books, dialogs, and other vanilla text fields.",
+        use_when = ["Building player-visible text with typed styling or interactions"],
+        avoid_when = ["Passing an unvalidated JSON string when a typed text component can express the same value"],
+        returns = "The `TextComponent` value with the documented change applied to apply `ChatColor::Aqua`.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(text_component_value: sand::text::TextComponent)  {\n    let updated_text_component = text_component_value.aqua();\n}",
+    )]
     pub fn aqua(self) -> Self {
         self.color(ChatColor::Aqua)
     }
     /// Apply `ChatColor::Red`.
-    #[doc = "**API Contract:** Run `sand api show sand::text::TextComponent::red` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::text::TextComponent::red",
+        aliases = ["sand::cmd::TextComponent::red", "sand::command::TextComponent::red", "sand::prelude::TextComponent::red", "sand::prelude::cmd::TextComponent::red"],
+        module = "sand::text",
+        kind = "method",
+        summary = "Apply `ChatColor::Red`.",
+        context = "Apply `ChatColor::Red`. Sand text values preserve Minecraft's structured JSON component model, including styling and validated click or hover interactions.",
+        minecraft = "The component serializes to the JSON text format consumed by tellraw, titles, books, dialogs, and other vanilla text fields.",
+        use_when = ["Building player-visible text with typed styling or interactions"],
+        avoid_when = ["Passing an unvalidated JSON string when a typed text component can express the same value"],
+        returns = "The `TextComponent` value with the documented change applied to apply `ChatColor::Red`.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(text_component_value: sand::text::TextComponent)  {\n    let updated_text_component = text_component_value.red();\n}",
+    )]
     pub fn red(self) -> Self {
         self.color(ChatColor::Red)
     }
     /// Apply `ChatColor::LightPurple`.
-    #[doc = "**API Contract:** Run `sand api show sand::text::TextComponent::light_purple` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::text::TextComponent::light_purple",
+        aliases = ["sand::cmd::TextComponent::light_purple", "sand::command::TextComponent::light_purple", "sand::prelude::TextComponent::light_purple", "sand::prelude::cmd::TextComponent::light_purple"],
+        module = "sand::text",
+        kind = "method",
+        summary = "Apply `ChatColor::LightPurple`.",
+        context = "Apply `ChatColor::LightPurple`. Sand text values preserve Minecraft's structured JSON component model, including styling and validated click or hover interactions.",
+        minecraft = "The component serializes to the JSON text format consumed by tellraw, titles, books, dialogs, and other vanilla text fields.",
+        use_when = ["Building player-visible text with typed styling or interactions"],
+        avoid_when = ["Passing an unvalidated JSON string when a typed text component can express the same value"],
+        returns = "The `TextComponent` value with the documented change applied to apply `ChatColor::LightPurple`.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(text_component_value: sand::text::TextComponent)  {\n    let updated_text_component = text_component_value.light_purple();\n}",
+    )]
     pub fn light_purple(self) -> Self {
         self.color(ChatColor::LightPurple)
     }
     /// Apply `ChatColor::Yellow`.
-    #[doc = "**API Contract:** Run `sand api show sand::text::TextComponent::yellow` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::text::TextComponent::yellow",
+        aliases = ["sand::cmd::TextComponent::yellow", "sand::command::TextComponent::yellow", "sand::prelude::TextComponent::yellow", "sand::prelude::cmd::TextComponent::yellow"],
+        module = "sand::text",
+        kind = "method",
+        summary = "Apply `ChatColor::Yellow`.",
+        context = "Apply `ChatColor::Yellow`. Sand text values preserve Minecraft's structured JSON component model, including styling and validated click or hover interactions.",
+        minecraft = "The component serializes to the JSON text format consumed by tellraw, titles, books, dialogs, and other vanilla text fields.",
+        use_when = ["Building player-visible text with typed styling or interactions"],
+        avoid_when = ["Passing an unvalidated JSON string when a typed text component can express the same value"],
+        returns = "The `TextComponent` value with the documented change applied to apply `ChatColor::Yellow`.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(text_component_value: sand::text::TextComponent)  {\n    let updated_text_component = text_component_value.yellow();\n}",
+    )]
     pub fn yellow(self) -> Self {
         self.color(ChatColor::Yellow)
     }
     /// Apply `ChatColor::White`.
-    #[doc = "**API Contract:** Run `sand api show sand::text::TextComponent::white` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::text::TextComponent::white",
+        aliases = ["sand::cmd::TextComponent::white", "sand::command::TextComponent::white", "sand::prelude::TextComponent::white", "sand::prelude::cmd::TextComponent::white"],
+        module = "sand::text",
+        kind = "method",
+        summary = "Apply `ChatColor::White`.",
+        context = "Apply `ChatColor::White`. Sand text values preserve Minecraft's structured JSON component model, including styling and validated click or hover interactions.",
+        minecraft = "The component serializes to the JSON text format consumed by tellraw, titles, books, dialogs, and other vanilla text fields.",
+        use_when = ["Building player-visible text with typed styling or interactions"],
+        avoid_when = ["Passing an unvalidated JSON string when a typed text component can express the same value"],
+        returns = "The `TextComponent` value with the documented change applied to apply `ChatColor::White`.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(text_component_value: sand::text::TextComponent)  {\n    let updated_text_component = text_component_value.white();\n}",
+    )]
     pub fn white(self) -> Self {
         self.color(ChatColor::White)
     }
@@ -558,42 +1003,126 @@ impl TextComponent {
     // ── Text formatting ───────────────────────────────────────────────────────
 
     /// Set bold formatting.
-    #[doc = "**API Contract:** Run `sand api show sand::text::TextComponent::bold` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::text::TextComponent::bold",
+        aliases = ["sand::cmd::TextComponent::bold", "sand::command::TextComponent::bold", "sand::prelude::TextComponent::bold", "sand::prelude::cmd::TextComponent::bold"],
+        module = "sand::text",
+        kind = "method",
+        summary = "Set bold formatting.",
+        context = "Set bold formatting. Sand text values preserve Minecraft's structured JSON component model, including styling and validated click or hover interactions.",
+        minecraft = "The component serializes to the JSON text format consumed by tellraw, titles, books, dialogs, and other vanilla text fields.",
+        use_when = ["Building player-visible text with typed styling or interactions"],
+        avoid_when = ["Passing an unvalidated JSON string when a typed text component can express the same value"],
+        params(v = "`v` provides the switch that enables or disables the behavior used to set bold formatting."),
+        returns = "The `TextComponent` value with the documented change applied to set bold formatting.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(text_component_value: sand::text::TextComponent, v: bool)  {\n    let updated_text_component = text_component_value.bold(v);\n}",
+    )]
     pub fn bold(mut self, v: bool) -> Self {
         self.bold = Some(v);
         self
     }
 
     /// Set italic formatting.
-    #[doc = "**API Contract:** Run `sand api show sand::text::TextComponent::italic` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::text::TextComponent::italic",
+        aliases = ["sand::cmd::TextComponent::italic", "sand::command::TextComponent::italic", "sand::prelude::TextComponent::italic", "sand::prelude::cmd::TextComponent::italic"],
+        module = "sand::text",
+        kind = "method",
+        summary = "Set italic formatting.",
+        context = "Set italic formatting. Sand text values preserve Minecraft's structured JSON component model, including styling and validated click or hover interactions.",
+        minecraft = "The component serializes to the JSON text format consumed by tellraw, titles, books, dialogs, and other vanilla text fields.",
+        use_when = ["Building player-visible text with typed styling or interactions"],
+        avoid_when = ["Passing an unvalidated JSON string when a typed text component can express the same value"],
+        params(v = "`v` provides the switch that enables or disables the behavior used to set italic formatting."),
+        returns = "The `TextComponent` value with the documented change applied to set italic formatting.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(text_component_value: sand::text::TextComponent, v: bool)  {\n    let updated_text_component = text_component_value.italic(v);\n}",
+    )]
     pub fn italic(mut self, v: bool) -> Self {
         self.italic = Some(v);
         self
     }
 
     /// Set underline formatting.
-    #[doc = "**API Contract:** Run `sand api show sand::text::TextComponent::underlined` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::text::TextComponent::underlined",
+        aliases = ["sand::cmd::TextComponent::underlined", "sand::command::TextComponent::underlined", "sand::prelude::TextComponent::underlined", "sand::prelude::cmd::TextComponent::underlined"],
+        module = "sand::text",
+        kind = "method",
+        summary = "Set underline formatting.",
+        context = "Set underline formatting. Sand text values preserve Minecraft's structured JSON component model, including styling and validated click or hover interactions.",
+        minecraft = "The component serializes to the JSON text format consumed by tellraw, titles, books, dialogs, and other vanilla text fields.",
+        use_when = ["Building player-visible text with typed styling or interactions"],
+        avoid_when = ["Passing an unvalidated JSON string when a typed text component can express the same value"],
+        params(v = "`v` provides the switch that enables or disables the behavior used to set underline formatting."),
+        returns = "The `TextComponent` value with the documented change applied to set underline formatting.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(text_component_value: sand::text::TextComponent, v: bool)  {\n    let updated_text_component = text_component_value.underlined(v);\n}",
+    )]
     pub fn underlined(mut self, v: bool) -> Self {
         self.underlined = Some(v);
         self
     }
 
     /// Set strikethrough formatting.
-    #[doc = "**API Contract:** Run `sand api show sand::text::TextComponent::strikethrough` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::text::TextComponent::strikethrough",
+        aliases = ["sand::cmd::TextComponent::strikethrough", "sand::command::TextComponent::strikethrough", "sand::prelude::TextComponent::strikethrough", "sand::prelude::cmd::TextComponent::strikethrough"],
+        module = "sand::text",
+        kind = "method",
+        summary = "Set strikethrough formatting.",
+        context = "Set strikethrough formatting. Sand text values preserve Minecraft's structured JSON component model, including styling and validated click or hover interactions.",
+        minecraft = "The component serializes to the JSON text format consumed by tellraw, titles, books, dialogs, and other vanilla text fields.",
+        use_when = ["Building player-visible text with typed styling or interactions"],
+        avoid_when = ["Passing an unvalidated JSON string when a typed text component can express the same value"],
+        params(v = "`v` provides the switch that enables or disables the behavior used to set strikethrough formatting."),
+        returns = "The `TextComponent` value with the documented change applied to set strikethrough formatting.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(text_component_value: sand::text::TextComponent, v: bool)  {\n    let updated_text_component = text_component_value.strikethrough(v);\n}",
+    )]
     pub fn strikethrough(mut self, v: bool) -> Self {
         self.strikethrough = Some(v);
         self
     }
 
     /// Set obfuscated (scrambled) text.
-    #[doc = "**API Contract:** Run `sand api show sand::text::TextComponent::obfuscated` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::text::TextComponent::obfuscated",
+        aliases = ["sand::cmd::TextComponent::obfuscated", "sand::command::TextComponent::obfuscated", "sand::prelude::TextComponent::obfuscated", "sand::prelude::cmd::TextComponent::obfuscated"],
+        module = "sand::text",
+        kind = "method",
+        summary = "Set obfuscated (scrambled) text.",
+        context = "Set obfuscated (scrambled) text. Sand text values preserve Minecraft's structured JSON component model, including styling and validated click or hover interactions.",
+        minecraft = "The component serializes to the JSON text format consumed by tellraw, titles, books, dialogs, and other vanilla text fields.",
+        use_when = ["Building player-visible text with typed styling or interactions"],
+        avoid_when = ["Passing an unvalidated JSON string when a typed text component can express the same value"],
+        params(v = "`v` provides the switch that enables or disables the behavior used to set obfuscated (scrambled) text."),
+        returns = "The `TextComponent` value with the documented change applied to set obfuscated (scrambled) text.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(text_component_value: sand::text::TextComponent, v: bool)  {\n    let updated_text_component = text_component_value.obfuscated(v);\n}",
+    )]
     pub fn obfuscated(mut self, v: bool) -> Self {
         self.obfuscated = Some(v);
         self
     }
 
     /// Set the `insertion` string — shift-clicking inserts this into the chat bar.
-    #[doc = "**API Contract:** Run `sand api show sand::text::TextComponent::insertion` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::text::TextComponent::insertion",
+        aliases = ["sand::cmd::TextComponent::insertion", "sand::command::TextComponent::insertion", "sand::prelude::TextComponent::insertion", "sand::prelude::cmd::TextComponent::insertion"],
+        module = "sand::text",
+        kind = "method",
+        summary = "Set the `insertion` string — shift-clicking inserts this into the chat bar.",
+        context = "Set the `insertion` string — shift-clicking inserts this into the chat bar. Sand text values preserve Minecraft's structured JSON component model, including styling and validated click or hover interactions.",
+        minecraft = "The component serializes to the JSON text format consumed by tellraw, titles, books, dialogs, and other vanilla text fields.",
+        use_when = ["Building player-visible text with typed styling or interactions"],
+        avoid_when = ["Passing an unvalidated JSON string when a typed text component can express the same value"],
+        params(text = "`text` provides the author-visible text value used to set the `insertion` string — shift-clicking inserts this into the chat bar."),
+        returns = "The `TextComponent` value with the documented change applied to set the `insertion` string — shift-clicking inserts this into the chat bar.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(text_component_value: sand::text::TextComponent, text: impl Into < String >)  {\n    let updated_text_component = text_component_value.insertion(text);\n}",
+    )]
     pub fn insertion(mut self, text: impl Into<String>) -> Self {
         self.insertion = Some(text.into());
         self
@@ -602,21 +1131,63 @@ impl TextComponent {
     // ── Click events ──────────────────────────────────────────────────────────
 
     /// Run a command when this text is clicked.
-    #[doc = "**API Contract:** Run `sand api show sand::text::TextComponent::click_run_command` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::text::TextComponent::click_run_command",
+        aliases = ["sand::cmd::TextComponent::click_run_command", "sand::command::TextComponent::click_run_command", "sand::prelude::TextComponent::click_run_command", "sand::prelude::cmd::TextComponent::click_run_command"],
+        module = "sand::text",
+        kind = "method",
+        summary = "Run a command when this text is clicked.",
+        context = "Run a command when this text is clicked. Sand text values preserve Minecraft's structured JSON component model, including styling and validated click or hover interactions.",
+        minecraft = "The component serializes to the JSON text format consumed by tellraw, titles, books, dialogs, and other vanilla text fields.",
+        use_when = ["Building player-visible text with typed styling or interactions"],
+        avoid_when = ["Passing an unvalidated JSON string when a typed text component can express the same value"],
+        params(cmd = "`cmd` supplies the cmd value used to run a command when this text is clicked."),
+        returns = "The `TextComponent` value with the documented change applied to run a command when this text is clicked.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(text_component_value: sand::text::TextComponent, cmd: impl Into < String >)  {\n    let updated_text_component = text_component_value.click_run_command(cmd);\n}",
+    )]
     pub fn click_run_command(mut self, cmd: impl Into<String>) -> Self {
         self.click_event = Some(ClickEvent::RunCommand(cmd.into()));
         self
     }
 
     /// Fill the chat bar with a suggestion when clicked.
-    #[doc = "**API Contract:** Run `sand api show sand::text::TextComponent::click_suggest_command` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::text::TextComponent::click_suggest_command",
+        aliases = ["sand::cmd::TextComponent::click_suggest_command", "sand::command::TextComponent::click_suggest_command", "sand::prelude::TextComponent::click_suggest_command", "sand::prelude::cmd::TextComponent::click_suggest_command"],
+        module = "sand::text",
+        kind = "method",
+        summary = "Fill the chat bar with a suggestion when clicked.",
+        context = "Fill the chat bar with a suggestion when clicked. Sand text values preserve Minecraft's structured JSON component model, including styling and validated click or hover interactions.",
+        minecraft = "The component serializes to the JSON text format consumed by tellraw, titles, books, dialogs, and other vanilla text fields.",
+        use_when = ["Building player-visible text with typed styling or interactions"],
+        avoid_when = ["Passing an unvalidated JSON string when a typed text component can express the same value"],
+        params(cmd = "`cmd` supplies the cmd value used to fill the chat bar with a suggestion when clicked."),
+        returns = "The `TextComponent` value with the documented change applied to fill the chat bar with a suggestion when clicked.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(text_component_value: sand::text::TextComponent, cmd: impl Into < String >)  {\n    let updated_text_component = text_component_value.click_suggest_command(cmd);\n}",
+    )]
     pub fn click_suggest_command(mut self, cmd: impl Into<String>) -> Self {
         self.click_event = Some(ClickEvent::SuggestCommand(cmd.into()));
         self
     }
 
     /// Open a URL when clicked.
-    #[doc = "**API Contract:** Run `sand api show sand::text::TextComponent::click_open_url` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::text::TextComponent::click_open_url",
+        aliases = ["sand::cmd::TextComponent::click_open_url", "sand::command::TextComponent::click_open_url", "sand::prelude::TextComponent::click_open_url", "sand::prelude::cmd::TextComponent::click_open_url"],
+        module = "sand::text",
+        kind = "method",
+        summary = "Open a URL when clicked.",
+        context = "Open a URL when clicked. Sand text values preserve Minecraft's structured JSON component model, including styling and validated click or hover interactions.",
+        minecraft = "The component serializes to the JSON text format consumed by tellraw, titles, books, dialogs, and other vanilla text fields.",
+        use_when = ["Building player-visible text with typed styling or interactions"],
+        avoid_when = ["Passing an unvalidated JSON string when a typed text component can express the same value"],
+        params(url = "`url` supplies the url value used to open a URL when clicked."),
+        returns = "The `TextComponent` value with the documented change applied to open a URL when clicked.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(text_component_value: sand::text::TextComponent, url: impl Into < String >)  {\n    let updated_text_component = text_component_value.click_open_url(url);\n}",
+    )]
     pub fn click_open_url(mut self, url: impl Into<String>) -> Self {
         self.click_event = Some(ClickEvent::OpenUrl(url.into()));
         self
@@ -626,7 +1197,21 @@ impl TextComponent {
     ///
     /// `text` is the literal clipboard payload; it is not rendered as the
     /// player-visible label of this component.
-    #[doc = "**API Contract:** Run `sand api show sand::text::TextComponent::click_copy` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::text::TextComponent::click_copy",
+        aliases = ["sand::cmd::TextComponent::click_copy", "sand::command::TextComponent::click_copy", "sand::prelude::TextComponent::click_copy", "sand::prelude::cmd::TextComponent::click_copy"],
+        module = "sand::text",
+        kind = "method",
+        summary = "Copy text to the clipboard when clicked. `text` is the literal clipboard payload; it is not rendered as the player-visible label of this component.",
+        context = "Copy text to the clipboard when clicked. `text` is the literal clipboard payload; it is not rendered as the player-visible label of this component. Sand text values preserve Minecraft's structured JSON component model, including styling and validated click or hover interactions.",
+        minecraft = "The component serializes to the JSON text format consumed by tellraw, titles, books, dialogs, and other vanilla text fields.",
+        use_when = ["Building player-visible text with typed styling or interactions"],
+        avoid_when = ["Passing an unvalidated JSON string when a typed text component can express the same value"],
+        params(text = "`text` is the literal clipboard payload; it is not rendered as the player-visible label of this component."),
+        returns = "The `TextComponent` value with the documented change applied to copy text to the clipboard when clicked. `text` is the literal clipboard payload; it is not rendered as the player-visible label of this component.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(text_component_value: sand::text::TextComponent, text: impl Into < String >)  {\n    let updated_text_component = text_component_value.click_copy(text);\n}",
+    )]
     pub fn click_copy(mut self, text: impl Into<String>) -> Self {
         self.click_event = Some(ClickEvent::CopyToClipboard(text.into()));
         self
@@ -643,7 +1228,21 @@ impl TextComponent {
     /// let text = Text::new("Next").click_change_page(2);
     /// assert!(text.to_string().contains(r#""action":"change_page""#));
     /// ```
-    #[doc = "**API Contract:** Run `sand api show sand::text::TextComponent::click_change_page` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::text::TextComponent::click_change_page",
+        aliases = ["sand::cmd::TextComponent::click_change_page", "sand::command::TextComponent::click_change_page", "sand::prelude::TextComponent::click_change_page", "sand::prelude::cmd::TextComponent::click_change_page"],
+        module = "sand::text",
+        kind = "method",
+        summary = "Emit a `change_page` click event for a page inside a written book.",
+        context = "Emit a `change_page` click event for a page inside a written book. Minecraft only applies this click action in book contexts and normally treats pages as one-indexed. The value is serialized unchanged, including `0`, to preserve the existing event model's compatibility behavior.",
+        minecraft = "Minecraft only applies this click action in book contexts and normally treats pages as one-indexed. The value is serialized unchanged, including `0`, to preserve the existing event model's compatibility behavior.",
+        use_when = ["Building player-visible text with typed styling or interactions"],
+        avoid_when = ["Passing an unvalidated JSON string when a typed text component can express the same value"],
+        params(page = "`page` supplies the page value used to emit a `change_page` click event for a page inside a written book."),
+        returns = "The `TextComponent` value with the documented change applied to emit a `change_page` click event for a page inside a written book.",
+        example = "use sand::text::Text;\nlet text = Text::new(\"Next\").click_change_page(2);\nassert!(text.to_string().contains(r#\"\"action\":\"change_page\"\"#));",
+    )]
     pub fn click_change_page(mut self, page: u32) -> Self {
         self.click_event = Some(ClickEvent::ChangePage(page));
         self
@@ -652,7 +1251,21 @@ impl TextComponent {
     // ── Hover events ──────────────────────────────────────────────────────────
 
     /// Show another `TextComponent` as a tooltip on hover.
-    #[doc = "**API Contract:** Run `sand api show sand::text::TextComponent::hover_text` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::text::TextComponent::hover_text",
+        aliases = ["sand::cmd::TextComponent::hover_text", "sand::command::TextComponent::hover_text", "sand::prelude::TextComponent::hover_text", "sand::prelude::cmd::TextComponent::hover_text"],
+        module = "sand::text",
+        kind = "method",
+        summary = "Show another `TextComponent` as a tooltip on hover.",
+        context = "Show another `TextComponent` as a tooltip on hover. Sand text values preserve Minecraft's structured JSON component model, including styling and validated click or hover interactions.",
+        minecraft = "The component serializes to the JSON text format consumed by tellraw, titles, books, dialogs, and other vanilla text fields.",
+        use_when = ["Building player-visible text with typed styling or interactions"],
+        avoid_when = ["Passing an unvalidated JSON string when a typed text component can express the same value"],
+        params(text = "`text` provides the author-visible text value used to show another `TextComponent` as a tooltip on hover."),
+        returns = "The `TextComponent` value with the documented change applied to show another `TextComponent` as a tooltip on hover.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(text_component_value: sand::text::TextComponent, text: sand::text::TextComponent)  {\n    let updated_text_component = text_component_value.hover_text(text);\n}",
+    )]
     pub fn hover_text(mut self, text: TextComponent) -> Self {
         self.hover_event = Some(TextHoverEvent::Public(HoverEvent::ShowText(Box::new(text))));
         self
@@ -662,7 +1275,21 @@ impl TextComponent {
     ///
     /// The resulting `show_item` JSON omits `count`. The item registry string is
     /// retained verbatim for compatibility and is not validated by this builder.
-    #[doc = "**API Contract:** Run `sand api show sand::text::TextComponent::hover_item` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::text::TextComponent::hover_item",
+        aliases = ["sand::cmd::TextComponent::hover_item", "sand::command::TextComponent::hover_item", "sand::prelude::TextComponent::hover_item", "sand::prelude::cmd::TextComponent::hover_item"],
+        module = "sand::text",
+        kind = "method",
+        summary = "Show an item tooltip on hover using the existing raw item-ID path.",
+        context = "Show an item tooltip on hover using the existing raw item-ID path. The resulting `show_item` JSON omits `count`. The item registry string is retained verbatim for compatibility and is not validated by this builder.",
+        minecraft = "The resulting `show_item` JSON omits `count`. The item registry string is retained verbatim for compatibility and is not validated by this builder.",
+        use_when = ["Building player-visible text with typed styling or interactions"],
+        avoid_when = ["Passing an unvalidated JSON string when a typed text component can express the same value"],
+        params(item_id = "`item_id` supplies the item id value used to show an item tooltip on hover using the existing raw item-ID path."),
+        returns = "The `TextComponent` value with the documented change applied to show an item tooltip on hover using the existing raw item-ID path.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(text_component_value: sand::text::TextComponent, item_id: impl Into < String >)  {\n    let updated_text_component = text_component_value.hover_item(item_id);\n}",
+    )]
     pub fn hover_item(mut self, item_id: impl Into<String>) -> Self {
         self.hover_event = Some(TextHoverEvent::Public(HoverEvent::ShowItem {
             id: item_id.into(),
@@ -677,7 +1304,21 @@ impl TextComponent {
     /// stack-size validation belong to the broader text validation work tracked
     /// in #152; this builder exposes the count-bearing shape already modeled by
     /// [`HoverEvent::ShowItem`] without changing the count-free output.
-    #[doc = "**API Contract:** Run `sand api show sand::text::TextComponent::hover_item_with_count` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::text::TextComponent::hover_item_with_count",
+        aliases = ["sand::cmd::TextComponent::hover_item_with_count", "sand::command::TextComponent::hover_item_with_count", "sand::prelude::TextComponent::hover_item_with_count", "sand::prelude::cmd::TextComponent::hover_item_with_count"],
+        module = "sand::text",
+        kind = "method",
+        summary = "Show an item tooltip with an explicit stack count on hover.",
+        context = "Show an item tooltip with an explicit stack count on hover. The item registry string and count are serialized unchanged. Item-ID and stack-size validation belong to the broader text validation work tracked in #152; this builder exposes the count-bearing shape already modeled by [`HoverEvent::ShowItem`] without changing the count-free output.",
+        minecraft = "The component serializes to the JSON text format consumed by tellraw, titles, books, dialogs, and other vanilla text fields.",
+        use_when = ["Building player-visible text with typed styling or interactions"],
+        avoid_when = ["Passing an unvalidated JSON string when a typed text component can express the same value"],
+        params(item_id = "`item_id` supplies the item id value used to show an item tooltip with an explicit stack count on hover.", count = "`count` provides the requested numeric amount used to show an item tooltip with an explicit stack count on hover."),
+        returns = "The `TextComponent` value with the documented change applied to show an item tooltip with an explicit stack count on hover.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(text_component_value: sand::text::TextComponent, item_id: impl Into < String >, count: u32)  {\n    let updated_text_component = text_component_value.hover_item_with_count(item_id, count);\n}",
+    )]
     pub fn hover_item_with_count(mut self, item_id: impl Into<String>, count: u32) -> Self {
         self.hover_event = Some(TextHoverEvent::Public(HoverEvent::ShowItem {
             id: item_id.into(),
@@ -691,7 +1332,21 @@ impl TextComponent {
     /// The entity type must be one of Sand's typed registry identifiers. The
     /// displayed name remains a full text component, so styling and translation
     /// data are preserved.
-    #[doc = "**API Contract:** Run `sand api show sand::text::TextComponent::hover_entity` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::text::TextComponent::hover_entity",
+        aliases = ["sand::cmd::TextComponent::hover_entity", "sand::command::TextComponent::hover_entity", "sand::prelude::TextComponent::hover_entity", "sand::prelude::cmd::TextComponent::hover_entity"],
+        module = "sand::text",
+        kind = "method",
+        summary = "Show an entity tooltip without a UUID on hover. The entity type must be one of Sand's typed registry identifiers. The displayed name remains a full text component, so styling and translation data are preserved.",
+        context = "Show an entity tooltip without a UUID on hover. The entity type must be one of Sand's typed registry identifiers. The displayed name remains a full text component, so styling and translation data are preserved. Sand text values preserve Minecraft's structured JSON component model, including styling and validated click or hover interactions.",
+        minecraft = "The component serializes to the JSON text format consumed by tellraw, titles, books, dialogs, and other vanilla text fields.",
+        use_when = ["Building player-visible text with typed styling or interactions"],
+        avoid_when = ["Passing an unvalidated JSON string when a typed text component can express the same value"],
+        params(entity_type = "`entity_type` provides the player-visible text value used to show an entity tooltip without a UUID on hover. The entity type must be one of Sand's typed registry identifiers. The displayed name remains a full text component, so styling and translation data are preserved.", name = "`name` provides the author-visible text value used to show an entity tooltip without a UUID on hover. The entity type must be one of Sand's typed registry identifiers. The displayed name remains a full text component, so styling and translation data are preserved."),
+        returns = "The `TextComponent` value with the documented change applied to show an entity tooltip without a UUID on hover. The entity type must be one of Sand's typed registry identifiers. The displayed name remains a full text component, so styling and translation data are preserved.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(text_component_value: sand::text::TextComponent, entity_type: impl sand::text::IntoTextEntityType, name: sand::text::TextComponent)  {\n    let updated_text_component = text_component_value.hover_entity(entity_type, name);\n}",
+    )]
     pub fn hover_entity(
         mut self,
         entity_type: impl IntoTextEntityType,
@@ -713,7 +1368,21 @@ impl TextComponent {
     ///
     /// Parse user-provided UUID text with [`EntityHoverId::parse`] first. The
     /// styled `name` is serialized as a complete text component.
-    #[doc = "**API Contract:** Run `sand api show sand::text::TextComponent::hover_entity_with_id` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::text::TextComponent::hover_entity_with_id",
+        aliases = ["sand::cmd::TextComponent::hover_entity_with_id", "sand::command::TextComponent::hover_entity_with_id", "sand::prelude::TextComponent::hover_entity_with_id", "sand::prelude::cmd::TextComponent::hover_entity_with_id"],
+        module = "sand::text",
+        kind = "method",
+        summary = "Show an entity tooltip with a validated UUID on hover.",
+        context = "Show an entity tooltip with a validated UUID on hover. `id` is the entity UUID shown in the hover payload, not a namespaced Minecraft resource identifier. Parse user-provided UUID text with [`EntityHoverId::parse`] first. The styled `name` is serialized as a complete text component.",
+        minecraft = "`id` is the entity UUID shown in the hover payload, not a namespaced Minecraft resource identifier.",
+        use_when = ["Building player-visible text with typed styling or interactions"],
+        avoid_when = ["Passing an unvalidated JSON string when a typed text component can express the same value"],
+        params(entity_type = "`entity_type` provides the player-visible text value used to show an entity tooltip with a validated UUID on hover.", id = "`id` is the entity UUID shown in the hover payload, not a namespaced Minecraft resource identifier.", name = "Parse user-provided UUID text with [`EntityHoverId::parse`] first. The styled `name` is serialized as a complete text component."),
+        returns = "The `TextComponent` value with the documented change applied to show an entity tooltip with a validated UUID on hover.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(text_component_value: sand::text::TextComponent, entity_type: impl sand::text::IntoTextEntityType, id: sand::text::EntityHoverId, name: sand::text::TextComponent)  {\n    let updated_text_component = text_component_value.hover_entity_with_id(entity_type, id, name);\n}",
+    )]
     pub fn hover_entity_with_id(
         mut self,
         entity_type: impl IntoTextEntityType,
@@ -735,7 +1404,21 @@ impl TextComponent {
     /// an explicit compatibility escape hatch for legacy or version-specific
     /// values Sand cannot model. Neither raw string is validated; the styled
     /// `name` is still serialized as a complete text component.
-    #[doc = "**API Contract:** Run `sand api show sand::text::TextComponent::hover_entity_raw` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::text::TextComponent::hover_entity_raw",
+        aliases = ["sand::cmd::TextComponent::hover_entity_raw", "sand::command::TextComponent::hover_entity_raw", "sand::prelude::TextComponent::hover_entity_raw", "sand::prelude::cmd::TextComponent::hover_entity_raw"],
+        module = "sand::text",
+        kind = "method",
+        summary = "Show an entity tooltip using unchecked raw entity type and UUID strings.",
+        context = "Show an entity tooltip using unchecked raw entity type and UUID strings. Prefer [`Self::hover_entity`] or [`Self::hover_entity_with_id`]. This is an explicit compatibility escape hatch for legacy or version-specific values Sand cannot model. Neither raw string is validated; the styled `name` is still serialized as a complete text component.",
+        minecraft = "The component serializes to the JSON text format consumed by tellraw, titles, books, dialogs, and other vanilla text fields.",
+        use_when = ["Prefer [`Self::hover_entity`] or [`Self::hover_entity_with_id`]. This is an explicit compatibility escape hatch for legacy or version-specific values Sand cannot model. Neither raw string is validated; the styled `name` is still serialized as a complete text component."],
+        avoid_when = ["Passing an unvalidated JSON string when a typed text component can express the same value"],
+        params(entity_type = "`entity_type` supplies the entity type value used to show an entity tooltip using unchecked raw entity type and UUID strings.", id = "`id` provides the typed resource identifier or location used to show an entity tooltip using unchecked raw entity type and UUID strings.", name = "Prefer [`Self::hover_entity`] or [`Self::hover_entity_with_id`]. This is an explicit compatibility escape hatch for legacy or version-specific values Sand cannot model. Neither raw string is validated; the styled `name` is still serialized as a complete text component."),
+        returns = "The `TextComponent` value with the documented change applied to show an entity tooltip using unchecked raw entity type and UUID strings.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(text_component_value: sand::text::TextComponent, entity_type: impl Into < String >, id: Option < String >, name: sand::text::TextComponent)  {\n    let updated_text_component = text_component_value.hover_entity_raw(entity_type, id, name);\n}",
+    )]
     pub fn hover_entity_raw(
         mut self,
         entity_type: impl Into<String>,
@@ -752,7 +1435,21 @@ impl TextComponent {
     }
 
     /// Show an item tooltip with an intentionally opaque item token.
-    #[doc = "**API Contract:** Run `sand api show sand::text::TextComponent::hover_item_raw` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::text::TextComponent::hover_item_raw",
+        aliases = ["sand::cmd::TextComponent::hover_item_raw", "sand::command::TextComponent::hover_item_raw", "sand::prelude::TextComponent::hover_item_raw", "sand::prelude::cmd::TextComponent::hover_item_raw"],
+        module = "sand::text",
+        kind = "method",
+        summary = "Show an item tooltip with an intentionally opaque item token.",
+        context = "Show an item tooltip with an intentionally opaque item token. Sand text values preserve Minecraft's structured JSON component model, including styling and validated click or hover interactions.",
+        minecraft = "The component serializes to the JSON text format consumed by tellraw, titles, books, dialogs, and other vanilla text fields.",
+        use_when = ["Building player-visible text with typed styling or interactions"],
+        avoid_when = ["Passing an unvalidated JSON string when a typed text component can express the same value"],
+        params(item = "`item` provides the item value or item predicate used to show an item tooltip with an intentionally opaque item token.", count = "`count` provides the requested numeric amount used to show an item tooltip with an intentionally opaque item token."),
+        returns = "The `TextComponent` value with the documented change applied to show an item tooltip with an intentionally opaque item token.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(text_component_value: sand::text::TextComponent, item: impl Into < String >, count: Option < u32 >)  {\n    let updated_text_component = text_component_value.hover_item_raw(item, count);\n}",
+    )]
     pub fn hover_item_raw(mut self, item: impl Into<String>, count: Option<u32>) -> Self {
         self.hover_event = Some(TextHoverEvent::RawShowItem {
             id: item.into(),
@@ -762,7 +1459,21 @@ impl TextComponent {
     }
 
     /// Append a sibling component in the `"extra"` array.
-    #[doc = "**API Contract:** Run `sand api show sand::text::TextComponent::then` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::text::TextComponent::then",
+        aliases = ["sand::cmd::TextComponent::then", "sand::command::TextComponent::then", "sand::prelude::TextComponent::then", "sand::prelude::cmd::TextComponent::then"],
+        module = "sand::text",
+        kind = "method",
+        summary = "Append a sibling component in the `\"extra\"` array.",
+        context = "Append a sibling component in the `\"extra\"` array. Sand text values preserve Minecraft's structured JSON component model, including styling and validated click or hover interactions.",
+        minecraft = "The component serializes to the JSON text format consumed by tellraw, titles, books, dialogs, and other vanilla text fields.",
+        use_when = ["Building player-visible text with typed styling or interactions"],
+        avoid_when = ["Passing an unvalidated JSON string when a typed text component can express the same value"],
+        params(next = "`next` provides the player-visible text value used to append a sibling component in the `\"extra\"` array."),
+        returns = "The `TextComponent` value with the documented change applied to append a sibling component in the `\"extra\"` array.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(text_component_value: sand::text::TextComponent, next: sand::text::TextComponent)  {\n    let updated_text_component = text_component_value.then(next);\n}",
+    )]
     pub fn then(mut self, next: TextComponent) -> Self {
         self.extra.push(next);
         self
@@ -884,14 +1595,41 @@ impl TextComponent {
     }
 
     /// Validate this component recursively and return its deterministic JSON value.
-    #[doc = "**API Contract:** Run `sand api show sand::text::TextComponent::try_to_json_value` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::text::TextComponent::try_to_json_value",
+        aliases = ["sand::cmd::TextComponent::try_to_json_value", "sand::command::TextComponent::try_to_json_value", "sand::prelude::TextComponent::try_to_json_value", "sand::prelude::cmd::TextComponent::try_to_json_value"],
+        module = "sand::text",
+        kind = "method",
+        summary = "Validate this component recursively and return its deterministic JSON value.",
+        context = "Validate this component recursively and return its deterministic JSON value. Sand text values preserve Minecraft's structured JSON component model, including styling and validated click or hover interactions.",
+        minecraft = "The component serializes to the JSON text format consumed by tellraw, titles, books, dialogs, and other vanilla text fields.",
+        use_when = ["Building player-visible text with typed styling or interactions"],
+        avoid_when = ["Passing an unvalidated JSON string when a typed text component can express the same value"],
+        returns = "On success, the value produced to validate this component recursively and return its deterministic JSON value; otherwise, the documented validation or export diagnostic.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(text_component_value: &sand::text::TextComponent)  {\n    let try_to_json_value = text_component_value.try_to_json_value();\n}",
+    )]
     pub fn try_to_json_value(&self) -> CommandResult<serde_json::Value> {
         self.validate(&CommandProfile::unprofiled())?;
         Ok(self.to_json_value())
     }
 
     /// Validate recursively while retaining a consumer-provided field path.
-    #[doc = "**API Contract:** Run `sand api show sand::text::TextComponent::validate_at_path` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::text::TextComponent::validate_at_path",
+        aliases = ["sand::cmd::TextComponent::validate_at_path", "sand::command::TextComponent::validate_at_path", "sand::prelude::TextComponent::validate_at_path", "sand::prelude::cmd::TextComponent::validate_at_path"],
+        module = "sand::text",
+        kind = "method",
+        summary = "Validate recursively while retaining a consumer-provided field path.",
+        context = "Validate recursively while retaining a consumer-provided field path. Sand text values preserve Minecraft's structured JSON component model, including styling and validated click or hover interactions.",
+        minecraft = "The component serializes to the JSON text format consumed by tellraw, titles, books, dialogs, and other vanilla text fields.",
+        use_when = ["Building player-visible text with typed styling or interactions"],
+        avoid_when = ["Passing an unvalidated JSON string when a typed text component can express the same value"],
+        params(profile = "`profile` supplies the profile value used to validate recursively while retaining a consumer-provided field path.", path = "`path` provides the typed resource identifier or location used to validate recursively while retaining a consumer-provided field path."),
+        returns = "On success, the value produced to validate recursively while retaining a consumer-provided field path; otherwise, the documented validation or export diagnostic.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(text_component_value: &sand::text::TextComponent, profile: & sand::command::CommandProfile, path: impl Into < String >)  {\n    let validate_at_path = text_component_value.validate_at_path(profile, path);\n}",
+    )]
     pub fn validate_at_path(
         &self,
         profile: &CommandProfile,
@@ -1011,7 +1749,18 @@ impl Validate for TextComponent {
     }
 }
 
-#[doc = "**API Contract:** Run `sand api show sand::command::TextCommand` for the canonical contract."]
+#[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::command::TextCommand",
+    aliases = ["sand::cmd::TextCommand", "sand::prelude::cmd::TextCommand"],
+    module = "sand::command",
+    summary = "Structured `tellraw` command retaining its selector and text component.",
+    context = "Structured `tellraw` command retaining its selector and text component. This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
+    minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
+    use_when = ["Constructing Minecraft commands through Sand's typed command model"],
+    avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
+    example = "use sand::command::TextCommand;",
+)]
 /// Structured `tellraw` command retaining its selector and text component.
 #[derive(Debug, Clone)]
 pub struct TextCommand {
@@ -1021,7 +1770,21 @@ pub struct TextCommand {
 
 impl TextCommand {
     /// Builds a typed `tellraw` command for the selected entities and text component.
-    #[doc = "**API Contract:** Run `sand api show sand::command::TextCommand::tellraw` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::command::TextCommand::tellraw",
+        aliases = ["sand::cmd::TextCommand::tellraw", "sand::prelude::cmd::TextCommand::tellraw"],
+        module = "sand::command",
+        kind = "method",
+        summary = "Builds a typed `tellraw` command for the selected entities and text component.",
+        context = "Builds a typed `tellraw` command for the selected entities and text component. This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
+        minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
+        use_when = ["Constructing Minecraft commands through Sand's typed command model"],
+        avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
+        params(target = "`target` provides the entity, block, or command target used to build a typed `tellraw` command for the selected entities and text component.", text = "`text` provides the author-visible text value used to build a typed `tellraw` command for the selected entities and text component."),
+        returns = "A newly constructed `TextCommand` configured to build a typed `tellraw` command for the selected entities and text component.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(target: sand::command::Selector, text: sand::text::TextComponent)  {\n    let text_command = sand::command::TextCommand::tellraw(target, text);\n}",
+    )]
     pub fn tellraw(target: Selector, text: TextComponent) -> Self {
         Self { target, text }
     }

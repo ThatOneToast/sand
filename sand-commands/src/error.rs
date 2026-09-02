@@ -15,30 +15,51 @@ use thiserror::Error;
 
 /// A validation failure in a `sand-commands` `try_*` command helper.
 ///
-/// **API Contract:** Run `sand api show sand::command::CommandError` for the canonical contract.
+#[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::command::CommandError",
+    aliases = ["sand::cmd::CommandError", "sand::prelude::cmd::CommandError"],
+    module = "sand::command",
+    summary = "A validation failure in a `sand-commands` `try_*` command helper.",
+    context = "A validation failure in a `sand-commands` `try_*` command helper. This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
+    minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
+    use_when = ["Constructing Minecraft commands through Sand's typed command model"],
+    avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
+    example = "use sand::command::CommandError;",
+    fields(code = "Stable diagnostic category suitable for tests and tooling.", context = "Optional owner context added by composed commands or export.", field = "The parameter name that failed validation (e.g. `\"x\"`, `\"tag\"`).", helper = "The helper function that rejected its input (e.g. `\"tp\"`, `\"tag_add\"`).", message = "Human-readable explanation of the violated invariant."),
+)]
 #[derive(Debug, Clone, PartialEq, Error)]
 #[error("error[{code}] {helper}: invalid `{field}` — {message}{context}")]
 pub struct CommandError {
     /// Stable diagnostic category suitable for tests and tooling.
-    #[doc = "**API Contract:** Run `sand api show sand::command::CommandError::code` for the canonical contract."]
     pub code: String,
     /// The helper function that rejected its input (e.g. `"tp"`, `"tag_add"`).
-    #[doc = "**API Contract:** Run `sand api show sand::command::CommandError::helper` for the canonical contract."]
     pub helper: &'static str,
     /// The parameter name that failed validation (e.g. `"x"`, `"tag"`).
-    #[doc = "**API Contract:** Run `sand api show sand::command::CommandError::field` for the canonical contract."]
     pub field: String,
     /// Human-readable explanation of the violated invariant.
-    #[doc = "**API Contract:** Run `sand api show sand::command::CommandError::message` for the canonical contract."]
     pub message: String,
     /// Optional owner context added by composed commands or export.
-    #[doc = "**API Contract:** Run `sand api show sand::command::CommandError::context` for the canonical contract."]
     pub context: String,
 }
 
 impl CommandError {
     /// Constructs a validation error for one command helper input.
-    #[doc = "**API Contract:** Run `sand api show sand::command::CommandError::new` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::command::CommandError::new",
+        aliases = ["sand::cmd::CommandError::new", "sand::prelude::cmd::CommandError::new"],
+        module = "sand::command",
+        kind = "method",
+        summary = "Constructs a validation error for one command helper input.",
+        context = "Constructs a validation error for one command helper input. This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
+        minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
+        use_when = ["Constructing Minecraft commands through Sand's typed command model"],
+        avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
+        params(helper = "`helper` supplies the helper value used to construct a validation error for one command helper input.", field = "`field` supplies the field value used to construct a validation error for one command helper input.", message = "`message` provides the author-visible text value used to construct a validation error for one command helper input."),
+        returns = "A newly constructed `CommandError` configured to construct a validation error for one command helper input.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(helper: & 'static str, field: impl Into < String >, message: impl Into < String >)  {\n    let command_error = sand::command::CommandError::new(helper, field, message);\n}",
+    )]
     pub fn new(helper: &'static str, field: impl Into<String>, message: impl Into<String>) -> Self {
         let field = field.into();
         Self {
@@ -55,14 +76,42 @@ impl CommandError {
     }
 
     /// Override the stable diagnostic category.
-    #[doc = "**API Contract:** Run `sand api show sand::command::CommandError::with_code` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::command::CommandError::with_code",
+        aliases = ["sand::cmd::CommandError::with_code", "sand::prelude::cmd::CommandError::with_code"],
+        module = "sand::command",
+        kind = "method",
+        summary = "Override the stable diagnostic category.",
+        context = "Override the stable diagnostic category. This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
+        minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
+        use_when = ["Constructing Minecraft commands through Sand's typed command model"],
+        avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
+        params(code = "`code` supplies the code value used to override the stable diagnostic category."),
+        returns = "The `CommandError` value with the documented change applied to override the stable diagnostic category.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(command_error_value: sand::command::CommandError, code: impl Into < String >)  {\n    let updated_command_error = command_error_value.with_code(code);\n}",
+    )]
     pub fn with_code(mut self, code: impl Into<String>) -> Self {
         self.code = code.into();
         self
     }
 
     /// Add command/function context without discarding the original field error.
-    #[doc = "**API Contract:** Run `sand api show sand::command::CommandError::with_context` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::command::CommandError::with_context",
+        aliases = ["sand::cmd::CommandError::with_context", "sand::prelude::cmd::CommandError::with_context"],
+        module = "sand::command",
+        kind = "method",
+        summary = "Add command/function context without discarding the original field error.",
+        context = "Add command/function context without discarding the original field error. This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
+        minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
+        use_when = ["Constructing Minecraft commands through Sand's typed command model"],
+        avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
+        params(context = "`context` supplies the context value used to add command/function context without discarding the original field error."),
+        returns = "The `CommandError` value with the documented change applied to add command/function context without discarding the original field error.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(command_error_value: sand::command::CommandError, context: impl AsRef < str >)  {\n    let updated_command_error = command_error_value.with_context(context);\n}",
+    )]
     pub fn with_context(mut self, context: impl AsRef<str>) -> Self {
         self.context.push_str(&format!(" [{}]", context.as_ref()));
         self
@@ -88,5 +137,16 @@ fn diagnostic_fragment(value: &str) -> String {
 
 /// Convenience alias for `Result<T, CommandError>`.
 ///
-/// **API Contract:** Run `sand api show sand::command::CommandResult` for the canonical contract.
+#[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::command::CommandResult",
+    aliases = ["sand::cmd::CommandResult", "sand::prelude::cmd::CommandResult"],
+    module = "sand::command",
+    summary = "Convenience alias for `Result<T, CommandError>`.",
+    context = "Convenience alias for `Result<T, CommandError>`. This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
+    minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
+    use_when = ["Constructing Minecraft commands through Sand's typed command model"],
+    avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
+    example = "use sand::command::CommandResult;",
+)]
 pub type CommandResult<T> = std::result::Result<T, CommandError>;

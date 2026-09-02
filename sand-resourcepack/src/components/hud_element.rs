@@ -1,7 +1,19 @@
 use crate::component::{AssetOutput, ResourcePackComponent};
 use crate::components::font::{BitmapFont, BitmapProvider};
 
-#[doc = "**API Contract:** Run `sand api show sand::resourcepack::HudElement` for the canonical contract."]
+#[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::resourcepack::HudElement",
+    module = "sand::resourcepack",
+    summary = "A static single-character HUD overlay element. `HudElement` maps one unicode character to a single PNG texture, useful for fixed HUD graphics such as background frames, icons, or decorative overlays that do not change dynamically.",
+    context = "A static single-character HUD overlay element. `HudElement` maps one unicode character to a single PNG texture, useful for fixed HUD graphics such as background frames, icons, or decorative overlays that do not change dynamically. Use [`element_text_json`](sand::resourcepack::element_text_json) to get the JSON text component string for displaying the element in commands — no manual unicode handling needed. | File | Purpose | |---|---| | `assets/<ns>/font/<font_name>.json` | Registers the bitmap provider | | `assets/<ns>/textures/<texture_dest>.png` | The copied texture |",
+    minecraft = "Minecraft renders font characters at the cursor position. By combining a character with a negative advance width (defined in a `space` font provider), you can overlay multiple HUD layers at the same screen position. Use a negative `ascent` to push the character below the default baseline.",
+    use_when = ["Use [`element_text_json`](sand::resourcepack::element_text_json) to get the JSON text component string for displaying the element in commands — no manual unicode handling needed.", "Prefer the `hud_element!` macro over constructing this struct directly. Unicode codepoints are assigned automatically:"],
+    avoid_when = ["The project is datapack-only or needs unrelated resource-pack functionality not modeled by Sand"],
+    example = "use sand::resourcepack::HudElement;",
+    availability = ["Cargo feature: resourcepack"],
+    fields(ascent = "Vertical offset from the screen baseline to the top of the glyph.", font = "Name of the font file (without extension) this element belongs to.", height = "Rendered height of the character in pixels.", name = "Identifier used in diagnostics and auto-unicode derivation.", texture_dest = "Destination sub-path inside `assets/<namespace>/textures/` (without extension), e.g. `\"font/hotbar\"`.", texture_src = "Project-root-relative path to the source PNG. Example: `\"src/assets/hotbar.png\"`.", unicode = "Override the unicode codepoint for this element."),
+)]
 /// A static single-character HUD overlay element.
 ///
 /// `HudElement` maps one unicode character to a single PNG texture,
@@ -52,22 +64,18 @@ use crate::components::font::{BitmapFont, BitmapProvider};
 /// mcfunction! { format!("title @a actionbar {json}"); }
 /// ```
 pub struct HudElement {
-    #[doc = "**API Contract:** Run `sand api show sand::resourcepack::HudElement::name` for the canonical contract."]
     /// Identifier used in diagnostics and auto-unicode derivation.
     pub name: &'static str,
 
-    #[doc = "**API Contract:** Run `sand api show sand::resourcepack::HudElement::texture_src` for the canonical contract."]
     /// Project-root-relative path to the source PNG.
     ///
     /// Example: `"src/assets/hotbar.png"`.
     pub texture_src: &'static str,
 
-    #[doc = "**API Contract:** Run `sand api show sand::resourcepack::HudElement::texture_dest` for the canonical contract."]
     /// Destination sub-path inside `assets/<namespace>/textures/` (without
     /// extension), e.g. `"font/hotbar"`.
     pub texture_dest: &'static str,
 
-    #[doc = "**API Contract:** Run `sand api show sand::resourcepack::HudElement::unicode` for the canonical contract."]
     /// Override the unicode codepoint for this element.
     ///
     /// When `None` (the default when using the macro), the codepoint is
@@ -75,18 +83,15 @@ pub struct HudElement {
     /// when you need exact control over the codepoint assignment.
     pub unicode: Option<char>,
 
-    #[doc = "**API Contract:** Run `sand api show sand::resourcepack::HudElement::height` for the canonical contract."]
     /// Rendered height of the character in pixels.
     pub height: i32,
 
-    #[doc = "**API Contract:** Run `sand api show sand::resourcepack::HudElement::ascent` for the canonical contract."]
     /// Vertical offset from the screen baseline to the top of the glyph.
     ///
     /// Positive → above baseline. Negative → below baseline (useful for
     /// overlays beneath the default GUI layer).
     pub ascent: i32,
 
-    #[doc = "**API Contract:** Run `sand api show sand::resourcepack::HudElement::font` for the canonical contract."]
     /// Name of the font file (without extension) this element belongs to.
     ///
     /// Defaults to `"default"` when built via the macro.

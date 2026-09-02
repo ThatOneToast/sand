@@ -3,27 +3,82 @@
 
 use std::fmt;
 
-#[doc = "**API Contract:** Run `sand api show sand::entity::AnyEntity` for the canonical contract."]
+#[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::entity::AnyEntity",
+    aliases = ["sand::prelude::AnyEntity"],
+    module = "sand::entity",
+    summary = "Marker for an \"any entity\" (`@e`-rooted) query/context kind.",
+    context = "Marker for an \"any entity\" (`@e`-rooted) query/context kind. This declaration belongs to Sand's typed entity model. Semantic definitions are public; selector rendering, validation bookkeeping, and compiler lowering remain internal.",
+    minecraft = "Sand validates this definition and lowers it to entity-scoped selectors, scoreboards, NBT operations, and generated lifecycle functions as required.",
+    use_when = ["Defining or using typed entity behavior in a Sand datapack"],
+    avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
+    example = "use sand::entity::AnyEntity;",
+)]
 /// Marker for an "any entity" (`@e`-rooted) query/context kind.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub struct AnyEntity;
 
-#[doc = "**API Contract:** Run `sand api show sand::entity::PlayerKind` for the canonical contract."]
+#[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::entity::PlayerKind",
+    aliases = ["sand::prelude::PlayerKind"],
+    module = "sand::entity",
+    summary = "Marker for a player-only (`@a`-rooted) query/context kind.",
+    context = "Marker for a player-only (`@a`-rooted) query/context kind. This declaration belongs to Sand's typed entity model. Semantic definitions are public; selector rendering, validation bookkeeping, and compiler lowering remain internal.",
+    minecraft = "Sand validates this definition and lowers it to entity-scoped selectors, scoreboards, NBT operations, and generated lifecycle functions as required.",
+    use_when = ["Defining or using typed entity behavior in a Sand datapack"],
+    avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
+    example = "use sand::entity::PlayerKind;",
+)]
 /// Marker for a player-only (`@a`-rooted) query/context kind.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub struct PlayerKind;
 
-#[doc = "**API Contract:** Run `sand api show sand::entity::ZombieKind` for the canonical contract."]
+#[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::entity::ZombieKind",
+    aliases = ["sand::prelude::ZombieKind"],
+    module = "sand::entity",
+    summary = "Marker for a typed vanilla Zombie.",
+    context = "Marker for a typed vanilla Zombie. This declaration belongs to Sand's typed entity model. Semantic definitions are public; selector rendering, validation bookkeeping, and compiler lowering remain internal.",
+    minecraft = "Sand validates this definition and lowers it to entity-scoped selectors, scoreboards, NBT operations, and generated lifecycle functions as required.",
+    use_when = ["Defining or using typed entity behavior in a Sand datapack"],
+    avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
+    example = "use sand::entity::ZombieKind;",
+)]
 /// Marker for a typed vanilla Zombie.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub struct ZombieKind;
 
-#[doc = "**API Contract:** Run `sand api show sand::entity::MarkerKind` for the canonical contract."]
+#[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::entity::MarkerKind",
+    aliases = ["sand::prelude::MarkerKind"],
+    module = "sand::entity",
+    summary = "Marker for a typed vanilla marker entity.",
+    context = "Marker for a typed vanilla marker entity. This declaration belongs to Sand's typed entity model. Semantic definitions are public; selector rendering, validation bookkeeping, and compiler lowering remain internal.",
+    minecraft = "Sand validates this definition and lowers it to entity-scoped selectors, scoreboards, NBT operations, and generated lifecycle functions as required.",
+    use_when = ["Defining or using typed entity behavior in a Sand datapack"],
+    avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
+    example = "use sand::entity::MarkerKind;",
+)]
 /// Marker for a typed vanilla marker entity.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub struct MarkerKind;
 
-#[doc = "**API Contract:** Run `sand api show sand::entity::EntityKind` for the canonical contract."]
+#[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::entity::EntityKind",
+    aliases = ["sand::prelude::EntityKind"],
+    module = "sand::entity",
+    summary = "A query/context entity kind. Sealed: only [`AnyEntity`] and [`PlayerKind`] implement it today. Capability-specific kinds (living entities, individual mob types) are follow-up work — see issue #228, which builds entity operations and blueprints on top of this foundation.",
+    context = "A query/context entity kind. Sealed: only [`AnyEntity`] and [`PlayerKind`] implement it today. Capability-specific kinds (living entities, individual mob types) are follow-up work — see issue #228, which builds entity operations and blueprints on top of this foundation. This declaration belongs to Sand's typed entity model. Semantic definitions are public; selector rendering, validation bookkeeping, and compiler lowering remain internal.",
+    minecraft = "Sand validates this definition and lowers it to entity-scoped selectors, scoreboards, NBT operations, and generated lifecycle functions as required.",
+    use_when = ["Defining or using typed entity behavior in a Sand datapack"],
+    avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
+    example = "use sand::entity::EntityKind;",
+)]
 /// A query/context entity kind.
 ///
 /// Sealed: only [`AnyEntity`] and [`PlayerKind`] implement it today.
@@ -31,7 +86,19 @@ pub struct MarkerKind;
 /// follow-up work — see issue #228, which builds entity operations and
 /// blueprints on top of this foundation.
 pub trait EntityKind: sealed::Sealed + fmt::Debug + Clone + Copy + Default + 'static {
-    #[doc = "**API Contract:** Run `sand api show sand::entity::EntityKind::LABEL` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::entity::EntityKind::LABEL",
+        aliases = ["sand::prelude::EntityKind::LABEL"],
+        module = "sand::entity",
+        kind = "associated_const",
+        summary = "Short label used in generated function paths and diagnostics.",
+        context = "Short label used in generated function paths and diagnostics. This declaration belongs to Sand's typed entity model. Semantic definitions are public; selector rendering, validation bookkeeping, and compiler lowering remain internal.",
+        minecraft = "Sand validates this definition and lowers it to entity-scoped selectors, scoreboards, NBT operations, and generated lifecycle functions as required.",
+        use_when = ["Defining or using typed entity behavior in a Sand datapack"],
+        avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
+        example = "use sand::entity::EntityKind;",
+    )]
     /// Short label used in generated function paths and diagnostics.
     const LABEL: &'static str;
 }
@@ -52,14 +119,37 @@ impl EntityKind for MarkerKind {
     const LABEL: &'static str = "marker";
 }
 
-#[doc = "**API Contract:** Run `sand api show sand::entity::KnownEntityKind` for the canonical contract."]
+#[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::entity::KnownEntityKind",
+    aliases = ["sand::prelude::KnownEntityKind"],
+    module = "sand::entity",
+    summary = "An entity kind with one statically known vanilla/custom entity type.",
+    context = "An entity kind with one statically known vanilla/custom entity type. Archetypes require this stronger bound because their adoption selector and summon command must have a concrete typed entity type.",
+    minecraft = "Archetypes require this stronger bound because their adoption selector and summon command must have a concrete typed entity type.",
+    use_when = ["Defining or using typed entity behavior in a Sand datapack"],
+    avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
+    example = "use sand::entity::KnownEntityKind;",
+)]
 /// An entity kind with one statically known vanilla/custom entity type.
 ///
 /// Archetypes require this stronger bound because their adoption selector and
 /// summon command must have a concrete typed entity type.
 pub trait KnownEntityKind: EntityKind {
     /// Validated entity type used by summon/adoption lowering.
-    #[doc = "**API Contract:** Run `sand api show sand::entity::KnownEntityKind::entity_type` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::entity::KnownEntityKind::entity_type",
+        aliases = ["sand::prelude::KnownEntityKind::entity_type"],
+        module = "sand::entity",
+        summary = "Validated entity type used by summon/adoption lowering.",
+        context = "Validated entity type used by summon/adoption lowering. This declaration belongs to Sand's typed entity model. Semantic definitions are public; selector rendering, validation bookkeeping, and compiler lowering remain internal.",
+        minecraft = "Sand validates this definition and lowers it to entity-scoped selectors, scoreboards, NBT operations, and generated lifecycle functions as required.",
+        use_when = ["Defining or using typed entity behavior in a Sand datapack"],
+        avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
+        returns = "The `sand :: registry :: EntityTypeId` value produced to use validated entity type used by summon/adoption lowering.",
+        example = "use sand::prelude::*;\n\nfn demonstrate<T: sand::entity::KnownEntityKind>()  {\n    let entity_type = <T as sand::entity::KnownEntityKind>::entity_type();\n}",
+    )]
     fn entity_type() -> sand_components::EntityTypeId;
 }
 
@@ -84,7 +174,18 @@ impl KnownEntityKind for MarkerKind {
     }
 }
 
-#[doc = "**API Contract:** Run `sand api show sand::entity::LivingEntityKind` for the canonical contract."]
+#[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::entity::LivingEntityKind",
+    aliases = ["sand::prelude::LivingEntityKind"],
+    module = "sand::entity",
+    summary = "Capability implemented by living entities, including players.",
+    context = "Capability implemented by living entities, including players. This enables typed health observation, effects, damage, and safe player-specific operations. Direct arbitrary entity-NBT writes require the narrower [`MutableLivingEntityKind`] capability.",
+    minecraft = "This enables typed health observation, effects, damage, and safe player-specific operations. Direct arbitrary entity-NBT writes require the narrower [`MutableLivingEntityKind`] capability.",
+    use_when = ["Defining or using typed entity behavior in a Sand datapack"],
+    avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
+    example = "use sand::entity::LivingEntityKind;",
+)]
 /// Capability implemented by living entities, including players.
 ///
 /// This enables typed health observation, effects, damage, and safe
@@ -95,7 +196,18 @@ pub trait LivingEntityKind: KnownEntityKind + sealed::Living {}
 impl LivingEntityKind for PlayerKind {}
 impl LivingEntityKind for ZombieKind {}
 
-#[doc = "**API Contract:** Run `sand api show sand::entity::MutableLivingEntityKind` for the canonical contract."]
+#[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::entity::MutableLivingEntityKind",
+    aliases = ["sand::prelude::MutableLivingEntityKind"],
+    module = "sand::entity",
+    summary = "A non-player living entity whose native data and attributes may be mutated.",
+    context = "A non-player living entity whose native data and attributes may be mutated. `PlayerKind` intentionally does not implement this trait, structurally preventing archetype health/attribute/equipment lowering from emitting unsafe player entity-NBT commands.",
+    minecraft = "`PlayerKind` intentionally does not implement this trait, structurally preventing archetype health/attribute/equipment lowering from emitting unsafe player entity-NBT commands.",
+    use_when = ["Defining or using typed entity behavior in a Sand datapack"],
+    avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
+    example = "use sand::entity::MutableLivingEntityKind;",
+)]
 /// A non-player living entity whose native data and attributes may be mutated.
 ///
 /// `PlayerKind` intentionally does not implement this trait, structurally
@@ -105,7 +217,18 @@ pub trait MutableLivingEntityKind: LivingEntityKind + sealed::MutableLiving {}
 
 impl MutableLivingEntityKind for ZombieKind {}
 
-#[doc = "**API Contract:** Run `sand api show sand::entity::SafeEntityDataWriteKind` for the canonical contract."]
+#[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::entity::SafeEntityDataWriteKind",
+    aliases = ["sand::prelude::SafeEntityDataWriteKind"],
+    module = "sand::entity",
+    summary = "A non-player entity kind that permits stable typed entity-NBT writes.",
+    context = "A non-player entity kind that permits stable typed entity-NBT writes. This capability is intentionally absent from [`PlayerKind`].",
+    minecraft = "Sand validates this definition and lowers it to entity-scoped selectors, scoreboards, NBT operations, and generated lifecycle functions as required.",
+    use_when = ["Defining or using typed entity behavior in a Sand datapack"],
+    avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
+    example = "use sand::entity::SafeEntityDataWriteKind;",
+)]
 /// A non-player entity kind that permits stable typed entity-NBT writes.
 ///
 /// This capability is intentionally absent from [`PlayerKind`].

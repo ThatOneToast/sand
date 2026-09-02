@@ -8,7 +8,18 @@
 //! instead, the same way [`ItemSnapshot`](crate::item::ItemSnapshot)'s
 //! module doc documents its own (execution-scoped) lifetime.
 
-#[doc = "**API Contract:** Run `sand api show sand::participant::ParticipantLifetime` for the canonical contract."]
+#[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::participant::ParticipantLifetime",
+    module = "sand::participant",
+    summary = "How long a participant reference remains valid, in terms of generated command execution rather than Rust scoping.",
+    context = "How long a participant reference remains valid, in terms of generated command execution rather than Rust scoping. Declared narrowest-first so the derived [`Ord`] doubles as a \"how long does this reference stay meaningful\" ordering: `captured.covers(needed)` is `captured >= needed`.",
+    minecraft = "Entity relationships use the matching execute relation, while item snapshots are copied into Sand-owned command storage and cleaned up at the end of their declared lifetime.",
+    use_when = ["Declaring or reading a typed participant whose lifecycle is guaranteed by the event plan"],
+    avoid_when = ["Assuming an entity or item remains live beyond its declared invocation, event-cycle, or bounded correlation lifetime"],
+    example = "use sand::participant::ParticipantLifetime;",
+    variants(BoundedWindow = "Valid across multiple event cycles, for exactly as long as a bounded `.within(...)` correlation window remains unexpired (#272) — wider than [`EventCycle`](Self::EventCycle) (which covers only the single pass that captured it) but still an explicit, bounded, Sand-managed lifetime, never silently promoted to an unbounded/durable one. Backs [`sand::participant::EventParticipantPlan::inherit_item_within`]'s generated per-subject storage: valid from the source occurrence that wrote it until either the window elapses or the source fires again (replacing it) — see that method's doc for the exact contract.", EventCycle = "Valid for the current event-cycle coordinator pass (e.g. a bounded `.within(...)` window's tracked state) — not a Rust-owned value, and not the same as a snapshot the user has explicitly copied into their own durable storage.", Invocation = "Valid only within the generated function call that captured/bound it — e.g. `@s` inside the handler body that receives it directly.", SynchronousDescendants = "Valid through the capturing invocation and any same-cycle synchronous descendant graph calls it makes (direct handlers, and same-cycle chained children reached from within that call tree). This is the lifetime [`ItemSnapshot::capture`](sand::item::ItemSnapshot::capture) documents for its own storage-backed captures."),
+)]
 /// How long a participant reference remains valid, in terms of generated
 /// command execution rather than Rust scoping.
 ///
@@ -17,24 +28,20 @@
 /// `captured.covers(needed)` is `captured >= needed`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum ParticipantLifetime {
-    #[doc = "**API Contract:** Run `sand api show sand::participant::ParticipantLifetime::Invocation` for the canonical contract."]
     /// Valid only within the generated function call that captured/bound
     /// it — e.g. `@s` inside the handler body that receives it directly.
     Invocation,
-    #[doc = "**API Contract:** Run `sand api show sand::participant::ParticipantLifetime::SynchronousDescendants` for the canonical contract."]
     /// Valid through the capturing invocation and any same-cycle
     /// synchronous descendant graph calls it makes (direct handlers, and
     /// same-cycle chained children reached from within that call tree).
     /// This is the lifetime [`ItemSnapshot::capture`](crate::item::ItemSnapshot::capture)
     /// documents for its own storage-backed captures.
     SynchronousDescendants,
-    #[doc = "**API Contract:** Run `sand api show sand::participant::ParticipantLifetime::EventCycle` for the canonical contract."]
     /// Valid for the current event-cycle coordinator pass (e.g. a bounded
     /// `.within(...)` window's tracked state) — not a Rust-owned value, and
     /// not the same as a snapshot the user has explicitly copied into their
     /// own durable storage.
     EventCycle,
-    #[doc = "**API Contract:** Run `sand api show sand::participant::ParticipantLifetime::BoundedWindow` for the canonical contract."]
     /// Valid across multiple event cycles, for exactly as long as a bounded
     /// `.within(...)` correlation window remains unexpired (#272) — wider
     /// than [`EventCycle`](Self::EventCycle) (which covers only the single
@@ -56,7 +63,20 @@ impl ParticipantLifetime {
     /// [`SynchronousDescendants`](Self::SynchronousDescendants) — it never
     /// promised to survive a descendant call. A reference captured at
     /// [`EventCycle`](Self::EventCycle) covers any narrower use.
-    #[doc = "**API Contract:** Run `sand api show sand::participant::ParticipantLifetime::covers` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::participant::ParticipantLifetime::covers",
+        module = "sand::participant",
+        kind = "method",
+        summary = "Whether a reference captured with `self` lifetime remains valid for a use that needs `needed`.",
+        context = "Whether a reference captured with `self` lifetime remains valid for a use that needs `needed`. A reference captured at [`Invocation`](Self::Invocation) does not cover a use that needs [`SynchronousDescendants`](Self::SynchronousDescendants) — it never promised to survive a descendant call. A reference captured at [`EventCycle`](Self::EventCycle) covers any narrower use.",
+        minecraft = "Entity relationships use the matching execute relation, while item snapshots are copied into Sand-owned command storage and cleaned up at the end of their declared lifetime.",
+        use_when = ["Declaring or reading a typed participant whose lifecycle is guaranteed by the event plan"],
+        avoid_when = ["Assuming an entity or item remains live beyond its declared invocation, event-cycle, or bounded correlation lifetime"],
+        params(needed = "Whether a reference captured with `self` lifetime remains valid for a use that needs `needed`."),
+        returns = "`true` when the documented condition holds to determine whether a reference captured with `self` lifetime remains valid for a use that needs `needed`; otherwise `false`.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(participant_lifetime_value: sand::participant::ParticipantLifetime, needed: sand::participant::ParticipantLifetime)  {\n    let is_covers = participant_lifetime_value.covers(needed);\n}",
+    )]
     pub fn covers(self, needed: ParticipantLifetime) -> bool {
         self >= needed
     }

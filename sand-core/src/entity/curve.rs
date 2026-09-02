@@ -40,11 +40,33 @@ use thiserror::Error;
 
 use super::{EntityDiagnostic, EntityStateField};
 
-#[doc = "**API Contract:** Run `sand api show sand::entity::DEFAULT_FIXED_POINT_SCALE` for the canonical contract."]
+#[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::entity::DEFAULT_FIXED_POINT_SCALE",
+    aliases = ["sand::prelude::DEFAULT_FIXED_POINT_SCALE"],
+    module = "sand::entity",
+    summary = "Default number of fixed-point units in one whole value.",
+    context = "Default number of fixed-point units in one whole value. This declaration belongs to Sand's typed entity model. Semantic definitions are public; selector rendering, validation bookkeeping, and compiler lowering remain internal.",
+    minecraft = "Sand validates this definition and lowers it to entity-scoped selectors, scoreboards, NBT operations, and generated lifecycle functions as required.",
+    use_when = ["Defining or using typed entity behavior in a Sand datapack"],
+    avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
+    example = "use sand::entity::DEFAULT_FIXED_POINT_SCALE;",
+)]
 /// Default number of fixed-point units in one whole value.
 pub const DEFAULT_FIXED_POINT_SCALE: i64 = 1_000;
 
-#[doc = "**API Contract:** Run `sand api show sand::entity::FixedPoint` for the canonical contract."]
+#[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::entity::FixedPoint",
+    aliases = ["sand::prelude::FixedPoint"],
+    module = "sand::entity",
+    summary = "Fixed-point representation settings used by a curve.",
+    context = "Fixed-point representation settings used by a curve. This declaration belongs to Sand's typed entity model. Semantic definitions are public; selector rendering, validation bookkeeping, and compiler lowering remain internal.",
+    minecraft = "Sand validates this definition and lowers it to entity-scoped selectors, scoreboards, NBT operations, and generated lifecycle functions as required.",
+    use_when = ["Defining or using typed entity behavior in a Sand datapack"],
+    avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
+    example = "use sand::entity::FixedPoint;",
+)]
 /// Fixed-point representation settings used by a curve.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct FixedPoint {
@@ -68,7 +90,21 @@ impl FixedPoint {
     ///
     /// A scale of `1000` stores three decimal places. A zero or negative scale
     /// returns an [`EntityDiagnostic::InvalidRange`] before export.
-    #[doc = "**API Contract:** Run `sand api show sand::entity::FixedPoint::new` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::entity::FixedPoint::new",
+        aliases = ["sand::prelude::FixedPoint::new"],
+        module = "sand::entity",
+        kind = "method",
+        summary = "Creates settings with a positive scale. A scale of `1000` stores three decimal places. A zero or negative scale returns an [`EntityDiagnostic::InvalidRange`] before export.",
+        context = "Creates settings with a positive scale. A scale of `1000` stores three decimal places. A zero or negative scale returns an [`EntityDiagnostic::InvalidRange`] before export. This declaration belongs to Sand's typed entity model. Semantic definitions are public; selector rendering, validation bookkeeping, and compiler lowering remain internal.",
+        minecraft = "A scale of `1000` stores three decimal places. A zero or negative scale returns an [`EntityDiagnostic::InvalidRange`] before export.",
+        use_when = ["Defining or using typed entity behavior in a Sand datapack"],
+        avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
+        params(scale = "`scale` supplies the scale value used to create settings with a positive scale. A scale of `1000` stores three decimal places. A zero or negative scale returns an [`EntityDiagnostic::InvalidRange`] before export.", rounding = "`rounding` supplies the rounding value used to create settings with a positive scale. A scale of `1000` stores three decimal places. A zero or negative scale returns an [`EntityDiagnostic::InvalidRange`] before export.", overflow = "`overflow` supplies the overflow value used to create settings with a positive scale. A scale of `1000` stores three decimal places. A zero or negative scale returns an [`EntityDiagnostic::InvalidRange`] before export."),
+        returns = "A scale of `1000` stores three decimal places. A zero or negative scale returns an [`EntityDiagnostic::InvalidRange`] before export.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(scale: i64, rounding: sand::entity::RoundingPolicy, overflow: sand::entity::OverflowPolicy)  {\n    let fixed_point_result = sand::entity::FixedPoint::new(scale, rounding, overflow);\n}",
+    )]
     pub fn new(
         scale: i64,
         rounding: RoundingPolicy,
@@ -89,21 +125,60 @@ impl FixedPoint {
     }
 
     /// Returns the number of stored units representing `1.0`.
-    #[doc = "**API Contract:** Run `sand api show sand::entity::FixedPoint::scale` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::entity::FixedPoint::scale",
+        aliases = ["sand::prelude::FixedPoint::scale"],
+        module = "sand::entity",
+        kind = "method",
+        summary = "Returns the number of stored units representing `1.0`.",
+        context = "Returns the number of stored units representing `1.0`. This declaration belongs to Sand's typed entity model. Semantic definitions are public; selector rendering, validation bookkeeping, and compiler lowering remain internal.",
+        minecraft = "Sand validates this definition and lowers it to entity-scoped selectors, scoreboards, NBT operations, and generated lifecycle functions as required.",
+        use_when = ["Defining or using typed entity behavior in a Sand datapack"],
+        avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
+        returns = "Returns the number of stored units representing `1.0`.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(fixed_point_value: sand::entity::FixedPoint)  {\n    let scale = fixed_point_value.scale();\n}",
+    )]
     #[must_use]
     pub const fn scale(self) -> i64 {
         self.scale
     }
 
     /// Returns the rounding rule for lossy operations.
-    #[doc = "**API Contract:** Run `sand api show sand::entity::FixedPoint::rounding` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::entity::FixedPoint::rounding",
+        aliases = ["sand::prelude::FixedPoint::rounding"],
+        module = "sand::entity",
+        kind = "method",
+        summary = "Returns the rounding rule for lossy operations.",
+        context = "Returns the rounding rule for lossy operations. This declaration belongs to Sand's typed entity model. Semantic definitions are public; selector rendering, validation bookkeeping, and compiler lowering remain internal.",
+        minecraft = "Sand validates this definition and lowers it to entity-scoped selectors, scoreboards, NBT operations, and generated lifecycle functions as required.",
+        use_when = ["Defining or using typed entity behavior in a Sand datapack"],
+        avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
+        returns = "Returns the rounding rule for lossy operations.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(fixed_point_value: sand::entity::FixedPoint)  {\n    let rounding = fixed_point_value.rounding();\n}",
+    )]
     #[must_use]
     pub const fn rounding(self) -> RoundingPolicy {
         self.rounding
     }
 
     /// Returns the overflow behavior for conversion and arithmetic.
-    #[doc = "**API Contract:** Run `sand api show sand::entity::FixedPoint::overflow` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::entity::FixedPoint::overflow",
+        aliases = ["sand::prelude::FixedPoint::overflow"],
+        module = "sand::entity",
+        kind = "method",
+        summary = "Returns the overflow behavior for conversion and arithmetic.",
+        context = "Returns the overflow behavior for conversion and arithmetic. This declaration belongs to Sand's typed entity model. Semantic definitions are public; selector rendering, validation bookkeeping, and compiler lowering remain internal.",
+        minecraft = "Sand validates this definition and lowers it to entity-scoped selectors, scoreboards, NBT operations, and generated lifecycle functions as required.",
+        use_when = ["Defining or using typed entity behavior in a Sand datapack"],
+        avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
+        returns = "Returns the overflow behavior for conversion and arithmetic.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(fixed_point_value: sand::entity::FixedPoint)  {\n    let overflow = fixed_point_value.overflow();\n}",
+    )]
     #[must_use]
     pub const fn overflow(self) -> OverflowPolicy {
         self.overflow
@@ -113,7 +188,21 @@ impl FixedPoint {
     ///
     /// Floating point is accepted only at definition time. Runtime evaluation
     /// and generated Minecraft arithmetic use the resulting integer.
-    #[doc = "**API Contract:** Run `sand api show sand::entity::FixedPoint::encode` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::entity::FixedPoint::encode",
+        aliases = ["sand::prelude::FixedPoint::encode"],
+        module = "sand::entity",
+        kind = "method",
+        summary = "Converts a finite host value into deterministic fixed-point units.",
+        context = "Converts a finite host value into deterministic fixed-point units. Floating point is accepted only at definition time. Runtime evaluation and generated Minecraft arithmetic use the resulting integer.",
+        minecraft = "Floating point is accepted only at definition time. Runtime evaluation and generated Minecraft arithmetic use the resulting integer.",
+        use_when = ["Defining or using typed entity behavior in a Sand datapack"],
+        avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
+        params(value = "`value` provides the value being applied or compared used to convert a finite host value into deterministic fixed-point units.", archetype = "`archetype` provides the entity archetype supplying the property used to convert a finite host value into deterministic fixed-point units.", derivation = "`derivation` provides the derived-stat selector used to convert a finite host value into deterministic fixed-point units."),
+        returns = "On success, the value produced to convert a finite host value into deterministic fixed-point units; otherwise, the documented validation or export diagnostic.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(fixed_point_value: sand::entity::FixedPoint, value: f64, archetype: & str, derivation: & str)  {\n    let encode = fixed_point_value.encode(value, archetype, derivation);\n}",
+    )]
     pub fn encode(
         self,
         value: f64,
@@ -142,7 +231,21 @@ impl FixedPoint {
     }
 
     /// Converts a whole scoreboard value to fixed-point units.
-    #[doc = "**API Contract:** Run `sand api show sand::entity::FixedPoint::encode_score` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::entity::FixedPoint::encode_score",
+        aliases = ["sand::prelude::FixedPoint::encode_score"],
+        module = "sand::entity",
+        kind = "method",
+        summary = "Converts a whole scoreboard value to fixed-point units.",
+        context = "Converts a whole scoreboard value to fixed-point units. This declaration belongs to Sand's typed entity model. Semantic definitions are public; selector rendering, validation bookkeeping, and compiler lowering remain internal.",
+        minecraft = "Sand validates this definition and lowers it to entity-scoped selectors, scoreboards, NBT operations, and generated lifecycle functions as required.",
+        use_when = ["Defining or using typed entity behavior in a Sand datapack"],
+        avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
+        params(value = "`value` provides the value being applied or compared used to convert a whole scoreboard value to fixed-point units.", archetype = "`archetype` provides the entity archetype supplying the property used to convert a whole scoreboard value to fixed-point units.", derivation = "`derivation` provides the derived-stat selector used to convert a whole scoreboard value to fixed-point units."),
+        returns = "On success, the value produced to convert a whole scoreboard value to fixed-point units; otherwise, the documented validation or export diagnostic.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(fixed_point_value: sand::entity::FixedPoint, value: i64, archetype: & str, derivation: & str)  {\n    let encode_score = fixed_point_value.encode_score(value, archetype, derivation);\n}",
+    )]
     pub fn encode_score(
         self,
         value: i64,
@@ -159,7 +262,21 @@ impl FixedPoint {
     }
 
     /// Converts fixed-point units to a whole scoreboard value.
-    #[doc = "**API Contract:** Run `sand api show sand::entity::FixedPoint::decode_score` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::entity::FixedPoint::decode_score",
+        aliases = ["sand::prelude::FixedPoint::decode_score"],
+        module = "sand::entity",
+        kind = "method",
+        summary = "Converts fixed-point units to a whole scoreboard value.",
+        context = "Converts fixed-point units to a whole scoreboard value. This declaration belongs to Sand's typed entity model. Semantic definitions are public; selector rendering, validation bookkeeping, and compiler lowering remain internal.",
+        minecraft = "Sand validates this definition and lowers it to entity-scoped selectors, scoreboards, NBT operations, and generated lifecycle functions as required.",
+        use_when = ["Defining or using typed entity behavior in a Sand datapack"],
+        avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
+        params(value = "`value` provides the value being applied or compared used to convert fixed-point units to a whole scoreboard value.", archetype = "`archetype` provides the entity archetype supplying the property used to convert fixed-point units to a whole scoreboard value.", derivation = "`derivation` provides the derived-stat selector used to convert fixed-point units to a whole scoreboard value."),
+        returns = "On success, the value produced to convert fixed-point units to a whole scoreboard value; otherwise, the documented validation or export diagnostic.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(fixed_point_value: sand::entity::FixedPoint, value: sand::entity::FixedValue, archetype: & str, derivation: & str)  {\n    let decode_score = fixed_point_value.decode_score(value, archetype, derivation);\n}",
+    )]
     pub fn decode_score(
         self,
         value: FixedValue,
@@ -178,43 +295,71 @@ impl FixedPoint {
     }
 }
 
-#[doc = "**API Contract:** Run `sand api show sand::entity::RoundingPolicy` for the canonical contract."]
+#[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::entity::RoundingPolicy",
+    aliases = ["sand::prelude::RoundingPolicy"],
+    module = "sand::entity",
+    summary = "Rounding applied when fixed-point multiplication or division loses a fractional remainder.",
+    context = "Rounding applied when fixed-point multiplication or division loses a fractional remainder. This declaration belongs to Sand's typed entity model. Semantic definitions are public; selector rendering, validation bookkeeping, and compiler lowering remain internal.",
+    minecraft = "Sand validates this definition and lowers it to entity-scoped selectors, scoreboards, NBT operations, and generated lifecycle functions as required.",
+    use_when = ["Defining or using typed entity behavior in a Sand datapack"],
+    avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
+    example = "use sand::entity::RoundingPolicy;",
+    variants(Ceiling = "Round toward positive infinity.", Floor = "Round toward negative infinity.", NearestTiesAwayFromZero = "Round to the nearest integer, with exact halves away from zero.", NearestTiesToEven = "Round to the nearest integer, with exact halves to an even integer.", TowardZero = "Discard the remainder toward zero."),
+)]
 /// Rounding applied when fixed-point multiplication or division loses a
 /// fractional remainder.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[non_exhaustive]
 pub enum RoundingPolicy {
-    #[doc = "**API Contract:** Run `sand api show sand::entity::RoundingPolicy::TowardZero` for the canonical contract."]
     /// Discard the remainder toward zero.
     TowardZero,
-    #[doc = "**API Contract:** Run `sand api show sand::entity::RoundingPolicy::Floor` for the canonical contract."]
     /// Round toward negative infinity.
     Floor,
-    #[doc = "**API Contract:** Run `sand api show sand::entity::RoundingPolicy::Ceiling` for the canonical contract."]
     /// Round toward positive infinity.
     Ceiling,
-    #[doc = "**API Contract:** Run `sand api show sand::entity::RoundingPolicy::NearestTiesAwayFromZero` for the canonical contract."]
     /// Round to the nearest integer, with exact halves away from zero.
     NearestTiesAwayFromZero,
-    #[doc = "**API Contract:** Run `sand api show sand::entity::RoundingPolicy::NearestTiesToEven` for the canonical contract."]
     /// Round to the nearest integer, with exact halves to an even integer.
     NearestTiesToEven,
 }
 
-#[doc = "**API Contract:** Run `sand api show sand::entity::OverflowPolicy` for the canonical contract."]
+#[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::entity::OverflowPolicy",
+    aliases = ["sand::prelude::OverflowPolicy"],
+    module = "sand::entity",
+    summary = "Behavior when a fixed-point result does not fit in a signed 64-bit value.",
+    context = "Behavior when a fixed-point result does not fit in a signed 64-bit value. This declaration belongs to Sand's typed entity model. Semantic definitions are public; selector rendering, validation bookkeeping, and compiler lowering remain internal.",
+    minecraft = "Sand validates this definition and lowers it to entity-scoped selectors, scoreboards, NBT operations, and generated lifecycle functions as required.",
+    use_when = ["Defining or using typed entity behavior in a Sand datapack"],
+    avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
+    example = "use sand::entity::OverflowPolicy;",
+    variants(Error = "Stop validation/evaluation with a structured diagnostic.", Saturate = "Clamp the result to [`i64::MIN`] or [`i64::MAX`]."),
+)]
 /// Behavior when a fixed-point result does not fit in a signed 64-bit value.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[non_exhaustive]
 pub enum OverflowPolicy {
-    #[doc = "**API Contract:** Run `sand api show sand::entity::OverflowPolicy::Error` for the canonical contract."]
     /// Stop validation/evaluation with a structured diagnostic.
     Error,
-    #[doc = "**API Contract:** Run `sand api show sand::entity::OverflowPolicy::Saturate` for the canonical contract."]
     /// Clamp the result to [`i64::MIN`] or [`i64::MAX`].
     Saturate,
 }
 
-#[doc = "**API Contract:** Run `sand api show sand::entity::FixedValue` for the canonical contract."]
+#[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::entity::FixedValue",
+    aliases = ["sand::prelude::FixedValue"],
+    module = "sand::entity",
+    summary = "A signed fixed-point value. The scale is supplied by [`FixedPoint`]. Keeping the raw representation explicit prevents accidental interchange with whole scoreboard values.",
+    context = "A signed fixed-point value. The scale is supplied by [`FixedPoint`]. Keeping the raw representation explicit prevents accidental interchange with whole scoreboard values. This declaration belongs to Sand's typed entity model. Semantic definitions are public; selector rendering, validation bookkeeping, and compiler lowering remain internal.",
+    minecraft = "The scale is supplied by [`FixedPoint`]. Keeping the raw representation explicit prevents accidental interchange with whole scoreboard values.",
+    use_when = ["Defining or using typed entity behavior in a Sand datapack"],
+    avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
+    example = "use sand::entity::FixedValue;",
+)]
 /// A signed fixed-point value.
 ///
 /// The scale is supplied by [`FixedPoint`]. Keeping the raw representation
@@ -224,14 +369,41 @@ pub struct FixedValue(i64);
 
 impl FixedValue {
     /// Creates a value from already-scaled integer units.
-    #[doc = "**API Contract:** Run `sand api show sand::entity::FixedValue::from_units` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::entity::FixedValue::from_units",
+        aliases = ["sand::prelude::FixedValue::from_units"],
+        module = "sand::entity",
+        kind = "method",
+        summary = "Creates a value from already-scaled integer units.",
+        context = "Creates a value from already-scaled integer units. This declaration belongs to Sand's typed entity model. Semantic definitions are public; selector rendering, validation bookkeeping, and compiler lowering remain internal.",
+        minecraft = "Sand validates this definition and lowers it to entity-scoped selectors, scoreboards, NBT operations, and generated lifecycle functions as required.",
+        use_when = ["Defining or using typed entity behavior in a Sand datapack"],
+        avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
+        params(units = "`units` supplies the units value used to create a value from already-scaled integer units."),
+        returns = "A newly constructed `FixedValue` configured to create a value from already-scaled integer units.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(units: i64)  {\n    let fixed_value = sand::entity::FixedValue::from_units(units);\n}",
+    )]
     #[must_use]
     pub const fn from_units(units: i64) -> Self {
         Self(units)
     }
 
     /// Returns the already-scaled integer representation.
-    #[doc = "**API Contract:** Run `sand api show sand::entity::FixedValue::units` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::entity::FixedValue::units",
+        aliases = ["sand::prelude::FixedValue::units"],
+        module = "sand::entity",
+        kind = "method",
+        summary = "Returns the already-scaled integer representation.",
+        context = "Returns the already-scaled integer representation. This declaration belongs to Sand's typed entity model. Semantic definitions are public; selector rendering, validation bookkeeping, and compiler lowering remain internal.",
+        minecraft = "Sand validates this definition and lowers it to entity-scoped selectors, scoreboards, NBT operations, and generated lifecycle functions as required.",
+        use_when = ["Defining or using typed entity behavior in a Sand datapack"],
+        avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
+        returns = "Returns the already-scaled integer representation.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(fixed_value_value: sand::entity::FixedValue)  {\n    let units = fixed_value_value.units();\n}",
+    )]
     #[must_use]
     pub const fn units(self) -> i64 {
         self.0
@@ -240,14 +412,39 @@ impl FixedValue {
     /// Returns this value as a host floating-point number for inspection.
     ///
     /// Exported arithmetic should use [`Self::units`] instead.
-    #[doc = "**API Contract:** Run `sand api show sand::entity::FixedValue::as_f64` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::entity::FixedValue::as_f64",
+        aliases = ["sand::prelude::FixedValue::as_f64"],
+        module = "sand::entity",
+        kind = "method",
+        summary = "Returns this value as a host floating-point number for inspection.",
+        context = "Returns this value as a host floating-point number for inspection. Exported arithmetic should use [`Self::units`] instead.",
+        minecraft = "Exported arithmetic should use [`Self::units`] instead.",
+        use_when = ["Defining or using typed entity behavior in a Sand datapack"],
+        avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
+        params(fixed = "`fixed` provides the fixed-value inputs used to return this value as a host floating-point number for inspection."),
+        returns = "Returns this value as a host floating-point number for inspection.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(fixed_value_value: sand::entity::FixedValue, fixed: sand::entity::FixedPoint)  {\n    let as_f64 = fixed_value_value.as_f64(fixed);\n}",
+    )]
     #[must_use]
     pub fn as_f64(self, fixed: FixedPoint) -> f64 {
         self.0 as f64 / fixed.scale as f64
     }
 }
 
-#[doc = "**API Contract:** Run `sand api show sand::entity::CurveInputs` for the canonical contract."]
+#[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::entity::CurveInputs",
+    aliases = ["sand::prelude::CurveInputs"],
+    module = "sand::entity",
+    summary = "Deterministic named values supplied to [`StatCurve::evaluate`].",
+    context = "Deterministic named values supplied to [`StatCurve::evaluate`]. This declaration belongs to Sand's typed entity model. Semantic definitions are public; selector rendering, validation bookkeeping, and compiler lowering remain internal.",
+    minecraft = "Sand validates this definition and lowers it to entity-scoped selectors, scoreboards, NBT operations, and generated lifecycle functions as required.",
+    use_when = ["Defining or using typed entity behavior in a Sand datapack"],
+    avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
+    example = "use sand::entity::CurveInputs;",
+)]
 /// Deterministic named values supplied to [`StatCurve::evaluate`].
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct CurveInputs {
@@ -256,7 +453,20 @@ pub struct CurveInputs {
 
 impl CurveInputs {
     /// Creates an empty input set.
-    #[doc = "**API Contract:** Run `sand api show sand::entity::CurveInputs::new` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::entity::CurveInputs::new",
+        aliases = ["sand::prelude::CurveInputs::new"],
+        module = "sand::entity",
+        kind = "method",
+        summary = "Creates an empty input set.",
+        context = "Creates an empty input set. This declaration belongs to Sand's typed entity model. Semantic definitions are public; selector rendering, validation bookkeeping, and compiler lowering remain internal.",
+        minecraft = "Sand validates this definition and lowers it to entity-scoped selectors, scoreboards, NBT operations, and generated lifecycle functions as required.",
+        use_when = ["Defining or using typed entity behavior in a Sand datapack"],
+        avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
+        returns = "A newly constructed `CurveInputs` configured to create an empty input set.",
+        example = "use sand::prelude::*;\n\nfn demonstrate()  {\n    let curve_inputs = sand::entity::CurveInputs::new();\n}",
+    )]
     #[must_use]
     pub const fn new() -> Self {
         Self {
@@ -265,13 +475,41 @@ impl CurveInputs {
     }
 
     /// Inserts an already-scaled value, replacing a value with the same name.
-    #[doc = "**API Contract:** Run `sand api show sand::entity::CurveInputs::insert` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::entity::CurveInputs::insert",
+        aliases = ["sand::prelude::CurveInputs::insert"],
+        module = "sand::entity",
+        kind = "method",
+        summary = "Inserts an already-scaled value, replacing a value with the same name.",
+        context = "Inserts an already-scaled value, replacing a value with the same name. This declaration belongs to Sand's typed entity model. Semantic definitions are public; selector rendering, validation bookkeeping, and compiler lowering remain internal.",
+        minecraft = "Sand validates this definition and lowers it to entity-scoped selectors, scoreboards, NBT operations, and generated lifecycle functions as required.",
+        use_when = ["Defining or using typed entity behavior in a Sand datapack"],
+        avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
+        params(name = "`name` provides the author-visible text value used to insert an already-scaled value, replacing a value with the same name.", value = "`value` provides the value being applied or compared used to insert an already-scaled value, replacing a value with the same name."),
+        returns = "The matching value used to insert an already-scaled value, replacing a value with the same name, or `None` when that value is unavailable.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(curve_inputs_value: &mut sand::entity::CurveInputs, name: impl Into < String >, value: sand::entity::FixedValue)  {\n    let insert = curve_inputs_value.insert(name, value);\n}",
+    )]
     pub fn insert(&mut self, name: impl Into<String>, value: FixedValue) -> Option<FixedValue> {
         self.values.insert(name.into(), value)
     }
 
     /// Inserts a whole scoreboard value after applying `fixed`'s scale.
-    #[doc = "**API Contract:** Run `sand api show sand::entity::CurveInputs::insert_score` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::entity::CurveInputs::insert_score",
+        aliases = ["sand::prelude::CurveInputs::insert_score"],
+        module = "sand::entity",
+        kind = "method",
+        summary = "Inserts a whole scoreboard value after applying `fixed`'s scale.",
+        context = "Inserts a whole scoreboard value after applying `fixed`'s scale. This declaration belongs to Sand's typed entity model. Semantic definitions are public; selector rendering, validation bookkeeping, and compiler lowering remain internal.",
+        minecraft = "Sand validates this definition and lowers it to entity-scoped selectors, scoreboards, NBT operations, and generated lifecycle functions as required.",
+        use_when = ["Defining or using typed entity behavior in a Sand datapack"],
+        avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
+        params(name = "`name` provides the author-visible text value used to insert a whole scoreboard value after applying `fixed`'s scale.", value = "`value` provides the value being applied or compared used to insert a whole scoreboard value after applying `fixed`'s scale.", fixed = "Inserts a whole scoreboard value after applying `fixed`'s scale.", archetype = "`archetype` provides the entity archetype supplying the property used to insert a whole scoreboard value after applying `fixed`'s scale.", derivation = "`derivation` provides the derived-stat selector used to insert a whole scoreboard value after applying `fixed`'s scale."),
+        returns = "On success, the value produced to insert a whole scoreboard value after applying `fixed`'s scale; otherwise, the documented validation or export diagnostic.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(curve_inputs_value: &mut sand::entity::CurveInputs, name: impl Into < String >, value: i64, fixed: sand::entity::FixedPoint, archetype: & str, derivation: & str)  {\n    let insert_score = curve_inputs_value.insert_score(name, value, fixed, archetype, derivation);\n}",
+    )]
     pub fn insert_score(
         &mut self,
         name: impl Into<String>,
@@ -285,14 +523,41 @@ impl CurveInputs {
     }
 
     /// Returns the fixed curve input registered under `name`, when present.
-    #[doc = "**API Contract:** Run `sand api show sand::entity::CurveInputs::get` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::entity::CurveInputs::get",
+        aliases = ["sand::prelude::CurveInputs::get"],
+        module = "sand::entity",
+        kind = "method",
+        summary = "Returns the fixed curve input registered under `name`, when present.",
+        context = "Returns the fixed curve input registered under `name`, when present. This declaration belongs to Sand's typed entity model. Semantic definitions are public; selector rendering, validation bookkeeping, and compiler lowering remain internal.",
+        minecraft = "Sand validates this definition and lowers it to entity-scoped selectors, scoreboards, NBT operations, and generated lifecycle functions as required.",
+        use_when = ["Defining or using typed entity behavior in a Sand datapack"],
+        avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
+        params(name = "Returns the fixed curve input registered under `name`, when present."),
+        returns = "Returns the fixed curve input registered under `name`, when present.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(curve_inputs_value: &sand::entity::CurveInputs, name: & str)  {\n    let get = curve_inputs_value.get(name);\n}",
+    )]
     #[must_use]
     pub fn get(&self, name: &str) -> Option<FixedValue> {
         self.values.get(name).copied()
     }
 
     /// Iterates in lexical key order.
-    #[doc = "**API Contract:** Run `sand api show sand::entity::CurveInputs::iter` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::entity::CurveInputs::iter",
+        aliases = ["sand::prelude::CurveInputs::iter"],
+        module = "sand::entity",
+        kind = "method",
+        summary = "Iterates in lexical key order.",
+        context = "Iterates in lexical key order. This declaration belongs to Sand's typed entity model. Semantic definitions are public; selector rendering, validation bookkeeping, and compiler lowering remain internal.",
+        minecraft = "Sand validates this definition and lowers it to entity-scoped selectors, scoreboards, NBT operations, and generated lifecycle functions as required.",
+        use_when = ["Defining or using typed entity behavior in a Sand datapack"],
+        avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
+        returns = "The `impl Iterator < Item = (& str , FixedValue) >` value produced to iterate in lexical key order.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(curve_inputs_value: &sand::entity::CurveInputs)  {\n    let iter = curve_inputs_value.iter();\n}",
+    )]
     pub fn iter(&self) -> impl Iterator<Item = (&str, FixedValue)> {
         self.values
             .iter()
@@ -300,53 +565,54 @@ impl CurveInputs {
     }
 }
 
-#[doc = "**API Contract:** Run `sand api show sand::entity::CurveEvaluationError` for the canonical contract."]
+#[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::entity::CurveEvaluationError",
+    aliases = ["sand::prelude::CurveEvaluationError"],
+    module = "sand::entity",
+    summary = "Failure while evaluating an otherwise structurally valid curve.",
+    context = "Failure while evaluating an otherwise structurally valid curve. This declaration belongs to Sand's typed entity model. Semantic definitions are public; selector rendering, validation bookkeeping, and compiler lowering remain internal.",
+    minecraft = "Sand validates this definition and lowers it to entity-scoped selectors, scoreboards, NBT operations, and generated lifecycle functions as required.",
+    use_when = ["Defining or using typed entity behavior in a Sand datapack"],
+    avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
+    example = "use sand::entity::CurveEvaluationError;",
+    variants(Custom = "A custom callback rejected its inputs.", Diagnostic = "A standard entity compilation diagnostic.", DivisionByZero = "A ratio attempted to divide by zero.", MissingInput = "A referenced state input was not supplied."),
+    variant_fields(Custom(callback = "Stable registered callback identifier.", message = "Callback-provided failure detail."), Diagnostic = ["A standard entity compilation diagnostic."], DivisionByZero(archetype = "Archetype resource identifier.", derivation = "Derivation identifier."), MissingInput(archetype = "Archetype resource identifier.", derivation = "Derivation identifier.", input = "Missing state/input name.")),
+)]
 /// Failure while evaluating an otherwise structurally valid curve.
 #[derive(Debug, Clone, PartialEq, Error)]
 #[non_exhaustive]
 pub enum CurveEvaluationError {
-    #[doc = "**API Contract:** Run `sand api show sand::entity::CurveEvaluationError::MissingInput` for the canonical contract."]
     /// A referenced state input was not supplied.
     #[error("curve `{derivation}` for `{archetype}` is missing input `{input}`")]
     MissingInput {
-        #[doc = "**API Contract:** Run `sand api show sand::entity::CurveEvaluationError::MissingInput::archetype` for the canonical contract."]
         /// Archetype resource identifier.
         archetype: String,
-        #[doc = "**API Contract:** Run `sand api show sand::entity::CurveEvaluationError::MissingInput::derivation` for the canonical contract."]
         /// Derivation identifier.
         derivation: String,
-        #[doc = "**API Contract:** Run `sand api show sand::entity::CurveEvaluationError::MissingInput::input` for the canonical contract."]
         /// Missing state/input name.
         input: String,
     },
-    #[doc = "**API Contract:** Run `sand api show sand::entity::CurveEvaluationError::DivisionByZero` for the canonical contract."]
     /// A ratio attempted to divide by zero.
     #[error("curve `{derivation}` for `{archetype}` divided by zero")]
     DivisionByZero {
-        #[doc = "**API Contract:** Run `sand api show sand::entity::CurveEvaluationError::DivisionByZero::archetype` for the canonical contract."]
         /// Archetype resource identifier.
         archetype: String,
-        #[doc = "**API Contract:** Run `sand api show sand::entity::CurveEvaluationError::DivisionByZero::derivation` for the canonical contract."]
         /// Derivation identifier.
         derivation: String,
     },
-    #[doc = "**API Contract:** Run `sand api show sand::entity::CurveEvaluationError::Diagnostic` for the canonical contract."]
     /// A standard entity compilation diagnostic.
     #[error(transparent)]
     Diagnostic(
-        #[doc = "The `Diagnostic` variant carries the value described by its variant semantics: A standard entity compilation diagnostic."]
-        #[doc = "**API Contract:** Run `sand api show sand::entity::CurveEvaluationError::Diagnostic::0` for the canonical contract."]
+        #[doc = "A standard entity compilation diagnostic."]
         #[from]
         EntityDiagnostic,
     ),
-    #[doc = "**API Contract:** Run `sand api show sand::entity::CurveEvaluationError::Custom` for the canonical contract."]
     /// A custom callback rejected its inputs.
     #[error("custom curve `{callback}` failed: {message}")]
     Custom {
-        #[doc = "**API Contract:** Run `sand api show sand::entity::CurveEvaluationError::Custom::callback` for the canonical contract."]
         /// Stable registered callback identifier.
         callback: String,
-        #[doc = "**API Contract:** Run `sand api show sand::entity::CurveEvaluationError::Custom::message` for the canonical contract."]
         /// Callback-provided failure detail.
         message: String,
     },
@@ -577,7 +843,18 @@ impl fmt::Debug for CustomCurve {
     }
 }
 
-#[doc = "**API Contract:** Run `sand api show sand::entity::StatCurve` for the canonical contract."]
+#[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::entity::StatCurve",
+    aliases = ["sand::prelude::StatCurve"],
+    module = "sand::entity",
+    summary = "Pure typed IR for a derived numeric or discrete entity property.",
+    context = "Pure typed IR for a derived numeric or discrete entity property. Constructors intentionally accept typed curves and fixed-point constants, rather than command strings. Call [`Self::validate`] before export; Sand chooses the compact Minecraft backend internally.",
+    minecraft = "Constructors intentionally accept typed curves and fixed-point constants, rather than command strings. Call [`Self::validate`] before export; Sand chooses the compact Minecraft backend internally.",
+    use_when = ["Defining or using typed entity behavior in a Sand datapack"],
+    avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
+    example = "use sand::entity::StatCurve;",
+)]
 /// Pure typed IR for a derived numeric or discrete entity property.
 ///
 /// Constructors intentionally accept typed curves and fixed-point constants,
@@ -634,7 +911,21 @@ enum CurveKind {
 
 impl StatCurve {
     /// Creates a fixed derived value.
-    #[doc = "**API Contract:** Run `sand api show sand::entity::StatCurve::constant` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::entity::StatCurve::constant",
+        aliases = ["sand::prelude::StatCurve::constant"],
+        module = "sand::entity",
+        kind = "method",
+        summary = "Creates a fixed derived value.",
+        context = "Creates a fixed derived value. This declaration belongs to Sand's typed entity model. Semantic definitions are public; selector rendering, validation bookkeeping, and compiler lowering remain internal.",
+        minecraft = "Sand validates this definition and lowers it to entity-scoped selectors, scoreboards, NBT operations, and generated lifecycle functions as required.",
+        use_when = ["Defining or using typed entity behavior in a Sand datapack"],
+        avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
+        params(value = "`value` provides the value being applied or compared used to create a fixed derived value."),
+        returns = "A newly constructed `StatCurve` configured to create a fixed derived value.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(value: f64)  {\n    let stat_curve = sand::entity::StatCurve::constant(value);\n}",
+    )]
     #[must_use]
     pub fn constant(value: f64) -> Self {
         Self {
@@ -643,7 +934,21 @@ impl StatCurve {
     }
 
     /// References a typed entity-state input.
-    #[doc = "**API Contract:** Run `sand api show sand::entity::StatCurve::state` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::entity::StatCurve::state",
+        aliases = ["sand::prelude::StatCurve::state"],
+        module = "sand::entity",
+        kind = "method",
+        summary = "References a typed entity-state input.",
+        context = "References a typed entity-state input. This declaration belongs to Sand's typed entity model. Semantic definitions are public; selector rendering, validation bookkeeping, and compiler lowering remain internal.",
+        minecraft = "Sand validates this definition and lowers it to entity-scoped selectors, scoreboards, NBT operations, and generated lifecycle functions as required.",
+        use_when = ["Defining or using typed entity behavior in a Sand datapack"],
+        avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
+        params(field = "`field` supplies the field value used to reference a typed entity-state input."),
+        returns = "A newly constructed `StatCurve` configured to reference a typed entity-state input.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(field: impl sand::entity::EntityStateField)  {\n    let stat_curve = sand::entity::StatCurve::state(field);\n}",
+    )]
     #[must_use]
     pub fn state(field: impl super::EntityStateField) -> Self {
         Self {
@@ -654,7 +959,21 @@ impl StatCurve {
     /// References an explicitly raw objective name.
     ///
     /// Prefer [`Self::state`] for schema fields.
-    #[doc = "**API Contract:** Run `sand api show sand::entity::StatCurve::input_raw` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::entity::StatCurve::input_raw",
+        aliases = ["sand::prelude::StatCurve::input_raw"],
+        module = "sand::entity",
+        kind = "method",
+        summary = "References an explicitly raw objective name. Prefer [`Self::state`] for schema fields.",
+        context = "References an explicitly raw objective name. Prefer [`Self::state`] for schema fields. This declaration belongs to Sand's typed entity model. Semantic definitions are public; selector rendering, validation bookkeeping, and compiler lowering remain internal.",
+        minecraft = "Sand validates this definition and lowers it to entity-scoped selectors, scoreboards, NBT operations, and generated lifecycle functions as required.",
+        use_when = ["Prefer [`Self::state`] for schema fields."],
+        avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
+        params(name = "`name` provides the author-visible text value used to reference an explicitly raw objective name. Prefer [`Self::state`] for schema fields."),
+        returns = "A newly constructed `StatCurve` configured to reference an explicitly raw objective name. Prefer [`Self::state`] for schema fields.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(name: & str)  {\n    let stat_curve = sand::entity::StatCurve::input_raw(name);\n}",
+    )]
     #[must_use]
     pub fn input_raw(name: &str) -> Self {
         Self {
@@ -663,7 +982,21 @@ impl StatCurve {
     }
 
     /// Creates `input × slope + intercept`.
-    #[doc = "**API Contract:** Run `sand api show sand::entity::StatCurve::linear` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::entity::StatCurve::linear",
+        aliases = ["sand::prelude::StatCurve::linear"],
+        module = "sand::entity",
+        kind = "method",
+        summary = "Creates `input × slope + intercept`.",
+        context = "Creates `input × slope + intercept`. This declaration belongs to Sand's typed entity model. Semantic definitions are public; selector rendering, validation bookkeeping, and compiler lowering remain internal.",
+        minecraft = "Sand validates this definition and lowers it to entity-scoped selectors, scoreboards, NBT operations, and generated lifecycle functions as required.",
+        use_when = ["Defining or using typed entity behavior in a Sand datapack"],
+        avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
+        params(input = "`input` supplies the input value used to create `input × slope + intercept`.", slope = "`slope` supplies the slope value used to create `input × slope + intercept`.", intercept = "`intercept` supplies the intercept value used to create `input × slope + intercept`."),
+        returns = "A newly constructed `StatCurve` configured to create `input × slope + intercept`.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(input: sand::entity::StatCurve, slope: f64, intercept: f64)  {\n    let stat_curve = sand::entity::StatCurve::linear(input, slope, intercept);\n}",
+    )]
     #[must_use]
     pub fn linear(input: Self, slope: f64, intercept: f64) -> Self {
         Self {
@@ -679,7 +1012,21 @@ impl StatCurve {
     /// Creates an affine curve clamped to the inclusive `[minimum, maximum]`.
     ///
     /// [`Self::validate`] rejects inverted bounds.
-    #[doc = "**API Contract:** Run `sand api show sand::entity::StatCurve::clamped_linear` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::entity::StatCurve::clamped_linear",
+        aliases = ["sand::prelude::StatCurve::clamped_linear"],
+        module = "sand::entity",
+        kind = "method",
+        summary = "Creates an affine curve clamped to the inclusive `[minimum, maximum]`.",
+        context = "Creates an affine curve clamped to the inclusive `[minimum, maximum]`. [`Self::validate`] rejects inverted bounds.",
+        minecraft = "Sand validates this definition and lowers it to entity-scoped selectors, scoreboards, NBT operations, and generated lifecycle functions as required.",
+        use_when = ["Defining or using typed entity behavior in a Sand datapack"],
+        avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
+        params(input = "`input` supplies the input value used to create an affine curve clamped to the inclusive `[minimum, maximum]`.", slope = "`slope` supplies the slope value used to create an affine curve clamped to the inclusive `[minimum, maximum]`.", intercept = "`intercept` supplies the intercept value used to create an affine curve clamped to the inclusive `[minimum, maximum]`.", minimum = "`minimum` supplies the minimum value used to create an affine curve clamped to the inclusive `[minimum, maximum]`.", maximum = "`maximum` supplies the maximum value used to create an affine curve clamped to the inclusive `[minimum, maximum]`."),
+        returns = "A newly constructed `StatCurve` configured to create an affine curve clamped to the inclusive `[minimum, maximum]`.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(input: sand::entity::StatCurve, slope: f64, intercept: f64, minimum: f64, maximum: f64)  {\n    let stat_curve = sand::entity::StatCurve::clamped_linear(input, slope, intercept, minimum, maximum);\n}",
+    )]
     #[must_use]
     pub fn clamped_linear(
         input: Self,
@@ -699,7 +1046,21 @@ impl StatCurve {
     }
 
     /// Adds all modifiers. An empty sum evaluates to zero.
-    #[doc = "**API Contract:** Run `sand api show sand::entity::StatCurve::add` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::entity::StatCurve::add",
+        aliases = ["sand::prelude::StatCurve::add"],
+        module = "sand::entity",
+        kind = "method",
+        summary = "Adds all modifiers. An empty sum evaluates to zero.",
+        context = "Adds all modifiers. An empty sum evaluates to zero. This declaration belongs to Sand's typed entity model. Semantic definitions are public; selector rendering, validation bookkeeping, and compiler lowering remain internal.",
+        minecraft = "Sand validates this definition and lowers it to entity-scoped selectors, scoreboards, NBT operations, and generated lifecycle functions as required.",
+        use_when = ["Defining or using typed entity behavior in a Sand datapack"],
+        avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
+        params(terms = "`terms` supplies the terms value used to add all modifiers. An empty sum evaluates to zero."),
+        returns = "A newly constructed `StatCurve` configured to add all modifiers. An empty sum evaluates to zero.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(terms: impl IntoIterator < Item = sand::entity::StatCurve >)  {\n    let stat_curve = sand::entity::StatCurve::add(terms);\n}",
+    )]
     #[must_use]
     pub fn add(terms: impl IntoIterator<Item = Self>) -> Self {
         Self {
@@ -708,7 +1069,21 @@ impl StatCurve {
     }
 
     /// Multiplies fixed-point factors. An empty product evaluates to one.
-    #[doc = "**API Contract:** Run `sand api show sand::entity::StatCurve::multiply` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::entity::StatCurve::multiply",
+        aliases = ["sand::prelude::StatCurve::multiply"],
+        module = "sand::entity",
+        kind = "method",
+        summary = "Multiplies fixed-point factors. An empty product evaluates to one.",
+        context = "Multiplies fixed-point factors. An empty product evaluates to one. This declaration belongs to Sand's typed entity model. Semantic definitions are public; selector rendering, validation bookkeeping, and compiler lowering remain internal.",
+        minecraft = "Sand validates this definition and lowers it to entity-scoped selectors, scoreboards, NBT operations, and generated lifecycle functions as required.",
+        use_when = ["Defining or using typed entity behavior in a Sand datapack"],
+        avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
+        params(factors = "`factors` supplies the factors value used to multiplie fixed-point factors. An empty product evaluates to one."),
+        returns = "A newly constructed `StatCurve` configured to multiplie fixed-point factors. An empty product evaluates to one.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(factors: impl IntoIterator < Item = sand::entity::StatCurve >)  {\n    let stat_curve = sand::entity::StatCurve::multiply(factors);\n}",
+    )]
     #[must_use]
     pub fn multiply(factors: impl IntoIterator<Item = Self>) -> Self {
         Self {
@@ -717,7 +1092,21 @@ impl StatCurve {
     }
 
     /// Divides one fixed-point curve by another while preserving the scale.
-    #[doc = "**API Contract:** Run `sand api show sand::entity::StatCurve::ratio` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::entity::StatCurve::ratio",
+        aliases = ["sand::prelude::StatCurve::ratio"],
+        module = "sand::entity",
+        kind = "method",
+        summary = "Divides one fixed-point curve by another while preserving the scale.",
+        context = "Divides one fixed-point curve by another while preserving the scale. This declaration belongs to Sand's typed entity model. Semantic definitions are public; selector rendering, validation bookkeeping, and compiler lowering remain internal.",
+        minecraft = "Sand validates this definition and lowers it to entity-scoped selectors, scoreboards, NBT operations, and generated lifecycle functions as required.",
+        use_when = ["Defining or using typed entity behavior in a Sand datapack"],
+        avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
+        params(numerator = "`numerator` supplies the numerator value used to divide one fixed-point curve by another while preserving the scale.", denominator = "`denominator` supplies the denominator value used to divide one fixed-point curve by another while preserving the scale."),
+        returns = "A newly constructed `StatCurve` configured to divide one fixed-point curve by another while preserving the scale.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(numerator: sand::entity::StatCurve, denominator: sand::entity::StatCurve)  {\n    let stat_curve = sand::entity::StatCurve::ratio(numerator, denominator);\n}",
+    )]
     #[must_use]
     pub fn ratio(numerator: Self, denominator: Self) -> Self {
         Self {
@@ -733,7 +1122,21 @@ impl StatCurve {
     /// Each pair is `(inclusive minimum input, output)` in strictly increasing
     /// order. [`Self::validate`] rejects duplicate or descending bounds.
     /// `below` is used before the first band.
-    #[doc = "**API Contract:** Run `sand api show sand::entity::StatCurve::stepped` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::entity::StatCurve::stepped",
+        aliases = ["sand::prelude::StatCurve::stepped"],
+        module = "sand::entity",
+        kind = "method",
+        summary = "Creates a level-band curve. Each pair is `(inclusive minimum input, output)` in strictly increasing order. [`Self::validate`] rejects duplicate or descending bounds. `below` is used before the first band.",
+        context = "Creates a level-band curve. Each pair is `(inclusive minimum input, output)` in strictly increasing order. [`Self::validate`] rejects duplicate or descending bounds. `below` is used before the first band. This declaration belongs to Sand's typed entity model. Semantic definitions are public; selector rendering, validation bookkeeping, and compiler lowering remain internal.",
+        minecraft = "Sand validates this definition and lowers it to entity-scoped selectors, scoreboards, NBT operations, and generated lifecycle functions as required.",
+        use_when = ["Defining or using typed entity behavior in a Sand datapack"],
+        avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
+        params(input = "`input` supplies the input value used to create a level-band curve. Each pair is `(inclusive minimum input, output)` in strictly increasing order. [`Self::validate`] rejects duplicate or descending bounds. `below` is used before the first band.", bands = "`bands` supplies the bands value used to create a level-band curve. Each pair is `(inclusive minimum input, output)` in strictly increasing order. [`Self::validate`] rejects duplicate or descending bounds. `below` is used before the first band.", below = "Each pair is `(inclusive minimum input, output)` in strictly increasing order. [`Self::validate`] rejects duplicate or descending bounds. `below` is used before the first band."),
+        returns = "A newly constructed `StatCurve` configured to create a level-band curve. Each pair is `(inclusive minimum input, output)` in strictly increasing order. [`Self::validate`] rejects duplicate or descending bounds. `below` is used before the first band.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(input: sand::entity::StatCurve, bands: Vec < (f64 , f64) >, below: f64)  {\n    let stat_curve = sand::entity::StatCurve::stepped(input, bands, below);\n}",
+    )]
     #[must_use]
     pub fn stepped(input: Self, bands: Vec<(f64, f64)>, below: f64) -> Self {
         Self {
@@ -749,7 +1152,21 @@ impl StatCurve {
     ///
     /// Each pair is `(maximum input, branch)`. The fallback handles values
     /// above the final bound.
-    #[doc = "**API Contract:** Run `sand api show sand::entity::StatCurve::piecewise` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::entity::StatCurve::piecewise",
+        aliases = ["sand::prelude::StatCurve::piecewise"],
+        module = "sand::entity",
+        kind = "method",
+        summary = "Creates a piecewise curve selected by inclusive upper bounds.",
+        context = "Creates a piecewise curve selected by inclusive upper bounds. Each pair is `(maximum input, branch)`. The fallback handles values above the final bound.",
+        minecraft = "Sand validates this definition and lowers it to entity-scoped selectors, scoreboards, NBT operations, and generated lifecycle functions as required.",
+        use_when = ["Defining or using typed entity behavior in a Sand datapack"],
+        avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
+        params(input = "`input` supplies the input value used to create a piecewise curve selected by inclusive upper bounds.", branches = "`branches` supplies the branches value used to create a piecewise curve selected by inclusive upper bounds.", fallback = "`fallback` supplies the fallback value used to create a piecewise curve selected by inclusive upper bounds."),
+        returns = "A newly constructed `StatCurve` configured to create a piecewise curve selected by inclusive upper bounds.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(input: sand::entity::StatCurve, branches: Vec < (f64 , sand::entity::StatCurve) >, fallback: sand::entity::StatCurve)  {\n    let stat_curve = sand::entity::StatCurve::piecewise(input, branches, fallback);\n}",
+    )]
     #[must_use]
     pub fn piecewise(input: Self, branches: Vec<(f64, Self)>, fallback: Self) -> Self {
         Self {
@@ -762,7 +1179,21 @@ impl StatCurve {
     }
 
     /// Creates a table keyed by whole scoreboard values.
-    #[doc = "**API Contract:** Run `sand api show sand::entity::StatCurve::lookup` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::entity::StatCurve::lookup",
+        aliases = ["sand::prelude::StatCurve::lookup"],
+        module = "sand::entity",
+        kind = "method",
+        summary = "Creates a table keyed by whole scoreboard values.",
+        context = "Creates a table keyed by whole scoreboard values. This declaration belongs to Sand's typed entity model. Semantic definitions are public; selector rendering, validation bookkeeping, and compiler lowering remain internal.",
+        minecraft = "Sand validates this definition and lowers it to entity-scoped selectors, scoreboards, NBT operations, and generated lifecycle functions as required.",
+        use_when = ["Defining or using typed entity behavior in a Sand datapack"],
+        avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
+        params(input = "`input` supplies the input value used to create a table keyed by whole scoreboard values.", entries = "`entries` supplies the entries value used to create a table keyed by whole scoreboard values.", fallback = "`fallback` supplies the fallback value used to create a table keyed by whole scoreboard values."),
+        returns = "A newly constructed `StatCurve` configured to create a table keyed by whole scoreboard values.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(input: impl sand::entity::EntityStateField, entries: impl IntoIterator < Item = (i64 , f64) >, fallback: f64)  {\n    let stat_curve = sand::entity::StatCurve::lookup(input, entries, fallback);\n}",
+    )]
     #[must_use]
     pub fn lookup(
         input: impl super::EntityStateField,
@@ -773,7 +1204,21 @@ impl StatCurve {
     }
 
     /// Creates a lookup table from an explicitly raw objective.
-    #[doc = "**API Contract:** Run `sand api show sand::entity::StatCurve::lookup_raw` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::entity::StatCurve::lookup_raw",
+        aliases = ["sand::prelude::StatCurve::lookup_raw"],
+        module = "sand::entity",
+        kind = "method",
+        summary = "Creates a lookup table from an explicitly raw objective.",
+        context = "Creates a lookup table from an explicitly raw objective. This declaration belongs to Sand's typed entity model. Semantic definitions are public; selector rendering, validation bookkeeping, and compiler lowering remain internal.",
+        minecraft = "Sand validates this definition and lowers it to entity-scoped selectors, scoreboards, NBT operations, and generated lifecycle functions as required.",
+        use_when = ["Defining or using typed entity behavior in a Sand datapack"],
+        avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
+        params(input = "`input` supplies the input value used to create a lookup table from an explicitly raw objective.", entries = "`entries` supplies the entries value used to create a lookup table from an explicitly raw objective.", fallback = "`fallback` supplies the fallback value used to create a lookup table from an explicitly raw objective."),
+        returns = "A newly constructed `StatCurve` configured to create a lookup table from an explicitly raw objective.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(input: & str, entries: impl IntoIterator < Item = (i64 , f64) >, fallback: f64)  {\n    let stat_curve = sand::entity::StatCurve::lookup_raw(input, entries, fallback);\n}",
+    )]
     #[must_use]
     pub fn lookup_raw(
         input: &str,
@@ -792,7 +1237,21 @@ impl StatCurve {
     }
 
     /// Maps a stable [`super::EntityEnum`] integer encoding to a numeric value.
-    #[doc = "**API Contract:** Run `sand api show sand::entity::StatCurve::enum_mapping` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::entity::StatCurve::enum_mapping",
+        aliases = ["sand::prelude::StatCurve::enum_mapping"],
+        module = "sand::entity",
+        kind = "method",
+        summary = "Maps a stable [`sand::entity::EntityEnum`] integer encoding to a numeric value.",
+        context = "Maps a stable [`sand::entity::EntityEnum`] integer encoding to a numeric value. This declaration belongs to Sand's typed entity model. Semantic definitions are public; selector rendering, validation bookkeeping, and compiler lowering remain internal.",
+        minecraft = "Sand validates this definition and lowers it to entity-scoped selectors, scoreboards, NBT operations, and generated lifecycle functions as required.",
+        use_when = ["Defining or using typed entity behavior in a Sand datapack"],
+        avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
+        params(input = "`input` supplies the input value used to map a stable [`sand::entity::EntityEnum`] integer encoding to a numeric value.", entries = "`entries` supplies the entries value used to map a stable [`sand::entity::EntityEnum`] integer encoding to a numeric value.", fallback = "`fallback` supplies the fallback value used to map a stable [`sand::entity::EntityEnum`] integer encoding to a numeric value."),
+        returns = "A newly constructed `StatCurve` configured to map a stable [`sand::entity::EntityEnum`] integer encoding to a numeric value.",
+        example = "use sand::prelude::*;\n\nfn demonstrate<T : sand::entity::EntityEnumValue + 'static>(input: sand::entity::EntityEnum < T >, entries: impl IntoIterator < Item = (T , f64) >, fallback: f64)  {\n    let stat_curve = sand::entity::StatCurve::enum_mapping::<T>(input, entries, fallback);\n}",
+    )]
     #[must_use]
     pub fn enum_mapping<T: super::EntityEnumValue>(
         input: super::EntityEnum<T>,
@@ -809,7 +1268,21 @@ impl StatCurve {
     }
 
     /// Maps raw enum encodings from an explicitly raw objective.
-    #[doc = "**API Contract:** Run `sand api show sand::entity::StatCurve::enum_mapping_raw` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::entity::StatCurve::enum_mapping_raw",
+        aliases = ["sand::prelude::StatCurve::enum_mapping_raw"],
+        module = "sand::entity",
+        kind = "method",
+        summary = "Maps raw enum encodings from an explicitly raw objective.",
+        context = "Maps raw enum encodings from an explicitly raw objective. This declaration belongs to Sand's typed entity model. Semantic definitions are public; selector rendering, validation bookkeeping, and compiler lowering remain internal.",
+        minecraft = "Sand validates this definition and lowers it to entity-scoped selectors, scoreboards, NBT operations, and generated lifecycle functions as required.",
+        use_when = ["Defining or using typed entity behavior in a Sand datapack"],
+        avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
+        params(input = "`input` supplies the input value used to map raw enum encodings from an explicitly raw objective.", entries = "`entries` supplies the entries value used to map raw enum encodings from an explicitly raw objective.", fallback = "`fallback` supplies the fallback value used to map raw enum encodings from an explicitly raw objective."),
+        returns = "A newly constructed `StatCurve` configured to map raw enum encodings from an explicitly raw objective.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(input: & str, entries: impl IntoIterator < Item = (i32 , f64) >, fallback: f64)  {\n    let stat_curve = sand::entity::StatCurve::enum_mapping_raw(input, entries, fallback);\n}",
+    )]
     #[must_use]
     pub fn enum_mapping_raw(
         input: &str,
@@ -828,14 +1301,42 @@ impl StatCurve {
     }
 
     /// Maps a zero/one [`super::EntityFlag`] input to numeric values.
-    #[doc = "**API Contract:** Run `sand api show sand::entity::StatCurve::flag_mapping` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::entity::StatCurve::flag_mapping",
+        aliases = ["sand::prelude::StatCurve::flag_mapping"],
+        module = "sand::entity",
+        kind = "method",
+        summary = "Maps a zero/one [`sand::entity::EntityFlag`] input to numeric values.",
+        context = "Maps a zero/one [`sand::entity::EntityFlag`] input to numeric values. This declaration belongs to Sand's typed entity model. Semantic definitions are public; selector rendering, validation bookkeeping, and compiler lowering remain internal.",
+        minecraft = "Sand validates this definition and lowers it to entity-scoped selectors, scoreboards, NBT operations, and generated lifecycle functions as required.",
+        use_when = ["Defining or using typed entity behavior in a Sand datapack"],
+        avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
+        params(input = "`input` supplies the input value used to map a zero/one [`sand::entity::EntityFlag`] input to numeric values.", disabled = "`disabled` supplies the disabled value used to map a zero/one [`sand::entity::EntityFlag`] input to numeric values.", enabled = "`enabled` supplies the enabled value used to map a zero/one [`sand::entity::EntityFlag`] input to numeric values."),
+        returns = "A newly constructed `StatCurve` configured to map a zero/one [`sand::entity::EntityFlag`] input to numeric values.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(input: sand::entity::EntityFlag, disabled: f64, enabled: f64)  {\n    let stat_curve = sand::entity::StatCurve::flag_mapping(input, disabled, enabled);\n}",
+    )]
     #[must_use]
     pub fn flag_mapping(input: super::EntityFlag, disabled: f64, enabled: f64) -> Self {
         Self::flag_mapping_raw(&input.objective(), disabled, enabled)
     }
 
     /// Maps a flag stored in an explicitly raw objective.
-    #[doc = "**API Contract:** Run `sand api show sand::entity::StatCurve::flag_mapping_raw` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::entity::StatCurve::flag_mapping_raw",
+        aliases = ["sand::prelude::StatCurve::flag_mapping_raw"],
+        module = "sand::entity",
+        kind = "method",
+        summary = "Maps a flag stored in an explicitly raw objective.",
+        context = "Maps a flag stored in an explicitly raw objective. This declaration belongs to Sand's typed entity model. Semantic definitions are public; selector rendering, validation bookkeeping, and compiler lowering remain internal.",
+        minecraft = "Sand validates this definition and lowers it to entity-scoped selectors, scoreboards, NBT operations, and generated lifecycle functions as required.",
+        use_when = ["Defining or using typed entity behavior in a Sand datapack"],
+        avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
+        params(input = "`input` supplies the input value used to map a flag stored in an explicitly raw objective.", disabled = "`disabled` supplies the disabled value used to map a flag stored in an explicitly raw objective.", enabled = "`enabled` supplies the enabled value used to map a flag stored in an explicitly raw objective."),
+        returns = "A newly constructed `StatCurve` configured to map a flag stored in an explicitly raw objective.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(input: & str, disabled: f64, enabled: f64)  {\n    let stat_curve = sand::entity::StatCurve::flag_mapping_raw(input, disabled, enabled);\n}",
+    )]
     #[must_use]
     pub fn flag_mapping_raw(input: &str, disabled: f64, enabled: f64) -> Self {
         Self {
@@ -853,7 +1354,21 @@ impl StatCurve {
     /// registers a matching generated function during lowering. The
     /// identifier, not a function pointer address, supplies deterministic
     /// identity.
-    #[doc = "**API Contract:** Run `sand api show sand::entity::StatCurve::custom` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::entity::StatCurve::custom",
+        aliases = ["sand::prelude::StatCurve::custom"],
+        module = "sand::entity",
+        kind = "method",
+        summary = "Creates a typed custom evaluator with a stable registration identifier.",
+        context = "Creates a typed custom evaluator with a stable registration identifier. Custom callbacks run while compiling/testing the definition. Sand registers a matching generated function during lowering. The identifier, not a function pointer address, supplies deterministic identity.",
+        minecraft = "Sand validates this definition and lowers it to entity-scoped selectors, scoreboards, NBT operations, and generated lifecycle functions as required.",
+        use_when = ["Defining or using typed entity behavior in a Sand datapack"],
+        avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
+        params(function = "`function` provides the callback invoked by this operation used to create a typed custom evaluator with a stable registration identifier.", callback = "`callback` provides the callback invoked by this operation used to create a typed custom evaluator with a stable registration identifier."),
+        returns = "A newly constructed `StatCurve` configured to create a typed custom evaluator with a stable registration identifier.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(function: sand::resource_ref::FunctionId, callback: impl Fn (& sand::entity::CurveInputs , sand::entity::FixedPoint) -> std::result::Result < sand::entity::FixedValue , sand::entity::CurveEvaluationError > + Send + Sync + 'static)  {\n    let stat_curve = sand::entity::StatCurve::custom(function, callback);\n}",
+    )]
     #[must_use]
     pub fn custom(
         function: crate::resource_ref::FunctionId,
@@ -870,7 +1385,21 @@ impl StatCurve {
     /// Declaring input objective names lets dirty propagation and exporter
     /// lowering provision the callback deterministically. Use [`Self::custom`]
     /// only for callbacks that genuinely have no state inputs.
-    #[doc = "**API Contract:** Run `sand api show sand::entity::StatCurve::custom_with_raw_inputs` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::entity::StatCurve::custom_with_raw_inputs",
+        aliases = ["sand::prelude::StatCurve::custom_with_raw_inputs"],
+        module = "sand::entity",
+        kind = "method",
+        summary = "Creates a typed custom evaluator with explicit state dependencies.",
+        context = "Creates a typed custom evaluator with explicit state dependencies. Declaring input objective names lets dirty propagation and exporter lowering provision the callback deterministically. Use [`Self::custom`] only for callbacks that genuinely have no state inputs.",
+        minecraft = "Declaring input objective names lets dirty propagation and exporter lowering provision the callback deterministically. Use [`Self::custom`] only for callbacks that genuinely have no state inputs.",
+        use_when = ["Defining or using typed entity behavior in a Sand datapack"],
+        avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
+        params(function = "`function` provides the callback invoked by this operation used to create a typed custom evaluator with explicit state dependencies.", inputs = "`inputs` provides the runtime score inputs used to create a typed custom evaluator with explicit state dependencies.", callback = "`callback` provides the callback invoked by this operation used to create a typed custom evaluator with explicit state dependencies."),
+        returns = "A newly constructed `StatCurve` configured to create a typed custom evaluator with explicit state dependencies.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(function: sand::resource_ref::FunctionId, inputs: impl IntoIterator < Item = impl Into < String > >, callback: impl Fn (& sand::entity::CurveInputs , sand::entity::FixedPoint) -> std::result::Result < sand::entity::FixedValue , sand::entity::CurveEvaluationError > + Send + Sync + 'static)  {\n    let stat_curve = sand::entity::StatCurve::custom_with_raw_inputs(function, inputs, callback);\n}",
+    )]
     #[must_use]
     pub fn custom_with_raw_inputs(
         function: crate::resource_ref::FunctionId,
@@ -891,7 +1420,21 @@ impl StatCurve {
 
     /// Validates finite constants, ordered bounds, and fixed-point
     /// representability.
-    #[doc = "**API Contract:** Run `sand api show sand::entity::StatCurve::validate` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::entity::StatCurve::validate",
+        aliases = ["sand::prelude::StatCurve::validate"],
+        module = "sand::entity",
+        kind = "method",
+        summary = "Validates finite constants, ordered bounds, and fixed-point representability.",
+        context = "Validates finite constants, ordered bounds, and fixed-point representability. This declaration belongs to Sand's typed entity model. Semantic definitions are public; selector rendering, validation bookkeeping, and compiler lowering remain internal.",
+        minecraft = "Sand validates this definition and lowers it to entity-scoped selectors, scoreboards, NBT operations, and generated lifecycle functions as required.",
+        use_when = ["Defining or using typed entity behavior in a Sand datapack"],
+        avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
+        params(fixed = "`fixed` provides the fixed-value inputs used to validate finite constants, ordered bounds, and fixed-point representability.", archetype = "`archetype` provides the entity archetype supplying the property used to validate finite constants, ordered bounds, and fixed-point representability.", derivation = "`derivation` provides the derived-stat selector used to validate finite constants, ordered bounds, and fixed-point representability."),
+        returns = "On success, the value produced to validate finite constants, ordered bounds, and fixed-point representability; otherwise, the documented validation or export diagnostic.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(stat_curve_value: &sand::entity::StatCurve, fixed: sand::entity::FixedPoint, archetype: & str, derivation: & str)  {\n    let validate = stat_curve_value.validate(fixed, archetype, derivation);\n}",
+    )]
     pub fn validate(
         &self,
         fixed: FixedPoint,
@@ -922,10 +1465,21 @@ impl StatCurve {
     /// # Ok::<(), Box<dyn std::error::Error>>(())
     /// ```
     ///
-    /// # API Contract
-    ///
-    /// Inspect the complete contract with
-    /// `sand api show sand::entity::StatCurve::evaluate`.
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::entity::StatCurve::evaluate",
+        aliases = ["sand::prelude::StatCurve::evaluate"],
+        module = "sand::entity",
+        kind = "method",
+        summary = "Evaluates the curve using deterministic integer fixed-point arithmetic.",
+        context = "Evaluates the curve using deterministic integer fixed-point arithmetic. `inputs` supplies the named state values referenced by the curve, while `fixed` selects the scale, rounding, and overflow policy. `archetype` and `derivation` name the owning definition and derived stat in any validation or evaluation diagnostic.",
+        minecraft = "Sand validates this definition and lowers it to entity-scoped selectors, scoreboards, NBT operations, and generated lifecycle functions as required.",
+        use_when = ["Defining or using typed entity behavior in a Sand datapack"],
+        avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
+        params(inputs = "`inputs` supplies the named state values referenced by the curve, while `fixed` selects the scale, rounding, and overflow policy. `archetype` and `derivation` name the owning definition and derived stat in any validation or evaluation diagnostic.", fixed = "`inputs` supplies the named state values referenced by the curve, while `fixed` selects the scale, rounding, and overflow policy. `archetype` and `derivation` name the owning definition and derived stat in any validation or evaluation diagnostic.", archetype = "`inputs` supplies the named state values referenced by the curve, while `fixed` selects the scale, rounding, and overflow policy. `archetype` and `derivation` name the owning definition and derived stat in any validation or evaluation diagnostic.", derivation = "`inputs` supplies the named state values referenced by the curve, while `fixed` selects the scale, rounding, and overflow policy. `archetype` and `derivation` name the owning definition and derived stat in any validation or evaluation diagnostic."),
+        returns = "On success, the value produced to evaluate the curve using deterministic integer fixed-point arithmetic; otherwise, the documented validation or export diagnostic.",
+        example = "use {sand::entity::CurveInputs, sand::entity::FixedPoint, sand::entity::StatCurve};\nlet fixed = FixedPoint::default();\nlet curve = StatCurve::linear(StatCurve::input_raw(\"level\"), 2.0, 10.0);\nlet mut inputs = CurveInputs::new();\ninputs.insert_score(\"level\", 5, fixed, \"rpg:mob\", \"health\")?;\nlet value = curve.evaluate(&inputs, fixed, \"rpg:mob\", \"health\")?;\nassert_eq!(value.as_f64(fixed), 20.0);",
+    )]
     pub fn evaluate(
         &self,
         inputs: &CurveInputs,
@@ -988,7 +1542,20 @@ impl StatCurve {
     }
 
     /// Returns all referenced named inputs in lexical order.
-    #[doc = "**API Contract:** Run `sand api show sand::entity::StatCurve::inputs` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::entity::StatCurve::inputs",
+        aliases = ["sand::prelude::StatCurve::inputs"],
+        module = "sand::entity",
+        kind = "method",
+        summary = "Returns all referenced named inputs in lexical order.",
+        context = "Returns all referenced named inputs in lexical order. This declaration belongs to Sand's typed entity model. Semantic definitions are public; selector rendering, validation bookkeeping, and compiler lowering remain internal.",
+        minecraft = "Sand validates this definition and lowers it to entity-scoped selectors, scoreboards, NBT operations, and generated lifecycle functions as required.",
+        use_when = ["Defining or using typed entity behavior in a Sand datapack"],
+        avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
+        returns = "Returns all referenced named inputs in lexical order.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(stat_curve_value: &sand::entity::StatCurve)  {\n    let inputs = stat_curve_value.inputs();\n}",
+    )]
     #[must_use]
     pub fn inputs(&self) -> BTreeSet<String> {
         let mut inputs = BTreeSet::new();

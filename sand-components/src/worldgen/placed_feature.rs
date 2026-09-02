@@ -27,7 +27,18 @@ impl ConfiguredFeatureReference {
     }
 }
 
-#[doc = "**API Contract:** Run `sand api show sand::component::PlacedFeature` for the canonical contract."]
+#[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::component::PlacedFeature",
+    aliases = ["sand::prelude::PlacedFeature"],
+    module = "sand::component",
+    summary = "A placed feature definition (`data/<namespace>/worldgen/placed_feature/<id>.json`).",
+    context = "A placed feature definition (`data/<namespace>/worldgen/placed_feature/<id>.json`). Placed features reference a configured feature and a list of placement modifiers that determine where and how often they generate in the world. Author the referenced feature with [`ConfiguredFeature`](sand::component::ConfiguredFeature) and pass [`ConfiguredFeature::id`](sand::component::ConfiguredFeature::id) here.",
+    minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+    use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+    avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+    example = "use sand::component::PlacedFeature;",
+)]
 /// A placed feature definition (`data/<namespace>/worldgen/placed_feature/<id>.json`).
 ///
 /// Placed features reference a configured feature and a list of placement
@@ -45,7 +56,21 @@ pub struct PlacedFeature {
 
 impl PlacedFeature {
     /// Creates a new placed feature referencing a typed configured feature.
-    #[doc = "**API Contract:** Run `sand api show sand::component::PlacedFeature::new` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::PlacedFeature::new",
+        aliases = ["sand::prelude::PlacedFeature::new"],
+        module = "sand::component",
+        kind = "method",
+        summary = "Creates a new placed feature referencing a typed configured feature.",
+        context = "Creates a new placed feature referencing a typed configured feature. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(location = "`location` provides the typed resource identifier or location used to create a new placed feature referencing a typed configured feature.", feature = "`feature` provides the typed Minecraft resource identifier used to create a new placed feature referencing a typed configured feature."),
+        returns = "A newly constructed `PlacedFeature` configured to create a new placed feature referencing a typed configured feature.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(location: sand::ResourceLocation, feature: sand::registry::ConfiguredFeatureId)  {\n    let placed_feature = sand::component::PlacedFeature::new(location, feature);\n}",
+    )]
     pub fn new(location: ResourceLocation, feature: ConfiguredFeatureId) -> Self {
         Self {
             location,
@@ -59,7 +84,21 @@ impl PlacedFeature {
     ///
     /// Prefer [`PlacedFeature::new`] with a [`ConfiguredFeatureId`]. This
     /// escape hatch exists for modded or version-specific reference syntax.
-    #[doc = "**API Contract:** Run `sand api show sand::component::PlacedFeature::new_raw_feature` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::PlacedFeature::new_raw_feature",
+        aliases = ["sand::prelude::PlacedFeature::new_raw_feature"],
+        module = "sand::component",
+        kind = "method",
+        summary = "Creates a placed feature with an explicitly raw configured-feature reference.",
+        context = "Creates a placed feature with an explicitly raw configured-feature reference. Prefer [`PlacedFeature::new`] with a [`ConfiguredFeatureId`]. This escape hatch exists for modded or version-specific reference syntax.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Prefer [`PlacedFeature::new`] with a [`ConfiguredFeatureId`]. This escape hatch exists for modded or version-specific reference syntax."],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(location = "`location` provides the typed resource identifier or location used to create a placed feature with an explicitly raw configured-feature reference.", feature = "`feature` supplies the feature value used to create a placed feature with an explicitly raw configured-feature reference."),
+        returns = "A newly constructed `PlacedFeature` configured to create a placed feature with an explicitly raw configured-feature reference.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(location: sand::ResourceLocation, feature: impl Into < String >)  {\n    let placed_feature = sand::component::PlacedFeature::new_raw_feature(location, feature);\n}",
+    )]
     pub fn new_raw_feature(location: ResourceLocation, feature: impl Into<String>) -> Self {
         Self {
             location,
@@ -69,7 +108,21 @@ impl PlacedFeature {
     }
 
     /// Updates the referenced configured feature.
-    #[doc = "**API Contract:** Run `sand api show sand::component::PlacedFeature::feature` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::PlacedFeature::feature",
+        aliases = ["sand::prelude::PlacedFeature::feature"],
+        module = "sand::component",
+        kind = "method",
+        summary = "Updates the referenced configured feature.",
+        context = "Updates the referenced configured feature. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(feature = "`feature` provides the typed Minecraft resource identifier used to update the referenced configured feature."),
+        returns = "The `PlacedFeature` value with the documented change applied to update the referenced configured feature.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(placed_feature_value: sand::component::PlacedFeature, feature: sand::registry::ConfiguredFeatureId)  {\n    let updated_placed_feature = placed_feature_value.feature(feature);\n}",
+    )]
     pub fn feature(mut self, feature: ConfiguredFeatureId) -> Self {
         self.feature = ConfiguredFeatureReference::Typed(feature);
         self
@@ -77,7 +130,21 @@ impl PlacedFeature {
 
     /// Updates the referenced configured feature through the explicit raw
     /// compatibility path.
-    #[doc = "**API Contract:** Run `sand api show sand::component::PlacedFeature::raw_feature` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::PlacedFeature::raw_feature",
+        aliases = ["sand::prelude::PlacedFeature::raw_feature"],
+        module = "sand::component",
+        kind = "method",
+        summary = "Updates the referenced configured feature through the explicit raw compatibility path.",
+        context = "Updates the referenced configured feature through the explicit raw compatibility path. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(feature = "`feature` supplies the feature value used to update the referenced configured feature through the explicit raw compatibility path."),
+        returns = "The `PlacedFeature` value with the documented change applied to update the referenced configured feature through the explicit raw compatibility path.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(placed_feature_value: sand::component::PlacedFeature, feature: impl Into < String >)  {\n    let updated_placed_feature = placed_feature_value.raw_feature(feature);\n}",
+    )]
     pub fn raw_feature(mut self, feature: impl Into<String>) -> Self {
         self.feature = ConfiguredFeatureReference::Raw(feature.into());
         self
@@ -91,14 +158,42 @@ impl PlacedFeature {
     /// use serde_json::json;
     /// feature.placement_modifier(RawJson::new(json!({ "type": "minecraft:count", "count": 5 })));
     /// ```
-    #[doc = "**API Contract:** Run `sand api show sand::component::PlacedFeature::placement_modifier` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::PlacedFeature::placement_modifier",
+        aliases = ["sand::prelude::PlacedFeature::placement_modifier"],
+        module = "sand::component",
+        kind = "method",
+        summary = "Adds a placement modifier through the explicit raw JSON escape hatch.",
+        context = "Adds a placement modifier through the explicit raw JSON escape hatch. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(modifier = "`modifier` supplies the modifier value used to add a placement modifier through the explicit raw JSON escape hatch."),
+        returns = "The `PlacedFeature` value with the documented change applied to add a placement modifier through the explicit raw JSON escape hatch.",
+        example = "use sand::component::RawJson;\nuse serde_json::json;\nfeature.placement_modifier(RawJson::new(json!({ \"type\": \"minecraft:count\", \"count\": 5 })));",
+    )]
     pub fn placement_modifier(mut self, modifier: RawJson) -> Self {
         self.placement.push(modifier.into_value());
         self
     }
 
     /// Sets all placement modifiers from explicit raw JSON escape-hatch values.
-    #[doc = "**API Contract:** Run `sand api show sand::component::PlacedFeature::placement` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::PlacedFeature::placement",
+        aliases = ["sand::prelude::PlacedFeature::placement"],
+        module = "sand::component",
+        kind = "method",
+        summary = "Sets all placement modifiers from explicit raw JSON escape-hatch values.",
+        context = "Sets all placement modifiers from explicit raw JSON escape-hatch values. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(modifiers = "`modifiers` supplies the modifiers value used to set all placement modifiers from explicit raw JSON escape-hatch values."),
+        returns = "The `PlacedFeature` value with the documented change applied to set all placement modifiers from explicit raw JSON escape-hatch values.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(placed_feature_value: sand::component::PlacedFeature, modifiers: impl IntoIterator < Item = sand::component::RawJson >)  {\n    let updated_placed_feature = placed_feature_value.placement(modifiers);\n}",
+    )]
     pub fn placement(mut self, modifiers: impl IntoIterator<Item = RawJson>) -> Self {
         self.placement = modifiers.into_iter().map(RawJson::into_value).collect();
         self

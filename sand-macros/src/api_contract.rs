@@ -3,6 +3,7 @@ use quote::{ToTokens, quote};
 use sand_api_contract::syntax::{
     ContractArgs, ContractTarget, Description, parse_contract_args, validate_contract,
 };
+use sand_api_contract::{ApiEntry, ApiKind, ApiParameter, render_rustdoc};
 use syn::{
     ImplItemConst, ImplItemFn, ImplItemType, Item, LitStr, TraitItemConst, TraitItemFn,
     TraitItemType, parse2,
@@ -42,8 +43,12 @@ pub(crate) fn expand(attr: TokenStream, item: TokenStream) -> syn::Result<TokenS
     let parameters = args.params.as_deref().unwrap_or_default();
     let parameter_names = parameters
         .iter()
-        .map(|parameter| parameter.name.to_string());
-    let parameter_docs = parameters.iter().map(|parameter| &parameter.text);
+        .map(|parameter| parameter.name.to_string())
+        .collect::<Vec<_>>();
+    let parameter_docs = parameters
+        .iter()
+        .map(|parameter| &parameter.text)
+        .collect::<Vec<_>>();
     let returns = match &args.returns {
         Some(value) => quote!(::std::option::Option::Some(#value)),
         None => quote!(::std::option::Option::None),
@@ -63,43 +68,65 @@ pub(crate) fn expand(attr: TokenStream, item: TokenStream) -> syn::Result<TokenS
         .clone()
         .unwrap_or_else(|| syn::parse_quote!(::sand::__private::api_contract));
     let (path, module) = identity_tokens(&args, info.ident)?;
-    let docs = rustdoc(&args, &path, summary, context, minecraft, example);
+    let docs = rustdoc(&args, info.kind, summary, context, minecraft, example);
     let member_registrations =
         member_registrations(&args, &target, &path, aliases, &info, &registry)?;
     add_member_rustdoc(&mut target, &args);
+    let registration_body = quote! {
+        #registry::inventory::submit! {
+            #registry::ApiRegistration {
+                canonical_path: #path,
+                aliases: &[#(#aliases),*],
+                canonical_module: #module,
+                kind: #registry::ApiKind::#kind,
+                signature: ::std::stringify!(#signature),
+                summary: #summary,
+                context: #context,
+                minecraft: #minecraft,
+                use_when: &[#(#use_when),*],
+                avoid_when: &[#(#avoid_when),*],
+                parameters: &[
+                    #(
+                        #registry::StaticApiParameter {
+                            name: #parameter_names,
+                            description: #parameter_docs,
+                        }
+                    ),*
+                ],
+                returns: #returns,
+                example: #example,
+                availability: &[#(#availability),*],
+            }
+        }
+    };
+    let registration_item = if matches!(
+        target,
+        Target::TraitMethod(_) | Target::TraitConst(_) | Target::TraitType(_)
+    ) {
+        quote! {
+            #[doc(hidden)]
+            #[allow(non_snake_case)]
+            fn #registration()
+            where
+                Self: ::std::marker::Sized,
+            {
+                #registration_body
+            }
+        }
+    } else {
+        quote! {
+            #[doc(hidden)]
+            const #registration: () = {
+                #registration_body
+            };
+        }
+    };
 
     Ok(quote! {
         #docs
         #target
 
-        #[doc(hidden)]
-        const #registration: () = {
-            #registry::inventory::submit! {
-                #registry::ApiRegistration {
-                    canonical_path: #path,
-                    aliases: &[#(#aliases),*],
-                    canonical_module: #module,
-                    kind: #registry::ApiKind::#kind,
-                    signature: ::std::stringify!(#signature),
-                    summary: #summary,
-                    context: #context,
-                    minecraft: #minecraft,
-                    use_when: &[#(#use_when),*],
-                    avoid_when: &[#(#avoid_when),*],
-                    parameters: &[
-                        #(
-                            #registry::StaticApiParameter {
-                                name: #parameter_names,
-                                description: #parameter_docs,
-                            }
-                        ),*
-                    ],
-                    returns: #returns,
-                    example: #example,
-                    availability: &[#(#availability),*],
-                }
-            }
-        };
+        #registration_item
 
         #member_registrations
     })
@@ -122,8 +149,17 @@ impl ToTokens for Target {
 fn parse_target(tokens: TokenStream, kind: Option<&LitStr>) -> syn::Result<Target> {
     match kind.map(LitStr::value).as_deref() {
         Some("method") => return parse2(tokens).map(Target::ImplMethod),
-        Some("associated_const") => return parse2(tokens).map(Target::ImplConst),
-        Some("associated_type") => return parse2(tokens).map(Target::ImplType),
+        Some("trait_method") => return parse2(tokens).map(Target::TraitMethod),
+        Some("associated_const") => {
+            return parse2(tokens.clone())
+                .map(Target::ImplConst)
+                .or_else(|_| parse2(tokens).map(Target::TraitConst));
+        }
+        Some("associated_type") => {
+            return parse2(tokens.clone())
+                .map(Target::ImplType)
+                .or_else(|_| parse2(tokens).map(Target::TraitType));
+        }
         _ => {}
     }
     if let Ok(item) = parse2::<Item>(tokens.clone())
@@ -158,7 +194,12 @@ fn parse_target(tokens: TokenStream, kind: Option<&LitStr>) -> syn::Result<Targe
 fn target_info<'a>(target: &'a Target, args: &ContractArgs) -> syn::Result<TargetInfo<'a>> {
     if !matches!(
         target,
-        Target::ImplMethod(_) | Target::ImplConst(_) | Target::ImplType(_)
+        Target::ImplMethod(_)
+            | Target::ImplConst(_)
+            | Target::ImplType(_)
+            | Target::TraitMethod(_)
+            | Target::TraitConst(_)
+            | Target::TraitType(_)
     ) && let Some(kind) = &args.kind
     {
         return Err(syn::Error::new_spanned(
@@ -330,6 +371,7 @@ fn member_registrations(
                     &member_path(args, info.ident, ident),
                     parent_path,
                     parent_aliases,
+                    args.member_aliases.as_deref().unwrap_or_default(),
                     context,
                     minecraft,
                     use_when,
@@ -358,6 +400,7 @@ fn member_registrations(
                     &member_path(args, info.ident, ident),
                     parent_path,
                     parent_aliases,
+                    args.member_aliases.as_deref().unwrap_or_default(),
                     context,
                     minecraft,
                     use_when,
@@ -396,6 +439,7 @@ fn member_registrations(
                         &member_text_path(args, info.ident, ident, &field_name),
                         parent_path,
                         parent_aliases,
+                        args.member_aliases.as_deref().unwrap_or_default(),
                         context,
                         minecraft,
                         use_when,
@@ -443,6 +487,7 @@ fn member_registration(
     member_path: &TokenStream,
     parent_path: &TokenStream,
     parent_aliases: &[LitStr],
+    member_aliases: &[sand_api_contract::syntax::MemberAliases],
     context: &LitStr,
     minecraft: &LitStr,
     use_when: &[LitStr],
@@ -460,6 +505,7 @@ fn member_registration(
         member_path,
         parent_path,
         parent_aliases,
+        member_aliases,
         context,
         minecraft,
         use_when,
@@ -480,6 +526,7 @@ fn member_registration_text(
     member_path: &TokenStream,
     parent_path: &TokenStream,
     parent_aliases: &[LitStr],
+    member_aliases: &[sand_api_contract::syntax::MemberAliases],
     context: &LitStr,
     minecraft: &LitStr,
     use_when: &[LitStr],
@@ -494,9 +541,22 @@ fn member_registration_text(
         info.ident.span(),
     );
     let kind = syn::Ident::new(kind, info.ident.span());
-    let aliases = parent_aliases
+    let mut aliases = parent_aliases
         .iter()
-        .map(|alias| LitStr::new(&format!("{}::{member_name}", alias.value()), alias.span()));
+        .map(|alias| LitStr::new(&format!("{}::{member_name}", alias.value()), alias.span()))
+        .collect::<Vec<_>>();
+    let (owner, suffix) = member_name
+        .split_once("::")
+        .map_or((member_name, None), |(owner, suffix)| (owner, Some(suffix)));
+    if let Some(extra) = member_aliases.iter().find(|member| member.name == owner) {
+        aliases.extend(extra.aliases.iter().map(|alias| {
+            let value = suffix.map_or_else(
+                || alias.value(),
+                |suffix| format!("{}::{suffix}", alias.value()),
+            );
+            LitStr::new(&value, alias.span())
+        }));
+    }
     quote! {
         #[doc(hidden)]
         const #registration: () = {
@@ -589,10 +649,6 @@ fn add_member_rustdoc(target: &mut Target, args: &ContractArgs) {
                 {
                     let text = &description.text;
                     field.attrs.push(syn::parse_quote!(#[doc = #text]));
-                    field.attrs.push(syn::parse_quote!(#[doc = ""]));
-                    field
-                        .attrs
-                        .push(member_contract_doc(args, &item.ident, ident));
                 }
             }
         }
@@ -608,10 +664,6 @@ fn add_member_rustdoc(target: &mut Target, args: &ContractArgs) {
                 {
                     let text = &description.text;
                     variant.attrs.push(syn::parse_quote!(#[doc = #text]));
-                    variant.attrs.push(syn::parse_quote!(#[doc = ""]));
-                    variant
-                        .attrs
-                        .push(member_contract_doc(args, &item.ident, ident));
                 }
                 for (index, field) in variant.fields.iter_mut().enumerate() {
                     let field_name = field
@@ -629,73 +681,11 @@ fn add_member_rustdoc(target: &mut Target, args: &ContractArgs) {
                     {
                         let text = &description.text;
                         field.attrs.push(syn::parse_quote!(#[doc = #text]));
-                        field.attrs.push(syn::parse_quote!(#[doc = ""]));
-                        field.attrs.push(member_variant_field_contract_doc(
-                            args,
-                            &item.ident,
-                            ident,
-                            &field_name,
-                        ));
                     }
                 }
             }
         }
         _ => {}
-    }
-}
-
-fn member_variant_field_contract_doc(
-    args: &ContractArgs,
-    parent: &syn::Ident,
-    variant: &syn::Ident,
-    field: &str,
-) -> syn::Attribute {
-    if let Some(path) = &args.path {
-        let line = LitStr::new(
-            &format!(
-                "API Contract: `sand api show {}::{variant}::{field}`",
-                path.value()
-            ),
-            variant.span(),
-        );
-        syn::parse_quote!(#[doc = #line])
-    } else {
-        let field = LitStr::new(field, variant.span());
-        syn::parse_quote!(#[doc = concat!(
-            "API Contract: `sand api show ",
-            module_path!(),
-            "::",
-            stringify!(#parent),
-            "::",
-            stringify!(#variant),
-            "::",
-            #field,
-            "`"
-        )])
-    }
-}
-
-fn member_contract_doc(
-    args: &ContractArgs,
-    parent: &syn::Ident,
-    member: &syn::Ident,
-) -> syn::Attribute {
-    if let Some(path) = &args.path {
-        let line = LitStr::new(
-            &format!("API Contract: `sand api show {}::{member}`", path.value()),
-            member.span(),
-        );
-        syn::parse_quote!(#[doc = #line])
-    } else {
-        syn::parse_quote!(#[doc = concat!(
-            "API Contract: `sand api show ",
-            module_path!(),
-            "::",
-            stringify!(#parent),
-            "::",
-            stringify!(#member),
-            "`"
-        )])
     }
 }
 
@@ -749,68 +739,75 @@ fn required<'a, T>(value: &'a Option<T>, name: &str) -> syn::Result<&'a T> {
 
 fn rustdoc(
     args: &ContractArgs,
-    path: &TokenStream,
+    kind: &str,
     summary: &LitStr,
     context: &LitStr,
     minecraft: &LitStr,
     example: &LitStr,
 ) -> TokenStream {
-    let mut lines = vec![
-        summary.value(),
-        String::new(),
-        "# Context".into(),
-        context.value(),
-    ];
-    lines.extend([
-        String::new(),
-        "# Minecraft behavior".into(),
-        minecraft.value(),
-    ]);
-    if let Some(parameters) = &args.params {
-        lines.extend([String::new(), "# Parameters".into()]);
-        lines.extend(
-            parameters
-                .iter()
-                .map(|parameter| format!("- `{}` — {}", parameter.name, parameter.text.value())),
-        );
-    }
-    if let Some(returns) = &args.returns {
-        lines.extend([String::new(), "# Returns".into(), returns.value()]);
-    }
-    lines.extend([String::new(), "# Use when".into()]);
-    lines.extend(
-        args.use_when
+    let kind = match kind {
+        "Module" => ApiKind::Module,
+        "Struct" => ApiKind::Struct,
+        "Enum" => ApiKind::Enum,
+        "Trait" => ApiKind::Trait,
+        "Function" => ApiKind::Function,
+        "Method" => ApiKind::Method,
+        "TraitMethod" => ApiKind::TraitMethod,
+        "TypeAlias" => ApiKind::TypeAlias,
+        "Constant" => ApiKind::Constant,
+        "AssociatedConst" => ApiKind::AssociatedConst,
+        "AssociatedType" => ApiKind::AssociatedType,
+        "Macro" => ApiKind::Macro,
+        other => unreachable!("unsupported #[api] kind {other}"),
+    };
+    let entry = ApiEntry {
+        canonical_path: args.path.as_ref().map_or_else(String::new, LitStr::value),
+        aliases: Vec::new(),
+        canonical_module: args.module.as_ref().map_or_else(String::new, LitStr::value),
+        kind,
+        signature: String::new(),
+        summary: summary.value(),
+        context: context.value(),
+        minecraft: minecraft.value(),
+        use_when: args
+            .use_when
             .as_deref()
             .unwrap_or_default()
             .iter()
-            .map(|value| format!("- {}", value.value())),
-    );
-    lines.extend([String::new(), "# Avoid when".into()]);
-    lines.extend(
-        args.avoid_when
+            .map(LitStr::value)
+            .collect(),
+        avoid_when: args
+            .avoid_when
             .as_deref()
             .unwrap_or_default()
             .iter()
-            .map(|value| format!("- {}", value.value())),
-    );
-    lines.extend([
-        String::new(),
-        "# Example".into(),
-        "```rust,ignore".into(),
-        example.value().trim().into(),
-        "```".into(),
-        String::new(),
-        "# API Contract".into(),
-    ]);
+            .map(LitStr::value)
+            .collect(),
+        parameters: args
+            .params
+            .as_deref()
+            .unwrap_or_default()
+            .iter()
+            .map(|parameter| ApiParameter {
+                name: parameter.name.to_string(),
+                rust_type: None,
+                description: parameter.text.value(),
+            })
+            .collect(),
+        returns: args.returns.as_ref().map(LitStr::value),
+        return_type: None,
+        example: example.value(),
+        availability: args
+            .availability
+            .as_deref()
+            .unwrap_or_default()
+            .iter()
+            .map(LitStr::value)
+            .collect(),
+    };
+    let lines = render_rustdoc(&entry);
     let docs = lines.iter().map(|line| quote!(#[doc = #line]));
-    quote! {
-        #(#docs)*
-        #[doc = ""]
-        #[doc = "View this API with:"]
-        #[doc = "```text"]
-        #[doc = ::std::concat!("sand api show ", #path)]
-        #[doc = "```"]
-    }
+    quote!(#(#docs)*)
 }
 
 #[cfg(test)]
@@ -839,5 +836,71 @@ mod tests {
             .unwrap(),
             Target::ImplType(_)
         ));
+    }
+
+    #[test]
+    fn expansion_preserves_authored_docs_and_renders_contract_sections() {
+        let output = expand(
+            quote!(
+                registry = sand_api_contract,
+                path = "sand::demo::build",
+                module = "sand::demo",
+                summary = "Builds one demonstrated value.",
+                context = "This is the test fixture's author-facing builder.",
+                minecraft = "Emits one checked Minecraft value.",
+                use_when = ["Building the demonstrated value"],
+                avoid_when = ["Raw text is intentionally required"],
+                params(name = "The name stored in the demonstrated value."),
+                returns = "The built demonstration string.",
+                example = "let value = build(\"demo\");",
+            ),
+            quote!(
+                /// Authored caveat: names remain case-sensitive.
+                pub fn build(name: &str) -> String {
+                    name.to_owned()
+                }
+            ),
+        )
+        .unwrap()
+        .to_string();
+
+        for expected in [
+            "# Minecraft behavior",
+            "# Parameters",
+            "# Returns",
+            "# Use when",
+            "# Avoid when",
+            "# Example",
+            "Authored caveat: names remain case-sensitive.",
+        ] {
+            assert!(output.contains(expected), "missing {expected:?}: {output}");
+        }
+        assert!(!output.contains("sand api show"));
+    }
+
+    #[test]
+    fn trait_member_registration_remains_object_safe() {
+        let output = expand(
+            quote!(
+                registry = sand_api_contract,
+                path = "sand::demo::Render::render",
+                module = "sand::demo",
+                summary = "Renders the demonstrated value.",
+                context = "This method is available through a trait object.",
+                minecraft = "Produces one checked Minecraft representation.",
+                use_when = ["Rendering a demonstrated value"],
+                avoid_when = ["The value has already been rendered"],
+                returns = "The rendered representation.",
+                example = "let value = renderer.render();",
+            ),
+            quote!(
+                fn render(&self) -> String;
+            ),
+        )
+        .unwrap()
+        .to_string();
+
+        assert!(output.contains("Self : :: std :: marker :: Sized"));
+        assert!(!output.contains("contract-derived"));
     }
 }

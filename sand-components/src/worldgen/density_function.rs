@@ -59,26 +59,32 @@ use crate::validation;
 
 const KIND: &str = "worldgen/density_function";
 
-#[doc = "**API Contract:** Run `sand api show sand::component::DensityFunctionUnaryOp` for the canonical contract."]
+#[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::component::DensityFunctionUnaryOp",
+    aliases = ["sand::prelude::DensityFunctionUnaryOp"],
+    module = "sand::component",
+    summary = "A single-argument density-function transform.",
+    context = "A single-argument density-function transform. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+    minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+    use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+    avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+    example = "use sand::component::DensityFunctionUnaryOp;",
+    variants(Abs = "`minecraft:abs`", Cube = "`minecraft:cube`", HalfNegative = "`minecraft:half_negative`", QuarterNegative = "`minecraft:quarter_negative`", Square = "`minecraft:square`", Squeeze = "`minecraft:squeeze`"),
+)]
 /// A single-argument density-function transform.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum DensityFunctionUnaryOp {
-    #[doc = "**API Contract:** Run `sand api show sand::component::DensityFunctionUnaryOp::Abs` for the canonical contract."]
     /// `minecraft:abs`
     Abs,
-    #[doc = "**API Contract:** Run `sand api show sand::component::DensityFunctionUnaryOp::Square` for the canonical contract."]
     /// `minecraft:square`
     Square,
-    #[doc = "**API Contract:** Run `sand api show sand::component::DensityFunctionUnaryOp::Cube` for the canonical contract."]
     /// `minecraft:cube`
     Cube,
-    #[doc = "**API Contract:** Run `sand api show sand::component::DensityFunctionUnaryOp::HalfNegative` for the canonical contract."]
     /// `minecraft:half_negative`
     HalfNegative,
-    #[doc = "**API Contract:** Run `sand api show sand::component::DensityFunctionUnaryOp::QuarterNegative` for the canonical contract."]
     /// `minecraft:quarter_negative`
     QuarterNegative,
-    #[doc = "**API Contract:** Run `sand api show sand::component::DensityFunctionUnaryOp::Squeeze` for the canonical contract."]
     /// `minecraft:squeeze`
     Squeeze,
 }
@@ -96,20 +102,28 @@ impl DensityFunctionUnaryOp {
     }
 }
 
-#[doc = "**API Contract:** Run `sand api show sand::component::DensityFunctionBinaryOp` for the canonical contract."]
+#[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::component::DensityFunctionBinaryOp",
+    aliases = ["sand::prelude::DensityFunctionBinaryOp"],
+    module = "sand::component",
+    summary = "A two-argument density-function combinator.",
+    context = "A two-argument density-function combinator. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+    minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+    use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+    avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+    example = "use sand::component::DensityFunctionBinaryOp;",
+    variants(Add = "`minecraft:add`", Max = "`minecraft:max`", Min = "`minecraft:min`", Mul = "`minecraft:mul`"),
+)]
 /// A two-argument density-function combinator.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum DensityFunctionBinaryOp {
-    #[doc = "**API Contract:** Run `sand api show sand::component::DensityFunctionBinaryOp::Add` for the canonical contract."]
     /// `minecraft:add`
     Add,
-    #[doc = "**API Contract:** Run `sand api show sand::component::DensityFunctionBinaryOp::Mul` for the canonical contract."]
     /// `minecraft:mul`
     Mul,
-    #[doc = "**API Contract:** Run `sand api show sand::component::DensityFunctionBinaryOp::Min` for the canonical contract."]
     /// `minecraft:min`
     Min,
-    #[doc = "**API Contract:** Run `sand api show sand::component::DensityFunctionBinaryOp::Max` for the canonical contract."]
     /// `minecraft:max`
     Max,
 }
@@ -125,117 +139,143 @@ impl DensityFunctionBinaryOp {
     }
 }
 
-#[doc = "**API Contract:** Run `sand api show sand::component::DensityFunctionExpr` for the canonical contract."]
+#[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::component::DensityFunctionExpr",
+    aliases = ["sand::prelude::DensityFunctionExpr"],
+    module = "sand::component",
+    summary = "A density-function expression. Construct values through the named helpers rather than the variants directly; they keep boxing and the raw escape hatch visible at call sites.",
+    context = "A density-function expression. Construct values through the named helpers rather than the variants directly; they keep boxing and the raw escape hatch visible at call sites. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+    minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+    use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+    avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+    example = "use sand::component::DensityFunctionExpr;",
+    variants(Binary = "A two-argument combinator.", Clamp = "`minecraft:clamp`", Constant = "A bare constant value, serialized as a JSON number.", Noise = "`minecraft:noise` — samples a `worldgen/noise` parameter file.", Raw = "An explicit raw escape hatch for modded or version-specific shapes that the typed variants do not model.", Reference = "A reference to another density-function file, serialized as a string.", Unary = "A single-argument transform.", YClampedGradient = "`minecraft:y_clamped_gradient`"),
+    variant_fields(Binary(argument1 = "`argument1` provides the argument1 when a two-argument combinator.", argument2 = "`argument2` provides the argument2 when a two-argument combinator.", op = "`op` provides the op when a two-argument combinator."), Clamp(input = "`input` provides the input when `minecraft:clamp`.", max = "`max` provides the maximum value when `minecraft:clamp`.", min = "`min` provides the minimum value when `minecraft:clamp`."), Constant = ["A bare constant value, serialized as a JSON number."], Noise(noise = "`noise` provides the noise identifier when `minecraft:noise` — samples a `worldgen/noise` parameter file.", xz_scale = "`xz_scale` provides the xz scale when `minecraft:noise` — samples a `worldgen/noise` parameter file.", y_scale = "`y_scale` provides the y scale when `minecraft:noise` — samples a `worldgen/noise` parameter file."), Raw = ["An explicit raw escape hatch for modded or version-specific shapes that the typed variants do not model."], Reference = ["A reference to another density-function file, serialized as a string."], Unary(argument = "`argument` provides the argument when a single-argument transform.", op = "`op` provides the op when a single-argument transform."), YClampedGradient(from_value = "`from_value` provides the from value when `minecraft:y_clamped_gradient`.", from_y = "`from_y` provides the from y when `minecraft:y_clamped_gradient`.", to_value = "`to_value` provides the to value when `minecraft:y_clamped_gradient`.", to_y = "`to_y` provides the to y when `minecraft:y_clamped_gradient`.")),
+)]
 /// A density-function expression.
 ///
 /// Construct values through the named helpers rather than the variants
 /// directly; they keep boxing and the raw escape hatch visible at call sites.
 #[derive(Debug, Clone, PartialEq)]
 pub enum DensityFunctionExpr {
-    #[doc = "**API Contract:** Run `sand api show sand::component::DensityFunctionExpr::Constant` for the canonical contract."]
     /// A bare constant value, serialized as a JSON number.
-    Constant(
-        #[doc = "The `Constant` variant carries the value described by its variant semantics: A bare constant value, serialized as a JSON number."]
-        #[doc = "**API Contract:** Run `sand api show sand::component::DensityFunctionExpr::Constant::0` for the canonical contract."]
-        f64,
-    ),
-    #[doc = "**API Contract:** Run `sand api show sand::component::DensityFunctionExpr::Reference` for the canonical contract."]
+    Constant(#[doc = "A bare constant value, serialized as a JSON number."] f64),
     /// A reference to another density-function file, serialized as a string.
     Reference(
-        #[doc = "The `Reference` variant carries the value described by its variant semantics: A reference to another density-function file, serialized as a string."]
-        #[doc = "**API Contract:** Run `sand api show sand::component::DensityFunctionExpr::Reference::0` for the canonical contract."]
+        #[doc = "A reference to another density-function file, serialized as a string."]
         DensityFunctionId,
     ),
-    #[doc = "**API Contract:** Run `sand api show sand::component::DensityFunctionExpr::Noise` for the canonical contract."]
     /// `minecraft:noise` — samples a `worldgen/noise` parameter file.
     Noise {
         /// `noise` provides the noise identifier when `minecraft:noise` — samples a `worldgen/noise` parameter file.
-        #[doc = "**API Contract:** Run `sand api show sand::component::DensityFunctionExpr::Noise::noise` for the canonical contract."]
         noise: NoiseId,
         /// `xz_scale` provides the xz scale when `minecraft:noise` — samples a `worldgen/noise` parameter file.
-        #[doc = "**API Contract:** Run `sand api show sand::component::DensityFunctionExpr::Noise::xz_scale` for the canonical contract."]
         xz_scale: f64,
         /// `y_scale` provides the y scale when `minecraft:noise` — samples a `worldgen/noise` parameter file.
-        #[doc = "**API Contract:** Run `sand api show sand::component::DensityFunctionExpr::Noise::y_scale` for the canonical contract."]
         y_scale: f64,
     },
-    #[doc = "**API Contract:** Run `sand api show sand::component::DensityFunctionExpr::Unary` for the canonical contract."]
     /// A single-argument transform.
     Unary {
         /// `op` provides the op when a single-argument transform.
-        #[doc = "**API Contract:** Run `sand api show sand::component::DensityFunctionExpr::Unary::op` for the canonical contract."]
         op: DensityFunctionUnaryOp,
         /// `argument` provides the argument when a single-argument transform.
-        #[doc = "**API Contract:** Run `sand api show sand::component::DensityFunctionExpr::Unary::argument` for the canonical contract."]
         argument: Box<DensityFunctionExpr>,
     },
-    #[doc = "**API Contract:** Run `sand api show sand::component::DensityFunctionExpr::Binary` for the canonical contract."]
     /// A two-argument combinator.
     Binary {
         /// `op` provides the op when a two-argument combinator.
-        #[doc = "**API Contract:** Run `sand api show sand::component::DensityFunctionExpr::Binary::op` for the canonical contract."]
         op: DensityFunctionBinaryOp,
         /// `argument1` provides the argument1 when a two-argument combinator.
-        #[doc = "**API Contract:** Run `sand api show sand::component::DensityFunctionExpr::Binary::argument1` for the canonical contract."]
         argument1: Box<DensityFunctionExpr>,
         /// `argument2` provides the argument2 when a two-argument combinator.
-        #[doc = "**API Contract:** Run `sand api show sand::component::DensityFunctionExpr::Binary::argument2` for the canonical contract."]
         argument2: Box<DensityFunctionExpr>,
     },
-    #[doc = "**API Contract:** Run `sand api show sand::component::DensityFunctionExpr::Clamp` for the canonical contract."]
     /// `minecraft:clamp`
     Clamp {
         /// `input` provides the input when `minecraft:clamp`.
-        #[doc = "**API Contract:** Run `sand api show sand::component::DensityFunctionExpr::Clamp::input` for the canonical contract."]
         input: Box<DensityFunctionExpr>,
         /// `min` provides the minimum value when `minecraft:clamp`.
-        #[doc = "**API Contract:** Run `sand api show sand::component::DensityFunctionExpr::Clamp::min` for the canonical contract."]
         min: f64,
         /// `max` provides the maximum value when `minecraft:clamp`.
-        #[doc = "**API Contract:** Run `sand api show sand::component::DensityFunctionExpr::Clamp::max` for the canonical contract."]
         max: f64,
     },
-    #[doc = "**API Contract:** Run `sand api show sand::component::DensityFunctionExpr::YClampedGradient` for the canonical contract."]
     /// `minecraft:y_clamped_gradient`
     YClampedGradient {
         /// `from_y` provides the from y when `minecraft:y_clamped_gradient`.
-        #[doc = "**API Contract:** Run `sand api show sand::component::DensityFunctionExpr::YClampedGradient::from_y` for the canonical contract."]
         from_y: i32,
         /// `to_y` provides the to y when `minecraft:y_clamped_gradient`.
-        #[doc = "**API Contract:** Run `sand api show sand::component::DensityFunctionExpr::YClampedGradient::to_y` for the canonical contract."]
         to_y: i32,
         /// `from_value` provides the from value when `minecraft:y_clamped_gradient`.
-        #[doc = "**API Contract:** Run `sand api show sand::component::DensityFunctionExpr::YClampedGradient::from_value` for the canonical contract."]
         from_value: f64,
         /// `to_value` provides the to value when `minecraft:y_clamped_gradient`.
-        #[doc = "**API Contract:** Run `sand api show sand::component::DensityFunctionExpr::YClampedGradient::to_value` for the canonical contract."]
         to_value: f64,
     },
-    #[doc = "**API Contract:** Run `sand api show sand::component::DensityFunctionExpr::Raw` for the canonical contract."]
     /// An explicit raw escape hatch for modded or version-specific shapes that
     /// the typed variants do not model.
     Raw(
-        #[doc = "The `Raw` variant carries the value described by its variant semantics: An explicit raw escape hatch for modded or version-specific shapes that the typed variants do not model."]
-        #[doc = "**API Contract:** Run `sand api show sand::component::DensityFunctionExpr::Raw::0` for the canonical contract."]
-        RawJson,
+        #[doc = "An explicit raw escape hatch for modded or version-specific shapes that the typed variants do not model."]
+         RawJson,
     ),
 }
 
 impl DensityFunctionExpr {
     /// A constant density value.
-    #[doc = "**API Contract:** Run `sand api show sand::component::DensityFunctionExpr::constant` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::DensityFunctionExpr::constant",
+        aliases = ["sand::prelude::DensityFunctionExpr::constant"],
+        module = "sand::component",
+        kind = "method",
+        summary = "A constant density value.",
+        context = "A constant density value. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(value = "`value` provides the value being applied or compared used to use a constant density value."),
+        returns = "A newly constructed `DensityFunctionExpr` configured to use a constant density value.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(value: f64)  {\n    let density_function_expr = sand::component::DensityFunctionExpr::constant(value);\n}",
+    )]
     pub fn constant(value: f64) -> Self {
         Self::Constant(value)
     }
 
     /// A reference to another `worldgen/density_function` file.
-    #[doc = "**API Contract:** Run `sand api show sand::component::DensityFunctionExpr::reference` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::DensityFunctionExpr::reference",
+        aliases = ["sand::prelude::DensityFunctionExpr::reference"],
+        module = "sand::component",
+        kind = "method",
+        summary = "A reference to another `worldgen/density_function` file.",
+        context = "A reference to another `worldgen/density_function` file. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(id = "`id` provides the typed resource identifier or location used to use a reference to another `worldgen/density_function` file."),
+        returns = "A newly constructed `DensityFunctionExpr` configured to use a reference to another `worldgen/density_function` file.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(id: sand::registry::DensityFunctionId)  {\n    let density_function_expr = sand::component::DensityFunctionExpr::reference(id);\n}",
+    )]
     pub fn reference(id: DensityFunctionId) -> Self {
         Self::Reference(id)
     }
 
     /// Sample a `worldgen/noise` parameter file.
-    #[doc = "**API Contract:** Run `sand api show sand::component::DensityFunctionExpr::noise` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::DensityFunctionExpr::noise",
+        aliases = ["sand::prelude::DensityFunctionExpr::noise"],
+        module = "sand::component",
+        kind = "method",
+        summary = "Sample a `worldgen/noise` parameter file.",
+        context = "Sample a `worldgen/noise` parameter file. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(noise = "`noise` provides the typed Minecraft resource identifier used to sample a `worldgen/noise` parameter file.", xz_scale = "`xz_scale` supplies the xz scale value used to sample a `worldgen/noise` parameter file.", y_scale = "`y_scale` supplies the y scale value used to sample a `worldgen/noise` parameter file."),
+        returns = "A newly constructed `DensityFunctionExpr` configured to sample a `worldgen/noise` parameter file.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(noise: sand::registry::NoiseId, xz_scale: f64, y_scale: f64)  {\n    let density_function_expr = sand::component::DensityFunctionExpr::noise(noise, xz_scale, y_scale);\n}",
+    )]
     pub fn noise(noise: NoiseId, xz_scale: f64, y_scale: f64) -> Self {
         Self::Noise {
             noise,
@@ -245,7 +285,21 @@ impl DensityFunctionExpr {
     }
 
     /// Apply a single-argument transform.
-    #[doc = "**API Contract:** Run `sand api show sand::component::DensityFunctionExpr::unary` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::DensityFunctionExpr::unary",
+        aliases = ["sand::prelude::DensityFunctionExpr::unary"],
+        module = "sand::component",
+        kind = "method",
+        summary = "Apply a single-argument transform.",
+        context = "Apply a single-argument transform. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(op = "`op` supplies the op value used to apply a single-argument transform.", argument = "`argument` supplies the argument value used to apply a single-argument transform."),
+        returns = "A newly constructed `DensityFunctionExpr` configured to apply a single-argument transform.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(op: sand::component::DensityFunctionUnaryOp, argument: sand::component::DensityFunctionExpr)  {\n    let density_function_expr = sand::component::DensityFunctionExpr::unary(op, argument);\n}",
+    )]
     pub fn unary(op: DensityFunctionUnaryOp, argument: Self) -> Self {
         Self::Unary {
             op,
@@ -254,43 +308,141 @@ impl DensityFunctionExpr {
     }
 
     /// `minecraft:abs`
-    #[doc = "**API Contract:** Run `sand api show sand::component::DensityFunctionExpr::abs` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::DensityFunctionExpr::abs",
+        aliases = ["sand::prelude::DensityFunctionExpr::abs"],
+        module = "sand::component",
+        kind = "method",
+        summary = "`minecraft:abs`",
+        context = "`minecraft:abs` This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(argument = "`argument` supplies the argument value used to emit the documented `minecraft:abs` form."),
+        returns = "A newly constructed `DensityFunctionExpr` configured to emit the documented `minecraft:abs` form.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(argument: sand::component::DensityFunctionExpr)  {\n    let density_function_expr = sand::component::DensityFunctionExpr::abs(argument);\n}",
+    )]
     pub fn abs(argument: Self) -> Self {
         Self::unary(DensityFunctionUnaryOp::Abs, argument)
     }
 
     /// `minecraft:square`
-    #[doc = "**API Contract:** Run `sand api show sand::component::DensityFunctionExpr::square` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::DensityFunctionExpr::square",
+        aliases = ["sand::prelude::DensityFunctionExpr::square"],
+        module = "sand::component",
+        kind = "method",
+        summary = "`minecraft:square`",
+        context = "`minecraft:square` This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(argument = "`argument` supplies the argument value used to emit the documented `minecraft:square` form."),
+        returns = "A newly constructed `DensityFunctionExpr` configured to emit the documented `minecraft:square` form.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(argument: sand::component::DensityFunctionExpr)  {\n    let density_function_expr = sand::component::DensityFunctionExpr::square(argument);\n}",
+    )]
     pub fn square(argument: Self) -> Self {
         Self::unary(DensityFunctionUnaryOp::Square, argument)
     }
 
     /// `minecraft:cube`
-    #[doc = "**API Contract:** Run `sand api show sand::component::DensityFunctionExpr::cube` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::DensityFunctionExpr::cube",
+        aliases = ["sand::prelude::DensityFunctionExpr::cube"],
+        module = "sand::component",
+        kind = "method",
+        summary = "`minecraft:cube`",
+        context = "`minecraft:cube` This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(argument = "`argument` supplies the argument value used to emit the documented `minecraft:cube` form."),
+        returns = "A newly constructed `DensityFunctionExpr` configured to emit the documented `minecraft:cube` form.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(argument: sand::component::DensityFunctionExpr)  {\n    let density_function_expr = sand::component::DensityFunctionExpr::cube(argument);\n}",
+    )]
     pub fn cube(argument: Self) -> Self {
         Self::unary(DensityFunctionUnaryOp::Cube, argument)
     }
 
     /// `minecraft:half_negative`
-    #[doc = "**API Contract:** Run `sand api show sand::component::DensityFunctionExpr::half_negative` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::DensityFunctionExpr::half_negative",
+        aliases = ["sand::prelude::DensityFunctionExpr::half_negative"],
+        module = "sand::component",
+        kind = "method",
+        summary = "`minecraft:half_negative`",
+        context = "`minecraft:half_negative` This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(argument = "`argument` supplies the argument value used to emit the documented `minecraft:half_negative` form."),
+        returns = "A newly constructed `DensityFunctionExpr` configured to emit the documented `minecraft:half_negative` form.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(argument: sand::component::DensityFunctionExpr)  {\n    let density_function_expr = sand::component::DensityFunctionExpr::half_negative(argument);\n}",
+    )]
     pub fn half_negative(argument: Self) -> Self {
         Self::unary(DensityFunctionUnaryOp::HalfNegative, argument)
     }
 
     /// `minecraft:quarter_negative`
-    #[doc = "**API Contract:** Run `sand api show sand::component::DensityFunctionExpr::quarter_negative` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::DensityFunctionExpr::quarter_negative",
+        aliases = ["sand::prelude::DensityFunctionExpr::quarter_negative"],
+        module = "sand::component",
+        kind = "method",
+        summary = "`minecraft:quarter_negative`",
+        context = "`minecraft:quarter_negative` This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(argument = "`argument` supplies the argument value used to emit the documented `minecraft:quarter_negative` form."),
+        returns = "A newly constructed `DensityFunctionExpr` configured to emit the documented `minecraft:quarter_negative` form.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(argument: sand::component::DensityFunctionExpr)  {\n    let density_function_expr = sand::component::DensityFunctionExpr::quarter_negative(argument);\n}",
+    )]
     pub fn quarter_negative(argument: Self) -> Self {
         Self::unary(DensityFunctionUnaryOp::QuarterNegative, argument)
     }
 
     /// `minecraft:squeeze`
-    #[doc = "**API Contract:** Run `sand api show sand::component::DensityFunctionExpr::squeeze` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::DensityFunctionExpr::squeeze",
+        aliases = ["sand::prelude::DensityFunctionExpr::squeeze"],
+        module = "sand::component",
+        kind = "method",
+        summary = "`minecraft:squeeze`",
+        context = "`minecraft:squeeze` This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(argument = "`argument` supplies the argument value used to emit the documented `minecraft:squeeze` form."),
+        returns = "A newly constructed `DensityFunctionExpr` configured to emit the documented `minecraft:squeeze` form.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(argument: sand::component::DensityFunctionExpr)  {\n    let density_function_expr = sand::component::DensityFunctionExpr::squeeze(argument);\n}",
+    )]
     pub fn squeeze(argument: Self) -> Self {
         Self::unary(DensityFunctionUnaryOp::Squeeze, argument)
     }
 
     /// Apply a two-argument combinator.
-    #[doc = "**API Contract:** Run `sand api show sand::component::DensityFunctionExpr::binary` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::DensityFunctionExpr::binary",
+        aliases = ["sand::prelude::DensityFunctionExpr::binary"],
+        module = "sand::component",
+        kind = "method",
+        summary = "Apply a two-argument combinator.",
+        context = "Apply a two-argument combinator. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(op = "`op` supplies the op value used to apply a two-argument combinator.", argument1 = "`argument1` supplies the argument1 value used to apply a two-argument combinator.", argument2 = "`argument2` supplies the argument2 value used to apply a two-argument combinator."),
+        returns = "A newly constructed `DensityFunctionExpr` configured to apply a two-argument combinator.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(op: sand::component::DensityFunctionBinaryOp, argument1: sand::component::DensityFunctionExpr, argument2: sand::component::DensityFunctionExpr)  {\n    let density_function_expr = sand::component::DensityFunctionExpr::binary(op, argument1, argument2);\n}",
+    )]
     pub fn binary(op: DensityFunctionBinaryOp, argument1: Self, argument2: Self) -> Self {
         Self::Binary {
             op,
@@ -300,31 +452,101 @@ impl DensityFunctionExpr {
     }
 
     /// `minecraft:add`
-    #[doc = "**API Contract:** Run `sand api show sand::component::DensityFunctionExpr::sum` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::DensityFunctionExpr::sum",
+        aliases = ["sand::prelude::DensityFunctionExpr::sum"],
+        module = "sand::component",
+        kind = "method",
+        summary = "`minecraft:add`",
+        context = "`minecraft:add` This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(argument1 = "`argument1` supplies the argument1 value used to emit the documented `minecraft:add` form.", argument2 = "`argument2` supplies the argument2 value used to emit the documented `minecraft:add` form."),
+        returns = "A newly constructed `DensityFunctionExpr` configured to emit the documented `minecraft:add` form.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(argument1: sand::component::DensityFunctionExpr, argument2: sand::component::DensityFunctionExpr)  {\n    let density_function_expr = sand::component::DensityFunctionExpr::sum(argument1, argument2);\n}",
+    )]
     pub fn sum(argument1: Self, argument2: Self) -> Self {
         Self::binary(DensityFunctionBinaryOp::Add, argument1, argument2)
     }
 
     /// `minecraft:mul`
-    #[doc = "**API Contract:** Run `sand api show sand::component::DensityFunctionExpr::product` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::DensityFunctionExpr::product",
+        aliases = ["sand::prelude::DensityFunctionExpr::product"],
+        module = "sand::component",
+        kind = "method",
+        summary = "`minecraft:mul`",
+        context = "`minecraft:mul` This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(argument1 = "`argument1` supplies the argument1 value used to emit the documented `minecraft:mul` form.", argument2 = "`argument2` supplies the argument2 value used to emit the documented `minecraft:mul` form."),
+        returns = "A newly constructed `DensityFunctionExpr` configured to emit the documented `minecraft:mul` form.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(argument1: sand::component::DensityFunctionExpr, argument2: sand::component::DensityFunctionExpr)  {\n    let density_function_expr = sand::component::DensityFunctionExpr::product(argument1, argument2);\n}",
+    )]
     pub fn product(argument1: Self, argument2: Self) -> Self {
         Self::binary(DensityFunctionBinaryOp::Mul, argument1, argument2)
     }
 
     /// `minecraft:min`
-    #[doc = "**API Contract:** Run `sand api show sand::component::DensityFunctionExpr::min` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::DensityFunctionExpr::min",
+        aliases = ["sand::prelude::DensityFunctionExpr::min"],
+        module = "sand::component",
+        kind = "method",
+        summary = "`minecraft:min`",
+        context = "`minecraft:min` This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(argument1 = "`argument1` supplies the argument1 value used to emit the documented `minecraft:min` form.", argument2 = "`argument2` supplies the argument2 value used to emit the documented `minecraft:min` form."),
+        returns = "A newly constructed `DensityFunctionExpr` configured to emit the documented `minecraft:min` form.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(argument1: sand::component::DensityFunctionExpr, argument2: sand::component::DensityFunctionExpr)  {\n    let density_function_expr = sand::component::DensityFunctionExpr::min(argument1, argument2);\n}",
+    )]
     pub fn min(argument1: Self, argument2: Self) -> Self {
         Self::binary(DensityFunctionBinaryOp::Min, argument1, argument2)
     }
 
     /// `minecraft:max`
-    #[doc = "**API Contract:** Run `sand api show sand::component::DensityFunctionExpr::max` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::DensityFunctionExpr::max",
+        aliases = ["sand::prelude::DensityFunctionExpr::max"],
+        module = "sand::component",
+        kind = "method",
+        summary = "`minecraft:max`",
+        context = "`minecraft:max` This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(argument1 = "`argument1` supplies the argument1 value used to emit the documented `minecraft:max` form.", argument2 = "`argument2` supplies the argument2 value used to emit the documented `minecraft:max` form."),
+        returns = "A newly constructed `DensityFunctionExpr` configured to emit the documented `minecraft:max` form.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(argument1: sand::component::DensityFunctionExpr, argument2: sand::component::DensityFunctionExpr)  {\n    let density_function_expr = sand::component::DensityFunctionExpr::max(argument1, argument2);\n}",
+    )]
     pub fn max(argument1: Self, argument2: Self) -> Self {
         Self::binary(DensityFunctionBinaryOp::Max, argument1, argument2)
     }
 
     /// `minecraft:clamp`
-    #[doc = "**API Contract:** Run `sand api show sand::component::DensityFunctionExpr::clamp` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::DensityFunctionExpr::clamp",
+        aliases = ["sand::prelude::DensityFunctionExpr::clamp"],
+        module = "sand::component",
+        kind = "method",
+        summary = "`minecraft:clamp`",
+        context = "`minecraft:clamp` This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(input = "`input` supplies the input value used to emit the documented `minecraft:clamp` form.", min = "`min` provides the inclusive lower bound used to emit the documented `minecraft:clamp` form.", max = "`max` provides the inclusive upper bound used to emit the documented `minecraft:clamp` form."),
+        returns = "A newly constructed `DensityFunctionExpr` configured to emit the documented `minecraft:clamp` form.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(input: sand::component::DensityFunctionExpr, min: f64, max: f64)  {\n    let density_function_expr = sand::component::DensityFunctionExpr::clamp(input, min, max);\n}",
+    )]
     pub fn clamp(input: Self, min: f64, max: f64) -> Self {
         Self::Clamp {
             input: Box::new(input),
@@ -334,7 +556,21 @@ impl DensityFunctionExpr {
     }
 
     /// `minecraft:y_clamped_gradient`
-    #[doc = "**API Contract:** Run `sand api show sand::component::DensityFunctionExpr::y_clamped_gradient` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::DensityFunctionExpr::y_clamped_gradient",
+        aliases = ["sand::prelude::DensityFunctionExpr::y_clamped_gradient"],
+        module = "sand::component",
+        kind = "method",
+        summary = "`minecraft:y_clamped_gradient`",
+        context = "`minecraft:y_clamped_gradient` This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(from_y = "`from_y` supplies the from y value used to emit the documented `minecraft:y_clamped_gradient` form.", to_y = "`to_y` supplies the to y value used to emit the documented `minecraft:y_clamped_gradient` form.", from_value = "`from_value` supplies the from value used to emit the documented `minecraft:y_clamped_gradient` form.", to_value = "`to_value` supplies the to value used to emit the documented `minecraft:y_clamped_gradient` form."),
+        returns = "A newly constructed `DensityFunctionExpr` configured to emit the documented `minecraft:y_clamped_gradient` form.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(from_y: i32, to_y: i32, from_value: f64, to_value: f64)  {\n    let density_function_expr = sand::component::DensityFunctionExpr::y_clamped_gradient(from_y, to_y, from_value, to_value);\n}",
+    )]
     pub fn y_clamped_gradient(from_y: i32, to_y: i32, from_value: f64, to_value: f64) -> Self {
         Self::YClampedGradient {
             from_y,
@@ -349,7 +585,21 @@ impl DensityFunctionExpr {
     /// The value is emitted unchanged; only its outer JSON kind (object,
     /// number, or string) is checked, because those are the only forms
     /// Minecraft accepts for a density function.
-    #[doc = "**API Contract:** Run `sand api show sand::component::DensityFunctionExpr::raw` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::DensityFunctionExpr::raw",
+        aliases = ["sand::prelude::DensityFunctionExpr::raw"],
+        module = "sand::component",
+        kind = "method",
+        summary = "An explicit raw escape hatch for shapes the typed variants do not model.",
+        context = "An explicit raw escape hatch for shapes the typed variants do not model. The value is emitted unchanged; only its outer JSON kind (object, number, or string) is checked, because those are the only forms Minecraft accepts for a density function.",
+        minecraft = "The value is emitted unchanged; only its outer JSON kind (object, number, or string) is checked, because those are the only forms Minecraft accepts for a density function.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(value = "`value` provides the value being applied or compared used to use an explicit raw escape hatch for shapes the typed variants do not model."),
+        returns = "A newly constructed `DensityFunctionExpr` configured to use an explicit raw escape hatch for shapes the typed variants do not model.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(value: sand::component::RawJson)  {\n    let density_function_expr = sand::component::DensityFunctionExpr::raw(value);\n}",
+    )]
     pub fn raw(value: RawJson) -> Self {
         Self::Raw(value)
     }
@@ -358,7 +608,20 @@ impl DensityFunctionExpr {
     ///
     /// Public so typed expressions can be embedded in explicit raw
     /// noise-router surfaces that Sand does not yet model as author API.
-    #[doc = "**API Contract:** Run `sand api show sand::component::DensityFunctionExpr::to_json` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::DensityFunctionExpr::to_json",
+        aliases = ["sand::prelude::DensityFunctionExpr::to_json"],
+        module = "sand::component",
+        kind = "method",
+        summary = "Serialize this expression to the JSON Minecraft expects.",
+        context = "Serialize this expression to the JSON Minecraft expects. Public so typed expressions can be embedded in explicit raw noise-router surfaces that Sand does not yet model as author API.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        returns = "The `Value` value produced to serialize this expression to the JSON Minecraft expects.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(density_function_expr_value: &sand::component::DensityFunctionExpr)  {\n    let to_json = density_function_expr_value.to_json();\n}",
+    )]
     pub fn to_json(&self) -> Value {
         match self {
             Self::Constant(value) => serde_json::json!(value),
@@ -490,7 +753,18 @@ impl DensityFunctionExpr {
     }
 }
 
-#[doc = "**API Contract:** Run `sand api show sand::component::DensityFunction` for the canonical contract."]
+#[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::component::DensityFunction",
+    aliases = ["sand::prelude::DensityFunction"],
+    module = "sand::component",
+    summary = "A density-function definition (`data/<namespace>/worldgen/density_function/<id>.json`).",
+    context = "A density-function definition (`data/<namespace>/worldgen/density_function/<id>.json`). This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+    minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+    use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+    avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+    example = "use sand::component::DensityFunction;",
+)]
 /// A density-function definition
 /// (`data/<namespace>/worldgen/density_function/<id>.json`).
 ///
@@ -515,7 +789,21 @@ pub struct DensityFunction {
 
 impl DensityFunction {
     /// Create a density function from a typed expression.
-    #[doc = "**API Contract:** Run `sand api show sand::component::DensityFunction::new` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::DensityFunction::new",
+        aliases = ["sand::prelude::DensityFunction::new"],
+        module = "sand::component",
+        kind = "method",
+        summary = "Create a density function from a typed expression.",
+        context = "Create a density function from a typed expression. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(location = "`location` provides the typed resource identifier or location used to create a density function from a typed expression.", expr = "`expr` supplies the expr value used to create a density function from a typed expression."),
+        returns = "A newly constructed `DensityFunction` configured to create a density function from a typed expression.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(location: sand::ResourceLocation, expr: sand::component::DensityFunctionExpr)  {\n    let density_function = sand::component::DensityFunction::new(location, expr);\n}",
+    )]
     pub fn new(location: ResourceLocation, expr: DensityFunctionExpr) -> Self {
         Self { location, expr }
     }
@@ -524,20 +812,61 @@ impl DensityFunction {
     ///
     /// Prefer [`DensityFunction::new`]. This escape hatch exists for modded or
     /// version-specific density-function types Sand does not model.
-    #[doc = "**API Contract:** Run `sand api show sand::component::DensityFunction::new_raw` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::DensityFunction::new_raw",
+        aliases = ["sand::prelude::DensityFunction::new_raw"],
+        module = "sand::component",
+        kind = "method",
+        summary = "Create a density function from an explicitly raw JSON body.",
+        context = "Create a density function from an explicitly raw JSON body. Prefer [`DensityFunction::new`]. This escape hatch exists for modded or version-specific density-function types Sand does not model.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Prefer [`DensityFunction::new`]. This escape hatch exists for modded or version-specific density-function types Sand does not model."],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(location = "`location` provides the typed resource identifier or location used to create a density function from an explicitly raw JSON body.", body = "`body` supplies the body value used to create a density function from an explicitly raw JSON body."),
+        returns = "A newly constructed `DensityFunction` configured to create a density function from an explicitly raw JSON body.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(location: sand::ResourceLocation, body: sand::component::RawJson)  {\n    let density_function = sand::component::DensityFunction::new_raw(location, body);\n}",
+    )]
     pub fn new_raw(location: ResourceLocation, body: RawJson) -> Self {
         Self::new(location, DensityFunctionExpr::raw(body))
     }
 
     /// The typed registry ID other worldgen files use to reference this
     /// density function.
-    #[doc = "**API Contract:** Run `sand api show sand::component::DensityFunction::id` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::DensityFunction::id",
+        aliases = ["sand::prelude::DensityFunction::id"],
+        module = "sand::component",
+        kind = "method",
+        summary = "The typed registry ID other worldgen files use to reference this density function.",
+        context = "The typed registry ID other worldgen files use to reference this density function. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        returns = "The `DensityFunctionId` value produced to use the typed registry ID other worldgen files use to reference this density function.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(density_function_value: &sand::component::DensityFunction)  {\n    let id = density_function_value.id();\n}",
+    )]
     pub fn id(&self) -> DensityFunctionId {
         DensityFunctionId::custom(self.location.clone())
     }
 
     /// Replace the density-function expression.
-    #[doc = "**API Contract:** Run `sand api show sand::component::DensityFunction::expr` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::DensityFunction::expr",
+        aliases = ["sand::prelude::DensityFunction::expr"],
+        module = "sand::component",
+        kind = "method",
+        summary = "Replace the density-function expression.",
+        context = "Replace the density-function expression. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(expr = "`expr` supplies the expr value used to replace the density-function expression."),
+        returns = "The `DensityFunction` value with the documented change applied to replace the density-function expression.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(density_function_value: sand::component::DensityFunction, expr: sand::component::DensityFunctionExpr)  {\n    let updated_density_function = density_function_value.expr(expr);\n}",
+    )]
     pub fn expr(mut self, expr: DensityFunctionExpr) -> Self {
         self.expr = expr;
         self

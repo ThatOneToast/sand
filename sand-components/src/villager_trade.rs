@@ -84,7 +84,18 @@ const VILLAGER_TRADE_TAG_DIR: &str = "tags/villager_trade";
 
 // ── TradeItem ────────────────────────────────────────────────────────────────
 
-#[doc = "**API Contract:** Run `sand api show sand::component::TradeItem` for the canonical contract."]
+#[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::component::TradeItem",
+    aliases = ["sand::prelude::TradeItem"],
+    module = "sand::component",
+    summary = "A single accepted trade cost — the `wants` / `additional_wants` shape.",
+    context = "A single accepted trade cost — the `wants` / `additional_wants` shape. Not a concrete item stack: it describes an accepted item ID, an optional count provider (default constant `1`), and an optional expected component map.",
+    minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+    use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+    avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+    example = "use sand::component::TradeItem;",
+)]
 /// A single accepted trade cost — the `wants` / `additional_wants` shape.
 ///
 /// Not a concrete item stack: it describes an accepted item ID, an optional
@@ -99,7 +110,21 @@ pub struct TradeItem {
 
 impl TradeItem {
     /// Create a trade cost accepting one of `id`, with a default count of `1`.
-    #[doc = "**API Contract:** Run `sand api show sand::component::TradeItem::new` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::TradeItem::new",
+        aliases = ["sand::prelude::TradeItem::new"],
+        module = "sand::component",
+        kind = "method",
+        summary = "Create a trade cost accepting one of `id`, with a default count of `1`.",
+        context = "Create a trade cost accepting one of `id`, with a default count of `1`. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(id = "Create a trade cost accepting one of `id`, with a default count of `1`."),
+        returns = "A newly constructed `TradeItem` configured to create a trade cost accepting one of `id`, with a default count of `1`.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(id: impl Into < sand::registry::ItemId >)  {\n    let trade_item = sand::component::TradeItem::new(id);\n}",
+    )]
     pub fn new(id: impl Into<ItemId>) -> Self {
         Self {
             id: id.into(),
@@ -109,7 +134,21 @@ impl TradeItem {
     }
 
     /// Set the accepted count (a constant or a dynamic number provider).
-    #[doc = "**API Contract:** Run `sand api show sand::component::TradeItem::count` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::TradeItem::count",
+        aliases = ["sand::prelude::TradeItem::count"],
+        module = "sand::component",
+        kind = "method",
+        summary = "Set the accepted count (a constant or a dynamic number provider).",
+        context = "Set the accepted count (a constant or a dynamic number provider). This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(count = "`count` provides the requested numeric amount used to set the accepted count (a constant or a dynamic number provider)."),
+        returns = "The `TradeItem` value with the documented change applied to set the accepted count (a constant or a dynamic number provider).",
+        example = "use sand::prelude::*;\n\nfn demonstrate(trade_item_value: sand::component::TradeItem, count: impl Into < sand::component::NumberProvider >)  {\n    let updated_trade_item = trade_item_value.count(count);\n}",
+    )]
     pub fn count(mut self, count: impl Into<NumberProvider>) -> Self {
         self.count = count.into();
         self
@@ -119,7 +158,21 @@ impl TradeItem {
     /// `wants`/`additional_wants` accept. Validated only as "must be a JSON
     /// object" — see [`crate::item`] for the shared typed item/component
     /// model once a fallible `ItemMatcher` → trade-cost conversion lands.
-    #[doc = "**API Contract:** Run `sand api show sand::component::TradeItem::components_raw` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::TradeItem::components_raw",
+        aliases = ["sand::prelude::TradeItem::components_raw"],
+        module = "sand::component",
+        kind = "method",
+        summary = "Raw escape hatch for the expected `components` object shape vanilla's `wants`/`additional_wants` accept. Validated only as \"must be a JSON object\" — see [`sand::component`] for the shared typed item/component model once a fallible `ItemMatcher` → trade-cost conversion lands.",
+        context = "Raw escape hatch for the expected `components` object shape vanilla's `wants`/`additional_wants` accept. Validated only as \"must be a JSON object\" — see [`sand::component`] for the shared typed item/component model once a fallible `ItemMatcher` → trade-cost conversion lands. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(components = "Raw escape hatch for the expected `components` object shape vanilla's `wants`/`additional_wants` accept. Validated only as \"must be a JSON object\" — see [`sand::component`] for the shared typed item/component model once a fallible `ItemMatcher` → trade-cost conversion lands."),
+        returns = "The `TradeItem` value with the documented change applied to use raw escape hatch for the expected `components` object shape vanilla's `wants`/`additional_wants` accept. Validated only as \"must be a JSON object\" — see [`sand::component`] for the shared typed item/component model once a fallible `ItemMatcher` → trade-cost conversion lands.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(trade_item_value: sand::component::TradeItem, components: sand::component::RawJson)  {\n    let updated_trade_item = trade_item_value.components_raw(components);\n}",
+    )]
     pub fn components_raw(mut self, components: RawJson) -> Self {
         self.components_raw = Some(components.into_value());
         self
@@ -163,7 +216,18 @@ impl TradeItem {
 
 // ── VillagerTrade ────────────────────────────────────────────────────────────
 
-#[doc = "**API Contract:** Run `sand api show sand::component::VillagerTrade` for the canonical contract."]
+#[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::component::VillagerTrade",
+    aliases = ["sand::prelude::VillagerTrade"],
+    module = "sand::component",
+    summary = "A single `data/<namespace>/villager_trade/<id>.json` blueprint.",
+    context = "A single `data/<namespace>/villager_trade/<id>.json` blueprint. Used both as a standalone `#[datapack_component]` (a reusable trade referenced by multiple [`TradeSet`]s) and as the value built inside [`TradeSet::entry`]/[`VillagerTradePoolPatch::append`] closures, where Sand overwrites the resource location with the deterministic generated child ID after the closure runs.",
+    minecraft = "Used both as a standalone `#[datapack_component]` (a reusable trade referenced by multiple [`TradeSet`]s) and as the value built inside [`TradeSet::entry`]/[`VillagerTradePoolPatch::append`] closures, where Sand overwrites the resource location with the deterministic generated child ID after the closure runs.",
+    use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+    avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+    example = "use sand::component::VillagerTrade;",
+)]
 /// A single `data/<namespace>/villager_trade/<id>.json` blueprint.
 ///
 /// Used both as a standalone `#[datapack_component]` (a reusable trade referenced by
@@ -187,7 +251,21 @@ pub struct VillagerTrade {
 
 impl VillagerTrade {
     /// Create a new trade blueprint at `location`.
-    #[doc = "**API Contract:** Run `sand api show sand::component::VillagerTrade::new` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::VillagerTrade::new",
+        aliases = ["sand::prelude::VillagerTrade::new"],
+        module = "sand::component",
+        kind = "method",
+        summary = "Create a new trade blueprint at `location`.",
+        context = "Create a new trade blueprint at `location`. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(location = "Create a new trade blueprint at `location`."),
+        returns = "A newly constructed `VillagerTrade` configured to create a new trade blueprint at `location`.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(location: sand::ResourceLocation)  {\n    let villager_trade = sand::component::VillagerTrade::new(location);\n}",
+    )]
     pub fn new(location: ResourceLocation) -> Self {
         Self {
             location,
@@ -204,7 +282,21 @@ impl VillagerTrade {
     }
 
     /// Set the required first input cost (`wants`).
-    #[doc = "**API Contract:** Run `sand api show sand::component::VillagerTrade::wants` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::VillagerTrade::wants",
+        aliases = ["sand::prelude::VillagerTrade::wants"],
+        module = "sand::component",
+        kind = "method",
+        summary = "Set the required first input cost (`wants`).",
+        context = "Set the required first input cost (`wants`). This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(item = "`item` provides the item value or item predicate used to set the required first input cost (`wants`)."),
+        returns = "The `VillagerTrade` value with the documented change applied to set the required first input cost (`wants`).",
+        example = "use sand::prelude::*;\n\nfn demonstrate(villager_trade_value: sand::component::VillagerTrade, item: sand::component::TradeItem)  {\n    let updated_villager_trade = villager_trade_value.wants(item);\n}",
+    )]
     pub fn wants(mut self, item: TradeItem) -> Self {
         self.wants = Some(item);
         self
@@ -213,7 +305,21 @@ impl VillagerTrade {
     /// Set the optional second input cost (`additional_wants`). Vanilla
     /// supports at most one additional cost — calling this again replaces
     /// the previous value rather than accumulating a list.
-    #[doc = "**API Contract:** Run `sand api show sand::component::VillagerTrade::and_wants` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::VillagerTrade::and_wants",
+        aliases = ["sand::prelude::VillagerTrade::and_wants"],
+        module = "sand::component",
+        kind = "method",
+        summary = "Set the optional second input cost (`additional_wants`). Vanilla supports at most one additional cost — calling this again replaces the previous value rather than accumulating a list.",
+        context = "Set the optional second input cost (`additional_wants`). Vanilla supports at most one additional cost — calling this again replaces the previous value rather than accumulating a list. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(item = "`item` provides the item value or item predicate used to set the optional second input cost (`additional_wants`). Vanilla supports at most one additional cost — calling this again replaces the previous value rather than accumulating a list."),
+        returns = "The `VillagerTrade` value with the documented change applied to set the optional second input cost (`additional_wants`). Vanilla supports at most one additional cost — calling this again replaces the previous value rather than accumulating a list.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(villager_trade_value: sand::component::VillagerTrade, item: sand::component::TradeItem)  {\n    let updated_villager_trade = villager_trade_value.and_wants(item);\n}",
+    )]
     pub fn and_wants(mut self, item: TradeItem) -> Self {
         self.additional_wants = Some(item);
         self
@@ -222,7 +328,21 @@ impl VillagerTrade {
     /// Set the resulting item stack (`gives`). Reuses the shared
     /// component-bearing [`ItemStack`] model, so custom data, names, lore,
     /// enchantments, and other result components survive.
-    #[doc = "**API Contract:** Run `sand api show sand::component::VillagerTrade::gives` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::VillagerTrade::gives",
+        aliases = ["sand::prelude::VillagerTrade::gives"],
+        module = "sand::component",
+        kind = "method",
+        summary = "Set the resulting item stack (`gives`). Reuses the shared component-bearing [`ItemStack`] model, so custom data, names, lore, enchantments, and other result components survive.",
+        context = "Set the resulting item stack (`gives`). Reuses the shared component-bearing [`ItemStack`] model, so custom data, names, lore, enchantments, and other result components survive. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(stack = "`stack` supplies the stack value used to set the resulting item stack (`gives`). Reuses the shared component-bearing [`ItemStack`] model, so custom data, names, lore, enchantments, and other result components survive."),
+        returns = "The `VillagerTrade` value with the documented change applied to set the resulting item stack (`gives`). Reuses the shared component-bearing [`ItemStack`] model, so custom data, names, lore, enchantments, and other result components survive.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(villager_trade_value: sand::component::VillagerTrade, stack: impl Into < sand::component::ItemStack >)  {\n    let updated_villager_trade = villager_trade_value.gives(stack);\n}",
+    )]
     pub fn gives(mut self, stack: impl Into<ItemStack>) -> Self {
         self.gives = Some(stack.into());
         self
@@ -235,7 +355,21 @@ impl VillagerTrade {
     /// this field (no `ItemModifierRef`); this method does not validate that
     /// constraint beyond "must be a JSON object" pending the typed loot
     /// item-modifier reference work (#185).
-    #[doc = "**API Contract:** Run `sand api show sand::component::VillagerTrade::modify_given_item_raw` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::VillagerTrade::modify_given_item_raw",
+        aliases = ["sand::prelude::VillagerTrade::modify_given_item_raw"],
+        module = "sand::component",
+        kind = "method",
+        summary = "Append a raw item-modifier/loot-function JSON object applied to `gives` when an offer is generated (`given_item_modifiers`).",
+        context = "Append a raw item-modifier/loot-function JSON object applied to `gives` when an offer is generated (`given_item_modifiers`). Raw escape hatch: 26.1/26.2 only accept inline modifier shapes in this field (no `ItemModifierRef`); this method does not validate that constraint beyond \"must be a JSON object\" pending the typed loot item-modifier reference work (#185).",
+        minecraft = "Raw escape hatch: 26.1/26.2 only accept inline modifier shapes in this field (no `ItemModifierRef`); this method does not validate that constraint beyond \"must be a JSON object\" pending the typed loot item-modifier reference work (#185).",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(modifier = "`modifier` supplies the modifier value used to append a raw item-modifier/loot-function JSON object applied to `gives` when an offer is generated (`given_item_modifiers`)."),
+        returns = "The `VillagerTrade` value with the documented change applied to append a raw item-modifier/loot-function JSON object applied to `gives` when an offer is generated (`given_item_modifiers`).",
+        example = "use sand::prelude::*;\n\nfn demonstrate(villager_trade_value: sand::component::VillagerTrade, modifier: sand::component::RawJson)  {\n    let updated_villager_trade = villager_trade_value.modify_given_item_raw(modifier);\n}",
+    )]
     pub fn modify_given_item_raw(mut self, modifier: RawJson) -> Self {
         self.given_item_modifiers.push(modifier.into_value());
         self
@@ -243,7 +377,21 @@ impl VillagerTrade {
 
     /// Set the maximum number of times this trade can be used
     /// (constant or dynamic number provider; default constant `4`).
-    #[doc = "**API Contract:** Run `sand api show sand::component::VillagerTrade::max_uses` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::VillagerTrade::max_uses",
+        aliases = ["sand::prelude::VillagerTrade::max_uses"],
+        module = "sand::component",
+        kind = "method",
+        summary = "Set the maximum number of times this trade can be used (constant or dynamic number provider; default constant `4`).",
+        context = "Set the maximum number of times this trade can be used (constant or dynamic number provider; default constant `4`). This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(max_uses = "`max_uses` supplies the max uses value used to set the maximum number of times this trade can be used (constant or dynamic number provider; default constant `4`)."),
+        returns = "The `VillagerTrade` value with the documented change applied to set the maximum number of times this trade can be used (constant or dynamic number provider; default constant `4`).",
+        example = "use sand::prelude::*;\n\nfn demonstrate(villager_trade_value: sand::component::VillagerTrade, max_uses: impl Into < sand::component::NumberProvider >)  {\n    let updated_villager_trade = villager_trade_value.max_uses(max_uses);\n}",
+    )]
     pub fn max_uses(mut self, max_uses: impl Into<NumberProvider>) -> Self {
         self.max_uses = max_uses.into();
         self
@@ -251,7 +399,21 @@ impl VillagerTrade {
 
     /// Set how much reputation/demand/discounts affect the first cost
     /// (constant or dynamic number provider; default constant `0.0`).
-    #[doc = "**API Contract:** Run `sand api show sand::component::VillagerTrade::reputation_discount` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::VillagerTrade::reputation_discount",
+        aliases = ["sand::prelude::VillagerTrade::reputation_discount"],
+        module = "sand::component",
+        kind = "method",
+        summary = "Set how much reputation/demand/discounts affect the first cost (constant or dynamic number provider; default constant `0.0`).",
+        context = "Set how much reputation/demand/discounts affect the first cost (constant or dynamic number provider; default constant `0.0`). This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(discount = "`discount` supplies the discount value used to set how much reputation/demand/discounts affect the first cost (constant or dynamic number provider; default constant `0.0`)."),
+        returns = "The `VillagerTrade` value with the documented change applied to set how much reputation/demand/discounts affect the first cost (constant or dynamic number provider; default constant `0.0`).",
+        example = "use sand::prelude::*;\n\nfn demonstrate(villager_trade_value: sand::component::VillagerTrade, discount: impl Into < sand::component::NumberProvider >)  {\n    let updated_villager_trade = villager_trade_value.reputation_discount(discount);\n}",
+    )]
     pub fn reputation_discount(mut self, discount: impl Into<NumberProvider>) -> Self {
         self.reputation_discount = discount.into();
         self
@@ -259,7 +421,21 @@ impl VillagerTrade {
 
     /// Set the merchant XP awarded when this trade completes
     /// (constant or dynamic number provider; default constant `1`).
-    #[doc = "**API Contract:** Run `sand api show sand::component::VillagerTrade::merchant_xp` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::VillagerTrade::merchant_xp",
+        aliases = ["sand::prelude::VillagerTrade::merchant_xp"],
+        module = "sand::component",
+        kind = "method",
+        summary = "Set the merchant XP awarded when this trade completes (constant or dynamic number provider; default constant `1`).",
+        context = "Set the merchant XP awarded when this trade completes (constant or dynamic number provider; default constant `1`). This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(xp = "`xp` supplies the xp value used to set the merchant XP awarded when this trade completes (constant or dynamic number provider; default constant `1`)."),
+        returns = "The `VillagerTrade` value with the documented change applied to set the merchant XP awarded when this trade completes (constant or dynamic number provider; default constant `1`).",
+        example = "use sand::prelude::*;\n\nfn demonstrate(villager_trade_value: sand::component::VillagerTrade, xp: impl Into < sand::component::NumberProvider >)  {\n    let updated_villager_trade = villager_trade_value.merchant_xp(xp);\n}",
+    )]
     pub fn merchant_xp(mut self, xp: impl Into<NumberProvider>) -> Self {
         self.merchant_xp = xp.into();
         self
@@ -272,7 +448,21 @@ impl VillagerTrade {
     /// the typed predicate model from [`crate::predicate`] once a
     /// predicate-context conversion lands (#204). Validated only as "must be
     /// a JSON object".
-    #[doc = "**API Contract:** Run `sand api show sand::component::VillagerTrade::offered_when_raw` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::VillagerTrade::offered_when_raw",
+        aliases = ["sand::prelude::VillagerTrade::offered_when_raw"],
+        module = "sand::component",
+        kind = "method",
+        summary = "Raw escape hatch for the inline `merchant_predicate` object restricting which merchant entities may offer this trade.",
+        context = "Raw escape hatch for the inline `merchant_predicate` object restricting which merchant entities may offer this trade. 26.1/26.2 do not support predicate references in this field; reuse the typed predicate model from [`sand::predicate`] once a predicate-context conversion lands (#204). Validated only as \"must be a JSON object\".",
+        minecraft = "26.1/26.2 do not support predicate references in this field; reuse the typed predicate model from [`sand::predicate`] once a predicate-context conversion lands (#204). Validated only as \"must be a JSON object\".",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(predicate = "`predicate` provides the predicate that must match used to use raw escape hatch for the inline `merchant_predicate` object restricting which merchant entities may offer this trade."),
+        returns = "The `VillagerTrade` value with the documented change applied to use raw escape hatch for the inline `merchant_predicate` object restricting which merchant entities may offer this trade.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(villager_trade_value: sand::component::VillagerTrade, predicate: sand::component::RawJson)  {\n    let updated_villager_trade = villager_trade_value.offered_when_raw(predicate);\n}",
+    )]
     pub fn offered_when_raw(mut self, predicate: RawJson) -> Self {
         self.merchant_predicate_raw = Some(predicate.into_value());
         self
@@ -280,20 +470,60 @@ impl VillagerTrade {
 
     /// Set the enchantment selection that doubles the additional trade cost
     /// when present in the generated result's stored enchantments.
-    #[doc = "**API Contract:** Run `sand api show sand::component::VillagerTrade::double_trade_price_enchantments` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::VillagerTrade::double_trade_price_enchantments",
+        aliases = ["sand::prelude::VillagerTrade::double_trade_price_enchantments"],
+        module = "sand::component",
+        kind = "method",
+        summary = "Set the enchantment selection that doubles the additional trade cost when present in the generated result's stored enchantments.",
+        context = "Set the enchantment selection that doubles the additional trade cost when present in the generated result's stored enchantments. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(selection = "`selection` supplies the selection value used to set the enchantment selection that doubles the additional trade cost when present in the generated result's stored enchantments."),
+        returns = "The `VillagerTrade` value with the documented change applied to set the enchantment selection that doubles the additional trade cost when present in the generated result's stored enchantments.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(villager_trade_value: sand::component::VillagerTrade, selection: sand::component::EnchantmentSelection)  {\n    let updated_villager_trade = villager_trade_value.double_trade_price_enchantments(selection);\n}",
+    )]
     pub fn double_trade_price_enchantments(mut self, selection: EnchantmentSelection) -> Self {
         self.double_trade_price_enchantments = Some(selection);
         self
     }
 
     /// The resource location this trade is (or will be) exported at.
-    #[doc = "**API Contract:** Run `sand api show sand::component::VillagerTrade::location` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::VillagerTrade::location",
+        aliases = ["sand::prelude::VillagerTrade::location"],
+        module = "sand::component",
+        kind = "method",
+        summary = "The resource location this trade is (or will be) exported at.",
+        context = "The resource location this trade is (or will be) exported at. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        returns = "The `& ResourceLocation` value produced to use the resource location this trade is (or will be) exported at.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(villager_trade_value: &sand::component::VillagerTrade)  {\n    let location = villager_trade_value.location();\n}",
+    )]
     pub fn location(&self) -> &ResourceLocation {
         &self.location
     }
 
     /// The typed ID this trade is exported at.
-    #[doc = "**API Contract:** Run `sand api show sand::component::VillagerTrade::id` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::VillagerTrade::id",
+        aliases = ["sand::prelude::VillagerTrade::id"],
+        module = "sand::component",
+        kind = "method",
+        summary = "The typed ID this trade is exported at.",
+        context = "The typed ID this trade is exported at. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        returns = "The `VillagerTradeId` value produced to use the typed ID this trade is exported at.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(villager_trade_value: &sand::component::VillagerTrade)  {\n    let id = villager_trade_value.id();\n}",
+    )]
     pub fn id(&self) -> VillagerTradeId {
         VillagerTradeId::custom(self.location.clone())
     }
@@ -491,7 +721,18 @@ enum TradeSetItem {
     Reference(VillagerTradeId),
 }
 
-#[doc = "**API Contract:** Run `sand api show sand::component::VillagerTradeRef` for the canonical contract."]
+#[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::component::VillagerTradeRef",
+    aliases = ["sand::prelude::VillagerTradeRef"],
+    module = "sand::component",
+    summary = "A reference to a [`VillagerTrade`] resource that is not owned/hoisted by the referencing [`TradeSet`]/[`VillagerTradePoolPatch`].",
+    context = "A reference to a [`VillagerTrade`] resource that is not owned/hoisted by the referencing [`TradeSet`]/[`VillagerTradePoolPatch`]. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+    minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+    use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+    avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+    example = "use sand::component::VillagerTradeRef;",
+)]
 /// A reference to a [`VillagerTrade`] resource that is not owned/hoisted by
 /// the referencing [`TradeSet`]/[`VillagerTradePoolPatch`].
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -499,13 +740,40 @@ pub struct VillagerTradeRef(VillagerTradeId);
 
 impl VillagerTradeRef {
     /// Reference a trade in another pack by its full `namespace:path` ID.
-    #[doc = "**API Contract:** Run `sand api show sand::component::VillagerTradeRef::external` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::VillagerTradeRef::external",
+        aliases = ["sand::prelude::VillagerTradeRef::external"],
+        module = "sand::component",
+        kind = "method",
+        summary = "Reference a trade in another pack by its full `namespace:path` ID.",
+        context = "Reference a trade in another pack by its full `namespace:path` ID. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(id = "`id` provides the typed resource identifier or location used to reference a trade in another pack by its full `namespace:path` ID."),
+        returns = "On success, the value produced to reference a trade in another pack by its full `namespace:path` ID; otherwise, the documented validation or export diagnostic.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(id: & str)  {\n    let external = sand::component::VillagerTradeRef::external(id);\n}",
+    )]
     pub fn external(id: &str) -> SandResult<Self> {
         Ok(Self(id.parse()?))
     }
 
     /// The typed ID this reference points at.
-    #[doc = "**API Contract:** Run `sand api show sand::component::VillagerTradeRef::id` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::VillagerTradeRef::id",
+        aliases = ["sand::prelude::VillagerTradeRef::id"],
+        module = "sand::component",
+        kind = "method",
+        summary = "The typed ID this reference points at.",
+        context = "The typed ID this reference points at. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        returns = "The `& VillagerTradeId` value produced to use the typed ID this reference points at.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(villager_trade_ref_value: &sand::component::VillagerTradeRef)  {\n    let id = villager_trade_ref_value.id();\n}",
+    )]
     pub fn id(&self) -> &VillagerTradeId {
         &self.0
     }
@@ -526,7 +794,18 @@ fn valid_entry_key(key: &str) -> bool {
 
 // ── TradeSet ─────────────────────────────────────────────────────────────────
 
-#[doc = "**API Contract:** Run `sand api show sand::component::TradeSet` for the canonical contract."]
+#[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::component::TradeSet",
+    aliases = ["sand::prelude::TradeSet"],
+    module = "sand::component",
+    summary = "A `data/<namespace>/trade_set/<id>.json` trade-selection group.",
+    context = "A `data/<namespace>/trade_set/<id>.json` trade-selection group. Owns zero or more inline entries (hoisted into generated `villager_trade` resources — see [`TradeSet::entry`]), explicit references to standalone trades ([`TradeSet::include`]/[`TradeSet::include_ref`]), or an exclusive tag source ([`TradeSet::source_tag`]).",
+    minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+    use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+    avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+    example = "use sand::component::TradeSet;",
+)]
 /// A `data/<namespace>/trade_set/<id>.json` trade-selection group.
 ///
 /// Owns zero or more inline entries (hoisted into generated `villager_trade`
@@ -550,7 +829,21 @@ impl TradeSet {
     /// profession/level or the Wandering Trader by itself — use
     /// [`TradeSet::replace_target`] to explicitly replace a known vanilla
     /// pool, or [`VillagerTradePoolPatch`] to additively extend one.
-    #[doc = "**API Contract:** Run `sand api show sand::component::TradeSet::new` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::TradeSet::new",
+        aliases = ["sand::prelude::TradeSet::new"],
+        module = "sand::component",
+        kind = "method",
+        summary = "Create a fresh custom trade set at `location`. Defining a `TradeSet` never attaches it to a Villager profession/level or the Wandering Trader by itself — use [`TradeSet::replace_target`] to explicitly replace a known vanilla pool, or [`VillagerTradePoolPatch`] to additively extend one.",
+        context = "Create a fresh custom trade set at `location`. Defining a `TradeSet` never attaches it to a Villager profession/level or the Wandering Trader by itself — use [`TradeSet::replace_target`] to explicitly replace a known vanilla pool, or [`VillagerTradePoolPatch`] to additively extend one. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(location = "Create a fresh custom trade set at `location`."),
+        returns = "A newly constructed `TradeSet` configured to create a fresh custom trade set at `location`. Defining a `TradeSet` never attaches it to a Villager profession/level or the Wandering Trader by itself — use [`TradeSet::replace_target`] to explicitly replace a known vanilla pool, or [`VillagerTradePoolPatch`] to additively extend one.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(location: sand::ResourceLocation)  {\n    let trade_set = sand::component::TradeSet::new(location);\n}",
+    )]
     pub fn new(location: ResourceLocation) -> Self {
         Self {
             location,
@@ -569,7 +862,21 @@ impl TradeSet {
     /// resource location — making replacement of vanilla content visible in
     /// the call site rather than an implicit side effect of any ordinary
     /// `TradeSet::new` namespace choice.
-    #[doc = "**API Contract:** Run `sand api show sand::component::TradeSet::replace_target` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::TradeSet::replace_target",
+        aliases = ["sand::prelude::TradeSet::replace_target"],
+        module = "sand::component",
+        kind = "method",
+        summary = "Explicitly replace a known vanilla trade set (a profession/level, Common Smith level, or Wandering Trader pool).",
+        context = "Explicitly replace a known vanilla trade set (a profession/level, Common Smith level, or Wandering Trader pool). This is the only constructor that targets a vanilla `trade_set` resource location — making replacement of vanilla content visible in the call site rather than an implicit side effect of any ordinary `TradeSet::new` namespace choice.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(pool = "`pool` supplies the pool value used to explicitly replace a known vanilla trade set (a profession/level, Common Smith level, or Wandering Trader pool)."),
+        returns = "A newly constructed `TradeSet` configured to explicitly replace a known vanilla trade set (a profession/level, Common Smith level, or Wandering Trader pool).",
+        example = "use sand::prelude::*;\n\nfn demonstrate(pool: sand::component::VillagerTradePool)  {\n    let trade_set = sand::component::TradeSet::replace_target(pool);\n}",
+    )]
     pub fn replace_target(pool: VillagerTradePool) -> Self {
         Self::new(pool.resource_location())
     }
@@ -578,7 +885,21 @@ impl TradeSet {
     /// `build`. Sand hoists this into a generated `villager_trade` resource
     /// at `<namespace>:<trade_set path>/<key>` — see the module docs for the
     /// full deterministic scheme.
-    #[doc = "**API Contract:** Run `sand api show sand::component::TradeSet::entry` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::TradeSet::entry",
+        aliases = ["sand::prelude::TradeSet::entry"],
+        module = "sand::component",
+        kind = "method",
+        summary = "Add an inline trade entry under the stable key `key`, built by `build`. Sand hoists this into a generated `villager_trade` resource at `<namespace>:<trade_set path>/<key>` — see the module docs for the full deterministic scheme.",
+        context = "Add an inline trade entry under the stable key `key`, built by `build`. Sand hoists this into a generated `villager_trade` resource at `<namespace>:<trade_set path>/<key>` — see the module docs for the full deterministic scheme. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(key = "Add an inline trade entry under the stable key `key`, built by `build`. Sand hoists this into a generated `villager_trade` resource at `<namespace>:<trade_set path>/<key>` — see the module docs for the full deterministic scheme.", build = "Add an inline trade entry under the stable key `key`, built by `build`. Sand hoists this into a generated `villager_trade` resource at `<namespace>:<trade_set path>/<key>` — see the module docs for the full deterministic scheme."),
+        returns = "The `TradeSet` value with the documented change applied to add an inline trade entry under the stable key `key`, built by `build`. Sand hoists this into a generated `villager_trade` resource at `<namespace>:<trade_set path>/<key>` — see the module docs for the full deterministic scheme.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(trade_set_value: sand::component::TradeSet, key: impl Into < String >, build: impl FnOnce (sand::component::VillagerTrade) -> sand::component::VillagerTrade)  {\n    let updated_trade_set = trade_set_value.entry(key, build);\n}",
+    )]
     pub fn entry(
         mut self,
         key: impl Into<String>,
@@ -601,7 +922,21 @@ impl TradeSet {
     /// a standalone `#[datapack_component] fn ... -> VillagerTrade`) — pass the
     /// value returned by calling that function directly, e.g.
     /// `.include(enchanted_pickaxe_trade())`.
-    #[doc = "**API Contract:** Run `sand api show sand::component::TradeSet::include` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::TradeSet::include",
+        aliases = ["sand::prelude::TradeSet::include"],
+        module = "sand::component",
+        kind = "method",
+        summary = "Reference an already-built standalone [`VillagerTrade`] value by its own resource location, without re-exporting it as a nested resource.",
+        context = "Reference an already-built standalone [`VillagerTrade`] value by its own resource location, without re-exporting it as a nested resource. The referenced trade should also be exported on its own (typically as a standalone `#[datapack_component] fn ... -> VillagerTrade`) — pass the value returned by calling that function directly, e.g. `.include(enchanted_pickaxe_trade())`.",
+        minecraft = "The referenced trade should also be exported on its own (typically as a standalone `#[datapack_component] fn ... -> VillagerTrade`) — pass the value returned by calling that function directly, e.g. `.include(enchanted_pickaxe_trade())`.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(trade = "`trade` supplies the trade value used to reference an already-built standalone [`VillagerTrade`] value by its own resource location, without re-exporting it as a nested resource."),
+        returns = "The `TradeSet` value with the documented change applied to reference an already-built standalone [`VillagerTrade`] value by its own resource location, without re-exporting it as a nested resource.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(trade_set_value: sand::component::TradeSet, trade: sand::component::VillagerTrade)  {\n    let updated_trade_set = trade_set_value.include(trade);\n}",
+    )]
     pub fn include(mut self, trade: VillagerTrade) -> Self {
         self.items.push(TradeSetItem::Reference(trade.id()));
         self
@@ -609,7 +944,21 @@ impl TradeSet {
 
     /// Reference a trade by typed ID (e.g. an external-pack reference via
     /// [`VillagerTradeRef::external`]).
-    #[doc = "**API Contract:** Run `sand api show sand::component::TradeSet::include_ref` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::TradeSet::include_ref",
+        aliases = ["sand::prelude::TradeSet::include_ref"],
+        module = "sand::component",
+        kind = "method",
+        summary = "Reference a trade by typed ID (e.g. an external-pack reference via [`VillagerTradeRef::external`]).",
+        context = "Reference a trade by typed ID (e.g. an external-pack reference via [`VillagerTradeRef::external`]). This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(reference = "`reference` supplies the reference value used to reference a trade by typed ID (e.g. an external-pack reference via [`VillagerTradeRef::external`])."),
+        returns = "The `TradeSet` value with the documented change applied to reference a trade by typed ID (e.g. an external-pack reference via [`VillagerTradeRef::external`]).",
+        example = "use sand::prelude::*;\n\nfn demonstrate(trade_set_value: sand::component::TradeSet, reference: sand::component::VillagerTradeRef)  {\n    let updated_trade_set = trade_set_value.include_ref(reference);\n}",
+    )]
     pub fn include_ref(mut self, reference: VillagerTradeRef) -> Self {
         self.items.push(TradeSetItem::Reference(reference.0));
         self
@@ -618,7 +967,21 @@ impl TradeSet {
     /// Select the trade source from a Villager Trade tag instead of inline
     /// entries/explicit references. Mutually exclusive with
     /// [`TradeSet::entry`]/[`TradeSet::include`]/[`TradeSet::include_ref`].
-    #[doc = "**API Contract:** Run `sand api show sand::component::TradeSet::source_tag` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::TradeSet::source_tag",
+        aliases = ["sand::prelude::TradeSet::source_tag"],
+        module = "sand::component",
+        kind = "method",
+        summary = "Select the trade source from a Villager Trade tag instead of inline entries/explicit references. Mutually exclusive with [`TradeSet::entry`]/[`TradeSet::include`]/[`TradeSet::include_ref`].",
+        context = "Select the trade source from a Villager Trade tag instead of inline entries/explicit references. Mutually exclusive with [`TradeSet::entry`]/[`TradeSet::include`]/[`TradeSet::include_ref`]. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(tag = "`tag` supplies the tag value used to select the trade source from a Villager Trade tag instead of inline entries/explicit references. Mutually exclusive with [`TradeSet::entry`]/[`TradeSet::include`]/[`TradeSet::include_ref`]."),
+        returns = "The `TradeSet` value with the documented change applied to select the trade source from a Villager Trade tag instead of inline entries/explicit references. Mutually exclusive with [`TradeSet::entry`]/[`TradeSet::include`]/[`TradeSet::include_ref`].",
+        example = "use sand::prelude::*;\n\nfn demonstrate(trade_set_value: sand::component::TradeSet, tag: sand::component::TagId < sand::registry::VillagerTradeId >)  {\n    let updated_trade_set = trade_set_value.source_tag(tag);\n}",
+    )]
     pub fn source_tag(mut self, tag: TagId<VillagerTradeId>) -> Self {
         self.tag_source = Some(tag);
         self
@@ -626,7 +989,21 @@ impl TradeSet {
 
     /// Set how many offers are selected from the source (constant or
     /// dynamic number provider). Required by vanilla; validated as present.
-    #[doc = "**API Contract:** Run `sand api show sand::component::TradeSet::amount` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::TradeSet::amount",
+        aliases = ["sand::prelude::TradeSet::amount"],
+        module = "sand::component",
+        kind = "method",
+        summary = "Set how many offers are selected from the source (constant or dynamic number provider). Required by vanilla; validated as present.",
+        context = "Set how many offers are selected from the source (constant or dynamic number provider). Required by vanilla; validated as present. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(amount = "`amount` provides the requested numeric amount used to set how many offers are selected from the source (constant or dynamic number provider). Required by vanilla; validated as present."),
+        returns = "The `TradeSet` value with the documented change applied to set how many offers are selected from the source (constant or dynamic number provider). Required by vanilla; validated as present.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(trade_set_value: sand::component::TradeSet, amount: impl Into < sand::component::NumberProvider >)  {\n    let updated_trade_set = trade_set_value.amount(amount);\n}",
+    )]
     pub fn amount(mut self, amount: impl Into<NumberProvider>) -> Self {
         self.amount = Some(amount.into());
         self
@@ -634,14 +1011,42 @@ impl TradeSet {
 
     /// Allow the same trade blueprint to be selected more than once
     /// (default `false`).
-    #[doc = "**API Contract:** Run `sand api show sand::component::TradeSet::allow_duplicates` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::TradeSet::allow_duplicates",
+        aliases = ["sand::prelude::TradeSet::allow_duplicates"],
+        module = "sand::component",
+        kind = "method",
+        summary = "Allow the same trade blueprint to be selected more than once (default `false`).",
+        context = "Allow the same trade blueprint to be selected more than once (default `false`). This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(allow = "`allow` provides the switch that enables or disables the behavior used to allow the same trade blueprint to be selected more than once (default `false`)."),
+        returns = "The `TradeSet` value with the documented change applied to allow the same trade blueprint to be selected more than once (default `false`).",
+        example = "use sand::prelude::*;\n\nfn demonstrate(trade_set_value: sand::component::TradeSet, allow: bool)  {\n    let updated_trade_set = trade_set_value.allow_duplicates(allow);\n}",
+    )]
     pub fn allow_duplicates(mut self, allow: bool) -> Self {
         self.allow_duplicates = allow;
         self
     }
 
     /// Set the named random sequence controlling trade selection.
-    #[doc = "**API Contract:** Run `sand api show sand::component::TradeSet::random_sequence` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::TradeSet::random_sequence",
+        aliases = ["sand::prelude::TradeSet::random_sequence"],
+        module = "sand::component",
+        kind = "method",
+        summary = "Set the named random sequence controlling trade selection.",
+        context = "Set the named random sequence controlling trade selection. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(sequence = "`sequence` provides the typed Minecraft resource identifier used to set the named random sequence controlling trade selection."),
+        returns = "The `TradeSet` value with the documented change applied to set the named random sequence controlling trade selection.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(trade_set_value: sand::component::TradeSet, sequence: sand::registry::RandomSequenceId)  {\n    let updated_trade_set = trade_set_value.random_sequence(sequence);\n}",
+    )]
     pub fn random_sequence(mut self, sequence: RandomSequenceId) -> Self {
         self.random_sequence = Some(sequence);
         self
@@ -789,54 +1194,66 @@ impl DatapackComponent for TradeSet {
 
 // ── Known pool targets ────────────────────────────────────────────────────────
 
-#[doc = "**API Contract:** Run `sand api show sand::component::VillagerProfession` for the canonical contract."]
+#[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::component::VillagerProfession",
+    aliases = ["sand::prelude::VillagerProfession"],
+    module = "sand::component",
+    summary = "A villager profession with a vanilla trade table.",
+    context = "A villager profession with a vanilla trade table. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+    minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+    use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+    avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+    example = "use sand::component::VillagerProfession;",
+    variants(Armorer = "Selects the armorer form in this typed Minecraft component schema.", Butcher = "Selects the butcher form in this typed Minecraft component schema.", Cartographer = "Selects the cartographer form in this typed Minecraft component schema.", Cleric = "Selects the cleric form in this typed Minecraft component schema.", Farmer = "Selects the farmer form in this typed Minecraft component schema.", Fisherman = "Selects the fisherman form in this typed Minecraft component schema.", Fletcher = "Selects the fletcher form in this typed Minecraft component schema.", Leatherworker = "Selects the leatherworker form in this typed Minecraft component schema.", Librarian = "Selects the librarian form in this typed Minecraft component schema.", Mason = "Selects the mason form in this typed Minecraft component schema.", Shepherd = "Selects the shepherd form in this typed Minecraft component schema.", Toolsmith = "Selects the toolsmith form in this typed Minecraft component schema.", Weaponsmith = "Selects the weaponsmith form in this typed Minecraft component schema."),
+)]
 /// A villager profession with a vanilla trade table.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum VillagerProfession {
     #[doc = "Selects the armorer form in this typed Minecraft component schema."]
-    #[doc = "**API Contract:** Run `sand api show sand::component::VillagerProfession::Armorer` for the canonical contract."]
     Armorer,
     #[doc = "Selects the butcher form in this typed Minecraft component schema."]
-    #[doc = "**API Contract:** Run `sand api show sand::component::VillagerProfession::Butcher` for the canonical contract."]
     Butcher,
     #[doc = "Selects the cartographer form in this typed Minecraft component schema."]
-    #[doc = "**API Contract:** Run `sand api show sand::component::VillagerProfession::Cartographer` for the canonical contract."]
     Cartographer,
     #[doc = "Selects the cleric form in this typed Minecraft component schema."]
-    #[doc = "**API Contract:** Run `sand api show sand::component::VillagerProfession::Cleric` for the canonical contract."]
     Cleric,
     #[doc = "Selects the farmer form in this typed Minecraft component schema."]
-    #[doc = "**API Contract:** Run `sand api show sand::component::VillagerProfession::Farmer` for the canonical contract."]
     Farmer,
     #[doc = "Selects the fisherman form in this typed Minecraft component schema."]
-    #[doc = "**API Contract:** Run `sand api show sand::component::VillagerProfession::Fisherman` for the canonical contract."]
     Fisherman,
     #[doc = "Selects the fletcher form in this typed Minecraft component schema."]
-    #[doc = "**API Contract:** Run `sand api show sand::component::VillagerProfession::Fletcher` for the canonical contract."]
     Fletcher,
     #[doc = "Selects the leatherworker form in this typed Minecraft component schema."]
-    #[doc = "**API Contract:** Run `sand api show sand::component::VillagerProfession::Leatherworker` for the canonical contract."]
     Leatherworker,
     #[doc = "Selects the librarian form in this typed Minecraft component schema."]
-    #[doc = "**API Contract:** Run `sand api show sand::component::VillagerProfession::Librarian` for the canonical contract."]
     Librarian,
     #[doc = "Selects the mason form in this typed Minecraft component schema."]
-    #[doc = "**API Contract:** Run `sand api show sand::component::VillagerProfession::Mason` for the canonical contract."]
     Mason,
     #[doc = "Selects the shepherd form in this typed Minecraft component schema."]
-    #[doc = "**API Contract:** Run `sand api show sand::component::VillagerProfession::Shepherd` for the canonical contract."]
     Shepherd,
     #[doc = "Selects the toolsmith form in this typed Minecraft component schema."]
-    #[doc = "**API Contract:** Run `sand api show sand::component::VillagerProfession::Toolsmith` for the canonical contract."]
     Toolsmith,
     #[doc = "Selects the weaponsmith form in this typed Minecraft component schema."]
-    #[doc = "**API Contract:** Run `sand api show sand::component::VillagerProfession::Weaponsmith` for the canonical contract."]
     Weaponsmith,
 }
 
 impl VillagerProfession {
     /// The vanilla path segment for this profession (e.g. `"armorer"`).
-    #[doc = "**API Contract:** Run `sand api show sand::component::VillagerProfession::path` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::VillagerProfession::path",
+        aliases = ["sand::prelude::VillagerProfession::path"],
+        module = "sand::component",
+        kind = "method",
+        summary = "The vanilla path segment for this profession (e.g. `\"armorer\"`).",
+        context = "The vanilla path segment for this profession (e.g. `\"armorer\"`). This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        returns = "The string value produced to use the vanilla path segment for this profession (e.g. `\"armorer\"`).",
+        example = "use sand::prelude::*;\n\nfn demonstrate(villager_profession_value: sand::component::VillagerProfession)  {\n    let path = villager_profession_value.path();\n}",
+    )]
     pub fn path(self) -> &'static str {
         match self {
             Self::Armorer => "armorer",
@@ -856,30 +1273,50 @@ impl VillagerProfession {
     }
 }
 
-#[doc = "**API Contract:** Run `sand api show sand::component::VillagerLevel` for the canonical contract."]
+#[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::component::VillagerLevel",
+    aliases = ["sand::prelude::VillagerLevel"],
+    module = "sand::component",
+    summary = "A villager trade level, `1` (Novice) through `5` (Master).",
+    context = "A villager trade level, `1` (Novice) through `5` (Master). This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+    minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+    use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+    avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+    example = "use sand::component::VillagerLevel;",
+    variants(Apprentice = "Selects the apprentice form in this typed Minecraft component schema.", Expert = "Selects the expert form in this typed Minecraft component schema.", Journeyman = "Selects the journeyman form in this typed Minecraft component schema.", Master = "Selects the master form in this typed Minecraft component schema.", Novice = "Selects the novice form in this typed Minecraft component schema."),
+)]
 /// A villager trade level, `1` (Novice) through `5` (Master).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum VillagerLevel {
     #[doc = "Selects the novice form in this typed Minecraft component schema."]
-    #[doc = "**API Contract:** Run `sand api show sand::component::VillagerLevel::Novice` for the canonical contract."]
     Novice,
     #[doc = "Selects the apprentice form in this typed Minecraft component schema."]
-    #[doc = "**API Contract:** Run `sand api show sand::component::VillagerLevel::Apprentice` for the canonical contract."]
     Apprentice,
     #[doc = "Selects the journeyman form in this typed Minecraft component schema."]
-    #[doc = "**API Contract:** Run `sand api show sand::component::VillagerLevel::Journeyman` for the canonical contract."]
     Journeyman,
     #[doc = "Selects the expert form in this typed Minecraft component schema."]
-    #[doc = "**API Contract:** Run `sand api show sand::component::VillagerLevel::Expert` for the canonical contract."]
     Expert,
     #[doc = "Selects the master form in this typed Minecraft component schema."]
-    #[doc = "**API Contract:** Run `sand api show sand::component::VillagerLevel::Master` for the canonical contract."]
     Master,
 }
 
 impl VillagerLevel {
     /// The vanilla `1..=5` level number.
-    #[doc = "**API Contract:** Run `sand api show sand::component::VillagerLevel::level_number` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::VillagerLevel::level_number",
+        aliases = ["sand::prelude::VillagerLevel::level_number"],
+        module = "sand::component",
+        kind = "method",
+        summary = "The vanilla `1..=5` level number.",
+        context = "The vanilla `1..=5` level number. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        returns = "The `u8` value produced to use the vanilla `1..=5` level number.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(villager_level_value: sand::component::VillagerLevel)  {\n    let level_number = villager_level_value.level_number();\n}",
+    )]
     pub fn level_number(self) -> u8 {
         match self {
             Self::Novice => 1,
@@ -891,30 +1328,65 @@ impl VillagerLevel {
     }
 
     /// The vanilla path segment for this level (e.g. `"level_1"`).
-    #[doc = "**API Contract:** Run `sand api show sand::component::VillagerLevel::path` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::VillagerLevel::path",
+        aliases = ["sand::prelude::VillagerLevel::path"],
+        module = "sand::component",
+        kind = "method",
+        summary = "The vanilla path segment for this level (e.g. `\"level_1\"`).",
+        context = "The vanilla path segment for this level (e.g. `\"level_1\"`). This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        returns = "The string value produced to use the vanilla path segment for this level (e.g. `\"level_1\"`).",
+        example = "use sand::prelude::*;\n\nfn demonstrate(villager_level_value: sand::component::VillagerLevel)  {\n    let path = villager_level_value.path();\n}",
+    )]
     pub fn path(self) -> String {
         format!("level_{}", self.level_number())
     }
 }
 
-#[doc = "**API Contract:** Run `sand api show sand::component::WanderingTraderPool` for the canonical contract."]
+#[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::component::WanderingTraderPool",
+    aliases = ["sand::prelude::WanderingTraderPool"],
+    module = "sand::component",
+    summary = "A Wandering Trader trade pool.",
+    context = "A Wandering Trader trade pool. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+    minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+    use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+    avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+    example = "use sand::component::WanderingTraderPool;",
+    variants(Buying = "Selects the buying form in this typed Minecraft component schema.", Common = "Selects the common form in this typed Minecraft component schema.", Special = "Selects the special form in this typed Minecraft component schema."),
+)]
 /// A Wandering Trader trade pool.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum WanderingTraderPool {
     #[doc = "Selects the buying form in this typed Minecraft component schema."]
-    #[doc = "**API Contract:** Run `sand api show sand::component::WanderingTraderPool::Buying` for the canonical contract."]
     Buying,
     #[doc = "Selects the special form in this typed Minecraft component schema."]
-    #[doc = "**API Contract:** Run `sand api show sand::component::WanderingTraderPool::Special` for the canonical contract."]
     Special,
     #[doc = "Selects the common form in this typed Minecraft component schema."]
-    #[doc = "**API Contract:** Run `sand api show sand::component::WanderingTraderPool::Common` for the canonical contract."]
     Common,
 }
 
 impl WanderingTraderPool {
     /// The vanilla path for this pool (e.g. `"wandering_trader/buying"`).
-    #[doc = "**API Contract:** Run `sand api show sand::component::WanderingTraderPool::path` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::WanderingTraderPool::path",
+        aliases = ["sand::prelude::WanderingTraderPool::path"],
+        module = "sand::component",
+        kind = "method",
+        summary = "The vanilla path for this pool (e.g. `\"wandering_trader/buying\"`).",
+        context = "The vanilla path for this pool (e.g. `\"wandering_trader/buying\"`). This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        returns = "The string value produced to use the vanilla path for this pool (e.g. `\"wandering_trader/buying\"`).",
+        example = "use sand::prelude::*;\n\nfn demonstrate(wandering_trader_pool_value: sand::component::WanderingTraderPool)  {\n    let path = wandering_trader_pool_value.path();\n}",
+    )]
     pub fn path(self) -> &'static str {
         match self {
             Self::Buying => "wandering_trader/buying",
@@ -924,7 +1396,20 @@ impl WanderingTraderPool {
     }
 }
 
-#[doc = "**API Contract:** Run `sand api show sand::component::VillagerTradePool` for the canonical contract."]
+#[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::component::VillagerTradePool",
+    aliases = ["sand::prelude::VillagerTradePool"],
+    module = "sand::component",
+    summary = "A known Villager Trade pool target — a profession/level, Common Smith level, Wandering Trader pool, or a custom Villager Trade tag.",
+    context = "A known Villager Trade pool target — a profession/level, Common Smith level, Wandering Trader pool, or a custom Villager Trade tag. Used by [`TradeSet::replace_target`] (explicit full replacement) and [`VillagerTradePoolPatch`] (additive extension).",
+    minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+    use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+    avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+    example = "use sand::component::VillagerTradePool;",
+    variants(CommonSmith = "Selects the common smith form in this typed Minecraft component schema.", Custom = "Selects the custom form in this typed Minecraft component schema.", Profession = "Selects the profession form in this typed Minecraft component schema.", WanderingTrader = "Selects the wandering trader form in this typed Minecraft component schema."),
+    variant_fields(CommonSmith(level = "`level` provides the level range when the variant selects the common smith form in this typed Minecraft component schema."), Custom = ["Selects the custom form in this typed Minecraft component schema."], Profession(level = "`level` provides the level range when the variant selects the profession form in this typed Minecraft component schema.", profession = "`profession` provides the profession when the variant selects the profession form in this typed Minecraft component schema."), WanderingTrader = ["Selects the wandering trader form in this typed Minecraft component schema."]),
+)]
 /// A known Villager Trade pool target — a profession/level, Common Smith
 /// level, Wandering Trader pool, or a custom Villager Trade tag.
 ///
@@ -933,59 +1418,106 @@ impl WanderingTraderPool {
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum VillagerTradePool {
     #[doc = "Selects the profession form in this typed Minecraft component schema."]
-    #[doc = "**API Contract:** Run `sand api show sand::component::VillagerTradePool::Profession` for the canonical contract."]
     Profession {
         /// `profession` provides the profession when the variant selects the profession form in this typed Minecraft component schema.
-        #[doc = "**API Contract:** Run `sand api show sand::component::VillagerTradePool::Profession::profession` for the canonical contract."]
         profession: VillagerProfession,
         /// `level` provides the level range when the variant selects the profession form in this typed Minecraft component schema.
-        #[doc = "**API Contract:** Run `sand api show sand::component::VillagerTradePool::Profession::level` for the canonical contract."]
         level: VillagerLevel,
     },
     #[doc = "Selects the common smith form in this typed Minecraft component schema."]
-    #[doc = "**API Contract:** Run `sand api show sand::component::VillagerTradePool::CommonSmith` for the canonical contract."]
     CommonSmith {
         /// `level` provides the level range when the variant selects the common smith form in this typed Minecraft component schema.
-        #[doc = "**API Contract:** Run `sand api show sand::component::VillagerTradePool::CommonSmith::level` for the canonical contract."]
         level: VillagerLevel,
     },
     #[doc = "Selects the wandering trader form in this typed Minecraft component schema."]
-    #[doc = "**API Contract:** Run `sand api show sand::component::VillagerTradePool::WanderingTrader` for the canonical contract."]
     WanderingTrader(
-        #[doc = "The `WanderingTrader` variant carries the value described by its variant semantics: Selects the wandering trader form in this typed Minecraft component schema."]
-        #[doc = "**API Contract:** Run `sand api show sand::component::VillagerTradePool::WanderingTrader::0` for the canonical contract."]
+        #[doc = "Selects the wandering trader form in this typed Minecraft component schema."]
         WanderingTraderPool,
     ),
     #[doc = "Selects the custom form in this typed Minecraft component schema."]
-    #[doc = "**API Contract:** Run `sand api show sand::component::VillagerTradePool::Custom` for the canonical contract."]
     Custom(
-        #[doc = "The `Custom` variant carries the value described by its variant semantics: Selects the custom form in this typed Minecraft component schema."]
-        #[doc = "**API Contract:** Run `sand api show sand::component::VillagerTradePool::Custom::0` for the canonical contract."]
+        #[doc = "Selects the custom form in this typed Minecraft component schema."]
         TagId<VillagerTradeId>,
     ),
 }
 
 impl VillagerTradePool {
     /// A profession/level pool, e.g. `armorer/level_1`.
-    #[doc = "**API Contract:** Run `sand api show sand::component::VillagerTradePool::profession` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::VillagerTradePool::profession",
+        aliases = ["sand::prelude::VillagerTradePool::profession"],
+        module = "sand::component",
+        kind = "method",
+        summary = "A profession/level pool, e.g. `armorer/level_1`.",
+        context = "A profession/level pool, e.g. `armorer/level_1`. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(profession = "`profession` supplies the profession value used to use a profession/level pool, e.g. `armorer/level_1`.", level = "`level` supplies the level value used to use a profession/level pool, e.g. `armorer/level_1`."),
+        returns = "A newly constructed `VillagerTradePool` configured to use a profession/level pool, e.g. `armorer/level_1`.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(profession: sand::component::VillagerProfession, level: sand::component::VillagerLevel)  {\n    let villager_trade_pool = sand::component::VillagerTradePool::profession(profession, level);\n}",
+    )]
     pub fn profession(profession: VillagerProfession, level: VillagerLevel) -> Self {
         Self::Profession { profession, level }
     }
 
     /// The Common Smith pool shared by Armorer/Toolsmith/Weaponsmith at a level.
-    #[doc = "**API Contract:** Run `sand api show sand::component::VillagerTradePool::common_smith` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::VillagerTradePool::common_smith",
+        aliases = ["sand::prelude::VillagerTradePool::common_smith"],
+        module = "sand::component",
+        kind = "method",
+        summary = "The Common Smith pool shared by Armorer/Toolsmith/Weaponsmith at a level.",
+        context = "The Common Smith pool shared by Armorer/Toolsmith/Weaponsmith at a level. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(level = "`level` supplies the level value used to use the Common Smith pool shared by Armorer/Toolsmith/Weaponsmith at a level."),
+        returns = "A newly constructed `VillagerTradePool` configured to use the Common Smith pool shared by Armorer/Toolsmith/Weaponsmith at a level.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(level: sand::component::VillagerLevel)  {\n    let villager_trade_pool = sand::component::VillagerTradePool::common_smith(level);\n}",
+    )]
     pub fn common_smith(level: VillagerLevel) -> Self {
         Self::CommonSmith { level }
     }
 
     /// A Wandering Trader pool.
-    #[doc = "**API Contract:** Run `sand api show sand::component::VillagerTradePool::wandering_trader` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::VillagerTradePool::wandering_trader",
+        aliases = ["sand::prelude::VillagerTradePool::wandering_trader"],
+        module = "sand::component",
+        kind = "method",
+        summary = "A Wandering Trader pool.",
+        context = "A Wandering Trader pool. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(pool = "`pool` supplies the pool value used to use a Wandering Trader pool."),
+        returns = "A newly constructed `VillagerTradePool` configured to use a Wandering Trader pool.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(pool: sand::component::WanderingTraderPool)  {\n    let villager_trade_pool = sand::component::VillagerTradePool::wandering_trader(pool);\n}",
+    )]
     pub fn wandering_trader(pool: WanderingTraderPool) -> Self {
         Self::WanderingTrader(pool)
     }
 
     /// A custom Villager Trade tag target.
-    #[doc = "**API Contract:** Run `sand api show sand::component::VillagerTradePool::custom` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::VillagerTradePool::custom",
+        aliases = ["sand::prelude::VillagerTradePool::custom"],
+        module = "sand::component",
+        kind = "method",
+        summary = "A custom Villager Trade tag target.",
+        context = "A custom Villager Trade tag target. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(tag = "`tag` supplies the tag value used to use a custom Villager Trade tag target."),
+        returns = "A newly constructed `VillagerTradePool` configured to use a custom Villager Trade tag target.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(tag: sand::component::TagId < sand::registry::VillagerTradeId >)  {\n    let villager_trade_pool = sand::component::VillagerTradePool::custom(tag);\n}",
+    )]
     pub fn custom(tag: TagId<VillagerTradeId>) -> Self {
         Self::Custom(tag)
     }
@@ -1003,7 +1535,20 @@ impl VillagerTradePool {
 
     /// The Villager Trade tag ID for this pool (`data/minecraft/tags/villager_trade/...`
     /// for known targets; the tag's own namespace for [`VillagerTradePool::Custom`]).
-    #[doc = "**API Contract:** Run `sand api show sand::component::VillagerTradePool::tag_id` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::VillagerTradePool::tag_id",
+        aliases = ["sand::prelude::VillagerTradePool::tag_id"],
+        module = "sand::component",
+        kind = "method",
+        summary = "The Villager Trade tag ID for this pool (`data/minecraft/tags/villager_trade/...` for known targets; the tag's own namespace for [`VillagerTradePool::Custom`]).",
+        context = "The Villager Trade tag ID for this pool (`data/minecraft/tags/villager_trade/...` for known targets; the tag's own namespace for [`VillagerTradePool::Custom`]). This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        returns = "The `TagId < VillagerTradeId >` value produced to use the Villager Trade tag ID for this pool (`data/minecraft/tags/villager_trade/...` for known targets; the tag's own namespace for [`VillagerTradePool::Custom`]).",
+        example = "use sand::prelude::*;\n\nfn demonstrate(villager_trade_pool_value: &sand::component::VillagerTradePool)  {\n    let tag_id = villager_trade_pool_value.tag_id();\n}",
+    )]
     pub fn tag_id(&self) -> TagId<VillagerTradeId> {
         match self {
             Self::Custom(tag) => tag.clone(),
@@ -1014,7 +1559,20 @@ impl VillagerTradePool {
 
     /// The `trade_set` resource location a full replacement of this pool
     /// targets (`data/minecraft/trade_set/...` for known targets).
-    #[doc = "**API Contract:** Run `sand api show sand::component::VillagerTradePool::resource_location` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::VillagerTradePool::resource_location",
+        aliases = ["sand::prelude::VillagerTradePool::resource_location"],
+        module = "sand::component",
+        kind = "method",
+        summary = "The `trade_set` resource location a full replacement of this pool targets (`data/minecraft/trade_set/...` for known targets).",
+        context = "The `trade_set` resource location a full replacement of this pool targets (`data/minecraft/trade_set/...` for known targets). This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        returns = "The `ResourceLocation` value produced to use the `trade_set` resource location a full replacement of this pool targets (`data/minecraft/trade_set/...` for known targets).",
+        example = "use sand::prelude::*;\n\nfn demonstrate(villager_trade_pool_value: &sand::component::VillagerTradePool)  {\n    let resource_location = villager_trade_pool_value.resource_location();\n}",
+    )]
     pub fn resource_location(&self) -> ResourceLocation {
         match self {
             Self::Custom(tag) => tag.as_resource_location().clone(),
@@ -1026,7 +1584,18 @@ impl VillagerTradePool {
 
 // ── VillagerTradePoolPatch ────────────────────────────────────────────────────
 
-#[doc = "**API Contract:** Run `sand api show sand::component::VillagerTradePoolPatch` for the canonical contract."]
+#[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::component::VillagerTradePoolPatch",
+    aliases = ["sand::prelude::VillagerTradePoolPatch"],
+    module = "sand::component",
+    summary = "An additive extension of an existing Villager/Wandering Trader pool.",
+    context = "An additive extension of an existing Villager/Wandering Trader pool. Unlike [`TradeSet::replace_target`], a pool patch never replaces vanilla content: it only emits generated `villager_trade` resources plus a `replace: false` contribution to the pool's Villager Trade tag. The generated trades' namespace must be supplied explicitly ([`PackNamespace`]) rather than inferred: `DatapackComponent` resolves a component's resource location at construction time, and the target tag itself always lives under the vanilla `minecraft` namespace, so there is no other namespace this compound component could otherwise recover its generated children's location from. Known limitation: two separate `VillagerTradePoolPatch` components targeting the *same* pool are not merged — each is a full `tags/villager_trade/...` JSON record at the same path, so only one wins (export does not currently detect this as a collision, unlike a generated trade colliding with an explicit standalone component). Compose multiple `.append(...)`/`.include(...)` calls on a single patch instead. Cross-patch tag merging (mirroring how `#[datapack_component(Tag = \"...\")]` function tags already merge) is left as a follow-up.",
+    minecraft = "The generated trades' namespace must be supplied explicitly ([`PackNamespace`]) rather than inferred: `DatapackComponent` resolves a component's resource location at construction time, and the target tag itself always lives under the vanilla `minecraft` namespace, so there is no other namespace this compound component could otherwise recover its generated children's location from.",
+    use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+    avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+    example = "use sand::component::VillagerTradePoolPatch;",
+)]
 /// An additive extension of an existing Villager/Wandering Trader pool.
 ///
 /// Unlike [`TradeSet::replace_target`], a pool patch never replaces vanilla
@@ -1062,7 +1631,21 @@ pub struct VillagerTradePoolPatch {
 
 impl VillagerTradePoolPatch {
     /// Target a profession/level pool.
-    #[doc = "**API Contract:** Run `sand api show sand::component::VillagerTradePoolPatch::profession` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::VillagerTradePoolPatch::profession",
+        aliases = ["sand::prelude::VillagerTradePoolPatch::profession"],
+        module = "sand::component",
+        kind = "method",
+        summary = "Target a profession/level pool.",
+        context = "Target a profession/level pool. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(namespace = "`namespace` supplies the namespace value used to target a profession/level pool.", profession = "`profession` supplies the profession value used to target a profession/level pool.", level = "`level` supplies the level value used to target a profession/level pool."),
+        returns = "A newly constructed `VillagerTradePoolPatch` configured to target a profession/level pool.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(namespace: sand::PackNamespace, profession: sand::component::VillagerProfession, level: sand::component::VillagerLevel)  {\n    let villager_trade_pool_patch = sand::component::VillagerTradePoolPatch::profession(namespace, profession, level);\n}",
+    )]
     pub fn profession(
         namespace: PackNamespace,
         profession: VillagerProfession,
@@ -1072,19 +1655,61 @@ impl VillagerTradePoolPatch {
     }
 
     /// Target the Common Smith pool at a level.
-    #[doc = "**API Contract:** Run `sand api show sand::component::VillagerTradePoolPatch::common_smith` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::VillagerTradePoolPatch::common_smith",
+        aliases = ["sand::prelude::VillagerTradePoolPatch::common_smith"],
+        module = "sand::component",
+        kind = "method",
+        summary = "Target the Common Smith pool at a level.",
+        context = "Target the Common Smith pool at a level. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(namespace = "`namespace` supplies the namespace value used to target the Common Smith pool at a level.", level = "`level` supplies the level value used to target the Common Smith pool at a level."),
+        returns = "A newly constructed `VillagerTradePoolPatch` configured to target the Common Smith pool at a level.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(namespace: sand::PackNamespace, level: sand::component::VillagerLevel)  {\n    let villager_trade_pool_patch = sand::component::VillagerTradePoolPatch::common_smith(namespace, level);\n}",
+    )]
     pub fn common_smith(namespace: PackNamespace, level: VillagerLevel) -> Self {
         Self::for_pool(namespace, VillagerTradePool::common_smith(level))
     }
 
     /// Target a Wandering Trader pool.
-    #[doc = "**API Contract:** Run `sand api show sand::component::VillagerTradePoolPatch::wandering_trader` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::VillagerTradePoolPatch::wandering_trader",
+        aliases = ["sand::prelude::VillagerTradePoolPatch::wandering_trader"],
+        module = "sand::component",
+        kind = "method",
+        summary = "Target a Wandering Trader pool.",
+        context = "Target a Wandering Trader pool. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(namespace = "`namespace` supplies the namespace value used to target a Wandering Trader pool.", pool = "`pool` supplies the pool value used to target a Wandering Trader pool."),
+        returns = "A newly constructed `VillagerTradePoolPatch` configured to target a Wandering Trader pool.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(namespace: sand::PackNamespace, pool: sand::component::WanderingTraderPool)  {\n    let villager_trade_pool_patch = sand::component::VillagerTradePoolPatch::wandering_trader(namespace, pool);\n}",
+    )]
     pub fn wandering_trader(namespace: PackNamespace, pool: WanderingTraderPool) -> Self {
         Self::for_pool(namespace, VillagerTradePool::wandering_trader(pool))
     }
 
     /// Target a custom Villager Trade tag.
-    #[doc = "**API Contract:** Run `sand api show sand::component::VillagerTradePoolPatch::custom` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::VillagerTradePoolPatch::custom",
+        aliases = ["sand::prelude::VillagerTradePoolPatch::custom"],
+        module = "sand::component",
+        kind = "method",
+        summary = "Target a custom Villager Trade tag.",
+        context = "Target a custom Villager Trade tag. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(namespace = "`namespace` supplies the namespace value used to target a custom Villager Trade tag.", tag = "`tag` supplies the tag value used to target a custom Villager Trade tag."),
+        returns = "A newly constructed `VillagerTradePoolPatch` configured to target a custom Villager Trade tag.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(namespace: sand::PackNamespace, tag: sand::component::TagId < sand::registry::VillagerTradeId >)  {\n    let villager_trade_pool_patch = sand::component::VillagerTradePoolPatch::custom(namespace, tag);\n}",
+    )]
     pub fn custom(namespace: PackNamespace, tag: TagId<VillagerTradeId>) -> Self {
         Self::for_pool(namespace, VillagerTradePool::custom(tag))
     }
@@ -1102,7 +1727,21 @@ impl VillagerTradePoolPatch {
     /// Append an inline trade entry under key `key`, hoisted into a generated
     /// `villager_trade` resource under this patch's namespace and target
     /// pool path.
-    #[doc = "**API Contract:** Run `sand api show sand::component::VillagerTradePoolPatch::append` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::VillagerTradePoolPatch::append",
+        aliases = ["sand::prelude::VillagerTradePoolPatch::append"],
+        module = "sand::component",
+        kind = "method",
+        summary = "Append an inline trade entry under key `key`, hoisted into a generated `villager_trade` resource under this patch's namespace and target pool path.",
+        context = "Append an inline trade entry under key `key`, hoisted into a generated `villager_trade` resource under this patch's namespace and target pool path. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(key = "Append an inline trade entry under key `key`, hoisted into a generated `villager_trade` resource under this patch's namespace and target pool path.", build = "`build` supplies the build value used to append an inline trade entry under key `key`, hoisted into a generated `villager_trade` resource under this patch's namespace and target pool path."),
+        returns = "The `VillagerTradePoolPatch` value with the documented change applied to append an inline trade entry under key `key`, hoisted into a generated `villager_trade` resource under this patch's namespace and target pool path.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(villager_trade_pool_patch_value: sand::component::VillagerTradePoolPatch, key: impl Into < String >, build: impl FnOnce (sand::component::VillagerTrade) -> sand::component::VillagerTrade)  {\n    let updated_villager_trade_pool_patch = villager_trade_pool_patch_value.append(key, build);\n}",
+    )]
     pub fn append(
         mut self,
         key: impl Into<String>,
@@ -1121,7 +1760,21 @@ impl VillagerTradePoolPatch {
     /// Reference an already-built standalone [`VillagerTrade`] value,
     /// without re-exporting it — see [`TradeSet::include`] for the same
     /// pattern.
-    #[doc = "**API Contract:** Run `sand api show sand::component::VillagerTradePoolPatch::include` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::VillagerTradePoolPatch::include",
+        aliases = ["sand::prelude::VillagerTradePoolPatch::include"],
+        module = "sand::component",
+        kind = "method",
+        summary = "Reference an already-built standalone [`VillagerTrade`] value, without re-exporting it — see [`TradeSet::include`] for the same pattern.",
+        context = "Reference an already-built standalone [`VillagerTrade`] value, without re-exporting it — see [`TradeSet::include`] for the same pattern. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(trade = "`trade` supplies the trade value used to reference an already-built standalone [`VillagerTrade`] value, without re-exporting it — see [`TradeSet::include`] for the same pattern."),
+        returns = "The `VillagerTradePoolPatch` value with the documented change applied to reference an already-built standalone [`VillagerTrade`] value, without re-exporting it — see [`TradeSet::include`] for the same pattern.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(villager_trade_pool_patch_value: sand::component::VillagerTradePoolPatch, trade: sand::component::VillagerTrade)  {\n    let updated_villager_trade_pool_patch = villager_trade_pool_patch_value.include(trade);\n}",
+    )]
     pub fn include(mut self, trade: VillagerTrade) -> Self {
         self.items.push(TradeSetItem::Reference(trade.id()));
         self

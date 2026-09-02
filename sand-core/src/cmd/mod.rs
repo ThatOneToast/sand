@@ -71,62 +71,49 @@ mod typed_execute;
 // ── Re-exports from sand-commands ─────────────────────────────────────────────
 
 /// Command construction and the shared profile-aware validation boundary.
-#[doc = include_str!("../api_contract_rustdoc.md")]
 pub use sand_commands::{
     Build, CommandError, CommandProfile, CommandResult, EffectCommand, EffectDuration,
     IntoDamageTargets, IntoEntityType, RawCommand, RenderCommand, Validate,
 };
 
 /// Trait for types resolving to a `function <id>` command.
-#[doc = include_str!("../api_contract_rustdoc.md")]
 pub use crate::function::IntoFunctionRef;
 
 // Block placement
-#[doc = include_str!("../api_contract_rustdoc.md")]
 pub use sand_commands::{
     BlockState, CloneBlocks, CloneMaskMode, CloneMode, Fill, FillMode, SetBlock, SetBlockMode,
 };
 // Coordinate types
-#[doc = include_str!("../api_contract_rustdoc.md")]
 pub use sand_commands::{BlockPos, Coord, Rotation, Vec2, Vec3};
 // Player display commands
-#[doc = include_str!("../api_contract_rustdoc.md")]
 pub use sand_commands::{
     Actionbar, Bossbar, BossbarColor, BossbarCommand, BossbarId, BossbarStyle, IntoBossbarId,
     Title, TitleTimes,
 };
 // Execute builder
-#[doc = include_str!("../api_contract_rustdoc.md")]
 pub use sand_commands::Execute;
 // Execute argument types
-#[doc = include_str!("../api_contract_rustdoc.md")]
 pub use sand_commands::{Anchor, ItemSlot, NbtStoreKind, Swizzle};
 // Inventory manipulation
-#[doc = include_str!("../api_contract_rustdoc.md")]
 pub use sand_commands::Inventory;
 // Particle effects
-#[doc = include_str!("../api_contract_rustdoc.md")]
 pub use sand_commands::{
     IntoParticleId, Particle, ParticleBuilder, ParticleCommand, ParticleEffect, ParticleSpread,
 };
 // Entity/player targeting
-#[doc = include_str!("../api_contract_rustdoc.md")]
 pub use sand_commands::{
     Damage as DamageBuilder, DamageAmount, DamageKind, EntityTag, EntityTarget, EntityTargets,
     GameMode, Many, One, PlayerTarget, PlayerTargets, ScoreRange, Selector, SingleEntity,
     SinglePlayer, SortOrder, TargetBase, TeamName,
 };
 // Sound
-#[doc = include_str!("../api_contract_rustdoc.md")]
 pub use sand_commands::{IntoSoundEvent, Sound, SoundSource, StopSoundCommand};
 // Text components
-#[doc = include_str!("../api_contract_rustdoc.md")]
 pub use sand_commands::{
     ChatColor, ClickEvent, EntityHoverId, HoverEvent, IntoTextEntityType, Text, TextCommand,
     TextComponent,
 };
 // NBT types — owned by sand-commands
-#[doc = include_str!("../api_contract_rustdoc.md")]
 pub use sand_commands::{
     DataCommand, DataModify, DataModifyOperation, DataSource, DataTarget, Nbt, NbtCompound,
     NbtPath, NbtRef, NbtTarget, NbtValue, UntypedNbt, data_modify,
@@ -134,7 +121,6 @@ pub use sand_commands::{
 // Scoreboard types — owned by sand-commands
 // Note: &Storage satisfies Objective::load_from's `impl Into<String>` parameter
 // via the `From<&Storage> for String` impl in mod data.
-#[doc = include_str!("../api_contract_rustdoc.md")]
 pub use sand_commands::{
     DisplaySlot, Objective, ObjectiveName, ScoreCmp, ScoreHolder, ScoreOp,
     ScoreboardPlayersOperation, scoreboard_players_operation,
@@ -144,23 +130,16 @@ pub use sand_commands::{
 // that would conflict. Use sand_commands directly for the free-function builders.
 
 // ── Re-exports from internal modules ─────────────────────────────────────────
-
-#[doc = include_str!("../api_contract_rustdoc.md")]
 pub use cooldown::Cooldown;
 // Storage and StorageKind are datapack concepts defined only in sand-core.
 // All other NBT/scoreboard types come from sand-commands above.
-#[doc = include_str!("../api_contract_rustdoc.md")]
 pub use crate::vfx::{Vfx, VfxParticle, VfxParticleVisibility, VfxSound, VfxStep};
-#[doc = include_str!("../api_contract_rustdoc.md")]
 pub use data::{Storage, StorageKind};
-#[doc = include_str!("../api_contract_rustdoc.md")]
 pub use effect::{EffectGive, effect_clear, effect_clear_effect, effect_give, effect_give_raw};
-#[doc = include_str!("../api_contract_rustdoc.md")]
 pub use fn_macros::{
     FunctionMacroArg, FunctionMacroArgs, call_with, function_with, macro_line, macro_var,
     try_call_with, try_function_with, try_macro_var,
 };
-#[doc = include_str!("../api_contract_rustdoc.md")]
 pub use typed_execute::{ConditionedExecute, ExecuteExt, TypedExecute};
 
 /// Call a function by resolved reference.
@@ -182,7 +161,20 @@ pub use typed_execute::{ConditionedExecute, ExecuteExt, TypedExecute};
 /// // Resource location
 /// cmd::call(ResourceLocation::new("my_pack", "my_func").unwrap());
 /// ```
-#[doc = "**API Contract:** Run `sand api show sand::command::call` for the canonical contract."]
+#[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::command::call",
+    aliases = ["sand::cmd::call", "sand::prelude::cmd::call"],
+    module = "sand::command",
+    summary = "Call a function by resolved reference. Accepts registered `#[function]` pointers, [`FunctionId`](sand::resource_ref::FunctionId), [`ResourceLocation`](sand::ResourceLocation), and raw path strings.",
+    context = "Call a function by resolved reference. Accepts registered `#[function]` pointers, [`FunctionId`](sand::resource_ref::FunctionId), [`ResourceLocation`](sand::ResourceLocation), and raw path strings. This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
+    minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
+    use_when = ["Call a function by resolved reference."],
+    avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
+    params(id = "`id` provides the typed resource identifier or location used to call a function by resolved reference. Accepts registered `#[function]` pointers, [`FunctionId`](sand::resource_ref::FunctionId), [`ResourceLocation`](sand::ResourceLocation), and raw path strings."),
+    returns = "The string value produced to call a function by resolved reference. Accepts registered `#[function]` pointers, [`FunctionId`](sand::resource_ref::FunctionId), [`ResourceLocation`](sand::ResourceLocation), and raw path strings.",
+    example = "use sand::prelude::*;\n// Local registered function pointer (requires `use IntoFunctionRef`)\ncmd::call(ate_golden_apple);\n// External function ref\ncmd::call(\"other_pack:api/do_thing\".parse::<FunctionId>().unwrap());\n// Resource location\ncmd::call(ResourceLocation::new(\"my_pack\", \"my_func\").unwrap());",
+)]
 pub fn call(id: impl crate::function::IntoFunctionRef) -> String {
     id.into_function_command()
 }
@@ -195,7 +187,20 @@ pub fn call(id: impl crate::function::IntoFunctionRef) -> String {
 /// is not — this validates the resolved `namespace:path` resource location
 /// (or the `__sand_local:path` sentinel used for not-yet-namespaced local
 /// function pointers) before returning command text.
-#[doc = "**API Contract:** Run `sand api show sand::command::try_call` for the canonical contract."]
+#[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::command::try_call",
+    aliases = ["sand::cmd::try_call", "sand::prelude::cmd::try_call"],
+    module = "sand::command",
+    summary = "Validated counterpart to [`call`]. [`sand::command::IntoFunctionRef`]'s registered-pointer, [`FunctionId`](sand::resource_ref::FunctionId), and [`ResourceLocation`](sand::ResourceLocation) implementors are always well-formed by construction, but the `&str`/`String` raw-path escape hatch is not — this validates the resolved `namespace:path` resource location (or the `__sand_local:path` sentinel used for not-yet-namespaced local function pointers) before returning command text.",
+    context = "Validated counterpart to [`call`]. [`sand::command::IntoFunctionRef`]'s registered-pointer, [`FunctionId`](sand::resource_ref::FunctionId), and [`ResourceLocation`](sand::ResourceLocation) implementors are always well-formed by construction, but the `&str`/`String` raw-path escape hatch is not — this validates the resolved `namespace:path` resource location (or the `__sand_local:path` sentinel used for not-yet-namespaced local function pointers) before returning command text. This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
+    minecraft = "[`sand::command::IntoFunctionRef`]'s registered-pointer, [`FunctionId`](sand::resource_ref::FunctionId), and [`ResourceLocation`](sand::ResourceLocation) implementors are always well-formed by construction, but the `&str`/`String` raw-path escape hatch is not — this validates the resolved `namespace:path` resource location (or the `__sand_local:path` sentinel used for not-yet-namespaced local function pointers) before returning command text.",
+    use_when = ["Constructing Minecraft commands through Sand's typed command model"],
+    avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
+    params(id = "`id` provides the typed resource identifier or location used to use validated counterpart to [`call`]. [`sand::command::IntoFunctionRef`]'s registered-pointer, [`FunctionId`](sand::resource_ref::FunctionId), and [`ResourceLocation`](sand::ResourceLocation) implementors are always well-formed by construction, but the `&str`/`String` raw-path escape hatch is not — this validates the resolved `namespace:path` resource location (or the `__sand_local:path` sentinel used for not-yet-namespaced local function pointers) before returning command text."),
+    returns = "The `sand :: command :: CommandResult < String >` value produced to use validated counterpart to [`call`]. [`sand::command::IntoFunctionRef`]'s registered-pointer, [`FunctionId`](sand::resource_ref::FunctionId), and [`ResourceLocation`](sand::ResourceLocation) implementors are always well-formed by construction, but the `&str`/`String` raw-path escape hatch is not — this validates the resolved `namespace:path` resource location (or the `__sand_local:path` sentinel used for not-yet-namespaced local function pointers) before returning command text.",
+    example = "use sand::prelude::*;\n\nfn demonstrate(id: impl sand::command::IntoFunctionRef)  {\n    let try_call = sand::command::try_call(id);\n}",
+)]
 pub fn try_call(id: impl crate::function::IntoFunctionRef) -> sand_commands::CommandResult<String> {
     let function_id = try_function_id(id)?;
     Ok(format!("function {function_id}"))
@@ -209,7 +214,20 @@ pub fn try_call(id: impl crate::function::IntoFunctionRef) -> sand_commands::Com
 /// in a local/CI build. Prefer [`call`] (registered typed function
 /// references) or [`try_function`] (validated resource-location string) in
 /// normal code — see [#175](https://github.com/ThatOneToast/sand/issues/175).
-#[doc = "**API Contract:** Run `sand api show sand::command::function` for the canonical contract."]
+#[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::command::function",
+    aliases = ["sand::cmd::function", "sand::prelude::cmd::function"],
+    module = "sand::command",
+    summary = "`function <namespace:path>` — run a datapack function by resource location.",
+    context = "`function <namespace:path>` — run a datapack function by resource location. Raw/unchecked: `id` is interpolated verbatim, with no resource-location validation. This explicit fallback keeps the common function command available even when generated vanilla command builders cannot be produced in a local/CI build. Prefer [`call`] (registered typed function references) or [`try_function`] (validated resource-location string) in normal code — see [#175](https://github.com/ThatOneToast/sand/issues/175).",
+    minecraft = "Raw/unchecked: `id` is interpolated verbatim, with no resource-location validation. This explicit fallback keeps the common function command available even when generated vanilla command builders cannot be produced in a local/CI build. Prefer [`call`] (registered typed function references) or [`try_function`] (validated resource-location string) in normal code — see [#175](https://github.com/ThatOneToast/sand/issues/175).",
+    use_when = ["Constructing Minecraft commands through Sand's typed command model"],
+    avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
+    params(id = "Raw/unchecked: `id` is interpolated verbatim, with no resource-location validation. This explicit fallback keeps the common function command available even when generated vanilla command builders cannot be produced in a local/CI build. Prefer [`call`] (registered typed function references) or [`try_function`] (validated resource-location string) in normal code — see [#175](https://github.com/ThatOneToast/sand/issues/175)."),
+    returns = "The string value produced to emit the documented `function <namespace:path>` — run a datapack function by resource location form.",
+    example = "use std::fmt;\nuse sand::prelude::*;\n\nfn demonstrate(id: impl std::fmt::Display)  {\n    let function = sand::command::function(id);\n}",
+)]
 pub fn function(id: impl std::fmt::Display) -> String {
     format!("function {id}")
 }
@@ -217,7 +235,20 @@ pub fn function(id: impl std::fmt::Display) -> String {
 /// Validated counterpart to [`function`]: rejects an `id` that is not a
 /// syntactically valid `namespace:path` resource location before returning
 /// command text.
-#[doc = "**API Contract:** Run `sand api show sand::command::try_function` for the canonical contract."]
+#[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::command::try_function",
+    aliases = ["sand::cmd::try_function", "sand::prelude::cmd::try_function"],
+    module = "sand::command",
+    summary = "Validated counterpart to [`function`]: rejects an `id` that is not a syntactically valid `namespace:path` resource location before returning command text.",
+    context = "Validated counterpart to [`function`]: rejects an `id` that is not a syntactically valid `namespace:path` resource location before returning command text. This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
+    minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
+    use_when = ["Constructing Minecraft commands through Sand's typed command model"],
+    avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
+    params(id = "Validated counterpart to [`function`]: rejects an `id` that is not a syntactically valid `namespace:path` resource location before returning command text."),
+    returns = "The `sand :: command :: CommandResult < String >` value produced to use validated counterpart to [`function`]: rejects an `id` that is not a syntactically valid `namespace:path` resource location before returning command text.",
+    example = "use std::fmt;\nuse sand::prelude::*;\n\nfn demonstrate(id: impl std::fmt::Display)  {\n    let try_function = sand::command::try_function(id);\n}",
+)]
 pub fn try_function(id: impl std::fmt::Display) -> sand_commands::CommandResult<String> {
     let id = id.to_string();
     sand_commands::validate::resource_location_shape(&id, "cmd::try_function", "id")
@@ -233,7 +264,20 @@ pub fn try_function(id: impl std::fmt::Display) -> sand_commands::CommandResult<
 /// let loc = cmd::function_id(ate_golden_apple);
 /// assert_eq!(loc, "powers:ate_golden_apple");
 /// ```
-#[doc = "**API Contract:** Run `sand api show sand::command::function_id` for the canonical contract."]
+#[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::command::function_id",
+    aliases = ["sand::cmd::function_id", "sand::prelude::cmd::function_id"],
+    module = "sand::command",
+    summary = "Resolve a function identifier to its `namespace:path` resource location.",
+    context = "Resolve a function identifier to its `namespace:path` resource location. This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
+    minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
+    use_when = ["Constructing Minecraft commands through Sand's typed command model"],
+    avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
+    params(id = "`id` provides the typed resource identifier or location used to resolve a function identifier to its `namespace:path` resource location."),
+    returns = "The string value produced to resolve a function identifier to its `namespace:path` resource location.",
+    example = "let loc = cmd::function_id(ate_golden_apple);\nassert_eq!(loc, \"powers:ate_golden_apple\");",
+)]
 pub fn function_id(id: impl crate::function::IntoFunctionRef) -> String {
     id.into_function_id()
 }
@@ -249,7 +293,20 @@ pub fn function_id(id: impl crate::function::IntoFunctionRef) -> String {
 /// `function_id` noted in [#175](https://github.com/ThatOneToast/sand/issues/175)
 /// (identified during the #287 review as the same shape of bypass as
 /// [`try_call`]/[`try_function`]).
-#[doc = "**API Contract:** Run `sand api show sand::command::try_function_id` for the canonical contract."]
+#[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::command::try_function_id",
+    aliases = ["sand::cmd::try_function_id", "sand::prelude::cmd::try_function_id"],
+    module = "sand::command",
+    summary = "Validated counterpart to [`function_id`]. [`IntoFunctionRef`]'s registered-pointer, [`FunctionId`](sand::resource_ref::FunctionId), and [`ResourceLocation`](sand::ResourceLocation) implementors are always well-formed by construction, but the `&str`/`String` raw-path escape hatch is not — this validates the resolved `namespace:path` resource location (or the `__sand_local:path` sentinel used for not-yet-namespaced local function pointers) before returning it. This closes the raw-string gap in `function_id` noted in [#175](https://github.com/ThatOneToast/sand/issues/175) (identified during the #287 review as the same shape of bypass as [`try_call`]/[`try_function`]).",
+    context = "Validated counterpart to [`function_id`]. [`IntoFunctionRef`]'s registered-pointer, [`FunctionId`](sand::resource_ref::FunctionId), and [`ResourceLocation`](sand::ResourceLocation) implementors are always well-formed by construction, but the `&str`/`String` raw-path escape hatch is not — this validates the resolved `namespace:path` resource location (or the `__sand_local:path` sentinel used for not-yet-namespaced local function pointers) before returning it. This closes the raw-string gap in `function_id` noted in [#175](https://github.com/ThatOneToast/sand/issues/175) (identified during the #287 review as the same shape of bypass as [`try_call`]/[`try_function`]). This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
+    minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
+    use_when = ["Constructing Minecraft commands through Sand's typed command model"],
+    avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
+    params(id = "`id` provides the typed resource identifier or location used to use validated counterpart to [`function_id`]. [`IntoFunctionRef`]'s registered-pointer, [`FunctionId`](sand::resource_ref::FunctionId), and [`ResourceLocation`](sand::ResourceLocation) implementors are always well-formed by construction, but the `&str`/`String` raw-path escape hatch is not — this validates the resolved `namespace:path` resource location (or the `__sand_local:path` sentinel used for not-yet-namespaced local function pointers) before returning it. This closes the raw-string gap in `function_id` noted in [#175](https://github.com/ThatOneToast/sand/issues/175) (identified during the #287 review as the same shape of bypass as [`try_call`]/[`try_function`])."),
+    returns = "The `sand :: command :: CommandResult < String >` value produced to use validated counterpart to [`function_id`]. [`IntoFunctionRef`]'s registered-pointer, [`FunctionId`](sand::resource_ref::FunctionId), and [`ResourceLocation`](sand::ResourceLocation) implementors are always well-formed by construction, but the `&str`/`String` raw-path escape hatch is not — this validates the resolved `namespace:path` resource location (or the `__sand_local:path` sentinel used for not-yet-namespaced local function pointers) before returning it. This closes the raw-string gap in `function_id` noted in [#175](https://github.com/ThatOneToast/sand/issues/175) (identified during the #287 review as the same shape of bypass as [`try_call`]/[`try_function`]).",
+    example = "use sand::prelude::*;\n\nfn demonstrate(id: impl sand::command::IntoFunctionRef)  {\n    let try_function_id = sand::command::try_function_id(id);\n}",
+)]
 pub fn try_function_id(
     id: impl crate::function::IntoFunctionRef,
 ) -> sand_commands::CommandResult<String> {
@@ -275,7 +332,20 @@ pub fn try_function_id(
 ///     DialogId::custom("other_pack:settings".parse().unwrap()),
 /// );
 /// ```
-#[doc = "**API Contract:** Run `sand api show sand::command::show_dialog` for the canonical contract."]
+#[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::command::show_dialog",
+    aliases = ["sand::cmd::show_dialog", "sand::prelude::cmd::show_dialog"],
+    module = "sand::command",
+    summary = "Show a typed datapack dialog to one or more players.",
+    context = "Show a typed datapack dialog to one or more players. Dialogs are available in Minecraft Java 1.21.6+ / pack format 80+. The command emitted is `dialog show <targets> <dialog>`.",
+    minecraft = "Dialogs are available in Minecraft Java 1.21.6+ / pack format 80+. The command emitted is `dialog show <targets> <dialog>`.",
+    use_when = ["Constructing Minecraft commands through Sand's typed command model"],
+    avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
+    params(selector = "`selector` provides the Minecraft target selection used to show a typed datapack dialog to one or more players.", dialog = "`dialog` supplies the dialog value used to show a typed datapack dialog to one or more players."),
+    returns = "The string value produced to show a typed datapack dialog to one or more players.",
+    example = "use sand::prelude::*;\ncmd::show_dialog(Selector::self_(), DialogId::local(\"welcome\"));\ncmd::show_dialog(\nSelector::all_players(),\nDialogId::custom(\"other_pack:settings\".parse().unwrap()),\n);",
+)]
 pub fn show_dialog(
     selector: Selector,
     dialog: impl sand_components::dialog::IntoDialogRef,
@@ -286,7 +356,20 @@ pub fn show_dialog(
 /// Validated counterpart to [`show_dialog`] — validates `selector` through
 /// [`Selector`]'s normal validation before returning command text. `dialog`
 /// resolution is already typed via [`IntoDialogRef`](sand_components::dialog::IntoDialogRef).
-#[doc = "**API Contract:** Run `sand api show sand::command::try_show_dialog` for the canonical contract."]
+#[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::command::try_show_dialog",
+    aliases = ["sand::cmd::try_show_dialog", "sand::prelude::cmd::try_show_dialog"],
+    module = "sand::command",
+    summary = "Validated counterpart to [`show_dialog`] — validates `selector` through [`Selector`]'s normal validation before returning command text. `dialog` resolution is already typed via [`IntoDialogRef`](sand::component::IntoDialogRef).",
+    context = "Validated counterpart to [`show_dialog`] — validates `selector` through [`Selector`]'s normal validation before returning command text. `dialog` resolution is already typed via [`IntoDialogRef`](sand::component::IntoDialogRef). This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
+    minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
+    use_when = ["Constructing Minecraft commands through Sand's typed command model"],
+    avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
+    params(selector = "Validated counterpart to [`show_dialog`] — validates `selector` through [`Selector`]'s normal validation before returning command text. `dialog` resolution is already typed via [`IntoDialogRef`](sand::component::IntoDialogRef).", dialog = "Validated counterpart to [`show_dialog`] — validates `selector` through [`Selector`]'s normal validation before returning command text. `dialog` resolution is already typed via [`IntoDialogRef`](sand::component::IntoDialogRef)."),
+    returns = "The `sand :: command :: CommandResult < String >` value produced to use validated counterpart to [`show_dialog`] — validates `selector` through [`Selector`]'s normal validation before returning command text. `dialog` resolution is already typed via [`IntoDialogRef`](sand::component::IntoDialogRef).",
+    example = "use sand::prelude::*;\n\nfn demonstrate(selector: sand::command::Selector, dialog: impl sand::component::IntoDialogRef)  {\n    let try_show_dialog = sand::command::try_show_dialog(selector, dialog);\n}",
+)]
 pub fn try_show_dialog(
     selector: Selector,
     dialog: impl sand_components::dialog::IntoDialogRef,
@@ -296,7 +379,20 @@ pub fn try_show_dialog(
 }
 
 /// `tellraw <target> <json>` — send a rich JSON text component to a target.
-#[doc = "**API Contract:** Run `sand api show sand::command::tellraw` for the canonical contract."]
+#[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::command::tellraw",
+    aliases = ["sand::cmd::tellraw", "sand::prelude::cmd::tellraw"],
+    module = "sand::command",
+    summary = "`tellraw <target> <json>` — send a rich JSON text component to a target.",
+    context = "`tellraw <target> <json>` — send a rich JSON text component to a target. This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
+    minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
+    use_when = ["Constructing Minecraft commands through Sand's typed command model"],
+    avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
+    params(target = "`target` provides the entity, block, or command target used to emit the documented `tellraw <target> <json>` — send a rich JSON text component to a target form.", text = "`text` provides the author-visible text value used to emit the documented `tellraw <target> <json>` — send a rich JSON text component to a target form."),
+    returns = "The string value produced to emit the documented `tellraw <target> <json>` — send a rich JSON text component to a target form.",
+    example = "use sand::prelude::*;\n\nfn demonstrate(target: sand::command::Selector, text: sand::text::TextComponent)  {\n    let tellraw = sand::command::tellraw(target, text);\n}",
+)]
 pub fn tellraw(target: Selector, text: TextComponent) -> String {
     TextCommand::tellraw(target, text).build()
 }
@@ -308,7 +404,20 @@ pub fn tellraw(target: Selector, text: TextComponent) -> String {
 /// [`TextComponent`]) or [`try_tellraw_raw`] (validates the target selector
 /// and that `json` is at least syntactically valid JSON) in normal code —
 /// see [#175](https://github.com/ThatOneToast/sand/issues/175).
-#[doc = "**API Contract:** Run `sand api show sand::command::tellraw_raw` for the canonical contract."]
+#[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::command::tellraw_raw",
+    aliases = ["sand::cmd::tellraw_raw", "sand::prelude::cmd::tellraw_raw"],
+    module = "sand::command",
+    summary = "`tellraw <target> <raw_json>` — send a raw JSON text component to a target.",
+    context = "`tellraw <target> <raw_json>` — send a raw JSON text component to a target. Raw/unchecked: `target` and `json` are interpolated verbatim, with no selector or JSON validation. Prefer [`tellraw`] (validated [`TextComponent`]) or [`try_tellraw_raw`] (validates the target selector and that `json` is at least syntactically valid JSON) in normal code — see [#175](https://github.com/ThatOneToast/sand/issues/175).",
+    minecraft = "Raw/unchecked: `target` and `json` are interpolated verbatim, with no selector or JSON validation. Prefer [`tellraw`] (validated [`TextComponent`]) or [`try_tellraw_raw`] (validates the target selector and that `json` is at least syntactically valid JSON) in normal code — see [#175](https://github.com/ThatOneToast/sand/issues/175).",
+    use_when = ["Constructing Minecraft commands through Sand's typed command model"],
+    avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
+    params(target = "Raw/unchecked: `target` and `json` are interpolated verbatim, with no selector or JSON validation. Prefer [`tellraw`] (validated [`TextComponent`]) or [`try_tellraw_raw`] (validates the target selector and that `json` is at least syntactically valid JSON) in normal code — see [#175](https://github.com/ThatOneToast/sand/issues/175).", json = "Raw/unchecked: `target` and `json` are interpolated verbatim, with no selector or JSON validation. Prefer [`tellraw`] (validated [`TextComponent`]) or [`try_tellraw_raw`] (validates the target selector and that `json` is at least syntactically valid JSON) in normal code — see [#175](https://github.com/ThatOneToast/sand/issues/175)."),
+    returns = "The string value produced to emit the documented `tellraw <target> <raw_json>` — send a raw JSON text component to a target form.",
+    example = "use std::fmt;\nuse sand::prelude::*;\n\nfn demonstrate(target: impl std::fmt::Display, json: impl Into < String >)  {\n    let tellraw_raw = sand::command::tellraw_raw(target, json);\n}",
+)]
 pub fn tellraw_raw(target: impl std::fmt::Display, json: impl Into<String>) -> String {
     format!("tellraw {target} {}", json.into())
 }
@@ -319,7 +428,20 @@ pub fn tellraw_raw(target: impl std::fmt::Display, json: impl Into<String>) -> S
 /// `json` as JSON syntax (it does not validate it against the text-component
 /// schema the way [`TextComponent`] does — that would duplicate the
 /// component-level validation `Text`/`TextComponent` already own).
-#[doc = "**API Contract:** Run `sand api show sand::command::try_tellraw_raw` for the canonical contract."]
+#[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::command::try_tellraw_raw",
+    aliases = ["sand::cmd::try_tellraw_raw", "sand::prelude::cmd::try_tellraw_raw"],
+    module = "sand::command",
+    summary = "Validated counterpart to [`tellraw_raw`]. Validates `target` through [`Selector`]'s normal validation and parses `json` as JSON syntax (it does not validate it against the text-component schema the way [`TextComponent`] does — that would duplicate the component-level validation `Text`/`TextComponent` already own).",
+    context = "Validated counterpart to [`tellraw_raw`]. Validates `target` through [`Selector`]'s normal validation and parses `json` as JSON syntax (it does not validate it against the text-component schema the way [`TextComponent`] does — that would duplicate the component-level validation `Text`/`TextComponent` already own). This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
+    minecraft = "Validates `target` through [`Selector`]'s normal validation and parses `json` as JSON syntax (it does not validate it against the text-component schema the way [`TextComponent`] does — that would duplicate the component-level validation `Text`/`TextComponent` already own).",
+    use_when = ["Constructing Minecraft commands through Sand's typed command model"],
+    avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
+    params(target = "Validates `target` through [`Selector`]'s normal validation and parses `json` as JSON syntax (it does not validate it against the text-component schema the way [`TextComponent`] does — that would duplicate the component-level validation `Text`/`TextComponent` already own).", json = "Validates `target` through [`Selector`]'s normal validation and parses `json` as JSON syntax (it does not validate it against the text-component schema the way [`TextComponent`] does — that would duplicate the component-level validation `Text`/`TextComponent` already own)."),
+    returns = "The `sand :: command :: CommandResult < String >` value produced to use validated counterpart to [`tellraw_raw`]. Validates `target` through [`Selector`]'s normal validation and parses `json` as JSON syntax (it does not validate it against the text-component schema the way [`TextComponent`] does — that would duplicate the component-level validation `Text`/`TextComponent` already own).",
+    example = "use sand::prelude::*;\n\nfn demonstrate(target: sand::command::Selector, json: impl Into < String >)  {\n    let try_tellraw_raw = sand::command::try_tellraw_raw(target, json);\n}",
+)]
 pub fn try_tellraw_raw(
     target: Selector,
     json: impl Into<String>,
@@ -333,7 +455,18 @@ pub fn try_tellraw_raw(
     Ok(format!("tellraw {target} {json}"))
 }
 
-#[doc = "**API Contract:** Run `sand api show sand::command::IntoGiveItem` for the canonical contract."]
+#[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::command::IntoGiveItem",
+    aliases = ["sand::cmd::IntoGiveItem", "sand::prelude::cmd::IntoGiveItem"],
+    module = "sand::command",
+    summary = "Conversion accepted by [`give`]'s `item` parameter.",
+    context = "Conversion accepted by [`give`]'s `item` parameter. Implemented for: - `&str`/`String` — the untyped escape hatch; no validation beyond what the `give` command syntax itself enforces. - Sand's profile-generated vanilla item enum, when available (e.g. `vanilla::Item::Diamond`). - [`sand::registry::ItemId`] (and `&ItemId`) — validated custom/modded item identifiers (`ItemId::minecraft`/`::custom`). Prefer the typed forms in normal code.",
+    minecraft = "Implemented for: - `&str`/`String` — the untyped escape hatch; no validation beyond what the `give` command syntax itself enforces. - Sand's profile-generated vanilla item enum, when available (e.g. `vanilla::Item::Diamond`). - [`sand::registry::ItemId`] (and `&ItemId`) — validated custom/modded item identifiers (`ItemId::minecraft`/`::custom`).",
+    use_when = ["Prefer the typed forms in normal code."],
+    avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
+    example = "use sand::command::IntoGiveItem;",
+)]
 /// Conversion accepted by [`give`]'s `item` parameter.
 ///
 /// Implemented for:
@@ -347,7 +480,19 @@ pub fn try_tellraw_raw(
 /// Prefer the typed forms in normal code.
 pub trait IntoGiveItem {
     /// Convert to the item's resource location, e.g. `"minecraft:diamond"`.
-    #[doc = "**API Contract:** Run `sand api show sand::command::IntoGiveItem::into_give_item` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::command::IntoGiveItem::into_give_item",
+        aliases = ["sand::cmd::IntoGiveItem::into_give_item", "sand::prelude::cmd::IntoGiveItem::into_give_item"],
+        module = "sand::command",
+        summary = "Convert to the item's resource location, e.g. `\"minecraft:diamond\"`.",
+        context = "Convert to the item's resource location, e.g. `\"minecraft:diamond\"`. This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
+        minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
+        use_when = ["Constructing Minecraft commands through Sand's typed command model"],
+        avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
+        returns = "The string value produced to convert to the item's resource location, e.g. `\"minecraft:diamond\"`.",
+        example = "use sand::prelude::*;\n\nfn demonstrate<T: sand::command::IntoGiveItem>(into_give_item_value: T)  {\n    let into_give_item = into_give_item_value.into_give_item();\n}",
+    )]
     fn into_give_item(self) -> String;
 }
 
@@ -413,7 +558,20 @@ impl IntoGiveItem for &sand_components::CustomItem {
 /// );
 /// cmd::give(Selector::self_(), "minecraft:diamond_sword");
 /// ```
-#[doc = "**API Contract:** Run `sand api show sand::command::give` for the canonical contract."]
+#[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::command::give",
+    aliases = ["sand::cmd::give", "sand::prelude::cmd::give"],
+    module = "sand::command",
+    summary = "`give <targets> <item>` — give an item stack to one or more players.",
+    context = "`give <targets> <item>` — give an item stack to one or more players. This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
+    minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
+    use_when = ["Constructing Minecraft commands through Sand's typed command model"],
+    avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
+    params(selector = "`selector` provides the Minecraft target selection used to emit the documented `give <targets> <item>` — give an item stack to one or more players form.", item = "`item` provides the item value or item predicate used to emit the documented `give <targets> <item>` — give an item stack to one or more players form."),
+    returns = "The string value produced to emit the documented `give <targets> <item>` — give an item stack to one or more players form.",
+    example = "use sand::command;\nuse sand::registry::ItemId;\nuse sand::command::Selector;\ncmd::give(\nSelector::all_players(),\nItemId::minecraft(\"diamond\").unwrap(),\n);\ncmd::give(Selector::self_(), \"minecraft:diamond_sword\");",
+)]
 pub fn give(selector: Selector, item: impl IntoGiveItem) -> String {
     format!("give {selector} {}", item.into_give_item())
 }
@@ -427,7 +585,20 @@ pub fn give(selector: Selector, item: impl IntoGiveItem) -> String {
 /// (any trailing `[...]`/`{...}` item-component/NBT payload is preserved
 /// verbatim, matching `sand::command::Inventory`'s item validation) and the
 /// target `selector` before returning command text.
-#[doc = "**API Contract:** Run `sand api show sand::command::try_give` for the canonical contract."]
+#[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::command::try_give",
+    aliases = ["sand::cmd::try_give", "sand::prelude::cmd::try_give"],
+    module = "sand::command",
+    summary = "Validated counterpart to [`give`]. Typed [`IntoGiveItem`] implementors (the profile-generated vanilla item enum, [`sand::registry::ItemId`], and [`sand::component::CustomItem`]) are already well-formed by construction, but the `&str`/`String` raw escape hatch is not — this validates the leading `namespace:path` item ID (any trailing `[...]`/`{...}` item-component/NBT payload is preserved verbatim, matching `sand::command::Inventory`'s item validation) and the target `selector` before returning command text.",
+    context = "Validated counterpart to [`give`]. Typed [`IntoGiveItem`] implementors (the profile-generated vanilla item enum, [`sand::registry::ItemId`], and [`sand::component::CustomItem`]) are already well-formed by construction, but the `&str`/`String` raw escape hatch is not — this validates the leading `namespace:path` item ID (any trailing `[...]`/`{...}` item-component/NBT payload is preserved verbatim, matching `sand::command::Inventory`'s item validation) and the target `selector` before returning command text. This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
+    minecraft = "Typed [`IntoGiveItem`] implementors (the profile-generated vanilla item enum, [`sand::registry::ItemId`], and [`sand::component::CustomItem`]) are already well-formed by construction, but the `&str`/`String` raw escape hatch is not — this validates the leading `namespace:path` item ID (any trailing `[...]`/`{...}` item-component/NBT payload is preserved verbatim, matching `sand::command::Inventory`'s item validation) and the target `selector` before returning command text.",
+    use_when = ["Constructing Minecraft commands through Sand's typed command model"],
+    avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
+    params(selector = "Typed [`IntoGiveItem`] implementors (the profile-generated vanilla item enum, [`sand::registry::ItemId`], and [`sand::component::CustomItem`]) are already well-formed by construction, but the `&str`/`String` raw escape hatch is not — this validates the leading `namespace:path` item ID (any trailing `[...]`/`{...}` item-component/NBT payload is preserved verbatim, matching `sand::command::Inventory`'s item validation) and the target `selector` before returning command text.", item = "`item` provides the item value or item predicate used to use validated counterpart to [`give`]. Typed [`IntoGiveItem`] implementors (the profile-generated vanilla item enum, [`sand::registry::ItemId`], and [`sand::component::CustomItem`]) are already well-formed by construction, but the `&str`/`String` raw escape hatch is not — this validates the leading `namespace:path` item ID (any trailing `[...]`/`{...}` item-component/NBT payload is preserved verbatim, matching `sand::command::Inventory`'s item validation) and the target `selector` before returning command text."),
+    returns = "The `sand :: command :: CommandResult < String >` value produced to use validated counterpart to [`give`]. Typed [`IntoGiveItem`] implementors (the profile-generated vanilla item enum, [`sand::registry::ItemId`], and [`sand::component::CustomItem`]) are already well-formed by construction, but the `&str`/`String` raw escape hatch is not — this validates the leading `namespace:path` item ID (any trailing `[...]`/`{...}` item-component/NBT payload is preserved verbatim, matching `sand::command::Inventory`'s item validation) and the target `selector` before returning command text.",
+    example = "use sand::prelude::*;\n\nfn demonstrate(selector: sand::command::Selector, item: impl sand::command::IntoGiveItem)  {\n    let try_give = sand::command::try_give(selector, item);\n}",
+)]
 pub fn try_give(
     selector: Selector,
     item: impl IntoGiveItem,
@@ -451,7 +622,19 @@ pub fn try_give(
 ///     cmd::return_fail(),
 /// ]);
 /// ```
-#[doc = "**API Contract:** Run `sand api show sand::command::return_fail` for the canonical contract."]
+#[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::command::return_fail",
+    aliases = ["sand::cmd::return_fail", "sand::prelude::cmd::return_fail"],
+    module = "sand::command",
+    summary = "`return fail` — stop the current function with a failure return value.",
+    context = "`return fail` — stop the current function with a failure return value. In Minecraft 1.20.2+, `return fail` terminates the current `.mcfunction` and reports failure (return value −1) to callers using `execute … run function`. Use inside branch or helper functions to halt that branch.",
+    minecraft = "In Minecraft 1.20.2+, `return fail` terminates the current `.mcfunction` and reports failure (return value −1) to callers using `execute … run function`. Use inside branch or helper functions to halt that branch.",
+    use_when = ["Constructing Minecraft commands through Sand's typed command model"],
+    avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
+    returns = "The string value produced to emit the documented `return fail` — stop the current function with a failure return value form.",
+    example = "when(HAS_CELLS.of(\"@s\").is_true()).then_all([\ntellraw(Selector::self_(), Text::new(\"Already granted\")),\ncmd::return_fail(),\n]);",
+)]
 pub fn return_fail() -> String {
     "return fail".to_string()
 }
@@ -470,7 +653,20 @@ pub fn return_fail() -> String {
 ///     cmd::return_cmd(0),
 /// ]);
 /// ```
-#[doc = "**API Contract:** Run `sand api show sand::command::return_cmd` for the canonical contract."]
+#[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::command::return_cmd",
+    aliases = ["sand::cmd::return_cmd", "sand::prelude::cmd::return_cmd"],
+    module = "sand::command",
+    summary = "`return <value>` — stop the current function with an integer return value.",
+    context = "`return <value>` — stop the current function with an integer return value. `cmd::return_cmd(0)` → `return 0` (success, also readable by `execute store result`). `cmd::return_cmd(1)` → `return 1`. In Minecraft 1.20.2+, `return <n>` terminates the current `.mcfunction` with the given result code. Callers using `execute … run function` see this value.",
+    minecraft = "In Minecraft 1.20.2+, `return <n>` terminates the current `.mcfunction` with the given result code. Callers using `execute … run function` see this value.",
+    use_when = ["Constructing Minecraft commands through Sand's typed command model"],
+    avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
+    params(value = "`value` provides the value being applied or compared used to emit the documented `return <value>` — stop the current function with an integer return value form."),
+    returns = "The string value produced to emit the documented `return <value>` — stop the current function with an integer return value form.",
+    example = "unless(HAS_CELLS.of(\"@s\").is_true()).then_all([\nHAS_CELLS.enable(\"@s\"),\ncmd::return_cmd(0),\n]);",
+)]
 pub fn return_cmd(value: i32) -> String {
     format!("return {value}")
 }
@@ -480,12 +676,36 @@ pub fn return_cmd(value: i32) -> String {
 /// Prefer typed builders for normal datapack code. Use this for interop with
 /// other datapacks, modded commands, snapshot-only syntax, future features not
 /// modeled by Sand yet, or focused debugging.
-#[doc = "**API Contract:** Run `sand api show sand::command::raw` for the canonical contract."]
+#[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::command::raw",
+    aliases = ["sand::cmd::raw", "sand::prelude::cmd::raw"],
+    module = "sand::command",
+    summary = "Explicit escape hatch for raw Minecraft command syntax.",
+    context = "Explicit escape hatch for raw Minecraft command syntax. Prefer typed builders for normal datapack code. Use this for interop with other datapacks, modded commands, snapshot-only syntax, future features not modeled by Sand yet, or focused debugging.",
+    minecraft = "Prefer typed builders for normal datapack code. Use this for interop with other datapacks, modded commands, snapshot-only syntax, future features not modeled by Sand yet, or focused debugging.",
+    use_when = ["Prefer typed builders for normal datapack code. Use this for interop with other datapacks, modded commands, snapshot-only syntax, future features not modeled by Sand yet, or focused debugging."],
+    avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
+    params(command = "`command` supplies the command value used to use explicit escape hatch for raw Minecraft command syntax."),
+    returns = "The `sand :: command :: RawCommand` value produced to use explicit escape hatch for raw Minecraft command syntax.",
+    example = "use sand::prelude::*;\n\nfn demonstrate(command: impl Into < String >)  {\n    let raw = sand::command::raw(command);\n}",
+)]
 pub fn raw(command: impl Into<String>) -> sand_commands::RawCommand {
     sand_commands::RawCommand::new(command)
 }
 
-#[doc = "**API Contract:** Run `sand api show sand::command::Command` for the canonical contract."]
+#[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::command::Command",
+    aliases = ["sand::cmd::Command", "sand::prelude::cmd::Command"],
+    module = "sand::command",
+    summary = "A typed Minecraft command that can be serialized to a command string.",
+    context = "A typed Minecraft command that can be serialized to a command string. All command builders generated from the Minecraft command tree implement this compatibility marker. It is distinct from [`RenderCommand`], the fallible profile-aware validation contract implemented by migrated typed command foundations. New handwritten builders should prefer [`RenderCommand`]; generated marker commands are conservatively checked at the function export boundary. Since [`Command`] requires [`std::fmt::Display`], you can use command builders directly in [`sand::mcfunction!`]:",
+    minecraft = "All command builders generated from the Minecraft command tree implement this compatibility marker. It is distinct from [`RenderCommand`], the fallible profile-aware validation contract implemented by migrated typed command foundations. New handwritten builders should prefer [`RenderCommand`]; generated marker commands are conservatively checked at the function export boundary.",
+    use_when = ["Constructing Minecraft commands through Sand's typed command model"],
+    avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
+    example = "use sand::command::Command;",
+)]
 /// A typed Minecraft command that can be serialized to a command string.
 ///
 /// All command builders generated from the Minecraft command tree implement

@@ -5,7 +5,18 @@ use std::fmt;
 use crate::error::{CommandError, CommandResult};
 use crate::render::{CommandProfile, RenderCommand, Validate};
 
-#[doc = "**API Contract:** Run `sand api show sand::command::RawCommand` for the canonical contract."]
+#[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::command::RawCommand",
+    aliases = ["sand::cmd::RawCommand", "sand::prelude::RawCommand", "sand::prelude::cmd::RawCommand"],
+    module = "sand::command",
+    summary = "A command line intentionally excluded from typed grammar validation.",
+    context = "A command line intentionally excluded from typed grammar validation. Raw commands still must be a single `.mcfunction`-safe line and must not start with `/`. Prefer typed command builders whenever Sand models the syntax you need. `RawCommand::new` stays infallible so it remains ergonomic to construct — [`RawCommand::try_build`] (via [`RenderCommand`]) is the validated boundary, checking (see [#175](https://github.com/ThatOneToast/sand/issues/175)): - not empty or whitespace-only; - no NUL, newline, or carriage return (exactly one logical line); - no other ASCII control characters; - no leading `/` (`.mcfunction` lines never start with a slash).",
+    minecraft = "Raw commands still must be a single `.mcfunction`-safe line and must not start with `/`. Prefer typed command builders whenever Sand models the syntax you need.",
+    use_when = ["Constructing Minecraft commands through Sand's typed command model"],
+    avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
+    example = "use sand::command::RawCommand;",
+)]
 /// A command line intentionally excluded from typed grammar validation.
 ///
 /// Raw commands still must be a single `.mcfunction`-safe line and must not
@@ -30,17 +41,57 @@ pub struct RawCommand(String);
 
 impl RawCommand {
     /// Wraps an intentionally unchecked Minecraft command string.
-    #[doc = "**API Contract:** Run `sand api show sand::command::RawCommand::new` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::command::RawCommand::new",
+        aliases = ["sand::cmd::RawCommand::new", "sand::prelude::RawCommand::new", "sand::prelude::cmd::RawCommand::new"],
+        module = "sand::command",
+        kind = "method",
+        summary = "Wraps an intentionally unchecked Minecraft command string.",
+        context = "Wraps an intentionally unchecked Minecraft command string. This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
+        minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
+        use_when = ["Constructing Minecraft commands through Sand's typed command model"],
+        avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
+        params(command = "`command` supplies the command value used to wrap an intentionally unchecked Minecraft command string."),
+        returns = "A newly constructed `RawCommand` configured to wrap an intentionally unchecked Minecraft command string.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(command: impl Into < String >)  {\n    let raw_command = sand::command::RawCommand::new(command);\n}",
+    )]
     pub fn new(command: impl Into<String>) -> Self {
         Self(command.into())
     }
     /// Returns the exact Minecraft command token represented by this raw command value.
-    #[doc = "**API Contract:** Run `sand api show sand::command::RawCommand::as_str` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::command::RawCommand::as_str",
+        aliases = ["sand::cmd::RawCommand::as_str", "sand::prelude::RawCommand::as_str", "sand::prelude::cmd::RawCommand::as_str"],
+        module = "sand::command",
+        kind = "method",
+        summary = "Returns the exact Minecraft command token represented by this raw command value.",
+        context = "Returns the exact Minecraft command token represented by this raw command value. This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
+        minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
+        use_when = ["Constructing Minecraft commands through Sand's typed command model"],
+        avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
+        returns = "Returns the exact Minecraft command token represented by this raw command value.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(raw_command_value: &sand::command::RawCommand)  {\n    let as_str = raw_command_value.as_str();\n}",
+    )]
     pub fn as_str(&self) -> &str {
         &self.0
     }
     /// Consume this wrapper and return the unchecked command text.
-    #[doc = "**API Contract:** Run `sand api show sand::command::RawCommand::into_inner` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::command::RawCommand::into_inner",
+        aliases = ["sand::cmd::RawCommand::into_inner", "sand::prelude::RawCommand::into_inner", "sand::prelude::cmd::RawCommand::into_inner"],
+        module = "sand::command",
+        kind = "method",
+        summary = "Consume this wrapper and return the unchecked command text.",
+        context = "Consume this wrapper and return the unchecked command text. This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
+        minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
+        use_when = ["Constructing Minecraft commands through Sand's typed command model"],
+        avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
+        returns = "The rendered Minecraft command text produced to consume this wrapper and return the unchecked command text.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(raw_command_value: sand::command::RawCommand)  {\n    let command = raw_command_value.into_inner();\n}",
+    )]
     pub fn into_inner(self) -> String {
         self.0
     }

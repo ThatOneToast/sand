@@ -16,17 +16,27 @@ use crate::render::{CommandProfile, RenderCommand, Validate};
 
 // ── Anchor ────────────────────────────────────────────────────────────────────
 
-#[doc = "**API Contract:** Run `sand api show sand::command::Anchor` for the canonical contract."]
+#[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::command::Anchor",
+    aliases = ["sand::cmd::Anchor", "sand::prelude::cmd::Anchor"],
+    module = "sand::command",
+    summary = "Entity anchor point for `execute anchored` and `execute facing entity`.",
+    context = "Entity anchor point for `execute anchored` and `execute facing entity`. Controls whether position calculations are relative to the entity's eye level or foot level.",
+    minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
+    use_when = ["Constructing Minecraft commands through Sand's typed command model"],
+    avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
+    example = "use sand::command::Anchor;",
+    variants(Eyes = "`eyes` — the entity's eye/head level.", Feet = "`feet` — the entity's foot level (bottom of their bounding box)."),
+)]
 /// Entity anchor point for `execute anchored` and `execute facing entity`.
 ///
 /// Controls whether position calculations are relative to the entity's
 /// **eye level** or **foot level**.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Anchor {
-    #[doc = "**API Contract:** Run `sand api show sand::command::Anchor::Eyes` for the canonical contract."]
     /// `eyes` — the entity's eye/head level.
     Eyes,
-    #[doc = "**API Contract:** Run `sand api show sand::command::Anchor::Feet` for the canonical contract."]
     /// `feet` — the entity's foot level (bottom of their bounding box).
     Feet,
 }
@@ -42,7 +52,18 @@ impl fmt::Display for Anchor {
 
 // ── Swizzle ───────────────────────────────────────────────────────────────────
 
-#[doc = "**API Contract:** Run `sand api show sand::command::Swizzle` for the canonical contract."]
+#[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::command::Swizzle",
+    aliases = ["sand::cmd::Swizzle", "sand::prelude::cmd::Swizzle"],
+    module = "sand::command",
+    summary = "Axis combination for `execute align` — specifies which coordinate axes to floor to block boundaries.",
+    context = "Axis combination for `execute align` — specifies which coordinate axes to floor to block boundaries. This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
+    minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
+    use_when = ["Constructing Minecraft commands through Sand's typed command model"],
+    avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
+    example = "use sand::command::Swizzle;",
+)]
 /// Axis combination for `execute align` — specifies which coordinate axes to
 /// floor to block boundaries.
 #[derive(Debug, Clone)]
@@ -50,37 +71,128 @@ pub struct Swizzle(String);
 
 impl Swizzle {
     /// `x` — floor the X coordinate only.
-    #[doc = "**API Contract:** Run `sand api show sand::command::Swizzle::x` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::command::Swizzle::x",
+        aliases = ["sand::cmd::Swizzle::x", "sand::prelude::cmd::Swizzle::x"],
+        module = "sand::command",
+        kind = "method",
+        summary = "`x` — floor the X coordinate only.",
+        context = "`x` — floor the X coordinate only. This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
+        minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
+        use_when = ["Constructing Minecraft commands through Sand's typed command model"],
+        avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
+        returns = "A newly constructed `Swizzle` configured to emit the documented `x` — floor the X coordinate only form.",
+        example = "use sand::prelude::*;\n\nfn demonstrate()  {\n    let swizzle = sand::command::Swizzle::x();\n}",
+    )]
     pub fn x() -> Self {
         Swizzle("x".into())
     }
     /// `y` — floor the Y coordinate only.
-    #[doc = "**API Contract:** Run `sand api show sand::command::Swizzle::y` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::command::Swizzle::y",
+        aliases = ["sand::cmd::Swizzle::y", "sand::prelude::cmd::Swizzle::y"],
+        module = "sand::command",
+        kind = "method",
+        summary = "`y` — floor the Y coordinate only.",
+        context = "`y` — floor the Y coordinate only. This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
+        minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
+        use_when = ["Constructing Minecraft commands through Sand's typed command model"],
+        avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
+        returns = "A newly constructed `Swizzle` configured to emit the documented `y` — floor the Y coordinate only form.",
+        example = "use sand::prelude::*;\n\nfn demonstrate()  {\n    let swizzle = sand::command::Swizzle::y();\n}",
+    )]
     pub fn y() -> Self {
         Swizzle("y".into())
     }
     /// `z` — floor the Z coordinate only.
-    #[doc = "**API Contract:** Run `sand api show sand::command::Swizzle::z` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::command::Swizzle::z",
+        aliases = ["sand::cmd::Swizzle::z", "sand::prelude::cmd::Swizzle::z"],
+        module = "sand::command",
+        kind = "method",
+        summary = "`z` — floor the Z coordinate only.",
+        context = "`z` — floor the Z coordinate only. This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
+        minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
+        use_when = ["Constructing Minecraft commands through Sand's typed command model"],
+        avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
+        returns = "A newly constructed `Swizzle` configured to emit the documented `z` — floor the Z coordinate only form.",
+        example = "use sand::prelude::*;\n\nfn demonstrate()  {\n    let swizzle = sand::command::Swizzle::z();\n}",
+    )]
     pub fn z() -> Self {
         Swizzle("z".into())
     }
     /// `xy` — floor both X and Y coordinates.
-    #[doc = "**API Contract:** Run `sand api show sand::command::Swizzle::xy` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::command::Swizzle::xy",
+        aliases = ["sand::cmd::Swizzle::xy", "sand::prelude::cmd::Swizzle::xy"],
+        module = "sand::command",
+        kind = "method",
+        summary = "`xy` — floor both X and Y coordinates.",
+        context = "`xy` — floor both X and Y coordinates. This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
+        minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
+        use_when = ["Constructing Minecraft commands through Sand's typed command model"],
+        avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
+        returns = "A newly constructed `Swizzle` configured to emit the documented `xy` — floor both X and Y coordinates form.",
+        example = "use sand::prelude::*;\n\nfn demonstrate()  {\n    let swizzle = sand::command::Swizzle::xy();\n}",
+    )]
     pub fn xy() -> Self {
         Swizzle("xy".into())
     }
     /// `xz` — floor both X and Z coordinates.
-    #[doc = "**API Contract:** Run `sand api show sand::command::Swizzle::xz` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::command::Swizzle::xz",
+        aliases = ["sand::cmd::Swizzle::xz", "sand::prelude::cmd::Swizzle::xz"],
+        module = "sand::command",
+        kind = "method",
+        summary = "`xz` — floor both X and Z coordinates.",
+        context = "`xz` — floor both X and Z coordinates. This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
+        minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
+        use_when = ["Constructing Minecraft commands through Sand's typed command model"],
+        avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
+        returns = "A newly constructed `Swizzle` configured to emit the documented `xz` — floor both X and Z coordinates form.",
+        example = "use sand::prelude::*;\n\nfn demonstrate()  {\n    let swizzle = sand::command::Swizzle::xz();\n}",
+    )]
     pub fn xz() -> Self {
         Swizzle("xz".into())
     }
     /// `yz` — floor both Y and Z coordinates.
-    #[doc = "**API Contract:** Run `sand api show sand::command::Swizzle::yz` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::command::Swizzle::yz",
+        aliases = ["sand::cmd::Swizzle::yz", "sand::prelude::cmd::Swizzle::yz"],
+        module = "sand::command",
+        kind = "method",
+        summary = "`yz` — floor both Y and Z coordinates.",
+        context = "`yz` — floor both Y and Z coordinates. This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
+        minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
+        use_when = ["Constructing Minecraft commands through Sand's typed command model"],
+        avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
+        returns = "A newly constructed `Swizzle` configured to emit the documented `yz` — floor both Y and Z coordinates form.",
+        example = "use sand::prelude::*;\n\nfn demonstrate()  {\n    let swizzle = sand::command::Swizzle::yz();\n}",
+    )]
     pub fn yz() -> Self {
         Swizzle("yz".into())
     }
     /// `xyz` — floor all three coordinates.
-    #[doc = "**API Contract:** Run `sand api show sand::command::Swizzle::xyz` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::command::Swizzle::xyz",
+        aliases = ["sand::cmd::Swizzle::xyz", "sand::prelude::cmd::Swizzle::xyz"],
+        module = "sand::command",
+        kind = "method",
+        summary = "`xyz` — floor all three coordinates.",
+        context = "`xyz` — floor all three coordinates. This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
+        minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
+        use_when = ["Constructing Minecraft commands through Sand's typed command model"],
+        avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
+        returns = "A newly constructed `Swizzle` configured to emit the documented `xyz` — floor all three coordinates form.",
+        example = "use sand::prelude::*;\n\nfn demonstrate()  {\n    let swizzle = sand::command::Swizzle::xyz();\n}",
+    )]
     pub fn xyz() -> Self {
         Swizzle("xyz".into())
     }
@@ -94,26 +206,32 @@ impl fmt::Display for Swizzle {
 
 // ── NbtStoreKind ──────────────────────────────────────────────────────────────
 
-#[doc = "**API Contract:** Run `sand api show sand::command::NbtStoreKind` for the canonical contract."]
+#[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::command::NbtStoreKind",
+    aliases = ["sand::cmd::NbtStoreKind", "sand::prelude::cmd::NbtStoreKind"],
+    module = "sand::command",
+    summary = "The NBT data type used when writing a value via `execute store result/success … nbt`.",
+    context = "The NBT data type used when writing a value via `execute store result/success … nbt`. This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
+    minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
+    use_when = ["Constructing Minecraft commands through Sand's typed command model"],
+    avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
+    example = "use sand::command::NbtStoreKind;",
+    variants(Byte = "`byte` — 8-bit signed integer.", Double = "`double` — 64-bit floating-point.", Float = "`float` — 32-bit floating-point.", Int = "`int` — 32-bit signed integer.", Long = "`long` — 64-bit signed integer.", Short = "`short` — 16-bit signed integer."),
+)]
 /// The NBT data type used when writing a value via `execute store result/success … nbt`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum NbtStoreKind {
-    #[doc = "**API Contract:** Run `sand api show sand::command::NbtStoreKind::Byte` for the canonical contract."]
     /// `byte` — 8-bit signed integer.
     Byte,
-    #[doc = "**API Contract:** Run `sand api show sand::command::NbtStoreKind::Short` for the canonical contract."]
     /// `short` — 16-bit signed integer.
     Short,
-    #[doc = "**API Contract:** Run `sand api show sand::command::NbtStoreKind::Int` for the canonical contract."]
     /// `int` — 32-bit signed integer.
     Int,
-    #[doc = "**API Contract:** Run `sand api show sand::command::NbtStoreKind::Long` for the canonical contract."]
     /// `long` — 64-bit signed integer.
     Long,
-    #[doc = "**API Contract:** Run `sand api show sand::command::NbtStoreKind::Float` for the canonical contract."]
     /// `float` — 32-bit floating-point.
     Float,
-    #[doc = "**API Contract:** Run `sand api show sand::command::NbtStoreKind::Double` for the canonical contract."]
     /// `double` — 64-bit floating-point.
     Double,
 }
@@ -134,7 +252,20 @@ impl fmt::Display for NbtStoreKind {
 
 // ── ItemSlot ──────────────────────────────────────────────────────────────────
 
-#[doc = "**API Contract:** Run `sand api show sand::command::ItemSlot` for the canonical contract."]
+#[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::command::ItemSlot",
+    aliases = ["sand::cmd::ItemSlot", "sand::prelude::ItemSlot", "sand::prelude::cmd::ItemSlot"],
+    module = "sand::command",
+    summary = "An inventory slot specifier for `execute if items entity/block`.",
+    context = "An inventory slot specifier for `execute if items entity/block`. `ItemSlot` supports wildcard variants that match any slot in a category.",
+    minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
+    use_when = ["Constructing Minecraft commands through Sand's typed command model"],
+    avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
+    example = "use sand::command::ItemSlot;",
+    variants(AnyArmor = "`armor.*` — any one of the four armor slots.", AnyContainer = "`container.*` — any slot in a container.", AnyHorse = "`horse.*` — any horse equipment slot.", AnyHotbar = "`hotbar.*` — any of the 9 hotbar slots.", AnyInventory = "`inventory.*` — any main inventory slot.", AnyVillager = "`villager.*` — any villager trade slot.", AnyWeapon = "`weapon.*` — either the main hand or off-hand slot.", Chest = "`armor.chest` — the chestplate slot.", Container = "`container.<n>` — a container slot by index (0 … 53).", Feet = "`armor.feet` — the boots slot.", Head = "`armor.head` — the helmet slot.", HorseArmor = "`horse.armor` — armor slot on horses.", HorseChest = "`horse.chest` — chest slot on donkeys and llamas.", HorseSaddle = "`horse.saddle` — saddle slot on rideable mobs.", Hotbar = "`hotbar.<n>` — a specific hotbar slot (0 … 8).", Inventory = "`inventory.<n>` — a specific main inventory slot (0 … 26).", Legs = "`armor.legs` — the leggings slot.", MainHand = "`weapon.mainhand` — the main hand slot.", OffHand = "`weapon.offhand` — the off-hand slot.", Raw = "An unchecked raw slot string for slots not covered by the above variants."),
+    variant_fields(Container = ["`container.<n>` — a container slot by index (0 … 53)."], Hotbar = ["`hotbar.<n>` — a specific hotbar slot (0 … 8)."], Inventory = ["`inventory.<n>` — a specific main inventory slot (0 … 26)."], Raw = ["An unchecked raw slot string for slots not covered by the above variants."]),
+)]
 /// An inventory slot specifier for `execute if items entity/block`.
 ///
 /// `ItemSlot` supports
@@ -143,95 +274,61 @@ impl fmt::Display for NbtStoreKind {
 #[must_use = "slots do nothing until passed to a command"]
 pub enum ItemSlot {
     // ── Armor ─────────────────────────────────────────────────────────────────
-    #[doc = "**API Contract:** Run `sand api show sand::command::ItemSlot::Head` for the canonical contract."]
     /// `armor.head` — the helmet slot.
     Head,
-    #[doc = "**API Contract:** Run `sand api show sand::command::ItemSlot::Chest` for the canonical contract."]
     /// `armor.chest` — the chestplate slot.
     Chest,
-    #[doc = "**API Contract:** Run `sand api show sand::command::ItemSlot::Legs` for the canonical contract."]
     /// `armor.legs` — the leggings slot.
     Legs,
-    #[doc = "**API Contract:** Run `sand api show sand::command::ItemSlot::Feet` for the canonical contract."]
     /// `armor.feet` — the boots slot.
     Feet,
-    #[doc = "**API Contract:** Run `sand api show sand::command::ItemSlot::AnyArmor` for the canonical contract."]
     /// `armor.*` — any one of the four armor slots.
     AnyArmor,
 
     // ── Weapon ────────────────────────────────────────────────────────────────
-    #[doc = "**API Contract:** Run `sand api show sand::command::ItemSlot::MainHand` for the canonical contract."]
     /// `weapon.mainhand` — the main hand slot.
     MainHand,
-    #[doc = "**API Contract:** Run `sand api show sand::command::ItemSlot::OffHand` for the canonical contract."]
     /// `weapon.offhand` — the off-hand slot.
     OffHand,
-    #[doc = "**API Contract:** Run `sand api show sand::command::ItemSlot::AnyWeapon` for the canonical contract."]
     /// `weapon.*` — either the main hand or off-hand slot.
     AnyWeapon,
 
     // ── Hotbar ────────────────────────────────────────────────────────────────
-    #[doc = "**API Contract:** Run `sand api show sand::command::ItemSlot::Hotbar` for the canonical contract."]
     /// `hotbar.<n>` — a specific hotbar slot (0 … 8).
-    Hotbar(
-        #[doc = "The `Hotbar` variant carries the value described by its variant semantics: `hotbar.<n>` — a specific hotbar slot (0 … 8)."]
-        #[doc = "**API Contract:** Run `sand api show sand::command::ItemSlot::Hotbar::0` for the canonical contract."]
-        u8,
-    ),
-    #[doc = "**API Contract:** Run `sand api show sand::command::ItemSlot::AnyHotbar` for the canonical contract."]
+    Hotbar(#[doc = "`hotbar.<n>` — a specific hotbar slot (0 … 8)."] u8),
     /// `hotbar.*` — any of the 9 hotbar slots.
     AnyHotbar,
 
     // ── Main inventory ────────────────────────────────────────────────────────
-    #[doc = "**API Contract:** Run `sand api show sand::command::ItemSlot::Inventory` for the canonical contract."]
     /// `inventory.<n>` — a specific main inventory slot (0 … 26).
-    Inventory(
-        #[doc = "The `Inventory` variant carries the value described by its variant semantics: `inventory.<n>` — a specific main inventory slot (0 … 26)."]
-        #[doc = "**API Contract:** Run `sand api show sand::command::ItemSlot::Inventory::0` for the canonical contract."]
-        u8,
-    ),
-    #[doc = "**API Contract:** Run `sand api show sand::command::ItemSlot::AnyInventory` for the canonical contract."]
+    Inventory(#[doc = "`inventory.<n>` — a specific main inventory slot (0 … 26)."] u8),
     /// `inventory.*` — any main inventory slot.
     AnyInventory,
 
     // ── Container ─────────────────────────────────────────────────────────────
-    #[doc = "**API Contract:** Run `sand api show sand::command::ItemSlot::Container` for the canonical contract."]
     /// `container.<n>` — a container slot by index (0 … 53).
-    Container(
-        #[doc = "The `Container` variant carries the value described by its variant semantics: `container.<n>` — a container slot by index (0 … 53)."]
-        #[doc = "**API Contract:** Run `sand api show sand::command::ItemSlot::Container::0` for the canonical contract."]
-        u8,
-    ),
-    #[doc = "**API Contract:** Run `sand api show sand::command::ItemSlot::AnyContainer` for the canonical contract."]
+    Container(#[doc = "`container.<n>` — a container slot by index (0 … 53)."] u8),
     /// `container.*` — any slot in a container.
     AnyContainer,
 
     // ── Mount equipment ────────────────────────────────────────────────────────
-    #[doc = "**API Contract:** Run `sand api show sand::command::ItemSlot::HorseSaddle` for the canonical contract."]
     /// `horse.saddle` — saddle slot on rideable mobs.
     HorseSaddle,
-    #[doc = "**API Contract:** Run `sand api show sand::command::ItemSlot::HorseChest` for the canonical contract."]
     /// `horse.chest` — chest slot on donkeys and llamas.
     HorseChest,
-    #[doc = "**API Contract:** Run `sand api show sand::command::ItemSlot::HorseArmor` for the canonical contract."]
     /// `horse.armor` — armor slot on horses.
     HorseArmor,
-    #[doc = "**API Contract:** Run `sand api show sand::command::ItemSlot::AnyHorse` for the canonical contract."]
     /// `horse.*` — any horse equipment slot.
     AnyHorse,
 
     // ── Villager ──────────────────────────────────────────────────────────────
-    #[doc = "**API Contract:** Run `sand api show sand::command::ItemSlot::AnyVillager` for the canonical contract."]
     /// `villager.*` — any villager trade slot.
     AnyVillager,
 
     // ── Raw ───────────────────────────────────────────────────────────────────
-    #[doc = "**API Contract:** Run `sand api show sand::command::ItemSlot::Raw` for the canonical contract."]
     /// An unchecked raw slot string for slots not covered by the above variants.
     Raw(
-        #[doc = "The `Raw` variant carries the value described by its variant semantics: An unchecked raw slot string for slots not covered by the above variants."]
-        #[doc = "**API Contract:** Run `sand api show sand::command::ItemSlot::Raw::0` for the canonical contract."]
-        String,
+        #[doc = "An unchecked raw slot string for slots not covered by the above variants."] String,
     ),
 }
 
@@ -265,7 +362,21 @@ impl fmt::Display for ItemSlot {
 
 impl ItemSlot {
     /// Explicit raw slot syntax for modded or future slot families.
-    #[doc = "**API Contract:** Run `sand api show sand::command::ItemSlot::raw` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::command::ItemSlot::raw",
+        aliases = ["sand::cmd::ItemSlot::raw", "sand::prelude::ItemSlot::raw", "sand::prelude::cmd::ItemSlot::raw"],
+        module = "sand::command",
+        kind = "method",
+        summary = "Explicit raw slot syntax for modded or future slot families.",
+        context = "Explicit raw slot syntax for modded or future slot families. This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
+        minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
+        use_when = ["Constructing Minecraft commands through Sand's typed command model"],
+        avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
+        params(value = "`value` provides the value being applied or compared used to use explicit raw slot syntax for modded or future slot families."),
+        returns = "A newly constructed `ItemSlot` configured to use explicit raw slot syntax for modded or future slot families.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(value: impl Into < String >)  {\n    let item_slot = sand::command::ItemSlot::raw(value);\n}",
+    )]
     pub fn raw(value: impl Into<String>) -> Self {
         Self::Raw(value.into())
     }
@@ -278,7 +389,20 @@ impl ItemSlot {
     /// `execute if items`, but Minecraft's single-slot write grammar
     /// (`item replace`/`item modify`) requires exactly one resolved slot.
     /// See [`Inventory`](crate::inventory::Inventory)'s write-slot validation.
-    #[doc = "**API Contract:** Run `sand api show sand::command::ItemSlot::is_wildcard` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::command::ItemSlot::is_wildcard",
+        aliases = ["sand::cmd::ItemSlot::is_wildcard", "sand::prelude::ItemSlot::is_wildcard", "sand::prelude::cmd::ItemSlot::is_wildcard"],
+        module = "sand::command",
+        kind = "method",
+        summary = "Whether this slot matches more than one physical inventory slot.",
+        context = "Whether this slot matches more than one physical inventory slot. Wildcard slots (`armor.*`, `weapon.*`, `hotbar.*`, `inventory.*`, `container.*`, `horse.*`, `villager.*`, and any [`ItemSlot::Raw`] ending in `*`) are valid for read/check contexts such as `execute if items`, but Minecraft's single-slot write grammar (`item replace`/`item modify`) requires exactly one resolved slot. See [`Inventory`](sand::command::Inventory)'s write-slot validation.",
+        minecraft = "Wildcard slots (`armor.*`, `weapon.*`, `hotbar.*`, `inventory.*`, `container.*`, `horse.*`, `villager.*`, and any [`ItemSlot::Raw`] ending in `*`) are valid for read/check contexts such as `execute if items`, but Minecraft's single-slot write grammar (`item replace`/`item modify`) requires exactly one resolved slot. See [`Inventory`](sand::command::Inventory)'s write-slot validation.",
+        use_when = ["Constructing Minecraft commands through Sand's typed command model"],
+        avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
+        returns = "`true` when the documented condition holds to determine whether this slot matches more than one physical inventory slot; otherwise `false`.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(item_slot_value: &sand::command::ItemSlot)  {\n    let is_is_wildcard = item_slot_value.is_wildcard();\n}",
+    )]
     pub fn is_wildcard(&self) -> bool {
         match self {
             Self::AnyArmor

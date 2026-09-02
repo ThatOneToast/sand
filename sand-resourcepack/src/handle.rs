@@ -1,4 +1,16 @@
-#[doc = "**API Contract:** Run `sand api show sand::resourcepack::BarHandle` for the canonical contract."]
+#[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::resourcepack::BarHandle",
+    module = "sand::resourcepack",
+    summary = "A lightweight handle to a registered `hud_bar!` component, generated automatically by the macro.",
+    context = "A lightweight handle to a registered `hud_bar!` component, generated automatically by the macro. A progress bar is represented in Minecraft as a sprite strip — a single PNG image that contains every possible fill state laid out horizontally, left to right. Each column of pixels in that strip is called a frame. Frame 0 is the completely empty state. Frame `steps - 1` is completely full. Everything in between is a partial fill. Each frame is assigned its own unicode character in the Private Use Area. Sand handles the character assignments automatically — you never choose codepoints by hand.",
+    minecraft = "A progress bar is represented in Minecraft as a sprite strip — a single PNG image that contains every possible fill state laid out horizontally, left to right. Each column of pixels in that strip is called a frame.",
+    use_when = ["Building HUD bars, HUD elements, textures, or resource-pack output alongside a Sand datapack"],
+    avoid_when = ["The project is datapack-only or needs unrelated resource-pack functionality not modeled by Sand"],
+    example = "use sand::resourcepack::BarHandle;",
+    availability = ["Cargo feature: resourcepack"],
+    fields(font = "Font file name (without extension) this bar is registered under.", frame_width = "Pixel width of one frame in the sprite strip texture.", name = "Name passed to `hud_bar!` — used for auto-unicode derivation.", steps = "Number of frames in the sprite strip (and number of unicode characters assigned to this bar). Frame indices run from `0` (empty) to `steps - 1` (full)."),
+)]
 /// A lightweight handle to a registered `hud_bar!`
 /// component, generated automatically by the macro.
 ///
@@ -88,18 +100,14 @@
 /// [`broadcast_commands`]: BarHandle::broadcast_commands
 #[derive(Copy, Clone)]
 pub struct BarHandle {
-    #[doc = "**API Contract:** Run `sand api show sand::resourcepack::BarHandle::name` for the canonical contract."]
     /// Name passed to `hud_bar!` — used for auto-unicode derivation.
     pub name: &'static str,
-    #[doc = "**API Contract:** Run `sand api show sand::resourcepack::BarHandle::steps` for the canonical contract."]
     /// Number of frames in the sprite strip (and number of unicode characters
     /// assigned to this bar). Frame indices run from `0` (empty) to
     /// `steps - 1` (full).
     pub steps: u32,
-    #[doc = "**API Contract:** Run `sand api show sand::resourcepack::BarHandle::font` for the canonical contract."]
     /// Font file name (without extension) this bar is registered under.
     pub font: &'static str,
-    #[doc = "**API Contract:** Run `sand api show sand::resourcepack::BarHandle::frame_width` for the canonical contract."]
     /// Pixel width of one frame in the sprite strip texture.
     ///
     /// Minecraft renders each glyph with an advance of `frame_width + 1`
@@ -117,7 +125,21 @@ impl BarHandle {
     /// The unicode character assigned to `frame`.
     ///
     /// Frame `0` is the empty state; frame `self.steps - 1` is fully filled.
-    #[doc = "**API Contract:** Run `sand api show sand::resourcepack::BarHandle::char` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::resourcepack::BarHandle::char",
+        module = "sand::resourcepack",
+        kind = "method",
+        summary = "The unicode character assigned to `frame`. Frame `0` is the empty state; frame `self.steps - 1` is fully filled.",
+        context = "The unicode character assigned to `frame`. Frame `0` is the empty state; frame `self.steps - 1` is fully filled. This API defines client-side HUD, font, texture, or resource-pack output while keeping asset registration and exporter inventory wiring private.",
+        minecraft = "The resourcepack exporter writes version-appropriate assets, bitmap-font providers, and pack metadata for the selected Minecraft profile.",
+        use_when = ["Building HUD bars, HUD elements, textures, or resource-pack output alongside a Sand datapack"],
+        avoid_when = ["The project is datapack-only or needs unrelated resource-pack functionality not modeled by Sand"],
+        params(frame = "The unicode character assigned to `frame`."),
+        returns = "The `char` value produced to use the unicode character assigned to `frame`. Frame `0` is the empty state; frame `self.steps - 1` is fully filled.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(bar_handle_value: &sand::resourcepack::BarHandle, frame: u32)  {\n    let char = bar_handle_value.char(frame);\n}",
+        availability = ["Cargo feature: resourcepack"],
+    )]
     pub fn char(&self, frame: u32) -> char {
         crate::unicode::bar_char(self.name, frame)
     }
@@ -126,7 +148,21 @@ impl BarHandle {
     ///
     /// Encodes the Private Use Area character together with the font identifier.
     /// Can be passed directly to `title`, `actionbar`, or `tellraw`.
-    #[doc = "**API Contract:** Run `sand api show sand::resourcepack::BarHandle::text_json` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::resourcepack::BarHandle::text_json",
+        module = "sand::resourcepack",
+        kind = "method",
+        summary = "Minecraft JSON text component string for `frame`.",
+        context = "Minecraft JSON text component string for `frame`. Encodes the Private Use Area character together with the font identifier. Can be passed directly to `title`, `actionbar`, or `tellraw`.",
+        minecraft = "The resourcepack exporter writes version-appropriate assets, bitmap-font providers, and pack metadata for the selected Minecraft profile.",
+        use_when = ["Building HUD bars, HUD elements, textures, or resource-pack output alongside a Sand datapack"],
+        avoid_when = ["The project is datapack-only or needs unrelated resource-pack functionality not modeled by Sand"],
+        params(frame = "Minecraft JSON text component string for `frame`.", namespace = "`namespace` supplies the namespace value used to use minecraft JSON text component string for `frame`."),
+        returns = "The string value produced to use minecraft JSON text component string for `frame`.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(bar_handle_value: &sand::resourcepack::BarHandle, frame: u32, namespace: & str)  {\n    let text_json = bar_handle_value.text_json(frame, namespace);\n}",
+        availability = ["Cargo feature: resourcepack"],
+    )]
     pub fn text_json(&self, frame: u32, namespace: &str) -> String {
         crate::unicode::bar_text_json(self.name, frame, namespace, self.font)
     }
@@ -181,7 +217,21 @@ impl BarHandle {
     /// bars that change at runtime, use [`broadcast_commands`] instead.
     ///
     /// [`broadcast_commands`]: BarHandle::broadcast_commands
-    #[doc = "**API Contract:** Run `sand api show sand::resourcepack::BarHandle::show` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::resourcepack::BarHandle::show",
+        module = "sand::resourcepack",
+        kind = "method",
+        summary = "Returns a single `title <target> actionbar …` command that shows frame `frame` of this bar to `target`.",
+        context = "Returns a single `title <target> actionbar …` command that shows frame `frame` of this bar to `target`. Use this when you know the frame at Rust compile/build time. For bars that change at runtime, use [`broadcast_commands`] instead. [`broadcast_commands`]: BarHandle::broadcast_commands",
+        minecraft = "The resourcepack exporter writes version-appropriate assets, bitmap-font providers, and pack metadata for the selected Minecraft profile.",
+        use_when = ["Use this when you know the frame at Rust compile/build time. For bars that change at runtime, use [`broadcast_commands`] instead."],
+        avoid_when = ["The project is datapack-only or needs unrelated resource-pack functionality not modeled by Sand"],
+        params(target = "Returns a single `title <target> actionbar …` command that shows frame `frame` of this bar to `target`.", frame = "Returns a single `title <target> actionbar …` command that shows frame `frame` of this bar to `target`.", namespace = "`namespace` supplies the namespace value used to return a single `title <target> actionbar …` command that shows frame `frame` of this bar to `target`."),
+        returns = "Returns a single `title <target> actionbar …` command that shows frame `frame` of this bar to `target`.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(bar_handle_value: &sand::resourcepack::BarHandle, target: & str, frame: u32, namespace: & str)  {\n    let command = bar_handle_value.show(target, frame, namespace);\n}",
+        availability = ["Cargo feature: resourcepack"],
+    )]
     pub fn show(&self, target: &str, frame: u32, namespace: &str) -> String {
         let json = self.text_json(frame, namespace);
         format!("title {target} actionbar {json}")
@@ -201,7 +251,21 @@ impl BarHandle {
     /// ```
     ///
     /// [`show`]: BarHandle::show
-    #[doc = "**API Contract:** Run `sand api show sand::resourcepack::BarHandle::show_at` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::resourcepack::BarHandle::show_at",
+        module = "sand::resourcepack",
+        kind = "method",
+        summary = "Like [`show`], but shifts the bar by `x_offset` font pixels from screen center (positive = right, negative = left).",
+        context = "Like [`show`], but shifts the bar by `x_offset` font pixels from screen center (positive = right, negative = left). Uses the zero-total-width technique for accurate positioning when `frame_width` is known. [`show`]: BarHandle::show",
+        minecraft = "The resourcepack exporter writes version-appropriate assets, bitmap-font providers, and pack metadata for the selected Minecraft profile.",
+        use_when = ["Building HUD bars, HUD elements, textures, or resource-pack output alongside a Sand datapack"],
+        avoid_when = ["The project is datapack-only or needs unrelated resource-pack functionality not modeled by Sand"],
+        params(target = "`target` provides the entity, block, or command target used to use like [`show`], but shifts the bar by `x_offset` font pixels from screen center (positive = right, negative = left).", frame = "`frame` supplies the frame value used to use like [`show`], but shifts the bar by `x_offset` font pixels from screen center (positive = right, negative = left).", namespace = "`namespace` supplies the namespace value used to use like [`show`], but shifts the bar by `x_offset` font pixels from screen center (positive = right, negative = left).", x_offset = "Like [`show`], but shifts the bar by `x_offset` font pixels from screen center (positive = right, negative = left)."),
+        returns = "The string value produced to use like [`show`], but shifts the bar by `x_offset` font pixels from screen center (positive = right, negative = left).",
+        example = "// Show 80 px left of center.\nHEALTH.show_at(\"@a\", 5, \"my_pack\", -80);",
+        availability = ["Cargo feature: resourcepack"],
+    )]
     pub fn show_at(&self, target: &str, frame: u32, namespace: &str, x_offset: i32) -> String {
         let json = self.positioned_json(frame, namespace, x_offset);
         format!("title {target} actionbar {json}")
@@ -221,7 +285,21 @@ impl BarHandle {
     /// ```
     ///
     /// [`show_at`]: BarHandle::show_at
-    #[doc = "**API Contract:** Run `sand api show sand::resourcepack::BarHandle::show_at_canvas` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::resourcepack::BarHandle::show_at_canvas",
+        module = "sand::resourcepack",
+        kind = "method",
+        summary = "Like [`show_at`], but takes a virtual canvas position instead of a raw font-pixel offset.",
+        context = "Like [`show_at`], but takes a virtual canvas position instead of a raw font-pixel offset. `canvas_x = 0` is the left edge; `canvas_x = canvas_width / 2` is the center; `canvas_x = canvas_width` is the right edge. [`show_at`]: BarHandle::show_at",
+        minecraft = "The resourcepack exporter writes version-appropriate assets, bitmap-font providers, and pack metadata for the selected Minecraft profile.",
+        use_when = ["Building HUD bars, HUD elements, textures, or resource-pack output alongside a Sand datapack"],
+        avoid_when = ["The project is datapack-only or needs unrelated resource-pack functionality not modeled by Sand"],
+        params(target = "`target` provides the entity, block, or command target used to use like [`show_at`], but takes a virtual canvas position instead of a raw font-pixel offset.", frame = "`frame` supplies the frame value used to use like [`show_at`], but takes a virtual canvas position instead of a raw font-pixel offset.", namespace = "`namespace` supplies the namespace value used to use like [`show_at`], but takes a virtual canvas position instead of a raw font-pixel offset.", canvas_x = "`canvas_x` supplies the canvas x value used to use like [`show_at`], but takes a virtual canvas position instead of a raw font-pixel offset.", canvas_width = "`canvas_width` supplies the canvas width value used to use like [`show_at`], but takes a virtual canvas position instead of a raw font-pixel offset."),
+        returns = "The string value produced to use like [`show_at`], but takes a virtual canvas position instead of a raw font-pixel offset.",
+        example = "// 1000-unit virtual canvas. Bar at 25% from left (left quarter).\nHEALTH.show_at_canvas(\"@a\", 5, \"my_pack\", 250, 1000);",
+        availability = ["Cargo feature: resourcepack"],
+    )]
     pub fn show_at_canvas(
         &self,
         target: &str,
@@ -241,7 +319,21 @@ impl BarHandle {
     /// context so `@s` is undefined there.
     ///
     /// [`broadcast_commands`]: BarHandle::broadcast_commands
-    #[doc = "**API Contract:** Run `sand api show sand::resourcepack::BarHandle::display_commands` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::resourcepack::BarHandle::display_commands",
+        module = "sand::resourcepack",
+        kind = "method",
+        summary = "Returns one `execute if score … run title …` command per frame.",
+        context = "Returns one `execute if score … run title …` command per frame. Use this when the MCFunction is already running as a specific player (`@s` is defined). For a standard `#[datapack_component(Tick)]` function use [`broadcast_commands`] instead — tick functions run without an entity context so `@s` is undefined there. [`broadcast_commands`]: BarHandle::broadcast_commands",
+        minecraft = "Use this when the MCFunction is already running as a specific player (`@s` is defined). For a standard `#[datapack_component(Tick)]` function use [`broadcast_commands`] instead — tick functions run without an entity context so `@s` is undefined there.",
+        use_when = ["Use this when the MCFunction is already running as a specific player (`@s` is defined). For a standard `#[datapack_component(Tick)]` function use [`broadcast_commands`] instead — tick functions run without an entity context so `@s` is undefined there."],
+        avoid_when = ["The project is datapack-only or needs unrelated resource-pack functionality not modeled by Sand"],
+        params(holder = "`holder` supplies the holder value used to return one `execute if score … run title …` command per frame.", objective = "`objective` supplies the objective value used to return one `execute if score … run title …` command per frame.", namespace = "`namespace` supplies the namespace value used to return one `execute if score … run title …` command per frame."),
+        returns = "Returns one `execute if score … run title …` command per frame.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(bar_handle_value: &sand::resourcepack::BarHandle, holder: & str, objective: & str, namespace: & str)  {\n    let values = bar_handle_value.display_commands(holder, objective, namespace);\n}",
+        availability = ["Cargo feature: resourcepack"],
+    )]
     pub fn display_commands(&self, holder: &str, objective: &str, namespace: &str) -> Vec<String> {
         (0..self.steps)
             .map(|frame| {
@@ -256,7 +348,21 @@ impl BarHandle {
     /// Like [`display_commands`], but shifts each frame by `x_offset` pixels.
     ///
     /// [`display_commands`]: BarHandle::display_commands
-    #[doc = "**API Contract:** Run `sand api show sand::resourcepack::BarHandle::display_commands_at` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::resourcepack::BarHandle::display_commands_at",
+        module = "sand::resourcepack",
+        kind = "method",
+        summary = "Like [`display_commands`], but shifts each frame by `x_offset` pixels.",
+        context = "Like [`display_commands`], but shifts each frame by `x_offset` pixels. [`display_commands`]: BarHandle::display_commands",
+        minecraft = "The resourcepack exporter writes version-appropriate assets, bitmap-font providers, and pack metadata for the selected Minecraft profile.",
+        use_when = ["Building HUD bars, HUD elements, textures, or resource-pack output alongside a Sand datapack"],
+        avoid_when = ["The project is datapack-only or needs unrelated resource-pack functionality not modeled by Sand"],
+        params(holder = "`holder` supplies the holder value used to use like [`display_commands`], but shifts each frame by `x_offset` pixels.", objective = "`objective` supplies the objective value used to use like [`display_commands`], but shifts each frame by `x_offset` pixels.", namespace = "`namespace` supplies the namespace value used to use like [`display_commands`], but shifts each frame by `x_offset` pixels.", x_offset = "Like [`display_commands`], but shifts each frame by `x_offset` pixels."),
+        returns = "The ordered values produced to use like [`display_commands`], but shifts each frame by `x_offset` pixels.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(bar_handle_value: &sand::resourcepack::BarHandle, holder: & str, objective: & str, namespace: & str, x_offset: i32)  {\n    let values = bar_handle_value.display_commands_at(holder, objective, namespace, x_offset);\n}",
+        availability = ["Cargo feature: resourcepack"],
+    )]
     pub fn display_commands_at(
         &self,
         holder: &str,
@@ -279,7 +385,21 @@ impl BarHandle {
     ///
     /// [`display_commands`]: BarHandle::display_commands
     /// [`show_at_canvas`]: BarHandle::show_at_canvas
-    #[doc = "**API Contract:** Run `sand api show sand::resourcepack::BarHandle::display_commands_at_canvas` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::resourcepack::BarHandle::display_commands_at_canvas",
+        module = "sand::resourcepack",
+        kind = "method",
+        summary = "Like [`display_commands`], but positions each frame using a virtual canvas coordinate. See [`show_at_canvas`] for how canvas coordinates work.",
+        context = "Like [`display_commands`], but positions each frame using a virtual canvas coordinate. See [`show_at_canvas`] for how canvas coordinates work. [`display_commands`]: BarHandle::display_commands [`show_at_canvas`]: BarHandle::show_at_canvas",
+        minecraft = "The resourcepack exporter writes version-appropriate assets, bitmap-font providers, and pack metadata for the selected Minecraft profile.",
+        use_when = ["Building HUD bars, HUD elements, textures, or resource-pack output alongside a Sand datapack"],
+        avoid_when = ["The project is datapack-only or needs unrelated resource-pack functionality not modeled by Sand"],
+        params(holder = "`holder` supplies the holder value used to use like [`display_commands`], but positions each frame using a virtual canvas coordinate. See [`show_at_canvas`] for how canvas coordinates work.", objective = "`objective` supplies the objective value used to use like [`display_commands`], but positions each frame using a virtual canvas coordinate. See [`show_at_canvas`] for how canvas coordinates work.", namespace = "`namespace` supplies the namespace value used to use like [`display_commands`], but positions each frame using a virtual canvas coordinate. See [`show_at_canvas`] for how canvas coordinates work.", canvas_x = "`canvas_x` supplies the canvas x value used to use like [`display_commands`], but positions each frame using a virtual canvas coordinate. See [`show_at_canvas`] for how canvas coordinates work.", canvas_width = "`canvas_width` supplies the canvas width value used to use like [`display_commands`], but positions each frame using a virtual canvas coordinate. See [`show_at_canvas`] for how canvas coordinates work."),
+        returns = "The ordered values produced to use like [`display_commands`], but positions each frame using a virtual canvas coordinate. See [`show_at_canvas`] for how canvas coordinates work.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(bar_handle_value: &sand::resourcepack::BarHandle, holder: & str, objective: & str, namespace: & str, canvas_x: i32, canvas_width: i32)  {\n    let values = bar_handle_value.display_commands_at_canvas(holder, objective, namespace, canvas_x, canvas_width);\n}",
+        availability = ["Cargo feature: resourcepack"],
+    )]
     pub fn display_commands_at_canvas(
         &self,
         holder: &str,
@@ -314,7 +434,21 @@ impl BarHandle {
     ///     }
     /// }
     /// ```
-    #[doc = "**API Contract:** Run `sand api show sand::resourcepack::BarHandle::broadcast_commands` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::resourcepack::BarHandle::broadcast_commands",
+        module = "sand::resourcepack",
+        kind = "method",
+        summary = "Returns one `execute as … if score @s … run title @s actionbar …` command per frame, for use in tick functions.",
+        context = "Returns one `execute as … if score @s … run title @s actionbar …` command per frame, for use in tick functions. Each generated command: `executor` is typically `\"@a\"`. Minecraft runs once per matched player, so each player sees the frame matching their own score.",
+        minecraft = "Each generated command:",
+        use_when = ["Building HUD bars, HUD elements, textures, or resource-pack output alongside a Sand datapack"],
+        avoid_when = ["The project is datapack-only or needs unrelated resource-pack functionality not modeled by Sand"],
+        params(executor = "`executor` is typically `\"@a\"`. Minecraft runs once per matched player, so each player sees the frame matching their own score.", objective = "`objective` supplies the objective value used to return one `execute as … if score @s … run title @s actionbar …` command per frame, for use in tick functions.", namespace = "`namespace` supplies the namespace value used to return one `execute as … if score @s … run title @s actionbar …` command per frame, for use in tick functions."),
+        returns = "Returns one `execute as … if score @s … run title @s actionbar …` command per frame, for use in tick functions.",
+        example = "pub fn tick() {\nmcfunction! {\n\"execute as @a store result score @s hp_frame run data get entity @s Health 0.95\";\n\"execute as @a if score @s hp_frame matches 20.. run scoreboard players set @s hp_frame 19\";\nHEALTH.broadcast_commands(\"@a\", \"hp_frame\", \"my_pack\");\n}\n}",
+        availability = ["Cargo feature: resourcepack"],
+    )]
     pub fn broadcast_commands(
         &self,
         executor: &str,
@@ -334,7 +468,21 @@ impl BarHandle {
     /// Like [`broadcast_commands`], but shifts each frame by `x_offset` font pixels.
     ///
     /// [`broadcast_commands`]: BarHandle::broadcast_commands
-    #[doc = "**API Contract:** Run `sand api show sand::resourcepack::BarHandle::broadcast_commands_at` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::resourcepack::BarHandle::broadcast_commands_at",
+        module = "sand::resourcepack",
+        kind = "method",
+        summary = "Like [`broadcast_commands`], but shifts each frame by `x_offset` font pixels.",
+        context = "Like [`broadcast_commands`], but shifts each frame by `x_offset` font pixels. [`broadcast_commands`]: BarHandle::broadcast_commands",
+        minecraft = "The resourcepack exporter writes version-appropriate assets, bitmap-font providers, and pack metadata for the selected Minecraft profile.",
+        use_when = ["Building HUD bars, HUD elements, textures, or resource-pack output alongside a Sand datapack"],
+        avoid_when = ["The project is datapack-only or needs unrelated resource-pack functionality not modeled by Sand"],
+        params(executor = "`executor` supplies the executor value used to use like [`broadcast_commands`], but shifts each frame by `x_offset` font pixels.", objective = "`objective` supplies the objective value used to use like [`broadcast_commands`], but shifts each frame by `x_offset` font pixels.", namespace = "`namespace` supplies the namespace value used to use like [`broadcast_commands`], but shifts each frame by `x_offset` font pixels.", x_offset = "Like [`broadcast_commands`], but shifts each frame by `x_offset` font pixels."),
+        returns = "The ordered values produced to use like [`broadcast_commands`], but shifts each frame by `x_offset` font pixels.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(bar_handle_value: &sand::resourcepack::BarHandle, executor: & str, objective: & str, namespace: & str, x_offset: i32)  {\n    let values = bar_handle_value.broadcast_commands_at(executor, objective, namespace, x_offset);\n}",
+        availability = ["Cargo feature: resourcepack"],
+    )]
     pub fn broadcast_commands_at(
         &self,
         executor: &str,
@@ -355,7 +503,21 @@ impl BarHandle {
     /// Like [`broadcast_commands`], but positions using a virtual canvas coordinate.
     ///
     /// [`broadcast_commands`]: BarHandle::broadcast_commands
-    #[doc = "**API Contract:** Run `sand api show sand::resourcepack::BarHandle::broadcast_commands_at_canvas` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::resourcepack::BarHandle::broadcast_commands_at_canvas",
+        module = "sand::resourcepack",
+        kind = "method",
+        summary = "Like [`broadcast_commands`], but positions using a virtual canvas coordinate.",
+        context = "Like [`broadcast_commands`], but positions using a virtual canvas coordinate. [`broadcast_commands`]: BarHandle::broadcast_commands",
+        minecraft = "The resourcepack exporter writes version-appropriate assets, bitmap-font providers, and pack metadata for the selected Minecraft profile.",
+        use_when = ["Building HUD bars, HUD elements, textures, or resource-pack output alongside a Sand datapack"],
+        avoid_when = ["The project is datapack-only or needs unrelated resource-pack functionality not modeled by Sand"],
+        params(executor = "`executor` supplies the executor value used to use like [`broadcast_commands`], but positions using a virtual canvas coordinate.", objective = "`objective` supplies the objective value used to use like [`broadcast_commands`], but positions using a virtual canvas coordinate.", namespace = "`namespace` supplies the namespace value used to use like [`broadcast_commands`], but positions using a virtual canvas coordinate.", canvas_x = "`canvas_x` supplies the canvas x value used to use like [`broadcast_commands`], but positions using a virtual canvas coordinate.", canvas_width = "`canvas_width` supplies the canvas width value used to use like [`broadcast_commands`], but positions using a virtual canvas coordinate."),
+        returns = "The ordered values produced to use like [`broadcast_commands`], but positions using a virtual canvas coordinate.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(bar_handle_value: &sand::resourcepack::BarHandle, executor: & str, objective: & str, namespace: & str, canvas_x: i32, canvas_width: i32)  {\n    let values = bar_handle_value.broadcast_commands_at_canvas(executor, objective, namespace, canvas_x, canvas_width);\n}",
+        availability = ["Cargo feature: resourcepack"],
+    )]
     pub fn broadcast_commands_at_canvas(
         &self,
         executor: &str,
@@ -368,7 +530,19 @@ impl BarHandle {
     }
 }
 
-#[doc = "**API Contract:** Run `sand api show sand::resourcepack::ElementHandle` for the canonical contract."]
+#[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::resourcepack::ElementHandle",
+    module = "sand::resourcepack",
+    summary = "A lightweight handle to a registered `hud_element!` component, generated automatically by the macro.",
+    context = "A lightweight handle to a registered `hud_element!` component, generated automatically by the macro. Unlike a [`BarHandle`], an element has only one state — it is a static graphic that is either shown or not. There are no frames, no fill levels, and no scoreboard math required. Typical uses: background frames, icon decorations, overlay borders, or any HUD graphic that does not change dynamically.",
+    minecraft = "Unlike a [`BarHandle`], an element has only one state — it is a static graphic that is either shown or not. There are no frames, no fill levels, and no scoreboard math required.",
+    use_when = ["Building HUD bars, HUD elements, textures, or resource-pack output alongside a Sand datapack"],
+    avoid_when = ["The project is datapack-only or needs unrelated resource-pack functionality not modeled by Sand"],
+    example = "use sand::resourcepack::ElementHandle;",
+    availability = ["Cargo feature: resourcepack"],
+    fields(char_width = "Pixel width of the element texture. Minecraft renders the glyph with an advance of `char_width + 1`. Used by `_at` positioning methods and [`HudLayout`](sand::resourcepack::HudLayout).", font = "Font file name (without extension) this element is registered under.", name = "Name passed to `hud_element!` — used for auto-unicode derivation."),
+)]
 /// A lightweight handle to a registered `hud_element!`
 /// component, generated automatically by the macro.
 ///
@@ -397,13 +571,10 @@ impl BarHandle {
 /// ```
 #[derive(Copy, Clone)]
 pub struct ElementHandle {
-    #[doc = "**API Contract:** Run `sand api show sand::resourcepack::ElementHandle::name` for the canonical contract."]
     /// Name passed to `hud_element!` — used for auto-unicode derivation.
     pub name: &'static str,
-    #[doc = "**API Contract:** Run `sand api show sand::resourcepack::ElementHandle::font` for the canonical contract."]
     /// Font file name (without extension) this element is registered under.
     pub font: &'static str,
-    #[doc = "**API Contract:** Run `sand api show sand::resourcepack::ElementHandle::char_width` for the canonical contract."]
     /// Pixel width of the element texture.
     ///
     /// Minecraft renders the glyph with an advance of `char_width + 1`.
@@ -416,13 +587,40 @@ pub struct ElementHandle {
 
 impl ElementHandle {
     /// The unicode character assigned to this element.
-    #[doc = "**API Contract:** Run `sand api show sand::resourcepack::ElementHandle::char` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::resourcepack::ElementHandle::char",
+        module = "sand::resourcepack",
+        kind = "method",
+        summary = "The unicode character assigned to this element.",
+        context = "The unicode character assigned to this element. This API defines client-side HUD, font, texture, or resource-pack output while keeping asset registration and exporter inventory wiring private.",
+        minecraft = "The resourcepack exporter writes version-appropriate assets, bitmap-font providers, and pack metadata for the selected Minecraft profile.",
+        use_when = ["Building HUD bars, HUD elements, textures, or resource-pack output alongside a Sand datapack"],
+        avoid_when = ["The project is datapack-only or needs unrelated resource-pack functionality not modeled by Sand"],
+        returns = "The `char` value produced to use the unicode character assigned to this element.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(element_handle_value: &sand::resourcepack::ElementHandle)  {\n    let char = element_handle_value.char();\n}",
+        availability = ["Cargo feature: resourcepack"],
+    )]
     pub fn char(&self) -> char {
         crate::unicode::element_char(self.name)
     }
 
     /// Minecraft JSON text component string for this element.
-    #[doc = "**API Contract:** Run `sand api show sand::resourcepack::ElementHandle::text_json` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::resourcepack::ElementHandle::text_json",
+        module = "sand::resourcepack",
+        kind = "method",
+        summary = "Minecraft JSON text component string for this element.",
+        context = "Minecraft JSON text component string for this element. This API defines client-side HUD, font, texture, or resource-pack output while keeping asset registration and exporter inventory wiring private.",
+        minecraft = "The resourcepack exporter writes version-appropriate assets, bitmap-font providers, and pack metadata for the selected Minecraft profile.",
+        use_when = ["Building HUD bars, HUD elements, textures, or resource-pack output alongside a Sand datapack"],
+        avoid_when = ["The project is datapack-only or needs unrelated resource-pack functionality not modeled by Sand"],
+        params(namespace = "`namespace` supplies the namespace value used to use minecraft JSON text component string for this element."),
+        returns = "The string value produced to use minecraft JSON text component string for this element.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(element_handle_value: &sand::resourcepack::ElementHandle, namespace: & str)  {\n    let text_json = element_handle_value.text_json(namespace);\n}",
+        availability = ["Cargo feature: resourcepack"],
+    )]
     pub fn text_json(&self, namespace: &str) -> String {
         crate::unicode::element_text_json(self.name, namespace, self.font)
     }
@@ -455,7 +653,21 @@ impl ElementHandle {
     }
 
     /// Returns a single `title <target> actionbar …` command.
-    #[doc = "**API Contract:** Run `sand api show sand::resourcepack::ElementHandle::show` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::resourcepack::ElementHandle::show",
+        module = "sand::resourcepack",
+        kind = "method",
+        summary = "Returns a single `title <target> actionbar …` command.",
+        context = "Returns a single `title <target> actionbar …` command. This API defines client-side HUD, font, texture, or resource-pack output while keeping asset registration and exporter inventory wiring private.",
+        minecraft = "The resourcepack exporter writes version-appropriate assets, bitmap-font providers, and pack metadata for the selected Minecraft profile.",
+        use_when = ["Building HUD bars, HUD elements, textures, or resource-pack output alongside a Sand datapack"],
+        avoid_when = ["The project is datapack-only or needs unrelated resource-pack functionality not modeled by Sand"],
+        params(target = "`target` provides the entity, block, or command target used to return a single `title <target> actionbar …` command.", namespace = "`namespace` supplies the namespace value used to return a single `title <target> actionbar …` command."),
+        returns = "Returns a single `title <target> actionbar …` command.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(element_handle_value: &sand::resourcepack::ElementHandle, target: & str, namespace: & str)  {\n    let command = element_handle_value.show(target, namespace);\n}",
+        availability = ["Cargo feature: resourcepack"],
+    )]
     pub fn show(&self, target: &str, namespace: &str) -> String {
         let json = self.text_json(namespace);
         format!("title {target} actionbar {json}")
@@ -464,7 +676,21 @@ impl ElementHandle {
     /// Like [`show`], but shifts the element by `x_offset` font pixels from center.
     ///
     /// [`show`]: ElementHandle::show
-    #[doc = "**API Contract:** Run `sand api show sand::resourcepack::ElementHandle::show_at` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::resourcepack::ElementHandle::show_at",
+        module = "sand::resourcepack",
+        kind = "method",
+        summary = "Like [`show`], but shifts the element by `x_offset` font pixels from center.",
+        context = "Like [`show`], but shifts the element by `x_offset` font pixels from center. [`show`]: ElementHandle::show",
+        minecraft = "The resourcepack exporter writes version-appropriate assets, bitmap-font providers, and pack metadata for the selected Minecraft profile.",
+        use_when = ["Building HUD bars, HUD elements, textures, or resource-pack output alongside a Sand datapack"],
+        avoid_when = ["The project is datapack-only or needs unrelated resource-pack functionality not modeled by Sand"],
+        params(target = "`target` provides the entity, block, or command target used to use like [`show`], but shifts the element by `x_offset` font pixels from center.", namespace = "`namespace` supplies the namespace value used to use like [`show`], but shifts the element by `x_offset` font pixels from center.", x_offset = "Like [`show`], but shifts the element by `x_offset` font pixels from center."),
+        returns = "The string value produced to use like [`show`], but shifts the element by `x_offset` font pixels from center.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(element_handle_value: &sand::resourcepack::ElementHandle, target: & str, namespace: & str, x_offset: i32)  {\n    let show_at = element_handle_value.show_at(target, namespace, x_offset);\n}",
+        availability = ["Cargo feature: resourcepack"],
+    )]
     pub fn show_at(&self, target: &str, namespace: &str, x_offset: i32) -> String {
         let json = self.positioned_json(namespace, x_offset);
         format!("title {target} actionbar {json}")
@@ -473,7 +699,21 @@ impl ElementHandle {
     /// Like [`show`], but positions the element using a virtual canvas coordinate.
     ///
     /// [`show`]: ElementHandle::show
-    #[doc = "**API Contract:** Run `sand api show sand::resourcepack::ElementHandle::show_at_canvas` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::resourcepack::ElementHandle::show_at_canvas",
+        module = "sand::resourcepack",
+        kind = "method",
+        summary = "Like [`show`], but positions the element using a virtual canvas coordinate.",
+        context = "Like [`show`], but positions the element using a virtual canvas coordinate. [`show`]: ElementHandle::show",
+        minecraft = "The resourcepack exporter writes version-appropriate assets, bitmap-font providers, and pack metadata for the selected Minecraft profile.",
+        use_when = ["Building HUD bars, HUD elements, textures, or resource-pack output alongside a Sand datapack"],
+        avoid_when = ["The project is datapack-only or needs unrelated resource-pack functionality not modeled by Sand"],
+        params(target = "`target` provides the entity, block, or command target used to use like [`show`], but positions the element using a virtual canvas coordinate.", namespace = "`namespace` supplies the namespace value used to use like [`show`], but positions the element using a virtual canvas coordinate.", canvas_x = "`canvas_x` supplies the canvas x value used to use like [`show`], but positions the element using a virtual canvas coordinate.", canvas_width = "`canvas_width` supplies the canvas width value used to use like [`show`], but positions the element using a virtual canvas coordinate."),
+        returns = "The string value produced to use like [`show`], but positions the element using a virtual canvas coordinate.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(element_handle_value: &sand::resourcepack::ElementHandle, target: & str, namespace: & str, canvas_x: i32, canvas_width: i32)  {\n    let show_at_canvas = element_handle_value.show_at_canvas(target, namespace, canvas_x, canvas_width);\n}",
+        availability = ["Cargo feature: resourcepack"],
+    )]
     pub fn show_at_canvas(
         &self,
         target: &str,

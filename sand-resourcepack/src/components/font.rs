@@ -2,19 +2,30 @@ use serde_json::{Value, json};
 
 use crate::component::{AssetContent, AssetOutput, ResourcePackComponent};
 
-#[doc = "**API Contract:** Run `sand api show sand::resourcepack::FontProvider` for the canonical contract."]
+#[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::resourcepack::FontProvider",
+    module = "sand::resourcepack",
+    summary = "A single provider entry inside a Minecraft font definition file.",
+    context = "A single provider entry inside a Minecraft font definition file. Currently only the `bitmap` provider type is supported. Additional provider types (`ttf`, `space`, `unihex`, `reference`) are planned for future versions.",
+    minecraft = "The resourcepack exporter writes version-appropriate assets, bitmap-font providers, and pack metadata for the selected Minecraft profile.",
+    use_when = ["Building HUD bars, HUD elements, textures, or resource-pack output alongside a Sand datapack"],
+    avoid_when = ["The project is datapack-only or needs unrelated resource-pack functionality not modeled by Sand"],
+    example = "use sand::resourcepack::FontProvider;",
+    availability = ["Cargo feature: resourcepack"],
+    variants(Bitmap = "A bitmap font provider that maps unicode characters to regions of a PNG texture."),
+    variant_fields(Bitmap = ["A bitmap font provider that maps unicode characters to regions of a PNG texture."]),
+)]
 /// A single provider entry inside a Minecraft font definition file.
 ///
 /// Currently only the `bitmap` provider type is supported. Additional
 /// provider types (`ttf`, `space`, `unihex`, `reference`) are planned
 /// for future versions.
 pub enum FontProvider {
-    #[doc = "**API Contract:** Run `sand api show sand::resourcepack::FontProvider::Bitmap` for the canonical contract."]
     /// A bitmap font provider that maps unicode characters to regions of a
     /// PNG texture.
     Bitmap(
-        #[doc = "The `Bitmap` variant carries the value described by its variant semantics: A bitmap font provider that maps unicode characters to regions of a PNG texture."]
-        #[doc = "**API Contract:** Run `sand api show sand::resourcepack::FontProvider::Bitmap::0` for the canonical contract."]
+        #[doc = "A bitmap font provider that maps unicode characters to regions of a PNG texture."]
         BitmapProvider,
     ),
 }
@@ -22,7 +33,20 @@ pub enum FontProvider {
 impl FontProvider {
     /// Serialize this provider to the JSON object Minecraft expects inside
     /// the `"providers"` array of a font file.
-    #[doc = "**API Contract:** Run `sand api show sand::resourcepack::FontProvider::to_json` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::resourcepack::FontProvider::to_json",
+        module = "sand::resourcepack",
+        kind = "method",
+        summary = "Serialize this provider to the JSON object Minecraft expects inside the `\"providers\"` array of a font file.",
+        context = "Serialize this provider to the JSON object Minecraft expects inside the `\"providers\"` array of a font file. This API defines client-side HUD, font, texture, or resource-pack output while keeping asset registration and exporter inventory wiring private.",
+        minecraft = "The resourcepack exporter writes version-appropriate assets, bitmap-font providers, and pack metadata for the selected Minecraft profile.",
+        use_when = ["Building HUD bars, HUD elements, textures, or resource-pack output alongside a Sand datapack"],
+        avoid_when = ["The project is datapack-only or needs unrelated resource-pack functionality not modeled by Sand"],
+        returns = "The `Value` value produced to serialize this provider to the JSON object Minecraft expects inside the `\"providers\"` array of a font file.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(font_provider_value: &sand::resourcepack::FontProvider)  {\n    let to_json = font_provider_value.to_json();\n}",
+        availability = ["Cargo feature: resourcepack"],
+    )]
     pub fn to_json(&self) -> Value {
         match self {
             FontProvider::Bitmap(b) => b.to_json(),
@@ -30,7 +54,19 @@ impl FontProvider {
     }
 }
 
-#[doc = "**API Contract:** Run `sand api show sand::resourcepack::BitmapProvider` for the canonical contract."]
+#[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::resourcepack::BitmapProvider",
+    module = "sand::resourcepack",
+    summary = "Parameters for a `\"bitmap\"` font provider. A bitmap provider maps a rectangular grid of characters from a PNG image. The image is divided into a grid where each cell corresponds to one unicode character in the `chars` array.",
+    context = "Parameters for a `\"bitmap\"` font provider. A bitmap provider maps a rectangular grid of characters from a PNG image. The image is divided into a grid where each cell corresponds to one unicode character in the `chars` array. `assets/<namespace>/font/<name>.json` → `\"providers\"` array entry with `\"type\": \"bitmap\"`.",
+    minecraft = "`assets/<namespace>/font/<name>.json` → `\"providers\"` array entry with `\"type\": \"bitmap\"`.",
+    use_when = ["Building HUD bars, HUD elements, textures, or resource-pack output alongside a Sand datapack"],
+    avoid_when = ["The project is datapack-only or needs unrelated resource-pack functionality not modeled by Sand"],
+    example = "use sand::resourcepack::BitmapProvider;",
+    availability = ["Cargo feature: resourcepack"],
+    fields(ascent = "Vertical offset (in pixels) from the baseline to the top of the glyph.", chars = "Character grid. Each `String` in the outer `Vec` represents one row of the source image; each `char` within that string maps to one column (cell) in that row.", file = "Resource location of the source PNG, e.g. `\"my_pack:font/health_bar.png\"`.", height = "Vertical height (in pixels) to render each character at."),
+)]
 /// Parameters for a `"bitmap"` font provider.
 ///
 /// A bitmap provider maps a rectangular grid of characters from a PNG image.
@@ -41,7 +77,6 @@ impl FontProvider {
 /// `assets/<namespace>/font/<name>.json` → `"providers"` array entry with
 /// `"type": "bitmap"`.
 pub struct BitmapProvider {
-    #[doc = "**API Contract:** Run `sand api show sand::resourcepack::BitmapProvider::file` for the canonical contract."]
     /// Resource location of the source PNG, e.g. `"my_pack:font/health_bar.png"`.
     ///
     /// Minecraft resolves font texture resource locations as
@@ -49,14 +84,12 @@ pub struct BitmapProvider {
     /// in this field — it will result in a doubled path at runtime.
     pub file: String,
 
-    #[doc = "**API Contract:** Run `sand api show sand::resourcepack::BitmapProvider::height` for the canonical contract."]
     /// Vertical height (in pixels) to render each character at.
     ///
     /// Can differ from the actual image height to scale the glyph. Use the
     /// same value as the image height for 1:1 rendering.
     pub height: i32,
 
-    #[doc = "**API Contract:** Run `sand api show sand::resourcepack::BitmapProvider::ascent` for the canonical contract."]
     /// Vertical offset (in pixels) from the baseline to the top of the glyph.
     ///
     /// Positive values move the character up; negative values move it down.
@@ -65,7 +98,6 @@ pub struct BitmapProvider {
     /// trick), use a negative value.
     pub ascent: i32,
 
-    #[doc = "**API Contract:** Run `sand api show sand::resourcepack::BitmapProvider::chars` for the canonical contract."]
     /// Character grid. Each `String` in the outer `Vec` represents one
     /// **row** of the source image; each `char` within that string maps to
     /// one **column** (cell) in that row.
@@ -79,7 +111,20 @@ pub struct BitmapProvider {
 
 impl BitmapProvider {
     /// Serializes this bitmap font provider to its Minecraft JSON object.
-    #[doc = "**API Contract:** Run `sand api show sand::resourcepack::BitmapProvider::to_json` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::resourcepack::BitmapProvider::to_json",
+        module = "sand::resourcepack",
+        kind = "method",
+        summary = "Serializes this bitmap font provider to its Minecraft JSON object.",
+        context = "Serializes this bitmap font provider to its Minecraft JSON object. This API defines client-side HUD, font, texture, or resource-pack output while keeping asset registration and exporter inventory wiring private.",
+        minecraft = "The resourcepack exporter writes version-appropriate assets, bitmap-font providers, and pack metadata for the selected Minecraft profile.",
+        use_when = ["Building HUD bars, HUD elements, textures, or resource-pack output alongside a Sand datapack"],
+        avoid_when = ["The project is datapack-only or needs unrelated resource-pack functionality not modeled by Sand"],
+        returns = "The `Value` value produced to serialize this bitmap font provider to its Minecraft JSON object.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(bitmap_provider_value: &sand::resourcepack::BitmapProvider)  {\n    let to_json = bitmap_provider_value.to_json();\n}",
+        availability = ["Cargo feature: resourcepack"],
+    )]
     pub fn to_json(&self) -> Value {
         json!({
             "type": "bitmap",
@@ -91,7 +136,19 @@ impl BitmapProvider {
     }
 }
 
-#[doc = "**API Contract:** Run `sand api show sand::resourcepack::BitmapFont` for the canonical contract."]
+#[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::resourcepack::BitmapFont",
+    module = "sand::resourcepack",
+    summary = "A complete font definition targeting a single font file.",
+    context = "A complete font definition targeting a single font file. Wraps one [`BitmapProvider`] and knows which font file to write to. Multiple `BitmapFont` instances that share the same `font_name` are merged by [`export_resourcepack_json`](sand::resourcepack::export_resourcepack_json) into a single `assets/<namespace>/font/<font_name>.json` file. Prefer using the `hud_bar!` or `hud_element!` macros (from `sand-macros`, with the `resourcepack` feature enabled) over constructing this type directly.",
+    minecraft = "Wraps one [`BitmapProvider`] and knows which font file to write to. Multiple `BitmapFont` instances that share the same `font_name` are merged by [`export_resourcepack_json`](sand::resourcepack::export_resourcepack_json) into a single `assets/<namespace>/font/<font_name>.json` file.",
+    use_when = ["Prefer using the `hud_bar!` or `hud_element!` macros (from `sand-macros`, with the `resourcepack` feature enabled) over constructing this type directly."],
+    avoid_when = ["The project is datapack-only or needs unrelated resource-pack functionality not modeled by Sand"],
+    example = "use sand::resourcepack::BitmapFont;",
+    availability = ["Cargo feature: resourcepack"],
+    fields(font_name = "Name of the font file (without extension), e.g. `\"default\"` or `\"hud\"`. Determines the output path: `assets/<namespace>/font/<font_name>.json`.", provider = "The bitmap provider this font contributes.", texture_dest = "Destination sub-path inside `assets/<namespace>/textures/` for the copied texture (without extension), e.g. `\"font/health_bar\"`.", texture_src = "Project-root-relative path to the source PNG to copy into the pack, e.g. `\"src/assets/health_bar.png\"`."),
+)]
 /// A complete font definition targeting a single font file.
 ///
 /// Wraps one [`BitmapProvider`] and knows which font file to write to.
@@ -103,7 +160,6 @@ impl BitmapProvider {
 /// with the `resourcepack` feature enabled) over constructing this
 /// type directly.
 pub struct BitmapFont {
-    #[doc = "**API Contract:** Run `sand api show sand::resourcepack::BitmapFont::font_name` for the canonical contract."]
     /// Name of the font file (without extension), e.g. `"default"` or
     /// `"hud"`. Determines the output path:
     /// `assets/<namespace>/font/<font_name>.json`.
@@ -112,11 +168,9 @@ pub struct BitmapFont {
     /// merged into one file.
     pub font_name: &'static str,
 
-    #[doc = "**API Contract:** Run `sand api show sand::resourcepack::BitmapFont::provider` for the canonical contract."]
     /// The bitmap provider this font contributes.
     pub provider: BitmapProvider,
 
-    #[doc = "**API Contract:** Run `sand api show sand::resourcepack::BitmapFont::texture_src` for the canonical contract."]
     /// Project-root-relative path to the source PNG to copy into the pack,
     /// e.g. `"src/assets/health_bar.png"`.
     ///
@@ -124,7 +178,6 @@ pub struct BitmapFont {
     /// texture is already present in the pack from another component.
     pub texture_src: Option<&'static str>,
 
-    #[doc = "**API Contract:** Run `sand api show sand::resourcepack::BitmapFont::texture_dest` for the canonical contract."]
     /// Destination sub-path inside `assets/<namespace>/textures/` for the
     /// copied texture (without extension), e.g. `"font/health_bar"`.
     ///

@@ -31,6 +31,7 @@ use std::marker::PhantomData;
 /// pre-validated path for explicit event identities.
 /// Invalid explicit event IDs are rejected here, at the API boundary, rather
 /// than silently passed through to `resolve()`/export.
+#[sand_macros::api(registry = sand_api_contract, path = "sand::event::IntoEventId", module = "sand::event", summary = "Converts an event ID input into a validated Minecraft resource location.", context = "Sand implements this for ResourceLocation and ordinary text inputs so EventId has one validation boundary.", minecraft = "Validation enforces namespace:path syntax before an advancement resource is generated.", use_when = ["Accepting the same ergonomic inputs as EventId::explicit"], avoid_when = ["Defining an unrelated identifier conversion"], example = "let id = sand::event::EventId::explicit(\"demo:events/join\");")]
 pub trait IntoEventId {
     /// Resolve to a validated [`ResourceLocation`](crate::ResourceLocation).
     ///
@@ -45,6 +46,7 @@ pub trait IntoEventId {
     /// let location = "demo:events/join".into_event_resource_location();
     /// assert_eq!(location.to_string(), "demo:events/join");
     /// ```
+    #[sand_macros::api(registry = sand_api_contract, path = "sand::event::IntoEventId::into_event_resource_location", module = "sand::event", summary = "Validates and returns this value as an event resource location.", context = "This is the common conversion seam behind explicit event IDs.", minecraft = "The result is valid namespace:path text for an advancement resource.", use_when = ["Implementing a supported EventId input"], avoid_when = ["Formatting unchecked resource names"], returns = "A validated Minecraft resource location.", example = "let location = \"demo:events/join\".into_event_resource_location();")]
     fn into_event_resource_location(self) -> crate::ResourceLocation;
 }
 
@@ -199,14 +201,18 @@ pub enum EventVisibility {
             for custom tick-polled or lifecycle-owned dispatch, implement `SandEvent` \
             (sand_core::events::SandEvent) instead"
 )]
+#[sand_macros::api(registry = sand_api_contract, path = "sand::event::AdvancementEvent", aliases = ["sand::prelude::AdvancementEvent"], module = "sand::event", summary = "Defines a custom event backed by one Minecraft advancement trigger.", context = "Implement this stateless trait for the common custom-event case, then receive Event<Self> in an #[on_event] handler.", minecraft = "Sand exports one advancement criterion and reward function, applying reset, guard, and participant behavior.", use_when = ["A custom event maps directly to one vanilla advancement trigger"], avoid_when = ["The event needs tick polling, composition, or lifecycle setup; implement SandEvent instead"], example = "struct AteApple;\nimpl sand::event::AdvancementEvent for AteApple { type Trigger = sand::component::AdvancementTrigger; fn trigger() -> Self::Trigger { sand::component::AdvancementTrigger::Tick } }")]
 pub trait AdvancementEvent {
     /// The trigger type for this event — must convert into [`AdvancementTrigger`].
+    #[sand_macros::api(registry = sand_api_contract, path = "sand::event::AdvancementEvent::Trigger", aliases = ["sand::prelude::AdvancementEvent::Trigger"], module = "sand::event", kind = "associated_type", summary = "Names the typed vanilla trigger emitted for an event.", context = "The associated trigger keeps a custom event definition tied to Sand's validated trigger model.", minecraft = "It serializes into the advancement criterion Minecraft watches.", use_when = ["Implementing AdvancementEvent"], avoid_when = ["Handling an existing event"], example = "type Trigger = sand::component::AdvancementTrigger;")]
     type Trigger: Into<AdvancementTrigger>;
 
     /// The trigger instance that Minecraft watches for.
+    #[sand_macros::api(registry = sand_api_contract, path = "sand::event::AdvancementEvent::trigger", aliases = ["sand::prelude::AdvancementEvent::trigger"], module = "sand::event", summary = "Returns the criterion Minecraft watches for this event.", context = "Sand calls it during export to construct advancement JSON.", minecraft = "The result becomes the event advancement's criterion conditions.", use_when = ["Implementing a custom advancement-backed event"], avoid_when = ["Inspecting a built-in event's export internals"], returns = "The event's typed advancement trigger.", example = "fn trigger() -> Self::Trigger { sand::component::AdvancementTrigger::Tick }")]
     fn trigger() -> Self::Trigger;
 
     /// How to determine the advancement ID.
+    #[sand_macros::api(registry = sand_api_contract, path = "sand::event::AdvancementEvent::id", kind = "trait_method", aliases = ["sand::prelude::AdvancementEvent::id"], module = "sand::event", summary = "Selects the generated advancement resource ID.", context = "The default follows the event handler path, avoiding manually synchronized names.", minecraft = "Controls the exported advancement namespace:path and revoke target.", use_when = ["A custom event needs a stable non-default ID"], avoid_when = ["The generated handler path is sufficient"], returns = "The event ID policy, Auto by default.", example = "fn id() -> sand::event::EventId { sand::event::EventId::Auto }")]
     fn id() -> EventId {
         EventId::Auto
     }
@@ -217,11 +223,13 @@ pub trait AdvancementEvent {
     /// immediately so the trigger can re-arm each time the condition is met.
     /// Override with [`EventReset::OncePerPlayer`] for one-shot milestones or
     /// [`EventReset::Manual`] to manage lifecycle via [`EventHandle`](crate::EventHandle).
+    #[sand_macros::api(registry = sand_api_contract, path = "sand::event::AdvancementEvent::reset", kind = "trait_method", aliases = ["sand::prelude::AdvancementEvent::reset"], module = "sand::event", summary = "Selects how advancement grant state re-arms after this event fires.", context = "The default supports repeating triggers while milestones can retain their grant.", minecraft = "AfterFire emits an advancement revoke for the triggering player.", use_when = ["Making an event one-shot or manually resettable"], avoid_when = ["Defining a tick-polled SandEvent"], returns = "The event reset policy, AfterFire by default.", example = "fn reset() -> sand::event::EventReset { sand::event::EventReset::OncePerPlayer }")]
     fn reset() -> EventReset {
         EventReset::AfterFire
     }
 
     /// The advancement's display visibility.
+    #[sand_macros::api(registry = sand_api_contract, path = "sand::event::AdvancementEvent::visibility", kind = "trait_method", aliases = ["sand::prelude::AdvancementEvent::visibility"], module = "sand::event", summary = "Selects the intended announcement visibility for this event.", context = "The default keeps mechanical event advancements silent.", minecraft = "Carries the display policy into advancement export.", use_when = ["A custom event should request advancement-style visibility"], avoid_when = ["Sending a handler-authored message"], returns = "The event visibility policy, Hidden by default.", example = "fn visibility() -> sand::event::EventVisibility { sand::event::EventVisibility::Hidden }")]
     fn visibility() -> EventVisibility {
         EventVisibility::Hidden
     }
@@ -234,6 +242,7 @@ pub trait AdvancementEvent {
     ///
     /// Useful for adding score-based or entity-based guards beyond what the
     /// advancement trigger itself provides.
+    #[sand_macros::api(registry = sand_api_contract, path = "sand::event::AdvancementEvent::guard", kind = "trait_method", aliases = ["sand::prelude::AdvancementEvent::guard"], module = "sand::event", summary = "Adds an optional typed condition checked before the handler runs.", context = "This complements, rather than replaces, the advancement trigger's own criterion conditions.", minecraft = "Sand emits an execute-unless guard that returns before user commands when it fails.", use_when = ["A score, entity, or predicate condition must gate a broad trigger"], avoid_when = ["The trigger itself can express the required criterion"], returns = "A guard condition, or None for no extra guard.", example = "fn guard() -> Option<sand::condition::Condition> { None }")]
     fn guard() -> Option<crate::condition::Condition> {
         None
     }
@@ -250,6 +259,7 @@ pub trait AdvancementEvent {
     /// [`Flag`]: crate::state::Flag
     /// [`Cooldown`]: crate::state::Cooldown
     /// [`Timer`]: crate::state::Timer
+    #[sand_macros::api(registry = sand_api_contract, path = "sand::event::AdvancementEvent::state_defines", kind = "trait_method", aliases = ["sand::prelude::AdvancementEvent::state_defines"], module = "sand::event", summary = "Lists initialization commands required by event-owned state.", context = "This is the low-level seam for a custom event that owns scoreboard-backed variables.", minecraft = "The commands normally create objectives before the event can fire.", use_when = ["A custom event explicitly owns score or timer setup"], avoid_when = ["Derived State or ordinary load setup owns the state"], returns = "Commands that initialize the event's declared state.", example = "fn state_defines() -> Vec<String> { Vec::new() }")]
     fn state_defines() -> Vec<String> {
         vec![]
     }
@@ -269,12 +279,24 @@ pub trait AdvancementEvent {
     /// handling. Authors do not need to call
     /// [`crate::events::EventSetup::with_participants`] themselves for this
     /// dispatch kind.
+    #[sand_macros::api(registry = sand_api_contract, path = "sand::event::AdvancementEvent::participants", kind = "trait_method", aliases = ["sand::prelude::AdvancementEvent::participants"], module = "sand::event", summary = "Declares the event-time observations this event can expose.", context = "The plan is applied around generated handler execution, giving context access an explicit evidence and cleanup model.", minecraft = "Sand emits the storage observations and cleanup around the advancement reward function.", use_when = ["A custom event needs typed attacker, weapon, or other participant context"], avoid_when = ["The handler only needs its triggering player"], returns = "The participant observation plan, empty by default.", example = "fn participants() -> sand::participant::EventParticipantPlan { sand::participant::EventParticipantPlan::none() }")]
     fn participants() -> crate::participant::EventParticipantPlan {
         crate::participant::EventParticipantPlan::none()
     }
 }
 
-#[doc = "**API Contract:** Run `sand api show sand::event::DamageAdvancementEvent` for the canonical contract."]
+#[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::event::DamageAdvancementEvent",
+    aliases = ["sand::prelude::DamageAdvancementEvent"],
+    module = "sand::event",
+    summary = "Capability marker for advancement events that represent player damage.",
+    context = "Capability marker for advancement events that represent player damage. Vanilla advancement reward functions identify the triggering player as `@s`, but they do not provide exact damage amount to the reward function. Use [`DamageAmount::Fixed`](sand::command::DamageAmount::Fixed) today, or add a real tracking system before using same-as-event damage.",
+    minecraft = "It is used with vanilla damage triggers and does not synthesize damage data for unrelated events.",
+    use_when = ["Defining, composing, or handling a typed Sand event"],
+    avoid_when = ["Inspecting generated advancement or event-graph implementation state"],
+    example = "use sand::event::DamageAdvancementEvent;",
+)]
 /// Capability marker for advancement events that represent player damage.
 ///
 /// Vanilla advancement reward functions identify the triggering player as
@@ -283,7 +305,18 @@ pub trait AdvancementEvent {
 /// add a real tracking system before using same-as-event damage.
 pub trait DamageAdvancementEvent: AdvancementEvent {}
 
-#[doc = "**API Contract:** Run `sand api show sand::event::EventPlayer` for the canonical contract."]
+#[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::event::EventPlayer",
+    aliases = ["sand::prelude::EventPlayer"],
+    module = "sand::event",
+    summary = "Provides the executing-player selector to legacy bare-marker event handlers.",
+    context = "Provides the executing-player selector to legacy bare-marker event handlers. `#[on_event]` still accepts built-in marker parameters such as `event: OnJoinEvent`. In that compatibility form the marker is a stateless context value and `player()` returns the `@s` player selected by Sand's generated dispatcher. Prefer [`Event<E>`] for new advancement-backed handlers; this trait keeps existing bare-marker authoring source-compatible.",
+    minecraft = "Sand runs supported player-scoped handlers as `@s`; new advancement-backed handlers should prefer Event<E>.",
+    use_when = ["Defining, composing, or handling a typed Sand event"],
+    avoid_when = ["Inspecting generated advancement or event-graph implementation state"],
+    example = "use sand::event::EventPlayer;",
+)]
 /// Provides the executing-player selector to legacy bare-marker event
 /// handlers.
 ///
@@ -294,7 +327,19 @@ pub trait DamageAdvancementEvent: AdvancementEvent {}
 /// handlers; this trait keeps existing bare-marker authoring source-compatible.
 pub trait EventPlayer {
     /// Returns `@s`, the player for whom the event handler is executing.
-    #[doc = "**API Contract:** Run `sand api show sand::event::EventPlayer::player` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::event::EventPlayer::player", kind = "trait_method",
+        aliases = ["sand::prelude::EventPlayer::player"],
+        module = "sand::event",
+        summary = "Returns `@s`, the player for whom the event handler is executing.",
+        context = "Returns `@s`, the player for whom the event handler is executing. This typed event API is part of Sand's author-facing event model; exporter records and generated function wiring remain private.",
+        minecraft = "The selector is Minecraft's current `@s` player supplied by Sand's generated dispatcher.",
+        use_when = ["Defining, composing, or handling a typed Sand event"],
+        avoid_when = ["Inspecting generated advancement or event-graph implementation state"],
+        returns = "Returns `@s`, the player for whom the event handler is executing.",
+        example = "use sand::prelude::*;\n\nfn demonstrate<T: sand::event::EventPlayer>(event_player_value: &T)  {\n    let player = event_player_value.player();\n}",
+    )]
     fn player(&self) -> sand_commands::Selector {
         sand_commands::Selector::self_()
     }
@@ -308,7 +353,18 @@ impl EventPlayer for crate::events::OnRespawnEvent {}
 
 // ── Event<E> — handler context ───────────────────────────────────────────────
 
-#[doc = "**API Contract:** Run `sand api show sand::event::Event` for the canonical contract."]
+#[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::event::Event",
+    aliases = ["sand::prelude::Event"],
+    module = "sand::event",
+    summary = "Zero-cost runtime context for `#[on_event]`-annotated advancement handlers.",
+    context = "Zero-cost runtime context for `#[on_event]`-annotated advancement handlers. Inside an `#[on_event]` handler, the generated code creates an `Event<E>` value that gives you access to context methods like [`Event::player`]. It is shared by advancement-backed and generated tracked events. You never construct `Event<E>` manually — the `#[on_event]` macro generates it. The context contains no instance of `E`; ordinary fields on the marker type are not captured Minecraft values. Event-time data must come from context handles explicitly provided by Sand or from typed state queried in the handler.",
+    minecraft = "Inside an `#[on_event]` handler, the generated code creates an `Event<E>` value that gives you access to context methods like [`Event::player`]. It is shared by advancement-backed and generated tracked events. You never construct `Event<E>` manually — the `#[on_event]` macro generates it. The context contains no instance of `E`; ordinary fields on the marker type are not captured Minecraft values. Event-time data must come from context handles explicitly provided by Sand or from typed state queried in the handler.",
+    use_when = ["Defining, composing, or handling a typed Sand event"],
+    avoid_when = ["Inspecting generated advancement or event-graph implementation state"],
+    example = "use sand::event::Event;",
+)]
 /// Zero-cost runtime context for `#[on_event]`-annotated advancement handlers.
 ///
 /// Inside an `#[on_event]` handler, the generated code creates an `Event<E>`
@@ -342,7 +398,20 @@ impl<E> Event<E> {
     /// Construct the handler context value.
     ///
     /// Called by `#[on_event]`-generated code. Not normally called directly.
-    #[doc = "**API Contract:** Run `sand api show sand::event::Event::context` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::event::Event::context",
+        aliases = ["sand::prelude::Event::context"],
+        module = "sand::event",
+        kind = "method",
+        summary = "Construct the handler context value. Called by `#[on_event]`-generated code. Not normally called directly.",
+        context = "Construct the handler context value. Called by `#[on_event]`-generated code. Not normally called directly. This typed event API is part of Sand's author-facing event model; exporter records and generated function wiring remain private.",
+        minecraft = "The context reads the execution player and participant observations stored around the generated reward function.",
+        use_when = ["Defining, composing, or handling a typed Sand event"],
+        avoid_when = ["Inspecting generated advancement or event-graph implementation state"],
+        returns = "A newly constructed `Event` configured to construct the handler context value. Called by `#[on_event]`-generated code. Not normally called directly.",
+        example = "use sand::prelude::*;\n\nfn demonstrate<E: 'static>()  {\n    let event = sand::event::Event ::< E >::context();\n}",
+    )]
     pub fn context() -> Self {
         Self {
             _marker: PhantomData,
@@ -353,13 +422,39 @@ impl<E> Event<E> {
     ///
     /// `@s` is the player selected by the advancement reward or generated
     /// per-player dispatcher.
-    #[doc = "**API Contract:** Run `sand api show sand::event::Event::player` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::event::Event::player",
+        aliases = ["sand::prelude::Event::player"],
+        module = "sand::event",
+        kind = "method",
+        summary = "Returns `Selector::self_()` — the player who triggered the event.",
+        context = "Returns `Selector::self_()` — the player who triggered the event. `@s` is the player selected by the advancement reward or generated per-player dispatcher.",
+        minecraft = "Resolves to the reward function's @s player, not an arbitrary entity.",
+        use_when = ["Defining, composing, or handling a typed Sand event"],
+        avoid_when = ["Inspecting generated advancement or event-graph implementation state"],
+        returns = "Returns `Selector::self_()` — the player who triggered the event.",
+        example = "use sand::prelude::*;\n\nfn demonstrate<E: 'static>(event_value: &sand::event::Event < E >)  {\n    let player = event_value.player();\n}",
+    )]
     pub fn player(&self) -> sand_commands::Selector {
         sand_commands::Selector::self_()
     }
 
     /// Returns `Selector::self_()` — alias for [`player`](Event::player).
-    #[doc = "**API Contract:** Run `sand api show sand::event::Event::subject` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::event::Event::subject",
+        aliases = ["sand::prelude::Event::subject"],
+        module = "sand::event",
+        kind = "method",
+        summary = "Returns `Selector::self_()` — alias for [`player`](Event::player).",
+        context = "Returns `Selector::self_()` — alias for [`player`](Event::player). This typed event API is part of Sand's author-facing event model; exporter records and generated function wiring remain private.",
+        minecraft = "For advancement events this is the triggering player bound to @s.",
+        use_when = ["Defining, composing, or handling a typed Sand event"],
+        avoid_when = ["Inspecting generated advancement or event-graph implementation state"],
+        returns = "Returns `Selector::self_()` — alias for [`player`](Event::player).",
+        example = "use sand::prelude::*;\n\nfn demonstrate<E: 'static>(event_value: &sand::event::Event < E >)  {\n    let subject = event_value.subject();\n}",
+    )]
     pub fn subject(&self) -> sand_commands::Selector {
         sand_commands::Selector::self_()
     }
@@ -380,7 +475,20 @@ impl<E: AdvancementEvent> Event<E> {
     ///     }
     /// }
     /// ```
-    #[doc = "**API Contract:** Run `sand api show sand::event::Event::state_init` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::event::Event::state_init",
+        aliases = ["sand::prelude::Event::state_init"],
+        module = "sand::event",
+        kind = "method",
+        summary = "`scoreboard objectives add …` commands for every state variable this event declared via [`AdvancementEvent::state_defines`].",
+        context = "`scoreboard objectives add …` commands for every state variable this event declared via [`AdvancementEvent::state_defines`]. Call this in your `#[datapack_component(Load)]` function so all objectives exist before the event fires:",
+        minecraft = "Call this in your `#[datapack_component(Load)]` function so all objectives exist before the event fires:",
+        use_when = ["Call this in your `#[datapack_component(Load)]` function so all objectives exist before the event fires:"],
+        avoid_when = ["Inspecting generated advancement or event-graph implementation state"],
+        returns = "The ordered values produced to emit the documented `scoreboard objectives add …` commands for every state variable this event declared via [`AdvancementEvent::state_defines`] form.",
+        example = "fn load() {\nfor cmd in Event::<DrinkManaEvent>::state_init() {\ncmd::raw(cmd);\n}\n}",
+    )]
     pub fn state_init() -> Vec<String> {
         E::state_defines()
     }
@@ -404,7 +512,21 @@ impl<E: AdvancementEvent> Event<E> {
     ///     // build commands against attacker.selector()
     /// }
     /// ```
-    #[doc = "**API Contract:** Run `sand api show sand::event::Event::entity` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::event::Event::entity",
+        aliases = ["sand::prelude::Event::entity"],
+        module = "sand::event",
+        kind = "method",
+        summary = "Access a declared entity participant by role (#230, infallible per #273).",
+        context = "Access a declared entity participant by role (#230, infallible per #273). Backed by whatever [`AdvancementEvent::participants`] declared for this event type. Returns the typed participant directly — not wrapped in `Result`/`Option`/[`sand::participant::ParticipantAvailability`] — since a role this event does not declare is a build-time authoring mistake (`sand build`'s mandatory graph validation is expected to catch it before output is written), not a value for ordinary handler code to branch on. See `EventParticipantPlan::require_entity` (crate-private) for the exact reconstruction and panic contract.",
+        minecraft = "The value is backed by Sand's event-cycle observation storage and is only available when the event declared that role.",
+        use_when = ["Defining, composing, or handling a typed Sand event"],
+        avoid_when = ["Inspecting generated advancement or event-graph implementation state"],
+        params(role = "`role` supplies the role value used to acces a declared entity participant by role (#230, infallible per #273)."),
+        returns = "Backed by whatever [`AdvancementEvent::participants`] declared for this event type. Returns the typed participant directly — not wrapped in `Result`/`Option`/[`sand::participant::ParticipantAvailability`] — since a role this event does not declare is a build-time authoring mistake (`sand build`'s mandatory graph validation is expected to catch it before output is written), not a value for ordinary handler code to branch on. See `EventParticipantPlan::require_entity` (crate-private) for the exact reconstruction and panic contract.",
+        example = "fn on_hit(event: Event<EntityDamagePlayerEvent>) {\nlet attacker = event.entity(EntityParticipantRole::Attacker);\n// build commands against attacker.selector()\n}",
+    )]
     pub fn entity(
         &self,
         role: crate::participant::EntityParticipantRole,
@@ -414,7 +536,21 @@ impl<E: AdvancementEvent> Event<E> {
 
     /// Access a declared item participant by role (#230, infallible per
     /// #273). See [`Self::entity`] for the contract this mirrors.
-    #[doc = "**API Contract:** Run `sand api show sand::event::Event::item` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::event::Event::item",
+        aliases = ["sand::prelude::Event::item"],
+        module = "sand::event",
+        kind = "method",
+        summary = "Access a declared item participant by role (#230, infallible per #273). See [`Self::entity`] for the contract this mirrors.",
+        context = "Access a declared item participant by role (#230, infallible per #273). See [`Self::entity`] for the contract this mirrors. This typed event API is part of Sand's author-facing event model; exporter records and generated function wiring remain private.",
+        minecraft = "Sand captures matching item NBT at trigger time so later commands do not depend on a live inventory slot.",
+        use_when = ["Defining, composing, or handling a typed Sand event"],
+        avoid_when = ["Inspecting generated advancement or event-graph implementation state"],
+        params(role = "`role` supplies the role value used to acces a declared item participant by role (#230, infallible per #273). See [`Self::entity`] for the contract this mirrors."),
+        returns = "The `sand :: item :: ItemSnapshot` value produced to acces a declared item participant by role (#230, infallible per #273). See [`Self::entity`] for the contract this mirrors.",
+        example = "use sand::prelude::*;\n\nfn demonstrate<E : sand::event::AdvancementEvent + 'static>(event_value: &sand::event::Event < E >, role: sand::participant::ItemParticipantRole)  {\n    let item = event_value.item(role);\n}",
+    )]
     pub fn item(&self, role: crate::participant::ItemParticipantRole) -> crate::item::ItemSnapshot {
         E::participants().require_item(std::any::type_name::<E>(), role)
     }
@@ -424,32 +560,97 @@ impl<E: AdvancementEvent> Event<E> {
     /// who shot it) is a distinct role vanilla's damage source also draws,
     /// but no credible backend exists for it today — see
     /// `docs/testing/participant-role-evidence.md`.
-    #[doc = "**API Contract:** Run `sand api show sand::event::Event::attacker` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::event::Event::attacker",
+        aliases = ["sand::prelude::Event::attacker"],
+        module = "sand::event",
+        kind = "method",
+        summary = "The entity that caused this event, when declared. `DirectAttacker` (the immediate causing entity, e.g. an arrow rather than the player who shot it) is a distinct role vanilla's damage source also draws, but no credible backend exists for it today — see `docs/testing/participant-role-evidence.md`.",
+        context = "The entity that caused this event, when declared. `DirectAttacker` (the immediate causing entity, e.g. an arrow rather than the player who shot it) is a distinct role vanilla's damage source also draws, but no credible backend exists for it today — see `docs/testing/participant-role-evidence.md`. This typed event API is part of Sand's author-facing event model; exporter records and generated function wiring remain private.",
+        minecraft = "The participant is available only for triggers and plans that can observe an attacker.",
+        use_when = ["Defining, composing, or handling a typed Sand event"],
+        avoid_when = ["Inspecting generated advancement or event-graph implementation state"],
+        returns = "The `sand :: participant :: EntityParticipant` value produced to use the entity that caused this event, when declared. `DirectAttacker` (the immediate causing entity, e.g. an arrow rather than the player who shot it) is a distinct role vanilla's damage source also draws, but no credible backend exists for it today — see `docs/testing/participant-role-evidence.md`.",
+        example = "use sand::prelude::*;\n\nfn demonstrate<E : sand::event::AdvancementEvent + 'static>(event_value: &sand::event::Event < E >)  {\n    let attacker = event_value.attacker();\n}",
+    )]
     pub fn attacker(&self) -> crate::participant::EntityParticipant {
         self.entity(crate::participant::EntityParticipantRole::Attacker)
     }
 
     /// The entity that landed the killing blow, when declared.
-    #[doc = "**API Contract:** Run `sand api show sand::event::Event::killer` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::event::Event::killer",
+        aliases = ["sand::prelude::Event::killer"],
+        module = "sand::event",
+        kind = "method",
+        summary = "The entity that landed the killing blow, when declared.",
+        context = "The entity that landed the killing blow, when declared. This typed event API is part of Sand's author-facing event model; exporter records and generated function wiring remain private.",
+        minecraft = "It is read from the current event dispatch record, not looked up again after the kill.",
+        use_when = ["Defining, composing, or handling a typed Sand event"],
+        avoid_when = ["Inspecting generated advancement or event-graph implementation state"],
+        returns = "The `sand :: participant :: EntityParticipant` value produced to use the entity that landed the killing blow, when declared.",
+        example = "use sand::prelude::*;\n\nfn demonstrate<E : sand::event::AdvancementEvent + 'static>(event_value: &sand::event::Event < E >)  {\n    let killer = event_value.killer();\n}",
+    )]
     pub fn killer(&self) -> crate::participant::EntityParticipant {
         self.entity(crate::participant::EntityParticipantRole::Killer)
     }
 
     /// The entity that received damage/an effect, when declared.
-    #[doc = "**API Contract:** Run `sand api show sand::event::Event::victim` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::event::Event::victim",
+        aliases = ["sand::prelude::Event::victim"],
+        module = "sand::event",
+        kind = "method",
+        summary = "The entity that received damage/an effect, when declared.",
+        context = "The entity that received damage/an effect, when declared. This typed event API is part of Sand's author-facing event model; exporter records and generated function wiring remain private.",
+        minecraft = "The value follows the event's participant plan and dispatch-cycle lifetime.",
+        use_when = ["Defining, composing, or handling a typed Sand event"],
+        avoid_when = ["Inspecting generated advancement or event-graph implementation state"],
+        returns = "The `sand :: participant :: EntityParticipant` value produced to use the entity that received damage/an effect, when declared.",
+        example = "use sand::prelude::*;\n\nfn demonstrate<E : sand::event::AdvancementEvent + 'static>(event_value: &sand::event::Event < E >)  {\n    let victim = event_value.victim();\n}",
+    )]
     pub fn victim(&self) -> crate::participant::EntityParticipant {
         self.entity(crate::participant::EntityParticipantRole::Victim)
     }
 
     /// The entity this player directly interacted with, when declared.
-    #[doc = "**API Contract:** Run `sand api show sand::event::Event::interacted_entity` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::event::Event::interacted_entity",
+        aliases = ["sand::prelude::Event::interacted_entity"],
+        module = "sand::event",
+        kind = "method",
+        summary = "The entity this player directly interacted with, when declared.",
+        context = "The entity this player directly interacted with, when declared. This typed event API is part of Sand's author-facing event model; exporter records and generated function wiring remain private.",
+        minecraft = "It reflects the entity matched by the vanilla interaction trigger when that observation is declared.",
+        use_when = ["Defining, composing, or handling a typed Sand event"],
+        avoid_when = ["Inspecting generated advancement or event-graph implementation state"],
+        returns = "The `sand :: participant :: EntityParticipant` value produced to use the entity this player directly interacted with, when declared.",
+        example = "use sand::prelude::*;\n\nfn demonstrate<E : sand::event::AdvancementEvent + 'static>(event_value: &sand::event::Event < E >)  {\n    let interacted_entity = event_value.interacted_entity();\n}",
+    )]
     pub fn interacted_entity(&self) -> crate::participant::EntityParticipant {
         self.entity(crate::participant::EntityParticipantRole::InteractedEntity)
     }
 
     /// The weapon item snapshot, when declared — see
     /// [`crate::participant::EventParticipantPlan::observe_weapon`].
-    #[doc = "**API Contract:** Run `sand api show sand::event::Event::weapon` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::event::Event::weapon",
+        aliases = ["sand::prelude::Event::weapon"],
+        module = "sand::event",
+        kind = "method",
+        summary = "The weapon item snapshot, when declared — see [`sand::participant::EventParticipantPlan::observe_weapon`].",
+        context = "The weapon item snapshot, when declared — see [`sand::participant::EventParticipantPlan::observe_weapon`]. This typed event API is part of Sand's author-facing event model; exporter records and generated function wiring remain private.",
+        minecraft = "Sand stores the trigger-time item NBT so it remains stable through the handler.",
+        use_when = ["Defining, composing, or handling a typed Sand event"],
+        avoid_when = ["Inspecting generated advancement or event-graph implementation state"],
+        returns = "The `sand :: item :: ItemSnapshot` value produced to use the weapon item snapshot, when declared — see [`sand::participant::EventParticipantPlan::observe_weapon`].",
+        example = "use sand::prelude::*;\n\nfn demonstrate<E : sand::event::AdvancementEvent + 'static>(event_value: &sand::event::Event < E >)  {\n    let weapon = event_value.weapon();\n}",
+    )]
     pub fn weapon(&self) -> crate::item::ItemSnapshot {
         self.item(crate::participant::ItemParticipantRole::Weapon)
     }
@@ -458,7 +659,21 @@ impl<E: AdvancementEvent> Event<E> {
     /// per #273) — the `.within(...)`-crossing counterpart to [`Self::item`].
     /// See [`crate::participant::EventParticipantPlan::inherit_item_within`]
     /// for the full contract.
-    #[doc = "**API Contract:** Run `sand api show sand::event::Event::bounded_item` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::event::Event::bounded_item",
+        aliases = ["sand::prelude::Event::bounded_item"],
+        module = "sand::event",
+        kind = "method",
+        summary = "Access a declared bounded item participant by role (#272, infallible per #273) — the `.within(...)`-crossing counterpart to [`Self::item`]. See [`sand::participant::EventParticipantPlan::inherit_item_within`] for the full contract.",
+        context = "Access a declared bounded item participant by role (#272, infallible per #273) — the `.within(...)`-crossing counterpart to [`Self::item`]. See [`sand::participant::EventParticipantPlan::inherit_item_within`] for the full contract. This typed event API is part of Sand's author-facing event model; exporter records and generated function wiring remain private.",
+        minecraft = "The snapshot is available only while the event graph's configured tick window has not expired.",
+        use_when = ["Defining, composing, or handling a typed Sand event"],
+        avoid_when = ["Inspecting generated advancement or event-graph implementation state"],
+        params(role = "`role` supplies the role value used to acces a declared bounded item participant by role (#272, infallible per #273) — the `.within(...)`-crossing counterpart to [`Self::item`]. See [`sand::participant::EventParticipantPlan::inherit_item_within`] for the full contract."),
+        returns = "The `sand :: participant :: BoundedItemSnapshot` value produced to acces a declared bounded item participant by role (#272, infallible per #273) — the `.within(...)`-crossing counterpart to [`Self::item`]. See [`sand::participant::EventParticipantPlan::inherit_item_within`] for the full contract.",
+        example = "use sand::prelude::*;\n\nfn demonstrate<E : sand::event::AdvancementEvent + 'static>(event_value: &sand::event::Event < E >, role: sand::participant::ItemParticipantRole)  {\n    let bounded_item = event_value.bounded_item(role);\n}",
+    )]
     pub fn bounded_item(
         &self,
         role: crate::participant::ItemParticipantRole,
@@ -475,13 +690,37 @@ impl<E> Default for Event<E> {
 
 impl<E: DamageAdvancementEvent> Event<E> {
     /// Start a reflected-damage command builder from this event's player.
-    #[doc = "**API Contract:** Run `sand api show sand::event::Event::damage` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::event::Event::damage",
+        aliases = ["sand::prelude::Event::damage"],
+        module = "sand::event",
+        kind = "method",
+        summary = "Start a reflected-damage command builder from this event's player.",
+        context = "Start a reflected-damage command builder from this event's player. This typed event API is part of Sand's author-facing event model; exporter records and generated function wiring remain private.",
+        minecraft = "It reflects the damage data exposed by Minecraft's advancement trigger context.",
+        use_when = ["Defining, composing, or handling a typed Sand event"],
+        avoid_when = ["Inspecting generated advancement or event-graph implementation state"],
+        returns = "The `sand :: command :: DamageBuilder` value produced to start a reflected-damage command builder from this event's player.",
+        example = "use sand::prelude::*;\n\nfn demonstrate<E : sand::event::DamageAdvancementEvent + 'static>(event_value: &sand::event::Event < E >)  {\n    let damage = event_value.damage();\n}",
+    )]
     pub fn damage(&self) -> sand_commands::Damage {
         sand_commands::Damage::reflect_from(crate::cmd::SingleEntity::self_())
     }
 }
 
-#[doc = "**API Contract:** Run `sand api show sand::event::DamageEvent` for the canonical contract."]
+#[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::event::DamageEvent",
+    aliases = ["sand::prelude::DamageEvent"],
+    module = "sand::event",
+    summary = "Damage-specific event handler context for `#[on_event]` functions.",
+    context = "Damage-specific event handler context for `#[on_event]` functions. Use `DamageEvent<T>` when `T: DamageAdvancementEvent`. It exposes the triggering player as a statically single player/entity target and provides a first-class reflected-damage builder.",
+    minecraft = "Runs in the triggering player's advancement reward function and reflects the captured vanilla damage predicate context.",
+    use_when = ["Use `DamageEvent<T>` when `T: DamageAdvancementEvent`. It exposes the triggering player as a statically single player/entity target and provides a first-class reflected-damage builder."],
+    avoid_when = ["Inspecting generated advancement or event-graph implementation state"],
+    example = "use sand::event::DamageEvent;",
+)]
 /// Damage-specific event handler context for `#[on_event]` functions.
 ///
 /// Use `DamageEvent<T>` when `T: DamageAdvancementEvent`. It exposes the
@@ -495,7 +734,20 @@ impl<E: DamageAdvancementEvent> DamageEvent<E> {
     /// Construct the handler context value.
     ///
     /// Called by `#[on_event]`-generated code. Not normally called directly.
-    #[doc = "**API Contract:** Run `sand api show sand::event::DamageEvent::context` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::event::DamageEvent::context",
+        aliases = ["sand::prelude::DamageEvent::context"],
+        module = "sand::event",
+        kind = "method",
+        summary = "Construct the handler context value. Called by `#[on_event]`-generated code. Not normally called directly.",
+        context = "Construct the handler context value. Called by `#[on_event]`-generated code. Not normally called directly. This typed event API is part of Sand's author-facing event model; exporter records and generated function wiring remain private.",
+        minecraft = "The value resolves its subject and damage view in the generated reward function.",
+        use_when = ["Defining, composing, or handling a typed Sand event"],
+        avoid_when = ["Inspecting generated advancement or event-graph implementation state"],
+        returns = "A newly constructed `DamageEvent` configured to construct the handler context value. Called by `#[on_event]`-generated code. Not normally called directly.",
+        example = "use sand::prelude::*;\n\nfn demonstrate<E : sand::event::DamageAdvancementEvent + 'static>()  {\n    let damage_event = sand::event::DamageEvent ::< E >::context();\n}",
+    )]
     pub fn context() -> Self {
         Self {
             _marker: PhantomData,
@@ -503,19 +755,58 @@ impl<E: DamageAdvancementEvent> DamageEvent<E> {
     }
 
     /// Returns `@s` as a single player: the player who triggered the event.
-    #[doc = "**API Contract:** Run `sand api show sand::event::DamageEvent::player` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::event::DamageEvent::player",
+        aliases = ["sand::prelude::DamageEvent::player"],
+        module = "sand::event",
+        kind = "method",
+        summary = "Returns `@s` as a single player: the player who triggered the event.",
+        context = "Returns `@s` as a single player: the player who triggered the event. This typed event API is part of Sand's author-facing event model; exporter records and generated function wiring remain private.",
+        minecraft = "Always resolves the advancement reward function's @s player.",
+        use_when = ["Defining, composing, or handling a typed Sand event"],
+        avoid_when = ["Inspecting generated advancement or event-graph implementation state"],
+        returns = "Returns `@s` as a single player: the player who triggered the event.",
+        example = "use sand::prelude::*;\n\nfn demonstrate<E : sand::event::DamageAdvancementEvent + 'static>(damage_event_value: &sand::event::DamageEvent < E >)  {\n    let player = damage_event_value.player();\n}",
+    )]
     pub fn player(&self) -> crate::cmd::SinglePlayer {
         crate::cmd::SinglePlayer::self_()
     }
 
     /// Returns `@s` as a single entity: the damaged subject.
-    #[doc = "**API Contract:** Run `sand api show sand::event::DamageEvent::subject` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::event::DamageEvent::subject",
+        aliases = ["sand::prelude::DamageEvent::subject"],
+        module = "sand::event",
+        kind = "method",
+        summary = "Returns `@s` as a single entity: the damaged subject.",
+        context = "Returns `@s` as a single entity: the damaged subject. This typed event API is part of Sand's author-facing event model; exporter records and generated function wiring remain private.",
+        minecraft = "It is the triggering player under Minecraft's advancement reward execution.",
+        use_when = ["Defining, composing, or handling a typed Sand event"],
+        avoid_when = ["Inspecting generated advancement or event-graph implementation state"],
+        returns = "Returns `@s` as a single entity: the damaged subject.",
+        example = "use sand::prelude::*;\n\nfn demonstrate<E : sand::event::DamageAdvancementEvent + 'static>(damage_event_value: &sand::event::DamageEvent < E >)  {\n    let subject = damage_event_value.subject();\n}",
+    )]
     pub fn subject(&self) -> crate::cmd::SingleEntity {
         crate::cmd::SingleEntity::self_()
     }
 
     /// Start a reflected-damage builder centered on and sourced from the player.
-    #[doc = "**API Contract:** Run `sand api show sand::event::DamageEvent::reflect_damage` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::event::DamageEvent::reflect_damage",
+        aliases = ["sand::prelude::DamageEvent::reflect_damage"],
+        module = "sand::event",
+        kind = "method",
+        summary = "Start a reflected-damage builder centered on and sourced from the player.",
+        context = "Start a reflected-damage builder centered on and sourced from the player. This typed event API is part of Sand's author-facing event model; exporter records and generated function wiring remain private.",
+        minecraft = "Uses the same damage source information Sand can reflect from the advancement-backed event.",
+        use_when = ["Defining, composing, or handling a typed Sand event"],
+        avoid_when = ["Inspecting generated advancement or event-graph implementation state"],
+        returns = "The `sand :: command :: DamageBuilder` value produced to start a reflected-damage builder centered on and sourced from the player.",
+        example = "use sand::prelude::*;\n\nfn demonstrate<E : sand::event::DamageAdvancementEvent + 'static>(damage_event_value: &sand::event::DamageEvent < E >)  {\n    let reflect_damage = damage_event_value.reflect_damage();\n}",
+    )]
     pub fn reflect_damage(&self) -> sand_commands::Damage {
         sand_commands::Damage::reflect_from(self.subject())
     }

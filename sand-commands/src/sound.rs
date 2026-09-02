@@ -25,11 +25,34 @@ use crate::selector::Selector;
 
 // ── SoundSource ───────────────────────────────────────────────────────────────
 
-#[doc = "**API Contract:** Run `sand api show sand::command::IntoSoundEvent` for the canonical contract."]
+#[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::command::IntoSoundEvent",
+    aliases = ["sand::cmd::IntoSoundEvent", "sand::prelude::cmd::IntoSoundEvent"],
+    module = "sand::command",
+    summary = "Conversion into a sound-event resource-location token.",
+    context = "Conversion into a sound-event resource-location token. This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
+    minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
+    use_when = ["Constructing Minecraft commands through Sand's typed command model"],
+    avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
+    example = "use sand::command::IntoSoundEvent;",
+)]
 /// Conversion into a sound-event resource-location token.
 pub trait IntoSoundEvent {
     /// Converts a typed or validated value into a Minecraft sound-event identifier.
-    #[doc = "**API Contract:** Run `sand api show sand::command::IntoSoundEvent::into_sound_event` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::command::IntoSoundEvent::into_sound_event",
+        aliases = ["sand::cmd::IntoSoundEvent::into_sound_event", "sand::prelude::cmd::IntoSoundEvent::into_sound_event"],
+        module = "sand::command",
+        summary = "Converts a typed or validated value into a Minecraft sound-event identifier.",
+        context = "Converts a typed or validated value into a Minecraft sound-event identifier. This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
+        minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
+        use_when = ["Constructing Minecraft commands through Sand's typed command model"],
+        avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
+        returns = "The string value produced to convert a typed or validated value into a Minecraft sound-event identifier.",
+        example = "use sand::prelude::*;\n\nfn demonstrate<T: sand::command::IntoSoundEvent>(into_sound_event_value: T)  {\n    let into_sound_event = into_sound_event_value.into_sound_event();\n}",
+    )]
     fn into_sound_event(self) -> String;
 }
 
@@ -45,42 +68,43 @@ impl IntoSoundEvent for &str {
     }
 }
 
-#[doc = "**API Contract:** Run `sand api show sand::command::SoundSource` for the canonical contract."]
+#[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::command::SoundSource",
+    aliases = ["sand::cmd::SoundSource", "sand::prelude::SoundSource", "sand::prelude::cmd::SoundSource"],
+    module = "sand::command",
+    summary = "Minecraft audio channel/category for sound playback.",
+    context = "Minecraft audio channel/category for sound playback. This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
+    minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
+    use_when = ["Constructing Minecraft commands through Sand's typed command model"],
+    avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
+    example = "use sand::command::SoundSource;",
+    variants(Ambient = "Selects the ambient form of the sound source Minecraft command value.", Block = "Selects the block form of the sound source Minecraft command value.", Hostile = "Selects the hostile form of the sound source Minecraft command value.", Master = "Selects the master form of the sound source Minecraft command value.", Music = "Selects the music form of the sound source Minecraft command value.", Neutral = "Selects the neutral form of the sound source Minecraft command value.", Player = "Selects the player form of the sound source Minecraft command value.", Record = "Selects the record form of the sound source Minecraft command value.", Ui = "Selects the ui form of the sound source Minecraft command value.", Voice = "Selects the voice form of the sound source Minecraft command value.", Weather = "Selects the weather form of the sound source Minecraft command value."),
+)]
 /// Minecraft audio channel/category for sound playback.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum SoundSource {
     #[doc = "Selects the master form of the sound source Minecraft command value."]
-    #[doc = "**API Contract:** Run `sand api show sand::command::SoundSource::Master` for the canonical contract."]
     Master,
     #[doc = "Selects the music form of the sound source Minecraft command value."]
-    #[doc = "**API Contract:** Run `sand api show sand::command::SoundSource::Music` for the canonical contract."]
     Music,
     #[doc = "Selects the record form of the sound source Minecraft command value."]
-    #[doc = "**API Contract:** Run `sand api show sand::command::SoundSource::Record` for the canonical contract."]
     Record,
     #[doc = "Selects the weather form of the sound source Minecraft command value."]
-    #[doc = "**API Contract:** Run `sand api show sand::command::SoundSource::Weather` for the canonical contract."]
     Weather,
     #[doc = "Selects the block form of the sound source Minecraft command value."]
-    #[doc = "**API Contract:** Run `sand api show sand::command::SoundSource::Block` for the canonical contract."]
     Block,
     #[doc = "Selects the hostile form of the sound source Minecraft command value."]
-    #[doc = "**API Contract:** Run `sand api show sand::command::SoundSource::Hostile` for the canonical contract."]
     Hostile,
     #[doc = "Selects the neutral form of the sound source Minecraft command value."]
-    #[doc = "**API Contract:** Run `sand api show sand::command::SoundSource::Neutral` for the canonical contract."]
     Neutral,
     #[doc = "Selects the player form of the sound source Minecraft command value."]
-    #[doc = "**API Contract:** Run `sand api show sand::command::SoundSource::Player` for the canonical contract."]
     Player,
     #[doc = "Selects the ui form of the sound source Minecraft command value."]
-    #[doc = "**API Contract:** Run `sand api show sand::command::SoundSource::Ui` for the canonical contract."]
     Ui,
     #[doc = "Selects the ambient form of the sound source Minecraft command value."]
-    #[doc = "**API Contract:** Run `sand api show sand::command::SoundSource::Ambient` for the canonical contract."]
     Ambient,
     #[doc = "Selects the voice form of the sound source Minecraft command value."]
-    #[doc = "**API Contract:** Run `sand api show sand::command::SoundSource::Voice` for the canonical contract."]
     Voice,
 }
 
@@ -105,7 +129,18 @@ impl fmt::Display for SoundSource {
 
 // ── Sound ─────────────────────────────────────────────────────────────────────
 
-#[doc = "**API Contract:** Run `sand api show sand::command::Sound` for the canonical contract."]
+#[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::command::Sound",
+    aliases = ["sand::cmd::Sound", "sand::prelude::Sound", "sand::prelude::cmd::Sound"],
+    module = "sand::command",
+    summary = "Builder for `playsound` commands.",
+    context = "Builder for `playsound` commands. This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
+    minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
+    use_when = ["Constructing Minecraft commands through Sand's typed command model"],
+    avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
+    example = "use sand::command::Sound;",
+)]
 /// Builder for `playsound` commands.
 #[derive(Debug, Clone)]
 pub struct Sound {
@@ -121,7 +156,21 @@ pub struct Sound {
 
 impl Sound {
     /// Begin building a `playsound` command for the given sound event ID.
-    #[doc = "**API Contract:** Run `sand api show sand::command::Sound::play` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::command::Sound::play",
+        aliases = ["sand::cmd::Sound::play", "sand::prelude::Sound::play", "sand::prelude::cmd::Sound::play"],
+        module = "sand::command",
+        kind = "method",
+        summary = "Begin building a `playsound` command for the given sound event ID.",
+        context = "Begin building a `playsound` command for the given sound event ID. This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
+        minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
+        use_when = ["Constructing Minecraft commands through Sand's typed command model"],
+        avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
+        params(event = "`event` supplies the event value used to begin building a `playsound` command for the given sound event ID."),
+        returns = "A newly constructed `Sound` configured to begin building a `playsound` command for the given sound event ID.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(event: impl sand::command::IntoSoundEvent)  {\n    let sound = sand::command::Sound::play(event);\n}",
+    )]
     pub fn play(event: impl IntoSoundEvent) -> Self {
         Self {
             event: event.into_sound_event(),
@@ -136,7 +185,21 @@ impl Sound {
     }
 
     /// Begin building a sound command with an intentionally opaque event token.
-    #[doc = "**API Contract:** Run `sand api show sand::command::Sound::play_raw` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::command::Sound::play_raw",
+        aliases = ["sand::cmd::Sound::play_raw", "sand::prelude::Sound::play_raw", "sand::prelude::cmd::Sound::play_raw"],
+        module = "sand::command",
+        kind = "method",
+        summary = "Begin building a sound command with an intentionally opaque event token.",
+        context = "Begin building a sound command with an intentionally opaque event token. This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
+        minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
+        use_when = ["Constructing Minecraft commands through Sand's typed command model"],
+        avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
+        params(event = "`event` supplies the event value used to begin building a sound command with an intentionally opaque event token."),
+        returns = "A newly constructed `Sound` configured to begin building a sound command with an intentionally opaque event token.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(event: impl sand::command::IntoSoundEvent)  {\n    let sound = sand::command::Sound::play_raw(event);\n}",
+    )]
     pub fn play_raw(event: impl IntoSoundEvent) -> Self {
         Self {
             raw_event: true,
@@ -145,42 +208,126 @@ impl Sound {
     }
 
     /// Set the target entity/player who hears the sound (default: `@s`).
-    #[doc = "**API Contract:** Run `sand api show sand::command::Sound::to` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::command::Sound::to",
+        aliases = ["sand::cmd::Sound::to", "sand::prelude::Sound::to", "sand::prelude::cmd::Sound::to"],
+        module = "sand::command",
+        kind = "method",
+        summary = "Set the target entity/player who hears the sound (default: `@s`).",
+        context = "Set the target entity/player who hears the sound (default: `@s`). This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
+        minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
+        use_when = ["Constructing Minecraft commands through Sand's typed command model"],
+        avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
+        params(selector = "`selector` provides the Minecraft target selection used to set the target entity/player who hears the sound (default: `@s`)."),
+        returns = "The `Sound` value with the documented change applied to set the target entity/player who hears the sound (default: `@s`).",
+        example = "use sand::prelude::*;\n\nfn demonstrate(sound_value: sand::command::Sound, selector: sand::command::Selector)  {\n    let updated_sound = sound_value.to(selector);\n}",
+    )]
     pub fn to(mut self, selector: Selector) -> Self {
         self.target = Some(selector);
         self
     }
 
     /// Set the sound source/channel category (default: `master`).
-    #[doc = "**API Contract:** Run `sand api show sand::command::Sound::source` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::command::Sound::source",
+        aliases = ["sand::cmd::Sound::source", "sand::prelude::Sound::source", "sand::prelude::cmd::Sound::source"],
+        module = "sand::command",
+        kind = "method",
+        summary = "Set the sound source/channel category (default: `master`).",
+        context = "Set the sound source/channel category (default: `master`). This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
+        minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
+        use_when = ["Constructing Minecraft commands through Sand's typed command model"],
+        avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
+        params(source = "`source` supplies the source value used to set the sound source/channel category (default: `master`)."),
+        returns = "The `Sound` value with the documented change applied to set the sound source/channel category (default: `master`).",
+        example = "use sand::prelude::*;\n\nfn demonstrate(sound_value: sand::command::Sound, source: sand::command::SoundSource)  {\n    let updated_sound = sound_value.source(source);\n}",
+    )]
     pub fn source(mut self, source: SoundSource) -> Self {
         self.source = source;
         self
     }
 
     /// Set the position in the world where the sound originates (default: `~ ~ ~`).
-    #[doc = "**API Contract:** Run `sand api show sand::command::Sound::at` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::command::Sound::at",
+        aliases = ["sand::cmd::Sound::at", "sand::prelude::Sound::at", "sand::prelude::cmd::Sound::at"],
+        module = "sand::command",
+        kind = "method",
+        summary = "Set the position in the world where the sound originates (default: `~ ~ ~`).",
+        context = "Set the position in the world where the sound originates (default: `~ ~ ~`). This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
+        minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
+        use_when = ["Constructing Minecraft commands through Sand's typed command model"],
+        avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
+        params(pos = "`pos` supplies the pos value used to set the position in the world where the sound originates (default: `~ ~ ~`)."),
+        returns = "The `Sound` value with the documented change applied to set the position in the world where the sound originates (default: `~ ~ ~`).",
+        example = "use sand::prelude::*;\n\nfn demonstrate(sound_value: sand::command::Sound, pos: sand::command::Vec3)  {\n    let updated_sound = sound_value.at(pos);\n}",
+    )]
     pub fn at(mut self, pos: Vec3) -> Self {
         self.pos = Some(pos);
         self
     }
 
     /// Set the volume multiplier (default: `1.0`).
-    #[doc = "**API Contract:** Run `sand api show sand::command::Sound::volume` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::command::Sound::volume",
+        aliases = ["sand::cmd::Sound::volume", "sand::prelude::Sound::volume", "sand::prelude::cmd::Sound::volume"],
+        module = "sand::command",
+        kind = "method",
+        summary = "Set the volume multiplier (default: `1.0`).",
+        context = "Set the volume multiplier (default: `1.0`). This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
+        minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
+        use_when = ["Constructing Minecraft commands through Sand's typed command model"],
+        avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
+        params(volume = "`volume` supplies the volume value used to set the volume multiplier (default: `1.0`)."),
+        returns = "The `Sound` value with the documented change applied to set the volume multiplier (default: `1.0`).",
+        example = "use sand::prelude::*;\n\nfn demonstrate(sound_value: sand::command::Sound, volume: f64)  {\n    let updated_sound = sound_value.volume(volume);\n}",
+    )]
     pub fn volume(mut self, volume: f64) -> Self {
         self.volume = volume;
         self
     }
 
     /// Set the pitch multiplier (default: `1.0`).
-    #[doc = "**API Contract:** Run `sand api show sand::command::Sound::pitch` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::command::Sound::pitch",
+        aliases = ["sand::cmd::Sound::pitch", "sand::prelude::Sound::pitch", "sand::prelude::cmd::Sound::pitch"],
+        module = "sand::command",
+        kind = "method",
+        summary = "Set the pitch multiplier (default: `1.0`).",
+        context = "Set the pitch multiplier (default: `1.0`). This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
+        minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
+        use_when = ["Constructing Minecraft commands through Sand's typed command model"],
+        avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
+        params(pitch = "`pitch` supplies the pitch value used to set the pitch multiplier (default: `1.0`)."),
+        returns = "The `Sound` value with the documented change applied to set the pitch multiplier (default: `1.0`).",
+        example = "use sand::prelude::*;\n\nfn demonstrate(sound_value: sand::command::Sound, pitch: f64)  {\n    let updated_sound = sound_value.pitch(pitch);\n}",
+    )]
     pub fn pitch(mut self, pitch: f64) -> Self {
         self.pitch = pitch;
         self
     }
 
     /// Set minimum volume for players far from the sound origin.
-    #[doc = "**API Contract:** Run `sand api show sand::command::Sound::min_volume` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::command::Sound::min_volume",
+        aliases = ["sand::cmd::Sound::min_volume", "sand::prelude::Sound::min_volume", "sand::prelude::cmd::Sound::min_volume"],
+        module = "sand::command",
+        kind = "method",
+        summary = "Set minimum volume for players far from the sound origin.",
+        context = "Set minimum volume for players far from the sound origin. This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
+        minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
+        use_when = ["Constructing Minecraft commands through Sand's typed command model"],
+        avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
+        params(min = "`min` provides the inclusive lower bound used to set minimum volume for players far from the sound origin."),
+        returns = "The `Sound` value with the documented change applied to set minimum volume for players far from the sound origin.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(sound_value: sand::command::Sound, min: f64)  {\n    let updated_sound = sound_value.min_volume(min);\n}",
+    )]
     pub fn min_volume(mut self, min: f64) -> Self {
         self.min_volume = Some(min);
         self
@@ -189,19 +336,61 @@ impl Sound {
     // ── stopsound helpers ─────────────────────────────────────────────────────
 
     /// `stopsound <selector>` — stop all sounds playing for the target.
-    #[doc = "**API Contract:** Run `sand api show sand::command::Sound::stop_all` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::command::Sound::stop_all",
+        aliases = ["sand::cmd::Sound::stop_all", "sand::prelude::Sound::stop_all", "sand::prelude::cmd::Sound::stop_all"],
+        module = "sand::command",
+        kind = "method",
+        summary = "`stopsound <selector>` — stop all sounds playing for the target.",
+        context = "`stopsound <selector>` — stop all sounds playing for the target. This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
+        minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
+        use_when = ["Constructing Minecraft commands through Sand's typed command model"],
+        avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
+        params(target = "`target` provides the entity, block, or command target used to emit the documented `stopsound <selector>` — stop all sounds playing for the target form."),
+        returns = "The string value produced to emit the documented `stopsound <selector>` — stop all sounds playing for the target form.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(target: sand::command::Selector)  {\n    let stop_all = sand::command::Sound::stop_all(target);\n}",
+    )]
     pub fn stop_all(target: Selector) -> String {
         StopSoundCommand::All { target }.build_registered()
     }
 
     /// `stopsound <selector> <source>` — stop all sounds in a specific category.
-    #[doc = "**API Contract:** Run `sand api show sand::command::Sound::stop_source` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::command::Sound::stop_source",
+        aliases = ["sand::cmd::Sound::stop_source", "sand::prelude::Sound::stop_source", "sand::prelude::cmd::Sound::stop_source"],
+        module = "sand::command",
+        kind = "method",
+        summary = "`stopsound <selector> <source>` — stop all sounds in a specific category.",
+        context = "`stopsound <selector> <source>` — stop all sounds in a specific category. This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
+        minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
+        use_when = ["Constructing Minecraft commands through Sand's typed command model"],
+        avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
+        params(target = "`target` provides the entity, block, or command target used to emit the documented `stopsound <selector> <source>` — stop all sounds in a specific category form.", source = "`source` supplies the source value used to emit the documented `stopsound <selector> <source>` — stop all sounds in a specific category form."),
+        returns = "The string value produced to emit the documented `stopsound <selector> <source>` — stop all sounds in a specific category form.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(target: sand::command::Selector, source: sand::command::SoundSource)  {\n    let stop_source = sand::command::Sound::stop_source(target, source);\n}",
+    )]
     pub fn stop_source(target: Selector, source: SoundSource) -> String {
         StopSoundCommand::Source { target, source }.build_registered()
     }
 
     /// `stopsound <selector> <source> <event>` — stop a specific sound for the target.
-    #[doc = "**API Contract:** Run `sand api show sand::command::Sound::stop_event` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::command::Sound::stop_event",
+        aliases = ["sand::cmd::Sound::stop_event", "sand::prelude::Sound::stop_event", "sand::prelude::cmd::Sound::stop_event"],
+        module = "sand::command",
+        kind = "method",
+        summary = "`stopsound <selector> <source> <event>` — stop a specific sound for the target.",
+        context = "`stopsound <selector> <source> <event>` — stop a specific sound for the target. This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
+        minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
+        use_when = ["Constructing Minecraft commands through Sand's typed command model"],
+        avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
+        params(target = "`target` provides the entity, block, or command target used to emit the documented `stopsound <selector> <source> <event>` — stop a specific sound for the target form.", source = "`source` supplies the source value used to emit the documented `stopsound <selector> <source> <event>` — stop a specific sound for the target form.", event = "`event` supplies the event value used to emit the documented `stopsound <selector> <source> <event>` — stop a specific sound for the target form."),
+        returns = "The string value produced to emit the documented `stopsound <selector> <source> <event>` — stop a specific sound for the target form.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(target: sand::command::Selector, source: sand::command::SoundSource, event: impl Into < String >)  {\n    let stop_event = sand::command::Sound::stop_event(target, source, event);\n}",
+    )]
     pub fn stop_event(target: Selector, source: SoundSource, event: impl Into<String>) -> String {
         StopSoundCommand::Event {
             target,
@@ -213,13 +402,41 @@ impl Sound {
     }
 
     /// Compatibility alias for [`Sound::stop_event`].
-    #[doc = "**API Contract:** Run `sand api show sand::command::Sound::stop` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::command::Sound::stop",
+        aliases = ["sand::cmd::Sound::stop", "sand::prelude::Sound::stop", "sand::prelude::cmd::Sound::stop"],
+        module = "sand::command",
+        kind = "method",
+        summary = "Compatibility alias for [`Sound::stop_event`].",
+        context = "Compatibility alias for [`Sound::stop_event`]. This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
+        minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
+        use_when = ["Constructing Minecraft commands through Sand's typed command model"],
+        avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
+        params(target = "`target` provides the entity, block, or command target used to use compatibility alias for [`Sound::stop_event`].", source = "`source` supplies the source value used to use compatibility alias for [`Sound::stop_event`].", event = "`event` supplies the event value used to use compatibility alias for [`Sound::stop_event`]."),
+        returns = "The string value produced to use compatibility alias for [`Sound::stop_event`].",
+        example = "use sand::prelude::*;\n\nfn demonstrate(target: sand::command::Selector, source: sand::command::SoundSource, event: impl Into < String >)  {\n    let stop = sand::command::Sound::stop(target, source, event);\n}",
+    )]
     pub fn stop(target: Selector, source: SoundSource, event: impl Into<String>) -> String {
         Self::stop_event(target, source, event)
     }
 
     /// Stop a sound with an intentionally opaque event token.
-    #[doc = "**API Contract:** Run `sand api show sand::command::Sound::stop_event_raw` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::command::Sound::stop_event_raw",
+        aliases = ["sand::cmd::Sound::stop_event_raw", "sand::prelude::Sound::stop_event_raw", "sand::prelude::cmd::Sound::stop_event_raw"],
+        module = "sand::command",
+        kind = "method",
+        summary = "Stop a sound with an intentionally opaque event token.",
+        context = "Stop a sound with an intentionally opaque event token. This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
+        minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
+        use_when = ["Constructing Minecraft commands through Sand's typed command model"],
+        avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
+        params(target = "`target` provides the entity, block, or command target used to stop a sound with an intentionally opaque event token.", source = "`source` supplies the source value used to stop a sound with an intentionally opaque event token.", event = "`event` supplies the event value used to stop a sound with an intentionally opaque event token."),
+        returns = "The string value produced to stop a sound with an intentionally opaque event token.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(target: sand::command::Selector, source: sand::command::SoundSource, event: impl Into < String >)  {\n    let stop_event_raw = sand::command::Sound::stop_event_raw(target, source, event);\n}",
+    )]
     pub fn stop_event_raw(
         target: Selector,
         source: SoundSource,
@@ -301,41 +518,44 @@ impl RenderCommand for Sound {
     }
 }
 
-#[doc = "**API Contract:** Run `sand api show sand::command::StopSoundCommand` for the canonical contract."]
+#[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::command::StopSoundCommand",
+    aliases = ["sand::cmd::StopSoundCommand", "sand::prelude::cmd::StopSoundCommand"],
+    module = "sand::command",
+    summary = "Structured forms of `stopsound`.",
+    context = "Structured forms of `stopsound`. This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
+    minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
+    use_when = ["Constructing Minecraft commands through Sand's typed command model"],
+    avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
+    example = "use sand::command::StopSoundCommand;",
+    variants(All = "Selects the all form of the stop sound command Minecraft command value.", Event = "Selects the event form of the stop sound command Minecraft command value.", Source = "Selects the source form of the stop sound command Minecraft command value."),
+    variant_fields(All(target = "`target` provides the command target when the variant selects the all form of the stop sound command Minecraft command value."), Event(event = "`event` provides the event when the variant selects the event form of the stop sound command Minecraft command value.", raw_event = "`raw_event` provides the raw event when the variant selects the event form of the stop sound command Minecraft command value.", source = "`source` provides the source when the variant selects the event form of the stop sound command Minecraft command value.", target = "`target` provides the command target when the variant selects the event form of the stop sound command Minecraft command value."), Source(source = "`source` provides the source when the variant selects the source form of the stop sound command Minecraft command value.", target = "`target` provides the command target when the variant selects the source form of the stop sound command Minecraft command value.")),
+)]
 /// Structured forms of `stopsound`.
 #[derive(Debug, Clone)]
 pub enum StopSoundCommand {
     #[doc = "Selects the all form of the stop sound command Minecraft command value."]
-    #[doc = "**API Contract:** Run `sand api show sand::command::StopSoundCommand::All` for the canonical contract."]
     All {
         /// `target` provides the command target when the variant selects the all form of the stop sound command Minecraft command value.
-        #[doc = "**API Contract:** Run `sand api show sand::command::StopSoundCommand::All::target` for the canonical contract."]
         target: Selector,
     },
     #[doc = "Selects the source form of the stop sound command Minecraft command value."]
-    #[doc = "**API Contract:** Run `sand api show sand::command::StopSoundCommand::Source` for the canonical contract."]
     Source {
         /// `target` provides the command target when the variant selects the source form of the stop sound command Minecraft command value.
-        #[doc = "**API Contract:** Run `sand api show sand::command::StopSoundCommand::Source::target` for the canonical contract."]
         target: Selector,
         /// `source` provides the source when the variant selects the source form of the stop sound command Minecraft command value.
-        #[doc = "**API Contract:** Run `sand api show sand::command::StopSoundCommand::Source::source` for the canonical contract."]
         source: SoundSource,
     },
     #[doc = "Selects the event form of the stop sound command Minecraft command value."]
-    #[doc = "**API Contract:** Run `sand api show sand::command::StopSoundCommand::Event` for the canonical contract."]
     Event {
         /// `target` provides the command target when the variant selects the event form of the stop sound command Minecraft command value.
-        #[doc = "**API Contract:** Run `sand api show sand::command::StopSoundCommand::Event::target` for the canonical contract."]
         target: Selector,
         /// `source` provides the source when the variant selects the event form of the stop sound command Minecraft command value.
-        #[doc = "**API Contract:** Run `sand api show sand::command::StopSoundCommand::Event::source` for the canonical contract."]
         source: SoundSource,
         /// `event` provides the event when the variant selects the event form of the stop sound command Minecraft command value.
-        #[doc = "**API Contract:** Run `sand api show sand::command::StopSoundCommand::Event::event` for the canonical contract."]
         event: String,
         /// `raw_event` provides the raw event when the variant selects the event form of the stop sound command Minecraft command value.
-        #[doc = "**API Contract:** Run `sand api show sand::command::StopSoundCommand::Event::raw_event` for the canonical contract."]
         raw_event: bool,
     },
 }

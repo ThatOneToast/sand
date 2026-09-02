@@ -6,7 +6,18 @@ use std::any::TypeId;
 use std::marker::PhantomData;
 use std::sync::OnceLock;
 
-#[doc = "**API Contract:** Run `sand api show sand::event::handle::EventHandle` for the canonical contract."]
+#[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::event::handle::EventHandle",
+    aliases = ["sand::prelude::EventHandle"],
+    module = "sand::event",
+    summary = "Runtime handle for enabling, disabling, and resetting an advancement-backed event.",
+    context = "Runtime handle for enabling, disabling, and resetting an advancement-backed event. The generic parameter `E` is a marker that binds the handle to a specific event type. No trait bound is required — the objective name is derived lazily from `E`'s fully-qualified Rust type name via [`std::any::type_name`]. The scoreboard objective is `__ev_<8-hex-chars>` where the hash input is the fully-qualified Rust type name of `E` (e.g. `arcane_pack::events::AteGoldenAppleEvent`).  This is stable within a compilation but may change if the type is moved to a different module.",
+    minecraft = "The scoreboard objective is `__ev_<8-hex-chars>` where the hash input is the fully-qualified Rust type name of `E` (e.g. `arcane_pack::events::AteGoldenAppleEvent`).  This is stable within a compilation but may change if the type is moved to a different module.",
+    use_when = ["Defining, composing, or handling a typed Sand event"],
+    avoid_when = ["Inspecting generated advancement or event-graph implementation state"],
+    example = "use sand::event::handle::EventHandle;",
+)]
 /// Runtime handle for enabling, disabling, and resetting an advancement-backed event.
 ///
 /// The generic parameter `E` is a marker that binds the handle to a specific
@@ -52,7 +63,20 @@ impl<E> EventHandle<E> {
     ///
     /// The scoreboard objective name is derived from the Rust type name of `E`
     /// the first time any method on this handle is called — no string required.
-    #[doc = "**API Contract:** Run `sand api show sand::event::handle::EventHandle::new` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::event::handle::EventHandle::new",
+        aliases = ["sand::prelude::EventHandle::new"],
+        module = "sand::event",
+        kind = "method",
+        summary = "Create a typed event handle bound to event type `E`.",
+        context = "Create a typed event handle bound to event type `E`. The scoreboard objective name is derived from the Rust type name of `E` the first time any method on this handle is called — no string required.",
+        minecraft = "The scoreboard objective name is derived from the Rust type name of `E` the first time any method on this handle is called — no string required.",
+        use_when = ["Defining, composing, or handling a typed Sand event"],
+        avoid_when = ["Inspecting generated advancement or event-graph implementation state"],
+        returns = "A newly constructed `EventHandle` configured to create a typed event handle bound to event type `E`.",
+        example = "use sand::prelude::*;\n\nfn demonstrate<E: 'static>()  {\n    let event_handle = sand::event::handle::EventHandle ::< E >::new();\n}",
+    )]
     pub const fn new() -> Self {
         Self {
             objective: OnceLock::new(),
@@ -64,7 +88,20 @@ impl<E> EventHandle<E> {
     /// `scoreboard objectives add <obj> dummy` — register the objective.
     ///
     /// Call this in your `#[datapack_component(Load)]` function.
-    #[doc = "**API Contract:** Run `sand api show sand::event::handle::EventHandle::define` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::event::handle::EventHandle::define",
+        aliases = ["sand::prelude::EventHandle::define"],
+        module = "sand::event",
+        kind = "method",
+        summary = "`scoreboard objectives add <obj> dummy` — register the objective.",
+        context = "`scoreboard objectives add <obj> dummy` — register the objective. Call this in your `#[datapack_component(Load)]` function.",
+        minecraft = "Call this in your `#[datapack_component(Load)]` function.",
+        use_when = ["Call this in your `#[datapack_component(Load)]` function."],
+        avoid_when = ["Inspecting generated advancement or event-graph implementation state"],
+        returns = "The string value produced to emit the documented `scoreboard objectives add <obj> dummy` — register the objective form.",
+        example = "use sand::prelude::*;\n\nfn demonstrate<E: 'static>(event_handle_value: &sand::event::handle::EventHandle < E >)  {\n    let define = event_handle_value.define();\n}",
+    )]
     pub fn define(&self) -> String {
         format!("scoreboard objectives add {} dummy", self.objective_name())
     }
@@ -78,7 +115,20 @@ impl<E> EventHandle<E> {
     ///     Some(GOLDEN_APPLE.condition().and(MANA.of("@s").lt(100)))
     /// }
     /// ```
-    #[doc = "**API Contract:** Run `sand api show sand::event::handle::EventHandle::condition` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::event::handle::EventHandle::condition",
+        aliases = ["sand::prelude::EventHandle::condition"],
+        module = "sand::event",
+        kind = "method",
+        summary = "Build a [`Condition`] that checks whether this event is enabled for `@s`.",
+        context = "Build a [`Condition`] that checks whether this event is enabled for `@s`. Inject into your event's `guard()` implementation to honour the handle.",
+        minecraft = "Checks whether `@s` has score 1 in the handle's derived scoreboard objective; it does not inspect advancement grant state.",
+        use_when = ["Defining, composing, or handling a typed Sand event"],
+        avoid_when = ["Inspecting generated advancement or event-graph implementation state"],
+        returns = "The `Condition` value produced to build a [`Condition`] that checks whether this event is enabled for `@s`.",
+        example = "fn guard() -> Option<Condition> {\nSome(GOLDEN_APPLE.condition().and(MANA.of(\"@s\").lt(100)))\n}",
+    )]
     pub fn condition(&self) -> Condition {
         Condition::score(
             "@s".into(),
@@ -88,7 +138,21 @@ impl<E> EventHandle<E> {
     }
 
     /// Command to enable this event for the given selector.
-    #[doc = "**API Contract:** Run `sand api show sand::event::handle::EventHandle::enable` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::event::handle::EventHandle::enable",
+        aliases = ["sand::prelude::EventHandle::enable"],
+        module = "sand::event",
+        kind = "method",
+        summary = "Command to enable this event for the given selector.",
+        context = "Command to enable this event for the given selector. This typed event API is part of Sand's author-facing event model; exporter records and generated function wiring remain private.",
+        minecraft = "Renders `scoreboard players set <selector> <derived-objective> 1`; the event guard must use condition to honor this flag.",
+        use_when = ["Defining, composing, or handling a typed Sand event"],
+        avoid_when = ["Inspecting generated advancement or event-graph implementation state"],
+        params(selector = "`selector` provides the Minecraft target selection used to command to enable this event for the given selector."),
+        returns = "The rendered Minecraft command text produced to command to enable this event for the given selector.",
+        example = "use std::fmt;\nuse sand::prelude::*;\n\nfn demonstrate<E: 'static>(event_handle_value: &sand::event::handle::EventHandle < E >, selector: impl std::fmt::Display)  {\n    let command = event_handle_value.enable(selector);\n}",
+    )]
     pub fn enable(&self, selector: impl std::fmt::Display) -> String {
         format!(
             "scoreboard players set {selector} {} 1",
@@ -97,7 +161,21 @@ impl<E> EventHandle<E> {
     }
 
     /// Command to disable this event for the given selector.
-    #[doc = "**API Contract:** Run `sand api show sand::event::handle::EventHandle::disable` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::event::handle::EventHandle::disable",
+        aliases = ["sand::prelude::EventHandle::disable"],
+        module = "sand::event",
+        kind = "method",
+        summary = "Command to disable this event for the given selector.",
+        context = "Command to disable this event for the given selector. This typed event API is part of Sand's author-facing event model; exporter records and generated function wiring remain private.",
+        minecraft = "Renders `scoreboard players set <selector> <derived-objective> 0`; it does not revoke or re-arm the event advancement.",
+        use_when = ["Defining, composing, or handling a typed Sand event"],
+        avoid_when = ["Inspecting generated advancement or event-graph implementation state"],
+        params(selector = "`selector` provides the Minecraft target selection used to command to disable this event for the given selector."),
+        returns = "The rendered Minecraft command text produced to command to disable this event for the given selector.",
+        example = "use std::fmt;\nuse sand::prelude::*;\n\nfn demonstrate<E: 'static>(event_handle_value: &sand::event::handle::EventHandle < E >, selector: impl std::fmt::Display)  {\n    let command = event_handle_value.disable(selector);\n}",
+    )]
     pub fn disable(&self, selector: impl std::fmt::Display) -> String {
         format!(
             "scoreboard players set {selector} {} 0",
@@ -113,7 +191,21 @@ impl<E> EventHandle<E> {
     /// exporting the datapack.
     ///
     /// Requires `E: 'static` for the `TypeId` lookup.
-    #[doc = "**API Contract:** Run `sand api show sand::event::handle::EventHandle::revoke` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::event::handle::EventHandle::revoke",
+        aliases = ["sand::prelude::EventHandle::revoke"],
+        module = "sand::event",
+        kind = "method",
+        summary = "Revoke (re-arm) the advancement for this event. Emits `advancement revoke <selector> only <ns>:<path>`.  The advancement resource location comes from the event registration produced by `#[on_event]`; Sand replaces its project-namespace sentinel while exporting the datapack.",
+        context = "Revoke (re-arm) the advancement for this event. Emits `advancement revoke <selector> only <ns>:<path>`.  The advancement resource location comes from the event registration produced by `#[on_event]`; Sand replaces its project-namespace sentinel while exporting the datapack. Requires `E: 'static` for the `TypeId` lookup.",
+        minecraft = "Emits `advancement revoke <selector> only <ns>:<path>`.  The advancement resource location comes from the event registration produced by `#[on_event]`; Sand replaces its project-namespace sentinel while exporting the datapack.",
+        use_when = ["Defining, composing, or handling a typed Sand event"],
+        avoid_when = ["Inspecting generated advancement or event-graph implementation state"],
+        params(selector = "`selector` provides the Minecraft target selection used to revoke (re-arm) the advancement for this event. Emits `advancement revoke <selector> only <ns>:<path>`. The advancement resource location comes from the event registration produced by `#[on_event]`; Sand replaces its project-namespace sentinel while exporting the datapack."),
+        returns = "The string value produced to revoke (re-arm) the advancement for this event. Emits `advancement revoke <selector> only <ns>:<path>`. The advancement resource location comes from the event registration produced by `#[on_event]`; Sand replaces its project-namespace sentinel while exporting the datapack.",
+        example = "use std::fmt;\nuse sand::prelude::*;\n\nfn demonstrate<E: 'static>(event_handle_value: &sand::event::handle::EventHandle < E >, selector: impl std::fmt::Display) where E : 'static {\n    let revoke = event_handle_value.revoke(selector);\n}",
+    )]
     pub fn revoke(&self, selector: impl std::fmt::Display) -> String
     where
         E: 'static,
@@ -125,7 +217,21 @@ impl<E> EventHandle<E> {
     }
 
     /// Alias for [`revoke`](EventHandle::revoke).
-    #[doc = "**API Contract:** Run `sand api show sand::event::handle::EventHandle::reset` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::event::handle::EventHandle::reset",
+        aliases = ["sand::prelude::EventHandle::reset"],
+        module = "sand::event",
+        kind = "method",
+        summary = "Alias for [`revoke`](EventHandle::revoke).",
+        context = "Alias for [`revoke`](EventHandle::revoke). This typed event API is part of Sand's author-facing event model; exporter records and generated function wiring remain private.",
+        minecraft = "It emits the same advancement revoke operation as revoke.",
+        use_when = ["Defining, composing, or handling a typed Sand event"],
+        avoid_when = ["Inspecting generated advancement or event-graph implementation state"],
+        params(selector = "`selector` provides the Minecraft target selection used to use alias for [`revoke`](EventHandle::revoke)."),
+        returns = "The string value produced to use alias for [`revoke`](EventHandle::revoke).",
+        example = "use std::fmt;\nuse sand::prelude::*;\n\nfn demonstrate<E: 'static>(event_handle_value: &sand::event::handle::EventHandle < E >, selector: impl std::fmt::Display) where E : 'static {\n    let reset = event_handle_value.reset(selector);\n}",
+    )]
     pub fn reset(&self, selector: impl std::fmt::Display) -> String
     where
         E: 'static,
@@ -136,7 +242,21 @@ impl<E> EventHandle<E> {
     /// Grant the advancement for this event (manually fire the trigger logic).
     ///
     /// Emits `advancement grant <selector> only <ns>:<path>`.
-    #[doc = "**API Contract:** Run `sand api show sand::event::handle::EventHandle::grant` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::event::handle::EventHandle::grant",
+        aliases = ["sand::prelude::EventHandle::grant"],
+        module = "sand::event",
+        kind = "method",
+        summary = "Grant the advancement for this event (manually fire the trigger logic).",
+        context = "Grant the advancement for this event (manually fire the trigger logic). Emits `advancement grant <selector> only <ns>:<path>`.",
+        minecraft = "Grant affects Minecraft's advancement state and is useful for deliberate one-shot lifecycle control.",
+        use_when = ["Defining, composing, or handling a typed Sand event"],
+        avoid_when = ["Inspecting generated advancement or event-graph implementation state"],
+        params(selector = "`selector` provides the Minecraft target selection used to grant the advancement for this event (manually fire the trigger logic)."),
+        returns = "The string value produced to grant the advancement for this event (manually fire the trigger logic).",
+        example = "use std::fmt;\nuse sand::prelude::*;\n\nfn demonstrate<E: 'static>(event_handle_value: &sand::event::handle::EventHandle < E >, selector: impl std::fmt::Display) where E : 'static {\n    let grant = event_handle_value.grant(selector);\n}",
+    )]
     pub fn grant(&self, selector: impl std::fmt::Display) -> String
     where
         E: 'static,

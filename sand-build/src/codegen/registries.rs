@@ -6,7 +6,7 @@ use heck::ToPascalCase;
 use sand_api_contract::{ApiEntry, ApiKind};
 use serde::Deserialize;
 
-use crate::api_provider::{ApiProviderCatalog, GeneratedProviderEntry};
+use crate::api_provider::{ApiProviderCatalog, GeneratedProviderEntry, write_contract_rustdoc};
 use crate::error::Result;
 
 /// Registries to generate, as `(registry_key, EnumName, doc_comment)`.
@@ -74,13 +74,9 @@ pub fn generate(reports_dir: &Path, out_dir: &Path, minecraft_version: &str) -> 
         let mut entries: Vec<(&String, &EntryData)> = registry.entries.iter().collect();
         entries.sort_by_key(|(_, v)| v.protocol_id);
 
-        write_enum(&mut code, enum_name, doc, &entries);
-        api_entries.extend(enum_api_entries(
-            enum_name,
-            registry_key,
-            &entries,
-            minecraft_version,
-        ));
+        let contracts = enum_api_entries(enum_name, registry_key, &entries, minecraft_version);
+        write_enum(&mut code, enum_name, doc, &entries, &contracts);
+        api_entries.extend(contracts);
     }
 
     let out_path = out_dir.join("registries.rs");
@@ -202,22 +198,29 @@ fn enum_api_entries(
     result
 }
 
-fn write_enum(code: &mut String, enum_name: &str, doc: &str, entries: &[(&String, &EntryData)]) {
-    writeln!(code, "/// {doc}").unwrap();
-    writeln!(code, "///").unwrap();
-    writeln!(code, "/// # API Contract").unwrap();
-    writeln!(code, "///").unwrap();
-    writeln!(code, "/// `sand api show sand::vanilla::{enum_name}`").unwrap();
+fn write_enum(
+    code: &mut String,
+    enum_name: &str,
+    _doc: &str,
+    entries: &[(&String, &EntryData)],
+    contracts: &[GeneratedProviderEntry],
+) {
+    let enum_contract = contracts
+        .iter()
+        .find(|entry| entry.contract.kind == ApiKind::Enum)
+        .expect("registry generator creates an enum contract");
+    write_contract_rustdoc(code, "", &enum_contract.contract);
     writeln!(code, "#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]").unwrap();
     writeln!(code, "pub enum {enum_name} {{").unwrap();
 
     for (key, _) in entries {
         let variant = resource_key_to_variant(key);
-        writeln!(
-            code,
-            "    /// `sand api show sand::vanilla::{enum_name}::{variant}`"
-        )
-        .unwrap();
+        let path = format!("sand::vanilla::{enum_name}::{variant}");
+        let variant_contract = contracts
+            .iter()
+            .find(|entry| entry.contract.canonical_path == path)
+            .expect("registry generator creates a variant contract");
+        write_contract_rustdoc(code, "    ", &variant_contract.contract);
         writeln!(code, "    {variant},").unwrap();
     }
 
@@ -226,11 +229,11 @@ fn write_enum(code: &mut String, enum_name: &str, doc: &str, entries: &[(&String
 
     // resource_location() impl
     writeln!(code, "impl {enum_name} {{").unwrap();
-    writeln!(
-        code,
-        "    /// # API Contract\n    /// `sand api show sand::vanilla::{enum_name}::resource_location`"
-    )
-    .unwrap();
+    let method_contract = contracts
+        .iter()
+        .find(|entry| entry.contract.kind == ApiKind::Method)
+        .expect("registry generator creates a resource-location contract");
+    write_contract_rustdoc(code, "    ", &method_contract.contract);
     writeln!(
         code,
         "    pub fn resource_location(&self) -> &'static str {{"
@@ -329,6 +332,12 @@ mod tests {
         assert!(generated.contains("Stone,"));
         assert!(generated.contains("\"minecraft:air\""));
         assert!(generated.contains("\"minecraft:stone\""));
+        assert!(
+            generated
+                .contains("#[doc = \"Selects the vanilla registry entry `minecraft:stone`.\"]")
+        );
+        assert!(generated.contains("#[doc = \"# Minecraft behavior\"]"));
+        assert!(!generated.contains("sand api show"));
 
         let provider = crate::read_api_provider(&out.join("registries.api.json")).unwrap();
         crate::validate_api_provider_source(

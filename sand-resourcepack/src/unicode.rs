@@ -103,7 +103,20 @@ pub fn bar_base_codepoint(name: &str) -> u32 {
 /// let ch = sand_resourcepack::bar_char("health", 0);
 /// assert!(('\u{E000}'..='\u{F8FF}').contains(&ch));
 /// ```
-#[doc = "**API Contract:** Run `sand api show sand::resourcepack::bar_char` for the canonical contract."]
+#[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::resourcepack::bar_char",
+    module = "sand::resourcepack",
+    summary = "Return the unicode character for frame `frame` of bar `name`.",
+    context = "Return the unicode character for frame `frame` of bar `name`. This API defines client-side HUD, font, texture, or resource-pack output while keeping asset registration and exporter inventory wiring private.",
+    minecraft = "The resourcepack exporter writes version-appropriate assets, bitmap-font providers, and pack metadata for the selected Minecraft profile.",
+    use_when = ["Building HUD bars, HUD elements, textures, or resource-pack output alongside a Sand datapack"],
+    avoid_when = ["The project is datapack-only or needs unrelated resource-pack functionality not modeled by Sand"],
+    params(name = "Return the unicode character for frame `frame` of bar `name`.", frame = "Return the unicode character for frame `frame` of bar `name`."),
+    returns = "Return the unicode character for frame `frame` of bar `name`.",
+    example = "let ch = sand::resourcepack::bar_char(\"health\", 0);\nassert!(('\\u{E000}'..='\\u{F8FF}').contains(&ch));",
+    availability = ["Cargo feature: resourcepack"],
+)]
 pub fn bar_char(name: &str, frame: u32) -> char {
     char::from_u32(bar_base_codepoint(name) + frame).unwrap_or('\u{FFFD}')
 }
@@ -124,7 +137,20 @@ pub fn element_codepoint(name: &str) -> u32 {
 /// let ch = sand_resourcepack::element_char("hotbar_bg");
 /// assert!(('\u{E000}'..='\u{F8FF}').contains(&ch));
 /// ```
-#[doc = "**API Contract:** Run `sand api show sand::resourcepack::element_char` for the canonical contract."]
+#[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::resourcepack::element_char",
+    module = "sand::resourcepack",
+    summary = "Return the unicode character assigned to the element named `name`.",
+    context = "Return the unicode character assigned to the element named `name`. This API defines client-side HUD, font, texture, or resource-pack output while keeping asset registration and exporter inventory wiring private.",
+    minecraft = "The resourcepack exporter writes version-appropriate assets, bitmap-font providers, and pack metadata for the selected Minecraft profile.",
+    use_when = ["Building HUD bars, HUD elements, textures, or resource-pack output alongside a Sand datapack"],
+    avoid_when = ["The project is datapack-only or needs unrelated resource-pack functionality not modeled by Sand"],
+    params(name = "Return the unicode character assigned to the element named `name`."),
+    returns = "Return the unicode character assigned to the element named `name`.",
+    example = "let ch = sand::resourcepack::element_char(\"hotbar_bg\");\nassert!(('\\u{E000}'..='\\u{F8FF}').contains(&ch));",
+    availability = ["Cargo feature: resourcepack"],
+)]
 pub fn element_char(name: &str) -> char {
     char::from_u32(element_codepoint(name)).unwrap_or('\u{FFFD}')
 }
@@ -153,7 +179,20 @@ pub fn element_char(name: &str) -> char {
 /// // Shift the health bar 20 pixels to the right of its natural position.
 /// let cmd = HEALTH.show_at("@a", 5, "my_pack", 20);
 /// ```
-#[doc = "**API Contract:** Run `sand api show sand::resourcepack::advance_x` for the canonical contract."]
+#[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::resourcepack::advance_x",
+    module = "sand::resourcepack",
+    summary = "Returns a string of Private-Use-Area characters whose combined advance width equals `offset` pixels.",
+    context = "Returns a string of Private-Use-Area characters whose combined advance width equals `offset` pixels. Positive `offset` shifts the cursor right; negative shifts it left. An offset of `0` returns an empty string. The returned characters must be placed in the same font text component as the bar or element you are positioning. Sand automatically registers the required `space` font provider in every exported font file, so no manual font setup is needed. Supports any offset in `[-2047, +2047]`. Larger absolute values are clamped to 2047 by the binary decomposition.",
+    minecraft = "The returned characters must be placed in the same font text component as the bar or element you are positioning. Sand automatically registers the required `space` font provider in every exported font file, so no manual font setup is needed.",
+    use_when = ["Building HUD bars, HUD elements, textures, or resource-pack output alongside a Sand datapack"],
+    avoid_when = ["The project is datapack-only or needs unrelated resource-pack functionality not modeled by Sand"],
+    params(offset = "Returns a string of Private-Use-Area characters whose combined advance width equals `offset` pixels."),
+    returns = "Returns a string of Private-Use-Area characters whose combined advance width equals `offset` pixels.",
+    example = "use sand::prelude::*;\n\nfn demonstrate(offset: i32)  {\n    let advance_x = sand::resourcepack::advance_x(offset);\n}",
+    availability = ["Cargo feature: resourcepack"],
+)]
 pub fn advance_x(offset: i32) -> String {
     if offset == 0 {
         return String::new();
@@ -205,7 +244,20 @@ pub(crate) fn json_escape_chars(s: &str) -> String {
 ///     format!("title @a actionbar {json}");
 /// }
 /// ```
-#[doc = "**API Contract:** Run `sand api show sand::resourcepack::bar_text_json` for the canonical contract."]
+#[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::resourcepack::bar_text_json",
+    module = "sand::resourcepack",
+    summary = "Return a Minecraft JSON text component string that renders frame `frame` of bar `name` using the given namespace and font file.",
+    context = "Return a Minecraft JSON text component string that renders frame `frame` of bar `name` using the given namespace and font file. The returned string can be passed directly to `tellraw`, `title`, or `actionbar` commands.",
+    minecraft = "The returned string can be passed directly to `tellraw`, `title`, or `actionbar` commands.",
+    use_when = ["Building HUD bars, HUD elements, textures, or resource-pack output alongside a Sand datapack"],
+    avoid_when = ["The project is datapack-only or needs unrelated resource-pack functionality not modeled by Sand"],
+    params(name = "Return a Minecraft JSON text component string that renders frame `frame` of bar `name` using the given namespace and font file.", frame = "Return a Minecraft JSON text component string that renders frame `frame` of bar `name` using the given namespace and font file.", namespace = "`namespace` supplies the namespace value used to return a Minecraft JSON text component string that renders frame `frame` of bar `name` using the given namespace and font file.", font_name = "`font_name` supplies the font name value used to return a Minecraft JSON text component string that renders frame `frame` of bar `name` using the given namespace and font file."),
+    returns = "Return a Minecraft JSON text component string that renders frame `frame` of bar `name` using the given namespace and font file.",
+    example = "let json = sand::resourcepack::bar_text_json(\"health\", 7, \"my_pack\", \"default\");\n// Use in a Minecraft command:\n// title @a actionbar {\"text\":\"\\uE047\",\"font\":\"my_pack:default\",\"color\":\"white\"}\nmcfunction! {\nformat!(\"title @a actionbar {json}\");\n}",
+    availability = ["Cargo feature: resourcepack"],
+)]
 pub fn bar_text_json(name: &str, frame: u32, namespace: &str, font_name: &str) -> String {
     let cp = bar_base_codepoint(name) + frame;
     let font_id = format!("{namespace}:{font_name}");
@@ -224,7 +276,20 @@ pub fn bar_text_json(name: &str, frame: u32, namespace: &str, font_name: &str) -
 ///     format!("title @a actionbar {json}");
 /// }
 /// ```
-#[doc = "**API Contract:** Run `sand api show sand::resourcepack::element_text_json` for the canonical contract."]
+#[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::resourcepack::element_text_json",
+    module = "sand::resourcepack",
+    summary = "Return a Minecraft JSON text component string that renders the element named `name` using the given namespace and font file.",
+    context = "Return a Minecraft JSON text component string that renders the element named `name` using the given namespace and font file. This API defines client-side HUD, font, texture, or resource-pack output while keeping asset registration and exporter inventory wiring private.",
+    minecraft = "The resourcepack exporter writes version-appropriate assets, bitmap-font providers, and pack metadata for the selected Minecraft profile.",
+    use_when = ["Building HUD bars, HUD elements, textures, or resource-pack output alongside a Sand datapack"],
+    avoid_when = ["The project is datapack-only or needs unrelated resource-pack functionality not modeled by Sand"],
+    params(name = "Return a Minecraft JSON text component string that renders the element named `name` using the given namespace and font file.", namespace = "`namespace` supplies the namespace value used to return a Minecraft JSON text component string that renders the element named `name` using the given namespace and font file.", font_name = "`font_name` supplies the font name value used to return a Minecraft JSON text component string that renders the element named `name` using the given namespace and font file."),
+    returns = "Return a Minecraft JSON text component string that renders the element named `name` using the given namespace and font file.",
+    example = "let json = sand::resourcepack::element_text_json(\"hotbar_bg\", \"my_pack\", \"hud\");\nmcfunction! {\nformat!(\"title @a actionbar {json}\");\n}",
+    availability = ["Cargo feature: resourcepack"],
+)]
 pub fn element_text_json(name: &str, namespace: &str, font_name: &str) -> String {
     let cp = element_codepoint(name);
     let font_id = format!("{namespace}:{font_name}");

@@ -118,7 +118,19 @@ use crate::state::{
 
 // ── Typed field handles ──────────────────────────────────────────────────────
 
-#[doc = "**API Contract:** Run `sand api show sand::systems::player_data::ScoreField` for the canonical contract."]
+#[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::systems::player_data::ScoreField",
+    aliases = ["sand::prelude::ScoreField"],
+    module = "sand::systems",
+    summary = "Schema field handle backed by the existing [`ScoreVar`].",
+    context = "Schema field handle backed by the existing [`ScoreVar`]. This opt-in system composes Sand's typed primitives into a higher-level gameplay behavior; exporter registries and generated tick bookkeeping are private.",
+    minecraft = "The exact commands, resources, and lifecycle behavior are described by the defining item's source documentation for the selected feature and Minecraft profile.",
+    use_when = ["Opting into the documented higher-level gameplay behavior instead of assembling its commands manually"],
+    avoid_when = ["Using the API outside its documented system scope or feature configuration"],
+    example = "use sand::systems::player_data::ScoreField;",
+    availability = ["Cargo feature: systems-player-data"],
+)]
 /// Schema field handle backed by the existing [`ScoreVar`].
 pub struct ScoreField<T = i32> {
     value: ScoreVar<T>,
@@ -127,7 +139,22 @@ pub struct ScoreField<T = i32> {
 
 impl<T> ScoreField<T> {
     /// Defines an integer-backed player field stored in the named scoreboard objective.
-    #[doc = "**API Contract:** Run `sand api show sand::systems::player_data::ScoreField::new` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::systems::player_data::ScoreField::new",
+        aliases = ["sand::prelude::ScoreField::new"],
+        module = "sand::systems",
+        kind = "method",
+        summary = "Defines an integer-backed player field stored in the named scoreboard objective.",
+        context = "Defines an integer-backed player field stored in the named scoreboard objective. This opt-in system composes Sand's typed primitives into a higher-level gameplay behavior; exporter registries and generated tick bookkeeping are private.",
+        minecraft = "The exact commands, resources, and lifecycle behavior are described by the defining item's source documentation for the selected feature and Minecraft profile.",
+        use_when = ["Opting into the documented higher-level gameplay behavior instead of assembling its commands manually"],
+        avoid_when = ["Using the API outside its documented system scope or feature configuration"],
+        params(objective = "`objective` supplies the objective value used to define an integer-backed player field stored in the named scoreboard objective."),
+        returns = "A newly constructed `ScoreField` configured to define an integer-backed player field stored in the named scoreboard objective.",
+        example = "use sand::prelude::*;\n\nfn demonstrate<T: 'static>(objective: & 'static str)  {\n    let score_field = sand::systems::player_data::ScoreField ::< T >::new(objective);\n}",
+        availability = ["Cargo feature: systems-player-data"],
+    )]
     pub const fn new(objective: &'static str) -> Self {
         Self {
             value: ScoreVar::new(objective),
@@ -136,32 +163,102 @@ impl<T> ScoreField<T> {
     }
 
     /// Sets the score assigned when this player field is initialized.
-    #[doc = "**API Contract:** Run `sand api show sand::systems::player_data::ScoreField::default` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::systems::player_data::ScoreField::default",
+        aliases = ["sand::prelude::ScoreField::default"],
+        module = "sand::systems",
+        kind = "method",
+        summary = "Sets the score assigned when this player field is initialized.",
+        context = "Sets the score assigned when this player field is initialized. This opt-in system composes Sand's typed primitives into a higher-level gameplay behavior; exporter registries and generated tick bookkeeping are private.",
+        minecraft = "The exact commands, resources, and lifecycle behavior are described by the defining item's source documentation for the selected feature and Minecraft profile.",
+        use_when = ["Opting into the documented higher-level gameplay behavior instead of assembling its commands manually"],
+        avoid_when = ["Using the API outside its documented system scope or feature configuration"],
+        params(value = "`value` provides the value being applied or compared used to set the score assigned when this player field is initialized."),
+        returns = "The `ScoreField` value with the documented change applied to set the score assigned when this player field is initialized.",
+        example = "use sand::prelude::*;\n\nfn demonstrate<T: 'static>(score_field_value: sand::systems::player_data::ScoreField < T >, value: i32)  {\n    let updated_score_field = score_field_value.default(value);\n}",
+        availability = ["Cargo feature: systems-player-data"],
+    )]
     pub const fn default(mut self, value: i32) -> Self {
         self.default = value;
         self
     }
 
     /// Binds this field to one player's selector.
-    #[doc = "**API Contract:** Run `sand api show sand::systems::player_data::ScoreField::of` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::systems::player_data::ScoreField::of",
+        aliases = ["sand::prelude::ScoreField::of"],
+        module = "sand::systems",
+        kind = "method",
+        summary = "Binds this field to one player's selector.",
+        context = "Binds this field to one player's selector. This opt-in system composes Sand's typed primitives into a higher-level gameplay behavior; exporter registries and generated tick bookkeeping are private.",
+        minecraft = "The exact commands, resources, and lifecycle behavior are described by the defining item's source documentation for the selected feature and Minecraft profile.",
+        use_when = ["Opting into the documented higher-level gameplay behavior instead of assembling its commands manually"],
+        avoid_when = ["Using the API outside its documented system scope or feature configuration"],
+        params(selector = "`selector` provides the Minecraft target selection used to bind this field to one player's selector."),
+        returns = "The `ScoreRef < 'a , T >` value produced to bind this field to one player's selector.",
+        example = "use sand::prelude::*;\n\nfn demonstrate<'a, T: 'static>(score_field_value: sand::systems::player_data::ScoreField < T >, selector: & str)  {\n    let of = score_field_value.of(selector);\n}",
+        availability = ["Cargo feature: systems-player-data"],
+    )]
     pub fn of<'a>(&'a self, selector: &str) -> ScoreRef<'a, T> {
         self.value.of(selector)
     }
 
     /// Returns the typed scoreboard variable underlying this field.
-    #[doc = "**API Contract:** Run `sand api show sand::systems::player_data::ScoreField::value` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::systems::player_data::ScoreField::value",
+        aliases = ["sand::prelude::ScoreField::value"],
+        module = "sand::systems",
+        kind = "method",
+        summary = "Returns the typed scoreboard variable underlying this field.",
+        context = "Returns the typed scoreboard variable underlying this field. This opt-in system composes Sand's typed primitives into a higher-level gameplay behavior; exporter registries and generated tick bookkeeping are private.",
+        minecraft = "The exact commands, resources, and lifecycle behavior are described by the defining item's source documentation for the selected feature and Minecraft profile.",
+        use_when = ["Opting into the documented higher-level gameplay behavior instead of assembling its commands manually"],
+        avoid_when = ["Using the API outside its documented system scope or feature configuration"],
+        returns = "Returns the typed scoreboard variable underlying this field.",
+        example = "use sand::prelude::*;\n\nfn demonstrate<T: 'static>(score_field_value: &sand::systems::player_data::ScoreField < T >)  {\n    let value = score_field_value.value();\n}",
+        availability = ["Cargo feature: systems-player-data"],
+    )]
     pub fn value(&self) -> &ScoreVar<T> {
         &self.value
     }
 
     /// Returns the score assigned during player initialization.
-    #[doc = "**API Contract:** Run `sand api show sand::systems::player_data::ScoreField::default_value` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::systems::player_data::ScoreField::default_value",
+        aliases = ["sand::prelude::ScoreField::default_value"],
+        module = "sand::systems",
+        kind = "method",
+        summary = "Returns the score assigned during player initialization.",
+        context = "Returns the score assigned during player initialization. This opt-in system composes Sand's typed primitives into a higher-level gameplay behavior; exporter registries and generated tick bookkeeping are private.",
+        minecraft = "The exact commands, resources, and lifecycle behavior are described by the defining item's source documentation for the selected feature and Minecraft profile.",
+        use_when = ["Opting into the documented higher-level gameplay behavior instead of assembling its commands manually"],
+        avoid_when = ["Using the API outside its documented system scope or feature configuration"],
+        returns = "Returns the score assigned during player initialization.",
+        example = "use sand::prelude::*;\n\nfn demonstrate<T: 'static>(score_field_value: &sand::systems::player_data::ScoreField < T >)  {\n    let default_value = score_field_value.default_value();\n}",
+        availability = ["Cargo feature: systems-player-data"],
+    )]
     pub fn default_value(&self) -> i32 {
         self.default
     }
 }
 
-#[doc = "**API Contract:** Run `sand api show sand::systems::player_data::FlagField` for the canonical contract."]
+#[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::systems::player_data::FlagField",
+    aliases = ["sand::prelude::FlagField"],
+    module = "sand::systems",
+    summary = "Schema field handle backed by the existing [`Flag`].",
+    context = "Schema field handle backed by the existing [`Flag`]. This opt-in system composes Sand's typed primitives into a higher-level gameplay behavior; exporter registries and generated tick bookkeeping are private.",
+    minecraft = "The exact commands, resources, and lifecycle behavior are described by the defining item's source documentation for the selected feature and Minecraft profile.",
+    use_when = ["Opting into the documented higher-level gameplay behavior instead of assembling its commands manually"],
+    avoid_when = ["Using the API outside its documented system scope or feature configuration"],
+    example = "use sand::systems::player_data::FlagField;",
+    availability = ["Cargo feature: systems-player-data"],
+)]
 /// Schema field handle backed by the existing [`Flag`].
 pub struct FlagField {
     value: Flag,
@@ -170,7 +267,22 @@ pub struct FlagField {
 
 impl FlagField {
     /// Defines a boolean player field stored in the named scoreboard objective.
-    #[doc = "**API Contract:** Run `sand api show sand::systems::player_data::FlagField::new` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::systems::player_data::FlagField::new",
+        aliases = ["sand::prelude::FlagField::new"],
+        module = "sand::systems",
+        kind = "method",
+        summary = "Defines a boolean player field stored in the named scoreboard objective.",
+        context = "Defines a boolean player field stored in the named scoreboard objective. This opt-in system composes Sand's typed primitives into a higher-level gameplay behavior; exporter registries and generated tick bookkeeping are private.",
+        minecraft = "The exact commands, resources, and lifecycle behavior are described by the defining item's source documentation for the selected feature and Minecraft profile.",
+        use_when = ["Opting into the documented higher-level gameplay behavior instead of assembling its commands manually"],
+        avoid_when = ["Using the API outside its documented system scope or feature configuration"],
+        params(objective = "`objective` supplies the objective value used to define a boolean player field stored in the named scoreboard objective."),
+        returns = "A newly constructed `FlagField` configured to define a boolean player field stored in the named scoreboard objective.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(objective: & 'static str)  {\n    let flag_field = sand::systems::player_data::FlagField::new(objective);\n}",
+        availability = ["Cargo feature: systems-player-data"],
+    )]
     pub const fn new(objective: &'static str) -> Self {
         Self {
             value: Flag::new(objective),
@@ -179,32 +291,102 @@ impl FlagField {
     }
 
     /// Sets the boolean assigned when this player field is initialized.
-    #[doc = "**API Contract:** Run `sand api show sand::systems::player_data::FlagField::default` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::systems::player_data::FlagField::default",
+        aliases = ["sand::prelude::FlagField::default"],
+        module = "sand::systems",
+        kind = "method",
+        summary = "Sets the boolean assigned when this player field is initialized.",
+        context = "Sets the boolean assigned when this player field is initialized. This opt-in system composes Sand's typed primitives into a higher-level gameplay behavior; exporter registries and generated tick bookkeeping are private.",
+        minecraft = "The exact commands, resources, and lifecycle behavior are described by the defining item's source documentation for the selected feature and Minecraft profile.",
+        use_when = ["Opting into the documented higher-level gameplay behavior instead of assembling its commands manually"],
+        avoid_when = ["Using the API outside its documented system scope or feature configuration"],
+        params(value = "`value` provides the value being applied or compared used to set the boolean assigned when this player field is initialized."),
+        returns = "The `FlagField` value with the documented change applied to set the boolean assigned when this player field is initialized.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(flag_field_value: sand::systems::player_data::FlagField, value: bool)  {\n    let updated_flag_field = flag_field_value.default(value);\n}",
+        availability = ["Cargo feature: systems-player-data"],
+    )]
     pub const fn default(mut self, value: bool) -> Self {
         self.default = value;
         self
     }
 
     /// Binds this flag field to one player's selector.
-    #[doc = "**API Contract:** Run `sand api show sand::systems::player_data::FlagField::of` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::systems::player_data::FlagField::of",
+        aliases = ["sand::prelude::FlagField::of"],
+        module = "sand::systems",
+        kind = "method",
+        summary = "Binds this flag field to one player's selector.",
+        context = "Binds this flag field to one player's selector. This opt-in system composes Sand's typed primitives into a higher-level gameplay behavior; exporter registries and generated tick bookkeeping are private.",
+        minecraft = "The exact commands, resources, and lifecycle behavior are described by the defining item's source documentation for the selected feature and Minecraft profile.",
+        use_when = ["Opting into the documented higher-level gameplay behavior instead of assembling its commands manually"],
+        avoid_when = ["Using the API outside its documented system scope or feature configuration"],
+        params(selector = "`selector` provides the Minecraft target selection used to bind this flag field to one player's selector."),
+        returns = "The `FlagRef < 'a >` value produced to bind this flag field to one player's selector.",
+        example = "use sand::prelude::*;\n\nfn demonstrate<'a>(flag_field_value: sand::systems::player_data::FlagField, selector: & str)  {\n    let of = flag_field_value.of(selector);\n}",
+        availability = ["Cargo feature: systems-player-data"],
+    )]
     pub fn of<'a>(&'a self, selector: &str) -> FlagRef<'a> {
         self.value.of(selector)
     }
 
     /// Returns the typed scoreboard flag underlying this field.
-    #[doc = "**API Contract:** Run `sand api show sand::systems::player_data::FlagField::value` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::systems::player_data::FlagField::value",
+        aliases = ["sand::prelude::FlagField::value"],
+        module = "sand::systems",
+        kind = "method",
+        summary = "Returns the typed scoreboard flag underlying this field.",
+        context = "Returns the typed scoreboard flag underlying this field. This opt-in system composes Sand's typed primitives into a higher-level gameplay behavior; exporter registries and generated tick bookkeeping are private.",
+        minecraft = "The exact commands, resources, and lifecycle behavior are described by the defining item's source documentation for the selected feature and Minecraft profile.",
+        use_when = ["Opting into the documented higher-level gameplay behavior instead of assembling its commands manually"],
+        avoid_when = ["Using the API outside its documented system scope or feature configuration"],
+        returns = "Returns the typed scoreboard flag underlying this field.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(flag_field_value: &sand::systems::player_data::FlagField)  {\n    let value = flag_field_value.value();\n}",
+        availability = ["Cargo feature: systems-player-data"],
+    )]
     pub fn value(&self) -> &Flag {
         &self.value
     }
 
     /// Returns the flag assigned during player initialization.
-    #[doc = "**API Contract:** Run `sand api show sand::systems::player_data::FlagField::default_value` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::systems::player_data::FlagField::default_value",
+        aliases = ["sand::prelude::FlagField::default_value"],
+        module = "sand::systems",
+        kind = "method",
+        summary = "Returns the flag assigned during player initialization.",
+        context = "Returns the flag assigned during player initialization. This opt-in system composes Sand's typed primitives into a higher-level gameplay behavior; exporter registries and generated tick bookkeeping are private.",
+        minecraft = "The exact commands, resources, and lifecycle behavior are described by the defining item's source documentation for the selected feature and Minecraft profile.",
+        use_when = ["Opting into the documented higher-level gameplay behavior instead of assembling its commands manually"],
+        avoid_when = ["Using the API outside its documented system scope or feature configuration"],
+        returns = "Returns the flag assigned during player initialization.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(flag_field_value: &sand::systems::player_data::FlagField)  {\n    let is_default_value = flag_field_value.default_value();\n}",
+        availability = ["Cargo feature: systems-player-data"],
+    )]
     pub fn default_value(&self) -> bool {
         self.default
     }
 }
 
-#[doc = "**API Contract:** Run `sand api show sand::systems::player_data::TimerField` for the canonical contract."]
+#[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::systems::player_data::TimerField",
+    aliases = ["sand::prelude::TimerField"],
+    module = "sand::systems",
+    summary = "Schema field handle backed by the existing [`Timer`].",
+    context = "Schema field handle backed by the existing [`Timer`]. This opt-in system composes Sand's typed primitives into a higher-level gameplay behavior; exporter registries and generated tick bookkeeping are private.",
+    minecraft = "The exact commands, resources, and lifecycle behavior are described by the defining item's source documentation for the selected feature and Minecraft profile.",
+    use_when = ["Opting into the documented higher-level gameplay behavior instead of assembling its commands manually"],
+    avoid_when = ["Using the API outside its documented system scope or feature configuration"],
+    example = "use sand::systems::player_data::TimerField;",
+    availability = ["Cargo feature: systems-player-data"],
+)]
 /// Schema field handle backed by the existing [`Timer`].
 pub struct TimerField {
     value: Timer,
@@ -212,7 +394,22 @@ pub struct TimerField {
 
 impl TimerField {
     /// Defines a player timer with its scoreboard objective and duration.
-    #[doc = "**API Contract:** Run `sand api show sand::systems::player_data::TimerField::new` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::systems::player_data::TimerField::new",
+        aliases = ["sand::prelude::TimerField::new"],
+        module = "sand::systems",
+        kind = "method",
+        summary = "Defines a player timer with its scoreboard objective and duration.",
+        context = "Defines a player timer with its scoreboard objective and duration. This opt-in system composes Sand's typed primitives into a higher-level gameplay behavior; exporter registries and generated tick bookkeeping are private.",
+        minecraft = "The exact commands, resources, and lifecycle behavior are described by the defining item's source documentation for the selected feature and Minecraft profile.",
+        use_when = ["Opting into the documented higher-level gameplay behavior instead of assembling its commands manually"],
+        avoid_when = ["Using the API outside its documented system scope or feature configuration"],
+        params(objective = "`objective` supplies the objective value used to define a player timer with its scoreboard objective and duration.", duration = "`duration` provides the Minecraft tick duration used to define a player timer with its scoreboard objective and duration."),
+        returns = "A newly constructed `TimerField` configured to define a player timer with its scoreboard objective and duration.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(objective: & 'static str, duration: sand::state::Ticks)  {\n    let timer_field = sand::systems::player_data::TimerField::new(objective, duration);\n}",
+        availability = ["Cargo feature: systems-player-data"],
+    )]
     pub const fn new(objective: &'static str, duration: Ticks) -> Self {
         Self {
             value: Timer::new(objective, duration),
@@ -220,7 +417,22 @@ impl TimerField {
     }
 
     /// Binds this timer field to one player's selector.
-    #[doc = "**API Contract:** Run `sand api show sand::systems::player_data::TimerField::of` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::systems::player_data::TimerField::of",
+        aliases = ["sand::prelude::TimerField::of"],
+        module = "sand::systems",
+        kind = "method",
+        summary = "Binds this timer field to one player's selector.",
+        context = "Binds this timer field to one player's selector. This opt-in system composes Sand's typed primitives into a higher-level gameplay behavior; exporter registries and generated tick bookkeeping are private.",
+        minecraft = "The exact commands, resources, and lifecycle behavior are described by the defining item's source documentation for the selected feature and Minecraft profile.",
+        use_when = ["Opting into the documented higher-level gameplay behavior instead of assembling its commands manually"],
+        avoid_when = ["Using the API outside its documented system scope or feature configuration"],
+        params(selector = "`selector` provides the Minecraft target selection used to bind this timer field to one player's selector."),
+        returns = "The `TimerFieldRef < 'a >` value produced to bind this timer field to one player's selector.",
+        example = "use sand::prelude::*;\n\nfn demonstrate<'a>(timer_field_value: sand::systems::player_data::TimerField, selector: impl Into < String >)  {\n    let of = timer_field_value.of(selector);\n}",
+        availability = ["Cargo feature: systems-player-data"],
+    )]
     pub fn of<'a>(&'a self, selector: impl Into<String>) -> TimerFieldRef<'a> {
         TimerFieldRef {
             field: self,
@@ -229,14 +441,40 @@ impl TimerField {
     }
 
     /// Returns the typed timer underlying this field.
-    #[doc = "**API Contract:** Run `sand api show sand::systems::player_data::TimerField::value` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::systems::player_data::TimerField::value",
+        aliases = ["sand::prelude::TimerField::value"],
+        module = "sand::systems",
+        kind = "method",
+        summary = "Returns the typed timer underlying this field.",
+        context = "Returns the typed timer underlying this field. This opt-in system composes Sand's typed primitives into a higher-level gameplay behavior; exporter registries and generated tick bookkeeping are private.",
+        minecraft = "The exact commands, resources, and lifecycle behavior are described by the defining item's source documentation for the selected feature and Minecraft profile.",
+        use_when = ["Opting into the documented higher-level gameplay behavior instead of assembling its commands manually"],
+        avoid_when = ["Using the API outside its documented system scope or feature configuration"],
+        returns = "Returns the typed timer underlying this field.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(timer_field_value: &sand::systems::player_data::TimerField)  {\n    let value = timer_field_value.value();\n}",
+        availability = ["Cargo feature: systems-player-data"],
+    )]
     pub fn value(&self) -> &Timer {
         &self.value
     }
 }
 
 #[doc = "Configures timer field ref in the player data gameplay system."]
-#[doc = "**API Contract:** Run `sand api show sand::systems::player_data::TimerFieldRef` for the canonical contract."]
+#[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::systems::player_data::TimerFieldRef",
+    aliases = ["sand::prelude::TimerFieldRef"],
+    module = "sand::systems",
+    summary = "Configures timer field ref in the player data gameplay system.",
+    context = "Configures timer field ref in the player data gameplay system. This opt-in system composes Sand's typed primitives into a higher-level gameplay behavior; exporter registries and generated tick bookkeeping are private.",
+    minecraft = "The exact commands, resources, and lifecycle behavior are described by the defining item's source documentation for the selected feature and Minecraft profile.",
+    use_when = ["Opting into the documented higher-level gameplay behavior instead of assembling its commands manually"],
+    avoid_when = ["Using the API outside its documented system scope or feature configuration"],
+    example = "use sand::systems::player_data::TimerFieldRef;",
+    availability = ["Cargo feature: systems-player-data"],
+)]
 pub struct TimerFieldRef<'a> {
     field: &'a TimerField,
     selector: String,
@@ -244,31 +482,99 @@ pub struct TimerFieldRef<'a> {
 
 impl TimerFieldRef<'_> {
     /// Renders the command that starts this player's timer.
-    #[doc = "**API Contract:** Run `sand api show sand::systems::player_data::TimerFieldRef::start` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::systems::player_data::TimerFieldRef::start",
+        aliases = ["sand::prelude::TimerFieldRef::start"],
+        module = "sand::systems",
+        kind = "method",
+        summary = "Renders the command that starts this player's timer.",
+        context = "Renders the command that starts this player's timer. This opt-in system composes Sand's typed primitives into a higher-level gameplay behavior; exporter registries and generated tick bookkeeping are private.",
+        minecraft = "The exact commands, resources, and lifecycle behavior are described by the defining item's source documentation for the selected feature and Minecraft profile.",
+        use_when = ["Opting into the documented higher-level gameplay behavior instead of assembling its commands manually"],
+        avoid_when = ["Using the API outside its documented system scope or feature configuration"],
+        returns = "The rendered Minecraft command text produced to render the command that starts this player's timer.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(timer_field_ref_value: &sand::systems::player_data::TimerFieldRef < '_ >)  {\n    let command = timer_field_ref_value.start();\n}",
+        availability = ["Cargo feature: systems-player-data"],
+    )]
     pub fn start(&self) -> String {
         self.field.value.start(&self.selector)
     }
 
     /// Renders the command that resets this player's timer.
-    #[doc = "**API Contract:** Run `sand api show sand::systems::player_data::TimerFieldRef::reset` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::systems::player_data::TimerFieldRef::reset",
+        aliases = ["sand::prelude::TimerFieldRef::reset"],
+        module = "sand::systems",
+        kind = "method",
+        summary = "Renders the command that resets this player's timer.",
+        context = "Renders the command that resets this player's timer. This opt-in system composes Sand's typed primitives into a higher-level gameplay behavior; exporter registries and generated tick bookkeeping are private.",
+        minecraft = "The exact commands, resources, and lifecycle behavior are described by the defining item's source documentation for the selected feature and Minecraft profile.",
+        use_when = ["Opting into the documented higher-level gameplay behavior instead of assembling its commands manually"],
+        avoid_when = ["Using the API outside its documented system scope or feature configuration"],
+        returns = "The rendered Minecraft command text produced to render the command that resets this player's timer.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(timer_field_ref_value: &sand::systems::player_data::TimerFieldRef < '_ >)  {\n    let command = timer_field_ref_value.reset();\n}",
+        availability = ["Cargo feature: systems-player-data"],
+    )]
     pub fn reset(&self) -> String {
         self.field.value.reset(&self.selector)
     }
 
     /// Builds the typed condition for active.
-    #[doc = "**API Contract:** Run `sand api show sand::systems::player_data::TimerFieldRef::active` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::systems::player_data::TimerFieldRef::active",
+        aliases = ["sand::prelude::TimerFieldRef::active"],
+        module = "sand::systems",
+        kind = "method",
+        summary = "Builds the typed condition for active.",
+        context = "Builds the typed condition for active. This opt-in system composes Sand's typed primitives into a higher-level gameplay behavior; exporter registries and generated tick bookkeeping are private.",
+        minecraft = "The exact commands, resources, and lifecycle behavior are described by the defining item's source documentation for the selected feature and Minecraft profile.",
+        use_when = ["Opting into the documented higher-level gameplay behavior instead of assembling its commands manually"],
+        avoid_when = ["Using the API outside its documented system scope or feature configuration"],
+        returns = "The `Condition` value produced to build the typed condition for active.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(timer_field_ref_value: &sand::systems::player_data::TimerFieldRef < '_ >)  {\n    let active = timer_field_ref_value.active();\n}",
+        availability = ["Cargo feature: systems-player-data"],
+    )]
     pub fn active(&self) -> Condition {
         self.field.value.active(&self.selector)
     }
 
     /// Builds the typed condition for expired.
-    #[doc = "**API Contract:** Run `sand api show sand::systems::player_data::TimerFieldRef::expired` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::systems::player_data::TimerFieldRef::expired",
+        aliases = ["sand::prelude::TimerFieldRef::expired"],
+        module = "sand::systems",
+        kind = "method",
+        summary = "Builds the typed condition for expired.",
+        context = "Builds the typed condition for expired. This opt-in system composes Sand's typed primitives into a higher-level gameplay behavior; exporter registries and generated tick bookkeeping are private.",
+        minecraft = "The exact commands, resources, and lifecycle behavior are described by the defining item's source documentation for the selected feature and Minecraft profile.",
+        use_when = ["Opting into the documented higher-level gameplay behavior instead of assembling its commands manually"],
+        avoid_when = ["Using the API outside its documented system scope or feature configuration"],
+        returns = "The `Condition` value produced to build the typed condition for expired.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(timer_field_ref_value: &sand::systems::player_data::TimerFieldRef < '_ >)  {\n    let expired = timer_field_ref_value.expired();\n}",
+        availability = ["Cargo feature: systems-player-data"],
+    )]
     pub fn expired(&self) -> Condition {
         self.field.value.expired(&self.selector)
     }
 }
 
-#[doc = "**API Contract:** Run `sand api show sand::systems::player_data::CooldownField` for the canonical contract."]
+#[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::systems::player_data::CooldownField",
+    aliases = ["sand::prelude::CooldownField"],
+    module = "sand::systems",
+    summary = "Schema field handle backed by the existing [`Cooldown`].",
+    context = "Schema field handle backed by the existing [`Cooldown`]. This opt-in system composes Sand's typed primitives into a higher-level gameplay behavior; exporter registries and generated tick bookkeeping are private.",
+    minecraft = "The exact commands, resources, and lifecycle behavior are described by the defining item's source documentation for the selected feature and Minecraft profile.",
+    use_when = ["Opting into the documented higher-level gameplay behavior instead of assembling its commands manually"],
+    avoid_when = ["Using the API outside its documented system scope or feature configuration"],
+    example = "use sand::systems::player_data::CooldownField;",
+    availability = ["Cargo feature: systems-player-data"],
+)]
 /// Schema field handle backed by the existing [`Cooldown`].
 pub struct CooldownField {
     value: Cooldown,
@@ -276,7 +582,22 @@ pub struct CooldownField {
 
 impl CooldownField {
     /// Defines a player cooldown with its scoreboard objective and duration.
-    #[doc = "**API Contract:** Run `sand api show sand::systems::player_data::CooldownField::new` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::systems::player_data::CooldownField::new",
+        aliases = ["sand::prelude::CooldownField::new"],
+        module = "sand::systems",
+        kind = "method",
+        summary = "Defines a player cooldown with its scoreboard objective and duration.",
+        context = "Defines a player cooldown with its scoreboard objective and duration. This opt-in system composes Sand's typed primitives into a higher-level gameplay behavior; exporter registries and generated tick bookkeeping are private.",
+        minecraft = "The exact commands, resources, and lifecycle behavior are described by the defining item's source documentation for the selected feature and Minecraft profile.",
+        use_when = ["Opting into the documented higher-level gameplay behavior instead of assembling its commands manually"],
+        avoid_when = ["Using the API outside its documented system scope or feature configuration"],
+        params(objective = "`objective` supplies the objective value used to define a player cooldown with its scoreboard objective and duration.", duration = "`duration` provides the Minecraft tick duration used to define a player cooldown with its scoreboard objective and duration."),
+        returns = "A newly constructed `CooldownField` configured to define a player cooldown with its scoreboard objective and duration.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(objective: & 'static str, duration: sand::state::Ticks)  {\n    let cooldown_field = sand::systems::player_data::CooldownField::new(objective, duration);\n}",
+        availability = ["Cargo feature: systems-player-data"],
+    )]
     pub const fn new(objective: &'static str, duration: Ticks) -> Self {
         Self {
             value: Cooldown::new(objective, duration),
@@ -284,7 +605,22 @@ impl CooldownField {
     }
 
     /// Binds this cooldown field to one player's selector.
-    #[doc = "**API Contract:** Run `sand api show sand::systems::player_data::CooldownField::of` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::systems::player_data::CooldownField::of",
+        aliases = ["sand::prelude::CooldownField::of"],
+        module = "sand::systems",
+        kind = "method",
+        summary = "Binds this cooldown field to one player's selector.",
+        context = "Binds this cooldown field to one player's selector. This opt-in system composes Sand's typed primitives into a higher-level gameplay behavior; exporter registries and generated tick bookkeeping are private.",
+        minecraft = "The exact commands, resources, and lifecycle behavior are described by the defining item's source documentation for the selected feature and Minecraft profile.",
+        use_when = ["Opting into the documented higher-level gameplay behavior instead of assembling its commands manually"],
+        avoid_when = ["Using the API outside its documented system scope or feature configuration"],
+        params(selector = "`selector` provides the Minecraft target selection used to bind this cooldown field to one player's selector."),
+        returns = "The `CooldownFieldRef < 'a >` value produced to bind this cooldown field to one player's selector.",
+        example = "use sand::prelude::*;\n\nfn demonstrate<'a>(cooldown_field_value: sand::systems::player_data::CooldownField, selector: impl Into < String >)  {\n    let of = cooldown_field_value.of(selector);\n}",
+        availability = ["Cargo feature: systems-player-data"],
+    )]
     pub fn of<'a>(&'a self, selector: impl Into<String>) -> CooldownFieldRef<'a> {
         CooldownFieldRef {
             field: self,
@@ -293,14 +629,40 @@ impl CooldownField {
     }
 
     /// Returns the typed cooldown underlying this field.
-    #[doc = "**API Contract:** Run `sand api show sand::systems::player_data::CooldownField::value` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::systems::player_data::CooldownField::value",
+        aliases = ["sand::prelude::CooldownField::value"],
+        module = "sand::systems",
+        kind = "method",
+        summary = "Returns the typed cooldown underlying this field.",
+        context = "Returns the typed cooldown underlying this field. This opt-in system composes Sand's typed primitives into a higher-level gameplay behavior; exporter registries and generated tick bookkeeping are private.",
+        minecraft = "The exact commands, resources, and lifecycle behavior are described by the defining item's source documentation for the selected feature and Minecraft profile.",
+        use_when = ["Opting into the documented higher-level gameplay behavior instead of assembling its commands manually"],
+        avoid_when = ["Using the API outside its documented system scope or feature configuration"],
+        returns = "Returns the typed cooldown underlying this field.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(cooldown_field_value: &sand::systems::player_data::CooldownField)  {\n    let value = cooldown_field_value.value();\n}",
+        availability = ["Cargo feature: systems-player-data"],
+    )]
     pub fn value(&self) -> &Cooldown {
         &self.value
     }
 }
 
 #[doc = "Configures cooldown field ref in the player data gameplay system."]
-#[doc = "**API Contract:** Run `sand api show sand::systems::player_data::CooldownFieldRef` for the canonical contract."]
+#[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::systems::player_data::CooldownFieldRef",
+    aliases = ["sand::prelude::CooldownFieldRef"],
+    module = "sand::systems",
+    summary = "Configures cooldown field ref in the player data gameplay system.",
+    context = "Configures cooldown field ref in the player data gameplay system. This opt-in system composes Sand's typed primitives into a higher-level gameplay behavior; exporter registries and generated tick bookkeeping are private.",
+    minecraft = "The exact commands, resources, and lifecycle behavior are described by the defining item's source documentation for the selected feature and Minecraft profile.",
+    use_when = ["Opting into the documented higher-level gameplay behavior instead of assembling its commands manually"],
+    avoid_when = ["Using the API outside its documented system scope or feature configuration"],
+    example = "use sand::systems::player_data::CooldownFieldRef;",
+    availability = ["Cargo feature: systems-player-data"],
+)]
 pub struct CooldownFieldRef<'a> {
     field: &'a CooldownField,
     selector: String,
@@ -308,31 +670,99 @@ pub struct CooldownFieldRef<'a> {
 
 impl CooldownFieldRef<'_> {
     /// Renders the command that starts this player's cooldown.
-    #[doc = "**API Contract:** Run `sand api show sand::systems::player_data::CooldownFieldRef::start` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::systems::player_data::CooldownFieldRef::start",
+        aliases = ["sand::prelude::CooldownFieldRef::start"],
+        module = "sand::systems",
+        kind = "method",
+        summary = "Renders the command that starts this player's cooldown.",
+        context = "Renders the command that starts this player's cooldown. This opt-in system composes Sand's typed primitives into a higher-level gameplay behavior; exporter registries and generated tick bookkeeping are private.",
+        minecraft = "The exact commands, resources, and lifecycle behavior are described by the defining item's source documentation for the selected feature and Minecraft profile.",
+        use_when = ["Opting into the documented higher-level gameplay behavior instead of assembling its commands manually"],
+        avoid_when = ["Using the API outside its documented system scope or feature configuration"],
+        returns = "The rendered Minecraft command text produced to render the command that starts this player's cooldown.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(cooldown_field_ref_value: &sand::systems::player_data::CooldownFieldRef < '_ >)  {\n    let command = cooldown_field_ref_value.start();\n}",
+        availability = ["Cargo feature: systems-player-data"],
+    )]
     pub fn start(&self) -> String {
         self.field.value.start(&self.selector)
     }
 
     /// Renders the command that stops this player's cooldown.
-    #[doc = "**API Contract:** Run `sand api show sand::systems::player_data::CooldownFieldRef::stop` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::systems::player_data::CooldownFieldRef::stop",
+        aliases = ["sand::prelude::CooldownFieldRef::stop"],
+        module = "sand::systems",
+        kind = "method",
+        summary = "Renders the command that stops this player's cooldown.",
+        context = "Renders the command that stops this player's cooldown. This opt-in system composes Sand's typed primitives into a higher-level gameplay behavior; exporter registries and generated tick bookkeeping are private.",
+        minecraft = "The exact commands, resources, and lifecycle behavior are described by the defining item's source documentation for the selected feature and Minecraft profile.",
+        use_when = ["Opting into the documented higher-level gameplay behavior instead of assembling its commands manually"],
+        avoid_when = ["Using the API outside its documented system scope or feature configuration"],
+        returns = "The rendered Minecraft command text produced to render the command that stops this player's cooldown.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(cooldown_field_ref_value: &sand::systems::player_data::CooldownFieldRef < '_ >)  {\n    let command = cooldown_field_ref_value.stop();\n}",
+        availability = ["Cargo feature: systems-player-data"],
+    )]
     pub fn stop(&self) -> String {
         self.field.value.stop(&self.selector)
     }
 
     /// Builds the typed condition for ready.
-    #[doc = "**API Contract:** Run `sand api show sand::systems::player_data::CooldownFieldRef::ready` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::systems::player_data::CooldownFieldRef::ready",
+        aliases = ["sand::prelude::CooldownFieldRef::ready"],
+        module = "sand::systems",
+        kind = "method",
+        summary = "Builds the typed condition for ready.",
+        context = "Builds the typed condition for ready. This opt-in system composes Sand's typed primitives into a higher-level gameplay behavior; exporter registries and generated tick bookkeeping are private.",
+        minecraft = "The exact commands, resources, and lifecycle behavior are described by the defining item's source documentation for the selected feature and Minecraft profile.",
+        use_when = ["Opting into the documented higher-level gameplay behavior instead of assembling its commands manually"],
+        avoid_when = ["Using the API outside its documented system scope or feature configuration"],
+        returns = "The `Condition` value produced to build the typed condition for ready.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(cooldown_field_ref_value: &sand::systems::player_data::CooldownFieldRef < '_ >)  {\n    let ready = cooldown_field_ref_value.ready();\n}",
+        availability = ["Cargo feature: systems-player-data"],
+    )]
     pub fn ready(&self) -> Condition {
         self.field.value.ready(&self.selector)
     }
 
     /// Builds the typed condition for active.
-    #[doc = "**API Contract:** Run `sand api show sand::systems::player_data::CooldownFieldRef::active` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::systems::player_data::CooldownFieldRef::active",
+        aliases = ["sand::prelude::CooldownFieldRef::active"],
+        module = "sand::systems",
+        kind = "method",
+        summary = "Builds the typed condition for active.",
+        context = "Builds the typed condition for active. This opt-in system composes Sand's typed primitives into a higher-level gameplay behavior; exporter registries and generated tick bookkeeping are private.",
+        minecraft = "The exact commands, resources, and lifecycle behavior are described by the defining item's source documentation for the selected feature and Minecraft profile.",
+        use_when = ["Opting into the documented higher-level gameplay behavior instead of assembling its commands manually"],
+        avoid_when = ["Using the API outside its documented system scope or feature configuration"],
+        returns = "The `Condition` value produced to build the typed condition for active.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(cooldown_field_ref_value: &sand::systems::player_data::CooldownFieldRef < '_ >)  {\n    let active = cooldown_field_ref_value.active();\n}",
+        availability = ["Cargo feature: systems-player-data"],
+    )]
     pub fn active(&self) -> Condition {
         self.field.value.active(&self.selector)
     }
 }
 
-#[doc = "**API Contract:** Run `sand api show sand::systems::player_data::GameStateField` for the canonical contract."]
+#[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::systems::player_data::GameStateField",
+    aliases = ["sand::prelude::GameStateField"],
+    module = "sand::systems",
+    summary = "Schema field handle backed by the existing enum-backed [`GameState`].",
+    context = "Schema field handle backed by the existing enum-backed [`GameState`]. This opt-in system composes Sand's typed primitives into a higher-level gameplay behavior; exporter registries and generated tick bookkeeping are private.",
+    minecraft = "The exact commands, resources, and lifecycle behavior are described by the defining item's source documentation for the selected feature and Minecraft profile.",
+    use_when = ["Opting into the documented higher-level gameplay behavior instead of assembling its commands manually"],
+    avoid_when = ["Using the API outside its documented system scope or feature configuration"],
+    example = "use sand::systems::player_data::GameStateField;",
+    availability = ["Cargo feature: systems-player-data"],
+)]
 /// Schema field handle backed by the existing enum-backed [`GameState`].
 pub struct GameStateField<S: TypedGameState> {
     value: GameState<S>,
@@ -340,7 +770,22 @@ pub struct GameStateField<S: TypedGameState> {
 
 impl<S: TypedGameState> GameStateField<S> {
     /// Defines an enum-like player state stored in the named scoreboard objective.
-    #[doc = "**API Contract:** Run `sand api show sand::systems::player_data::GameStateField::new` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::systems::player_data::GameStateField::new",
+        aliases = ["sand::prelude::GameStateField::new"],
+        module = "sand::systems",
+        kind = "method",
+        summary = "Defines an enum-like player state stored in the named scoreboard objective.",
+        context = "Defines an enum-like player state stored in the named scoreboard objective. This opt-in system composes Sand's typed primitives into a higher-level gameplay behavior; exporter registries and generated tick bookkeeping are private.",
+        minecraft = "The exact commands, resources, and lifecycle behavior are described by the defining item's source documentation for the selected feature and Minecraft profile.",
+        use_when = ["Opting into the documented higher-level gameplay behavior instead of assembling its commands manually"],
+        avoid_when = ["Using the API outside its documented system scope or feature configuration"],
+        params(objective = "`objective` supplies the objective value used to define an enum-like player state stored in the named scoreboard objective."),
+        returns = "A newly constructed `GameStateField` configured to define an enum-like player state stored in the named scoreboard objective.",
+        example = "use sand::prelude::*;\n\nfn demonstrate<S : sand::state::TypedGameState + 'static>(objective: & 'static str)  {\n    let game_state_field = sand::systems::player_data::GameStateField ::< S >::new(objective);\n}",
+        availability = ["Cargo feature: systems-player-data"],
+    )]
     pub const fn new(objective: &'static str) -> Self {
         Self {
             value: GameState::new(objective),
@@ -348,7 +793,22 @@ impl<S: TypedGameState> GameStateField<S> {
     }
 
     /// Defines a player state with an explicit initial encoded score.
-    #[doc = "**API Contract:** Run `sand api show sand::systems::player_data::GameStateField::with_default_score` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::systems::player_data::GameStateField::with_default_score",
+        aliases = ["sand::prelude::GameStateField::with_default_score"],
+        module = "sand::systems",
+        kind = "method",
+        summary = "Defines a player state with an explicit initial encoded score.",
+        context = "Defines a player state with an explicit initial encoded score. This opt-in system composes Sand's typed primitives into a higher-level gameplay behavior; exporter registries and generated tick bookkeeping are private.",
+        minecraft = "The exact commands, resources, and lifecycle behavior are described by the defining item's source documentation for the selected feature and Minecraft profile.",
+        use_when = ["Opting into the documented higher-level gameplay behavior instead of assembling its commands manually"],
+        avoid_when = ["Using the API outside its documented system scope or feature configuration"],
+        params(objective = "`objective` supplies the objective value used to define a player state with an explicit initial encoded score.", default = "`default` supplies the default value used to define a player state with an explicit initial encoded score."),
+        returns = "A newly constructed `GameStateField` configured to define a player state with an explicit initial encoded score.",
+        example = "use sand::prelude::*;\n\nfn demonstrate<S : sand::state::TypedGameState + 'static>(objective: & 'static str, default: i32)  {\n    let game_state_field = sand::systems::player_data::GameStateField ::< S >::with_default_score(objective, default);\n}",
+        availability = ["Cargo feature: systems-player-data"],
+    )]
     pub const fn with_default_score(objective: &'static str, default: i32) -> Self {
         Self {
             value: GameState::with_default_score(objective, default),
@@ -356,19 +816,60 @@ impl<S: TypedGameState> GameStateField<S> {
     }
 
     /// Binds this game-state field to one player's selector.
-    #[doc = "**API Contract:** Run `sand api show sand::systems::player_data::GameStateField::of` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::systems::player_data::GameStateField::of",
+        aliases = ["sand::prelude::GameStateField::of"],
+        module = "sand::systems",
+        kind = "method",
+        summary = "Binds this game-state field to one player's selector.",
+        context = "Binds this game-state field to one player's selector. This opt-in system composes Sand's typed primitives into a higher-level gameplay behavior; exporter registries and generated tick bookkeeping are private.",
+        minecraft = "The exact commands, resources, and lifecycle behavior are described by the defining item's source documentation for the selected feature and Minecraft profile.",
+        use_when = ["Opting into the documented higher-level gameplay behavior instead of assembling its commands manually"],
+        avoid_when = ["Using the API outside its documented system scope or feature configuration"],
+        params(selector = "`selector` provides the Minecraft target selection used to bind this game-state field to one player's selector."),
+        returns = "The `GameStateRef < 'a , S >` value produced to bind this game-state field to one player's selector.",
+        example = "use sand::prelude::*;\n\nfn demonstrate<'a, S : sand::state::TypedGameState + 'static>(game_state_field_value: sand::systems::player_data::GameStateField < S >, selector: & str)  {\n    let of = game_state_field_value.of(selector);\n}",
+        availability = ["Cargo feature: systems-player-data"],
+    )]
     pub fn of<'a>(&'a self, selector: &str) -> GameStateRef<'a, S> {
         self.value.of(selector)
     }
 
     /// Returns the typed game-state variable underlying this field.
-    #[doc = "**API Contract:** Run `sand api show sand::systems::player_data::GameStateField::value` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::systems::player_data::GameStateField::value",
+        aliases = ["sand::prelude::GameStateField::value"],
+        module = "sand::systems",
+        kind = "method",
+        summary = "Returns the typed game-state variable underlying this field.",
+        context = "Returns the typed game-state variable underlying this field. This opt-in system composes Sand's typed primitives into a higher-level gameplay behavior; exporter registries and generated tick bookkeeping are private.",
+        minecraft = "The exact commands, resources, and lifecycle behavior are described by the defining item's source documentation for the selected feature and Minecraft profile.",
+        use_when = ["Opting into the documented higher-level gameplay behavior instead of assembling its commands manually"],
+        avoid_when = ["Using the API outside its documented system scope or feature configuration"],
+        returns = "Returns the typed game-state variable underlying this field.",
+        example = "use sand::prelude::*;\n\nfn demonstrate<S : sand::state::TypedGameState + 'static>(game_state_field_value: &sand::systems::player_data::GameStateField < S >)  {\n    let value = game_state_field_value.value();\n}",
+        availability = ["Cargo feature: systems-player-data"],
+    )]
     pub fn value(&self) -> &GameState<S> {
         &self.value
     }
 }
 
-#[doc = "**API Contract:** Run `sand api show sand::systems::player_data::GlobalStorageField` for the canonical contract."]
+#[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::systems::player_data::GlobalStorageField",
+    aliases = ["sand::prelude::GlobalStorageField"],
+    module = "sand::systems",
+    summary = "Explicit global-storage field handle. It never claims player scoping.",
+    context = "Explicit global-storage field handle. It never claims player scoping. This opt-in system composes Sand's typed primitives into a higher-level gameplay behavior; exporter registries and generated tick bookkeeping are private.",
+    minecraft = "The exact commands, resources, and lifecycle behavior are described by the defining item's source documentation for the selected feature and Minecraft profile.",
+    use_when = ["Opting into the documented higher-level gameplay behavior instead of assembling its commands manually"],
+    avoid_when = ["Using the API outside its documented system scope or feature configuration"],
+    example = "use sand::systems::player_data::GlobalStorageField;",
+    availability = ["Cargo feature: systems-player-data"],
+)]
 /// Explicit global-storage field handle. It never claims player scoping.
 pub struct GlobalStorageField<Schema, T> {
     value: StorageField<Schema, T>,
@@ -377,7 +878,22 @@ pub struct GlobalStorageField<Schema, T> {
 
 impl<Schema, T> GlobalStorageField<Schema, T> {
     /// Defines a global typed field within the supplied command-storage schema.
-    #[doc = "**API Contract:** Run `sand api show sand::systems::player_data::GlobalStorageField::new` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::systems::player_data::GlobalStorageField::new",
+        aliases = ["sand::prelude::GlobalStorageField::new"],
+        module = "sand::systems",
+        kind = "method",
+        summary = "Defines a global typed field within the supplied command-storage schema.",
+        context = "Defines a global typed field within the supplied command-storage schema. This opt-in system composes Sand's typed primitives into a higher-level gameplay behavior; exporter registries and generated tick bookkeeping are private.",
+        minecraft = "The exact commands, resources, and lifecycle behavior are described by the defining item's source documentation for the selected feature and Minecraft profile.",
+        use_when = ["Opting into the documented higher-level gameplay behavior instead of assembling its commands manually"],
+        avoid_when = ["Using the API outside its documented system scope or feature configuration"],
+        params(schema = "`schema` supplies the schema value used to define a global typed field within the supplied command-storage schema.", field = "`field` supplies the field value used to define a global typed field within the supplied command-storage schema."),
+        returns = "A newly constructed `GlobalStorageField` configured to define a global typed field within the supplied command-storage schema.",
+        example = "use sand::prelude::*;\n\nfn demonstrate<Schema: 'static, T: 'static>(schema: & sand::data::StorageSchema < Schema >, field: & 'static str)  {\n    let global_storage_field = sand::systems::player_data::GlobalStorageField ::< Schema , T >::new(schema, field);\n}",
+        availability = ["Cargo feature: systems-player-data"],
+    )]
     pub const fn new(schema: &StorageSchema<Schema>, field: &'static str) -> Self {
         Self {
             value: schema.field(field),
@@ -386,13 +902,41 @@ impl<Schema, T> GlobalStorageField<Schema, T> {
     }
 
     /// Returns the typed NBT reference for this global storage field.
-    #[doc = "**API Contract:** Run `sand api show sand::systems::player_data::GlobalStorageField::nbt` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::systems::player_data::GlobalStorageField::nbt",
+        aliases = ["sand::prelude::GlobalStorageField::nbt"],
+        module = "sand::systems",
+        kind = "method",
+        summary = "Returns the typed NBT reference for this global storage field.",
+        context = "Returns the typed NBT reference for this global storage field. This opt-in system composes Sand's typed primitives into a higher-level gameplay behavior; exporter registries and generated tick bookkeeping are private.",
+        minecraft = "The exact commands, resources, and lifecycle behavior are described by the defining item's source documentation for the selected feature and Minecraft profile.",
+        use_when = ["Opting into the documented higher-level gameplay behavior instead of assembling its commands manually"],
+        avoid_when = ["Using the API outside its documented system scope or feature configuration"],
+        returns = "Returns the typed NBT reference for this global storage field.",
+        example = "use sand::prelude::*;\n\nfn demonstrate<Schema: 'static, T: 'static>(global_storage_field_value: &sand::systems::player_data::GlobalStorageField < Schema , T >)  {\n    let nbt = global_storage_field_value.nbt();\n}",
+        availability = ["Cargo feature: systems-player-data"],
+    )]
     pub fn nbt(&self) -> NbtRef<T> {
         self.value.path()
     }
 
     /// Returns the schema field underlying this global storage declaration.
-    #[doc = "**API Contract:** Run `sand api show sand::systems::player_data::GlobalStorageField::value` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::systems::player_data::GlobalStorageField::value",
+        aliases = ["sand::prelude::GlobalStorageField::value"],
+        module = "sand::systems",
+        kind = "method",
+        summary = "Returns the schema field underlying this global storage declaration.",
+        context = "Returns the schema field underlying this global storage declaration. This opt-in system composes Sand's typed primitives into a higher-level gameplay behavior; exporter registries and generated tick bookkeeping are private.",
+        minecraft = "The exact commands, resources, and lifecycle behavior are described by the defining item's source documentation for the selected feature and Minecraft profile.",
+        use_when = ["Opting into the documented higher-level gameplay behavior instead of assembling its commands manually"],
+        avoid_when = ["Using the API outside its documented system scope or feature configuration"],
+        returns = "Returns the schema field underlying this global storage declaration.",
+        example = "use sand::prelude::*;\n\nfn demonstrate<Schema: 'static, T: 'static>(global_storage_field_value: &sand::systems::player_data::GlobalStorageField < Schema , T >)  {\n    let value = global_storage_field_value.value();\n}",
+        availability = ["Cargo feature: systems-player-data"],
+    )]
     pub fn value(&self) -> &StorageField<Schema, T> {
         &self.value
     }
@@ -461,7 +1005,19 @@ pub struct StorageDescriptor {
 
 // ── PlayerDataSchema ──────────────────────────────────────────────────────────────
 
-#[doc = "**API Contract:** Run `sand api show sand::systems::player_data::PlayerDataSchema` for the canonical contract."]
+#[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::systems::player_data::PlayerDataSchema",
+    aliases = ["sand::prelude::PlayerDataSchema", "sand::prelude::PlayerSchema", "sand::systems::player_data::PlayerSchema"],
+    module = "sand::systems",
+    summary = "A mixed per-player data bundle: scoreboard fields, flags, cooldowns, and attached storage schema references.",
+    context = "A mixed per-player data bundle: scoreboard fields, flags, cooldowns, and attached storage schema references. Build with the chained builder methods.  Call [`define_all`](PlayerDataSchema::define_all) in your load function and [`init_player`](PlayerDataSchema::init_player) in join handlers.  See the [module docs](self) for naming rules and per-player storage limitations.",
+    minecraft = "The exact commands, resources, and lifecycle behavior are described by the defining item's source documentation for the selected feature and Minecraft profile.",
+    use_when = ["Opting into the documented higher-level gameplay behavior instead of assembling its commands manually"],
+    avoid_when = ["Using the API outside its documented system scope or feature configuration"],
+    example = "use sand::systems::player_data::PlayerDataSchema;",
+    availability = ["Cargo feature: systems-player-data"],
+)]
 /// A mixed per-player data bundle: scoreboard fields, flags, cooldowns,
 /// and attached storage schema references.
 ///
@@ -483,7 +1039,22 @@ impl PlayerDataSchema {
     /// prefix scoreboard objectives.  Two schemas can share a label without
     /// conflict, and two schemas with the same-named `ScoreVar` will share
     /// an objective (which is often intentional).
-    #[doc = "**API Contract:** Run `sand api show sand::systems::player_data::PlayerDataSchema::new` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::systems::player_data::PlayerDataSchema::new",
+        aliases = ["sand::prelude::PlayerDataSchema::new", "sand::prelude::PlayerSchema::new", "sand::systems::player_data::PlayerSchema::new"],
+        module = "sand::systems",
+        kind = "method",
+        summary = "Create an empty schema with the given human label.",
+        context = "Create an empty schema with the given human label. The label is for documentation/introspection only — it does not prefix scoreboard objectives.  Two schemas can share a label without conflict, and two schemas with the same-named `ScoreVar` will share an objective (which is often intentional).",
+        minecraft = "The label is for documentation/introspection only — it does not prefix scoreboard objectives.  Two schemas can share a label without conflict, and two schemas with the same-named `ScoreVar` will share an objective (which is often intentional).",
+        use_when = ["Opting into the documented higher-level gameplay behavior instead of assembling its commands manually"],
+        avoid_when = ["Using the API outside its documented system scope or feature configuration"],
+        params(namespace = "`namespace` supplies the namespace value used to create an empty schema with the given human label."),
+        returns = "A newly constructed `PlayerDataSchema` configured to create an empty schema with the given human label.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(namespace: & 'static str)  {\n    let player_data_schema = sand::systems::player_data::PlayerDataSchema::new(namespace);\n}",
+        availability = ["Cargo feature: systems-player-data"],
+    )]
     pub const fn new(namespace: &'static str) -> Self {
         Self {
             namespace,
@@ -493,7 +1064,21 @@ impl PlayerDataSchema {
     }
 
     /// The human label passed to [`new`](Self::new).
-    #[doc = "**API Contract:** Run `sand api show sand::systems::player_data::PlayerDataSchema::name` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::systems::player_data::PlayerDataSchema::name",
+        aliases = ["sand::prelude::PlayerDataSchema::name", "sand::prelude::PlayerSchema::name", "sand::systems::player_data::PlayerSchema::name"],
+        module = "sand::systems",
+        kind = "method",
+        summary = "The human label passed to [`new`](Self::new).",
+        context = "The human label passed to [`new`](Self::new). This opt-in system composes Sand's typed primitives into a higher-level gameplay behavior; exporter registries and generated tick bookkeeping are private.",
+        minecraft = "The exact commands, resources, and lifecycle behavior are described by the defining item's source documentation for the selected feature and Minecraft profile.",
+        use_when = ["Opting into the documented higher-level gameplay behavior instead of assembling its commands manually"],
+        avoid_when = ["Using the API outside its documented system scope or feature configuration"],
+        returns = "The string value produced to use the human label passed to [`new`](Self::new).",
+        example = "use sand::prelude::*;\n\nfn demonstrate(player_data_schema_value: &sand::systems::player_data::PlayerDataSchema)  {\n    let name = player_data_schema_value.name();\n}",
+        availability = ["Cargo feature: systems-player-data"],
+    )]
     pub fn name(&self) -> &str {
         self.namespace
     }
@@ -504,7 +1089,22 @@ impl PlayerDataSchema {
     ///
     /// The objective name comes from `var.objective_name()`, not from the
     /// schema namespace.
-    #[doc = "**API Contract:** Run `sand api show sand::systems::player_data::PlayerDataSchema::score` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::systems::player_data::PlayerDataSchema::score",
+        aliases = ["sand::prelude::PlayerDataSchema::score", "sand::prelude::PlayerSchema::score", "sand::systems::player_data::PlayerSchema::score"],
+        module = "sand::systems",
+        kind = "method",
+        summary = "Register a `ScoreVar` with a default value for new players.",
+        context = "Register a `ScoreVar` with a default value for new players. The objective name comes from `var.objective_name()`, not from the schema namespace.",
+        minecraft = "The exact commands, resources, and lifecycle behavior are described by the defining item's source documentation for the selected feature and Minecraft profile.",
+        use_when = ["Opting into the documented higher-level gameplay behavior instead of assembling its commands manually"],
+        avoid_when = ["Using the API outside its documented system scope or feature configuration"],
+        params(var = "`var` supplies the var value used to register a `ScoreVar` with a default value for new players.", default = "`default` supplies the default value used to register a `ScoreVar` with a default value for new players."),
+        returns = "The `PlayerDataSchema` value with the documented change applied to register a `ScoreVar` with a default value for new players.",
+        example = "use sand::prelude::*;\n\nfn demonstrate<T: 'static>(player_data_schema_value: sand::systems::player_data::PlayerDataSchema, var: & sand::state::ScoreVar < T >, default: i32)  {\n    let updated_player_data_schema = player_data_schema_value.score::<T>(var, default);\n}",
+        availability = ["Cargo feature: systems-player-data"],
+    )]
     pub fn score<T>(mut self, var: &ScoreVar<T>, default: i32) -> Self {
         self.fields.push(FieldInit::Score {
             obj: var.objective_name(),
@@ -514,13 +1114,43 @@ impl PlayerDataSchema {
     }
 
     /// Registers an integer score field for initialization in this player-data schema.
-    #[doc = "**API Contract:** Run `sand api show sand::systems::player_data::PlayerDataSchema::score_field` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::systems::player_data::PlayerDataSchema::score_field",
+        aliases = ["sand::prelude::PlayerDataSchema::score_field", "sand::prelude::PlayerSchema::score_field", "sand::systems::player_data::PlayerSchema::score_field"],
+        module = "sand::systems",
+        kind = "method",
+        summary = "Registers an integer score field for initialization in this player-data schema.",
+        context = "Registers an integer score field for initialization in this player-data schema. This opt-in system composes Sand's typed primitives into a higher-level gameplay behavior; exporter registries and generated tick bookkeeping are private.",
+        minecraft = "The exact commands, resources, and lifecycle behavior are described by the defining item's source documentation for the selected feature and Minecraft profile.",
+        use_when = ["Opting into the documented higher-level gameplay behavior instead of assembling its commands manually"],
+        avoid_when = ["Using the API outside its documented system scope or feature configuration"],
+        params(field = "`field` supplies the field value used to register an integer score field for initialization in this player-data schema."),
+        returns = "The `PlayerDataSchema` value with the documented change applied to register an integer score field for initialization in this player-data schema.",
+        example = "use sand::prelude::*;\n\nfn demonstrate<T: 'static>(player_data_schema_value: sand::systems::player_data::PlayerDataSchema, field: & sand::systems::player_data::ScoreField < T >)  {\n    let updated_player_data_schema = player_data_schema_value.score_field::<T>(field);\n}",
+        availability = ["Cargo feature: systems-player-data"],
+    )]
     pub fn score_field<T>(self, field: &ScoreField<T>) -> Self {
         self.score(field.value(), field.default_value())
     }
 
     /// Register a `Flag` with a default boolean value for new players.
-    #[doc = "**API Contract:** Run `sand api show sand::systems::player_data::PlayerDataSchema::flag` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::systems::player_data::PlayerDataSchema::flag",
+        aliases = ["sand::prelude::PlayerDataSchema::flag", "sand::prelude::PlayerSchema::flag", "sand::systems::player_data::PlayerSchema::flag"],
+        module = "sand::systems",
+        kind = "method",
+        summary = "Register a `Flag` with a default boolean value for new players.",
+        context = "Register a `Flag` with a default boolean value for new players. This opt-in system composes Sand's typed primitives into a higher-level gameplay behavior; exporter registries and generated tick bookkeeping are private.",
+        minecraft = "The exact commands, resources, and lifecycle behavior are described by the defining item's source documentation for the selected feature and Minecraft profile.",
+        use_when = ["Opting into the documented higher-level gameplay behavior instead of assembling its commands manually"],
+        avoid_when = ["Using the API outside its documented system scope or feature configuration"],
+        params(flag = "`flag` supplies the flag value used to register a `Flag` with a default boolean value for new players.", default = "`default` provides the switch that enables or disables the behavior used to register a `Flag` with a default boolean value for new players."),
+        returns = "The `PlayerDataSchema` value with the documented change applied to register a `Flag` with a default boolean value for new players.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(player_data_schema_value: sand::systems::player_data::PlayerDataSchema, flag: & sand::state::Flag, default: bool)  {\n    let updated_player_data_schema = player_data_schema_value.flag(flag, default);\n}",
+        availability = ["Cargo feature: systems-player-data"],
+    )]
     pub fn flag(mut self, flag: &Flag, default: bool) -> Self {
         self.fields.push(FieldInit::Flag {
             obj: flag.objective_name(),
@@ -530,7 +1160,22 @@ impl PlayerDataSchema {
     }
 
     /// Registers a boolean flag field for initialization in this player-data schema.
-    #[doc = "**API Contract:** Run `sand api show sand::systems::player_data::PlayerDataSchema::flag_field` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::systems::player_data::PlayerDataSchema::flag_field",
+        aliases = ["sand::prelude::PlayerDataSchema::flag_field", "sand::prelude::PlayerSchema::flag_field", "sand::systems::player_data::PlayerSchema::flag_field"],
+        module = "sand::systems",
+        kind = "method",
+        summary = "Registers a boolean flag field for initialization in this player-data schema.",
+        context = "Registers a boolean flag field for initialization in this player-data schema. This opt-in system composes Sand's typed primitives into a higher-level gameplay behavior; exporter registries and generated tick bookkeeping are private.",
+        minecraft = "The exact commands, resources, and lifecycle behavior are described by the defining item's source documentation for the selected feature and Minecraft profile.",
+        use_when = ["Opting into the documented higher-level gameplay behavior instead of assembling its commands manually"],
+        avoid_when = ["Using the API outside its documented system scope or feature configuration"],
+        params(field = "`field` supplies the field value used to register a boolean flag field for initialization in this player-data schema."),
+        returns = "The `PlayerDataSchema` value with the documented change applied to register a boolean flag field for initialization in this player-data schema.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(player_data_schema_value: sand::systems::player_data::PlayerDataSchema, field: & sand::systems::player_data::FlagField)  {\n    let updated_player_data_schema = player_data_schema_value.flag_field(field);\n}",
+        availability = ["Cargo feature: systems-player-data"],
+    )]
     pub fn flag_field(self, field: &FlagField) -> Self {
         self.flag(field.value(), field.default_value())
     }
@@ -545,7 +1190,22 @@ impl PlayerDataSchema {
     /// - Manage timer lifecycle wiring (e.g., starting timers in events).
     ///
     /// See [`Timer`] for tick/lifecycle APIs.
-    #[doc = "**API Contract:** Run `sand api show sand::systems::player_data::PlayerDataSchema::timer` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::systems::player_data::PlayerDataSchema::timer",
+        aliases = ["sand::prelude::PlayerDataSchema::timer", "sand::prelude::PlayerSchema::timer", "sand::systems::player_data::PlayerSchema::timer"],
+        module = "sand::systems",
+        kind = "method",
+        summary = "Register a [`Timer`] objective (define only; no per-player default).",
+        context = "Register a [`Timer`] objective (define only; no per-player default). This method only defines/registers the timer's scoreboard objective. It does not automatically start ticks or wire lifecycle events. To actually use the timer in gameplay, you must separately: - Call the timer's tick methods during server ticks (e.g., in a `#[tick]` function). - Manage timer lifecycle wiring (e.g., starting timers in events). See [`Timer`] for tick/lifecycle APIs.",
+        minecraft = "This method only defines/registers the timer's scoreboard objective. It does not automatically start ticks or wire lifecycle events.",
+        use_when = ["Opting into the documented higher-level gameplay behavior instead of assembling its commands manually"],
+        avoid_when = ["Using the API outside its documented system scope or feature configuration"],
+        params(timer = "`timer` supplies the timer value used to register a [`Timer`] objective (define only; no per-player default)."),
+        returns = "The `PlayerDataSchema` value with the documented change applied to register a [`Timer`] objective (define only; no per-player default).",
+        example = "use sand::prelude::*;\n\nfn demonstrate(player_data_schema_value: sand::systems::player_data::PlayerDataSchema, timer: & sand::state::Timer)  {\n    let updated_player_data_schema = player_data_schema_value.timer(timer);\n}",
+        availability = ["Cargo feature: systems-player-data"],
+    )]
     pub fn timer(mut self, timer: &Timer) -> Self {
         self.fields.push(FieldInit::TimerObj {
             obj: timer.objective_name(),
@@ -554,7 +1214,22 @@ impl PlayerDataSchema {
     }
 
     /// Registers a timer field for lifecycle setup in this player-data schema.
-    #[doc = "**API Contract:** Run `sand api show sand::systems::player_data::PlayerDataSchema::timer_field` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::systems::player_data::PlayerDataSchema::timer_field",
+        aliases = ["sand::prelude::PlayerDataSchema::timer_field", "sand::prelude::PlayerSchema::timer_field", "sand::systems::player_data::PlayerSchema::timer_field"],
+        module = "sand::systems",
+        kind = "method",
+        summary = "Registers a timer field for lifecycle setup in this player-data schema.",
+        context = "Registers a timer field for lifecycle setup in this player-data schema. This opt-in system composes Sand's typed primitives into a higher-level gameplay behavior; exporter registries and generated tick bookkeeping are private.",
+        minecraft = "The exact commands, resources, and lifecycle behavior are described by the defining item's source documentation for the selected feature and Minecraft profile.",
+        use_when = ["Opting into the documented higher-level gameplay behavior instead of assembling its commands manually"],
+        avoid_when = ["Using the API outside its documented system scope or feature configuration"],
+        params(field = "`field` supplies the field value used to register a timer field for lifecycle setup in this player-data schema."),
+        returns = "The `PlayerDataSchema` value with the documented change applied to register a timer field for lifecycle setup in this player-data schema.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(player_data_schema_value: sand::systems::player_data::PlayerDataSchema, field: & sand::systems::player_data::TimerField)  {\n    let updated_player_data_schema = player_data_schema_value.timer_field(field);\n}",
+        availability = ["Cargo feature: systems-player-data"],
+    )]
     pub fn timer_field(self, field: &TimerField) -> Self {
         self.timer(field.value())
     }
@@ -569,7 +1244,22 @@ impl PlayerDataSchema {
     /// - Manage cooldown lifecycle wiring (e.g., starting cooldowns on ability use).
     ///
     /// See [`Cooldown`] for tick/lifecycle APIs.
-    #[doc = "**API Contract:** Run `sand api show sand::systems::player_data::PlayerDataSchema::cooldown` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::systems::player_data::PlayerDataSchema::cooldown",
+        aliases = ["sand::prelude::PlayerDataSchema::cooldown", "sand::prelude::PlayerSchema::cooldown", "sand::systems::player_data::PlayerSchema::cooldown"],
+        module = "sand::systems",
+        kind = "method",
+        summary = "Register a `Cooldown` objective (define only; no per-player default).",
+        context = "Register a `Cooldown` objective (define only; no per-player default). This method only defines/registers the cooldown's scoreboard objective. It does not automatically manage cooldown state or tick them down. To actually use the cooldown in gameplay, you must separately: - Call the cooldown's tick methods during server ticks (e.g., in a `#[tick]` function). - Manage cooldown lifecycle wiring (e.g., starting cooldowns on ability use). See [`Cooldown`] for tick/lifecycle APIs.",
+        minecraft = "This method only defines/registers the cooldown's scoreboard objective. It does not automatically manage cooldown state or tick them down.",
+        use_when = ["Opting into the documented higher-level gameplay behavior instead of assembling its commands manually"],
+        avoid_when = ["Using the API outside its documented system scope or feature configuration"],
+        params(cd = "`cd` supplies the cd value used to register a `Cooldown` objective (define only; no per-player default)."),
+        returns = "The `PlayerDataSchema` value with the documented change applied to register a `Cooldown` objective (define only; no per-player default).",
+        example = "use sand::prelude::*;\n\nfn demonstrate(player_data_schema_value: sand::systems::player_data::PlayerDataSchema, cd: & sand::state::Cooldown)  {\n    let updated_player_data_schema = player_data_schema_value.cooldown(cd);\n}",
+        availability = ["Cargo feature: systems-player-data"],
+    )]
     pub fn cooldown(mut self, cd: &Cooldown) -> Self {
         self.fields.push(FieldInit::CooldownObj {
             obj: cd.objective_name(),
@@ -578,13 +1268,43 @@ impl PlayerDataSchema {
     }
 
     /// Registers a cooldown field for lifecycle setup in this player-data schema.
-    #[doc = "**API Contract:** Run `sand api show sand::systems::player_data::PlayerDataSchema::cooldown_field` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::systems::player_data::PlayerDataSchema::cooldown_field",
+        aliases = ["sand::prelude::PlayerDataSchema::cooldown_field", "sand::prelude::PlayerSchema::cooldown_field", "sand::systems::player_data::PlayerSchema::cooldown_field"],
+        module = "sand::systems",
+        kind = "method",
+        summary = "Registers a cooldown field for lifecycle setup in this player-data schema.",
+        context = "Registers a cooldown field for lifecycle setup in this player-data schema. This opt-in system composes Sand's typed primitives into a higher-level gameplay behavior; exporter registries and generated tick bookkeeping are private.",
+        minecraft = "The exact commands, resources, and lifecycle behavior are described by the defining item's source documentation for the selected feature and Minecraft profile.",
+        use_when = ["Opting into the documented higher-level gameplay behavior instead of assembling its commands manually"],
+        avoid_when = ["Using the API outside its documented system scope or feature configuration"],
+        params(field = "`field` supplies the field value used to register a cooldown field for lifecycle setup in this player-data schema."),
+        returns = "The `PlayerDataSchema` value with the documented change applied to register a cooldown field for lifecycle setup in this player-data schema.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(player_data_schema_value: sand::systems::player_data::PlayerDataSchema, field: & sand::systems::player_data::CooldownField)  {\n    let updated_player_data_schema = player_data_schema_value.cooldown_field(field);\n}",
+        availability = ["Cargo feature: systems-player-data"],
+    )]
     pub fn cooldown_field(self, field: &CooldownField) -> Self {
         self.cooldown(field.value())
     }
 
     /// Registers a typed game-state field for initialization in this player-data schema.
-    #[doc = "**API Contract:** Run `sand api show sand::systems::player_data::PlayerDataSchema::game_state` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::systems::player_data::PlayerDataSchema::game_state",
+        aliases = ["sand::prelude::PlayerDataSchema::game_state", "sand::prelude::PlayerSchema::game_state", "sand::systems::player_data::PlayerSchema::game_state"],
+        module = "sand::systems",
+        kind = "method",
+        summary = "Registers a typed game-state field for initialization in this player-data schema.",
+        context = "Registers a typed game-state field for initialization in this player-data schema. This opt-in system composes Sand's typed primitives into a higher-level gameplay behavior; exporter registries and generated tick bookkeeping are private.",
+        minecraft = "The exact commands, resources, and lifecycle behavior are described by the defining item's source documentation for the selected feature and Minecraft profile.",
+        use_when = ["Opting into the documented higher-level gameplay behavior instead of assembling its commands manually"],
+        avoid_when = ["Using the API outside its documented system scope or feature configuration"],
+        params(field = "`field` supplies the field value used to register a typed game-state field for initialization in this player-data schema."),
+        returns = "The `PlayerDataSchema` value with the documented change applied to register a typed game-state field for initialization in this player-data schema.",
+        example = "use sand::prelude::*;\n\nfn demonstrate<S : sand::state::TypedGameState + 'static>(player_data_schema_value: sand::systems::player_data::PlayerDataSchema, field: & sand::systems::player_data::GameStateField < S >)  {\n    let updated_player_data_schema = player_data_schema_value.game_state::<S>(field);\n}",
+        availability = ["Cargo feature: systems-player-data"],
+    )]
     pub fn game_state<S: TypedGameState>(mut self, field: &GameStateField<S>) -> Self {
         self.fields.push(FieldInit::StateObj {
             obj: field.value().objective_name(),
@@ -594,7 +1314,22 @@ impl PlayerDataSchema {
     }
 
     /// Attach one explicit global-storage handle for schema introspection.
-    #[doc = "**API Contract:** Run `sand api show sand::systems::player_data::PlayerDataSchema::global_storage_field` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::systems::player_data::PlayerDataSchema::global_storage_field",
+        aliases = ["sand::prelude::PlayerDataSchema::global_storage_field", "sand::prelude::PlayerSchema::global_storage_field", "sand::systems::player_data::PlayerSchema::global_storage_field"],
+        module = "sand::systems",
+        kind = "method",
+        summary = "Attach one explicit global-storage handle for schema introspection.",
+        context = "Attach one explicit global-storage handle for schema introspection. This opt-in system composes Sand's typed primitives into a higher-level gameplay behavior; exporter registries and generated tick bookkeeping are private.",
+        minecraft = "The exact commands, resources, and lifecycle behavior are described by the defining item's source documentation for the selected feature and Minecraft profile.",
+        use_when = ["Opting into the documented higher-level gameplay behavior instead of assembling its commands manually"],
+        avoid_when = ["Using the API outside its documented system scope or feature configuration"],
+        params(field = "`field` supplies the field value used to attach one explicit global-storage handle for schema introspection."),
+        returns = "The `PlayerDataSchema` value with the documented change applied to attach one explicit global-storage handle for schema introspection.",
+        example = "use sand::prelude::*;\n\nfn demonstrate<Schema: 'static, T: 'static>(player_data_schema_value: sand::systems::player_data::PlayerDataSchema, field: & sand::systems::player_data::GlobalStorageField < Schema , T >)  {\n    let updated_player_data_schema = player_data_schema_value.global_storage_field::<Schema, T>(field);\n}",
+        availability = ["Cargo feature: systems-player-data"],
+    )]
     pub fn global_storage_field<Schema, T>(
         mut self,
         field: &GlobalStorageField<Schema, T>,
@@ -646,7 +1381,22 @@ impl PlayerDataSchema {
     ///     .score(&MANA, 100)
     ///     .storage(PackConfig::SCHEMA); // global config, not per-player
     /// ```
-    #[doc = "**API Contract:** Run `sand api show sand::systems::player_data::PlayerDataSchema::storage` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::systems::player_data::PlayerDataSchema::storage",
+        aliases = ["sand::prelude::PlayerDataSchema::storage", "sand::prelude::PlayerSchema::storage", "sand::systems::player_data::PlayerSchema::storage"],
+        module = "sand::systems",
+        kind = "method",
+        summary = "Attach a [`StorageSchema`] to this player schema for tracking and documentation.",
+        context = "Attach a [`StorageSchema`] to this player schema for tracking and documentation. Storage schemas attached here are tracked for introspection via [`storage_locations`](Self::storage_locations).  No commands are emitted for storage schemas by [`define_all`](Self::define_all) — Minecraft NBT storage paths require no explicit definition. Minecraft `data storage` is a global namespace, not per-player. Attaching a storage schema to `PlayerDataSchema` does not automatically key storage by player UUID or name. If you need per-player compound data, the common approaches are:",
+        minecraft = "Minecraft `data storage` is a global namespace, not per-player. Attaching a storage schema to `PlayerDataSchema` does not automatically key storage by player UUID or name.",
+        use_when = ["Opting into the documented higher-level gameplay behavior instead of assembling its commands manually"],
+        avoid_when = ["Using the API outside its documented system scope or feature configuration"],
+        params(schema = "`schema` supplies the schema value used to attach a [`StorageSchema`] to this player schema for tracking and documentation."),
+        returns = "The `PlayerDataSchema` value with the documented change applied to attach a [`StorageSchema`] to this player schema for tracking and documentation.",
+        example = "pub struct PackConfig { pub max_mana: i32 }\nlet schema = PlayerDataSchema::new(\"magic\")\n.score(&MANA, 100)\n.storage(PackConfig::SCHEMA); // global config, not per-player",
+        availability = ["Cargo feature: systems-player-data"],
+    )]
     pub fn storage<T>(mut self, schema: StorageSchema<T>) -> Self {
         self.storage_schemas.push(StorageDescriptor {
             storage: schema.storage(),
@@ -666,7 +1416,21 @@ impl PlayerDataSchema {
     /// objective already exists, Minecraft prints a warning but does not abort.
     /// It is safe to call `define_all()` more than once or to run its output
     /// in every reload.
-    #[doc = "**API Contract:** Run `sand api show sand::systems::player_data::PlayerDataSchema::define_all` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::systems::player_data::PlayerDataSchema::define_all",
+        aliases = ["sand::prelude::PlayerDataSchema::define_all", "sand::prelude::PlayerSchema::define_all", "sand::systems::player_data::PlayerSchema::define_all"],
+        module = "sand::systems",
+        kind = "method",
+        summary = "Commands to define all scoreboard objectives (for your load function).",
+        context = "Commands to define all scoreboard objectives (for your load function). Storage schemas do not generate commands — Minecraft NBT storage needs no explicit definition. The emitted `scoreboard objectives add` commands are idempotent: if an objective already exists, Minecraft prints a warning but does not abort. It is safe to call `define_all()` more than once or to run its output in every reload.",
+        minecraft = "Storage schemas do not generate commands — Minecraft NBT storage needs no explicit definition.",
+        use_when = ["Opting into the documented higher-level gameplay behavior instead of assembling its commands manually"],
+        avoid_when = ["Using the API outside its documented system scope or feature configuration"],
+        returns = "The ordered values produced to command to define all scoreboard objectives (for your load function).",
+        example = "use sand::prelude::*;\n\nfn demonstrate(player_data_schema_value: &sand::systems::player_data::PlayerDataSchema)  {\n    let values = player_data_schema_value.define_all();\n}",
+        availability = ["Cargo feature: systems-player-data"],
+    )]
     pub fn define_all(&self) -> Vec<String> {
         let mut seen = std::collections::BTreeSet::new();
         let mut commands = Vec::new();
@@ -696,7 +1460,22 @@ impl PlayerDataSchema {
     /// interpolated directly into generated commands. Prefer
     /// [`PlayerDataSchema::try_init_player`] in normal code — see
     /// [#146](https://github.com/ThatOneToast/sand/issues/146).
-    #[doc = "**API Contract:** Run `sand api show sand::systems::player_data::PlayerDataSchema::init_player` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::systems::player_data::PlayerDataSchema::init_player",
+        aliases = ["sand::prelude::PlayerDataSchema::init_player", "sand::prelude::PlayerSchema::init_player", "sand::systems::player_data::PlayerSchema::init_player"],
+        module = "sand::systems",
+        kind = "method",
+        summary = "Commands to initialize a new player's scores to their defaults.",
+        context = "Commands to initialize a new player's scores to their defaults. Each command uses `unless score … matches -2147483648..` so it is a no-op for players who already have scores (reconnects, respawns, etc.). Cooldowns have no default value, so they are skipped here.  Storage schemas are not affected by this method. Compatibility/raw path: `selector` is an unvalidated string, interpolated directly into generated commands. Prefer [`PlayerDataSchema::try_init_player`] in normal code — see [#146](https://github.com/ThatOneToast/sand/issues/146).",
+        minecraft = "Each command uses `unless score … matches -2147483648..` so it is a no-op for players who already have scores (reconnects, respawns, etc.).",
+        use_when = ["Opting into the documented higher-level gameplay behavior instead of assembling its commands manually"],
+        avoid_when = ["Using the API outside its documented system scope or feature configuration"],
+        params(selector = "Compatibility/raw path: `selector` is an unvalidated string, interpolated directly into generated commands. Prefer [`PlayerDataSchema::try_init_player`] in normal code — see [#146](https://github.com/ThatOneToast/sand/issues/146)."),
+        returns = "The ordered values produced to command to initialize a new player's scores to their defaults.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(player_data_schema_value: &sand::systems::player_data::PlayerDataSchema, selector: & str)  {\n    let values = player_data_schema_value.init_player(selector);\n}",
+        availability = ["Cargo feature: systems-player-data"],
+    )]
     pub fn init_player(&self, selector: &str) -> Vec<String> {
         let mut seen = std::collections::BTreeSet::new();
         let mut commands = Vec::new();
@@ -732,7 +1511,22 @@ impl PlayerDataSchema {
     /// assert!(schema.try_init_player(ScoreHolder::self_()).is_ok());
     /// assert!(schema.try_init_player(ScoreHolder::fake("bad holder")).is_err());
     /// ```
-    #[doc = "**API Contract:** Run `sand api show sand::systems::player_data::PlayerDataSchema::try_init_player` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::systems::player_data::PlayerDataSchema::try_init_player",
+        aliases = ["sand::prelude::PlayerDataSchema::try_init_player", "sand::prelude::PlayerSchema::try_init_player", "sand::systems::player_data::PlayerSchema::try_init_player"],
+        module = "sand::systems",
+        kind = "method",
+        summary = "Validated counterpart to [`PlayerDataSchema::init_player`] — takes a typed [`sand::command::ScoreHolder`] and validates it before generating commands, instead of interpolating an unvalidated selector string.",
+        context = "Validated counterpart to [`PlayerDataSchema::init_player`] — takes a typed [`sand::command::ScoreHolder`] and validates it before generating commands, instead of interpolating an unvalidated selector string. This opt-in system composes Sand's typed primitives into a higher-level gameplay behavior; exporter registries and generated tick bookkeeping are private.",
+        minecraft = "The exact commands, resources, and lifecycle behavior are described by the defining item's source documentation for the selected feature and Minecraft profile.",
+        use_when = ["Opting into the documented higher-level gameplay behavior instead of assembling its commands manually"],
+        avoid_when = ["Using the API outside its documented system scope or feature configuration"],
+        params(holder = "`holder` supplies the holder value used to use validated counterpart to [`PlayerDataSchema::init_player`] — takes a typed [`sand::command::ScoreHolder`] and validates it before generating commands, instead of interpolating an unvalidated selector string."),
+        returns = "The `sand :: command :: CommandResult < Vec < String > >` value produced to use validated counterpart to [`PlayerDataSchema::init_player`] — takes a typed [`sand::command::ScoreHolder`] and validates it before generating commands, instead of interpolating an unvalidated selector string.",
+        example = "use sand::systems::player_data::PlayerDataSchema;\nuse sand::state::ScoreVar;\nuse sand::command::ScoreHolder;\nstatic MANA: ScoreVar<i32> = ScoreVar::new(\"mana\");\nlet schema = PlayerDataSchema::new(\"player\").score(&MANA, 100);\nassert!(schema.try_init_player(ScoreHolder::self_()).is_ok());\nassert!(schema.try_init_player(ScoreHolder::fake(\"bad holder\")).is_err());",
+        availability = ["Cargo feature: systems-player-data"],
+    )]
     pub fn try_init_player(
         &self,
         holder: impl Into<sand_commands::ScoreHolder>,
@@ -755,20 +1549,62 @@ impl PlayerDataSchema {
     /// Each descriptor exposes the storage resource location string and the
     /// NBT root path.  Use this for debugging, code generation, or building
     /// documentation.
-    #[doc = "**API Contract:** Run `sand api show sand::systems::player_data::PlayerDataSchema::storage_locations` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::systems::player_data::PlayerDataSchema::storage_locations",
+        aliases = ["sand::prelude::PlayerDataSchema::storage_locations", "sand::prelude::PlayerSchema::storage_locations", "sand::systems::player_data::PlayerSchema::storage_locations"],
+        module = "sand::systems",
+        kind = "method",
+        summary = "Returns descriptors for all attached storage schemas.",
+        context = "Returns descriptors for all attached storage schemas. Each descriptor exposes the storage resource location string and the NBT root path.  Use this for debugging, code generation, or building documentation.",
+        minecraft = "Each descriptor exposes the storage resource location string and the NBT root path.  Use this for debugging, code generation, or building documentation.",
+        use_when = ["Opting into the documented higher-level gameplay behavior instead of assembling its commands manually"],
+        avoid_when = ["Using the API outside its documented system scope or feature configuration"],
+        returns = "Returns descriptors for all attached storage schemas.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(player_data_schema_value: &sand::systems::player_data::PlayerDataSchema)  {\n    let storage_locations = player_data_schema_value.storage_locations();\n}",
+        availability = ["Cargo feature: systems-player-data"],
+    )]
     pub fn storage_locations(&self) -> &[StorageDescriptor] {
         &self.storage_schemas
     }
 
     /// `true` if at least one storage schema has been attached.
-    #[doc = "**API Contract:** Run `sand api show sand::systems::player_data::PlayerDataSchema::has_storage` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::systems::player_data::PlayerDataSchema::has_storage",
+        aliases = ["sand::prelude::PlayerDataSchema::has_storage", "sand::prelude::PlayerSchema::has_storage", "sand::systems::player_data::PlayerSchema::has_storage"],
+        module = "sand::systems",
+        kind = "method",
+        summary = "`true` if at least one storage schema has been attached.",
+        context = "`true` if at least one storage schema has been attached. This opt-in system composes Sand's typed primitives into a higher-level gameplay behavior; exporter registries and generated tick bookkeeping are private.",
+        minecraft = "The exact commands, resources, and lifecycle behavior are described by the defining item's source documentation for the selected feature and Minecraft profile.",
+        use_when = ["Opting into the documented higher-level gameplay behavior instead of assembling its commands manually"],
+        avoid_when = ["Using the API outside its documented system scope or feature configuration"],
+        returns = "`true` when the documented condition holds to emit the documented `true` if at least one storage schema has been attached form; otherwise `false`.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(player_data_schema_value: &sand::systems::player_data::PlayerDataSchema)  {\n    let is_has_storage = player_data_schema_value.has_storage();\n}",
+        availability = ["Cargo feature: systems-player-data"],
+    )]
     pub fn has_storage(&self) -> bool {
         !self.storage_schemas.is_empty()
     }
 
     /// The number of registered scoreboard-style fields
     /// (score + flag + timer + cooldown).
-    #[doc = "**API Contract:** Run `sand api show sand::systems::player_data::PlayerDataSchema::scoreboard_field_count` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::systems::player_data::PlayerDataSchema::scoreboard_field_count",
+        aliases = ["sand::prelude::PlayerDataSchema::scoreboard_field_count", "sand::prelude::PlayerSchema::scoreboard_field_count", "sand::systems::player_data::PlayerSchema::scoreboard_field_count"],
+        module = "sand::systems",
+        kind = "method",
+        summary = "The number of registered scoreboard-style fields (score + flag + timer + cooldown).",
+        context = "The number of registered scoreboard-style fields (score + flag + timer + cooldown). This opt-in system composes Sand's typed primitives into a higher-level gameplay behavior; exporter registries and generated tick bookkeeping are private.",
+        minecraft = "The exact commands, resources, and lifecycle behavior are described by the defining item's source documentation for the selected feature and Minecraft profile.",
+        use_when = ["Opting into the documented higher-level gameplay behavior instead of assembling its commands manually"],
+        avoid_when = ["Using the API outside its documented system scope or feature configuration"],
+        returns = "The `usize` value produced to use the number of registered scoreboard-style fields (score + flag + timer + cooldown).",
+        example = "use sand::prelude::*;\n\nfn demonstrate(player_data_schema_value: &sand::systems::player_data::PlayerDataSchema)  {\n    let scoreboard_field_count = player_data_schema_value.scoreboard_field_count();\n}",
+        availability = ["Cargo feature: systems-player-data"],
+    )]
     pub fn scoreboard_field_count(&self) -> usize {
         self.fields.len()
     }

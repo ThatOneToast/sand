@@ -18,10 +18,31 @@ use crate::resource_location::ResourceLocation;
 /// Implemented for [`ItemId`] and [`ResourceLocation`]. `sand-core` also
 /// implements it for its generated vanilla `Item` enum without introducing a
 /// dependency from `sand-components` back to `sand-core`.
-#[doc = "**API Contract:** Run `sand api show sand::component::IntoRecipeItemId` for the canonical contract."]
+#[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::component::IntoRecipeItemId",
+    module = "sand::component",
+    summary = "Converts a validated item identifier into the representation used by recipes.",
+    context = "Converts a validated item identifier into the representation used by recipes. Implemented for [`ItemId`] and [`ResourceLocation`]. `sand-core` also implements it for its generated vanilla `Item` enum without introducing a dependency from `sand-components` back to `sand-core`.",
+    minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+    use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+    avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+    example = "use sand::component::IntoRecipeItemId;",
+)]
 pub trait IntoRecipeItemId {
     /// Resolves the receiver to the canonical item ID serialized in the recipe.
-    #[doc = "**API Contract:** Run `sand api show sand::component::IntoRecipeItemId::into_recipe_item_id` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::IntoRecipeItemId::into_recipe_item_id",
+        module = "sand::component",
+        summary = "Resolves the receiver to the canonical item ID serialized in the recipe.",
+        context = "Resolves the receiver to the canonical item ID serialized in the recipe. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        returns = "The `ItemId` value produced to resolve the receiver to the canonical item ID serialized in the recipe.",
+        example = "use sand::prelude::*;\n\nfn demonstrate<T: sand::component::IntoRecipeItemId>(into_recipe_item_id_value: T)  {\n    let into_recipe_item_id = into_recipe_item_id_value.into_recipe_item_id();\n}",
+    )]
     fn into_recipe_item_id(self) -> ItemId;
 }
 
@@ -51,7 +72,18 @@ impl IntoRecipeItemId for &ResourceLocation {
 
 // ── Ingredient ───────────────────────────────────────────────────────────────
 
-#[doc = "**API Contract:** Run `sand api show sand::component::Ingredient` for the canonical contract."]
+#[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::component::Ingredient",
+    aliases = ["sand::prelude::Ingredient"],
+    module = "sand::component",
+    summary = "Represents a recipe ingredient that can be specified by item ID or item tag.",
+    context = "Represents a recipe ingredient that can be specified by item ID or item tag. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+    minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+    use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+    avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+    example = "use sand::component::Ingredient;",
+)]
 /// Represents a recipe ingredient that can be specified by item ID or item tag.
 #[derive(Debug)]
 pub struct Ingredient {
@@ -62,14 +94,42 @@ pub struct Ingredient {
 
 impl Ingredient {
     /// Creates an item ingredient through Sand's validated item-ID boundary.
-    #[doc = "**API Contract:** Run `sand api show sand::component::Ingredient::item_id` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::Ingredient::item_id",
+        aliases = ["sand::prelude::Ingredient::item_id"],
+        module = "sand::component",
+        kind = "method",
+        summary = "Creates an item ingredient through Sand's validated item-ID boundary.",
+        context = "Creates an item ingredient through Sand's validated item-ID boundary. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(id = "`id` provides the typed resource identifier or location used to create an item ingredient through Sand's validated item-ID boundary."),
+        returns = "A newly constructed `Ingredient` configured to create an item ingredient through Sand's validated item-ID boundary.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(id: impl sand::component::IntoRecipeItemId)  {\n    let ingredient = sand::component::Ingredient::item_id(id);\n}",
+    )]
     pub fn item_id(id: impl IntoRecipeItemId) -> Self {
         Self::raw_item(id.into_recipe_item_id().to_string())
     }
 
     /// Creates an item-tag ingredient. The `ItemId` marker prevents block or
     /// other registry tags from being passed accidentally.
-    #[doc = "**API Contract:** Run `sand api show sand::component::Ingredient::item_tag` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::Ingredient::item_tag",
+        aliases = ["sand::prelude::Ingredient::item_tag"],
+        module = "sand::component",
+        kind = "method",
+        summary = "Creates an item-tag ingredient. The `ItemId` marker prevents block or other registry tags from being passed accidentally.",
+        context = "Creates an item-tag ingredient. The `ItemId` marker prevents block or other registry tags from being passed accidentally. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(id = "`id` provides the typed resource identifier or location used to create an item-tag ingredient. The `ItemId` marker prevents block or other registry tags from being passed accidentally."),
+        returns = "A newly constructed `Ingredient` configured to create an item-tag ingredient. The `ItemId` marker prevents block or other registry tags from being passed accidentally.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(id: sand::component::TagId < sand::registry::ItemId >)  {\n    let ingredient = sand::component::Ingredient::item_tag(id);\n}",
+    )]
     pub fn item_tag(id: TagId<ItemId>) -> Self {
         Self::raw_tag(id.to_string())
     }
@@ -78,7 +138,21 @@ impl Ingredient {
     ///
     /// Prefer [`Ingredient::item_id`]. This escape hatch remains available for
     /// future or modded identifiers that cannot yet use Sand's typed registry.
-    #[doc = "**API Contract:** Run `sand api show sand::component::Ingredient::raw_item` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::Ingredient::raw_item",
+        aliases = ["sand::prelude::Ingredient::raw_item"],
+        module = "sand::component",
+        kind = "method",
+        summary = "Creates an item ingredient from an unchecked compatibility string.",
+        context = "Creates an item ingredient from an unchecked compatibility string. Prefer [`Ingredient::item_id`]. This escape hatch remains available for future or modded identifiers that cannot yet use Sand's typed registry.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Prefer [`Ingredient::item_id`]. This escape hatch remains available for future or modded identifiers that cannot yet use Sand's typed registry."],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(id = "`id` provides the typed resource identifier or location used to create an item ingredient from an unchecked compatibility string."),
+        returns = "A newly constructed `Ingredient` configured to create an item ingredient from an unchecked compatibility string.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(id: impl Into < String >)  {\n    let ingredient = sand::component::Ingredient::raw_item(id);\n}",
+    )]
     pub fn raw_item(id: impl Into<String>) -> Self {
         Self {
             item: Some(id.into()),
@@ -89,7 +163,21 @@ impl Ingredient {
 
     /// Creates an item-tag ingredient from an unchecked compatibility string.
     /// Prefer [`Ingredient::item_tag`].
-    #[doc = "**API Contract:** Run `sand api show sand::component::Ingredient::raw_tag` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::Ingredient::raw_tag",
+        aliases = ["sand::prelude::Ingredient::raw_tag"],
+        module = "sand::component",
+        kind = "method",
+        summary = "Creates an item-tag ingredient from an unchecked compatibility string. Prefer [`Ingredient::item_tag`].",
+        context = "Creates an item-tag ingredient from an unchecked compatibility string. Prefer [`Ingredient::item_tag`]. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(id = "`id` provides the typed resource identifier or location used to create an item-tag ingredient from an unchecked compatibility string. Prefer [`Ingredient::item_tag`]."),
+        returns = "A newly constructed `Ingredient` configured to create an item-tag ingredient from an unchecked compatibility string. Prefer [`Ingredient::item_tag`].",
+        example = "use sand::prelude::*;\n\nfn demonstrate(id: impl Into < String >)  {\n    let ingredient = sand::component::Ingredient::raw_tag(id);\n}",
+    )]
     pub fn raw_tag(id: impl Into<String>) -> Self {
         Self {
             item: None,
@@ -100,14 +188,42 @@ impl Ingredient {
 
     /// Legacy unchecked compatibility constructor. Prefer [`Ingredient::item_id`]
     /// or make raw intent explicit with [`Ingredient::raw_item`].
-    #[doc = "**API Contract:** Run `sand api show sand::component::Ingredient::item` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::Ingredient::item",
+        aliases = ["sand::prelude::Ingredient::item"],
+        module = "sand::component",
+        kind = "method",
+        summary = "Legacy unchecked compatibility constructor. Prefer [`Ingredient::item_id`] or make raw intent explicit with [`Ingredient::raw_item`].",
+        context = "Legacy unchecked compatibility constructor. Prefer [`Ingredient::item_id`] or make raw intent explicit with [`Ingredient::raw_item`]. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(id = "`id` provides the typed resource identifier or location used to use legacy unchecked compatibility constructor. Prefer [`Ingredient::item_id`] or make raw intent explicit with [`Ingredient::raw_item`]."),
+        returns = "A newly constructed `Ingredient` configured to use legacy unchecked compatibility constructor. Prefer [`Ingredient::item_id`] or make raw intent explicit with [`Ingredient::raw_item`].",
+        example = "use sand::prelude::*;\n\nfn demonstrate(id: impl std::fmt::Display)  {\n    let ingredient = sand::component::Ingredient::item(id);\n}",
+    )]
     pub fn item(id: impl Display) -> Self {
         Self::raw_item(id.to_string())
     }
 
     /// Legacy unchecked compatibility constructor. Prefer [`Ingredient::item_tag`]
     /// or make raw intent explicit with [`Ingredient::raw_tag`].
-    #[doc = "**API Contract:** Run `sand api show sand::component::Ingredient::tag` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::Ingredient::tag",
+        aliases = ["sand::prelude::Ingredient::tag"],
+        module = "sand::component",
+        kind = "method",
+        summary = "Legacy unchecked compatibility constructor. Prefer [`Ingredient::item_tag`] or make raw intent explicit with [`Ingredient::raw_tag`].",
+        context = "Legacy unchecked compatibility constructor. Prefer [`Ingredient::item_tag`] or make raw intent explicit with [`Ingredient::raw_tag`]. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(id = "`id` provides the typed resource identifier or location used to use legacy unchecked compatibility constructor. Prefer [`Ingredient::item_tag`] or make raw intent explicit with [`Ingredient::raw_tag`]."),
+        returns = "A newly constructed `Ingredient` configured to use legacy unchecked compatibility constructor. Prefer [`Ingredient::item_tag`] or make raw intent explicit with [`Ingredient::raw_tag`].",
+        example = "use sand::prelude::*;\n\nfn demonstrate(id: impl std::fmt::Display)  {\n    let ingredient = sand::component::Ingredient::tag(id);\n}",
+    )]
     pub fn tag(id: impl Display) -> Self {
         Self::raw_tag(id.to_string())
     }
@@ -115,7 +231,21 @@ impl Ingredient {
     /// Creates an ingredient that matches any of the supplied alternatives.
     /// Modern recipe JSON represents alternatives as an array of ingredient
     /// values, where item IDs and tag IDs are both strings.
-    #[doc = "**API Contract:** Run `sand api show sand::component::Ingredient::alternatives` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::Ingredient::alternatives",
+        aliases = ["sand::prelude::Ingredient::alternatives"],
+        module = "sand::component",
+        kind = "method",
+        summary = "Creates an ingredient that matches any of the supplied alternatives. Modern recipe JSON represents alternatives as an array of ingredient values, where item IDs and tag IDs are both strings.",
+        context = "Creates an ingredient that matches any of the supplied alternatives. Modern recipe JSON represents alternatives as an array of ingredient values, where item IDs and tag IDs are both strings. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(alternatives = "`alternatives` supplies the alternatives value used to create an ingredient that matches any of the supplied alternatives. Modern recipe JSON represents alternatives as an array of ingredient values, where item IDs and tag IDs are both strings."),
+        returns = "A newly constructed `Ingredient` configured to create an ingredient that matches any of the supplied alternatives. Modern recipe JSON represents alternatives as an array of ingredient values, where item IDs and tag IDs are both strings.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(alternatives: impl IntoIterator < Item = sand::component::Ingredient >)  {\n    let ingredient = sand::component::Ingredient::alternatives(alternatives);\n}",
+    )]
     pub fn alternatives(alternatives: impl IntoIterator<Item = Ingredient>) -> Self {
         Self {
             item: None,
@@ -159,7 +289,21 @@ impl Ingredient {
     /// [`Ingredient::item_id`] or [`Ingredient::item`] directly and enforce
     /// component identity elsewhere (e.g. a function that runs after
     /// crafting and checks `minecraft:custom_data` on the result).
-    #[doc = "**API Contract:** Run `sand api show sand::component::Ingredient::custom_item` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::Ingredient::custom_item",
+        aliases = ["sand::prelude::Ingredient::custom_item"],
+        module = "sand::component",
+        kind = "method",
+        summary = "Attempt to build a recipe ingredient that matches a specific [`CustomItem`] exactly, including its data components (e.g. its [`custom_data`](CustomItem::custom_data) identity marker).",
+        context = "Attempt to build a recipe ingredient that matches a specific [`CustomItem`] exactly, including its data components (e.g. its [`custom_data`](CustomItem::custom_data) identity marker). Minecraft's vanilla crafting recipe `Ingredient` schema — shaped, shapeless, cooking, stonecutting, and smithing recipes alike — matches only by item ID or item tag, in every Minecraft version Sand currently targets (the legacy `1.18`–`1.21.11` series and the `26.x` calendar series). There is no component predicate in the recipe ingredient schema; component predicates exist only in *predicate*/ advancement JSON (see [`sand::predicate::ItemPredicate`]), which the crafting grid does not consult when deciding whether an item fills an ingredient slot. Silently degrading to an item-ID-only ingredient would let *any* item of the same base type (e.g. a plain `minecraft:white_wool`) satisfy a recipe meant to require this specific custom item — the exact identity loss this crate is designed to prevent. So this always fails with [`SandError::ComponentValidation`] describing the missing capability instead of emitting a misleading ingredient. If matching by base item type alone is acceptable, use [`Ingredien...",
+        minecraft = "Minecraft's vanilla crafting recipe `Ingredient` schema — shaped, shapeless, cooking, stonecutting, and smithing recipes alike — matches only by item ID or item tag, in every Minecraft version Sand currently targets (the legacy `1.18`–`1.21.11` series and the `26.x` calendar series). There is no component predicate in the recipe ingredient schema; component predicates exist only in *predicate*/ advancement JSON (see [`sand::predicate::ItemPredicate`]), which the crafting grid does not consult when deciding whether an item fills an ingredient slot.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(item = "`item` provides the item value or item predicate used to attempt to build a recipe ingredient that matches a specific [`CustomItem`] exactly, including its data components (e.g. its [`custom_data`](CustomItem::custom_data) identity marker)."),
+        returns = "On success, the value produced to attempt to build a recipe ingredient that matches a specific [`CustomItem`] exactly, including its data components (e.g. its [`custom_data`](CustomItem::custom_data) identity marker); otherwise, the documented validation or export diagnostic.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(item: & sand::component::CustomItem)  {\n    let custom_item = sand::component::Ingredient::custom_item(item);\n}",
+    )]
     pub fn custom_item(item: &CustomItem) -> SandResult<Self> {
         Err(SandError::ComponentValidation {
             location: ResourceLocation::new("sand", "recipe_ingredient")
@@ -183,7 +327,20 @@ impl Ingredient {
 
     /// Returns `true` if this ingredient has no item, tag, or alternatives
     /// (an invalid state that would fail serialization).
-    #[doc = "**API Contract:** Run `sand api show sand::component::Ingredient::is_empty` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::Ingredient::is_empty",
+        aliases = ["sand::prelude::Ingredient::is_empty"],
+        module = "sand::component",
+        kind = "method",
+        summary = "Returns `true` if this ingredient has no item, tag, or alternatives (an invalid state that would fail serialization).",
+        context = "Returns `true` if this ingredient has no item, tag, or alternatives (an invalid state that would fail serialization). This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        returns = "Returns `true` if this ingredient has no item, tag, or alternatives (an invalid state that would fail serialization).",
+        example = "use sand::prelude::*;\n\nfn demonstrate(ingredient_value: &sand::component::Ingredient)  {\n    let is_is_empty = ingredient_value.is_empty();\n}",
+    )]
     pub fn is_empty(&self) -> bool {
         self.item.is_none()
             && self.tag.is_none()
@@ -318,7 +475,19 @@ impl TryIntoRecipeResult for ItemStack {
 
 // ── RecipeResult ─────────────────────────────────────────────────────────────
 
-#[doc = "**API Contract:** Run `sand api show sand::component::RecipeResult` for the canonical contract."]
+#[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::component::RecipeResult",
+    aliases = ["sand::prelude::RecipeResult"],
+    module = "sand::component",
+    summary = "Represents the output of a recipe, including the item ID, quantity produced, and (optionally) the data components a component-bearing [`CustomItem`] result must carry — e.g. `minecraft:custom_data`, `minecraft:item_name`, enchantment glint overrides, and so on.",
+    context = "Represents the output of a recipe, including the item ID, quantity produced, and (optionally) the data components a component-bearing [`CustomItem`] result must carry — e.g. `minecraft:custom_data`, `minecraft:item_name`, enchantment glint overrides, and so on. Component-free results (built via [`RecipeResult::item`], [`RecipeResult::raw`], or [`RecipeResult::new`]) serialize exactly as before: `{\"id\": ..., \"count\": ...}` — no empty `\"components\"` object is ever emitted. Component-bearing results (built via [`RecipeResult::custom_item`] or [`RecipeResult::from_custom_item`]) additionally serialize a `\"components\"` object built from the source [`CustomItem`]'s typed and raw component state — never from `CustomItem`'s command item-stack `Display` string.",
+    minecraft = "Component-bearing results (built via [`RecipeResult::custom_item`] or [`RecipeResult::from_custom_item`]) additionally serialize a `\"components\"` object built from the source [`CustomItem`]'s typed and raw component state — never from `CustomItem`'s command item-stack `Display` string.",
+    use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+    avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+    example = "use sand::component::RecipeResult;",
+    fields(count = "`count` provides the count when the variant represents the output of a recipe, including the item ID, quantity produced, and (optionally) the data components a component-bearing [`CustomItem`] result must carry — e.g. `minecraft:custom_data`, `minecraft:item_name`, enchantment glint overrides, and so on.", id = "`id` provides the identifier when the variant represents the output of a recipe, including the item ID, quantity produced, and (optionally) the data components a component-bearing [`CustomItem`] result must carry — e.g. `minecraft:custom_data`, `minecraft:item_name`, enchantment glint overrides, and so on."),
+)]
 /// Represents the output of a recipe, including the item ID, quantity
 /// produced, and (optionally) the data components a component-bearing
 /// [`CustomItem`] result must carry — e.g. `minecraft:custom_data`,
@@ -335,23 +504,49 @@ impl TryIntoRecipeResult for ItemStack {
 #[derive(Debug)]
 pub struct RecipeResult {
     /// `id` provides the identifier when the variant represents the output of a recipe, including the item ID, quantity produced, and (optionally) the data components a component-bearing [`CustomItem`] result must carry — e.g. `minecraft:custom_data`, `minecraft:item_name`, enchantment glint overrides, and so on.
-    #[doc = "**API Contract:** Run `sand api show sand::component::RecipeResult::id` for the canonical contract."]
     pub id: String,
     /// `count` provides the count when the variant represents the output of a recipe, including the item ID, quantity produced, and (optionally) the data components a component-bearing [`CustomItem`] result must carry — e.g. `minecraft:custom_data`, `minecraft:item_name`, enchantment glint overrides, and so on.
-    #[doc = "**API Contract:** Run `sand api show sand::component::RecipeResult::count` for the canonical contract."]
     pub count: u32,
     components: Vec<(String, Value)>,
 }
 
 impl RecipeResult {
     /// Creates a recipe result through Sand's validated item-ID boundary.
-    #[doc = "**API Contract:** Run `sand api show sand::component::RecipeResult::item` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::RecipeResult::item",
+        aliases = ["sand::prelude::RecipeResult::item"],
+        module = "sand::component",
+        kind = "method",
+        summary = "Creates a recipe result through Sand's validated item-ID boundary.",
+        context = "Creates a recipe result through Sand's validated item-ID boundary. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(id = "`id` provides the typed resource identifier or location used to create a recipe result through Sand's validated item-ID boundary.", count = "`count` provides the requested numeric amount used to create a recipe result through Sand's validated item-ID boundary."),
+        returns = "A newly constructed `RecipeResult` configured to create a recipe result through Sand's validated item-ID boundary.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(id: impl sand::component::IntoRecipeItemId, count: u32)  {\n    let recipe_result = sand::component::RecipeResult::item(id, count);\n}",
+    )]
     pub fn item(id: impl IntoRecipeItemId, count: u32) -> Self {
         Self::raw(id.into_recipe_item_id().to_string(), count)
     }
 
     /// Creates a recipe result from an unchecked compatibility string.
-    #[doc = "**API Contract:** Run `sand api show sand::component::RecipeResult::raw` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::RecipeResult::raw",
+        aliases = ["sand::prelude::RecipeResult::raw"],
+        module = "sand::component",
+        kind = "method",
+        summary = "Creates a recipe result from an unchecked compatibility string.",
+        context = "Creates a recipe result from an unchecked compatibility string. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(id = "`id` provides the typed resource identifier or location used to create a recipe result from an unchecked compatibility string.", count = "`count` provides the requested numeric amount used to create a recipe result from an unchecked compatibility string."),
+        returns = "A newly constructed `RecipeResult` configured to create a recipe result from an unchecked compatibility string.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(id: impl Into < String >, count: u32)  {\n    let recipe_result = sand::component::RecipeResult::raw(id, count);\n}",
+    )]
     pub fn raw(id: impl Into<String>, count: u32) -> Self {
         Self {
             id: id.into(),
@@ -362,7 +557,21 @@ impl RecipeResult {
 
     /// Legacy unchecked compatibility constructor. Prefer [`RecipeResult::item`]
     /// or make raw intent explicit with [`RecipeResult::raw`].
-    #[doc = "**API Contract:** Run `sand api show sand::component::RecipeResult::new` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::RecipeResult::new",
+        aliases = ["sand::prelude::RecipeResult::new"],
+        module = "sand::component",
+        kind = "method",
+        summary = "Legacy unchecked compatibility constructor. Prefer [`RecipeResult::item`] or make raw intent explicit with [`RecipeResult::raw`].",
+        context = "Legacy unchecked compatibility constructor. Prefer [`RecipeResult::item`] or make raw intent explicit with [`RecipeResult::raw`]. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(id = "`id` provides the typed resource identifier or location used to use legacy unchecked compatibility constructor. Prefer [`RecipeResult::item`] or make raw intent explicit with [`RecipeResult::raw`].", count = "`count` provides the requested numeric amount used to use legacy unchecked compatibility constructor. Prefer [`RecipeResult::item`] or make raw intent explicit with [`RecipeResult::raw`]."),
+        returns = "A newly constructed `RecipeResult` configured to use legacy unchecked compatibility constructor. Prefer [`RecipeResult::item`] or make raw intent explicit with [`RecipeResult::raw`].",
+        example = "use sand::prelude::*;\n\nfn demonstrate(id: impl std::fmt::Display, count: u32)  {\n    let recipe_result = sand::component::RecipeResult::new(id, count);\n}",
+    )]
     pub fn new(id: impl Display, count: u32) -> Self {
         Self::raw(id.to_string(), count)
     }
@@ -379,14 +588,42 @@ impl RecipeResult {
     /// component — it never reduces the item to its base ID alone. Fails with
     /// a descriptive [`SandError`] if a component cannot be safely represented
     /// as structured JSON (see [`CustomItem::stack_components`]).
-    #[doc = "**API Contract:** Run `sand api show sand::component::RecipeResult::custom_item` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::RecipeResult::custom_item",
+        aliases = ["sand::prelude::RecipeResult::custom_item"],
+        module = "sand::component",
+        kind = "method",
+        summary = "Build a component-bearing recipe result from a [`CustomItem`], defaulting to a count of `1`. Use [`RecipeResult::from_custom_item`] to select a different (positive) count.",
+        context = "Build a component-bearing recipe result from a [`CustomItem`], defaulting to a count of `1`. Use [`RecipeResult::from_custom_item`] to select a different (positive) count. Preserves the item's base ID and every representable typed/raw data component — it never reduces the item to its base ID alone. Fails with a descriptive [`SandError`] if a component cannot be safely represented as structured JSON (see [`CustomItem::stack_components`]).",
+        minecraft = "Preserves the item's base ID and every representable typed/raw data component — it never reduces the item to its base ID alone. Fails with a descriptive [`SandError`] if a component cannot be safely represented as structured JSON (see [`CustomItem::stack_components`]).",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(item = "`item` provides the item value or item predicate used to build a component-bearing recipe result from a [`CustomItem`], defaulting to a count of `1`. Use [`RecipeResult::from_custom_item`] to select a different (positive) count."),
+        returns = "On success, the value produced to build a component-bearing recipe result from a [`CustomItem`], defaulting to a count of `1`. Use [`RecipeResult::from_custom_item`] to select a different (positive) count; otherwise, the documented validation or export diagnostic.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(item: & sand::component::CustomItem)  {\n    let custom_item = sand::component::RecipeResult::custom_item(item);\n}",
+    )]
     pub fn custom_item(item: &CustomItem) -> SandResult<Self> {
         Self::from_custom_item(item, 1)
     }
 
     /// Build a component-bearing recipe result from a [`CustomItem`] with an
     /// explicit result `count`.
-    #[doc = "**API Contract:** Run `sand api show sand::component::RecipeResult::from_custom_item` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::RecipeResult::from_custom_item",
+        aliases = ["sand::prelude::RecipeResult::from_custom_item"],
+        module = "sand::component",
+        kind = "method",
+        summary = "Build a component-bearing recipe result from a [`CustomItem`] with an explicit result `count`.",
+        context = "Build a component-bearing recipe result from a [`CustomItem`] with an explicit result `count`. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(item = "`item` provides the item value or item predicate used to build a component-bearing recipe result from a [`CustomItem`] with an explicit result `count`.", count = "Build a component-bearing recipe result from a [`CustomItem`] with an explicit result `count`."),
+        returns = "On success, the value produced to build a component-bearing recipe result from a [`CustomItem`] with an explicit result `count`; otherwise, the documented validation or export diagnostic.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(item: & sand::component::CustomItem, count: u32)  {\n    let from_custom_item = sand::component::RecipeResult::from_custom_item(item, count);\n}",
+    )]
     pub fn from_custom_item(item: &CustomItem, count: u32) -> SandResult<Self> {
         let stack = item.stack_components()?;
         let (id, components) = stack.into_parts();
@@ -398,7 +635,20 @@ impl RecipeResult {
     }
 
     /// `true` if this result carries one or more data components.
-    #[doc = "**API Contract:** Run `sand api show sand::component::RecipeResult::has_components` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::RecipeResult::has_components",
+        aliases = ["sand::prelude::RecipeResult::has_components"],
+        module = "sand::component",
+        kind = "method",
+        summary = "`true` if this result carries one or more data components.",
+        context = "`true` if this result carries one or more data components. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        returns = "`true` when the documented condition holds to emit the documented `true` if this result carries one or more data components form; otherwise `false`.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(recipe_result_value: &sand::component::RecipeResult)  {\n    let is_has_components = recipe_result_value.has_components();\n}",
+    )]
     pub fn has_components(&self) -> bool {
         !self.components.is_empty()
     }
@@ -468,26 +718,45 @@ impl Serialize for RecipeResult {
 
 // ── CookingType ──────────────────────────────────────────────────────────────
 
-#[doc = "**API Contract:** Run `sand api show sand::component::CookingType` for the canonical contract."]
+#[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::component::CookingType",
+    module = "sand::component",
+    summary = "Specifies the type of cooking recipe (smelting, blasting, smoking, or campfire cooking).",
+    context = "Specifies the type of cooking recipe (smelting, blasting, smoking, or campfire cooking). This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+    minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+    use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+    avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+    example = "use sand::component::CookingType;",
+    variants(Blasting = "Selects the blasting form in this typed Minecraft component schema.", CampfireCooking = "Selects the campfire cooking form in this typed Minecraft component schema.", Smelting = "Selects the smelting form in this typed Minecraft component schema.", Smoking = "Selects the smoking form in this typed Minecraft component schema."),
+)]
 /// Specifies the type of cooking recipe (smelting, blasting, smoking, or campfire cooking).
 pub enum CookingType {
     #[doc = "Selects the smelting form in this typed Minecraft component schema."]
-    #[doc = "**API Contract:** Run `sand api show sand::component::CookingType::Smelting` for the canonical contract."]
     Smelting,
     #[doc = "Selects the blasting form in this typed Minecraft component schema."]
-    #[doc = "**API Contract:** Run `sand api show sand::component::CookingType::Blasting` for the canonical contract."]
     Blasting,
     #[doc = "Selects the smoking form in this typed Minecraft component schema."]
-    #[doc = "**API Contract:** Run `sand api show sand::component::CookingType::Smoking` for the canonical contract."]
     Smoking,
     #[doc = "Selects the campfire cooking form in this typed Minecraft component schema."]
-    #[doc = "**API Contract:** Run `sand api show sand::component::CookingType::CampfireCooking` for the canonical contract."]
     CampfireCooking,
 }
 
 impl CookingType {
     /// Returns the Minecraft recipe type identifier string.
-    #[doc = "**API Contract:** Run `sand api show sand::component::CookingType::type_str` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::CookingType::type_str",
+        module = "sand::component",
+        kind = "method",
+        summary = "Returns the Minecraft recipe type identifier string.",
+        context = "Returns the Minecraft recipe type identifier string. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        returns = "Returns the Minecraft recipe type identifier string.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(cooking_type_value: &sand::component::CookingType)  {\n    let type_str = cooking_type_value.type_str();\n}",
+    )]
     pub fn type_str(&self) -> &'static str {
         match self {
             CookingType::Smelting => "minecraft:smelting",

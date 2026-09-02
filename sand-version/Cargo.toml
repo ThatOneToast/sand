@@ -12,3 +12,5 @@ keywords = ["minecraft", "datapack", "version"]
 categories = ["game-development"]
 
 [dependencies]
+sand-api-contract = { path = "../sand-api-contract" }
+sand-macros = { path = "../sand-macros" }

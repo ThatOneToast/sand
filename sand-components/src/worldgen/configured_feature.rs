@@ -27,25 +27,33 @@ const KIND: &str = "worldgen/configured_feature";
 /// Vanilla's maximum world height, used as the `fill_layer` height bound.
 const MAX_FILL_LAYER_HEIGHT: u32 = 4064;
 
-#[doc = "**API Contract:** Run `sand api show sand::component::RuleTest` for the canonical contract."]
+#[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::component::RuleTest",
+    aliases = ["sand::prelude::RuleTest"],
+    module = "sand::component",
+    summary = "A block-matching rule test used by ore-like feature configs.",
+    context = "A block-matching rule test used by ore-like feature configs. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+    minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+    use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+    avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+    example = "use sand::component::RuleTest;",
+    variants(AlwaysTrue = "`minecraft:always_true` — replaces any block.", BlockMatch = "`minecraft:block_match` — replaces exactly one block.", TagMatch = "`minecraft:tag_match` — replaces any block in a block tag."),
+    variant_fields(BlockMatch(block = "`block` provides the block identifier when `minecraft:block_match` — replaces exactly one block."), TagMatch(tag = "`tag` provides the tag identifier when `minecraft:tag_match` — replaces any block in a block tag.")),
+)]
 /// A block-matching rule test used by ore-like feature configs.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum RuleTest {
-    #[doc = "**API Contract:** Run `sand api show sand::component::RuleTest::AlwaysTrue` for the canonical contract."]
     /// `minecraft:always_true` — replaces any block.
     AlwaysTrue,
-    #[doc = "**API Contract:** Run `sand api show sand::component::RuleTest::BlockMatch` for the canonical contract."]
     /// `minecraft:block_match` — replaces exactly one block.
     BlockMatch {
         #[doc = "`block` provides the block identifier when `minecraft:block_match` — replaces exactly one block."]
-        #[doc = "**API Contract:** Run `sand api show sand::component::RuleTest::BlockMatch::block` for the canonical contract."]
         block: BlockId,
     },
-    #[doc = "**API Contract:** Run `sand api show sand::component::RuleTest::TagMatch` for the canonical contract."]
     /// `minecraft:tag_match` — replaces any block in a block tag.
     TagMatch {
         #[doc = "`tag` provides the tag identifier when `minecraft:tag_match` — replaces any block in a block tag."]
-        #[doc = "**API Contract:** Run `sand api show sand::component::RuleTest::TagMatch::tag` for the canonical contract."]
         tag: TagId<BlockId>,
     },
 }
@@ -66,7 +74,18 @@ impl RuleTest {
     }
 }
 
-#[doc = "**API Contract:** Run `sand api show sand::component::OreTarget` for the canonical contract."]
+#[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::component::OreTarget",
+    aliases = ["sand::prelude::OreTarget"],
+    module = "sand::component",
+    summary = "One replaceable-target entry of an ore feature config.",
+    context = "One replaceable-target entry of an ore feature config. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+    minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+    use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+    avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+    example = "use sand::component::OreTarget;",
+)]
 /// One replaceable-target entry of an ore feature config.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct OreTarget {
@@ -76,7 +95,21 @@ pub struct OreTarget {
 
 impl OreTarget {
     /// Place `state` wherever `target` matches.
-    #[doc = "**API Contract:** Run `sand api show sand::component::OreTarget::new` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::OreTarget::new",
+        aliases = ["sand::prelude::OreTarget::new"],
+        module = "sand::component",
+        kind = "method",
+        summary = "Place `state` wherever `target` matches.",
+        context = "Place `state` wherever `target` matches. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(target = "Place `state` wherever `target` matches.", state = "Place `state` wherever `target` matches."),
+        returns = "A newly constructed `OreTarget` configured to place `state` wherever `target` matches.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(target: sand::component::RuleTest, state: sand::component::BlockState)  {\n    let ore_target = sand::component::OreTarget::new(target, state);\n}",
+    )]
     pub fn new(target: RuleTest, state: BlockState) -> Self {
         Self { target, state }
     }
@@ -89,7 +122,18 @@ impl OreTarget {
     }
 }
 
-#[doc = "**API Contract:** Run `sand api show sand::component::OreConfig` for the canonical contract."]
+#[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::component::OreConfig",
+    aliases = ["sand::prelude::OreConfig"],
+    module = "sand::component",
+    summary = "Config for the `minecraft:ore` feature type.",
+    context = "Config for the `minecraft:ore` feature type. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+    minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+    use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+    avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+    example = "use sand::component::OreConfig;",
+)]
 /// Config for the `minecraft:ore` feature type.
 #[derive(Debug, Clone, PartialEq)]
 pub struct OreConfig {
@@ -100,7 +144,21 @@ pub struct OreConfig {
 
 impl OreConfig {
     /// Create an ore config with the given vein size and replaceable targets.
-    #[doc = "**API Contract:** Run `sand api show sand::component::OreConfig::new` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::OreConfig::new",
+        aliases = ["sand::prelude::OreConfig::new"],
+        module = "sand::component",
+        kind = "method",
+        summary = "Create an ore config with the given vein size and replaceable targets.",
+        context = "Create an ore config with the given vein size and replaceable targets. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(size = "`size` supplies the size value used to create an ore config with the given vein size and replaceable targets.", targets = "`targets` provides the Minecraft target selection used to create an ore config with the given vein size and replaceable targets."),
+        returns = "A newly constructed `OreConfig` configured to create an ore config with the given vein size and replaceable targets.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(size: u32, targets: impl IntoIterator < Item = sand::component::OreTarget >)  {\n    let ore_config = sand::component::OreConfig::new(size, targets);\n}",
+    )]
     pub fn new(size: u32, targets: impl IntoIterator<Item = OreTarget>) -> Self {
         Self {
             size,
@@ -110,7 +168,21 @@ impl OreConfig {
     }
 
     /// Probability (`0..=1`) that a vein block exposed to air is discarded.
-    #[doc = "**API Contract:** Run `sand api show sand::component::OreConfig::discard_chance_on_air_exposure` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::OreConfig::discard_chance_on_air_exposure",
+        aliases = ["sand::prelude::OreConfig::discard_chance_on_air_exposure"],
+        module = "sand::component",
+        kind = "method",
+        summary = "Probability (`0..=1`) that a vein block exposed to air is discarded.",
+        context = "Probability (`0..=1`) that a vein block exposed to air is discarded. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(chance = "`chance` supplies the chance value used to probability (`0..=1`) that a vein block exposed to air is discarded."),
+        returns = "The `OreConfig` value with the documented change applied to probability (`0..=1`) that a vein block exposed to air is discarded.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(ore_config_value: sand::component::OreConfig, chance: f32)  {\n    let updated_ore_config = ore_config_value.discard_chance_on_air_exposure(chance);\n}",
+    )]
     pub fn discard_chance_on_air_exposure(mut self, chance: f32) -> Self {
         self.discard_chance_on_air_exposure = chance;
         self
@@ -204,7 +276,18 @@ impl Feature {
     }
 }
 
-#[doc = "**API Contract:** Run `sand api show sand::component::ConfiguredFeature` for the canonical contract."]
+#[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::component::ConfiguredFeature",
+    aliases = ["sand::prelude::ConfiguredFeature"],
+    module = "sand::component",
+    summary = "A configured feature definition (`data/<namespace>/worldgen/configured_feature/<id>.json`).",
+    context = "A configured feature definition (`data/<namespace>/worldgen/configured_feature/<id>.json`). This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+    minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+    use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+    avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+    example = "use sand::component::ConfiguredFeature;",
+)]
 /// A configured feature definition
 /// (`data/<namespace>/worldgen/configured_feature/<id>.json`).
 ///
@@ -231,7 +314,21 @@ impl ConfiguredFeature {
     ///
     /// Useful as a placeholder target while a pack's placement rules are being
     /// developed.
-    #[doc = "**API Contract:** Run `sand api show sand::component::ConfiguredFeature::no_op` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::ConfiguredFeature::no_op",
+        aliases = ["sand::prelude::ConfiguredFeature::no_op"],
+        module = "sand::component",
+        kind = "method",
+        summary = "A `minecraft:no_op` feature that generates nothing.",
+        context = "A `minecraft:no_op` feature that generates nothing. Useful as a placeholder target while a pack's placement rules are being developed.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(location = "`location` provides the typed resource identifier or location used to use a `minecraft:no_op` feature that generates nothing."),
+        returns = "A newly constructed `ConfiguredFeature` configured to use a `minecraft:no_op` feature that generates nothing.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(location: sand::ResourceLocation)  {\n    let configured_feature = sand::component::ConfiguredFeature::no_op(location);\n}",
+    )]
     pub fn no_op(location: ResourceLocation) -> Self {
         Self {
             location,
@@ -240,7 +337,21 @@ impl ConfiguredFeature {
     }
 
     /// A `minecraft:simple_block` feature that places a single block state.
-    #[doc = "**API Contract:** Run `sand api show sand::component::ConfiguredFeature::simple_block` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::ConfiguredFeature::simple_block",
+        aliases = ["sand::prelude::ConfiguredFeature::simple_block"],
+        module = "sand::component",
+        kind = "method",
+        summary = "A `minecraft:simple_block` feature that places a single block state.",
+        context = "A `minecraft:simple_block` feature that places a single block state. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(location = "`location` provides the typed resource identifier or location used to use a `minecraft:simple_block` feature that places a single block state.", to_place = "`to_place` supplies the to place value used to use a `minecraft:simple_block` feature that places a single block state."),
+        returns = "A newly constructed `ConfiguredFeature` configured to use a `minecraft:simple_block` feature that places a single block state.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(location: sand::ResourceLocation, to_place: sand::component::BlockStateProvider)  {\n    let configured_feature = sand::component::ConfiguredFeature::simple_block(location, to_place);\n}",
+    )]
     pub fn simple_block(location: ResourceLocation, to_place: BlockStateProvider) -> Self {
         Self {
             location,
@@ -249,7 +360,21 @@ impl ConfiguredFeature {
     }
 
     /// A `minecraft:fill_layer` feature that fills one world layer with a state.
-    #[doc = "**API Contract:** Run `sand api show sand::component::ConfiguredFeature::fill_layer` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::ConfiguredFeature::fill_layer",
+        aliases = ["sand::prelude::ConfiguredFeature::fill_layer"],
+        module = "sand::component",
+        kind = "method",
+        summary = "A `minecraft:fill_layer` feature that fills one world layer with a state.",
+        context = "A `minecraft:fill_layer` feature that fills one world layer with a state. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(location = "`location` provides the typed resource identifier or location used to use a `minecraft:fill_layer` feature that fills one world layer with a state.", state = "`state` supplies the state value used to use a `minecraft:fill_layer` feature that fills one world layer with a state.", height = "`height` supplies the height value used to use a `minecraft:fill_layer` feature that fills one world layer with a state."),
+        returns = "A newly constructed `ConfiguredFeature` configured to use a `minecraft:fill_layer` feature that fills one world layer with a state.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(location: sand::ResourceLocation, state: sand::component::BlockState, height: u32)  {\n    let configured_feature = sand::component::ConfiguredFeature::fill_layer(location, state, height);\n}",
+    )]
     pub fn fill_layer(location: ResourceLocation, state: BlockState, height: u32) -> Self {
         Self {
             location,
@@ -258,7 +383,21 @@ impl ConfiguredFeature {
     }
 
     /// A `minecraft:ore` feature that replaces matching blocks with ore veins.
-    #[doc = "**API Contract:** Run `sand api show sand::component::ConfiguredFeature::ore` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::ConfiguredFeature::ore",
+        aliases = ["sand::prelude::ConfiguredFeature::ore"],
+        module = "sand::component",
+        kind = "method",
+        summary = "A `minecraft:ore` feature that replaces matching blocks with ore veins.",
+        context = "A `minecraft:ore` feature that replaces matching blocks with ore veins. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(location = "`location` provides the typed resource identifier or location used to use a `minecraft:ore` feature that replaces matching blocks with ore veins.", config = "`config` supplies the config value used to use a `minecraft:ore` feature that replaces matching blocks with ore veins."),
+        returns = "A newly constructed `ConfiguredFeature` configured to use a `minecraft:ore` feature that replaces matching blocks with ore veins.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(location: sand::ResourceLocation, config: sand::component::OreConfig)  {\n    let configured_feature = sand::component::ConfiguredFeature::ore(location, config);\n}",
+    )]
     pub fn ore(location: ResourceLocation, config: OreConfig) -> Self {
         Self {
             location,
@@ -273,7 +412,21 @@ impl ConfiguredFeature {
     /// feature types and for vanilla configs outside the typed slice (trees,
     /// selectors, decorated shapes, and other version-sensitive schemas).
     /// The config must still be a JSON object.
-    #[doc = "**API Contract:** Run `sand api show sand::component::ConfiguredFeature::raw` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::ConfiguredFeature::raw",
+        aliases = ["sand::prelude::ConfiguredFeature::raw"],
+        module = "sand::component",
+        kind = "method",
+        summary = "Author a configured feature from an explicitly raw feature type and config object.",
+        context = "Author a configured feature from an explicitly raw feature type and config object. Prefer the typed constructors. This escape hatch exists for modded feature types and for vanilla configs outside the typed slice (trees, selectors, decorated shapes, and other version-sensitive schemas). The config must still be a JSON object.",
+        minecraft = "Prefer the typed constructors. This escape hatch exists for modded feature types and for vanilla configs outside the typed slice (trees, selectors, decorated shapes, and other version-sensitive schemas). The config must still be a JSON object.",
+        use_when = ["Prefer the typed constructors. This escape hatch exists for modded feature types and for vanilla configs outside the typed slice (trees, selectors, decorated shapes, and other version-sensitive schemas). The config must still be a JSON object."],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(location = "`location` provides the typed resource identifier or location used to use author a configured feature from an explicitly raw feature type and config object.", feature_type = "`feature_type` provides the typed Minecraft resource identifier used to use author a configured feature from an explicitly raw feature type and config object.", config = "`config` supplies the config value used to use author a configured feature from an explicitly raw feature type and config object."),
+        returns = "A newly constructed `ConfiguredFeature` configured to use author a configured feature from an explicitly raw feature type and config object.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(location: sand::ResourceLocation, feature_type: sand::ResourceLocation, config: sand::component::RawJson)  {\n    let configured_feature = sand::component::ConfiguredFeature::raw(location, feature_type, config);\n}",
+    )]
     pub fn raw(
         location: ResourceLocation,
         feature_type: ResourceLocation,
@@ -302,7 +455,20 @@ impl ConfiguredFeature {
     /// );
     /// # let _ = placed;
     /// ```
-    #[doc = "**API Contract:** Run `sand api show sand::component::ConfiguredFeature::id` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::ConfiguredFeature::id",
+        aliases = ["sand::prelude::ConfiguredFeature::id"],
+        module = "sand::component",
+        kind = "method",
+        summary = "The typed ID other worldgen components use to reference this feature.",
+        context = "The typed ID other worldgen components use to reference this feature. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        returns = "The `ConfiguredFeatureId` value produced to use the typed ID other worldgen components use to reference this feature.",
+        example = "use sand::ResourceLocation;\nuse {sand::component::ConfiguredFeature, sand::component::PlacedFeature};\nlet feature =\nConfiguredFeature::no_op(ResourceLocation::new(\"example\", \"nothing\").unwrap());\nlet placed = PlacedFeature::new(\nResourceLocation::new(\"example\", \"nowhere\").unwrap(),\nfeature.id(),\n);",
+    )]
     pub fn id(&self) -> ConfiguredFeatureId {
         ConfiguredFeatureId::custom(self.location.clone())
     }

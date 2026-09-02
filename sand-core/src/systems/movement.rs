@@ -66,7 +66,18 @@ use sand_components::{EffectId, Ticks};
 
 // ── PushAway ──────────────────────────────────────────────────────────────────
 
-#[doc = "**API Contract:** Run `sand api show sand::systems::movement::PushAway` for the canonical contract."]
+#[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::systems::movement::PushAway",
+    module = "sand::systems",
+    summary = "Pushes entities away from a source entity using local-coordinate teleport.",
+    context = "Pushes entities away from a source entity using local-coordinate teleport. Uses the `execute facing entity` trick so each target is displaced in the direction away from the source — no nearest-player assumptions are made.",
+    minecraft = "The exact commands, resources, and lifecycle behavior are described by the defining item's source documentation for the selected feature and Minecraft profile.",
+    use_when = ["Opting into the documented higher-level gameplay behavior instead of assembling its commands manually"],
+    avoid_when = ["Using the API outside its documented system scope or feature configuration"],
+    example = "use sand::systems::movement::PushAway;",
+    availability = ["Cargo feature: systems-movement"],
+)]
 /// Pushes entities away from a source entity using local-coordinate teleport.
 ///
 /// Uses the `execute facing entity` trick so each target is displaced in the
@@ -92,7 +103,20 @@ impl Default for PushAway {
 
 impl PushAway {
     /// Create a new `PushAway` builder with default strength `1.0` and no lift.
-    #[doc = "**API Contract:** Run `sand api show sand::systems::movement::PushAway::new` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::systems::movement::PushAway::new",
+        module = "sand::systems",
+        kind = "method",
+        summary = "Create a new `PushAway` builder with default strength `1.0` and no lift.",
+        context = "Create a new `PushAway` builder with default strength `1.0` and no lift. This opt-in system composes Sand's typed primitives into a higher-level gameplay behavior; exporter registries and generated tick bookkeeping are private.",
+        minecraft = "The exact commands, resources, and lifecycle behavior are described by the defining item's source documentation for the selected feature and Minecraft profile.",
+        use_when = ["Opting into the documented higher-level gameplay behavior instead of assembling its commands manually"],
+        avoid_when = ["Using the API outside its documented system scope or feature configuration"],
+        returns = "A newly constructed `PushAway` configured to create a new `PushAway` builder with default strength `1.0` and no lift.",
+        example = "use sand::prelude::*;\n\nfn demonstrate()  {\n    let push_away = sand::systems::movement::PushAway::new();\n}",
+        availability = ["Cargo feature: systems-movement"],
+    )]
     pub fn new() -> Self {
         Self {
             source: None,
@@ -103,28 +127,84 @@ impl PushAway {
     }
 
     /// Set the source entity (the "center" of the push, typically `@s`).
-    #[doc = "**API Contract:** Run `sand api show sand::systems::movement::PushAway::source` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::systems::movement::PushAway::source",
+        module = "sand::systems",
+        kind = "method",
+        summary = "Set the source entity (the \"center\" of the push, typically `@s`).",
+        context = "Set the source entity (the \"center\" of the push, typically `@s`). This opt-in system composes Sand's typed primitives into a higher-level gameplay behavior; exporter registries and generated tick bookkeeping are private.",
+        minecraft = "The exact commands, resources, and lifecycle behavior are described by the defining item's source documentation for the selected feature and Minecraft profile.",
+        use_when = ["Opting into the documented higher-level gameplay behavior instead of assembling its commands manually"],
+        avoid_when = ["Using the API outside its documented system scope or feature configuration"],
+        params(source = "`source` provides the Minecraft target selection used to set the source entity (the \"center\" of the push, typically `@s`)."),
+        returns = "The `PushAway` value with the documented change applied to set the source entity (the \"center\" of the push, typically `@s`).",
+        example = "use sand::prelude::*;\n\nfn demonstrate(push_away_value: sand::systems::movement::PushAway, source: sand::command::Selector)  {\n    let updated_push_away = push_away_value.source(source);\n}",
+        availability = ["Cargo feature: systems-movement"],
+    )]
     pub fn source(mut self, source: Selector) -> Self {
         self.source = Some(source);
         self
     }
 
     /// Set the entities to push.
-    #[doc = "**API Contract:** Run `sand api show sand::systems::movement::PushAway::targets` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::systems::movement::PushAway::targets",
+        module = "sand::systems",
+        kind = "method",
+        summary = "Set the entities to push.",
+        context = "Set the entities to push. This opt-in system composes Sand's typed primitives into a higher-level gameplay behavior; exporter registries and generated tick bookkeeping are private.",
+        minecraft = "The exact commands, resources, and lifecycle behavior are described by the defining item's source documentation for the selected feature and Minecraft profile.",
+        use_when = ["Opting into the documented higher-level gameplay behavior instead of assembling its commands manually"],
+        avoid_when = ["Using the API outside its documented system scope or feature configuration"],
+        params(targets = "`targets` provides the Minecraft target selection used to set the entities to push."),
+        returns = "The `PushAway` value with the documented change applied to set the entities to push.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(push_away_value: sand::systems::movement::PushAway, targets: sand::command::EntityTargets)  {\n    let updated_push_away = push_away_value.targets(targets);\n}",
+        availability = ["Cargo feature: systems-movement"],
+    )]
     pub fn targets(mut self, targets: EntityTargets) -> Self {
         self.targets = Some(targets);
         self
     }
 
     /// How far to push each target (in blocks along the away vector).
-    #[doc = "**API Contract:** Run `sand api show sand::systems::movement::PushAway::strength` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::systems::movement::PushAway::strength",
+        module = "sand::systems",
+        kind = "method",
+        summary = "How far to push each target (in blocks along the away vector).",
+        context = "How far to push each target (in blocks along the away vector). This opt-in system composes Sand's typed primitives into a higher-level gameplay behavior; exporter registries and generated tick bookkeeping are private.",
+        minecraft = "The exact commands, resources, and lifecycle behavior are described by the defining item's source documentation for the selected feature and Minecraft profile.",
+        use_when = ["Opting into the documented higher-level gameplay behavior instead of assembling its commands manually"],
+        avoid_when = ["Using the API outside its documented system scope or feature configuration"],
+        params(strength = "`strength` supplies the strength value used to represent how far to push each target (in blocks along the away vector)."),
+        returns = "The `PushAway` value with the documented change applied to represent how far to push each target (in blocks along the away vector).",
+        example = "use sand::prelude::*;\n\nfn demonstrate(push_away_value: sand::systems::movement::PushAway, strength: f64)  {\n    let updated_push_away = push_away_value.strength(strength);\n}",
+        availability = ["Cargo feature: systems-movement"],
+    )]
     pub fn strength(mut self, strength: f64) -> Self {
         self.strength = strength;
         self
     }
 
     /// How far to lift each target upward (in blocks, default `0.0`).
-    #[doc = "**API Contract:** Run `sand api show sand::systems::movement::PushAway::lift` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::systems::movement::PushAway::lift",
+        module = "sand::systems",
+        kind = "method",
+        summary = "How far to lift each target upward (in blocks, default `0.0`).",
+        context = "How far to lift each target upward (in blocks, default `0.0`). This opt-in system composes Sand's typed primitives into a higher-level gameplay behavior; exporter registries and generated tick bookkeeping are private.",
+        minecraft = "The exact commands, resources, and lifecycle behavior are described by the defining item's source documentation for the selected feature and Minecraft profile.",
+        use_when = ["Opting into the documented higher-level gameplay behavior instead of assembling its commands manually"],
+        avoid_when = ["Using the API outside its documented system scope or feature configuration"],
+        params(lift = "`lift` supplies the lift value used to represent how far to lift each target upward (in blocks, default `0.0`)."),
+        returns = "The `PushAway` value with the documented change applied to represent how far to lift each target upward (in blocks, default `0.0`).",
+        example = "use sand::prelude::*;\n\nfn demonstrate(push_away_value: sand::systems::movement::PushAway, lift: f64)  {\n    let updated_push_away = push_away_value.lift(lift);\n}",
+        availability = ["Cargo feature: systems-movement"],
+    )]
     pub fn lift(mut self, lift: f64) -> Self {
         self.lift = lift;
         self
@@ -134,7 +214,20 @@ impl PushAway {
     ///
     /// Returns one command per source–targets pair. If source or targets are
     /// not set, defaults to `@s` (source) or all entities (targets).
-    #[doc = "**API Contract:** Run `sand api show sand::systems::movement::PushAway::build` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::systems::movement::PushAway::build",
+        module = "sand::systems",
+        kind = "method",
+        summary = "Build the command string(s). Returns one command per source–targets pair. If source or targets are not set, defaults to `@s` (source) or all entities (targets).",
+        context = "Build the command string(s). Returns one command per source–targets pair. If source or targets are not set, defaults to `@s` (source) or all entities (targets). This opt-in system composes Sand's typed primitives into a higher-level gameplay behavior; exporter registries and generated tick bookkeeping are private.",
+        minecraft = "Returns one command per source–targets pair. If source or targets are not set, defaults to `@s` (source) or all entities (targets).",
+        use_when = ["Opting into the documented higher-level gameplay behavior instead of assembling its commands manually"],
+        avoid_when = ["Using the API outside its documented system scope or feature configuration"],
+        returns = "Returns one command per source–targets pair. If source or targets are not set, defaults to `@s` (source) or all entities (targets).",
+        example = "use sand::prelude::*;\n\nfn demonstrate(push_away_value: sand::systems::movement::PushAway)  {\n    let values = push_away_value.build();\n}",
+        availability = ["Cargo feature: systems-movement"],
+    )]
     pub fn build(self) -> Vec<String> {
         let source = self.source.unwrap_or_else(Selector::self_);
         let targets = self
@@ -153,7 +246,18 @@ impl PushAway {
 
 // ── Launch ────────────────────────────────────────────────────────────────────
 
-#[doc = "**API Contract:** Run `sand api show sand::systems::movement::Launch` for the canonical contract."]
+#[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::systems::movement::Launch",
+    module = "sand::systems",
+    summary = "Launches entities upward by teleporting them a fixed distance along the Y axis.",
+    context = "Launches entities upward by teleporting them a fixed distance along the Y axis. This is a positional shift, not a physics impulse — it is reliable across all entity types without NBT access. For a more natural arc, chain multiple smaller launches over successive ticks.",
+    minecraft = "This is a positional shift, not a physics impulse — it is reliable across all entity types without NBT access. For a more natural arc, chain multiple smaller launches over successive ticks.",
+    use_when = ["Opting into the documented higher-level gameplay behavior instead of assembling its commands manually"],
+    avoid_when = ["Using the API outside its documented system scope or feature configuration"],
+    example = "use sand::systems::movement::Launch;",
+    availability = ["Cargo feature: systems-movement"],
+)]
 /// Launches entities upward by teleporting them a fixed distance along the Y axis.
 ///
 /// This is a positional shift, not a physics impulse — it is reliable across all
@@ -178,7 +282,20 @@ impl Default for Launch {
 
 impl Launch {
     /// Create a new `Launch` builder with default amount `0.5`.
-    #[doc = "**API Contract:** Run `sand api show sand::systems::movement::Launch::new` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::systems::movement::Launch::new",
+        module = "sand::systems",
+        kind = "method",
+        summary = "Create a new `Launch` builder with default amount `0.5`.",
+        context = "Create a new `Launch` builder with default amount `0.5`. This opt-in system composes Sand's typed primitives into a higher-level gameplay behavior; exporter registries and generated tick bookkeeping are private.",
+        minecraft = "The exact commands, resources, and lifecycle behavior are described by the defining item's source documentation for the selected feature and Minecraft profile.",
+        use_when = ["Opting into the documented higher-level gameplay behavior instead of assembling its commands manually"],
+        avoid_when = ["Using the API outside its documented system scope or feature configuration"],
+        returns = "A newly constructed `Launch` configured to create a new `Launch` builder with default amount `0.5`.",
+        example = "use sand::prelude::*;\n\nfn demonstrate()  {\n    let launch = sand::systems::movement::Launch::new();\n}",
+        availability = ["Cargo feature: systems-movement"],
+    )]
     pub fn new() -> Self {
         Self {
             targets: None,
@@ -187,27 +304,82 @@ impl Launch {
     }
 
     /// Shorthand: create a builder with targets already set.
-    #[doc = "**API Contract:** Run `sand api show sand::systems::movement::Launch::targets` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::systems::movement::Launch::targets",
+        module = "sand::systems",
+        kind = "method",
+        summary = "Shorthand: create a builder with targets already set.",
+        context = "Shorthand: create a builder with targets already set. This opt-in system composes Sand's typed primitives into a higher-level gameplay behavior; exporter registries and generated tick bookkeeping are private.",
+        minecraft = "The exact commands, resources, and lifecycle behavior are described by the defining item's source documentation for the selected feature and Minecraft profile.",
+        use_when = ["Opting into the documented higher-level gameplay behavior instead of assembling its commands manually"],
+        avoid_when = ["Using the API outside its documented system scope or feature configuration"],
+        params(targets = "`targets` provides the Minecraft target selection used to use shorthand: create a builder with targets already set."),
+        returns = "A newly constructed `Launch` configured to use shorthand: create a builder with targets already set.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(targets: sand::command::EntityTargets)  {\n    let launch = sand::systems::movement::Launch::targets(targets);\n}",
+        availability = ["Cargo feature: systems-movement"],
+    )]
     pub fn targets(targets: EntityTargets) -> Self {
         Self::new().with_targets(targets)
     }
 
     /// Set the entities to launch.
-    #[doc = "**API Contract:** Run `sand api show sand::systems::movement::Launch::with_targets` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::systems::movement::Launch::with_targets",
+        module = "sand::systems",
+        kind = "method",
+        summary = "Set the entities to launch.",
+        context = "Set the entities to launch. This opt-in system composes Sand's typed primitives into a higher-level gameplay behavior; exporter registries and generated tick bookkeeping are private.",
+        minecraft = "The exact commands, resources, and lifecycle behavior are described by the defining item's source documentation for the selected feature and Minecraft profile.",
+        use_when = ["Opting into the documented higher-level gameplay behavior instead of assembling its commands manually"],
+        avoid_when = ["Using the API outside its documented system scope or feature configuration"],
+        params(targets = "`targets` provides the Minecraft target selection used to set the entities to launch."),
+        returns = "The `Launch` value with the documented change applied to set the entities to launch.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(launch_value: sand::systems::movement::Launch, targets: sand::command::EntityTargets)  {\n    let updated_launch = launch_value.with_targets(targets);\n}",
+        availability = ["Cargo feature: systems-movement"],
+    )]
     pub fn with_targets(mut self, targets: EntityTargets) -> Self {
         self.targets = Some(targets);
         self
     }
 
     /// How far to launch upward (in blocks).
-    #[doc = "**API Contract:** Run `sand api show sand::systems::movement::Launch::amount` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::systems::movement::Launch::amount",
+        module = "sand::systems",
+        kind = "method",
+        summary = "How far to launch upward (in blocks).",
+        context = "How far to launch upward (in blocks). This opt-in system composes Sand's typed primitives into a higher-level gameplay behavior; exporter registries and generated tick bookkeeping are private.",
+        minecraft = "The exact commands, resources, and lifecycle behavior are described by the defining item's source documentation for the selected feature and Minecraft profile.",
+        use_when = ["Opting into the documented higher-level gameplay behavior instead of assembling its commands manually"],
+        avoid_when = ["Using the API outside its documented system scope or feature configuration"],
+        params(amount = "`amount` provides the requested numeric amount used to represent how far to launch upward (in blocks)."),
+        returns = "The `Launch` value with the documented change applied to represent how far to launch upward (in blocks).",
+        example = "use sand::prelude::*;\n\nfn demonstrate(launch_value: sand::systems::movement::Launch, amount: f64)  {\n    let updated_launch = launch_value.amount(amount);\n}",
+        availability = ["Cargo feature: systems-movement"],
+    )]
     pub fn amount(mut self, amount: f64) -> Self {
         self.amount = amount;
         self
     }
 
     /// Build the command string(s).
-    #[doc = "**API Contract:** Run `sand api show sand::systems::movement::Launch::build` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::systems::movement::Launch::build",
+        module = "sand::systems",
+        kind = "method",
+        summary = "Build the command string(s).",
+        context = "Build the command string(s). This opt-in system composes Sand's typed primitives into a higher-level gameplay behavior; exporter registries and generated tick bookkeeping are private.",
+        minecraft = "The exact commands, resources, and lifecycle behavior are described by the defining item's source documentation for the selected feature and Minecraft profile.",
+        use_when = ["Opting into the documented higher-level gameplay behavior instead of assembling its commands manually"],
+        avoid_when = ["Using the API outside its documented system scope or feature configuration"],
+        returns = "The ordered values produced to build the command string(s).",
+        example = "use sand::prelude::*;\n\nfn demonstrate(launch_value: sand::systems::movement::Launch)  {\n    let values = launch_value.build();\n}",
+        availability = ["Cargo feature: systems-movement"],
+    )]
     pub fn build(self) -> Vec<String> {
         let targets = self
             .targets
@@ -221,7 +393,18 @@ impl Launch {
 
 // ── SpeedBoost ────────────────────────────────────────────────────────────────
 
-#[doc = "**API Contract:** Run `sand api show sand::systems::movement::SpeedBoost` for the canonical contract."]
+#[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::systems::movement::SpeedBoost",
+    module = "sand::systems",
+    summary = "Applies a speed boost effect to one or more entities.",
+    context = "Applies a speed boost effect to one or more entities. The `amount` (0.0–1.0+) is converted to a vanilla amplifier: `amplifier = (amount / 0.2).round() as u8`. Speed I (amplifier 0) ≈ +20% walk speed, Speed II ≈ +40%, etc.",
+    minecraft = "The exact commands, resources, and lifecycle behavior are described by the defining item's source documentation for the selected feature and Minecraft profile.",
+    use_when = ["Opting into the documented higher-level gameplay behavior instead of assembling its commands manually"],
+    avoid_when = ["Using the API outside its documented system scope or feature configuration"],
+    example = "use sand::systems::movement::SpeedBoost;",
+    availability = ["Cargo feature: systems-movement"],
+)]
 /// Applies a speed boost effect to one or more entities.
 ///
 /// The `amount` (0.0–1.0+) is converted to a vanilla amplifier:
@@ -247,7 +430,20 @@ impl Default for SpeedBoost {
 
 impl SpeedBoost {
     /// Create a new `SpeedBoost` builder with amplifier `0` (Speed I) and 30 s duration.
-    #[doc = "**API Contract:** Run `sand api show sand::systems::movement::SpeedBoost::new` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::systems::movement::SpeedBoost::new",
+        module = "sand::systems",
+        kind = "method",
+        summary = "Create a new `SpeedBoost` builder with amplifier `0` (Speed I) and 30 s duration.",
+        context = "Create a new `SpeedBoost` builder with amplifier `0` (Speed I) and 30 s duration. This opt-in system composes Sand's typed primitives into a higher-level gameplay behavior; exporter registries and generated tick bookkeeping are private.",
+        minecraft = "The exact commands, resources, and lifecycle behavior are described by the defining item's source documentation for the selected feature and Minecraft profile.",
+        use_when = ["Opting into the documented higher-level gameplay behavior instead of assembling its commands manually"],
+        avoid_when = ["Using the API outside its documented system scope or feature configuration"],
+        returns = "A newly constructed `SpeedBoost` configured to create a new `SpeedBoost` builder with amplifier `0` (Speed I) and 30 s duration.",
+        example = "use sand::prelude::*;\n\nfn demonstrate()  {\n    let speed_boost = sand::systems::movement::SpeedBoost::new();\n}",
+        availability = ["Cargo feature: systems-movement"],
+    )]
     pub fn new() -> Self {
         Self {
             targets: None,
@@ -257,13 +453,41 @@ impl SpeedBoost {
     }
 
     /// Shorthand: create a builder for a single selector target.
-    #[doc = "**API Contract:** Run `sand api show sand::systems::movement::SpeedBoost::target` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::systems::movement::SpeedBoost::target",
+        module = "sand::systems",
+        kind = "method",
+        summary = "Shorthand: create a builder for a single selector target.",
+        context = "Shorthand: create a builder for a single selector target. This opt-in system composes Sand's typed primitives into a higher-level gameplay behavior; exporter registries and generated tick bookkeeping are private.",
+        minecraft = "The exact commands, resources, and lifecycle behavior are described by the defining item's source documentation for the selected feature and Minecraft profile.",
+        use_when = ["Opting into the documented higher-level gameplay behavior instead of assembling its commands manually"],
+        avoid_when = ["Using the API outside its documented system scope or feature configuration"],
+        params(target = "`target` provides the entity, block, or command target used to use shorthand: create a builder for a single selector target."),
+        returns = "A newly constructed `SpeedBoost` configured to use shorthand: create a builder for a single selector target.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(target: sand::command::Selector)  {\n    let speed_boost = sand::systems::movement::SpeedBoost::target(target);\n}",
+        availability = ["Cargo feature: systems-movement"],
+    )]
     pub fn target(target: Selector) -> Self {
         Self::new().with_target(target)
     }
 
     /// Shorthand: create a builder for an entity-targets set.
-    #[doc = "**API Contract:** Run `sand api show sand::systems::movement::SpeedBoost::target_many` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::systems::movement::SpeedBoost::target_many",
+        module = "sand::systems",
+        kind = "method",
+        summary = "Shorthand: create a builder for an entity-targets set.",
+        context = "Shorthand: create a builder for an entity-targets set. This opt-in system composes Sand's typed primitives into a higher-level gameplay behavior; exporter registries and generated tick bookkeeping are private.",
+        minecraft = "The exact commands, resources, and lifecycle behavior are described by the defining item's source documentation for the selected feature and Minecraft profile.",
+        use_when = ["Opting into the documented higher-level gameplay behavior instead of assembling its commands manually"],
+        avoid_when = ["Using the API outside its documented system scope or feature configuration"],
+        params(targets = "`targets` provides the Minecraft target selection used to use shorthand: create a builder for an entity-targets set."),
+        returns = "A newly constructed `SpeedBoost` configured to use shorthand: create a builder for an entity-targets set.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(targets: sand::command::EntityTargets)  {\n    let speed_boost = sand::systems::movement::SpeedBoost::target_many(targets);\n}",
+        availability = ["Cargo feature: systems-movement"],
+    )]
     pub fn target_many(targets: EntityTargets) -> Self {
         let mut s = Self::new();
         s.targets = Some(targets.to_string());
@@ -271,7 +495,21 @@ impl SpeedBoost {
     }
 
     /// Set the target selector.
-    #[doc = "**API Contract:** Run `sand api show sand::systems::movement::SpeedBoost::with_target` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::systems::movement::SpeedBoost::with_target",
+        module = "sand::systems",
+        kind = "method",
+        summary = "Set the target selector.",
+        context = "Set the target selector. This opt-in system composes Sand's typed primitives into a higher-level gameplay behavior; exporter registries and generated tick bookkeeping are private.",
+        minecraft = "The exact commands, resources, and lifecycle behavior are described by the defining item's source documentation for the selected feature and Minecraft profile.",
+        use_when = ["Opting into the documented higher-level gameplay behavior instead of assembling its commands manually"],
+        avoid_when = ["Using the API outside its documented system scope or feature configuration"],
+        params(target = "`target` provides the entity, block, or command target used to set the target selector."),
+        returns = "The `SpeedBoost` value with the documented change applied to set the target selector.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(speed_boost_value: sand::systems::movement::SpeedBoost, target: sand::command::Selector)  {\n    let updated_speed_boost = speed_boost_value.with_target(target);\n}",
+        availability = ["Cargo feature: systems-movement"],
+    )]
     pub fn with_target(mut self, target: Selector) -> Self {
         self.targets = Some(target.to_string());
         self
@@ -280,28 +518,83 @@ impl SpeedBoost {
     /// Set speed amount as a fraction where `1.0` ≈ Speed V (100% extra, amplifier 4).
     ///
     /// Maps to `amplifier = (amount / 0.2).round().max(0) as u8`.
-    #[doc = "**API Contract:** Run `sand api show sand::systems::movement::SpeedBoost::amount` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::systems::movement::SpeedBoost::amount",
+        module = "sand::systems",
+        kind = "method",
+        summary = "Set speed amount as a fraction where `1.0` ≈ Speed V (100% extra, amplifier 4).",
+        context = "Set speed amount as a fraction where `1.0` ≈ Speed V (100% extra, amplifier 4). Maps to `amplifier = (amount / 0.2).round().max(0) as u8`.",
+        minecraft = "The exact commands, resources, and lifecycle behavior are described by the defining item's source documentation for the selected feature and Minecraft profile.",
+        use_when = ["Opting into the documented higher-level gameplay behavior instead of assembling its commands manually"],
+        avoid_when = ["Using the API outside its documented system scope or feature configuration"],
+        params(amount = "`amount` provides the requested numeric amount used to set speed amount as a fraction where `1.0` ≈ Speed V (100% extra, amplifier 4)."),
+        returns = "The `SpeedBoost` value with the documented change applied to set speed amount as a fraction where `1.0` ≈ Speed V (100% extra, amplifier 4).",
+        example = "use sand::prelude::*;\n\nfn demonstrate(speed_boost_value: sand::systems::movement::SpeedBoost, amount: f64)  {\n    let updated_speed_boost = speed_boost_value.amount(amount);\n}",
+        availability = ["Cargo feature: systems-movement"],
+    )]
     pub fn amount(mut self, amount: f64) -> Self {
         self.amplifier = ((amount / 0.2).round() as i32).max(0) as u8;
         self
     }
 
     /// Set the speed amplifier directly (0 = Speed I, 1 = Speed II, …).
-    #[doc = "**API Contract:** Run `sand api show sand::systems::movement::SpeedBoost::amplifier` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::systems::movement::SpeedBoost::amplifier",
+        module = "sand::systems",
+        kind = "method",
+        summary = "Set the speed amplifier directly (0 = Speed I, 1 = Speed II, …).",
+        context = "Set the speed amplifier directly (0 = Speed I, 1 = Speed II, …). This opt-in system composes Sand's typed primitives into a higher-level gameplay behavior; exporter registries and generated tick bookkeeping are private.",
+        minecraft = "The exact commands, resources, and lifecycle behavior are described by the defining item's source documentation for the selected feature and Minecraft profile.",
+        use_when = ["Opting into the documented higher-level gameplay behavior instead of assembling its commands manually"],
+        avoid_when = ["Using the API outside its documented system scope or feature configuration"],
+        params(amplifier = "`amplifier` supplies the amplifier value used to set the speed amplifier directly (0 = Speed I, 1 = Speed II, …)."),
+        returns = "The `SpeedBoost` value with the documented change applied to set the speed amplifier directly (0 = Speed I, 1 = Speed II, …).",
+        example = "use sand::prelude::*;\n\nfn demonstrate(speed_boost_value: sand::systems::movement::SpeedBoost, amplifier: u8)  {\n    let updated_speed_boost = speed_boost_value.amplifier(amplifier);\n}",
+        availability = ["Cargo feature: systems-movement"],
+    )]
     pub fn amplifier(mut self, amplifier: u8) -> Self {
         self.amplifier = amplifier;
         self
     }
 
     /// Set the effect duration.
-    #[doc = "**API Contract:** Run `sand api show sand::systems::movement::SpeedBoost::duration` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::systems::movement::SpeedBoost::duration",
+        module = "sand::systems",
+        kind = "method",
+        summary = "Set the effect duration.",
+        context = "Set the effect duration. This opt-in system composes Sand's typed primitives into a higher-level gameplay behavior; exporter registries and generated tick bookkeeping are private.",
+        minecraft = "The exact commands, resources, and lifecycle behavior are described by the defining item's source documentation for the selected feature and Minecraft profile.",
+        use_when = ["Opting into the documented higher-level gameplay behavior instead of assembling its commands manually"],
+        avoid_when = ["Using the API outside its documented system scope or feature configuration"],
+        params(duration = "`duration` provides the Minecraft tick duration used to set the effect duration."),
+        returns = "The `SpeedBoost` value with the documented change applied to set the effect duration.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(speed_boost_value: sand::systems::movement::SpeedBoost, duration: sand::state::Ticks)  {\n    let updated_speed_boost = speed_boost_value.duration(duration);\n}",
+        availability = ["Cargo feature: systems-movement"],
+    )]
     pub fn duration(mut self, duration: Ticks) -> Self {
         self.duration = duration;
         self
     }
 
     /// Build the command string.
-    #[doc = "**API Contract:** Run `sand api show sand::systems::movement::SpeedBoost::build` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::systems::movement::SpeedBoost::build",
+        module = "sand::systems",
+        kind = "method",
+        summary = "Build the command string.",
+        context = "Build the command string. This opt-in system composes Sand's typed primitives into a higher-level gameplay behavior; exporter registries and generated tick bookkeeping are private.",
+        minecraft = "The exact commands, resources, and lifecycle behavior are described by the defining item's source documentation for the selected feature and Minecraft profile.",
+        use_when = ["Opting into the documented higher-level gameplay behavior instead of assembling its commands manually"],
+        avoid_when = ["Using the API outside its documented system scope or feature configuration"],
+        returns = "The rendered Minecraft command text produced to build the command string.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(speed_boost_value: sand::systems::movement::SpeedBoost)  {\n    let command = speed_boost_value.build();\n}",
+        availability = ["Cargo feature: systems-movement"],
+    )]
     pub fn build(self) -> String {
         let targets = self.targets.unwrap_or_else(|| "@s".to_string());
         format!(
@@ -316,7 +609,18 @@ impl SpeedBoost {
 
 // ── Slow ──────────────────────────────────────────────────────────────────────
 
-#[doc = "**API Contract:** Run `sand api show sand::systems::movement::Slow` for the canonical contract."]
+#[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::systems::movement::Slow",
+    module = "sand::systems",
+    summary = "Applies a slowness effect to one or more entities.",
+    context = "Applies a slowness effect to one or more entities. The `amount` (0.0–1.0+) is converted to a vanilla amplifier: `amplifier = (amount / 0.15).round() as u8`. Slowness I (amplifier 0) ≈ −15% walk speed, Slowness II ≈ −30%, etc.",
+    minecraft = "The exact commands, resources, and lifecycle behavior are described by the defining item's source documentation for the selected feature and Minecraft profile.",
+    use_when = ["Opting into the documented higher-level gameplay behavior instead of assembling its commands manually"],
+    avoid_when = ["Using the API outside its documented system scope or feature configuration"],
+    example = "use sand::systems::movement::Slow;",
+    availability = ["Cargo feature: systems-movement"],
+)]
 /// Applies a slowness effect to one or more entities.
 ///
 /// The `amount` (0.0–1.0+) is converted to a vanilla amplifier:
@@ -342,7 +646,20 @@ impl Default for Slow {
 
 impl Slow {
     /// Create a new `Slow` builder with amplifier `0` (Slowness I) and 30 s duration.
-    #[doc = "**API Contract:** Run `sand api show sand::systems::movement::Slow::new` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::systems::movement::Slow::new",
+        module = "sand::systems",
+        kind = "method",
+        summary = "Create a new `Slow` builder with amplifier `0` (Slowness I) and 30 s duration.",
+        context = "Create a new `Slow` builder with amplifier `0` (Slowness I) and 30 s duration. This opt-in system composes Sand's typed primitives into a higher-level gameplay behavior; exporter registries and generated tick bookkeeping are private.",
+        minecraft = "The exact commands, resources, and lifecycle behavior are described by the defining item's source documentation for the selected feature and Minecraft profile.",
+        use_when = ["Opting into the documented higher-level gameplay behavior instead of assembling its commands manually"],
+        avoid_when = ["Using the API outside its documented system scope or feature configuration"],
+        returns = "A newly constructed `Slow` configured to create a new `Slow` builder with amplifier `0` (Slowness I) and 30 s duration.",
+        example = "use sand::prelude::*;\n\nfn demonstrate()  {\n    let slow = sand::systems::movement::Slow::new();\n}",
+        availability = ["Cargo feature: systems-movement"],
+    )]
     pub fn new() -> Self {
         Self {
             targets: None,
@@ -352,13 +669,41 @@ impl Slow {
     }
 
     /// Shorthand: create a builder for a single selector target.
-    #[doc = "**API Contract:** Run `sand api show sand::systems::movement::Slow::target` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::systems::movement::Slow::target",
+        module = "sand::systems",
+        kind = "method",
+        summary = "Shorthand: create a builder for a single selector target.",
+        context = "Shorthand: create a builder for a single selector target. This opt-in system composes Sand's typed primitives into a higher-level gameplay behavior; exporter registries and generated tick bookkeeping are private.",
+        minecraft = "The exact commands, resources, and lifecycle behavior are described by the defining item's source documentation for the selected feature and Minecraft profile.",
+        use_when = ["Opting into the documented higher-level gameplay behavior instead of assembling its commands manually"],
+        avoid_when = ["Using the API outside its documented system scope or feature configuration"],
+        params(target = "`target` provides the entity, block, or command target used to use shorthand: create a builder for a single selector target."),
+        returns = "A newly constructed `Slow` configured to use shorthand: create a builder for a single selector target.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(target: sand::command::Selector)  {\n    let slow = sand::systems::movement::Slow::target(target);\n}",
+        availability = ["Cargo feature: systems-movement"],
+    )]
     pub fn target(target: Selector) -> Self {
         Self::new().with_target(target)
     }
 
     /// Shorthand: create a builder for an entity-targets set.
-    #[doc = "**API Contract:** Run `sand api show sand::systems::movement::Slow::targets` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::systems::movement::Slow::targets",
+        module = "sand::systems",
+        kind = "method",
+        summary = "Shorthand: create a builder for an entity-targets set.",
+        context = "Shorthand: create a builder for an entity-targets set. This opt-in system composes Sand's typed primitives into a higher-level gameplay behavior; exporter registries and generated tick bookkeeping are private.",
+        minecraft = "The exact commands, resources, and lifecycle behavior are described by the defining item's source documentation for the selected feature and Minecraft profile.",
+        use_when = ["Opting into the documented higher-level gameplay behavior instead of assembling its commands manually"],
+        avoid_when = ["Using the API outside its documented system scope or feature configuration"],
+        params(targets = "`targets` provides the Minecraft target selection used to use shorthand: create a builder for an entity-targets set."),
+        returns = "A newly constructed `Slow` configured to use shorthand: create a builder for an entity-targets set.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(targets: sand::command::EntityTargets)  {\n    let slow = sand::systems::movement::Slow::targets(targets);\n}",
+        availability = ["Cargo feature: systems-movement"],
+    )]
     pub fn targets(targets: EntityTargets) -> Self {
         let mut s = Self::new();
         s.targets = Some(targets.to_string());
@@ -366,7 +711,21 @@ impl Slow {
     }
 
     /// Set the target selector.
-    #[doc = "**API Contract:** Run `sand api show sand::systems::movement::Slow::with_target` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::systems::movement::Slow::with_target",
+        module = "sand::systems",
+        kind = "method",
+        summary = "Set the target selector.",
+        context = "Set the target selector. This opt-in system composes Sand's typed primitives into a higher-level gameplay behavior; exporter registries and generated tick bookkeeping are private.",
+        minecraft = "The exact commands, resources, and lifecycle behavior are described by the defining item's source documentation for the selected feature and Minecraft profile.",
+        use_when = ["Opting into the documented higher-level gameplay behavior instead of assembling its commands manually"],
+        avoid_when = ["Using the API outside its documented system scope or feature configuration"],
+        params(target = "`target` provides the entity, block, or command target used to set the target selector."),
+        returns = "The `Slow` value with the documented change applied to set the target selector.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(slow_value: sand::systems::movement::Slow, target: sand::command::Selector)  {\n    let updated_slow = slow_value.with_target(target);\n}",
+        availability = ["Cargo feature: systems-movement"],
+    )]
     pub fn with_target(mut self, target: Selector) -> Self {
         self.targets = Some(target.to_string());
         self
@@ -375,28 +734,83 @@ impl Slow {
     /// Set slow amount as a fraction where `1.0` ≈ Slowness VI (~90% reduction, amplifier 5).
     ///
     /// Maps to `amplifier = (amount / 0.15).round().max(0) as u8`.
-    #[doc = "**API Contract:** Run `sand api show sand::systems::movement::Slow::amount` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::systems::movement::Slow::amount",
+        module = "sand::systems",
+        kind = "method",
+        summary = "Set slow amount as a fraction where `1.0` ≈ Slowness VI (~90% reduction, amplifier 5).",
+        context = "Set slow amount as a fraction where `1.0` ≈ Slowness VI (~90% reduction, amplifier 5). Maps to `amplifier = (amount / 0.15).round().max(0) as u8`.",
+        minecraft = "The exact commands, resources, and lifecycle behavior are described by the defining item's source documentation for the selected feature and Minecraft profile.",
+        use_when = ["Opting into the documented higher-level gameplay behavior instead of assembling its commands manually"],
+        avoid_when = ["Using the API outside its documented system scope or feature configuration"],
+        params(amount = "`amount` provides the requested numeric amount used to set slow amount as a fraction where `1.0` ≈ Slowness VI (~90% reduction, amplifier 5)."),
+        returns = "The `Slow` value with the documented change applied to set slow amount as a fraction where `1.0` ≈ Slowness VI (~90% reduction, amplifier 5).",
+        example = "use sand::prelude::*;\n\nfn demonstrate(slow_value: sand::systems::movement::Slow, amount: f64)  {\n    let updated_slow = slow_value.amount(amount);\n}",
+        availability = ["Cargo feature: systems-movement"],
+    )]
     pub fn amount(mut self, amount: f64) -> Self {
         self.amplifier = ((amount / 0.15).round() as i32).max(0) as u8;
         self
     }
 
     /// Set the slowness amplifier directly (0 = Slowness I, 1 = Slowness II, …).
-    #[doc = "**API Contract:** Run `sand api show sand::systems::movement::Slow::amplifier` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::systems::movement::Slow::amplifier",
+        module = "sand::systems",
+        kind = "method",
+        summary = "Set the slowness amplifier directly (0 = Slowness I, 1 = Slowness II, …).",
+        context = "Set the slowness amplifier directly (0 = Slowness I, 1 = Slowness II, …). This opt-in system composes Sand's typed primitives into a higher-level gameplay behavior; exporter registries and generated tick bookkeeping are private.",
+        minecraft = "The exact commands, resources, and lifecycle behavior are described by the defining item's source documentation for the selected feature and Minecraft profile.",
+        use_when = ["Opting into the documented higher-level gameplay behavior instead of assembling its commands manually"],
+        avoid_when = ["Using the API outside its documented system scope or feature configuration"],
+        params(amplifier = "`amplifier` supplies the amplifier value used to set the slowness amplifier directly (0 = Slowness I, 1 = Slowness II, …)."),
+        returns = "The `Slow` value with the documented change applied to set the slowness amplifier directly (0 = Slowness I, 1 = Slowness II, …).",
+        example = "use sand::prelude::*;\n\nfn demonstrate(slow_value: sand::systems::movement::Slow, amplifier: u8)  {\n    let updated_slow = slow_value.amplifier(amplifier);\n}",
+        availability = ["Cargo feature: systems-movement"],
+    )]
     pub fn amplifier(mut self, amplifier: u8) -> Self {
         self.amplifier = amplifier;
         self
     }
 
     /// Set the effect duration.
-    #[doc = "**API Contract:** Run `sand api show sand::systems::movement::Slow::duration` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::systems::movement::Slow::duration",
+        module = "sand::systems",
+        kind = "method",
+        summary = "Set the effect duration.",
+        context = "Set the effect duration. This opt-in system composes Sand's typed primitives into a higher-level gameplay behavior; exporter registries and generated tick bookkeeping are private.",
+        minecraft = "The exact commands, resources, and lifecycle behavior are described by the defining item's source documentation for the selected feature and Minecraft profile.",
+        use_when = ["Opting into the documented higher-level gameplay behavior instead of assembling its commands manually"],
+        avoid_when = ["Using the API outside its documented system scope or feature configuration"],
+        params(duration = "`duration` provides the Minecraft tick duration used to set the effect duration."),
+        returns = "The `Slow` value with the documented change applied to set the effect duration.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(slow_value: sand::systems::movement::Slow, duration: sand::state::Ticks)  {\n    let updated_slow = slow_value.duration(duration);\n}",
+        availability = ["Cargo feature: systems-movement"],
+    )]
     pub fn duration(mut self, duration: Ticks) -> Self {
         self.duration = duration;
         self
     }
 
     /// Build the command string.
-    #[doc = "**API Contract:** Run `sand api show sand::systems::movement::Slow::build` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::systems::movement::Slow::build",
+        module = "sand::systems",
+        kind = "method",
+        summary = "Build the command string.",
+        context = "Build the command string. This opt-in system composes Sand's typed primitives into a higher-level gameplay behavior; exporter registries and generated tick bookkeeping are private.",
+        minecraft = "The exact commands, resources, and lifecycle behavior are described by the defining item's source documentation for the selected feature and Minecraft profile.",
+        use_when = ["Opting into the documented higher-level gameplay behavior instead of assembling its commands manually"],
+        avoid_when = ["Using the API outside its documented system scope or feature configuration"],
+        returns = "The rendered Minecraft command text produced to build the command string.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(slow_value: sand::systems::movement::Slow)  {\n    let command = slow_value.build();\n}",
+        availability = ["Cargo feature: systems-movement"],
+    )]
     pub fn build(self) -> String {
         let targets = self.targets.unwrap_or_else(|| "@s".to_string());
         format!(

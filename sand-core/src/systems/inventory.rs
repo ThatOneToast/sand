@@ -26,14 +26,36 @@ use std::fmt;
 use sand_commands::selector::Selector;
 use sand_commands::{Execute, ItemSlot};
 
-#[doc = "**API Contract:** Run `sand api show sand::systems::inventory::InventorySystem` for the canonical contract."]
+#[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::systems::inventory::InventorySystem",
+    module = "sand::systems",
+    summary = "High-level builder for inventory operations on a single entity.",
+    context = "High-level builder for inventory operations on a single entity. This opt-in system composes Sand's typed primitives into a higher-level gameplay behavior; exporter registries and generated tick bookkeeping are private.",
+    minecraft = "The exact commands, resources, and lifecycle behavior are described by the defining item's source documentation for the selected feature and Minecraft profile.",
+    use_when = ["Opting into the documented higher-level gameplay behavior instead of assembling its commands manually"],
+    avoid_when = ["Using the API outside its documented system scope or feature configuration"],
+    example = "use sand::systems::inventory::InventorySystem;",
+    availability = ["Cargo feature: systems-inventory"],
+)]
 /// High-level builder for inventory operations on a single entity.
 #[derive(Debug, Clone)]
 pub struct InventorySystem {
     selector: Selector,
 }
 
-#[doc = "**API Contract:** Run `sand api show sand::systems::inventory::HasItemCheck` for the canonical contract."]
+#[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::systems::inventory::HasItemCheck",
+    module = "sand::systems",
+    summary = "Intermediate builder — holds the item string before the slot is specified.",
+    context = "Intermediate builder — holds the item string before the slot is specified. This opt-in system composes Sand's typed primitives into a higher-level gameplay behavior; exporter registries and generated tick bookkeeping are private.",
+    minecraft = "The exact commands, resources, and lifecycle behavior are described by the defining item's source documentation for the selected feature and Minecraft profile.",
+    use_when = ["Opting into the documented higher-level gameplay behavior instead of assembling its commands manually"],
+    avoid_when = ["Using the API outside its documented system scope or feature configuration"],
+    example = "use sand::systems::inventory::HasItemCheck;",
+    availability = ["Cargo feature: systems-inventory"],
+)]
 /// Intermediate builder — holds the item string before the slot is specified.
 #[derive(Debug, Clone)]
 pub struct HasItemCheck {
@@ -41,7 +63,18 @@ pub struct HasItemCheck {
     item: String,
 }
 
-#[doc = "**API Contract:** Run `sand api show sand::systems::inventory::ClearBuilder` for the canonical contract."]
+#[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::systems::inventory::ClearBuilder",
+    module = "sand::systems",
+    summary = "Builder for `clear <selector> <item> [<count>]` commands.",
+    context = "Builder for `clear <selector> <item> [<count>]` commands. This opt-in system composes Sand's typed primitives into a higher-level gameplay behavior; exporter registries and generated tick bookkeeping are private.",
+    minecraft = "The exact commands, resources, and lifecycle behavior are described by the defining item's source documentation for the selected feature and Minecraft profile.",
+    use_when = ["Opting into the documented higher-level gameplay behavior instead of assembling its commands manually"],
+    avoid_when = ["Using the API outside its documented system scope or feature configuration"],
+    example = "use sand::systems::inventory::ClearBuilder;",
+    availability = ["Cargo feature: systems-inventory"],
+)]
 /// Builder for `clear <selector> <item> [<count>]` commands.
 #[derive(Debug, Clone)]
 pub struct ClearBuilder {
@@ -51,7 +84,21 @@ pub struct ClearBuilder {
 
 impl InventorySystem {
     /// Start an inventory operation for the given entity selector.
-    #[doc = "**API Contract:** Run `sand api show sand::systems::inventory::InventorySystem::for_entity` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::systems::inventory::InventorySystem::for_entity",
+        module = "sand::systems",
+        kind = "method",
+        summary = "Start an inventory operation for the given entity selector.",
+        context = "Start an inventory operation for the given entity selector. This opt-in system composes Sand's typed primitives into a higher-level gameplay behavior; exporter registries and generated tick bookkeeping are private.",
+        minecraft = "The exact commands, resources, and lifecycle behavior are described by the defining item's source documentation for the selected feature and Minecraft profile.",
+        use_when = ["Opting into the documented higher-level gameplay behavior instead of assembling its commands manually"],
+        avoid_when = ["Using the API outside its documented system scope or feature configuration"],
+        params(selector = "`selector` provides the Minecraft target selection used to start an inventory operation for the given entity selector."),
+        returns = "A newly constructed `InventorySystem` configured to start an inventory operation for the given entity selector.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(selector: sand::command::Selector)  {\n    let inventory_system = sand::systems::inventory::InventorySystem::for_entity(selector);\n}",
+        availability = ["Cargo feature: systems-inventory"],
+    )]
     pub fn for_entity(selector: Selector) -> Self {
         Self { selector }
     }
@@ -60,7 +107,21 @@ impl InventorySystem {
     ///
     /// Chain with `.in_slot(slot)`, `.in_mainhand()`, `.in_any_slot()`, etc. to get
     /// an `Execute` builder that can be finished with `.run(cmd)`.
-    #[doc = "**API Contract:** Run `sand api show sand::systems::inventory::InventorySystem::has` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::systems::inventory::InventorySystem::has",
+        module = "sand::systems",
+        kind = "method",
+        summary = "Begin an item-presence check. Chain with `.in_slot(slot)`, `.in_mainhand()`, `.in_any_slot()`, etc. to get an `Execute` builder that can be finished with `.run(cmd)`.",
+        context = "Begin an item-presence check. Chain with `.in_slot(slot)`, `.in_mainhand()`, `.in_any_slot()`, etc. to get an `Execute` builder that can be finished with `.run(cmd)`. This opt-in system composes Sand's typed primitives into a higher-level gameplay behavior; exporter registries and generated tick bookkeeping are private.",
+        minecraft = "The exact commands, resources, and lifecycle behavior are described by the defining item's source documentation for the selected feature and Minecraft profile.",
+        use_when = ["Opting into the documented higher-level gameplay behavior instead of assembling its commands manually"],
+        avoid_when = ["Using the API outside its documented system scope or feature configuration"],
+        params(item = "`item` provides the item value or item predicate used to begin an item-presence check. Chain with `.in_slot(slot)`, `.in_mainhand()`, `.in_any_slot()`, etc. to get an `Execute` builder that can be finished with `.run(cmd)`."),
+        returns = "The `HasItemCheck` value produced to begin an item-presence check. Chain with `.in_slot(slot)`, `.in_mainhand()`, `.in_any_slot()`, etc. to get an `Execute` builder that can be finished with `.run(cmd)`.",
+        example = "use std::fmt;\nuse sand::prelude::*;\n\nfn demonstrate(inventory_system_value: sand::systems::inventory::InventorySystem, item: impl fmt::Display)  {\n    let has = inventory_system_value.has(item);\n}",
+        availability = ["Cargo feature: systems-inventory"],
+    )]
     pub fn has(self, item: impl fmt::Display) -> HasItemCheck {
         HasItemCheck {
             selector: self.selector,
@@ -69,13 +130,41 @@ impl InventorySystem {
     }
 
     /// Shorthand for `.has(item).in_slot(slot)`.
-    #[doc = "**API Contract:** Run `sand api show sand::systems::inventory::InventorySystem::has_in` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::systems::inventory::InventorySystem::has_in",
+        module = "sand::systems",
+        kind = "method",
+        summary = "Shorthand for `.has(item).in_slot(slot)`.",
+        context = "Shorthand for `.has(item).in_slot(slot)`. This opt-in system composes Sand's typed primitives into a higher-level gameplay behavior; exporter registries and generated tick bookkeeping are private.",
+        minecraft = "The exact commands, resources, and lifecycle behavior are described by the defining item's source documentation for the selected feature and Minecraft profile.",
+        use_when = ["Opting into the documented higher-level gameplay behavior instead of assembling its commands manually"],
+        avoid_when = ["Using the API outside its documented system scope or feature configuration"],
+        params(slot = "`slot` supplies the slot value used to shorthand for `.has(item).in_slot(slot)`.", item = "`item` provides the item value or item predicate used to shorthand for `.has(item).in_slot(slot)`."),
+        returns = "The `Execute` value produced to shorthand for `.has(item).in_slot(slot)`.",
+        example = "use std::fmt;\nuse sand::prelude::*;\n\nfn demonstrate(inventory_system_value: sand::systems::inventory::InventorySystem, slot: impl Into < sand::command::ItemSlot >, item: impl fmt::Display)  {\n    let has_in = inventory_system_value.has_in(slot, item);\n}",
+        availability = ["Cargo feature: systems-inventory"],
+    )]
     pub fn has_in(self, slot: impl Into<ItemSlot>, item: impl fmt::Display) -> Execute {
         Execute::new().if_items_entity(self.selector, slot.into(), item.to_string())
     }
 
     /// `item replace entity <selector> <slot> with <item>` — replace a slot's contents.
-    #[doc = "**API Contract:** Run `sand api show sand::systems::inventory::InventorySystem::replace` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::systems::inventory::InventorySystem::replace",
+        module = "sand::systems",
+        kind = "method",
+        summary = "`item replace entity <selector> <slot> with <item>` — replace a slot's contents.",
+        context = "`item replace entity <selector> <slot> with <item>` — replace a slot's contents. This opt-in system composes Sand's typed primitives into a higher-level gameplay behavior; exporter registries and generated tick bookkeeping are private.",
+        minecraft = "The exact commands, resources, and lifecycle behavior are described by the defining item's source documentation for the selected feature and Minecraft profile.",
+        use_when = ["Opting into the documented higher-level gameplay behavior instead of assembling its commands manually"],
+        avoid_when = ["Using the API outside its documented system scope or feature configuration"],
+        params(slot = "`slot` supplies the slot value used to emit the documented `item replace entity <selector> <slot> with <item>` — replace a slot's contents form.", item = "`item` provides the item value or item predicate used to emit the documented `item replace entity <selector> <slot> with <item>` — replace a slot's contents form."),
+        returns = "The string value produced to emit the documented `item replace entity <selector> <slot> with <item>` — replace a slot's contents form.",
+        example = "use std::fmt;\nuse sand::prelude::*;\n\nfn demonstrate(inventory_system_value: sand::systems::inventory::InventorySystem, slot: impl Into < sand::command::ItemSlot >, item: impl fmt::Display)  {\n    let replace = inventory_system_value.replace(slot, item);\n}",
+        availability = ["Cargo feature: systems-inventory"],
+    )]
     pub fn replace(self, slot: impl Into<ItemSlot>, item: impl fmt::Display) -> String {
         format!(
             "item replace entity {} {} with {}",
@@ -86,7 +175,21 @@ impl InventorySystem {
     }
 
     /// `item replace entity <selector> <slot> with <item> <count>`.
-    #[doc = "**API Contract:** Run `sand api show sand::systems::inventory::InventorySystem::replace_count` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::systems::inventory::InventorySystem::replace_count",
+        module = "sand::systems",
+        kind = "method",
+        summary = "`item replace entity <selector> <slot> with <item> <count>`.",
+        context = "`item replace entity <selector> <slot> with <item> <count>`. This opt-in system composes Sand's typed primitives into a higher-level gameplay behavior; exporter registries and generated tick bookkeeping are private.",
+        minecraft = "The exact commands, resources, and lifecycle behavior are described by the defining item's source documentation for the selected feature and Minecraft profile.",
+        use_when = ["Opting into the documented higher-level gameplay behavior instead of assembling its commands manually"],
+        avoid_when = ["Using the API outside its documented system scope or feature configuration"],
+        params(slot = "`slot` supplies the slot value used to emit the documented `item replace entity <selector> <slot> with <item> <count>` form.", item = "`item` provides the item value or item predicate used to emit the documented `item replace entity <selector> <slot> with <item> <count>` form.", count = "`count` provides the requested numeric amount used to emit the documented `item replace entity <selector> <slot> with <item> <count>` form."),
+        returns = "The string value produced to emit the documented `item replace entity <selector> <slot> with <item> <count>` form.",
+        example = "use std::fmt;\nuse sand::prelude::*;\n\nfn demonstrate(inventory_system_value: sand::systems::inventory::InventorySystem, slot: impl Into < sand::command::ItemSlot >, item: impl fmt::Display, count: u32)  {\n    let replace_count = inventory_system_value.replace_count(slot, item, count);\n}",
+        availability = ["Cargo feature: systems-inventory"],
+    )]
     pub fn replace_count(
         self,
         slot: impl Into<ItemSlot>,
@@ -103,7 +206,21 @@ impl InventorySystem {
     }
 
     /// `item replace entity <selector> <slot> with air` — clear a single slot.
-    #[doc = "**API Contract:** Run `sand api show sand::systems::inventory::InventorySystem::clear_slot` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::systems::inventory::InventorySystem::clear_slot",
+        module = "sand::systems",
+        kind = "method",
+        summary = "`item replace entity <selector> <slot> with air` — clear a single slot.",
+        context = "`item replace entity <selector> <slot> with air` — clear a single slot. This opt-in system composes Sand's typed primitives into a higher-level gameplay behavior; exporter registries and generated tick bookkeeping are private.",
+        minecraft = "The exact commands, resources, and lifecycle behavior are described by the defining item's source documentation for the selected feature and Minecraft profile.",
+        use_when = ["Opting into the documented higher-level gameplay behavior instead of assembling its commands manually"],
+        avoid_when = ["Using the API outside its documented system scope or feature configuration"],
+        params(slot = "`slot` supplies the slot value used to emit the documented `item replace entity <selector> <slot> with air` — clear a single slot form."),
+        returns = "The string value produced to emit the documented `item replace entity <selector> <slot> with air` — clear a single slot form.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(inventory_system_value: sand::systems::inventory::InventorySystem, slot: impl Into < sand::command::ItemSlot >)  {\n    let clear_slot = inventory_system_value.clear_slot(slot);\n}",
+        availability = ["Cargo feature: systems-inventory"],
+    )]
     pub fn clear_slot(self, slot: impl Into<ItemSlot>) -> String {
         format!(
             "item replace entity {} {} with air",
@@ -114,7 +231,21 @@ impl InventorySystem {
 
     /// Begin a `clear` command. Call `.amount(n)` or use the returned builder
     /// as a `String` (via `Display`) to clear all matching stacks.
-    #[doc = "**API Contract:** Run `sand api show sand::systems::inventory::InventorySystem::clear_item` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::systems::inventory::InventorySystem::clear_item",
+        module = "sand::systems",
+        kind = "method",
+        summary = "Begin a `clear` command. Call `.amount(n)` or use the returned builder as a `String` (via `Display`) to clear all matching stacks.",
+        context = "Begin a `clear` command. Call `.amount(n)` or use the returned builder as a `String` (via `Display`) to clear all matching stacks. This opt-in system composes Sand's typed primitives into a higher-level gameplay behavior; exporter registries and generated tick bookkeeping are private.",
+        minecraft = "The exact commands, resources, and lifecycle behavior are described by the defining item's source documentation for the selected feature and Minecraft profile.",
+        use_when = ["Opting into the documented higher-level gameplay behavior instead of assembling its commands manually"],
+        avoid_when = ["Using the API outside its documented system scope or feature configuration"],
+        params(item = "`item` provides the item value or item predicate used to begin a `clear` command. Call `.amount(n)` or use the returned builder as a `String` (via `Display`) to clear all matching stacks."),
+        returns = "The `ClearBuilder` value produced to begin a `clear` command. Call `.amount(n)` or use the returned builder as a `String` (via `Display`) to clear all matching stacks.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(inventory_system_value: sand::systems::inventory::InventorySystem, item: impl Into < String >)  {\n    let clear_item = inventory_system_value.clear_item(item);\n}",
+        availability = ["Cargo feature: systems-inventory"],
+    )]
     pub fn clear_item(self, item: impl Into<String>) -> ClearBuilder {
         ClearBuilder {
             selector: self.selector,
@@ -123,7 +254,21 @@ impl InventorySystem {
     }
 
     /// `give <selector> <item>` — give an item directly.
-    #[doc = "**API Contract:** Run `sand api show sand::systems::inventory::InventorySystem::give` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::systems::inventory::InventorySystem::give",
+        module = "sand::systems",
+        kind = "method",
+        summary = "`give <selector> <item>` — give an item directly.",
+        context = "`give <selector> <item>` — give an item directly. This opt-in system composes Sand's typed primitives into a higher-level gameplay behavior; exporter registries and generated tick bookkeeping are private.",
+        minecraft = "The exact commands, resources, and lifecycle behavior are described by the defining item's source documentation for the selected feature and Minecraft profile.",
+        use_when = ["Opting into the documented higher-level gameplay behavior instead of assembling its commands manually"],
+        avoid_when = ["Using the API outside its documented system scope or feature configuration"],
+        params(item = "`item` provides the item value or item predicate used to emit the documented `give <selector> <item>` — give an item directly form."),
+        returns = "The string value produced to emit the documented `give <selector> <item>` — give an item directly form.",
+        example = "use std::fmt;\nuse sand::prelude::*;\n\nfn demonstrate(inventory_system_value: sand::systems::inventory::InventorySystem, item: impl fmt::Display)  {\n    let give = inventory_system_value.give(item);\n}",
+        availability = ["Cargo feature: systems-inventory"],
+    )]
     pub fn give(self, item: impl fmt::Display) -> String {
         format!("give {} {}", self.selector, item)
     }
@@ -131,61 +276,193 @@ impl InventorySystem {
 
 impl HasItemCheck {
     /// `execute if items entity <selector> <slot> <item>` — check in a specific slot.
-    #[doc = "**API Contract:** Run `sand api show sand::systems::inventory::HasItemCheck::in_slot` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::systems::inventory::HasItemCheck::in_slot",
+        module = "sand::systems",
+        kind = "method",
+        summary = "`execute if items entity <selector> <slot> <item>` — check in a specific slot.",
+        context = "`execute if items entity <selector> <slot> <item>` — check in a specific slot. This opt-in system composes Sand's typed primitives into a higher-level gameplay behavior; exporter registries and generated tick bookkeeping are private.",
+        minecraft = "The exact commands, resources, and lifecycle behavior are described by the defining item's source documentation for the selected feature and Minecraft profile.",
+        use_when = ["Opting into the documented higher-level gameplay behavior instead of assembling its commands manually"],
+        avoid_when = ["Using the API outside its documented system scope or feature configuration"],
+        params(slot = "`slot` supplies the slot value used to emit the documented `execute if items entity <selector> <slot> <item>` — check in a specific slot form."),
+        returns = "The `Execute` value produced to emit the documented `execute if items entity <selector> <slot> <item>` — check in a specific slot form.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(has_item_check_value: sand::systems::inventory::HasItemCheck, slot: impl Into < sand::command::ItemSlot >)  {\n    let in_slot = has_item_check_value.in_slot(slot);\n}",
+        availability = ["Cargo feature: systems-inventory"],
+    )]
     pub fn in_slot(self, slot: impl Into<ItemSlot>) -> Execute {
         Execute::new().if_items_entity(self.selector, slot.into(), self.item)
     }
 
     /// Check in the `weapon.*` (mainhand or offhand) slots.
-    #[doc = "**API Contract:** Run `sand api show sand::systems::inventory::HasItemCheck::in_any_weapon` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::systems::inventory::HasItemCheck::in_any_weapon",
+        module = "sand::systems",
+        kind = "method",
+        summary = "Check in the `weapon.*` (mainhand or offhand) slots.",
+        context = "Check in the `weapon.*` (mainhand or offhand) slots. This opt-in system composes Sand's typed primitives into a higher-level gameplay behavior; exporter registries and generated tick bookkeeping are private.",
+        minecraft = "The exact commands, resources, and lifecycle behavior are described by the defining item's source documentation for the selected feature and Minecraft profile.",
+        use_when = ["Opting into the documented higher-level gameplay behavior instead of assembling its commands manually"],
+        avoid_when = ["Using the API outside its documented system scope or feature configuration"],
+        returns = "The `Execute` value produced to check in the `weapon.*` (mainhand or offhand) slots.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(has_item_check_value: sand::systems::inventory::HasItemCheck)  {\n    let in_any_weapon = has_item_check_value.in_any_weapon();\n}",
+        availability = ["Cargo feature: systems-inventory"],
+    )]
     pub fn in_any_weapon(self) -> Execute {
         self.in_slot(ItemSlot::AnyWeapon)
     }
 
     /// Check in the `weapon.mainhand` slot.
-    #[doc = "**API Contract:** Run `sand api show sand::systems::inventory::HasItemCheck::in_mainhand` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::systems::inventory::HasItemCheck::in_mainhand",
+        module = "sand::systems",
+        kind = "method",
+        summary = "Check in the `weapon.mainhand` slot.",
+        context = "Check in the `weapon.mainhand` slot. This opt-in system composes Sand's typed primitives into a higher-level gameplay behavior; exporter registries and generated tick bookkeeping are private.",
+        minecraft = "The exact commands, resources, and lifecycle behavior are described by the defining item's source documentation for the selected feature and Minecraft profile.",
+        use_when = ["Opting into the documented higher-level gameplay behavior instead of assembling its commands manually"],
+        avoid_when = ["Using the API outside its documented system scope or feature configuration"],
+        returns = "The `Execute` value produced to check in the `weapon.mainhand` slot.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(has_item_check_value: sand::systems::inventory::HasItemCheck)  {\n    let in_mainhand = has_item_check_value.in_mainhand();\n}",
+        availability = ["Cargo feature: systems-inventory"],
+    )]
     pub fn in_mainhand(self) -> Execute {
         self.in_slot(ItemSlot::MainHand)
     }
 
     /// Check in the `weapon.offhand` slot.
-    #[doc = "**API Contract:** Run `sand api show sand::systems::inventory::HasItemCheck::in_offhand` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::systems::inventory::HasItemCheck::in_offhand",
+        module = "sand::systems",
+        kind = "method",
+        summary = "Check in the `weapon.offhand` slot.",
+        context = "Check in the `weapon.offhand` slot. This opt-in system composes Sand's typed primitives into a higher-level gameplay behavior; exporter registries and generated tick bookkeeping are private.",
+        minecraft = "The exact commands, resources, and lifecycle behavior are described by the defining item's source documentation for the selected feature and Minecraft profile.",
+        use_when = ["Opting into the documented higher-level gameplay behavior instead of assembling its commands manually"],
+        avoid_when = ["Using the API outside its documented system scope or feature configuration"],
+        returns = "The `Execute` value produced to check in the `weapon.offhand` slot.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(has_item_check_value: sand::systems::inventory::HasItemCheck)  {\n    let in_offhand = has_item_check_value.in_offhand();\n}",
+        availability = ["Cargo feature: systems-inventory"],
+    )]
     pub fn in_offhand(self) -> Execute {
         self.in_slot(ItemSlot::OffHand)
     }
 
     /// Check in any of the four `armor.*` slots.
-    #[doc = "**API Contract:** Run `sand api show sand::systems::inventory::HasItemCheck::in_armor` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::systems::inventory::HasItemCheck::in_armor",
+        module = "sand::systems",
+        kind = "method",
+        summary = "Check in any of the four `armor.*` slots.",
+        context = "Check in any of the four `armor.*` slots. This opt-in system composes Sand's typed primitives into a higher-level gameplay behavior; exporter registries and generated tick bookkeeping are private.",
+        minecraft = "The exact commands, resources, and lifecycle behavior are described by the defining item's source documentation for the selected feature and Minecraft profile.",
+        use_when = ["Opting into the documented higher-level gameplay behavior instead of assembling its commands manually"],
+        avoid_when = ["Using the API outside its documented system scope or feature configuration"],
+        returns = "The `Execute` value produced to check in any of the four `armor.*` slots.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(has_item_check_value: sand::systems::inventory::HasItemCheck)  {\n    let in_armor = has_item_check_value.in_armor();\n}",
+        availability = ["Cargo feature: systems-inventory"],
+    )]
     pub fn in_armor(self) -> Execute {
         self.in_slot(ItemSlot::AnyArmor)
     }
 
     /// Check in any of the 9 `hotbar.*` slots.
-    #[doc = "**API Contract:** Run `sand api show sand::systems::inventory::HasItemCheck::in_hotbar` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::systems::inventory::HasItemCheck::in_hotbar",
+        module = "sand::systems",
+        kind = "method",
+        summary = "Check in any of the 9 `hotbar.*` slots.",
+        context = "Check in any of the 9 `hotbar.*` slots. This opt-in system composes Sand's typed primitives into a higher-level gameplay behavior; exporter registries and generated tick bookkeeping are private.",
+        minecraft = "The exact commands, resources, and lifecycle behavior are described by the defining item's source documentation for the selected feature and Minecraft profile.",
+        use_when = ["Opting into the documented higher-level gameplay behavior instead of assembling its commands manually"],
+        avoid_when = ["Using the API outside its documented system scope or feature configuration"],
+        returns = "The `Execute` value produced to check in any of the 9 `hotbar.*` slots.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(has_item_check_value: sand::systems::inventory::HasItemCheck)  {\n    let in_hotbar = has_item_check_value.in_hotbar();\n}",
+        availability = ["Cargo feature: systems-inventory"],
+    )]
     pub fn in_hotbar(self) -> Execute {
         self.in_slot(ItemSlot::AnyHotbar)
     }
 
     /// Check in any `inventory.*` slot (the main 27-slot grid).
-    #[doc = "**API Contract:** Run `sand api show sand::systems::inventory::HasItemCheck::in_inventory` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::systems::inventory::HasItemCheck::in_inventory",
+        module = "sand::systems",
+        kind = "method",
+        summary = "Check in any `inventory.*` slot (the main 27-slot grid).",
+        context = "Check in any `inventory.*` slot (the main 27-slot grid). This opt-in system composes Sand's typed primitives into a higher-level gameplay behavior; exporter registries and generated tick bookkeeping are private.",
+        minecraft = "The exact commands, resources, and lifecycle behavior are described by the defining item's source documentation for the selected feature and Minecraft profile.",
+        use_when = ["Opting into the documented higher-level gameplay behavior instead of assembling its commands manually"],
+        avoid_when = ["Using the API outside its documented system scope or feature configuration"],
+        returns = "The `Execute` value produced to check in any `inventory.*` slot (the main 27-slot grid).",
+        example = "use sand::prelude::*;\n\nfn demonstrate(has_item_check_value: sand::systems::inventory::HasItemCheck)  {\n    let in_inventory = has_item_check_value.in_inventory();\n}",
+        availability = ["Cargo feature: systems-inventory"],
+    )]
     pub fn in_inventory(self) -> Execute {
         self.in_slot(ItemSlot::AnyInventory)
     }
 
     /// Check across all slots using `*` — any slot in the entity's full inventory.
-    #[doc = "**API Contract:** Run `sand api show sand::systems::inventory::HasItemCheck::in_any_slot` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::systems::inventory::HasItemCheck::in_any_slot",
+        module = "sand::systems",
+        kind = "method",
+        summary = "Check across all slots using `*` — any slot in the entity's full inventory.",
+        context = "Check across all slots using `*` — any slot in the entity's full inventory. This opt-in system composes Sand's typed primitives into a higher-level gameplay behavior; exporter registries and generated tick bookkeeping are private.",
+        minecraft = "The exact commands, resources, and lifecycle behavior are described by the defining item's source documentation for the selected feature and Minecraft profile.",
+        use_when = ["Opting into the documented higher-level gameplay behavior instead of assembling its commands manually"],
+        avoid_when = ["Using the API outside its documented system scope or feature configuration"],
+        returns = "The `Execute` value produced to check across all slots using `*` — any slot in the entity's full inventory.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(has_item_check_value: sand::systems::inventory::HasItemCheck)  {\n    let in_any_slot = has_item_check_value.in_any_slot();\n}",
+        availability = ["Cargo feature: systems-inventory"],
+    )]
     pub fn in_any_slot(self) -> Execute {
         self.in_slot(ItemSlot::Raw("*".into()))
     }
 
     /// `execute unless items entity <selector> <slot> <item>` — the negated form.
-    #[doc = "**API Contract:** Run `sand api show sand::systems::inventory::HasItemCheck::not_in_slot` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::systems::inventory::HasItemCheck::not_in_slot",
+        module = "sand::systems",
+        kind = "method",
+        summary = "`execute unless items entity <selector> <slot> <item>` — the negated form.",
+        context = "`execute unless items entity <selector> <slot> <item>` — the negated form. This opt-in system composes Sand's typed primitives into a higher-level gameplay behavior; exporter registries and generated tick bookkeeping are private.",
+        minecraft = "The exact commands, resources, and lifecycle behavior are described by the defining item's source documentation for the selected feature and Minecraft profile.",
+        use_when = ["Opting into the documented higher-level gameplay behavior instead of assembling its commands manually"],
+        avoid_when = ["Using the API outside its documented system scope or feature configuration"],
+        params(slot = "`slot` supplies the slot value used to emit the documented `execute unless items entity <selector> <slot> <item>` — the negated form form."),
+        returns = "The `Execute` value produced to emit the documented `execute unless items entity <selector> <slot> <item>` — the negated form form.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(has_item_check_value: sand::systems::inventory::HasItemCheck, slot: impl Into < sand::command::ItemSlot >)  {\n    let not_in_slot = has_item_check_value.not_in_slot(slot);\n}",
+        availability = ["Cargo feature: systems-inventory"],
+    )]
     pub fn not_in_slot(self, slot: impl Into<ItemSlot>) -> Execute {
         Execute::new().unless_items_entity(self.selector, slot.into(), self.item)
     }
 
     /// Skip if the item is anywhere in the full inventory (`*`).
-    #[doc = "**API Contract:** Run `sand api show sand::systems::inventory::HasItemCheck::not_anywhere` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::systems::inventory::HasItemCheck::not_anywhere",
+        module = "sand::systems",
+        kind = "method",
+        summary = "Skip if the item is anywhere in the full inventory (`*`).",
+        context = "Skip if the item is anywhere in the full inventory (`*`). This opt-in system composes Sand's typed primitives into a higher-level gameplay behavior; exporter registries and generated tick bookkeeping are private.",
+        minecraft = "The exact commands, resources, and lifecycle behavior are described by the defining item's source documentation for the selected feature and Minecraft profile.",
+        use_when = ["Opting into the documented higher-level gameplay behavior instead of assembling its commands manually"],
+        avoid_when = ["Using the API outside its documented system scope or feature configuration"],
+        returns = "The `Execute` value produced to skip if the item is anywhere in the full inventory (`*`).",
+        example = "use sand::prelude::*;\n\nfn demonstrate(has_item_check_value: sand::systems::inventory::HasItemCheck)  {\n    let not_anywhere = has_item_check_value.not_anywhere();\n}",
+        availability = ["Cargo feature: systems-inventory"],
+    )]
     pub fn not_anywhere(self) -> Execute {
         Execute::new().unless_items_entity(self.selector, ItemSlot::Raw("*".into()), self.item)
     }
@@ -193,7 +470,21 @@ impl HasItemCheck {
 
 impl ClearBuilder {
     /// `clear <selector> <item> <count>` — remove up to `count` items.
-    #[doc = "**API Contract:** Run `sand api show sand::systems::inventory::ClearBuilder::amount` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::systems::inventory::ClearBuilder::amount",
+        module = "sand::systems",
+        kind = "method",
+        summary = "`clear <selector> <item> <count>` — remove up to `count` items.",
+        context = "`clear <selector> <item> <count>` — remove up to `count` items. This opt-in system composes Sand's typed primitives into a higher-level gameplay behavior; exporter registries and generated tick bookkeeping are private.",
+        minecraft = "The exact commands, resources, and lifecycle behavior are described by the defining item's source documentation for the selected feature and Minecraft profile.",
+        use_when = ["Opting into the documented higher-level gameplay behavior instead of assembling its commands manually"],
+        avoid_when = ["Using the API outside its documented system scope or feature configuration"],
+        params(count = "`clear <selector> <item> <count>` — remove up to `count` items."),
+        returns = "The string value produced to emit the documented `clear <selector> <item> <count>` — remove up to `count` items form.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(clear_builder_value: sand::systems::inventory::ClearBuilder, count: u32)  {\n    let amount = clear_builder_value.amount(count);\n}",
+        availability = ["Cargo feature: systems-inventory"],
+    )]
     pub fn amount(self, count: u32) -> String {
         format!("clear {} {} {}", self.selector, self.item, count)
     }

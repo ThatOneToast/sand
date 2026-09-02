@@ -15,72 +15,77 @@ mod validation;
 
 // ── LootTableType ────────────────────────────────────────────────────────────
 
-#[doc = "**API Contract:** Run `sand api show sand::component::LootTableType` for the canonical contract."]
+#[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::component::LootTableType",
+    aliases = ["sand::prelude::LootTableType"],
+    module = "sand::component",
+    summary = "Represents the type of a Minecraft loot table (block, entity, chest, etc.).",
+    context = "Represents the type of a Minecraft loot table (block, entity, chest, etc.). Each variant corresponds to a specific loot table type defined in the Minecraft datapack spec, with a `Custom` variant for extensibility.",
+    minecraft = "Each variant corresponds to a specific loot table type defined in the Minecraft datapack spec, with a `Custom` variant for extensibility.",
+    use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+    avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+    example = "use sand::component::LootTableType;",
+    variants(AdvancementEntity = "Advancement entity rewards.", AdvancementReward = "Advancement reward loot.", Archaeology = "Archaeology loot.", Barter = "Bartering with piglins.", Block = "Block drops (e.g. from `minecraft:stone`).", Chest = "Chest loot.", Command = "Command rewards.", Custom = "Custom or user-defined loot table type.", Empty = "Empty loot table (returns nothing).", Entity = "Entity drops (e.g. from `minecraft:bat`).", Equipment = "Equipment drops.", Fishing = "Fishing rewards.", Generic = "Generic/untyped loot.", Gift = "Gift drops.", Selector = "Selector-based loot.", Shearing = "Shearing rewards (e.g. wool from sheep).", VaultReward = "Vault rewards (1.21+)."),
+    variant_fields(Custom = ["Custom or user-defined loot table type."]),
+)]
 /// Represents the type of a Minecraft loot table (block, entity, chest, etc.).
 ///
 /// Each variant corresponds to a specific loot table type defined in the Minecraft datapack spec,
 /// with a `Custom` variant for extensibility.
 pub enum LootTableType {
-    #[doc = "**API Contract:** Run `sand api show sand::component::LootTableType::Empty` for the canonical contract."]
     /// Empty loot table (returns nothing).
     Empty,
-    #[doc = "**API Contract:** Run `sand api show sand::component::LootTableType::Entity` for the canonical contract."]
     /// Entity drops (e.g. from `minecraft:bat`).
     Entity,
-    #[doc = "**API Contract:** Run `sand api show sand::component::LootTableType::Block` for the canonical contract."]
     /// Block drops (e.g. from `minecraft:stone`).
     Block,
-    #[doc = "**API Contract:** Run `sand api show sand::component::LootTableType::Chest` for the canonical contract."]
     /// Chest loot.
     Chest,
-    #[doc = "**API Contract:** Run `sand api show sand::component::LootTableType::Equipment` for the canonical contract."]
     /// Equipment drops.
     Equipment,
-    #[doc = "**API Contract:** Run `sand api show sand::component::LootTableType::Fishing` for the canonical contract."]
     /// Fishing rewards.
     Fishing,
-    #[doc = "**API Contract:** Run `sand api show sand::component::LootTableType::Gift` for the canonical contract."]
     /// Gift drops.
     Gift,
-    #[doc = "**API Contract:** Run `sand api show sand::component::LootTableType::VaultReward` for the canonical contract."]
     /// Vault rewards (1.21+).
     VaultReward,
-    #[doc = "**API Contract:** Run `sand api show sand::component::LootTableType::Shearing` for the canonical contract."]
     /// Shearing rewards (e.g. wool from sheep).
     Shearing,
-    #[doc = "**API Contract:** Run `sand api show sand::component::LootTableType::Archaeology` for the canonical contract."]
     /// Archaeology loot.
     Archaeology,
-    #[doc = "**API Contract:** Run `sand api show sand::component::LootTableType::Generic` for the canonical contract."]
     /// Generic/untyped loot.
     Generic,
-    #[doc = "**API Contract:** Run `sand api show sand::component::LootTableType::Barter` for the canonical contract."]
     /// Bartering with piglins.
     Barter,
-    #[doc = "**API Contract:** Run `sand api show sand::component::LootTableType::Command` for the canonical contract."]
     /// Command rewards.
     Command,
-    #[doc = "**API Contract:** Run `sand api show sand::component::LootTableType::Selector` for the canonical contract."]
     /// Selector-based loot.
     Selector,
-    #[doc = "**API Contract:** Run `sand api show sand::component::LootTableType::AdvancementReward` for the canonical contract."]
     /// Advancement reward loot.
     AdvancementReward,
-    #[doc = "**API Contract:** Run `sand api show sand::component::LootTableType::AdvancementEntity` for the canonical contract."]
     /// Advancement entity rewards.
     AdvancementEntity,
-    #[doc = "**API Contract:** Run `sand api show sand::component::LootTableType::Custom` for the canonical contract."]
     /// Custom or user-defined loot table type.
-    Custom(
-        #[doc = "The `Custom` variant carries the value described by its variant semantics: Custom or user-defined loot table type."]
-        #[doc = "**API Contract:** Run `sand api show sand::component::LootTableType::Custom::0` for the canonical contract."]
-        String,
-    ),
+    Custom(#[doc = "Custom or user-defined loot table type."] String),
 }
 
 impl LootTableType {
     /// Get the Minecraft namespace string for this loot table type.
-    #[doc = "**API Contract:** Run `sand api show sand::component::LootTableType::type_str` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::LootTableType::type_str",
+        aliases = ["sand::prelude::LootTableType::type_str"],
+        module = "sand::component",
+        kind = "method",
+        summary = "Get the Minecraft namespace string for this loot table type.",
+        context = "Get the Minecraft namespace string for this loot table type. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        returns = "The string value produced to get the Minecraft namespace string for this loot table type.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(loot_table_type_value: &sand::component::LootTableType)  {\n    let type_str = loot_table_type_value.type_str();\n}",
+    )]
     pub fn type_str(&self) -> String {
         match self {
             LootTableType::Empty => "minecraft:empty".to_string(),
@@ -106,49 +111,46 @@ impl LootTableType {
 
 // ── NumberProvider ────────────────────────────────────────────────────────────
 
-#[doc = "**API Contract:** Run `sand api show sand::component::NumberProvider` for the canonical contract."]
+#[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::component::NumberProvider",
+    module = "sand::component",
+    summary = "Provides numeric values for loot table operations, supporting constants and dynamic calculations.",
+    context = "Provides numeric values for loot table operations, supporting constants and dynamic calculations. Variants include constant values, uniform random ranges, binomial distributions, and score-based values.",
+    minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+    use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+    avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+    example = "use sand::component::NumberProvider;",
+    variants(Binomial = "Binomial distribution with `n` trials and probability `p`.", Constant = "A constant numeric value.", Score = "Dynamic value from a scoreboard score.", Uniform = "Uniform random distribution between `min` and `max`."),
+    variant_fields(Binomial(n = "Number of trials.", p = "Probability of success per trial."), Constant = ["A constant numeric value."], Score(scale = "Optional scale factor to apply to the score.", score = "The objective name.", target = "The target selector or name."), Uniform(max = "Maximum value (inclusive).", min = "Minimum value (inclusive).")),
+)]
 /// Provides numeric values for loot table operations, supporting constants and dynamic calculations.
 ///
 /// Variants include constant values, uniform random ranges, binomial distributions, and score-based values.
 #[derive(Debug, Clone, PartialEq)]
 pub enum NumberProvider {
-    #[doc = "**API Contract:** Run `sand api show sand::component::NumberProvider::Constant` for the canonical contract."]
     /// A constant numeric value.
-    Constant(
-        #[doc = "The `Constant` variant carries the value described by its variant semantics: A constant numeric value."]
-        #[doc = "**API Contract:** Run `sand api show sand::component::NumberProvider::Constant::0` for the canonical contract."]
-        f64,
-    ),
-    #[doc = "**API Contract:** Run `sand api show sand::component::NumberProvider::Uniform` for the canonical contract."]
+    Constant(#[doc = "A constant numeric value."] f64),
     /// Uniform random distribution between `min` and `max`.
     Uniform {
-        #[doc = "**API Contract:** Run `sand api show sand::component::NumberProvider::Uniform::min` for the canonical contract."]
         /// Minimum value (inclusive).
         min: f64,
-        #[doc = "**API Contract:** Run `sand api show sand::component::NumberProvider::Uniform::max` for the canonical contract."]
         /// Maximum value (inclusive).
         max: f64,
     },
-    #[doc = "**API Contract:** Run `sand api show sand::component::NumberProvider::Binomial` for the canonical contract."]
     /// Binomial distribution with `n` trials and probability `p`.
     Binomial {
-        #[doc = "**API Contract:** Run `sand api show sand::component::NumberProvider::Binomial::n` for the canonical contract."]
         /// Number of trials.
         n: i32,
-        #[doc = "**API Contract:** Run `sand api show sand::component::NumberProvider::Binomial::p` for the canonical contract."]
         /// Probability of success per trial.
         p: f64,
     },
-    #[doc = "**API Contract:** Run `sand api show sand::component::NumberProvider::Score` for the canonical contract."]
     /// Dynamic value from a scoreboard score.
     Score {
-        #[doc = "**API Contract:** Run `sand api show sand::component::NumberProvider::Score::target` for the canonical contract."]
         /// The target selector or name.
         target: Value,
-        #[doc = "**API Contract:** Run `sand api show sand::component::NumberProvider::Score::score` for the canonical contract."]
         /// The objective name.
         score: String,
-        #[doc = "**API Contract:** Run `sand api show sand::component::NumberProvider::Score::scale` for the canonical contract."]
         /// Optional scale factor to apply to the score.
         scale: Option<f64>,
     },
@@ -205,130 +207,108 @@ impl Serialize for NumberProvider {
 
 // ── LootCondition ────────────────────────────────────────────────────────────
 
-#[doc = "**API Contract:** Run `sand api show sand::component::LootCondition` for the canonical contract."]
+#[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::component::LootCondition",
+    aliases = ["sand::prelude::LootCondition"],
+    module = "sand::component",
+    summary = "Conditional logic that determines whether loot entries or functions should execute.",
+    context = "Conditional logic that determines whether loot entries or functions should execute. Includes boolean composition (AllOf, AnyOf, Inverted), entity/block checks, probability, and custom conditions for fine-grained control over loot generation.",
+    minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+    use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+    avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+    example = "use sand::component::LootCondition;",
+    variants(AllOf = "All conditions must be true (AND).", AnyOf = "At least one condition must be true (OR).", BlockStateProperty = "Check block state properties.", Custom = "Custom condition type — explicit raw escape hatch for modded conditions.", EntityProperties = "Check entity properties/predicates.", EntityScores = "Check entity scoreboard scores.", Inverted = "Inverted logic (NOT).", KilledByPlayer = "True if the entity was killed by a player.", MatchTool = "Match the tool used to mine/break the block.", RandomChance = "Random probability check (0.0 to 1.0).", Reference = "Reference to a named predicate file.", SurvivesExplosion = "Block survives explosion (doesn't drop).", TableBonus = "Enchantment bonus table (e.g. for fortune).", TimeCheck = "Check the current game time.", WeatherCheck = "Check weather conditions."),
+    variant_fields(AllOf(terms = "List of conditions that must all be true."), AnyOf(terms = "List of conditions, at least one must be true."), BlockStateProperty(block = "Block ID.", properties = "Properties to match."), Custom(condition = "Condition type identifier (e.g. `\"mymod:custom_condition\"`).", data = "Additional condition data as raw JSON."), EntityProperties(entity = "The entity selector.", predicate = "The predicate to check."), EntityScores(entity = "The entity selector.", scores = "Score names and their required values."), Inverted(term = "The condition to invert."), MatchTool(predicate = "Item predicate for the tool."), RandomChance(chance = "Probability of success."), Reference(name = "Predicate file name/ID."), TableBonus(chances = "Chances per enchantment level.", enchantment = "Enchantment ID to check."), TimeCheck(period = "Optional period for periodic checking.", value = "The time value or range to check."), WeatherCheck(raining = "Is it raining?", thundering = "Is it thundering?")),
+)]
 /// Conditional logic that determines whether loot entries or functions should execute.
 ///
 /// Includes boolean composition (AllOf, AnyOf, Inverted), entity/block checks, probability,
 /// and custom conditions for fine-grained control over loot generation.
 pub enum LootCondition {
-    #[doc = "**API Contract:** Run `sand api show sand::component::LootCondition::AllOf` for the canonical contract."]
     /// All conditions must be true (AND).
     AllOf {
-        #[doc = "**API Contract:** Run `sand api show sand::component::LootCondition::AllOf::terms` for the canonical contract."]
         /// List of conditions that must all be true.
         terms: Vec<LootCondition>,
     },
-    #[doc = "**API Contract:** Run `sand api show sand::component::LootCondition::AnyOf` for the canonical contract."]
     /// At least one condition must be true (OR).
     AnyOf {
-        #[doc = "**API Contract:** Run `sand api show sand::component::LootCondition::AnyOf::terms` for the canonical contract."]
         /// List of conditions, at least one must be true.
         terms: Vec<LootCondition>,
     },
-    #[doc = "**API Contract:** Run `sand api show sand::component::LootCondition::Inverted` for the canonical contract."]
     /// Inverted logic (NOT).
     Inverted {
-        #[doc = "**API Contract:** Run `sand api show sand::component::LootCondition::Inverted::term` for the canonical contract."]
         /// The condition to invert.
         term: Box<LootCondition>,
     },
-    #[doc = "**API Contract:** Run `sand api show sand::component::LootCondition::RandomChance` for the canonical contract."]
     /// Random probability check (0.0 to 1.0).
     RandomChance {
-        #[doc = "**API Contract:** Run `sand api show sand::component::LootCondition::RandomChance::chance` for the canonical contract."]
         /// Probability of success.
         chance: f64,
     },
-    #[doc = "**API Contract:** Run `sand api show sand::component::LootCondition::KilledByPlayer` for the canonical contract."]
     /// True if the entity was killed by a player.
     KilledByPlayer,
-    #[doc = "**API Contract:** Run `sand api show sand::component::LootCondition::EntityProperties` for the canonical contract."]
     /// Check entity properties/predicates.
     EntityProperties {
-        #[doc = "**API Contract:** Run `sand api show sand::component::LootCondition::EntityProperties::entity` for the canonical contract."]
         /// The entity selector.
         entity: String,
-        #[doc = "**API Contract:** Run `sand api show sand::component::LootCondition::EntityProperties::predicate` for the canonical contract."]
         /// The predicate to check.
         predicate: Value,
     },
-    #[doc = "**API Contract:** Run `sand api show sand::component::LootCondition::EntityScores` for the canonical contract."]
     /// Check entity scoreboard scores.
     EntityScores {
-        #[doc = "**API Contract:** Run `sand api show sand::component::LootCondition::EntityScores::entity` for the canonical contract."]
         /// The entity selector.
         entity: String,
-        #[doc = "**API Contract:** Run `sand api show sand::component::LootCondition::EntityScores::scores` for the canonical contract."]
         /// Score names and their required values.
         scores: HashMap<String, Value>,
     },
-    #[doc = "**API Contract:** Run `sand api show sand::component::LootCondition::MatchTool` for the canonical contract."]
     /// Match the tool used to mine/break the block.
     MatchTool {
-        #[doc = "**API Contract:** Run `sand api show sand::component::LootCondition::MatchTool::predicate` for the canonical contract."]
         /// Item predicate for the tool.
         predicate: Value,
     },
-    #[doc = "**API Contract:** Run `sand api show sand::component::LootCondition::SurvivesExplosion` for the canonical contract."]
     /// Block survives explosion (doesn't drop).
     SurvivesExplosion,
-    #[doc = "**API Contract:** Run `sand api show sand::component::LootCondition::TableBonus` for the canonical contract."]
     /// Enchantment bonus table (e.g. for fortune).
     TableBonus {
-        #[doc = "**API Contract:** Run `sand api show sand::component::LootCondition::TableBonus::enchantment` for the canonical contract."]
         /// Enchantment ID to check.
         enchantment: String,
-        #[doc = "**API Contract:** Run `sand api show sand::component::LootCondition::TableBonus::chances` for the canonical contract."]
         /// Chances per enchantment level.
         chances: Vec<f64>,
     },
-    #[doc = "**API Contract:** Run `sand api show sand::component::LootCondition::TimeCheck` for the canonical contract."]
     /// Check the current game time.
     TimeCheck {
-        #[doc = "**API Contract:** Run `sand api show sand::component::LootCondition::TimeCheck::value` for the canonical contract."]
         /// The time value or range to check.
         value: Value,
-        #[doc = "**API Contract:** Run `sand api show sand::component::LootCondition::TimeCheck::period` for the canonical contract."]
         /// Optional period for periodic checking.
         period: Option<i64>,
     },
-    #[doc = "**API Contract:** Run `sand api show sand::component::LootCondition::WeatherCheck` for the canonical contract."]
     /// Check weather conditions.
     WeatherCheck {
-        #[doc = "**API Contract:** Run `sand api show sand::component::LootCondition::WeatherCheck::raining` for the canonical contract."]
         /// Is it raining?
         raining: Option<bool>,
-        #[doc = "**API Contract:** Run `sand api show sand::component::LootCondition::WeatherCheck::thundering` for the canonical contract."]
         /// Is it thundering?
         thundering: Option<bool>,
     },
-    #[doc = "**API Contract:** Run `sand api show sand::component::LootCondition::BlockStateProperty` for the canonical contract."]
     /// Check block state properties.
     BlockStateProperty {
-        #[doc = "**API Contract:** Run `sand api show sand::component::LootCondition::BlockStateProperty::block` for the canonical contract."]
         /// Block ID.
         block: String,
-        #[doc = "**API Contract:** Run `sand api show sand::component::LootCondition::BlockStateProperty::properties` for the canonical contract."]
         /// Properties to match.
         properties: HashMap<String, String>,
     },
-    #[doc = "**API Contract:** Run `sand api show sand::component::LootCondition::Reference` for the canonical contract."]
     /// Reference to a named predicate file.
     Reference {
-        #[doc = "**API Contract:** Run `sand api show sand::component::LootCondition::Reference::name` for the canonical contract."]
         /// Predicate file name/ID.
         name: String,
     },
-    #[doc = "**API Contract:** Run `sand api show sand::component::LootCondition::Custom` for the canonical contract."]
     /// Custom condition type — explicit raw escape hatch for modded conditions.
     ///
     /// Use [`RawJson`] for `data`.  The named type signals
     /// intentional opt-out of the typed condition API.
     Custom {
-        #[doc = "**API Contract:** Run `sand api show sand::component::LootCondition::Custom::condition` for the canonical contract."]
         /// Condition type identifier (e.g. `"mymod:custom_condition"`).
         condition: String,
-        #[doc = "**API Contract:** Run `sand api show sand::component::LootCondition::Custom::data` for the canonical contract."]
         /// Additional condition data as raw JSON.
         data: RawJson,
     },
@@ -503,20 +483,28 @@ impl Serialize for EnchantmentSelector {
 /// Prefer [`LootText::Typed`] (via `From<TextComponent>`/`.into()`) so text is
 /// validated the same way command text is. [`LootText::Raw`] is an explicit
 /// escape hatch for JSON text shapes [`TextComponent`] cannot express.
-#[doc = "**API Contract:** Run `sand api show sand::component::LootText` for the canonical contract."]
+#[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::component::LootText",
+    module = "sand::component",
+    summary = "Text payload used by loot functions that set item names/lore (`set_name`, `set_lore`).",
+    context = "Text payload used by loot functions that set item names/lore (`set_name`, `set_lore`). Prefer [`LootText::Typed`] (via `From<TextComponent>`/`.into()`) so text is validated the same way command text is. [`LootText::Raw`] is an explicit escape hatch for JSON text shapes [`TextComponent`] cannot express.",
+    minecraft = "Prefer [`LootText::Typed`] (via `From<TextComponent>`/`.into()`) so text is validated the same way command text is. [`LootText::Raw`] is an explicit escape hatch for JSON text shapes [`TextComponent`] cannot express.",
+    use_when = ["Prefer [`LootText::Typed`] (via `From<TextComponent>`/`.into()`) so text is validated the same way command text is. [`LootText::Raw`] is an explicit escape hatch for JSON text shapes [`TextComponent`] cannot express."],
+    avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+    example = "use sand::component::LootText;",
+    variants(Raw = "Explicit raw JSON text escape hatch.", Typed = "A typed, validated Minecraft text component."),
+    variant_fields(Raw = ["The explicit raw JSON text payload serialized without typed text validation."], Typed = ["The text component that Sand validates before serializing the loot function."]),
+)]
 pub enum LootText {
     /// A typed, validated Minecraft text component.
-    #[doc = "**API Contract:** Run `sand api show sand::component::LootText::Typed` for the canonical contract."]
     Typed(
         /// The text component that Sand validates before serializing the loot function.
-        #[doc = "**API Contract:** Run `sand api show sand::component::LootText::Typed::0` for the canonical contract."]
         Box<TextComponent>,
     ),
     /// Explicit raw JSON text escape hatch.
-    #[doc = "**API Contract:** Run `sand api show sand::component::LootText::Raw` for the canonical contract."]
     Raw(
         /// The explicit raw JSON text payload serialized without typed text validation.
-        #[doc = "**API Contract:** Run `sand api show sand::component::LootText::Raw::0` for the canonical contract."]
         RawJson,
     ),
 }
@@ -549,123 +537,102 @@ impl Serialize for LootText {
 
 // ── LootFunction ─────────────────────────────────────────────────────────────
 
-#[doc = "**API Contract:** Run `sand api show sand::component::LootFunction` for the canonical contract."]
+#[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::component::LootFunction",
+    aliases = ["sand::prelude::LootFunction"],
+    module = "sand::component",
+    summary = "Modifies loot entries after they are selected (enchanting, naming, damage, etc.).",
+    context = "Modifies loot entries after they are selected (enchanting, naming, damage, etc.). Functions transform items with effects like SetCount, SetName, EnchantWithLevels, or custom operations.",
+    minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+    use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+    avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+    example = "use sand::component::LootFunction;",
+    variants(CopyComponents = "Selects the copy components form in this typed Minecraft component schema.", Custom = "Custom function — explicit raw escape hatch for modded loot functions.", EnchantRandomly = "Selects the enchant randomly form in this typed Minecraft component schema.", EnchantWithLevels = "Selects the enchant with levels form in this typed Minecraft component schema.", ExplosionDecay = "Selects the explosion decay form in this typed Minecraft component schema.", FillPlayerHead = "Selects the fill player head form in this typed Minecraft component schema.", FurnaceSmelt = "Selects the furnace smelt form in this typed Minecraft component schema.", LootingEnchant = "Selects the looting enchant form in this typed Minecraft component schema.", Reference = "Selects the reference form in this typed Minecraft component schema.", SetCount = "Selects the set count form in this typed Minecraft component schema.", SetDamage = "Selects the set damage form in this typed Minecraft component schema.", SetLore = "Selects the set lore form in this typed Minecraft component schema.", SetName = "Selects the set name form in this typed Minecraft component schema."),
+    variant_fields(CopyComponents(exclude = "`exclude` provides the exclude when the variant selects the copy components form in this typed Minecraft component schema.", include = "`include` provides the include when the variant selects the copy components form in this typed Minecraft component schema.", source = "`source` provides the source when the variant selects the copy components form in this typed Minecraft component schema."), Custom(data = "Additional function data as raw JSON.", function = "Function type identifier (e.g. `\"mymod:custom_function\"`)."), EnchantRandomly(only_compatible = "`only_compatible` provides the only compatible when the variant selects the enchant randomly form in this typed Minecraft component schema.", options = "`options` optionally provides the options when the variant selects the enchant randomly form in this typed Minecraft component schema."), EnchantWithLevels(levels = "`levels` provides the level range identifier when the variant selects the enchant with levels form in this typed Minecraft component schema.", options = "`options` optionally provides the options when the variant selects the enchant with levels form in this typed Minecraft component schema."), FillPlayerHead(entity = "`entity` provides the entity when the variant selects the fill player head form in this typed Minecraft component schema."), LootingEnchant(count = "`count` provides the count identifier when the variant selects the looting enchant form in this typed Minecraft component schema.", limit = "`limit` optionally provides the limit when the variant selects the looting enchant form in this typed Minecraft component schema."), Reference(name = "`name` provides the name when the variant selects the reference form in this typed Minecraft component schema."), SetCount(add = "`add` provides the add when the variant selects the set count form in this typed Minecraft component schema.", count = "`count` provides the count identifier when the variant selects the set count form in this typed Minecraft component schema."), SetDamage(add = "`add` provides the add when the variant selects the set damage form in this typed Minecraft component schema.", damage = "`damage` provides the damage identifier when the variant selects the set damage form in this typed Minecraft component schema."), SetLore(entity = "`entity` optionally narrows the entity matched when the variant selects the set lore form in this typed Minecraft component schema.", lore = "`lore` provides the lore when the variant selects the set lore form in this typed Minecraft component schema."), SetName(entity = "`entity` optionally narrows the entity matched when the variant selects the set name form in this typed Minecraft component schema.", name = "`name` provides the name when the variant selects the set name form in this typed Minecraft component schema.")),
+)]
 /// Modifies loot entries after they are selected (enchanting, naming, damage, etc.).
 ///
 /// Functions transform items with effects like SetCount, SetName, EnchantWithLevels, or custom operations.
 pub enum LootFunction {
     #[doc = "Selects the set count form in this typed Minecraft component schema."]
-    #[doc = "**API Contract:** Run `sand api show sand::component::LootFunction::SetCount` for the canonical contract."]
     SetCount {
         /// `count` provides the count identifier when the variant selects the set count form in this typed Minecraft component schema.
-        #[doc = "**API Contract:** Run `sand api show sand::component::LootFunction::SetCount::count` for the canonical contract."]
         count: NumberProvider,
         /// `add` provides the add when the variant selects the set count form in this typed Minecraft component schema.
-        #[doc = "**API Contract:** Run `sand api show sand::component::LootFunction::SetCount::add` for the canonical contract."]
         add: bool,
     },
     #[doc = "Selects the set damage form in this typed Minecraft component schema."]
-    #[doc = "**API Contract:** Run `sand api show sand::component::LootFunction::SetDamage` for the canonical contract."]
     SetDamage {
         /// `damage` provides the damage identifier when the variant selects the set damage form in this typed Minecraft component schema.
-        #[doc = "**API Contract:** Run `sand api show sand::component::LootFunction::SetDamage::damage` for the canonical contract."]
         damage: NumberProvider,
         /// `add` provides the add when the variant selects the set damage form in this typed Minecraft component schema.
-        #[doc = "**API Contract:** Run `sand api show sand::component::LootFunction::SetDamage::add` for the canonical contract."]
         add: bool,
     },
     #[doc = "Selects the enchant with levels form in this typed Minecraft component schema."]
-    #[doc = "**API Contract:** Run `sand api show sand::component::LootFunction::EnchantWithLevels` for the canonical contract."]
     EnchantWithLevels {
         /// `levels` provides the level range identifier when the variant selects the enchant with levels form in this typed Minecraft component schema.
-        #[doc = "**API Contract:** Run `sand api show sand::component::LootFunction::EnchantWithLevels::levels` for the canonical contract."]
         levels: NumberProvider,
         /// `options` optionally provides the options when the variant selects the enchant with levels form in this typed Minecraft component schema.
-        #[doc = "**API Contract:** Run `sand api show sand::component::LootFunction::EnchantWithLevels::options` for the canonical contract."]
         options: Option<EnchantmentSelector>,
     },
     #[doc = "Selects the enchant randomly form in this typed Minecraft component schema."]
-    #[doc = "**API Contract:** Run `sand api show sand::component::LootFunction::EnchantRandomly` for the canonical contract."]
     EnchantRandomly {
         /// `options` optionally provides the options when the variant selects the enchant randomly form in this typed Minecraft component schema.
-        #[doc = "**API Contract:** Run `sand api show sand::component::LootFunction::EnchantRandomly::options` for the canonical contract."]
         options: Option<Vec<EnchantmentSelector>>,
         /// `only_compatible` provides the only compatible when the variant selects the enchant randomly form in this typed Minecraft component schema.
-        #[doc = "**API Contract:** Run `sand api show sand::component::LootFunction::EnchantRandomly::only_compatible` for the canonical contract."]
         only_compatible: bool,
     },
     #[doc = "Selects the set name form in this typed Minecraft component schema."]
-    #[doc = "**API Contract:** Run `sand api show sand::component::LootFunction::SetName` for the canonical contract."]
     SetName {
         /// `name` provides the name when the variant selects the set name form in this typed Minecraft component schema.
-        #[doc = "**API Contract:** Run `sand api show sand::component::LootFunction::SetName::name` for the canonical contract."]
         name: LootText,
         /// `entity` optionally narrows the entity matched when the variant selects the set name form in this typed Minecraft component schema.
-        #[doc = "**API Contract:** Run `sand api show sand::component::LootFunction::SetName::entity` for the canonical contract."]
         entity: Option<String>,
     },
     #[doc = "Selects the set lore form in this typed Minecraft component schema."]
-    #[doc = "**API Contract:** Run `sand api show sand::component::LootFunction::SetLore` for the canonical contract."]
     SetLore {
         /// `lore` provides the lore when the variant selects the set lore form in this typed Minecraft component schema.
-        #[doc = "**API Contract:** Run `sand api show sand::component::LootFunction::SetLore::lore` for the canonical contract."]
         lore: Vec<LootText>,
         /// `entity` optionally narrows the entity matched when the variant selects the set lore form in this typed Minecraft component schema.
-        #[doc = "**API Contract:** Run `sand api show sand::component::LootFunction::SetLore::entity` for the canonical contract."]
         entity: Option<String>,
     },
     #[doc = "Selects the looting enchant form in this typed Minecraft component schema."]
-    #[doc = "**API Contract:** Run `sand api show sand::component::LootFunction::LootingEnchant` for the canonical contract."]
     LootingEnchant {
         /// `count` provides the count identifier when the variant selects the looting enchant form in this typed Minecraft component schema.
-        #[doc = "**API Contract:** Run `sand api show sand::component::LootFunction::LootingEnchant::count` for the canonical contract."]
         count: NumberProvider,
         /// `limit` optionally provides the limit when the variant selects the looting enchant form in this typed Minecraft component schema.
-        #[doc = "**API Contract:** Run `sand api show sand::component::LootFunction::LootingEnchant::limit` for the canonical contract."]
         limit: Option<i32>,
     },
     #[doc = "Selects the explosion decay form in this typed Minecraft component schema."]
-    #[doc = "**API Contract:** Run `sand api show sand::component::LootFunction::ExplosionDecay` for the canonical contract."]
     ExplosionDecay,
     #[doc = "Selects the furnace smelt form in this typed Minecraft component schema."]
-    #[doc = "**API Contract:** Run `sand api show sand::component::LootFunction::FurnaceSmelt` for the canonical contract."]
     FurnaceSmelt,
     #[doc = "Selects the fill player head form in this typed Minecraft component schema."]
-    #[doc = "**API Contract:** Run `sand api show sand::component::LootFunction::FillPlayerHead` for the canonical contract."]
     FillPlayerHead {
         /// `entity` provides the entity when the variant selects the fill player head form in this typed Minecraft component schema.
-        #[doc = "**API Contract:** Run `sand api show sand::component::LootFunction::FillPlayerHead::entity` for the canonical contract."]
         entity: String,
     },
     #[doc = "Selects the copy components form in this typed Minecraft component schema."]
-    #[doc = "**API Contract:** Run `sand api show sand::component::LootFunction::CopyComponents` for the canonical contract."]
     CopyComponents {
         /// `source` provides the source when the variant selects the copy components form in this typed Minecraft component schema.
-        #[doc = "**API Contract:** Run `sand api show sand::component::LootFunction::CopyComponents::source` for the canonical contract."]
         source: String,
         /// `include` provides the include when the variant selects the copy components form in this typed Minecraft component schema.
-        #[doc = "**API Contract:** Run `sand api show sand::component::LootFunction::CopyComponents::include` for the canonical contract."]
         include: Vec<String>,
         /// `exclude` provides the exclude when the variant selects the copy components form in this typed Minecraft component schema.
-        #[doc = "**API Contract:** Run `sand api show sand::component::LootFunction::CopyComponents::exclude` for the canonical contract."]
         exclude: Vec<String>,
     },
     #[doc = "Selects the reference form in this typed Minecraft component schema."]
-    #[doc = "**API Contract:** Run `sand api show sand::component::LootFunction::Reference` for the canonical contract."]
     Reference {
         /// `name` provides the name when the variant selects the reference form in this typed Minecraft component schema.
-        #[doc = "**API Contract:** Run `sand api show sand::component::LootFunction::Reference::name` for the canonical contract."]
         name: String,
     },
-    #[doc = "**API Contract:** Run `sand api show sand::component::LootFunction::Custom` for the canonical contract."]
     /// Custom function — explicit raw escape hatch for modded loot functions.
     ///
     /// Use [`RawJson`] for `data`.
     Custom {
-        #[doc = "**API Contract:** Run `sand api show sand::component::LootFunction::Custom::function` for the canonical contract."]
         /// Function type identifier (e.g. `"mymod:custom_function"`).
         function: String,
-        #[doc = "**API Contract:** Run `sand api show sand::component::LootFunction::Custom::data` for the canonical contract."]
         /// Additional function data as raw JSON.
         data: RawJson,
     },
@@ -682,7 +649,21 @@ impl LootFunction {
     ///
     /// let function = LootFunction::set_name(Text::new("Legendary Sword").gold());
     /// ```
-    #[doc = "**API Contract:** Run `sand api show sand::component::LootFunction::set_name` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::LootFunction::set_name",
+        aliases = ["sand::prelude::LootFunction::set_name"],
+        module = "sand::component",
+        kind = "method",
+        summary = "Creates a `set_name` function from a typed or raw [`LootText`] value.",
+        context = "Creates a `set_name` function from a typed or raw [`LootText`] value. Accepts `TextComponent` directly via `.into()`:",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(name = "`name` provides the author-visible text value used to create a `set_name` function from a typed or raw [`LootText`] value."),
+        returns = "A newly constructed `LootFunction` configured to create a `set_name` function from a typed or raw [`LootText`] value.",
+        example = "use sand::text::Text;\nuse sand::component::LootFunction;\nlet function = LootFunction::set_name(Text::new(\"Legendary Sword\").gold());",
+    )]
     pub fn set_name(name: impl Into<LootText>) -> Self {
         LootFunction::SetName {
             name: name.into(),
@@ -691,7 +672,21 @@ impl LootFunction {
     }
 
     /// Creates a `set_lore` function from typed or raw [`LootText`] lines.
-    #[doc = "**API Contract:** Run `sand api show sand::component::LootFunction::set_lore` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::LootFunction::set_lore",
+        aliases = ["sand::prelude::LootFunction::set_lore"],
+        module = "sand::component",
+        kind = "method",
+        summary = "Creates a `set_lore` function from typed or raw [`LootText`] lines.",
+        context = "Creates a `set_lore` function from typed or raw [`LootText`] lines. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(lore = "`lore` provides the player-visible text value used to create a `set_lore` function from typed or raw [`LootText`] lines."),
+        returns = "A newly constructed `LootFunction` configured to create a `set_lore` function from typed or raw [`LootText`] lines.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(lore: impl IntoIterator < Item = impl Into < sand::component::LootText > >)  {\n    let loot_function = sand::component::LootFunction::set_lore(lore);\n}",
+    )]
     pub fn set_lore(lore: impl IntoIterator<Item = impl Into<LootText>>) -> Self {
         LootFunction::SetLore {
             lore: lore.into_iter().map(Into::into).collect(),
@@ -819,117 +814,97 @@ impl Serialize for LootFunction {
 
 // ── LootEntry ────────────────────────────────────────────────────────────────
 
-#[doc = "**API Contract:** Run `sand api show sand::component::LootEntry` for the canonical contract."]
+#[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::component::LootEntry",
+    aliases = ["sand::prelude::LootEntry"],
+    module = "sand::component",
+    summary = "A single entry in a loot pool, representing items, tags, nested tables, or structural groups.",
+    context = "A single entry in a loot pool, representing items, tags, nested tables, or structural groups. Variants include direct item drops, item tag selections, nested loot table references, and composition types (Group, Alternatives, Sequence) for organizing multiple entries.",
+    minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+    use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+    avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+    example = "use sand::component::LootEntry;",
+    variants(Alternatives = "Selects the alternatives form in this typed Minecraft component schema.", Dynamic = "Selects the dynamic form in this typed Minecraft component schema.", Empty = "Selects the empty form in this typed Minecraft component schema.", Group = "Selects the group form in this typed Minecraft component schema.", Item = "Selects the item form in this typed Minecraft component schema.", LootTable = "Selects the loot table form in this typed Minecraft component schema.", Sequence = "Selects the sequence form in this typed Minecraft component schema.", Tag = "Selects the tag form in this typed Minecraft component schema."),
+    variant_fields(Alternatives(children = "`children` provides the children when the variant selects the alternatives form in this typed Minecraft component schema.", conditions = "`conditions` provides the conditions when the variant selects the alternatives form in this typed Minecraft component schema."), Dynamic(conditions = "`conditions` provides the conditions when the variant selects the dynamic form in this typed Minecraft component schema.", name = "`name` provides the name when the variant selects the dynamic form in this typed Minecraft component schema."), Empty(conditions = "`conditions` provides the conditions when the variant selects the empty form in this typed Minecraft component schema.", quality = "`quality` optionally provides the quality when the variant selects the empty form in this typed Minecraft component schema.", weight = "`weight` optionally provides the weight when the variant selects the empty form in this typed Minecraft component schema."), Group(children = "`children` provides the children when the variant selects the group form in this typed Minecraft component schema.", conditions = "`conditions` provides the conditions when the variant selects the group form in this typed Minecraft component schema."), Item(conditions = "`conditions` provides the conditions when the variant selects the item form in this typed Minecraft component schema.", functions = "`functions` provides the functions when the variant selects the item form in this typed Minecraft component schema.", name = "`name` provides the name when the variant selects the item form in this typed Minecraft component schema.", quality = "`quality` optionally provides the quality when the variant selects the item form in this typed Minecraft component schema.", weight = "`weight` optionally provides the weight when the variant selects the item form in this typed Minecraft component schema."), LootTable(conditions = "`conditions` provides the conditions when the variant selects the loot table form in this typed Minecraft component schema.", quality = "`quality` optionally provides the quality when the variant selects the loot table form in this typed Minecraft component schema.", value = "`value` provides the value when the variant selects the loot table form in this typed Minecraft component schema.", weight = "`weight` optionally provides the weight when the variant selects the loot table form in this typed Minecraft component schema."), Sequence(children = "`children` provides the children when the variant selects the sequence form in this typed Minecraft component schema.", conditions = "`conditions` provides the conditions when the variant selects the sequence form in this typed Minecraft component schema."), Tag(conditions = "`conditions` provides the conditions when the variant selects the tag form in this typed Minecraft component schema.", expand = "`expand` optionally provides the expand when the variant selects the tag form in this typed Minecraft component schema.", name = "`name` provides the name when the variant selects the tag form in this typed Minecraft component schema.", quality = "`quality` optionally provides the quality when the variant selects the tag form in this typed Minecraft component schema.", weight = "`weight` optionally provides the weight when the variant selects the tag form in this typed Minecraft component schema.")),
+)]
 /// A single entry in a loot pool, representing items, tags, nested tables, or structural groups.
 ///
 /// Variants include direct item drops, item tag selections, nested loot table references,
 /// and composition types (Group, Alternatives, Sequence) for organizing multiple entries.
 pub enum LootEntry {
     #[doc = "Selects the item form in this typed Minecraft component schema."]
-    #[doc = "**API Contract:** Run `sand api show sand::component::LootEntry::Item` for the canonical contract."]
     Item {
         /// `name` provides the name when the variant selects the item form in this typed Minecraft component schema.
-        #[doc = "**API Contract:** Run `sand api show sand::component::LootEntry::Item::name` for the canonical contract."]
         name: String,
         /// `weight` optionally provides the weight when the variant selects the item form in this typed Minecraft component schema.
-        #[doc = "**API Contract:** Run `sand api show sand::component::LootEntry::Item::weight` for the canonical contract."]
         weight: Option<i32>,
         /// `quality` optionally provides the quality when the variant selects the item form in this typed Minecraft component schema.
-        #[doc = "**API Contract:** Run `sand api show sand::component::LootEntry::Item::quality` for the canonical contract."]
         quality: Option<i32>,
         /// `functions` provides the functions when the variant selects the item form in this typed Minecraft component schema.
-        #[doc = "**API Contract:** Run `sand api show sand::component::LootEntry::Item::functions` for the canonical contract."]
         functions: Vec<LootFunction>,
         /// `conditions` provides the conditions when the variant selects the item form in this typed Minecraft component schema.
-        #[doc = "**API Contract:** Run `sand api show sand::component::LootEntry::Item::conditions` for the canonical contract."]
         conditions: Vec<LootCondition>,
     },
     #[doc = "Selects the tag form in this typed Minecraft component schema."]
-    #[doc = "**API Contract:** Run `sand api show sand::component::LootEntry::Tag` for the canonical contract."]
     Tag {
         /// `name` provides the name when the variant selects the tag form in this typed Minecraft component schema.
-        #[doc = "**API Contract:** Run `sand api show sand::component::LootEntry::Tag::name` for the canonical contract."]
         name: String,
         /// `expand` optionally provides the expand when the variant selects the tag form in this typed Minecraft component schema.
-        #[doc = "**API Contract:** Run `sand api show sand::component::LootEntry::Tag::expand` for the canonical contract."]
         expand: Option<bool>,
         /// `weight` optionally provides the weight when the variant selects the tag form in this typed Minecraft component schema.
-        #[doc = "**API Contract:** Run `sand api show sand::component::LootEntry::Tag::weight` for the canonical contract."]
         weight: Option<i32>,
         /// `quality` optionally provides the quality when the variant selects the tag form in this typed Minecraft component schema.
-        #[doc = "**API Contract:** Run `sand api show sand::component::LootEntry::Tag::quality` for the canonical contract."]
         quality: Option<i32>,
         /// `conditions` provides the conditions when the variant selects the tag form in this typed Minecraft component schema.
-        #[doc = "**API Contract:** Run `sand api show sand::component::LootEntry::Tag::conditions` for the canonical contract."]
         conditions: Vec<LootCondition>,
     },
     #[doc = "Selects the loot table form in this typed Minecraft component schema."]
-    #[doc = "**API Contract:** Run `sand api show sand::component::LootEntry::LootTable` for the canonical contract."]
     LootTable {
         /// `value` provides the value when the variant selects the loot table form in this typed Minecraft component schema.
-        #[doc = "**API Contract:** Run `sand api show sand::component::LootEntry::LootTable::value` for the canonical contract."]
         value: String,
         /// `weight` optionally provides the weight when the variant selects the loot table form in this typed Minecraft component schema.
-        #[doc = "**API Contract:** Run `sand api show sand::component::LootEntry::LootTable::weight` for the canonical contract."]
         weight: Option<i32>,
         /// `quality` optionally provides the quality when the variant selects the loot table form in this typed Minecraft component schema.
-        #[doc = "**API Contract:** Run `sand api show sand::component::LootEntry::LootTable::quality` for the canonical contract."]
         quality: Option<i32>,
         /// `conditions` provides the conditions when the variant selects the loot table form in this typed Minecraft component schema.
-        #[doc = "**API Contract:** Run `sand api show sand::component::LootEntry::LootTable::conditions` for the canonical contract."]
         conditions: Vec<LootCondition>,
     },
     #[doc = "Selects the group form in this typed Minecraft component schema."]
-    #[doc = "**API Contract:** Run `sand api show sand::component::LootEntry::Group` for the canonical contract."]
     Group {
         /// `children` provides the children when the variant selects the group form in this typed Minecraft component schema.
-        #[doc = "**API Contract:** Run `sand api show sand::component::LootEntry::Group::children` for the canonical contract."]
         children: Vec<LootEntry>,
         /// `conditions` provides the conditions when the variant selects the group form in this typed Minecraft component schema.
-        #[doc = "**API Contract:** Run `sand api show sand::component::LootEntry::Group::conditions` for the canonical contract."]
         conditions: Vec<LootCondition>,
     },
     #[doc = "Selects the alternatives form in this typed Minecraft component schema."]
-    #[doc = "**API Contract:** Run `sand api show sand::component::LootEntry::Alternatives` for the canonical contract."]
     Alternatives {
         /// `children` provides the children when the variant selects the alternatives form in this typed Minecraft component schema.
-        #[doc = "**API Contract:** Run `sand api show sand::component::LootEntry::Alternatives::children` for the canonical contract."]
         children: Vec<LootEntry>,
         /// `conditions` provides the conditions when the variant selects the alternatives form in this typed Minecraft component schema.
-        #[doc = "**API Contract:** Run `sand api show sand::component::LootEntry::Alternatives::conditions` for the canonical contract."]
         conditions: Vec<LootCondition>,
     },
     #[doc = "Selects the sequence form in this typed Minecraft component schema."]
-    #[doc = "**API Contract:** Run `sand api show sand::component::LootEntry::Sequence` for the canonical contract."]
     Sequence {
         /// `children` provides the children when the variant selects the sequence form in this typed Minecraft component schema.
-        #[doc = "**API Contract:** Run `sand api show sand::component::LootEntry::Sequence::children` for the canonical contract."]
         children: Vec<LootEntry>,
         /// `conditions` provides the conditions when the variant selects the sequence form in this typed Minecraft component schema.
-        #[doc = "**API Contract:** Run `sand api show sand::component::LootEntry::Sequence::conditions` for the canonical contract."]
         conditions: Vec<LootCondition>,
     },
     #[doc = "Selects the dynamic form in this typed Minecraft component schema."]
-    #[doc = "**API Contract:** Run `sand api show sand::component::LootEntry::Dynamic` for the canonical contract."]
     Dynamic {
         /// `name` provides the name when the variant selects the dynamic form in this typed Minecraft component schema.
-        #[doc = "**API Contract:** Run `sand api show sand::component::LootEntry::Dynamic::name` for the canonical contract."]
         name: String,
         /// `conditions` provides the conditions when the variant selects the dynamic form in this typed Minecraft component schema.
-        #[doc = "**API Contract:** Run `sand api show sand::component::LootEntry::Dynamic::conditions` for the canonical contract."]
         conditions: Vec<LootCondition>,
     },
     #[doc = "Selects the empty form in this typed Minecraft component schema."]
-    #[doc = "**API Contract:** Run `sand api show sand::component::LootEntry::Empty` for the canonical contract."]
     Empty {
         /// `weight` optionally provides the weight when the variant selects the empty form in this typed Minecraft component schema.
-        #[doc = "**API Contract:** Run `sand api show sand::component::LootEntry::Empty::weight` for the canonical contract."]
         weight: Option<i32>,
         /// `quality` optionally provides the quality when the variant selects the empty form in this typed Minecraft component schema.
-        #[doc = "**API Contract:** Run `sand api show sand::component::LootEntry::Empty::quality` for the canonical contract."]
         quality: Option<i32>,
         /// `conditions` provides the conditions when the variant selects the empty form in this typed Minecraft component schema.
-        #[doc = "**API Contract:** Run `sand api show sand::component::LootEntry::Empty::conditions` for the canonical contract."]
         conditions: Vec<LootCondition>,
     },
 }
@@ -942,7 +917,21 @@ impl LootEntry {
     ///
     /// let entry = LootEntry::item(ItemId::minecraft("diamond").unwrap());
     /// ```
-    #[doc = "**API Contract:** Run `sand api show sand::component::LootEntry::item` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::LootEntry::item",
+        aliases = ["sand::prelude::LootEntry::item"],
+        module = "sand::component",
+        kind = "method",
+        summary = "Creates a direct item entry from a typed [`ItemId`] (preferred path).",
+        context = "Creates a direct item entry from a typed [`ItemId`] (preferred path). This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(id = "`id` provides the typed resource identifier or location used to create a direct item entry from a typed [`ItemId`] (preferred path)."),
+        returns = "A newly constructed `LootEntry` configured to create a direct item entry from a typed [`ItemId`] (preferred path).",
+        example = "use {sand::registry::ItemId, sand::component::LootEntry};\nlet entry = LootEntry::item(ItemId::minecraft(\"diamond\").unwrap());",
+    )]
     pub fn item(id: ItemId) -> Self {
         LootEntry::Item {
             name: id.to_string(),
@@ -957,7 +946,21 @@ impl LootEntry {
     ///
     /// Use this for modded/unsupported item IDs that cannot be expressed as
     /// [`ItemId`]. Malformed values are still caught by export validation.
-    #[doc = "**API Contract:** Run `sand api show sand::component::LootEntry::item_raw` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::LootEntry::item_raw",
+        aliases = ["sand::prelude::LootEntry::item_raw"],
+        module = "sand::component",
+        kind = "method",
+        summary = "Creates a direct item entry through the explicit raw compatibility path.",
+        context = "Creates a direct item entry through the explicit raw compatibility path. Use this for modded/unsupported item IDs that cannot be expressed as [`ItemId`]. Malformed values are still caught by export validation.",
+        minecraft = "Use this for modded/unsupported item IDs that cannot be expressed as [`ItemId`]. Malformed values are still caught by export validation.",
+        use_when = ["Use this for modded/unsupported item IDs that cannot be expressed as [`ItemId`]. Malformed values are still caught by export validation."],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(name = "`name` provides the author-visible text value used to create a direct item entry through the explicit raw compatibility path."),
+        returns = "A newly constructed `LootEntry` configured to create a direct item entry through the explicit raw compatibility path.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(name: impl std::fmt::Display)  {\n    let loot_entry = sand::component::LootEntry::item_raw(name);\n}",
+    )]
     pub fn item_raw(name: impl Display) -> Self {
         LootEntry::Item {
             name: name.to_string(),
@@ -986,7 +989,21 @@ impl LootEntry {
     /// let block_tag: TagId<BlockId> = TagId::minecraft("logs").unwrap();
     /// let _entry = LootEntry::tag(block_tag);
     /// ```
-    #[doc = "**API Contract:** Run `sand api show sand::component::LootEntry::tag` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::LootEntry::tag",
+        aliases = ["sand::prelude::LootEntry::tag"],
+        module = "sand::component",
+        kind = "method",
+        summary = "Creates an item tag entry from a typed [`TagId<ItemId>`] (preferred path).",
+        context = "Creates an item tag entry from a typed [`TagId<ItemId>`] (preferred path). The `TagId` is scoped to `ItemId`, so a block tag cannot be used by mistake:",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(tag = "`tag` supplies the tag value used to create an item tag entry from a typed [`TagId<ItemId>`] (preferred path)."),
+        returns = "A newly constructed `LootEntry` configured to create an item tag entry from a typed [`TagId<ItemId>`] (preferred path).",
+        example = "use {sand::registry::ItemId, sand::component::LootEntry, sand::component::TagId};\nlet item_tag: TagId<ItemId> = TagId::minecraft(\"logs\").unwrap();\nlet _entry = LootEntry::tag(item_tag);",
+    )]
     pub fn tag(tag: TagId<ItemId>) -> Self {
         LootEntry::Tag {
             name: tag.to_string(),
@@ -998,7 +1015,21 @@ impl LootEntry {
     }
 
     /// Creates an item tag entry through the explicit raw compatibility path.
-    #[doc = "**API Contract:** Run `sand api show sand::component::LootEntry::tag_raw` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::LootEntry::tag_raw",
+        aliases = ["sand::prelude::LootEntry::tag_raw"],
+        module = "sand::component",
+        kind = "method",
+        summary = "Creates an item tag entry through the explicit raw compatibility path.",
+        context = "Creates an item tag entry through the explicit raw compatibility path. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(name = "`name` provides the author-visible text value used to create an item tag entry through the explicit raw compatibility path."),
+        returns = "A newly constructed `LootEntry` configured to create an item tag entry through the explicit raw compatibility path.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(name: impl std::fmt::Display)  {\n    let loot_entry = sand::component::LootEntry::tag_raw(name);\n}",
+    )]
     pub fn tag_raw(name: impl Display) -> Self {
         LootEntry::Tag {
             name: name.to_string(),
@@ -1011,7 +1042,21 @@ impl LootEntry {
 
     /// Creates a nested loot table reference entry from a typed [`LootTableId`]
     /// (preferred path).
-    #[doc = "**API Contract:** Run `sand api show sand::component::LootEntry::loot_table` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::LootEntry::loot_table",
+        aliases = ["sand::prelude::LootEntry::loot_table"],
+        module = "sand::component",
+        kind = "method",
+        summary = "Creates a nested loot table reference entry from a typed [`LootTableId`] (preferred path).",
+        context = "Creates a nested loot table reference entry from a typed [`LootTableId`] (preferred path). This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(id = "`id` provides the typed resource identifier or location used to create a nested loot table reference entry from a typed [`LootTableId`] (preferred path)."),
+        returns = "A newly constructed `LootEntry` configured to create a nested loot table reference entry from a typed [`LootTableId`] (preferred path).",
+        example = "use sand::prelude::*;\n\nfn demonstrate(id: sand::resource_ref::LootTableId)  {\n    let loot_entry = sand::component::LootEntry::loot_table(id);\n}",
+    )]
     pub fn loot_table(id: LootTableId) -> Self {
         LootEntry::LootTable {
             value: id.to_string(),
@@ -1023,7 +1068,21 @@ impl LootEntry {
 
     /// Creates a nested loot table reference entry through the explicit raw
     /// compatibility path.
-    #[doc = "**API Contract:** Run `sand api show sand::component::LootEntry::loot_table_raw` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::LootEntry::loot_table_raw",
+        aliases = ["sand::prelude::LootEntry::loot_table_raw"],
+        module = "sand::component",
+        kind = "method",
+        summary = "Creates a nested loot table reference entry through the explicit raw compatibility path.",
+        context = "Creates a nested loot table reference entry through the explicit raw compatibility path. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(value = "`value` provides the value being applied or compared used to create a nested loot table reference entry through the explicit raw compatibility path."),
+        returns = "A newly constructed `LootEntry` configured to create a nested loot table reference entry through the explicit raw compatibility path.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(value: impl std::fmt::Display)  {\n    let loot_entry = sand::component::LootEntry::loot_table_raw(value);\n}",
+    )]
     pub fn loot_table_raw(value: impl Display) -> Self {
         LootEntry::LootTable {
             value: value.to_string(),
@@ -1034,7 +1093,21 @@ impl LootEntry {
     }
 
     /// Creates a group entry that processes all children in sequence.
-    #[doc = "**API Contract:** Run `sand api show sand::component::LootEntry::group` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::LootEntry::group",
+        aliases = ["sand::prelude::LootEntry::group"],
+        module = "sand::component",
+        kind = "method",
+        summary = "Creates a group entry that processes all children in sequence.",
+        context = "Creates a group entry that processes all children in sequence. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(children = "`children` supplies the children value used to create a group entry that processes all children in sequence."),
+        returns = "A newly constructed `LootEntry` configured to create a group entry that processes all children in sequence.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(children: Vec < sand::component::LootEntry >)  {\n    let loot_entry = sand::component::LootEntry::group(children);\n}",
+    )]
     pub fn group(children: Vec<LootEntry>) -> Self {
         LootEntry::Group {
             children,
@@ -1043,7 +1116,21 @@ impl LootEntry {
     }
 
     /// Creates an alternatives entry that selects the first child whose conditions pass.
-    #[doc = "**API Contract:** Run `sand api show sand::component::LootEntry::alternatives` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::LootEntry::alternatives",
+        aliases = ["sand::prelude::LootEntry::alternatives"],
+        module = "sand::component",
+        kind = "method",
+        summary = "Creates an alternatives entry that selects the first child whose conditions pass.",
+        context = "Creates an alternatives entry that selects the first child whose conditions pass. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(children = "`children` supplies the children value used to create an alternatives entry that selects the first child whose conditions pass."),
+        returns = "A newly constructed `LootEntry` configured to create an alternatives entry that selects the first child whose conditions pass.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(children: Vec < sand::component::LootEntry >)  {\n    let loot_entry = sand::component::LootEntry::alternatives(children);\n}",
+    )]
     pub fn alternatives(children: Vec<LootEntry>) -> Self {
         LootEntry::Alternatives {
             children,
@@ -1052,7 +1139,21 @@ impl LootEntry {
     }
 
     /// Creates a sequence entry that processes children in order and stops at the first success.
-    #[doc = "**API Contract:** Run `sand api show sand::component::LootEntry::sequence` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::LootEntry::sequence",
+        aliases = ["sand::prelude::LootEntry::sequence"],
+        module = "sand::component",
+        kind = "method",
+        summary = "Creates a sequence entry that processes children in order and stops at the first success.",
+        context = "Creates a sequence entry that processes children in order and stops at the first success. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(children = "`children` supplies the children value used to create a sequence entry that processes children in order and stops at the first success."),
+        returns = "A newly constructed `LootEntry` configured to create a sequence entry that processes children in order and stops at the first success.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(children: Vec < sand::component::LootEntry >)  {\n    let loot_entry = sand::component::LootEntry::sequence(children);\n}",
+    )]
     pub fn sequence(children: Vec<LootEntry>) -> Self {
         LootEntry::Sequence {
             children,
@@ -1061,7 +1162,21 @@ impl LootEntry {
     }
 
     /// Creates a dynamic entry that references a dynamic loot table.
-    #[doc = "**API Contract:** Run `sand api show sand::component::LootEntry::dynamic` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::LootEntry::dynamic",
+        aliases = ["sand::prelude::LootEntry::dynamic"],
+        module = "sand::component",
+        kind = "method",
+        summary = "Creates a dynamic entry that references a dynamic loot table.",
+        context = "Creates a dynamic entry that references a dynamic loot table. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(name = "`name` provides the author-visible text value used to create a dynamic entry that references a dynamic loot table."),
+        returns = "A newly constructed `LootEntry` configured to create a dynamic entry that references a dynamic loot table.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(name: impl std::fmt::Display)  {\n    let loot_entry = sand::component::LootEntry::dynamic(name);\n}",
+    )]
     pub fn dynamic(name: impl Display) -> Self {
         LootEntry::Dynamic {
             name: name.to_string(),
@@ -1070,7 +1185,20 @@ impl LootEntry {
     }
 
     /// Creates an empty entry that produces no items.
-    #[doc = "**API Contract:** Run `sand api show sand::component::LootEntry::empty` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::LootEntry::empty",
+        aliases = ["sand::prelude::LootEntry::empty"],
+        module = "sand::component",
+        kind = "method",
+        summary = "Creates an empty entry that produces no items.",
+        context = "Creates an empty entry that produces no items. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        returns = "A newly constructed `LootEntry` configured to create an empty entry that produces no items.",
+        example = "use sand::prelude::*;\n\nfn demonstrate()  {\n    let loot_entry = sand::component::LootEntry::empty();\n}",
+    )]
     pub fn empty() -> Self {
         LootEntry::Empty {
             weight: None,
@@ -1220,7 +1348,19 @@ impl Serialize for LootEntry {
 
 // ── LootPool ─────────────────────────────────────────────────────────────────
 
-#[doc = "**API Contract:** Run `sand api show sand::component::LootPool` for the canonical contract."]
+#[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::component::LootPool",
+    aliases = ["sand::prelude::LootPool"],
+    module = "sand::component",
+    summary = "A pool of loot entries that are randomly selected based on roll counts.",
+    context = "A pool of loot entries that are randomly selected based on roll counts. Pools define the number of rolls, entries to choose from, conditions to apply, and functions to execute on selected items in a Minecraft loot table.",
+    minecraft = "Pools define the number of rolls, entries to choose from, conditions to apply, and functions to execute on selected items in a Minecraft loot table.",
+    use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+    avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+    example = "use sand::component::LootPool;",
+    fields(conditions = "`conditions` provides the conditions when a pool of loot entries that are randomly selected based on roll counts.", entries = "`entries` provides the entries when a pool of loot entries that are randomly selected based on roll counts.", functions = "`functions` provides the functions when a pool of loot entries that are randomly selected based on roll counts."),
+)]
 /// A pool of loot entries that are randomly selected based on roll counts.
 ///
 /// Pools define the number of rolls, entries to choose from, conditions to apply, and functions
@@ -1229,19 +1369,29 @@ pub struct LootPool {
     rolls: NumberProvider,
     bonus_rolls: Option<NumberProvider>,
     /// `entries` provides the entries when a pool of loot entries that are randomly selected based on roll counts.
-    #[doc = "**API Contract:** Run `sand api show sand::component::LootPool::entries` for the canonical contract."]
     pub entries: Vec<LootEntry>,
     /// `conditions` provides the conditions when a pool of loot entries that are randomly selected based on roll counts.
-    #[doc = "**API Contract:** Run `sand api show sand::component::LootPool::conditions` for the canonical contract."]
     pub conditions: Vec<LootCondition>,
     /// `functions` provides the functions when a pool of loot entries that are randomly selected based on roll counts.
-    #[doc = "**API Contract:** Run `sand api show sand::component::LootPool::functions` for the canonical contract."]
     pub functions: Vec<LootFunction>,
 }
 
 impl LootPool {
     /// Creates a new loot pool with default settings (1 roll, no bonus rolls).
-    #[doc = "**API Contract:** Run `sand api show sand::component::LootPool::new` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::LootPool::new",
+        aliases = ["sand::prelude::LootPool::new"],
+        module = "sand::component",
+        kind = "method",
+        summary = "Creates a new loot pool with default settings (1 roll, no bonus rolls).",
+        context = "Creates a new loot pool with default settings (1 roll, no bonus rolls). This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        returns = "A newly constructed `LootPool` configured to create a new loot pool with default settings (1 roll, no bonus rolls).",
+        example = "use sand::prelude::*;\n\nfn demonstrate()  {\n    let loot_pool = sand::component::LootPool::new();\n}",
+    )]
     pub fn new() -> Self {
         Self {
             rolls: NumberProvider::Constant(1.0),
@@ -1253,35 +1403,105 @@ impl LootPool {
     }
 
     /// Sets the number of times entries are selected from this pool.
-    #[doc = "**API Contract:** Run `sand api show sand::component::LootPool::rolls` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::LootPool::rolls",
+        aliases = ["sand::prelude::LootPool::rolls"],
+        module = "sand::component",
+        kind = "method",
+        summary = "Sets the number of times entries are selected from this pool.",
+        context = "Sets the number of times entries are selected from this pool. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(n = "`n` supplies the n value used to set the number of times entries are selected from this pool."),
+        returns = "The `LootPool` value with the documented change applied to set the number of times entries are selected from this pool.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(loot_pool_value: sand::component::LootPool, n: impl Into < sand::component::NumberProvider >)  {\n    let updated_loot_pool = loot_pool_value.rolls(n);\n}",
+    )]
     pub fn rolls(mut self, n: impl Into<NumberProvider>) -> Self {
         self.rolls = n.into();
         self
     }
 
     /// Sets additional bonus rolls based on conditions like looting enchantment levels.
-    #[doc = "**API Contract:** Run `sand api show sand::component::LootPool::bonus_rolls` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::LootPool::bonus_rolls",
+        aliases = ["sand::prelude::LootPool::bonus_rolls"],
+        module = "sand::component",
+        kind = "method",
+        summary = "Sets additional bonus rolls based on conditions like looting enchantment levels.",
+        context = "Sets additional bonus rolls based on conditions like looting enchantment levels. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(n = "`n` supplies the n value used to set additional bonus rolls based on conditions like looting enchantment levels."),
+        returns = "The `LootPool` value with the documented change applied to set additional bonus rolls based on conditions like looting enchantment levels.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(loot_pool_value: sand::component::LootPool, n: impl Into < sand::component::NumberProvider >)  {\n    let updated_loot_pool = loot_pool_value.bonus_rolls(n);\n}",
+    )]
     pub fn bonus_rolls(mut self, n: impl Into<NumberProvider>) -> Self {
         self.bonus_rolls = Some(n.into());
         self
     }
 
     /// Adds an entry to this pool's selection options.
-    #[doc = "**API Contract:** Run `sand api show sand::component::LootPool::entry` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::LootPool::entry",
+        aliases = ["sand::prelude::LootPool::entry"],
+        module = "sand::component",
+        kind = "method",
+        summary = "Adds an entry to this pool's selection options.",
+        context = "Adds an entry to this pool's selection options. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(entry = "`entry` supplies the entry value used to add an entry to this pool's selection options."),
+        returns = "The `LootPool` value with the documented change applied to add an entry to this pool's selection options.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(loot_pool_value: sand::component::LootPool, entry: sand::component::LootEntry)  {\n    let updated_loot_pool = loot_pool_value.entry(entry);\n}",
+    )]
     pub fn entry(mut self, entry: LootEntry) -> Self {
         self.entries.push(entry);
         self
     }
 
     /// Adds a condition that must be met for this pool to generate loot.
-    #[doc = "**API Contract:** Run `sand api show sand::component::LootPool::condition` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::LootPool::condition",
+        aliases = ["sand::prelude::LootPool::condition"],
+        module = "sand::component",
+        kind = "method",
+        summary = "Adds a condition that must be met for this pool to generate loot.",
+        context = "Adds a condition that must be met for this pool to generate loot. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(condition = "`condition` provides the condition that gates the operation used to add a condition that must be met for this pool to generate loot."),
+        returns = "The `LootPool` value with the documented change applied to add a condition that must be met for this pool to generate loot.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(loot_pool_value: sand::component::LootPool, condition: sand::component::LootCondition)  {\n    let updated_loot_pool = loot_pool_value.condition(condition);\n}",
+    )]
     pub fn condition(mut self, condition: LootCondition) -> Self {
         self.conditions.push(condition);
         self
     }
 
     /// Adds a function to process entries selected from this pool.
-    #[doc = "**API Contract:** Run `sand api show sand::component::LootPool::function` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::LootPool::function",
+        aliases = ["sand::prelude::LootPool::function"],
+        module = "sand::component",
+        kind = "method",
+        summary = "Adds a function to process entries selected from this pool.",
+        context = "Adds a function to process entries selected from this pool. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(function = "`function` provides the callback invoked by this operation used to add a function to process entries selected from this pool."),
+        returns = "The `LootPool` value with the documented change applied to add a function to process entries selected from this pool.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(loot_pool_value: sand::component::LootPool, function: sand::component::LootFunction)  {\n    let updated_loot_pool = loot_pool_value.function(function);\n}",
+    )]
     pub fn function(mut self, function: LootFunction) -> Self {
         self.functions.push(function);
         self
@@ -1314,31 +1534,53 @@ impl Serialize for LootPool {
 
 // ── LootTable ────────────────────────────────────────────────────────────────
 
-#[doc = "**API Contract:** Run `sand api show sand::component::LootTable` for the canonical contract."]
+#[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::component::LootTable",
+    aliases = ["sand::prelude::LootTable"],
+    module = "sand::component",
+    summary = "Represents a complete Minecraft loot table with pools, functions, and conditions.",
+    context = "Represents a complete Minecraft loot table with pools, functions, and conditions. A loot table is a datapack component that defines what items are dropped in specific contexts (blocks, entities, chests, etc.). It consists of pools, global functions, and global conditions.",
+    minecraft = "A loot table is a datapack component that defines what items are dropped in specific contexts (blocks, entities, chests, etc.). It consists of pools, global functions, and global conditions.",
+    use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+    avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+    example = "use sand::component::LootTable;",
+    fields(conditions = "`conditions` provides the conditions when the variant represents a complete Minecraft loot table with pools, functions, and conditions.", functions = "`functions` provides the functions when the variant represents a complete Minecraft loot table with pools, functions, and conditions.", location = "`location` provides the location identifier when the variant represents a complete Minecraft loot table with pools, functions, and conditions.", pools = "`pools` provides the pools when the variant represents a complete Minecraft loot table with pools, functions, and conditions."),
+)]
 /// Represents a complete Minecraft loot table with pools, functions, and conditions.
 ///
 /// A loot table is a datapack component that defines what items are dropped in specific contexts
 /// (blocks, entities, chests, etc.). It consists of pools, global functions, and global conditions.
 pub struct LootTable {
     /// `location` provides the location identifier when the variant represents a complete Minecraft loot table with pools, functions, and conditions.
-    #[doc = "**API Contract:** Run `sand api show sand::component::LootTable::location` for the canonical contract."]
     pub location: ResourceLocation,
     loot_type: Option<LootTableType>,
     random_sequence: Option<String>,
     /// `pools` provides the pools when the variant represents a complete Minecraft loot table with pools, functions, and conditions.
-    #[doc = "**API Contract:** Run `sand api show sand::component::LootTable::pools` for the canonical contract."]
     pub pools: Vec<LootPool>,
     /// `functions` provides the functions when the variant represents a complete Minecraft loot table with pools, functions, and conditions.
-    #[doc = "**API Contract:** Run `sand api show sand::component::LootTable::functions` for the canonical contract."]
     pub functions: Vec<LootFunction>,
     /// `conditions` provides the conditions when the variant represents a complete Minecraft loot table with pools, functions, and conditions.
-    #[doc = "**API Contract:** Run `sand api show sand::component::LootTable::conditions` for the canonical contract."]
     pub conditions: Vec<LootCondition>,
 }
 
 impl LootTable {
     /// Creates a new loot table at the given resource location.
-    #[doc = "**API Contract:** Run `sand api show sand::component::LootTable::new` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::LootTable::new",
+        aliases = ["sand::prelude::LootTable::new"],
+        module = "sand::component",
+        kind = "method",
+        summary = "Creates a new loot table at the given resource location.",
+        context = "Creates a new loot table at the given resource location. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(location = "`location` provides the typed resource identifier or location used to create a new loot table at the given resource location."),
+        returns = "A newly constructed `LootTable` configured to create a new loot table at the given resource location.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(location: sand::ResourceLocation)  {\n    let loot_table = sand::component::LootTable::new(location);\n}",
+    )]
     pub fn new(location: ResourceLocation) -> Self {
         Self {
             location,
@@ -1351,7 +1593,21 @@ impl LootTable {
     }
 
     /// Sets the type of this loot table (block, entity, chest, etc.).
-    #[doc = "**API Contract:** Run `sand api show sand::component::LootTable::loot_type` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::LootTable::loot_type",
+        aliases = ["sand::prelude::LootTable::loot_type"],
+        module = "sand::component",
+        kind = "method",
+        summary = "Sets the type of this loot table (block, entity, chest, etc.).",
+        context = "Sets the type of this loot table (block, entity, chest, etc.). This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(loot_type = "`loot_type` supplies the loot type value used to set the type of this loot table (block, entity, chest, etc.)."),
+        returns = "The `LootTable` value with the documented change applied to set the type of this loot table (block, entity, chest, etc.).",
+        example = "use sand::prelude::*;\n\nfn demonstrate(loot_table_value: sand::component::LootTable, loot_type: sand::component::LootTableType)  {\n    let updated_loot_table = loot_table_value.loot_type(loot_type);\n}",
+    )]
     pub fn loot_type(mut self, loot_type: LootTableType) -> Self {
         self.loot_type = Some(loot_type);
         self
@@ -1359,35 +1615,105 @@ impl LootTable {
 
     /// Sets the random sequence seed for deterministic loot generation using a
     /// typed [`ResourceLocation`] (preferred path).
-    #[doc = "**API Contract:** Run `sand api show sand::component::LootTable::random_sequence` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::LootTable::random_sequence",
+        aliases = ["sand::prelude::LootTable::random_sequence"],
+        module = "sand::component",
+        kind = "method",
+        summary = "Sets the random sequence seed for deterministic loot generation using a typed [`ResourceLocation`] (preferred path).",
+        context = "Sets the random sequence seed for deterministic loot generation using a typed [`ResourceLocation`] (preferred path). This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(seq = "`seq` provides the typed Minecraft resource identifier used to set the random sequence seed for deterministic loot generation using a typed [`ResourceLocation`] (preferred path)."),
+        returns = "The `LootTable` value with the documented change applied to set the random sequence seed for deterministic loot generation using a typed [`ResourceLocation`] (preferred path).",
+        example = "use sand::prelude::*;\n\nfn demonstrate(loot_table_value: sand::component::LootTable, seq: sand::ResourceLocation)  {\n    let updated_loot_table = loot_table_value.random_sequence(seq);\n}",
+    )]
     pub fn random_sequence(mut self, seq: ResourceLocation) -> Self {
         self.random_sequence = Some(seq.to_string());
         self
     }
 
     /// Sets the random sequence seed through the explicit raw compatibility path.
-    #[doc = "**API Contract:** Run `sand api show sand::component::LootTable::random_sequence_raw` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::LootTable::random_sequence_raw",
+        aliases = ["sand::prelude::LootTable::random_sequence_raw"],
+        module = "sand::component",
+        kind = "method",
+        summary = "Sets the random sequence seed through the explicit raw compatibility path.",
+        context = "Sets the random sequence seed through the explicit raw compatibility path. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(seq = "`seq` supplies the seq value used to set the random sequence seed through the explicit raw compatibility path."),
+        returns = "The `LootTable` value with the documented change applied to set the random sequence seed through the explicit raw compatibility path.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(loot_table_value: sand::component::LootTable, seq: impl Into < String >)  {\n    let updated_loot_table = loot_table_value.random_sequence_raw(seq);\n}",
+    )]
     pub fn random_sequence_raw(mut self, seq: impl Into<String>) -> Self {
         self.random_sequence = Some(seq.into());
         self
     }
 
     /// Adds a loot pool to this table.
-    #[doc = "**API Contract:** Run `sand api show sand::component::LootTable::pool` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::LootTable::pool",
+        aliases = ["sand::prelude::LootTable::pool"],
+        module = "sand::component",
+        kind = "method",
+        summary = "Adds a loot pool to this table.",
+        context = "Adds a loot pool to this table. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(pool = "`pool` supplies the pool value used to add a loot pool to this table."),
+        returns = "The `LootTable` value with the documented change applied to add a loot pool to this table.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(loot_table_value: sand::component::LootTable, pool: sand::component::LootPool)  {\n    let updated_loot_table = loot_table_value.pool(pool);\n}",
+    )]
     pub fn pool(mut self, pool: LootPool) -> Self {
         self.pools.push(pool);
         self
     }
 
     /// Adds a function to apply to all loot generated by this table.
-    #[doc = "**API Contract:** Run `sand api show sand::component::LootTable::function` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::LootTable::function",
+        aliases = ["sand::prelude::LootTable::function"],
+        module = "sand::component",
+        kind = "method",
+        summary = "Adds a function to apply to all loot generated by this table.",
+        context = "Adds a function to apply to all loot generated by this table. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(function = "`function` provides the callback invoked by this operation used to add a function to apply to all loot generated by this table."),
+        returns = "The `LootTable` value with the documented change applied to add a function to apply to all loot generated by this table.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(loot_table_value: sand::component::LootTable, function: sand::component::LootFunction)  {\n    let updated_loot_table = loot_table_value.function(function);\n}",
+    )]
     pub fn function(mut self, function: LootFunction) -> Self {
         self.functions.push(function);
         self
     }
 
     /// Adds a condition that must be met for this table to generate loot.
-    #[doc = "**API Contract:** Run `sand api show sand::component::LootTable::condition` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::LootTable::condition",
+        aliases = ["sand::prelude::LootTable::condition"],
+        module = "sand::component",
+        kind = "method",
+        summary = "Adds a condition that must be met for this table to generate loot.",
+        context = "Adds a condition that must be met for this table to generate loot. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(condition = "`condition` provides the condition that gates the operation used to add a condition that must be met for this table to generate loot."),
+        returns = "The `LootTable` value with the documented change applied to add a condition that must be met for this table to generate loot.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(loot_table_value: sand::component::LootTable, condition: sand::component::LootCondition)  {\n    let updated_loot_table = loot_table_value.condition(condition);\n}",
+    )]
     pub fn condition(mut self, condition: LootCondition) -> Self {
         self.conditions.push(condition);
         self
@@ -1403,7 +1729,21 @@ impl LootTable {
     /// ```rust,ignore
     /// LootTable::simple_block_drop(loc, "minecraft:oak_log", 1)
     /// ```
-    #[doc = "**API Contract:** Run `sand api show sand::component::LootTable::simple_block_drop` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::LootTable::simple_block_drop",
+        aliases = ["sand::prelude::LootTable::simple_block_drop"],
+        module = "sand::component",
+        kind = "method",
+        summary = "A block loot table that drops exactly `count` of `item`.",
+        context = "A block loot table that drops exactly `count` of `item`. Includes `minecraft:survives_explosion` so the drop respects TNT.",
+        minecraft = "Includes `minecraft:survives_explosion` so the drop respects TNT.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(location = "`location` provides the typed resource identifier or location used to use a block loot table that drops exactly `count` of `item`.", item = "A block loot table that drops exactly `count` of `item`.", count = "A block loot table that drops exactly `count` of `item`."),
+        returns = "A newly constructed `LootTable` configured to use a block loot table that drops exactly `count` of `item`.",
+        example = "LootTable::simple_block_drop(loc, \"minecraft:oak_log\", 1)",
+    )]
     pub fn simple_block_drop(location: ResourceLocation, item: impl Display, count: i32) -> Self {
         let entry = LootEntry::item_raw(item.to_string());
         let entry = if let LootEntry::Item {
@@ -1447,7 +1787,21 @@ impl LootTable {
     /// // Probability of the entry passing at each Fortune level.
     /// LootTable::fortune_drop(loc, "minecraft:coal", "minecraft:fortune", &[0.25, 0.5, 0.75, 1.0])
     /// ```
-    #[doc = "**API Contract:** Run `sand api show sand::component::LootTable::fortune_drop` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::LootTable::fortune_drop",
+        aliases = ["sand::prelude::LootTable::fortune_drop"],
+        module = "sand::component",
+        kind = "method",
+        summary = "A block loot table with fortune-sensitive drop counts.",
+        context = "A block loot table with fortune-sensitive drop counts. `chances` is a slice of probabilities indexed by fortune level (0 = no fortune, 1 = Fortune I, 2 = Fortune II, ...).",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(location = "`location` provides the typed resource identifier or location used to use a block loot table with fortune-sensitive drop counts.", item = "`item` provides the item value or item predicate used to use a block loot table with fortune-sensitive drop counts.", enchantment = "`enchantment` supplies the enchantment value used to use a block loot table with fortune-sensitive drop counts.", chances = "`chances` is a slice of probabilities indexed by fortune level (0 = no fortune, 1 = Fortune I, 2 = Fortune II, ...)."),
+        returns = "A newly constructed `LootTable` configured to use a block loot table with fortune-sensitive drop counts.",
+        example = "// Probability of the entry passing at each Fortune level.\nLootTable::fortune_drop(loc, \"minecraft:coal\", \"minecraft:fortune\", &[0.25, 0.5, 0.75, 1.0])",
+    )]
     pub fn fortune_drop(
         location: ResourceLocation,
         item: impl Display,
@@ -1497,7 +1851,21 @@ impl LootTable {
     /// ```rust,ignore
     /// LootTable::entity_drop(loc, "minecraft:leather", 0..=2, Some(1))
     /// ```
-    #[doc = "**API Contract:** Run `sand api show sand::component::LootTable::entity_drop` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::LootTable::entity_drop",
+        aliases = ["sand::prelude::LootTable::entity_drop"],
+        module = "sand::component",
+        kind = "method",
+        summary = "An entity loot table that drops `item` only when killed by a player, with an optional looting-enchant bonus.",
+        context = "An entity loot table that drops `item` only when killed by a player, with an optional looting-enchant bonus. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(location = "`location` provides the typed resource identifier or location used to use an entity loot table that drops `item` only when killed by a player, with an optional looting-enchant bonus.", item = "An entity loot table that drops `item` only when killed by a player, with an optional looting-enchant bonus.", min_count = "`min_count` supplies the min count value used to use an entity loot table that drops `item` only when killed by a player, with an optional looting-enchant bonus.", max_count = "`max_count` supplies the max count value used to use an entity loot table that drops `item` only when killed by a player, with an optional looting-enchant bonus.", looting_bonus = "`looting_bonus` supplies the looting bonus value used to use an entity loot table that drops `item` only when killed by a player, with an optional looting-enchant bonus."),
+        returns = "A newly constructed `LootTable` configured to use an entity loot table that drops `item` only when killed by a player, with an optional looting-enchant bonus.",
+        example = "LootTable::entity_drop(loc, \"minecraft:leather\", 0..=2, Some(1))",
+    )]
     pub fn entity_drop(
         location: ResourceLocation,
         item: impl Display,
@@ -1566,7 +1934,21 @@ impl LootTable {
     ///     ("minecraft:gold_ingot", 20, 2, 5),
     /// ])
     /// ```
-    #[doc = "**API Contract:** Run `sand api show sand::component::LootTable::chest_loot` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::LootTable::chest_loot",
+        aliases = ["sand::prelude::LootTable::chest_loot"],
+        module = "sand::component",
+        kind = "method",
+        summary = "Creates a chest loot table with multiple weighted item entries.",
+        context = "Creates a chest loot table with multiple weighted item entries. `items` is an iterator of `(item_id, weight, min_count, max_count)`.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(location = "`location` provides the typed resource identifier or location used to create a chest loot table with multiple weighted item entries.", items = "`items` is an iterator of `(item_id, weight, min_count, max_count)`."),
+        returns = "A newly constructed `LootTable` configured to create a chest loot table with multiple weighted item entries.",
+        example = "LootTable::chest_loot(loc, vec![\n(\"minecraft:diamond\", 5, 1, 3),\n(\"minecraft:gold_ingot\", 20, 2, 5),\n])",
+    )]
     pub fn chest_loot<S: Display>(
         location: ResourceLocation,
         items: impl IntoIterator<Item = (S, i32, i32, i32)>,

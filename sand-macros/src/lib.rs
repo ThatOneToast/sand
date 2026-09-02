@@ -47,7 +47,7 @@
 use proc_macro::TokenStream;
 use quote::quote;
 use sand_api_contract::syntax::{
-    GeneratedApiContract, GeneratedApiKind, validate_generated_expansion,
+    GeneratedApiContract, GeneratedApiKind, render_generated_rustdoc, validate_generated_expansion,
 };
 use syn::{ItemFn, LitStr, parse_macro_input, token};
 
@@ -176,12 +176,35 @@ fn expected_public_function(function: &ItemFn) -> Option<String> {
     matches!(function.vis, syn::Visibility::Public(_)).then(|| function.sig.ident.to_string())
 }
 
-/// Defines and registers the authoritative public contract for a supported
-/// Sand API item.
+/// Defines a Sand API's semantic contract and generates its local Rustdoc and
+/// machine-readable catalog entry from that declaration.
 ///
-/// # API Contract
+/// Apply this to a public module, type, function, method, associated item, or
+/// named macro. The declaration requires a summary, context, Minecraft
+/// behavior, use/avoid guidance, and an example; callable parameters and return
+/// values and public fields or variants must also be described. Existing `///`
+/// documentation is preserved after the generated contract sections.
 ///
-/// `sand api show sand::api`
+/// The emitted registration powers `sand api search`, `sand api show`, export,
+/// and drift enforcement. Use `registry = sand_api_contract` in Sand's
+/// implementation crates; downstream users normally use the facade default.
+///
+/// # Example
+///
+/// ```rust,ignore
+/// #[sand::api(
+///     path = "my_pack::heal",
+///     module = "my_pack",
+///     summary = "Restore health to the selected player.",
+///     context = "A gameplay helper used by healing systems.",
+///     minecraft = "Emits the vanilla instant-health effect command.",
+///     use_when = ["A system needs immediate healing"],
+///     avoid_when = ["Health should regenerate over time"],
+///     params(player = "The single player to heal."),
+///     example = "heal(PlayerTarget::self_());",
+/// )]
+/// pub fn heal(player: sand::command::PlayerTarget<sand::command::One>) {}
+/// ```
 #[proc_macro_attribute]
 pub fn api(attr: TokenStream, item: TokenStream) -> TokenStream {
     api_contract::expand(attr.into(), item.into())
@@ -206,9 +229,24 @@ pub fn registry_id(input: TokenStream) -> TokenStream {
 /// initialized explicitly through attachment or adoption, and global state is
 /// bound to one deterministic singleton holder.
 ///
-/// # API Contract
+/// Generated APIs include definition-owned typed field handles, a sibling
+/// `NameBound` view with holder-bound accessors, binding methods appropriate to
+/// the selected scope (`on` or `global`), schema metadata, and lifecycle hooks.
+/// Field attributes select score, fixed-point, flag, enum, timer, cooldown, or
+/// NBT storage semantics; invalid scope/type combinations fail at compile time.
 ///
-/// `sand api show sand::State`
+/// # Example
+///
+/// ```rust,ignore
+/// #[derive(sand::State)]
+/// #[state(namespace = "game", scope = "player")]
+/// struct PlayerState {
+///     #[state(default = 20, min = 0)]
+///     health: sand::state::Score<i32>,
+/// }
+/// let player = PlayerState::on(sand::command::PlayerTarget::self_());
+/// player.health.set(20);
+/// ```
 #[proc_macro_derive(State, attributes(state))]
 pub fn derive_state(input: TokenStream) -> TokenStream {
     entity_state::derive_state(parse_macro_input!(input as syn::DeriveInput))
@@ -216,11 +254,21 @@ pub fn derive_state(input: TokenStream) -> TokenStream {
         .into()
 }
 
-/// Derive a concrete, nestable view over existing State components.
+/// Derive a concrete, nestable holder-bound view over existing State schemas.
 ///
-/// # API Contract
+/// Each public field must be a `State` or another `StateBundle`. The generated
+/// binding API binds all fields to one owner while retaining their concrete
+/// types; it does not create new scoreboard storage or lifecycle ownership.
 ///
-/// `sand api show sand::StateBundle`
+/// # Example
+///
+/// ```rust,ignore
+/// #[derive(sand::StateBundle)]
+/// struct CombatState {
+///     damageable: DamageableEntity,
+///     effects: ActiveEffects,
+/// }
+/// ```
 #[proc_macro_derive(StateBundle)]
 pub fn derive_state_bundle(input: TokenStream) -> TokenStream {
     entity_state::derive_bundle(parse_macro_input!(input as syn::DeriveInput))
@@ -228,11 +276,24 @@ pub fn derive_state_bundle(input: TokenStream) -> TokenStream {
         .into()
 }
 
-/// Derive a concrete presence-filtered query over State components and bundles.
+/// Derive a concrete presence-filtered query over State schemas and bundles.
 ///
-/// # API Contract
+/// `#[required]` fields must be attached, `#[optional]` fields are exposed when
+/// present, and `#[without]`/`#[forbidden]` fields exclude owners. The generated
+/// query lowers these presence rules to Sand's State marker objectives and
+/// provides typed bound views to the query body.
 ///
-/// `sand api show sand::StateQuery`
+/// # Example
+///
+/// ```rust,ignore
+/// #[derive(sand::StateQuery)]
+/// struct AlivePlayers {
+///     #[required]
+///     health: PlayerHealth,
+///     #[without]
+///     eliminated: Eliminated,
+/// }
+/// ```
 #[proc_macro_derive(
     StateQuery,
     attributes(require, required, optional, without, forbidden, state, query)
@@ -254,9 +315,17 @@ pub fn derive_entity_state_enum(input: TokenStream) -> TokenStream {
 
 /// Derive the canonical stable scoreboard encoding used by `StateEnum<T>`.
 ///
-/// # API Contract
+/// Variants receive deterministic integer encodings in declaration order and
+/// generate conversion metadata used by typed State reads, writes, and
+/// conditions. The enum must contain only unit variants; reordering variants
+/// changes their stored scoreboard representation.
 ///
-/// `sand api show sand::StateEnum`
+/// # Example
+///
+/// ```rust,ignore
+/// #[derive(Clone, Copy, sand::StateEnum)]
+/// enum Phase { Lobby, Playing, Finished }
+/// ```
 #[proc_macro_derive(StateEnum)]
 pub fn derive_state_enum(input: TokenStream) -> TokenStream {
     entity_state::derive_enum(parse_macro_input!(input as syn::DeriveInput))
@@ -267,9 +336,20 @@ pub fn derive_state_enum(input: TokenStream) -> TokenStream {
 
 /// Register one optional `StateLifecycle` implementation.
 ///
-/// # API Contract
+/// Apply it to an `impl StateLifecycle for MyState` block without arguments.
+/// Sand records the schema's provisioning, initialization, tick,
+/// reconciliation, cleanup, and migration callbacks and invokes them at the
+/// matching generated lifecycle points. The state type must also implement
+/// `State`/`EntityState`.
 ///
-/// `sand api show sand::state_lifecycle`
+/// # Example
+///
+/// ```rust,ignore
+/// #[sand::state_lifecycle]
+/// impl sand::state::StateLifecycle for PlayerState {
+///     // Override only the lifecycle hooks this schema needs.
+/// }
+/// ```
 #[proc_macro_attribute]
 pub fn state_lifecycle(attr: TokenStream, item: TokenStream) -> TokenStream {
     if !attr.is_empty() {
@@ -354,11 +434,22 @@ pub fn state_lifecycle(attr: TokenStream, item: TokenStream) -> TokenStream {
     .into()
 }
 
-/// Register a tick-driven State system from a function or grouped impl.
+/// Register a tick-driven State system from a function or grouped inherent impl.
 ///
-/// # API Contract
+/// A function system receives supported query/state inputs and returns command
+/// expressions; Sand generates and schedules the corresponding datapack
+/// function. `#[system(tick = N)]` selects the tick interval. An inherent impl
+/// groups system methods but does not change their ordinary Rust signatures.
+/// Unsupported parameters and malformed tick values are compile errors.
 ///
-/// `sand api show sand::system`
+/// # Example
+///
+/// ```rust,ignore
+/// #[sand::system(tick = 20)]
+/// fn regenerate(query: LivingPlayers) -> Vec<String> {
+///     query.each(|player| vec![player.health.add(1)])
+/// }
+/// ```
 #[proc_macro_attribute]
 pub fn system(attr: TokenStream, item: TokenStream) -> TokenStream {
     let attr = match parse_system_tick_attr(attr, true) {
@@ -644,6 +735,23 @@ fn expand_state_system_impl(
 /// The annotated function remains callable by author code. Each export calls
 /// it afresh, so registration does not retain process-global mutable builder
 /// state between exports or tests.
+/// The function must take no parameters and return a concrete typed
+/// `EntityArchetype`; Sand invokes it during export to provision the
+/// archetype's scoreboards, tags, attributes, equipment, and lifecycle
+/// functions. Use `#[entity_archetype("path")]` to override the generated
+/// resource path when the default function name is unsuitable.
+///
+/// # Example
+///
+/// ```rust,ignore
+/// use sand::prelude::*;
+///
+/// #[entity_archetype]
+/// fn zombie_guard() -> EntityArchetype<Zombie, GuardState> {
+///     EntityArchetype::new(EntityType::Zombie)
+///         .health(HealthBinding::new(GuardState::max_health))
+/// }
+/// ```
 #[proc_macro_attribute]
 pub fn entity_archetype(attr: TokenStream, item: TokenStream) -> TokenStream {
     if !attr.is_empty() {
@@ -808,7 +916,7 @@ fn build_cmd_body(block: &syn::Block) -> syn::Result<proc_macro2::TokenStream> {
     })
 }
 
-/// Registers a free-standing function as a datapack `.mcfunction` file.
+/// Registers a Rust function as an exported Minecraft function.
 ///
 /// Write typed command expressions directly in the function body. Sand collects
 /// each expression into the generated command list. Use `mcfunction!` only for
@@ -844,9 +952,8 @@ fn build_cmd_body(block: &syn::Block) -> syn::Result<proc_macro2::TokenStream> {
 /// uppercase letters, whitespace, and multiple colons are rejected at compile
 /// time with a diagnostic pointing at the offending literal.
 ///
-/// # API Contract
-///
-/// `sand api show sand::function`
+/// The annotated function must not take runtime arguments: its body is compiled
+/// as authoring code that produces Minecraft commands during the Sand build.
 #[proc_macro_attribute]
 pub fn function(attr: TokenStream, item: TokenStream) -> TokenStream {
     let attr = parse_function_attr(attr);
@@ -4491,66 +4598,11 @@ fn generated_api_contract(
 }
 
 fn generated_api_contract_docs(contract: &GeneratedApiContract) -> proc_macro2::TokenStream {
-    let summary = LitStr::new(&contract.summary, proc_macro2::Span::call_site());
-    let context = LitStr::new(
-        &format!("**Context:** {}", contract.context),
-        proc_macro2::Span::call_site(),
-    );
-    let minecraft = LitStr::new(
-        &format!("**Minecraft behavior:** {}", contract.minecraft),
-        proc_macro2::Span::call_site(),
-    );
-    let use_when = LitStr::new(
-        &format!("**Use when:** {}", contract.use_when.join("; ")),
-        proc_macro2::Span::call_site(),
-    );
-    let avoid_when = LitStr::new(
-        &format!("**Avoid when:** {}", contract.avoid_when.join("; ")),
-        proc_macro2::Span::call_site(),
-    );
-    let parameters = (!contract.parameters.is_empty()).then(|| {
-        LitStr::new(
-            &format!(
-                "**Parameters:** {}",
-                contract
-                    .parameters
-                    .iter()
-                    .map(|(name, description)| format!("`{name}` — {description}"))
-                    .collect::<Vec<_>>()
-                    .join("; ")
-            ),
-            proc_macro2::Span::call_site(),
-        )
-    });
-    let returns = contract.returns.as_ref().map(|value| {
-        LitStr::new(
-            &format!("**Returns:** {value}"),
-            proc_macro2::Span::call_site(),
-        )
-    });
-    let example = LitStr::new(
-        &format!("**Example:** `{}`", contract.example),
-        proc_macro2::Span::call_site(),
-    );
-    let parameter_doc = parameters
-        .map(|value| quote!(#[doc = #value]))
-        .unwrap_or_default();
-    let return_doc = returns
-        .map(|value| quote!(#[doc = #value]))
-        .unwrap_or_default();
-    quote! {
-        #[doc = #summary]
-        #[doc = ""]
-        #[doc = "# API Contract"]
-        #[doc = ""]
-        #[doc = #context]
-        #[doc = #minecraft]
-        #[doc = #use_when]
-        #[doc = #avoid_when]
-        #parameter_doc
-        #return_doc
-        #[doc = #example]
-    }
+    let lines = render_generated_rustdoc(contract);
+    let lines = lines
+        .iter()
+        .map(|line| LitStr::new(line, proc_macro2::Span::call_site()));
+    quote!(#(#[doc = #lines])*)
 }
 
 #[cfg(test)]

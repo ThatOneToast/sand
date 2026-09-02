@@ -9,7 +9,20 @@ use sand_core::version::{LATEST_KNOWN, MinecraftVersion, VersionProfile};
 /// their `sand.toml`.
 ///
 /// Reference: <https://minecraft.wiki/w/Pack_format>
-#[doc = "**API Contract:** Run `sand api show sand::resourcepack::resource_pack_format_for` for the canonical contract."]
+#[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::resourcepack::resource_pack_format_for",
+    module = "sand::resourcepack",
+    summary = "Returns the resource pack format number for a given Minecraft version string.",
+    context = "Returns the resource pack format number for a given Minecraft version string. This is a thin compatibility wrapper around [`VersionProfile::resourcepack_metadata`], which is the single canonical source of truth for pack format numbers. For unknown or future versions the most recent known value is returned as a conservative fallback — users can always override `resource_pack_format` in their `sand.toml`. Reference: <https://minecraft.wiki/w/Pack_format>",
+    minecraft = "Reference: <https://minecraft.wiki/w/Pack_format>",
+    use_when = ["Building HUD bars, HUD elements, textures, or resource-pack output alongside a Sand datapack"],
+    avoid_when = ["The project is datapack-only or needs unrelated resource-pack functionality not modeled by Sand"],
+    params(mc_version = "`mc_version` supplies the mc version value used to return the resource pack format number for a given Minecraft version string."),
+    returns = "Returns the resource pack format number for a given Minecraft version string.",
+    example = "use sand::prelude::*;\n\nfn demonstrate(mc_version: & str)  {\n    let resource_pack_format_for = sand::resourcepack::resource_pack_format_for(mc_version);\n}",
+    availability = ["Cargo feature: resourcepack"],
+)]
 pub fn resource_pack_format_for(mc_version: &str) -> u32 {
     resolve_resource_pack_format(mc_version).0
 }

@@ -401,7 +401,18 @@ registry_id! {
 
 // ── TagId<T> ─────────────────────────────────────────────────────────────────
 
-#[doc = "**API Contract:** Run `sand api show sand::component::TagId` for the canonical contract."]
+#[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::component::TagId",
+    aliases = ["sand::prelude::TagId"],
+    module = "sand::component",
+    summary = "A typed tag identifier scoped to a specific registry kind `T`.",
+    context = "A typed tag identifier scoped to a specific registry kind `T`. The phantom `T` marker allows you to distinguish `TagId<ItemId>` from `TagId<BlockId>` in API signatures, preventing accidental cross-registry mixing. Minecraft serializes tags as `#namespace:path` in some contexts (item predicates) and `namespace:path` in others (data files).  Use [`TagId::to_tag_string`] for the `#`-prefixed form and [`fmt::Display`] for the plain form.",
+    minecraft = "Minecraft serializes tags as `#namespace:path` in some contexts (item predicates) and `namespace:path` in others (data files).  Use [`TagId::to_tag_string`] for the `#`-prefixed form and [`fmt::Display`] for the plain form.",
+    use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+    avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+    example = "use sand::component::TagId;",
+)]
 /// A typed tag identifier scoped to a specific registry kind `T`.
 ///
 /// The phantom `T` marker allows you to distinguish `TagId<ItemId>` from
@@ -429,7 +440,21 @@ pub struct TagId<T> {
 
 impl<T> TagId<T> {
     /// Construct a `minecraft:<path>` tag.  Returns an error if `path` is invalid.
-    #[doc = "**API Contract:** Run `sand api show sand::component::TagId::minecraft` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::TagId::minecraft",
+        aliases = ["sand::prelude::TagId::minecraft"],
+        module = "sand::component",
+        kind = "method",
+        summary = "Construct a `minecraft:<path>` tag.  Returns an error if `path` is invalid.",
+        context = "Construct a `minecraft:<path>` tag.  Returns an error if `path` is invalid. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(path = "Construct a `minecraft:<path>` tag.  Returns an error if `path` is invalid."),
+        returns = "Construct a `minecraft:<path>` tag.  Returns an error if `path` is invalid.",
+        example = "use sand::prelude::*;\n\nfn demonstrate<T: 'static>(path: impl AsRef < str >)  {\n    let minecraft = sand::component::TagId ::< T >::minecraft(path);\n}",
+    )]
     pub fn minecraft(path: impl AsRef<str>) -> Result<Self> {
         Ok(Self {
             rl: ResourceLocation::minecraft(path)?,
@@ -438,7 +463,21 @@ impl<T> TagId<T> {
     }
 
     /// Wrap any [`ResourceLocation`] as a tag ID.
-    #[doc = "**API Contract:** Run `sand api show sand::component::TagId::custom` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::TagId::custom",
+        aliases = ["sand::prelude::TagId::custom"],
+        module = "sand::component",
+        kind = "method",
+        summary = "Wrap any [`ResourceLocation`] as a tag ID.",
+        context = "Wrap any [`ResourceLocation`] as a tag ID. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(rl = "`rl` provides the typed Minecraft resource identifier used to wrap any [`ResourceLocation`] as a tag ID."),
+        returns = "A newly constructed `TagId` configured to wrap any [`ResourceLocation`] as a tag ID.",
+        example = "use sand::prelude::*;\n\nfn demonstrate<T: 'static>(rl: sand::ResourceLocation)  {\n    let tag_id = sand::component::TagId ::< T >::custom(rl);\n}",
+    )]
     pub fn custom(rl: ResourceLocation) -> Self {
         Self {
             rl,
@@ -447,13 +486,39 @@ impl<T> TagId<T> {
     }
 
     /// Returns the `#namespace:path` form used in item predicates and ingredients.
-    #[doc = "**API Contract:** Run `sand api show sand::component::TagId::to_tag_string` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::TagId::to_tag_string",
+        aliases = ["sand::prelude::TagId::to_tag_string"],
+        module = "sand::component",
+        kind = "method",
+        summary = "Returns the `#namespace:path` form used in item predicates and ingredients.",
+        context = "Returns the `#namespace:path` form used in item predicates and ingredients. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        returns = "Returns the `#namespace:path` form used in item predicates and ingredients.",
+        example = "use sand::prelude::*;\n\nfn demonstrate<T: 'static>(tag_id_value: &sand::component::TagId < T >)  {\n    let to_tag_string = tag_id_value.to_tag_string();\n}",
+    )]
     pub fn to_tag_string(&self) -> String {
         format!("#{}", self.rl)
     }
 
     /// Access the inner [`ResourceLocation`].
-    #[doc = "**API Contract:** Run `sand api show sand::component::TagId::as_resource_location` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::TagId::as_resource_location",
+        aliases = ["sand::prelude::TagId::as_resource_location"],
+        module = "sand::component",
+        kind = "method",
+        summary = "Access the inner [`ResourceLocation`].",
+        context = "Access the inner [`ResourceLocation`]. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        returns = "The `& ResourceLocation` value produced to acces the inner [`ResourceLocation`].",
+        example = "use sand::prelude::*;\n\nfn demonstrate<T: 'static>(tag_id_value: &sand::component::TagId < T >)  {\n    let as_resource_location = tag_id_value.as_resource_location();\n}",
+    )]
     pub fn as_resource_location(&self) -> &ResourceLocation {
         &self.rl
     }

@@ -31,7 +31,7 @@ let world = World::new()
 produces:
 
 ```mcfunction
-setworldspawn 0 100 0 0
+setworldspawn 0 100 0 0 0
 worldborder center 0 0
 worldborder set 2000
 worldborder damage amount 0.2
@@ -81,29 +81,12 @@ sand.build.rs produced an invalid world configuration:
   - Dimension[minecraft:overworld].generator: FlatGenerator::biome 'minecraft:dessert' is not a known vanilla biome
 ```
 
-Like every other generated registry in this crate (`Block`, `Item`,
-`EntityType`, …), the biome list reflects exactly one Minecraft
-version — whichever `sand-core` itself was compiled against
-(`SAND_MC_VERSION`, defaulting to `sand_version::DEFAULT_CODEGEN_VERSION`).
-`SandBuild::validate_for_context(&ctx)` (what `run_and_print`/`sand build`
-actually call) adds one extra diagnostic when a biome check fails **and**
-`ctx`'s target version differs from the compiled registry's version,
-clarifying that the failure reflects the compiled snapshot, not necessarily
-the requested target:
-
-```console
-  - Dimension[minecraft:overworld].generator: FlatGenerator::biome 'minecraft:dessert' is not a known vanilla biome
-  - BuildContext::mc_version: the biome checks above were validated against Minecraft 26.2 (the version sand-core's registry data was generated for), not the requested target 1.19.4 — a biome flagged as unknown may exist in 1.19.4 but not in 26.2, or vice versa
-```
-
-**Scope note:** this combines structural/range checks with a generated,
-version-pinned biome registry — it is not a full audit against every
-Minecraft worldgen registry (structures, noise settings, block references,
-etc.), and it is not a real Minecraft server load the way
-`sand-vanilla-audit` validates other datapack content. Extending the
-registry codegen further (structures, noise settings) and wiring
-world-build resources into a real-server `sand-vanilla-audit` pass remain
-tracked follow-ups — see this feature's PR description for linked issues.
+**Scope note:** biome validation is generated from the selected Minecraft
+version's real Overworld and Nether biome-parameter reports and fails closed
+if the compiled snapshot does not match the requested target. Structures,
+noise settings, and other worldgen registries are not yet exhaustively
+validated. The vanilla audit does load the generated dimension, init function,
+and merged load-tag contribution on a real server.
 
 ## Golden-file tests for generated output
 

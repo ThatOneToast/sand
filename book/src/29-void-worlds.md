@@ -47,7 +47,7 @@ let world = World::new().spawn(
 );
 ```
 
-This lowers to `setworldspawn 0 100 0 0` followed by a `fill` command
+This lowers to `setworldspawn 0 100 0 0 0` followed by a `fill` command
 placing a 11×11 stone platform one block below spawn — both part of the
 generated `__sand_world_init` function, so they run automatically when the
 datapack loads.

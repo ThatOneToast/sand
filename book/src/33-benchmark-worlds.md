@@ -32,16 +32,13 @@ gets full vanilla noise generation, `Seed::Fixed(42)`, and
 `sand run --profile bench` produce a real, reproducible benchmark world
 today.
 
-## Status: build-time wiring only
+## Runtime measurements
 
-`BENCHMARKS.md` (in the repository root) tracks Sand's own **build-time**
-performance (Cargo/exporter compile times) — `sand build --profile bench`
-is now one of the timings it can reproduce and notes. It does **not** yet
-measure **runtime** performance (server TPS, chunk-generation throughput,
-tick time) *inside* a `bench`-profile world — there's no tooling yet that
-starts a server against one and reports a runtime metric. That in-game
-runtime-benchmark harness is tracked as a follow-up issue (linked from the
-PR that introduced this chapter).
+`scripts/bench_runtime.sh` starts a real server against this profile. Its RCON
+workload records server-reported milliseconds per tick and the throughput of a
+fresh 256-chunk forced region, then writes machine-readable JSON under
+`target/bench-runtime/`. Shutdown is scoped to that owned server process.
+`BENCHMARKS.md` documents the methodology alongside the build-time timings.
 
 ## Choosing a seed deliberately
 

@@ -13,12 +13,17 @@
 > **0.40s** for the `sand.build.rs` phase alone; a from-scratch `cargo
 > build` of the exporter + world-build binaries (cold `sand`/`sand-core`
 > artifacts) took ~38s, in line with the ordinary exporter-compile numbers
-> below. **What's still a follow-up, not done here:** this file measures
-> Cargo/exporter *build* time, not in-game world-generation or tick
-> *runtime* performance — there is no tooling yet that starts a real
-> Minecraft server against a `bench`-profile world and measures TPS/chunk-
-> generation throughput inside it. Tracked as a follow-up in `ROADMAP.md`
-> and filed as a GitHub issue (linked from the PR that added this note).
+> below.
+>
+> **Runtime harness (issue #357):** `scripts/bench_runtime.sh` starts a real
+> Minecraft server via `sand run --no-build --offline --profile bench`, uses
+> authenticated RCON to collect `/tick query`'s server-reported ms/tick, then
+> force-loads a fresh 16×16-chunk region and waits for representative points
+> to become loaded before reporting chunks/second. Results are written as
+> JSON under `target/bench-runtime/`. The harness shuts down through RCON and
+> its fallback signals only the exact process it launched; it never uses a
+> global Java/Minecraft `pkill`. Startup time is retained as useful context,
+> but the primary metrics are ms/tick and chunk throughput.
 
 This file tracks measured before/after numbers for the build-performance
 overhaul in #347. Numbers are wall-clock seconds from `/usr/bin/time -p`,

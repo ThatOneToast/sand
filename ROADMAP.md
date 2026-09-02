@@ -23,15 +23,19 @@ retained as an explicit oldest-profile/compatibility boundary. See
 - **Resource pack generation** — functional but requires manual asset setup.
 - **crates.io publishing** — not yet available; install from the workspace
   (`cargo install --path sand-cli`).
-- **Typed build-time world/server configuration (#317, #356)** — `sand::build`
-  (`SandBuild`/`BuildContext`/`BuildProfile`, `World`/`Dimensions`/
-  generators, `ServerConfig`) shipped covering flat/void/noise generators,
-  world border, spawn, gamerules/time/weather, and `sand build`/`sand run
-  --profile`. Validation combines structural checks (ranges, duplicate
-  slots, layer sanity) with a biome-registry check generated from real
-  per-version Minecraft data (`sand-build/src/codegen/biomes.rs`); not yet a
-  full `sand-vanilla-audit` real-server audit of world-build resources, or
-  registry coverage beyond biomes — see "Next work" below.
+- **Typed build-time world/server configuration (#317, #355, #356, #357,
+  #358)** — `sand::build` (`SandBuild`/`BuildContext`/`BuildProfile`,
+  `World`/`Dimensions`/generators, `ServerConfig`) shipped covering
+  flat/void/noise generators, world border, spawn, gamerules/time/weather,
+  and `sand build`/`sand run --profile`. Validation is now version-aware
+  for biomes (`SandBuild::validate_for_context`, generated from real
+  per-version Mojang `biome_parameters` reports, #356) and
+  `sand-vanilla-audit` exercises generated world resources against a real
+  running server (#355). The path-filtered PR and scheduled CI also runs a
+  real dev-to-release profile switch (#358). `scripts/bench_runtime.py`
+  measures server-reported ms/tick and fresh chunk-generation throughput
+  through authenticated RCON, and only terminates the process it owns
+  (#357).
 
 ## Next work
 
@@ -39,13 +43,12 @@ retained as an explicit oldest-profile/compatibility boundary. See
 - Add a typed item stack builder with component API.
 - Harden dialog actions with typed function references.
 - Complete resource pack example crates.
-- Extend the registry codegen pipeline (`sand-build/src/codegen/biomes.rs`)
-  to cover `worldgen/structure`/`worldgen/structure_set` alongside biomes,
-  and extend `sand-vanilla-audit` with a real-server load pass for
-  `sand::build`-generated world resources — broader coverage than the
-  generated biome check alone (#317 follow-up, tracked as issues #355/#356
-  follow-on work).
-- Wire the `bench` `BuildProfile`/`WorldResetPolicy` primitives into a real
-  in-game runtime benchmark harness (TPS/chunk-gen throughput) — today's
-  `BENCHMARKS.md` only measures Cargo/exporter build time (#317 follow-up,
-  tracked as issue #357).
+- Extend the registry codegen and audit beyond biomes (for example,
+  dimension-type, noise-settings, structure, and structure-set references)
+  against the selected `VersionProfile`'s real registries (#356 follow-up).
+- `World::gamerule` takes a free-form string Sand doesn't validate or
+  translate across Minecraft versions; Minecraft 26.2 renamed many
+  gamerules to snake_case (e.g. `doDaylightCycle` -> `advance_time`),
+  discovered via #358's real-server verification. Consider a typed
+  gamerule enum (or at least a version-aware rename-detection diagnostic)
+  as a future follow-up — filed as #360.

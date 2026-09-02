@@ -88,7 +88,13 @@ pub fn lower(namespace: &str, build: &SandBuild) -> Vec<WorldResource> {
     let mut commands = Vec::new();
     if let Some(spawn) = &world.spawn {
         commands.push(format!(
-            "setworldspawn {} {} {} {}",
+            // `/setworldspawn`'s optional trailing argument is a two-value
+            // `angle` (yaw, then pitch) in vanilla's command grammar, not a
+            // single yaw float — passing only one value here fails Brigadier
+            // parsing with "Incomplete (expected 2 coordinates)" (confirmed
+            // against a real Minecraft 26.2 server; see issue #358). We only
+            // expose yaw on `Spawn`, so pitch is always emitted as `0`.
+            "setworldspawn {} {} {} {} 0",
             spawn.x, spawn.y, spawn.z, spawn.yaw
         ));
         if let Some(platform) = &spawn.platform {
@@ -215,7 +221,7 @@ mod tests {
             .iter()
             .find(|r| r.dir == "function" && r.path == "__sand_world_init")
             .expect("init function present");
-        assert!(func.content.contains("setworldspawn 0 100 0"));
+        assert!(func.content.contains("setworldspawn 0 100 0 0 0"));
         assert!(func.content.contains("worldborder set 2000"));
         assert!(func.content.contains("gamerule keepInventory true"));
 

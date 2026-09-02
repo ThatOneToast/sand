@@ -4,7 +4,7 @@ use sand_core::event::vanilla::{OnDeath, OnRespawn, PlayerStartsSneaking, Player
 use sand_core::events::{EventSetup, PlayerSneakEvent, SandEvent, SandEventDispatch, TickWindow};
 use sand_core::prelude::*;
 use sand_core::{FloatRange, IntRange, NumberProvider};
-use sand_macros::{State, datapack_component, on_event, function};
+use sand_macros::{State, datapack_component, function, on_event};
 
 fn item_id(path: &str) -> ItemId {
     ItemId::minecraft(path).unwrap()
@@ -341,9 +341,7 @@ pub fn stops_sneaking(event: sand_core::event::Event<PlayerStopsSneaking>) {
 pub fn audit_advancement() -> Advancement {
     Advancement::new("sand_audit:first_tick".parse().unwrap())
         .criterion("tick", Criterion::new(AdvancementTrigger::Tick))
-        .rewards(
-            AdvancementRewards::new().function("sand_audit:audit_command".parse().unwrap()),
-        )
+        .rewards(AdvancementRewards::new().function("sand_audit:audit_command".parse().unwrap()))
 }
 
 /// Real-vanilla load/reload coverage for the #231/#232 `placed_block` fix:
@@ -368,9 +366,7 @@ pub fn audit_placed_block_filtered() -> Advancement {
                 None,
             )),
         )
-        .rewards(
-            AdvancementRewards::new().function("sand_audit:audit_command".parse().unwrap()),
-        )
+        .rewards(AdvancementRewards::new().function("sand_audit:audit_command".parse().unwrap()))
 }
 
 /// Same coverage as [`audit_placed_block_filtered`] for `item_used_on_block`.
@@ -384,9 +380,7 @@ pub fn audit_item_used_on_block_filtered() -> Advancement {
                 location: None,
             }),
         )
-        .rewards(
-            AdvancementRewards::new().function("sand_audit:audit_command".parse().unwrap()),
-        )
+        .rewards(AdvancementRewards::new().function("sand_audit:audit_command".parse().unwrap()))
 }
 
 /// Client-driven semantic fixture. The reward revokes this advancement so a
@@ -571,16 +565,173 @@ pub fn audit_item_modifier() -> ItemModifier {
 #[cfg(sand_audit_dialogs)]
 #[datapack_component]
 pub fn audit_dialog() -> Dialog {
+    // A `notice` dialog requires at least one button (Minecraft's own
+    // dialog schema, enforced by DatapackComponent validation) -- this
+    // fixture was missing one, which made every 26.x vanilla-reload
+    // validation fail at datapack-export time before a server was even
+    // started. Found while investigating issue #355.
     Dialog::notice_local("status")
         .title("Sand audit")
         .body(DialogBody::text("Vanilla reload validation"))
+        .button(DialogButton::new("OK"))
+}
+
+/// A small, safe `sand::build`-generated dimension override for the audit
+/// pack: a flat Overworld (bedrock/dirt/grass) with a spawn platform.
+/// Real-server-load coverage for issue #355 -- until this, every real
+/// Minecraft server load/reload validation (`.github/workflows/
+/// vanilla-reload.yml`) only exercised ordinary component output, never
+/// world-build-generated dimension/function/tag resources. `sand-vanilla-audit`
+/// doesn't go through `sand-cli`'s `sand.build.rs` discovery (it has its own
+/// bespoke `export()` below), so this calls `sand_core::build` directly and
+/// merges the lowered `WorldResource`s into the same JSON array
+/// `try_export_components_json` produces -- both share byte-identical
+/// wire-format shapes (`namespace`/`dir`/`path`/`ext`/`content_type`/
+/// `content`) by design.
+fn audit_world_build() -> Vec<sand_core::build::WorldResource> {
+    use sand_core::build::{
+        Dimension, DimensionSlot, DimensionType, Dimensions, FlatGenerator, FlatLayer, Generator,
+        SandBuild, Spawn, World,
+    };
+
+    let overworld = Dimension::new(DimensionSlot::Overworld, DimensionType::Overworld).generator(
+        Generator::Flat(FlatGenerator::new(vec![
+            FlatLayer::new(ResourceLocation::new("minecraft", "bedrock").unwrap(), 1),
+            FlatLayer::new(ResourceLocation::new("minecraft", "dirt").unwrap(), 2),
+            FlatLayer::new(
+                ResourceLocation::new("minecraft", "grass_block").unwrap(),
+                1,
+            ),
+        ])),
+    );
+    let build = SandBuild::new().world(
+        World::new()
+            .spawn(Spawn::at(0, 5, 0))
+            .dimensions(Dimensions::new().with(overworld)),
+    );
+    if let Err(diagnostics) = build.validate() {
+        eprintln!("audit world-build validation failed:");
+        for d in &diagnostics {
+            eprintln!("  - {d}");
+        }
+        std::process::exit(1);
+    }
+    sand_core::build::lower_world("sand_audit", &build)
 }
 
 pub fn export(namespace: &str, version: &str) {
-    let json = sand_core::advanced::try_export_components_json(namespace, version)
-    .unwrap_or_else(|error| {
-        eprintln!("audit export failed: {error}");
-        std::process::exit(1);
-    });
-    println!("{json}");
+    let json = sand_core::advanced::try_export_components_json(namespace, version).unwrap_or_else(
+        |error| {
+            eprintln!("audit export failed: {error}");
+            std::process::exit(1);
+        },
+    );
+
+    let mut records: Vec<sand_core::serde_json::Value> = sand_core::serde_json::from_str(&json)
+        .unwrap_or_else(|error| {
+            eprintln!("audit export failed: could not parse component JSON: {error}");
+            std::process::exit(1);
+        });
+    merge_world_resources(&mut records, audit_world_build());
+
+    println!(
+        "{}",
+        sand_core::serde_json::to_string(&records).expect("records are always serializable")
+    );
+}
+
+fn merge_world_resources(
+    records: &mut Vec<sand_core::serde_json::Value>,
+    resources: Vec<sand_core::build::WorldResource>,
+) {
+    for resource in resources {
+        if resource.namespace == "minecraft"
+            && resource.dir == "tags/function"
+            && resource.path == "load"
+        {
+            let incoming: sand_core::serde_json::Value =
+                sand_core::serde_json::from_str(&resource.content)
+                    .expect("generated load tag is valid JSON");
+            let incoming_values = incoming["values"]
+                .as_array()
+                .expect("generated load tag has values");
+            if let Some(existing) = records.iter_mut().find(|record| {
+                record["namespace"] == "minecraft"
+                    && record["dir"] == "tags/function"
+                    && record["path"] == "load"
+                    && record["ext"] == "json"
+            }) {
+                let mut content: sand_core::serde_json::Value =
+                    sand_core::serde_json::from_str(
+                        existing["content"].as_str().expect("tag content is text"),
+                    )
+                    .expect("ordinary load tag is valid JSON");
+                let values = content["values"]
+                    .as_array_mut()
+                    .expect("ordinary load tag has values");
+                for value in incoming_values {
+                    if !values.contains(value) {
+                        values.push(value.clone());
+                    }
+                }
+                existing["content"] = sand_core::serde_json::Value::String(
+                    sand_core::serde_json::to_string_pretty(&content)
+                        .expect("merged load tag is serializable"),
+                );
+                continue;
+            }
+        }
+        records.push(
+            sand_core::serde_json::to_value(resource)
+                .expect("WorldResource is always serializable"),
+        );
+    }
+}
+
+#[cfg(test)]
+mod world_build_audit_tests {
+    use super::*;
+
+    #[test]
+    fn audit_includes_dimension_init_function_and_merged_load_tag() {
+        let mut records = vec![sand_core::serde_json::json!({
+            "namespace": "minecraft",
+            "dir": "tags/function",
+            "path": "load",
+            "ext": "json",
+            "content_type": "text",
+            "content": "{\"values\":[\"sand_audit:ordinary_load\"]}"
+        })];
+        merge_world_resources(&mut records, audit_world_build());
+
+        assert!(records.iter().any(|record| {
+            record["namespace"] == "minecraft"
+                && record["dir"] == "dimension"
+                && record["path"] == "overworld"
+        }));
+        assert!(records.iter().any(|record| {
+            record["namespace"] == "sand_audit"
+                && record["dir"] == "function"
+                && record["path"] == "__sand_world_init"
+                && record["content"]
+                    .as_str()
+                    .is_some_and(|content| content.contains("setworldspawn 0 5 0 0 0"))
+        }));
+        let load = records
+            .iter()
+            .find(|record| {
+                record["namespace"] == "minecraft"
+                    && record["dir"] == "tags/function"
+                    && record["path"] == "load"
+            })
+            .unwrap();
+        let content: sand_core::serde_json::Value =
+            sand_core::serde_json::from_str(load["content"].as_str().unwrap()).unwrap();
+        assert!(content["values"].as_array().unwrap().contains(
+            &sand_core::serde_json::Value::String("sand_audit:ordinary_load".into())
+        ));
+        assert!(content["values"].as_array().unwrap().contains(
+            &sand_core::serde_json::Value::String("sand_audit:__sand_world_init".into())
+        ));
+    }
 }

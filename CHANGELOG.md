@@ -87,11 +87,40 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `sand.toml` migration story; `examples/book_project/sand.build.rs`
   demonstrates the full API with genuinely different dev vs. release
   worlds and server configs.
-- **Known scope limits** (tracked as explicit follow-ups, not silently
-  dropped): validation is structural/range-based, not yet a full
-  `sand-vanilla-audit` registry audit of world-build resources; the `bench`
-  profile introduces `WorldResetPolicy` primitives but isn't yet wired into
-  `BENCHMARKS.md`'s existing benchmark harness.
+- Validation remains intentionally scoped to the registries Sand generates,
+  but the real-server audit now loads every generated world resource and CI
+  verifies an actual dev-to-release profile switch. The benchmark profile is
+  wired to the runtime harness documented in `BENCHMARKS.md`.
+
+### Fixed / Added — real-server validation follow-ups for #317 (#355, #357, #358)
+
+- Fixed (#358): `World::spawn`'s lowering generated `setworldspawn x y z
+  yaw` — real Minecraft 26.2 rejects this (`Incomplete (expected 2
+  coordinates)`) because the command's trailing argument is a two-value
+  rotation (yaw, pitch), not a single float. Now emits pitch as `0`.
+  Found and fixed via real end-to-end `sand run` verification against a
+  live server (not just unit tests). Along the way, also found and
+  disclosed (not a Sand bug, but a real footgun): Minecraft 26.2 renamed
+  many gamerules to snake_case (e.g. `doDaylightCycle` ->
+  `advance_time`) — `World::gamerule` takes a free-form string Sand
+  doesn't validate against the target version. Filed as #360 (systemic
+  fix — diagnostic, typed gamerule enum, or rename table — is out of
+  scope here).
+- Added (#355): `sand-vanilla-audit` now builds and validates a
+  `sand::build` world and merges its dimension JSON, world-init function,
+  and `minecraft:load` tag contribution into the real-server load/reload pass,
+  verified against a real Minecraft 26.2 server. Fixed a genuine
+  pre-existing bug found along the way: `Dialog::notice_local` requires
+  at least one `DialogButton` per Minecraft's schema, which
+  `sand-vanilla-audit`'s dialog fixture didn't have — this was silently
+  blocking all 26.x vanilla-reload CI validation.
+- Added (#357): `scripts/bench_runtime.py` (with the shell wrapper retained)
+  starts an owned `bench`-profile server, queries server-reported ms/tick,
+  generates and waits for a fresh 256-chunk region, reports chunks/second as
+  JSON, and shuts down through RCON without a global `pkill`.
+- Added (#358): path-filtered pull-request CI runs the latest verified target;
+  scheduled/manual CI retains the stable+latest matrix, exercises a real
+  dev-to-release profile switch, and records the runtime benchmark.
 
 ### Added — typed Villager/Wandering Trader trade authoring (26.1+) (#296)
 

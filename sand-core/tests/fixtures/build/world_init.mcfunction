@@ -1,4 +1,4 @@
-setworldspawn 0 65 0 0
+setworldspawn 0 65 0 0 0
 fill -4 64 -4 4 64 4 minecraft:stone
 worldborder center 100 -50
 worldborder set 6000

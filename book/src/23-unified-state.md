@@ -32,6 +32,35 @@ pub struct Combat {
 }
 ```
 
+Attach or adopt the component, then query it directly. A scoped `State` is the
+one-component query for owners that have its real presence/version marker; the
+callback receives the normal bound view, so its fields are immediately
+available:
+
+```rust
+#[derive(State)]
+#[state(namespace = "trailforge", scope = living)]
+pub struct Health {
+    #[state(default = 20, min = 0, max = 100)]
+    pub current: Score,
+}
+
+#[system(tick, every = 20)]
+fn regenerate(query: Health) {
+    query.each(|health| health.current.add(1));
+}
+
+#[system(tick, every = 20)]
+fn train_combat(query: Combat) {
+    query.each(|combat| combat.attack.damage.add(1));
+}
+```
+
+`query.current(...)` performs the same presence check against an executor that
+an event dispatcher has already selected; it never starts another scan. A
+`StateBundle` can likewise be a direct query, requiring every flattened member
+and yielding its normal nested bound view.
+
 Use `FixedScore` when whole numbers are too chunky. Its default scale is 1,000,
 or you can choose one explicitly. This stores `1.25` as `125`, rounds exact
 halves away from zero, and clamps the stored result to the declared bounds.
@@ -77,11 +106,13 @@ world.progression.wave.add(1);
 WorldResources::attach_global();
 ```
 
-Queries are ordinary named structs too. Required and forbidden members become
-selector filters. Optional members use a callback guarded by the real runtime
-presence score—there is no pretend Rust `Option` decided while the pack is
-being built. Sand flattens nested bundles while checking the declaration, so a
-query cannot require a bundle and forbid one of that bundle's components.
+Use `StateQuery` once a system needs composition. Required and forbidden
+members become selector filters. Optional members use a callback guarded by the
+real runtime presence score—there is no pretend Rust `Option` decided while the
+pack is being built. Sand flattens nested bundles while checking the
+declaration, so a query cannot require a bundle and forbid one of that bundle's
+components. A one-field required `StateQuery` is unnecessary; query that State
+directly instead.
 
 Required membership is selected when the Minecraft iteration begins. Optional
 and forbidden guards are evaluated by the emitted `execute` commands, in body

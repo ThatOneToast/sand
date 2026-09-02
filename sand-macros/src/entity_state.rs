@@ -1139,7 +1139,6 @@ pub(crate) fn derive_bundle(input: DeriveInput) -> syn::Result<proc_macro2::Toke
                 ::sand::__private::SameStateScope<<#ty as ::sand::__private::StateBundleMember>::Scope>
         }
     });
-
     let expanded = quote! {
         #type_docs
         #[derive(Debug, Clone, Copy)]
@@ -1436,10 +1435,10 @@ pub(crate) fn derive_query(input: DeriveInput) -> syn::Result<proc_macro2::Token
     );
     let current_docs = generated_contract_docs(&current_contract);
     contracts.push(current_contract);
-    let query_constructor = if matches!(query_scope, Some(Scope::Player)) {
-        quote!(::sand::__private::PlayerQuery::players())
+    let query_scope_value = if matches!(query_scope, Some(Scope::Player)) {
+        quote!(::sand::__private::StateQueryScope::Player)
     } else {
-        quote!(::sand::__private::EntityQuery::entities())
+        quote!(::sand::__private::StateQueryScope::Entity)
     };
     let scope_assertions: Vec<_> = query_scope
         .map(|scope| {
@@ -1503,37 +1502,15 @@ pub(crate) fn derive_query(input: DeriveInput) -> syn::Result<proc_macro2::Token
             pub fn each(body: impl FnOnce(#item_ident) -> Vec<String>) -> Vec<String> {
                 let mut requirements: Vec<(String, u32)> = Vec::new();
                 #(#required)*
-                requirements.sort();
-                requirements.dedup();
-                let mut query = #query_constructor;
-                for (objective, version) in requirements {
-                    query = query
-                        .state(::sand::__private::state_presence_predicate(objective, version))
-                        .expect("StateQuery derives validated unique presence filters");
-                }
-
                 let mut forbidden: Vec<(String, u32)> = Vec::new();
                 #(#forbidden)*
-                forbidden.sort();
-                forbidden.dedup();
-                query.each(|_| {
-                    let item = #item_ident { #(#item_values),* };
-                    body(item)
-                        .into_iter()
-                        .map(|command| {
-                            let guards = forbidden
-                                .iter()
-                                .map(|(objective, version)| format!("unless score @s {objective} matches {version}"))
-                                .collect::<Vec<_>>()
-                                .join(" ");
-                            if guards.is_empty() {
-                                command
-                            } else {
-                                format!("execute {guards} run {command}")
-                            }
-                        })
-                        .collect()
-                })
+                ::sand::__private::lower_state_query_each(
+                    #query_scope_value,
+                    requirements,
+                    forbidden,
+                    #item_ident { #(#item_values),* },
+                    body,
+                )
             }
 
 
@@ -1541,30 +1518,14 @@ pub(crate) fn derive_query(input: DeriveInput) -> syn::Result<proc_macro2::Token
             pub fn current(body: impl FnOnce(#item_ident) -> Vec<String>) -> Vec<String> {
                 let mut requirements: Vec<(String, u32)> = Vec::new();
                 #(#required)*
-                requirements.sort();
-                requirements.dedup();
                 let mut forbidden: Vec<(String, u32)> = Vec::new();
                 #(#forbidden)*
-                forbidden.sort();
-                forbidden.dedup();
-                let item = #item_ident { #(#item_values),* };
-                body(item)
-                    .into_iter()
-                    .map(|command| {
-                        let mut guards = requirements
-                            .iter()
-                            .map(|(objective, version)| format!("if score @s {objective} matches {version}"))
-                            .collect::<Vec<_>>();
-                        guards.extend(forbidden.iter().map(|(objective, version)| {
-                            format!("unless score @s {objective} matches {version}")
-                        }));
-                        if guards.is_empty() {
-                            command
-                        } else {
-                            format!("execute {} run {command}", guards.join(" "))
-                        }
-                    })
-                    .collect()
+                ::sand::__private::lower_state_query_current(
+                    requirements,
+                    forbidden,
+                    #item_ident { #(#item_values),* },
+                    body,
+                )
             }
         }
 

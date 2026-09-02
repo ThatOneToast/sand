@@ -1,0 +1,28 @@
+error[E0599]: the method `each` exists for struct `sand::__private::StateQueryHandle<GameState>`, but its trait bounds were not satisfied
+  --> tests/cases/fail_global_state_query.rs:11:11
+   |
+ 5 | struct GameState {
+   | ---------------- doesn't satisfy `GameState: sand::__private::StateQuerySpec`
+...
+11 |     query.each(|_| Vec::new());
+   |           ^^^^ method cannot be called on `sand::__private::StateQueryHandle<GameState>` due to unsatisfied trait bounds
+   |
+  ::: $WORKSPACE/sand-core/src/entity/state.rs
+   |
+   | pub struct GlobalStateScope;
+   | --------------------------- doesn't satisfy `_: QueryableStateScope`
+   |
+  ::: $WORKSPACE/sand-core/src/entity/query.rs
+   |
+   | pub struct StateQueryHandle<Q>(std::marker::PhantomData<fn() -> Q>);
+   | ------------------------------ doesn't satisfy `_: StateQueryOperations` or `_: StateQuerySpec`
+   |
+   = note: the following trait bounds were not satisfied:
+           `sand::__private::GlobalStateScope: sand::__private::QueryableStateScope`
+           which is required by `GameState: sand::__private::StateQuerySpec`
+           `sand::__private::StateQueryHandle<GameState>: sand::__private::StateQuerySpec`
+           which is required by `sand::__private::StateQueryHandle<GameState>: sand::prelude::StateQueryOperations`
+           `&sand::__private::StateQueryHandle<GameState>: sand::__private::StateQuerySpec`
+           which is required by `&sand::__private::StateQueryHandle<GameState>: sand::prelude::StateQueryOperations`
+           `&mut sand::__private::StateQueryHandle<GameState>: sand::__private::StateQuerySpec`
+           which is required by `&mut sand::__private::StateQueryHandle<GameState>: sand::prelude::StateQueryOperations`

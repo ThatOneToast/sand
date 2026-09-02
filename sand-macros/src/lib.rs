@@ -233,7 +233,9 @@ pub fn registry_id(input: TokenStream) -> TokenStream {
 /// Every scope owns dependency provisioning and an independent presence/version
 /// marker. Player state is observed automatically, entity/living state is
 /// initialized explicitly through attachment or adoption, and global state is
-/// bound to one deterministic singleton holder.
+/// bound to one deterministic singleton holder. Entity, living, and player
+/// State can be queried directly from `#[system]`; global State remains a
+/// singleton accessed through its generated `global()` method.
 ///
 /// Generated APIs include definition-owned typed field handles, a sibling
 /// `NameBound` view with holder-bound accessors, binding methods appropriate to
@@ -265,6 +267,9 @@ pub fn derive_state(input: TokenStream) -> TokenStream {
 /// Each public field must be a `State` or another `StateBundle`. The generated
 /// binding API binds all fields to one owner while retaining their concrete
 /// types; it does not create new scoreboard storage or lifecycle ownership.
+///
+/// A non-global bundle can be used directly as a `#[system]` query, requiring
+/// every flattened component presence marker.
 ///
 /// # Example
 ///

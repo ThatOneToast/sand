@@ -116,6 +116,27 @@ struct RepeatedMarkerBundle {
     second: OptionalMarker,
 }
 
+#[allow(dead_code)]
+#[derive(StateBundle)]
+struct RuntimeBundle {
+    runtime: EntityRuntimeState,
+    marker: OptionalMarker,
+}
+
+#[allow(dead_code)]
+#[derive(StateBundle)]
+struct NestedRuntimeBundle {
+    components: RuntimeBundle,
+}
+
+#[allow(dead_code)]
+#[derive(StateQuery)]
+#[query(scope = entity)]
+struct RuntimeOnly {
+    #[require]
+    runtime: EntityRuntimeState,
+}
+
 #[state_lifecycle]
 impl StateLifecycle for OptionalMarker {
     fn initialize(_ctx: StateInit) -> Vec<String> {
@@ -149,6 +170,11 @@ struct RuntimeEntities {
 #[system(tick, every = 20)]
 fn recharge_runtime(query: RuntimeEntities) {
     query.each(|item| item.runtime.charge.add(1));
+}
+
+#[system(tick, every = 20)]
+fn recharge_direct(query: EntityRuntimeState) {
+    query.each(|runtime| runtime.charge.add(1));
 }
 
 fn records() -> Vec<serde_json::Value> {
@@ -277,6 +303,149 @@ fn state_query_current_filters_an_event_executor_without_scanning() {
             && !command.contains("execute as @e")
             && !command.contains("execute as @a")
     }));
+}
+
+#[test]
+fn scoped_states_query_directly_with_concrete_bound_views() {
+    let entity_requirement =
+        <EntityRuntimeState as sand::__private::StateBundleMember>::presence_requirements();
+    let entity = <EntityRuntimeState as sand::__private::StateQuerySpec>::each(|runtime| {
+        runtime.charge.add(1)
+    });
+    assert_eq!(entity.len(), 1);
+    assert!(entity[0].starts_with("execute as @e[scores={"));
+    assert!(entity[0].contains(&format!("{}=1", entity_requirement[0].0)));
+
+    let living_requirement =
+        <LivingRuntimeState as sand::__private::StateBundleMember>::presence_requirements();
+    let living = <LivingRuntimeState as sand::__private::StateQuerySpec>::each(|runtime| {
+        runtime.timer.tick()
+    });
+    assert!(living[0].starts_with("execute as @e[scores={"));
+    assert!(living[0].contains(&format!("{}=1", living_requirement[0].0)));
+
+    let player_requirement =
+        <PlayerState as sand::__private::StateBundleMember>::presence_requirements();
+    let player = <PlayerState as sand::__private::StateQuerySpec>::each(|state| state.mana.add(1));
+    assert!(player[0].starts_with("execute as @a[scores={"));
+    assert!(player[0].contains(&format!("{}=1", player_requirement[0].0)));
+
+    let marker_requirement =
+        <OptionalMarker as sand::__private::StateBundleMember>::presence_requirements();
+    let marker = <OptionalMarker as sand::__private::StateQuerySpec>::each(|_marker| {
+        vec!["say dead marker".into()]
+    });
+    assert!(marker[0].contains(&format!("{}=3", marker_requirement[0].0)));
+}
+
+#[test]
+fn direct_state_current_guards_presence_without_a_scan() {
+    let requirement =
+        <EntityRuntimeState as sand::__private::StateBundleMember>::presence_requirements();
+    let commands = <EntityRuntimeState as sand::__private::StateQuerySpec>::current(|runtime| {
+        runtime.charge.add(1)
+    });
+    assert!(!commands.is_empty());
+    assert!(commands.iter().all(|command| {
+        command.starts_with(&format!(
+            "execute if score @s {} matches {} run ",
+            requirement[0].0, requirement[0].1
+        )) && !command.contains("execute as @e")
+            && !command.contains("execute as @a")
+    }));
+}
+
+#[test]
+fn direct_and_one_field_queries_have_equivalent_presence_lowering() {
+    let direct = <EntityRuntimeState as sand::__private::StateQuerySpec>::each(|runtime| {
+        runtime.charge.add(1)
+    });
+    let wrapped = RuntimeOnly::each(|item| item.runtime.charge.add(1));
+    assert_eq!(direct, wrapped);
+
+    let direct_current =
+        <EntityRuntimeState as sand::__private::StateQuerySpec>::current(|runtime| {
+            runtime.charge.add(1)
+        });
+    let wrapped_current = RuntimeOnly::current(|item| item.runtime.charge.add(1));
+    assert_eq!(direct_current, wrapped_current);
+}
+
+#[test]
+fn direct_bundles_require_every_flattened_component() {
+    let flat = <RuntimeBundle as sand::__private::StateQuerySpec>::each(|bundle| {
+        bundle.runtime.charge.add(1)
+    });
+    let nested = <NestedRuntimeBundle as sand::__private::StateQuerySpec>::each(|bundle| {
+        bundle.components.runtime.charge.add(1)
+    });
+    let requirements =
+        <RuntimeBundle as sand::__private::StateBundleMember>::presence_requirements();
+    assert_eq!(requirements.len(), 2);
+    for (objective, version) in requirements {
+        assert!(flat[0].contains(&format!("{objective}={version}")));
+        assert!(nested[0].contains(&format!("{objective}={version}")));
+    }
+
+    let current = <NestedRuntimeBundle as sand::__private::StateQuerySpec>::current(|bundle| {
+        bundle.components.runtime.charge.add(1)
+    });
+    assert!(
+        current
+            .iter()
+            .all(|command| !command.contains("execute as @e"))
+    );
+}
+
+#[test]
+fn attachment_and_detachment_share_the_direct_query_presence_identity() {
+    let requirement =
+        <EntityRuntimeState as sand::__private::StateBundleMember>::presence_requirements();
+    let owner = EntityContext::<AnyEntity>::default();
+    let attach = EntityRuntimeState::attach(owner);
+    let detach = EntityRuntimeState::detach(owner);
+    let query = <EntityRuntimeState as sand::__private::StateQuerySpec>::each(|runtime| {
+        runtime.charge.add(1)
+    });
+
+    assert!(attach.iter().any(|command| command.contains(&format!(
+        "scoreboard players set @s {} {}",
+        requirement[0].0, requirement[0].1
+    ))));
+    assert!(detach.iter().any(|command| {
+        command.contains(&format!("scoreboard players reset @s {}", requirement[0].0))
+    }));
+    assert!(query[0].contains(&format!("{}={}", requirement[0].0, requirement[0].1)));
+    assert!(!query[0].contains(&EntityRuntimeState::charge.objective()));
+}
+
+#[test]
+fn direct_and_composed_systems_share_the_compatible_outer_scan() {
+    let records = records();
+    let tick = function(&records, "__sand_system_tick");
+    let requirement =
+        <EntityRuntimeState as sand::__private::StateBundleMember>::presence_requirements();
+    let selector = format!("@e[scores={{{}={}}}]", requirement[0].0, requirement[0].1);
+    let matching_scans = tick
+        .lines()
+        .filter(|line| line.contains(&format!("execute as {selector} at @s")))
+        .collect::<Vec<_>>();
+    assert_eq!(
+        matching_scans.len(),
+        1,
+        "the direct State system and equivalent required StateQuery system should share one scan: {tick}"
+    );
+    let (_, grouped_path) = matching_scans[0]
+        .rsplit_once("function statepack:")
+        .expect("the shared scan invokes its generated system group");
+    assert_eq!(
+        function(&records, grouped_path)
+            .lines()
+            .filter(|line| line.starts_with("function "))
+            .count(),
+        2,
+        "the shared scan group should invoke both compatible systems"
+    );
 }
 
 #[test]

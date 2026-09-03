@@ -70,6 +70,13 @@ pub struct Dead;
 #[state(namespace = "rpg", scope = living)]
 pub struct ManagedZombie;
 
+#[derive(State)]
+#[state(namespace = "rpg", scope = living)]
+pub struct Health {
+    #[state(default = 20, min = 0, max = 100)]
+    pub current: Score,
+}
+
 #[derive(StateBundle)]
 pub struct Combat {
     pub attack: Attack,
@@ -80,6 +87,7 @@ pub struct Combat {
 pub struct Character {
     pub combat: Combat,
     pub status: Status,
+    pub health: Health,
 }
 
 #[derive(StateQuery)]
@@ -94,6 +102,11 @@ pub struct Combatants {
 }
 
 pub struct CombatSystems;
+
+#[system(tick, every = 20)]
+fn regenerate_health(query: Health) {
+    query.each(|health| health.current.add(1));
+}
 
 #[system]
 #[allow(dead_code, unused_must_use)]

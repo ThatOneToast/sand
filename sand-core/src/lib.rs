@@ -588,7 +588,10 @@ impl sand_commands::selector::IntoEntityType for generated::EntityType {
 #[doc(hidden)]
 pub mod __private {
     #[doc(hidden)]
-    pub use crate::entity::query::{StateQueryHandle, StateQuerySpec};
+    pub use crate::entity::query::{
+        QueryableStateScope, StateQueryHandle, StateQueryScope, StateQuerySpec,
+        lower_state_query_current, lower_state_query_each,
+    };
     #[doc(hidden)]
     pub use crate::entity::state::{
         ArchetypeStateScope, EntityStateScope, GlobalStateBundleScope, GlobalStateScope,

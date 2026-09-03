@@ -73,6 +73,7 @@ pub use property::{
 };
 pub use query::{
     EntityQueries, EntityQuery, PlayerQueries, PlayerQuery, SingleEntityQuery, SinglePlayerQuery,
+    StateQueryOperations,
 };
 pub use relation::{Relation, RelationQuery};
 pub use state::{

@@ -10,39 +10,56 @@ use crate::error::{Result, SandError};
 use crate::function::register_dyn_fn_dedup;
 use crate::version::VersionProfile;
 
-#[doc = "**API Contract:** Run `sand api show sand::entity::Relation` for the canonical contract."]
+#[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::entity::Relation",
+    aliases = ["sand::prelude::Relation"],
+    module = "sand::entity",
+    summary = "A vanilla entity relationship reachable via `execute on <relation>`.",
+    context = "A vanilla entity relationship reachable via `execute on <relation>`. This declaration belongs to Sand's typed entity model. Semantic definitions are public; selector rendering, validation bookkeeping, and compiler lowering remain internal.",
+    minecraft = "Sand validates this definition and lowers it to entity-scoped selectors, scoreboards, NBT operations, and generated lifecycle functions as required.",
+    use_when = ["Defining or using typed entity behavior in a Sand datapack"],
+    avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
+    example = "use sand::entity::Relation;",
+    variants(Attacker = "The entity that last damaged this entity.", Controller = "The entity steering this entity's vehicle (e.g. a boat's rower).", Leasher = "The entity leashing this entity.", Origin = "The entity that fired/summoned this entity (e.g. a projectile's shooter).", Owner = "The entity that owns this entity (e.g. a tamed wolf's owner).", Passengers = "The entities riding this entity. Many-cardinality.", Target = "This entity's current attack/follow target (mobs only).", Vehicle = "The vehicle this entity is riding."),
+)]
 /// A vanilla entity relationship reachable via `execute on <relation>`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Relation {
-    #[doc = "**API Contract:** Run `sand api show sand::entity::Relation::Owner` for the canonical contract."]
     /// The entity that owns this entity (e.g. a tamed wolf's owner).
     Owner,
-    #[doc = "**API Contract:** Run `sand api show sand::entity::Relation::Leasher` for the canonical contract."]
     /// The entity leashing this entity.
     Leasher,
-    #[doc = "**API Contract:** Run `sand api show sand::entity::Relation::Target` for the canonical contract."]
     /// This entity's current attack/follow target (mobs only).
     Target,
-    #[doc = "**API Contract:** Run `sand api show sand::entity::Relation::Vehicle` for the canonical contract."]
     /// The vehicle this entity is riding.
     Vehicle,
-    #[doc = "**API Contract:** Run `sand api show sand::entity::Relation::Controller` for the canonical contract."]
     /// The entity steering this entity's vehicle (e.g. a boat's rower).
     Controller,
-    #[doc = "**API Contract:** Run `sand api show sand::entity::Relation::Attacker` for the canonical contract."]
     /// The entity that last damaged this entity.
     Attacker,
-    #[doc = "**API Contract:** Run `sand api show sand::entity::Relation::Origin` for the canonical contract."]
     /// The entity that fired/summoned this entity (e.g. a projectile's shooter).
     Origin,
-    #[doc = "**API Contract:** Run `sand api show sand::entity::Relation::Passengers` for the canonical contract."]
     /// The entities riding this entity. Many-cardinality.
     Passengers,
 }
 
 impl Relation {
     /// The `execute on <keyword>` relation keyword.
-    #[doc = "**API Contract:** Run `sand api show sand::entity::Relation::keyword` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::entity::Relation::keyword",
+        aliases = ["sand::prelude::Relation::keyword"],
+        module = "sand::entity",
+        kind = "method",
+        summary = "The `execute on <keyword>` relation keyword.",
+        context = "The `execute on <keyword>` relation keyword. This declaration belongs to Sand's typed entity model. Semantic definitions are public; selector rendering, validation bookkeeping, and compiler lowering remain internal.",
+        minecraft = "Sand validates this definition and lowers it to entity-scoped selectors, scoreboards, NBT operations, and generated lifecycle functions as required.",
+        use_when = ["Defining or using typed entity behavior in a Sand datapack"],
+        avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
+        returns = "The string value produced to use the `execute on <keyword>` relation keyword.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(relation_value: sand::entity::Relation)  {\n    let keyword = relation_value.keyword();\n}",
+    )]
     pub const fn keyword(self) -> &'static str {
         match self {
             Relation::Owner => "owner",
@@ -66,7 +83,21 @@ impl Relation {
     /// releases; the thresholds below should be re-verified against the
     /// vanilla changelog before relying on them for a profile close to the
     /// boundary.
-    #[doc = "**API Contract:** Run `sand api show sand::entity::Relation::check_supported` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::entity::Relation::check_supported",
+        aliases = ["sand::prelude::Relation::check_supported"],
+        module = "sand::entity",
+        kind = "method",
+        summary = "Returns `Err` with an actionable diagnostic if `profile` predates this relation's introduction in vanilla `execute on`.",
+        context = "Returns `Err` with an actionable diagnostic if `profile` predates this relation's introduction in vanilla `execute on`. `owner`, `leasher`, `target`, `vehicle`, and `passengers` were added alongside the `execute on` command itself (Minecraft 1.16) and are available on every profile Sand supports today, so they are never gated. `attacker`, `controller`, and `origin` were added in later releases; the thresholds below should be re-verified against the vanilla changelog before relying on them for a profile close to the boundary.",
+        minecraft = "`owner`, `leasher`, `target`, `vehicle`, and `passengers` were added alongside the `execute on` command itself (Minecraft 1.16) and are available on every profile Sand supports today, so they are never gated. `attacker`, `controller`, and `origin` were added in later releases; the thresholds below should be re-verified against the vanilla changelog before relying on them for a profile close to the boundary.",
+        use_when = ["Defining or using typed entity behavior in a Sand datapack"],
+        avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
+        params(profile = "Returns `Err` with an actionable diagnostic if `profile` predates this relation's introduction in vanilla `execute on`."),
+        returns = "Returns `Err` with an actionable diagnostic if `profile` predates this relation's introduction in vanilla `execute on`.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(relation_value: sand::entity::Relation, profile: & sand::version::VersionProfile)  {\n    let check_supported = relation_value.check_supported(profile);\n}",
+    )]
     pub fn check_supported(self, profile: &VersionProfile) -> Result<()> {
         let min: Option<(u32, u32, u32)> = match self {
             Relation::Owner
@@ -102,7 +133,18 @@ impl Relation {
     }
 }
 
-#[doc = "**API Contract:** Run `sand api show sand::entity::RelationQuery` for the canonical contract."]
+#[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::entity::RelationQuery",
+    aliases = ["sand::prelude::RelationQuery"],
+    module = "sand::entity",
+    summary = "A pending traversal of a single [`Relation`] from an [`EntityContext`].",
+    context = "A pending traversal of a single [`Relation`] from an [`EntityContext`]. `A` encodes cardinality: [`One`] for relations that resolve to at most one entity, [`Many`] for [`Relation::Passengers`]. Cardinality is enforced at the type level: [`RelationQuery::<One>::if_present`] and [`RelationQuery::<One>::if_player`] are only defined for single-cardinality relations, and [`RelationQuery::<Many>::each`] is only defined for many-cardinality ones. Calling the single-relation API on a many-cardinality relation is a compile error, not a runtime one:",
+    minecraft = "Sand validates this definition and lowers it to entity-scoped selectors, scoreboards, NBT operations, and generated lifecycle functions as required.",
+    use_when = ["Defining or using typed entity behavior in a Sand datapack"],
+    avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
+    example = "use sand::entity::RelationQuery;",
+)]
 /// A pending traversal of a single [`Relation`] from an [`EntityContext`].
 ///
 /// `A` encodes cardinality: [`One`] for relations that resolve to at most one
@@ -138,7 +180,20 @@ impl<A> RelationQuery<A> {
     }
 
     /// The underlying relation.
-    #[doc = "**API Contract:** Run `sand api show sand::entity::RelationQuery::relation` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::entity::RelationQuery::relation",
+        aliases = ["sand::prelude::RelationQuery::relation"],
+        module = "sand::entity",
+        kind = "method",
+        summary = "The underlying relation.",
+        context = "The underlying relation. This declaration belongs to Sand's typed entity model. Semantic definitions are public; selector rendering, validation bookkeeping, and compiler lowering remain internal.",
+        minecraft = "Sand validates this definition and lowers it to entity-scoped selectors, scoreboards, NBT operations, and generated lifecycle functions as required.",
+        use_when = ["Defining or using typed entity behavior in a Sand datapack"],
+        avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
+        returns = "The `Relation` value produced to use the underlying relation.",
+        example = "use sand::prelude::*;\n\nfn demonstrate<A: 'static>(relation_query_value: &sand::entity::RelationQuery < A >)  {\n    let relation = relation_query_value.relation();\n}",
+    )]
     pub fn relation(&self) -> Relation {
         self.relation
     }
@@ -172,7 +227,21 @@ impl RelationQuery<One> {
     /// [`AnyEntity`] context. No-op (empty command list) if the relation is
     /// absent at runtime — vanilla `execute on <relation>` fails silently
     /// when there is no such entity.
-    #[doc = "**API Contract:** Run `sand api show sand::entity::RelationQuery::if_present` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::entity::RelationQuery::if_present",
+        aliases = ["sand::prelude::RelationQuery::if_present"],
+        module = "sand::entity",
+        kind = "method",
+        summary = "Run `body` if the relation resolves to an entity, as a generic [`AnyEntity`] context. No-op (empty command list) if the relation is absent at runtime — vanilla `execute on <relation>` fails silently when there is no such entity.",
+        context = "Run `body` if the relation resolves to an entity, as a generic [`AnyEntity`] context. No-op (empty command list) if the relation is absent at runtime — vanilla `execute on <relation>` fails silently when there is no such entity. This declaration belongs to Sand's typed entity model. Semantic definitions are public; selector rendering, validation bookkeeping, and compiler lowering remain internal.",
+        minecraft = "Sand validates this definition and lowers it to entity-scoped selectors, scoreboards, NBT operations, and generated lifecycle functions as required.",
+        use_when = ["Defining or using typed entity behavior in a Sand datapack"],
+        avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
+        params(profile = "`profile` provides the profile used when running `body` if the relation resolves to an entity, as a generic [`AnyEntity`] context. No-op (empty command list) if the relation is absent at runtime — vanilla `execute on <relation>` fails silently when there is no such entity.", body = "Run `body` if the relation resolves to an entity, as a generic [`AnyEntity`] context. No-op (empty command list) if the relation is absent at runtime — vanilla `execute on <relation>` fails silently when there is no such entity."),
+        returns = "On success, the value produced to run `body` if the relation resolves to an entity, as a generic [`AnyEntity`] context. No-op (empty command list) if the relation is absent at runtime — vanilla `execute on <relation>` fails silently when there is no such entity; otherwise, the documented validation or export diagnostic.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(relation_query_value: &sand::entity::RelationQuery < sand::command::One >, profile: & sand::version::VersionProfile, body: impl FnOnce (& sand::entity::EntityContext < sand::entity::AnyEntity >) -> Vec < String >)  {\n    let if_present = relation_query_value.if_present(profile, body);\n}",
+    )]
     pub fn if_present(
         &self,
         profile: &VersionProfile,
@@ -182,7 +251,21 @@ impl RelationQuery<One> {
     }
 
     /// Run `body` only if the relation resolves to a player.
-    #[doc = "**API Contract:** Run `sand api show sand::entity::RelationQuery::if_player` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::entity::RelationQuery::if_player",
+        aliases = ["sand::prelude::RelationQuery::if_player"],
+        module = "sand::entity",
+        kind = "method",
+        summary = "Run `body` only if the relation resolves to a player.",
+        context = "Run `body` only if the relation resolves to a player. This declaration belongs to Sand's typed entity model. Semantic definitions are public; selector rendering, validation bookkeeping, and compiler lowering remain internal.",
+        minecraft = "Sand validates this definition and lowers it to entity-scoped selectors, scoreboards, NBT operations, and generated lifecycle functions as required.",
+        use_when = ["Defining or using typed entity behavior in a Sand datapack"],
+        avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
+        params(profile = "`profile` provides the profile used when running `body` only if the relation resolves to a player.", body = "Run `body` only if the relation resolves to a player."),
+        returns = "On success, the value produced to run `body` only if the relation resolves to a player; otherwise, the documented validation or export diagnostic.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(relation_query_value: &sand::entity::RelationQuery < sand::command::One >, profile: & sand::version::VersionProfile, body: impl FnOnce (& sand::entity::EntityContext < sand::entity::PlayerKind >) -> Vec < String >)  {\n    let if_player = relation_query_value.if_player(profile, body);\n}",
+    )]
     pub fn if_player(
         &self,
         profile: &VersionProfile,
@@ -194,7 +277,21 @@ impl RelationQuery<One> {
 
 impl RelationQuery<Many> {
     /// Run `body` once for each passenger, as a generic [`AnyEntity`] context.
-    #[doc = "**API Contract:** Run `sand api show sand::entity::RelationQuery::each` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::entity::RelationQuery::each",
+        aliases = ["sand::prelude::RelationQuery::each"],
+        module = "sand::entity",
+        kind = "method",
+        summary = "Run `body` once for each passenger, as a generic [`AnyEntity`] context.",
+        context = "Run `body` once for each passenger, as a generic [`AnyEntity`] context. This declaration belongs to Sand's typed entity model. Semantic definitions are public; selector rendering, validation bookkeeping, and compiler lowering remain internal.",
+        minecraft = "Sand validates this definition and lowers it to entity-scoped selectors, scoreboards, NBT operations, and generated lifecycle functions as required.",
+        use_when = ["Defining or using typed entity behavior in a Sand datapack"],
+        avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
+        params(profile = "`profile` provides the profile used when running `body` once for each passenger, as a generic [`AnyEntity`] context.", body = "Run `body` once for each passenger, as a generic [`AnyEntity`] context."),
+        returns = "On success, the value produced to run `body` once for each passenger, as a generic [`AnyEntity`] context; otherwise, the documented validation or export diagnostic.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(relation_query_value: &sand::entity::RelationQuery < sand::command::Many >, profile: & sand::version::VersionProfile, body: impl FnOnce (& sand::entity::EntityContext < sand::entity::AnyEntity >) -> Vec < String >)  {\n    let each = relation_query_value.each(profile, body);\n}",
+    )]
     pub fn each(
         &self,
         profile: &VersionProfile,

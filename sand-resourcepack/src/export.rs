@@ -23,7 +23,20 @@ use crate::descriptor::ResourcePackDescriptor;
 /// A warning is printed to `stderr` when duplicate unicode codepoints are
 /// detected across providers in the same font file — Minecraft silently uses
 /// the last definition, which is almost always a bug.
-#[doc = "**API Contract:** Run `sand api show sand::resourcepack::export_resourcepack_json` for the canonical contract."]
+#[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::resourcepack::export_resourcepack_json",
+    module = "sand::resourcepack",
+    summary = "Collect all inventory-registered resource pack components, merge font providers that share the same output file, and return the result as a JSON string for consumption by `sand build --resourcepack`.",
+    context = "Collect all inventory-registered resource pack components, merge font providers that share the same output file, and return the result as a JSON string for consumption by `sand build --resourcepack`. Called by the generated `sand_resource_export` binary inside the user's project. Multiple [`HudBar`](sand::resourcepack::HudBar) and [`HudElement`](sand::resourcepack::HudElement) registrations may target the same font file (e.g. both writing to `assets/ns/font/default.json`). This function detects such cases by comparing output paths and, when two JSON outputs share a path, merges their `\"providers\"` arrays into a single file. A warning is printed to `stderr` when duplicate unicode codepoints are detected across providers in the same font file — Minecraft silently uses the last definition, which is almost always a bug.",
+    minecraft = "Called by the generated `sand_resource_export` binary inside the user's project.",
+    use_when = ["Building HUD bars, HUD elements, textures, or resource-pack output alongside a Sand datapack"],
+    avoid_when = ["The project is datapack-only or needs unrelated resource-pack functionality not modeled by Sand"],
+    params(namespace = "`namespace` is used to collect all inventory-registered resource pack components, merge font providers that share the same output file, and return the result as a JSON string for consumption by `sand build --resourcepack`."),
+    returns = "The string value produced to collect all inventory-registered resource pack components, merge font providers that share the same output file, and return the result as a JSON string for consumption by `sand build --resourcepack`.",
+    example = "use sand::prelude::*;\n\nfn demonstrate(namespace: & str)  {\n    let export_resourcepack_json = sand::resourcepack::export_resourcepack_json(namespace);\n}",
+    availability = ["Cargo feature: resourcepack"],
+)]
 pub fn export_resourcepack_json(namespace: &str) -> String {
     // Collect all AssetOutputs from every registered component.
     // Use a BTreeMap keyed by output path so merging is deterministic.

@@ -1083,6 +1083,22 @@ fn inspect_items(
             let parent_path = declaration.canonical_path.clone();
             let parent_aliases = declaration.aliases.clone();
             let args = api_args(attribute, source)?;
+            let member_aliases = args
+                .member_aliases
+                .as_deref()
+                .unwrap_or_default()
+                .iter()
+                .map(|member| {
+                    (
+                        member.name.to_string(),
+                        member
+                            .aliases
+                            .iter()
+                            .map(syn::LitStr::value)
+                            .collect::<Vec<_>>(),
+                    )
+                })
+                .collect::<BTreeMap<_, _>>();
             declarations.push(declaration);
             for member in args
                 .fields
@@ -1096,6 +1112,7 @@ fn inspect_items(
                     aliases: parent_aliases
                         .iter()
                         .map(|alias| format!("{alias}::{name}"))
+                        .chain(member_aliases.get(&name).into_iter().flatten().cloned())
                         .collect(),
                     source: source.to_owned(),
                     definition: member_source_definition(item, &name, source),
@@ -1104,11 +1121,17 @@ fn inspect_items(
             }
             for member in args.variant_fields.into_iter().flatten() {
                 let name = format!("{}::{}", member.variant, member.name);
+                let extra_aliases = member_aliases
+                    .get(&member.variant.to_string())
+                    .into_iter()
+                    .flatten()
+                    .map(|alias| format!("{alias}::{}", member.name));
                 declarations.push(ContractDeclaration {
                     canonical_path: format!("{parent_path}::{name}"),
                     aliases: parent_aliases
                         .iter()
                         .map(|alias| format!("{alias}::{name}"))
+                        .chain(extra_aliases)
                         .collect(),
                     source: source.to_owned(),
                     definition: member_source_definition(item, &name, source),

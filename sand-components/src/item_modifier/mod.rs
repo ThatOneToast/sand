@@ -6,7 +6,19 @@ use crate::resource_location::ResourceLocation;
 
 use crate::loot_table::LootFunction;
 
-#[doc = "**API Contract:** Run `sand api show sand::component::ItemModifier` for the canonical contract."]
+#[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::component::ItemModifier",
+    aliases = ["sand::prelude::ItemModifier"],
+    module = "sand::component",
+    summary = "An item modifier that applies loot functions to transform items in Minecraft.",
+    context = "An item modifier that applies loot functions to transform items in Minecraft. Normal fallible export rejects modifiers without functions. Construction is intentionally incremental, so this invariant is checked by [`validate`](Self::validate) rather than by [`new`](Self::new). Direct legacy [`to_json`](Self::to_json) calls retain their historical empty-array behavior.",
+    minecraft = "Normal fallible export rejects modifiers without functions. Construction is intentionally incremental, so this invariant is checked by [`validate`](Self::validate) rather than by [`new`](Self::new). Direct legacy [`to_json`](Self::to_json) calls retain their historical empty-array behavior.",
+    use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+    avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+    example = "use sand::component::ItemModifier;",
+    fields(functions = "List of loot functions to apply to items.", location = "The resource location for this item modifier."),
+)]
 /// An item modifier that applies loot functions to transform items in Minecraft.
 ///
 /// Normal fallible export rejects modifiers without functions. Construction is
@@ -14,17 +26,29 @@ use crate::loot_table::LootFunction;
 /// rather than by [`new`](Self::new). Direct legacy [`to_json`](Self::to_json)
 /// calls retain their historical empty-array behavior.
 pub struct ItemModifier {
-    #[doc = "**API Contract:** Run `sand api show sand::component::ItemModifier::location` for the canonical contract."]
     /// The resource location for this item modifier.
     pub location: ResourceLocation,
-    #[doc = "**API Contract:** Run `sand api show sand::component::ItemModifier::functions` for the canonical contract."]
     /// List of loot functions to apply to items.
     pub functions: Vec<LootFunction>,
 }
 
 impl ItemModifier {
     /// Create a new item modifier with the given resource location.
-    #[doc = "**API Contract:** Run `sand api show sand::component::ItemModifier::new` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::ItemModifier::new",
+        aliases = ["sand::prelude::ItemModifier::new"],
+        module = "sand::component",
+        kind = "method",
+        summary = "Create a new item modifier with the given resource location.",
+        context = "Create a new item modifier with the given resource location. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(location = "`location` provides the typed resource identifier or location used to create a new item modifier with the given resource location."),
+        returns = "An `ItemModifier` representing a new item modifier with the given resource location.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(location: sand::ResourceLocation)  {\n    let item_modifier = sand::component::ItemModifier::new(location);\n}",
+    )]
     pub fn new(location: ResourceLocation) -> Self {
         Self {
             location,
@@ -33,7 +57,21 @@ impl ItemModifier {
     }
 
     /// Add a loot function to this item modifier.
-    #[doc = "**API Contract:** Run `sand api show sand::component::ItemModifier::function` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::ItemModifier::function",
+        aliases = ["sand::prelude::ItemModifier::function"],
+        module = "sand::component",
+        kind = "method",
+        summary = "Add a loot function to this item modifier.",
+        context = "Add a loot function to this item modifier. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(f = "`f` provides the f added when building a loot function to this item modifier."),
+        returns = "The `ItemModifier` value with the documented change applied to add a loot function to this item modifier.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(item_modifier_value: sand::component::ItemModifier, f: sand::component::LootFunction)  {\n    let updated_item_modifier = item_modifier_value.function(f);\n}",
+    )]
     pub fn function(mut self, f: LootFunction) -> Self {
         self.functions.push(f);
         self

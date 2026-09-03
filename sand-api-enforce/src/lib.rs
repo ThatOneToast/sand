@@ -315,10 +315,7 @@ fn inspect_items(
                             ),
                             _ => {}
                         }
-                        if !has_api(child_attrs)
-                            && !doc_hidden(child_attrs)
-                            && !contracted_paths.contains(&child_path)
-                        {
+                        if !has_api(child_attrs) && !doc_hidden(child_attrs) {
                             push_violation(source, span, child_path, kind, violations);
                         }
                     }
@@ -336,13 +333,10 @@ fn inspect_items(
                         .ident
                         .as_ref()
                         .map_or_else(|| "<anonymous>".to_owned(), ToString::to_string);
-                    push_violation(
-                        source,
-                        value.span(),
-                        format!("{module}::{name}"),
-                        "macro",
-                        violations,
-                    );
+                    let path = format!("{module}::{name}");
+                    if !contracted_paths.contains(&path) {
+                        push_violation(source, value.span(), path, "macro", violations);
+                    }
                 }
             }
             _ => {
@@ -452,11 +446,9 @@ fn check_public(
     contracted_paths: &BTreeSet<String>,
     violations: &mut Vec<Violation>,
 ) {
-    if is_public(visibility)
-        && !excluded
-        && !has_api(attrs)
-        && !contracted_paths.contains(canonical_path)
-    {
+    let facade_exception = contracted_paths.contains(canonical_path)
+        && matches!(item_kind, "module" | "re-export" | "macro");
+    if is_public(visibility) && !excluded && !has_api(attrs) && !facade_exception {
         push_violation(
             source,
             span,
@@ -556,6 +548,44 @@ mod tests {
         assert!(paths.contains(&"sand::fixture::Builder::build"));
         assert!(paths.contains(&"sand::fixture::Extension"));
         assert!(paths.contains(&"sand::fixture::Extension::extend"));
+    }
+
+    #[test]
+    fn facade_contract_cannot_bypass_api_on_an_ordinary_definition() {
+        let directory = tempfile::tempdir().unwrap();
+        let source = directory.path().join("lib.rs");
+        fs::write(
+            &source,
+            r#"
+                /// API Contract: run `sand api show sand::fixture::Builder::build`.
+                pub struct Builder;
+                impl Builder {
+                    /// API Contract: run `sand api show sand::fixture::Builder::build`.
+                    pub fn build(self, value: u32) -> u32 { value }
+                }
+            "#,
+        )
+        .unwrap();
+        let contracted = [
+            "sand::fixture::Builder".to_owned(),
+            "sand::fixture::Builder::build".to_owned(),
+        ]
+        .into_iter()
+        .collect();
+        let violations = audit_with_contracts(
+            &[SurfaceRoot {
+                source,
+                canonical_module: "sand::fixture".into(),
+            }],
+            &contracted,
+        )
+        .unwrap_err();
+        assert_eq!(violations.len(), 2);
+        assert!(
+            violations
+                .iter()
+                .any(|violation| violation.canonical_path.ends_with("::build"))
+        );
     }
 
     #[test]

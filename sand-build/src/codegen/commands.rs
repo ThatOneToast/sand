@@ -5,7 +5,7 @@ use heck::{ToPascalCase, ToSnakeCase};
 use sand_api_contract::{ApiEntry, ApiKind, ApiParameter};
 use serde_json::Value;
 
-use crate::api_provider::{ApiProviderCatalog, GeneratedProviderEntry};
+use crate::api_provider::{ApiProviderCatalog, GeneratedProviderEntry, write_contract_rustdoc};
 use crate::error::Result;
 
 /// Top-level commands to skip entirely (they use redirects or are aliases).
@@ -378,7 +378,7 @@ fn assign_rust_names(variants: Vec<CommandVariant>) -> Vec<EmittedVariant> {
         .collect()
 }
 
-fn emit_variant(code: &mut String, ev: &EmittedVariant) {
+fn emit_variant(code: &mut String, ev: &EmittedVariant, contracts: &[GeneratedProviderEntry]) {
     let variant = &ev.command;
     let literals = variant.literal_segments();
     let required = variant.required_args();
@@ -406,11 +406,11 @@ fn emit_variant(code: &mut String, ev: &EmittedVariant) {
     }
 
     writeln!(code, "// /{usage}").unwrap();
-    writeln!(code, "/// `{usage}`").unwrap();
-    writeln!(code, "///").unwrap();
-    writeln!(code, "/// # API Contract").unwrap();
-    writeln!(code, "///").unwrap();
-    writeln!(code, "/// `sand api show sand::command::{sname}`").unwrap();
+    let struct_contract = contracts
+        .iter()
+        .find(|entry| entry.contract.kind == ApiKind::Struct)
+        .expect("command generator creates a struct contract");
+    write_contract_rustdoc(code, "", &struct_contract.contract);
 
     if !has_required {
         writeln!(code, "#[derive(Debug, Clone, Default)]").unwrap();
@@ -460,13 +460,12 @@ fn emit_variant(code: &mut String, ev: &EmittedVariant) {
 
     for arg in &variant.optional_args {
         let (param_ty, _stored_ty, needs_into) = map_arg_parser(&literals, arg);
-        writeln!(code, "    /// # API Contract").unwrap();
-        writeln!(
-            code,
-            "    /// `sand api show sand::command::{sname}::{}`",
-            arg.name
-        )
-        .unwrap();
+        let method_path = format!("sand::command::{sname}::{}", arg.name);
+        let method_contract = contracts
+            .iter()
+            .find(|entry| entry.contract.canonical_path == method_path)
+            .expect("command generator creates an optional-argument contract");
+        write_contract_rustdoc(code, "    ", &method_contract.contract);
         writeln!(
             code,
             "    pub fn {name}(mut self, {name}: {param_ty}) -> Self {{",
@@ -540,11 +539,11 @@ fn emit_variant(code: &mut String, ev: &EmittedVariant) {
     writeln!(code, "impl Command for {sname} {{}}").unwrap();
     writeln!(code).unwrap();
 
-    writeln!(code, "/// Build a `{cmd_str}` command.").unwrap();
-    writeln!(code, "///").unwrap();
-    writeln!(code, "/// # API Contract").unwrap();
-    writeln!(code, "///").unwrap();
-    writeln!(code, "/// `sand api show sand::command::{fname}`").unwrap();
+    let function_contract = contracts
+        .iter()
+        .find(|entry| entry.contract.kind == ApiKind::Function)
+        .expect("command generator creates a function contract");
+    write_contract_rustdoc(code, "", &function_contract.contract);
 
     if has_required {
         let mut params = Vec::new();
@@ -825,8 +824,9 @@ pub fn generate(reports_dir: &Path, out_dir: &Path, minecraft_version: &str) -> 
     writeln!(code).unwrap();
 
     for ev in &emitted {
-        emit_variant(&mut code, ev);
-        api_entries.extend(command_api_entries(ev, minecraft_version));
+        let contracts = command_api_entries(ev, minecraft_version);
+        emit_variant(&mut code, ev, &contracts);
+        api_entries.extend(contracts);
     }
 
     let out_path = out_dir.join("commands.rs");
@@ -923,6 +923,13 @@ mod tests {
         assert!(generated.contains("pub struct Say"), "missing Say struct");
         assert!(generated.contains("pub fn say("), "missing say fn");
         assert!(generated.contains("pub fn kill("), "missing kill fn");
+        assert!(generated.contains("#[doc = \"# Minecraft behavior\"]"));
+        assert!(generated.contains("#[doc = \"# Parameters\"]"));
+        assert!(generated.contains("#[doc = \"# Returns\"]"));
+        assert!(generated.contains("#[doc = \"# Use when\"]"));
+        assert!(generated.contains("#[doc = \"# Avoid when\"]"));
+        assert!(generated.contains("#[doc = \"# Example\"]"));
+        assert!(!generated.contains("sand api show"));
         assert!(
             generated.contains("impl Command for Say"),
             "missing Command impl"

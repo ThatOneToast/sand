@@ -11,11 +11,22 @@ use crate::resource_location::ResourceLocation;
 use super::types::{Ingredient, RecipeResult};
 use sand_version::ComponentFeature;
 
-#[doc = "**API Contract:** Run `sand api show sand::component::ShapedRecipe` for the canonical contract."]
+#[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::component::ShapedRecipe",
+    aliases = ["sand::prelude::ShapedRecipe"],
+    module = "sand::component",
+    summary = "Represents a shaped crafting recipe where items must be placed in specific grid positions.",
+    context = "Represents a shaped crafting recipe where items must be placed in specific grid positions. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+    minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+    use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+    avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+    example = "use sand::component::ShapedRecipe;",
+    fields(location = "`location` provides the location identifier when the variant represents a shaped crafting recipe where items must be placed in specific grid positions."),
+)]
 /// Represents a shaped crafting recipe where items must be placed in specific grid positions.
 pub struct ShapedRecipe {
     /// `location` provides the location identifier when the variant represents a shaped crafting recipe where items must be placed in specific grid positions.
-    #[doc = "**API Contract:** Run `sand api show sand::component::ShapedRecipe::location` for the canonical contract."]
     pub location: ResourceLocation,
     category: Option<String>,
     group: Option<String>,
@@ -27,7 +38,21 @@ pub struct ShapedRecipe {
 
 impl ShapedRecipe {
     /// Creates a new shaped recipe with the given resource location.
-    #[doc = "**API Contract:** Run `sand api show sand::component::ShapedRecipe::new` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::ShapedRecipe::new",
+        aliases = ["sand::prelude::ShapedRecipe::new"],
+        module = "sand::component",
+        kind = "method",
+        summary = "Creates a new shaped recipe with the given resource location.",
+        context = "Creates a new shaped recipe with the given resource location. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(location = "`location` provides the typed resource identifier or location used to create a new shaped recipe with the given resource location."),
+        returns = "A `ShapedRecipe` representing a new shaped recipe with the given resource location.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(location: sand::ResourceLocation)  {\n    let shaped_recipe = sand::component::ShapedRecipe::new(location);\n}",
+    )]
     pub fn new(location: ResourceLocation) -> Self {
         Self {
             location,
@@ -41,42 +66,126 @@ impl ShapedRecipe {
     }
 
     /// Sets the crafting pattern rows (e.g., 3x3 grid layout).
-    #[doc = "**API Contract:** Run `sand api show sand::component::ShapedRecipe::pattern` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::ShapedRecipe::pattern",
+        aliases = ["sand::prelude::ShapedRecipe::pattern"],
+        module = "sand::component",
+        kind = "method",
+        summary = "Sets the crafting pattern rows (e.g., 3x3 grid layout).",
+        context = "Sets the crafting pattern rows (e.g., 3x3 grid layout). This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(rows = "`rows` provides the rows applied when setting the crafting pattern rows (e.g., 3x3 grid layout)."),
+        returns = "The `ShapedRecipe` value with the documented change applied to set the crafting pattern rows (e.g., 3x3 grid layout).",
+        example = "use sand::prelude::*;\n\nfn demonstrate(shaped_recipe_value: sand::component::ShapedRecipe, rows: impl IntoIterator < Item = impl Into < String > >)  {\n    let updated_shaped_recipe = shaped_recipe_value.pattern(rows);\n}",
+    )]
     pub fn pattern(mut self, rows: impl IntoIterator<Item = impl Into<String>>) -> Self {
         self.pattern = rows.into_iter().map(|r| r.into()).collect();
         self
     }
 
     /// Maps a character to an ingredient in the recipe pattern.
-    #[doc = "**API Contract:** Run `sand api show sand::component::ShapedRecipe::key` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::ShapedRecipe::key",
+        aliases = ["sand::prelude::ShapedRecipe::key"],
+        module = "sand::component",
+        kind = "method",
+        summary = "Maps a character to an ingredient in the recipe pattern.",
+        context = "Maps a character to an ingredient in the recipe pattern. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(ch = "`ch` is used to map a character to an ingredient in the recipe pattern.", ingredient = "`ingredient` is used to map a character to an ingredient in the recipe pattern."),
+        returns = "The `ShapedRecipe` value with the documented change applied to map a character to an ingredient in the recipe pattern.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(shaped_recipe_value: sand::component::ShapedRecipe, ch: char, ingredient: sand::component::Ingredient)  {\n    let updated_shaped_recipe = shaped_recipe_value.key(ch, ingredient);\n}",
+    )]
     pub fn key(mut self, ch: char, ingredient: Ingredient) -> Self {
         self.key.insert(ch, ingredient);
         self
     }
 
     /// Sets the result item and quantity produced by this recipe.
-    #[doc = "**API Contract:** Run `sand api show sand::component::ShapedRecipe::result` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::ShapedRecipe::result",
+        aliases = ["sand::prelude::ShapedRecipe::result"],
+        module = "sand::component",
+        kind = "method",
+        summary = "Sets the result item and quantity produced by this recipe.",
+        context = "Sets the result item and quantity produced by this recipe. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(result = "`result` provides the result applied when setting the result item and quantity produced by this recipe."),
+        returns = "The `ShapedRecipe` value with the documented change applied to set the result item and quantity produced by this recipe.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(shaped_recipe_value: sand::component::ShapedRecipe, result: sand::component::RecipeResult)  {\n    let updated_shaped_recipe = shaped_recipe_value.result(result);\n}",
+    )]
     pub fn result(mut self, result: RecipeResult) -> Self {
         self.result = result;
         self
     }
 
     /// Sets the recipe category for organization.
-    #[doc = "**API Contract:** Run `sand api show sand::component::ShapedRecipe::category` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::ShapedRecipe::category",
+        aliases = ["sand::prelude::ShapedRecipe::category"],
+        module = "sand::component",
+        kind = "method",
+        summary = "Sets the recipe category for organization.",
+        context = "Sets the recipe category for organization. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(cat = "`cat` provides the cat applied when setting the recipe category for organization."),
+        returns = "The `ShapedRecipe` value with the documented change applied to set the recipe category for organization.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(shaped_recipe_value: sand::component::ShapedRecipe, cat: impl Into < String >)  {\n    let updated_shaped_recipe = shaped_recipe_value.category(cat);\n}",
+    )]
     pub fn category(mut self, cat: impl Into<String>) -> Self {
         self.category = Some(cat.into());
         self
     }
 
     /// Sets the recipe group for organization.
-    #[doc = "**API Contract:** Run `sand api show sand::component::ShapedRecipe::group` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::ShapedRecipe::group",
+        aliases = ["sand::prelude::ShapedRecipe::group"],
+        module = "sand::component",
+        kind = "method",
+        summary = "Sets the recipe group for organization.",
+        context = "Sets the recipe group for organization. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(g = "`g` provides the recipe group name used to set the recipe group for organization."),
+        returns = "The `ShapedRecipe` value with the documented change applied to set the recipe group for organization.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(shaped_recipe_value: sand::component::ShapedRecipe, g: impl Into < String >)  {\n    let updated_shaped_recipe = shaped_recipe_value.group(g);\n}",
+    )]
     pub fn group(mut self, g: impl Into<String>) -> Self {
         self.group = Some(g.into());
         self
     }
 
     /// Sets whether a notification is shown when the recipe is unlocked.
-    #[doc = "**API Contract:** Run `sand api show sand::component::ShapedRecipe::show_notification` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::ShapedRecipe::show_notification",
+        aliases = ["sand::prelude::ShapedRecipe::show_notification"],
+        module = "sand::component",
+        kind = "method",
+        summary = "Sets whether a notification is shown when the recipe is unlocked.",
+        context = "Sets whether a notification is shown when the recipe is unlocked. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(v = "`v` provides the switch that enables or disables the behavior used to set whether a notification is shown when the recipe is unlocked."),
+        returns = "The `ShapedRecipe` value with the documented change applied to set whether a notification is shown when the recipe is unlocked.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(shaped_recipe_value: sand::component::ShapedRecipe, v: bool)  {\n    let updated_shaped_recipe = shaped_recipe_value.show_notification(v);\n}",
+    )]
     pub fn show_notification(mut self, v: bool) -> Self {
         self.show_notification = v;
         self

@@ -15,7 +15,18 @@ use crate::error::Result as SandResult;
 use crate::resource_location::ResourceLocation;
 use crate::validation;
 
-#[doc = "**API Contract:** Run `sand api show sand::component::BannerPattern` for the canonical contract."]
+#[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::component::BannerPattern",
+    aliases = ["sand::prelude::BannerPattern"],
+    module = "sand::component",
+    summary = "A banner pattern definition (`data/<namespace>/banner_pattern/<id>.json`).",
+    context = "A banner pattern definition (`data/<namespace>/banner_pattern/<id>.json`). Banner patterns define custom designs that can be applied to banners and shields using a loom. Each pattern requires a translation key for its display name.",
+    minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+    use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+    avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+    example = "use sand::component::BannerPattern;",
+)]
 /// A banner pattern definition (`data/<namespace>/banner_pattern/<id>.json`).
 ///
 /// Banner patterns define custom designs that can be applied to banners and shields
@@ -32,7 +43,21 @@ pub struct BannerPattern {
 
 impl BannerPattern {
     /// Creates a new banner pattern with the given resource location.
-    #[doc = "**API Contract:** Run `sand api show sand::component::BannerPattern::new` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::BannerPattern::new",
+        aliases = ["sand::prelude::BannerPattern::new"],
+        module = "sand::component",
+        kind = "method",
+        summary = "Creates a new banner pattern with the given resource location.",
+        context = "Creates a new banner pattern with the given resource location. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(location = "`location` provides the typed resource identifier or location used to create a new banner pattern with the given resource location."),
+        returns = "A `BannerPattern` representing a new banner pattern with the given resource location.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(location: sand::ResourceLocation)  {\n    let banner_pattern = sand::component::BannerPattern::new(location);\n}",
+    )]
     pub fn new(location: ResourceLocation) -> Self {
         Self {
             location,
@@ -42,14 +67,42 @@ impl BannerPattern {
     }
 
     /// Sets the asset ID (texture reference) for this banner pattern.
-    #[doc = "**API Contract:** Run `sand api show sand::component::BannerPattern::asset_id` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::BannerPattern::asset_id",
+        aliases = ["sand::prelude::BannerPattern::asset_id"],
+        module = "sand::component",
+        kind = "method",
+        summary = "Sets the asset ID (texture reference) for this banner pattern.",
+        context = "Sets the asset ID (texture reference) for this banner pattern. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(id = "`id` provides the typed resource identifier or location used to set the asset ID (texture reference) for this banner pattern."),
+        returns = "The `BannerPattern` value with the documented change applied to set the asset ID (texture reference) for this banner pattern.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(banner_pattern_value: sand::component::BannerPattern, id: impl Into < String >)  {\n    let updated_banner_pattern = banner_pattern_value.asset_id(id);\n}",
+    )]
     pub fn asset_id(mut self, id: impl Into<String>) -> Self {
         self.asset_id = id.into();
         self
     }
 
     /// Sets the translation key for the banner pattern's display name.
-    #[doc = "**API Contract:** Run `sand api show sand::component::BannerPattern::translation_key` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::BannerPattern::translation_key",
+        aliases = ["sand::prelude::BannerPattern::translation_key"],
+        module = "sand::component",
+        kind = "method",
+        summary = "Sets the translation key for the banner pattern's display name.",
+        context = "Sets the translation key for the banner pattern's display name. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(key = "`key` provides the key that identifies the setting or entry used to set the translation key for the banner pattern's display name."),
+        returns = "The `BannerPattern` value with the documented change applied to set the translation key for the banner pattern's display name.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(banner_pattern_value: sand::component::BannerPattern, key: impl Into < String >)  {\n    let updated_banner_pattern = banner_pattern_value.translation_key(key);\n}",
+    )]
     pub fn translation_key(mut self, key: impl Into<String>) -> Self {
         self.translation_key = key.into();
         self

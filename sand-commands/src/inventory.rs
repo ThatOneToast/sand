@@ -256,7 +256,18 @@ fn validate_modifier_str(
 
 // ── Inventory ─────────────────────────────────────────────────────────────────
 
-#[doc = "**API Contract:** Run `sand api show sand::command::Inventory` for the canonical contract."]
+#[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::command::Inventory",
+    aliases = ["sand::cmd::Inventory", "sand::prelude::Inventory", "sand::prelude::cmd::Inventory"],
+    module = "sand::command",
+    summary = "Fluent inventory operations for an entity selector.",
+    context = "Fluent inventory operations for an entity selector. This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
+    minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
+    use_when = ["Constructing Minecraft commands through Sand's typed command model"],
+    avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
+    example = "use sand::command::Inventory;",
+)]
 /// Fluent inventory operations for an entity selector.
 #[derive(Debug, Clone)]
 pub struct Inventory {
@@ -265,7 +276,21 @@ pub struct Inventory {
 
 impl Inventory {
     /// Create an inventory handle for the given entity selector.
-    #[doc = "**API Contract:** Run `sand api show sand::command::Inventory::of` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::command::Inventory::of",
+        aliases = ["sand::cmd::Inventory::of", "sand::prelude::Inventory::of", "sand::prelude::cmd::Inventory::of"],
+        module = "sand::command",
+        kind = "method",
+        summary = "Create an inventory handle for the given entity selector.",
+        context = "Create an inventory handle for the given entity selector. This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
+        minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
+        use_when = ["Constructing Minecraft commands through Sand's typed command model"],
+        avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
+        params(selector = "`selector` provides the Minecraft target selection used to create an inventory handle for the given entity selector."),
+        returns = "An `Inventory` representing an inventory handle for the given entity selector.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(selector: sand::command::Selector)  {\n    let inventory = sand::command::Inventory::of(selector);\n}",
+    )]
     pub fn of(selector: Selector) -> Self {
         Self { selector }
     }
@@ -276,7 +301,21 @@ impl Inventory {
     ///
     /// Never panics. The rendered line is re-validated at export time; use
     /// [`Inventory::try_give`] to fail fast instead.
-    #[doc = "**API Contract:** Run `sand api show sand::command::Inventory::give` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::command::Inventory::give",
+        aliases = ["sand::cmd::Inventory::give", "sand::prelude::Inventory::give", "sand::prelude::cmd::Inventory::give"],
+        module = "sand::command",
+        kind = "method",
+        summary = "`give <selector> <item>` — add an item to the entity's inventory.",
+        context = "`give <selector> <item>` — add an item to the entity's inventory. Never panics. The rendered line is re-validated at export time; use [`Inventory::try_give`] to fail fast instead.",
+        minecraft = "Never panics. The rendered line is re-validated at export time; use [`Inventory::try_give`] to fail fast instead.",
+        use_when = ["Constructing Minecraft commands through Sand's typed command model"],
+        avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
+        params(item = "`item` provides the item value or item predicate used to emit the documented `give <selector> <item>` — add an item to the entity's inventory form."),
+        returns = "The string value produced to emit the documented `give <selector> <item>` — add an item to the entity's inventory form.",
+        example = "use std::fmt;\nuse sand::prelude::*;\n\nfn demonstrate(inventory_value: &sand::command::Inventory, item: impl fmt::Display)  {\n    let give = inventory_value.give(item);\n}",
+    )]
     pub fn give(&self, item: impl fmt::Display) -> String {
         let item = item.to_string();
         let line = format!("give {} {item}", self.selector);
@@ -285,7 +324,21 @@ impl Inventory {
     }
 
     /// Fallible [`Inventory::give`] — validates the item ID shape first.
-    #[doc = "**API Contract:** Run `sand api show sand::command::Inventory::try_give` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::command::Inventory::try_give",
+        aliases = ["sand::cmd::Inventory::try_give", "sand::prelude::Inventory::try_give", "sand::prelude::cmd::Inventory::try_give"],
+        module = "sand::command",
+        kind = "method",
+        summary = "Fallible [`Inventory::give`] — validates the item ID shape first.",
+        context = "Fallible [`Inventory::give`] — validates the item ID shape first. This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
+        minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
+        use_when = ["Constructing Minecraft commands through Sand's typed command model"],
+        avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
+        params(item = "`item` provides the item value or item predicate used to use fallible [`Inventory::give`] — validates the item ID shape first."),
+        returns = "On success, the value produced to use fallible [`Inventory::give`] — validates the item ID shape first; otherwise, the documented validation or export diagnostic.",
+        example = "use std::fmt;\nuse sand::prelude::*;\n\nfn demonstrate(inventory_value: &sand::command::Inventory, item: impl fmt::Display)  {\n    let try_give = inventory_value.try_give(item);\n}",
+    )]
     pub fn try_give(&self, item: impl fmt::Display) -> CommandResult<String> {
         let item = item.to_string();
         validate_item_str(&item, "Inventory::try_give", "item")?;
@@ -296,7 +349,21 @@ impl Inventory {
     ///
     /// Never panics. The rendered line is re-validated at export time; use
     /// [`Inventory::try_give_count`] to fail fast instead.
-    #[doc = "**API Contract:** Run `sand api show sand::command::Inventory::give_count` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::command::Inventory::give_count",
+        aliases = ["sand::cmd::Inventory::give_count", "sand::prelude::Inventory::give_count", "sand::prelude::cmd::Inventory::give_count"],
+        module = "sand::command",
+        kind = "method",
+        summary = "`give <selector> <item> <count>` — add `count` copies of an item.",
+        context = "`give <selector> <item> <count>` — add `count` copies of an item. Never panics. The rendered line is re-validated at export time; use [`Inventory::try_give_count`] to fail fast instead.",
+        minecraft = "Never panics. The rendered line is re-validated at export time; use [`Inventory::try_give_count`] to fail fast instead.",
+        use_when = ["Constructing Minecraft commands through Sand's typed command model"],
+        avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
+        params(item = "`item` provides the item value or item predicate used to emit the documented `give <selector> <item> <count>` — add `count` copies of an item form.", count = "`give <selector> <item> <count>` — add `count` copies of an item."),
+        returns = "The string value produced to emit the documented `give <selector> <item> <count>` — add `count` copies of an item form.",
+        example = "use std::fmt;\nuse sand::prelude::*;\n\nfn demonstrate(inventory_value: &sand::command::Inventory, item: impl fmt::Display, count: u32)  {\n    let give_count = inventory_value.give_count(item, count);\n}",
+    )]
     pub fn give_count(&self, item: impl fmt::Display, count: u32) -> String {
         let item = item.to_string();
         let line = format!("give {} {item} {count}", self.selector);
@@ -307,7 +374,21 @@ impl Inventory {
     /// Fallible [`Inventory::give_count`] — validates the item ID shape and
     /// rejects a count of `0` (a zero-count `give` is a no-op Minecraft
     /// rejects rather than accepting).
-    #[doc = "**API Contract:** Run `sand api show sand::command::Inventory::try_give_count` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::command::Inventory::try_give_count",
+        aliases = ["sand::cmd::Inventory::try_give_count", "sand::prelude::Inventory::try_give_count", "sand::prelude::cmd::Inventory::try_give_count"],
+        module = "sand::command",
+        kind = "method",
+        summary = "Fallible [`Inventory::give_count`] — validates the item ID shape and rejects a count of `0` (a zero-count `give` is a no-op Minecraft rejects rather than accepting).",
+        context = "Fallible [`Inventory::give_count`] — validates the item ID shape and rejects a count of `0` (a zero-count `give` is a no-op Minecraft rejects rather than accepting). This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
+        minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
+        use_when = ["Constructing Minecraft commands through Sand's typed command model"],
+        avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
+        params(item = "`item` provides the item value or item predicate used to use fallible [`Inventory::give_count`] — validates the item ID shape and rejects a count of `0` (a zero-count `give` is a no-op Minecraft rejects rather than accepting).", count = "`count` provides the requested numeric amount used to use fallible [`Inventory::give_count`] — validates the item ID shape and rejects a count of `0` (a zero-count `give` is a no-op Minecraft rejects rather than accepting)."),
+        returns = "On success, the value produced to use fallible [`Inventory::give_count`] — validates the item ID shape and rejects a count of `0` (a zero-count `give` is a no-op Minecraft rejects rather than accepting); otherwise, the documented validation or export diagnostic.",
+        example = "use std::fmt;\nuse sand::prelude::*;\n\nfn demonstrate(inventory_value: &sand::command::Inventory, item: impl fmt::Display, count: u32)  {\n    let try_give_count = inventory_value.try_give_count(item, count);\n}",
+    )]
     pub fn try_give_count(&self, item: impl fmt::Display, count: u32) -> CommandResult<String> {
         let item = item.to_string();
         validate_item_str(&item, "Inventory::try_give_count", "item")?;
@@ -320,7 +401,21 @@ impl Inventory {
     /// Accepts any type that converts to [`ItemSlot`]. Never panics on an
     /// out-of-range or wildcard slot — the rendered line is re-validated at
     /// export time; use [`Inventory::try_set`] to fail fast instead.
-    #[doc = "**API Contract:** Run `sand api show sand::command::Inventory::set` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::command::Inventory::set",
+        aliases = ["sand::cmd::Inventory::set", "sand::prelude::Inventory::set", "sand::prelude::cmd::Inventory::set"],
+        module = "sand::command",
+        kind = "method",
+        summary = "`item replace entity <selector> <slot> with <item>` — overwrite a slot.",
+        context = "`item replace entity <selector> <slot> with <item>` — overwrite a slot. Accepts any type that converts to [`ItemSlot`]. Never panics on an out-of-range or wildcard slot — the rendered line is re-validated at export time; use [`Inventory::try_set`] to fail fast instead.",
+        minecraft = "Accepts any type that converts to [`ItemSlot`]. Never panics on an out-of-range or wildcard slot — the rendered line is re-validated at export time; use [`Inventory::try_set`] to fail fast instead.",
+        use_when = ["Constructing Minecraft commands through Sand's typed command model"],
+        avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
+        params(slot = "`slot` supplies the documented `item replace entity <selector> <slot> with <item>` — overwrite a slot form.", item = "`item` provides the item value or item predicate used to emit the documented `item replace entity <selector> <slot> with <item>` — overwrite a slot form."),
+        returns = "The string value produced to emit the documented `item replace entity <selector> <slot> with <item>` — overwrite a slot form.",
+        example = "use std::fmt;\nuse sand::prelude::*;\n\nfn demonstrate(inventory_value: &sand::command::Inventory, slot: impl Into < sand::command::ItemSlot >, item: impl fmt::Display)  {\n    let set = inventory_value.set(slot, item);\n}",
+    )]
     pub fn set(&self, slot: impl Into<ItemSlot>, item: impl fmt::Display) -> String {
         let slot = slot.into();
         let item = item.to_string();
@@ -331,7 +426,21 @@ impl Inventory {
 
     /// Fallible [`Inventory::set`] — rejects out-of-range/wildcard slots and
     /// malformed item IDs.
-    #[doc = "**API Contract:** Run `sand api show sand::command::Inventory::try_set` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::command::Inventory::try_set",
+        aliases = ["sand::cmd::Inventory::try_set", "sand::prelude::Inventory::try_set", "sand::prelude::cmd::Inventory::try_set"],
+        module = "sand::command",
+        kind = "method",
+        summary = "Fallible [`Inventory::set`] — rejects out-of-range/wildcard slots and malformed item IDs.",
+        context = "Fallible [`Inventory::set`] — rejects out-of-range/wildcard slots and malformed item IDs. This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
+        minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
+        use_when = ["Constructing Minecraft commands through Sand's typed command model"],
+        avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
+        params(slot = "`slot` sets the slot for fallible [`Inventory::set`] — rejects out-of-range/wildcard slots and malformed item IDs.", item = "`item` provides the item value or item predicate used to use fallible [`Inventory::set`] — rejects out-of-range/wildcard slots and malformed item IDs."),
+        returns = "On success, the value produced to use fallible [`Inventory::set`] — rejects out-of-range/wildcard slots and malformed item IDs; otherwise, the documented validation or export diagnostic.",
+        example = "use std::fmt;\nuse sand::prelude::*;\n\nfn demonstrate(inventory_value: &sand::command::Inventory, slot: impl Into < sand::command::ItemSlot >, item: impl fmt::Display)  {\n    let try_set = inventory_value.try_set(slot, item);\n}",
+    )]
     pub fn try_set(
         &self,
         slot: impl Into<ItemSlot>,
@@ -352,7 +461,21 @@ impl Inventory {
     /// `item replace entity <selector> <slot> with <item> <count>` — overwrite with a stack size.
     ///
     /// Never panics; use [`Inventory::try_set_count`] to fail fast instead.
-    #[doc = "**API Contract:** Run `sand api show sand::command::Inventory::set_count` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::command::Inventory::set_count",
+        aliases = ["sand::cmd::Inventory::set_count", "sand::prelude::Inventory::set_count", "sand::prelude::cmd::Inventory::set_count"],
+        module = "sand::command",
+        kind = "method",
+        summary = "`item replace entity <selector> <slot> with <item> <count>` — overwrite with a stack size.",
+        context = "`item replace entity <selector> <slot> with <item> <count>` — overwrite with a stack size. Never panics; use [`Inventory::try_set_count`] to fail fast instead.",
+        minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
+        use_when = ["Constructing Minecraft commands through Sand's typed command model"],
+        avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
+        params(slot = "`slot` supplies the documented `item replace entity <selector> <slot> with <item> <count>` — overwrite with a stack size form.", item = "`item` provides the item value or item predicate used to emit the documented `item replace entity <selector> <slot> with <item> <count>` — overwrite with a stack size form.", count = "`count` provides the requested numeric amount used to emit the documented `item replace entity <selector> <slot> with <item> <count>` — overwrite with a stack size form."),
+        returns = "The string value produced to emit the documented `item replace entity <selector> <slot> with <item> <count>` — overwrite with a stack size form.",
+        example = "use std::fmt;\nuse sand::prelude::*;\n\nfn demonstrate(inventory_value: &sand::command::Inventory, slot: impl Into < sand::command::ItemSlot >, item: impl fmt::Display, count: u32)  {\n    let set_count = inventory_value.set_count(slot, item, count);\n}",
+    )]
     pub fn set_count(
         &self,
         slot: impl Into<ItemSlot>,
@@ -371,7 +494,21 @@ impl Inventory {
 
     /// Fallible [`Inventory::set_count`] — rejects out-of-range/wildcard
     /// slots, malformed item IDs, and a count of `0`.
-    #[doc = "**API Contract:** Run `sand api show sand::command::Inventory::try_set_count` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::command::Inventory::try_set_count",
+        aliases = ["sand::cmd::Inventory::try_set_count", "sand::prelude::Inventory::try_set_count", "sand::prelude::cmd::Inventory::try_set_count"],
+        module = "sand::command",
+        kind = "method",
+        summary = "Fallible [`Inventory::set_count`] — rejects out-of-range/wildcard slots, malformed item IDs, and a count of `0`.",
+        context = "Fallible [`Inventory::set_count`] — rejects out-of-range/wildcard slots, malformed item IDs, and a count of `0`. This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
+        minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
+        use_when = ["Constructing Minecraft commands through Sand's typed command model"],
+        avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
+        params(slot = "`slot` sets the slot for fallible [`Inventory::set_count`] — rejects out-of-range/wildcard slots, malformed item IDs, and a count of `0`.", item = "`item` provides the item value or item predicate used to use fallible [`Inventory::set_count`] — rejects out-of-range/wildcard slots, malformed item IDs, and a count of `0`.", count = "`count` provides the requested numeric amount used to use fallible [`Inventory::set_count`] — rejects out-of-range/wildcard slots, malformed item IDs, and a count of `0`."),
+        returns = "On success, the value produced to use fallible [`Inventory::set_count`] — rejects out-of-range/wildcard slots, malformed item IDs, and a count of `0`; otherwise, the documented validation or export diagnostic.",
+        example = "use std::fmt;\nuse sand::prelude::*;\n\nfn demonstrate(inventory_value: &sand::command::Inventory, slot: impl Into < sand::command::ItemSlot >, item: impl fmt::Display, count: u32)  {\n    let try_set_count = inventory_value.try_set_count(slot, item, count);\n}",
+    )]
     pub fn try_set_count(
         &self,
         slot: impl Into<ItemSlot>,
@@ -396,7 +533,21 @@ impl Inventory {
     /// `item replace entity <selector> <slot> with air` — empty a specific slot.
     ///
     /// Never panics; use [`Inventory::try_clear_slot`] to fail fast instead.
-    #[doc = "**API Contract:** Run `sand api show sand::command::Inventory::clear_slot` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::command::Inventory::clear_slot",
+        aliases = ["sand::cmd::Inventory::clear_slot", "sand::prelude::Inventory::clear_slot", "sand::prelude::cmd::Inventory::clear_slot"],
+        module = "sand::command",
+        kind = "method",
+        summary = "`item replace entity <selector> <slot> with air` — empty a specific slot.",
+        context = "`item replace entity <selector> <slot> with air` — empty a specific slot. Never panics; use [`Inventory::try_clear_slot`] to fail fast instead.",
+        minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
+        use_when = ["Constructing Minecraft commands through Sand's typed command model"],
+        avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
+        params(slot = "`slot` supplies the documented `item replace entity <selector> <slot> with air` — empty a specific slot form."),
+        returns = "The string value produced to emit the documented `item replace entity <selector> <slot> with air` — empty a specific slot form.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(inventory_value: &sand::command::Inventory, slot: impl Into < sand::command::ItemSlot >)  {\n    let clear_slot = inventory_value.clear_slot(slot);\n}",
+    )]
     pub fn clear_slot(&self, slot: impl Into<ItemSlot>) -> String {
         let slot = slot.into();
         let line = format!("item replace entity {} {slot} with air", self.selector);
@@ -405,7 +556,21 @@ impl Inventory {
     }
 
     /// Fallible [`Inventory::clear_slot`] — rejects out-of-range/wildcard slots.
-    #[doc = "**API Contract:** Run `sand api show sand::command::Inventory::try_clear_slot` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::command::Inventory::try_clear_slot",
+        aliases = ["sand::cmd::Inventory::try_clear_slot", "sand::prelude::Inventory::try_clear_slot", "sand::prelude::cmd::Inventory::try_clear_slot"],
+        module = "sand::command",
+        kind = "method",
+        summary = "Fallible [`Inventory::clear_slot`] — rejects out-of-range/wildcard slots.",
+        context = "Fallible [`Inventory::clear_slot`] — rejects out-of-range/wildcard slots. This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
+        minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
+        use_when = ["Constructing Minecraft commands through Sand's typed command model"],
+        avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
+        params(slot = "`slot` sets the slot for fallible [`Inventory::clear_slot`] — rejects out-of-range/wildcard slots."),
+        returns = "On success, the value produced to use fallible [`Inventory::clear_slot`] — rejects out-of-range/wildcard slots; otherwise, the documented validation or export diagnostic.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(inventory_value: &sand::command::Inventory, slot: impl Into < sand::command::ItemSlot >)  {\n    let try_clear_slot = inventory_value.try_clear_slot(slot);\n}",
+    )]
     pub fn try_clear_slot(&self, slot: impl Into<ItemSlot>) -> CommandResult<String> {
         let slot = slot.into();
         validate_write_slot(
@@ -420,7 +585,21 @@ impl Inventory {
     /// `clear <selector> <item>` — remove all stacks of a specific item.
     ///
     /// Never panics; use [`Inventory::try_clear_item`] to fail fast instead.
-    #[doc = "**API Contract:** Run `sand api show sand::command::Inventory::clear_item` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::command::Inventory::clear_item",
+        aliases = ["sand::cmd::Inventory::clear_item", "sand::prelude::Inventory::clear_item", "sand::prelude::cmd::Inventory::clear_item"],
+        module = "sand::command",
+        kind = "method",
+        summary = "`clear <selector> <item>` — remove all stacks of a specific item.",
+        context = "`clear <selector> <item>` — remove all stacks of a specific item. Never panics; use [`Inventory::try_clear_item`] to fail fast instead.",
+        minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
+        use_when = ["Constructing Minecraft commands through Sand's typed command model"],
+        avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
+        params(item = "`item` provides the item value or item predicate used to emit the documented `clear <selector> <item>` — remove all stacks of a specific item form."),
+        returns = "The string value produced to emit the documented `clear <selector> <item>` — remove all stacks of a specific item form.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(inventory_value: &sand::command::Inventory, item: impl Into < String >)  {\n    let clear_item = inventory_value.clear_item(item);\n}",
+    )]
     pub fn clear_item(&self, item: impl Into<String>) -> String {
         let item = item.into();
         let line = format!("clear {} {}", self.selector, item);
@@ -429,7 +608,21 @@ impl Inventory {
     }
 
     /// Fallible [`Inventory::clear_item`] — validates the item ID shape.
-    #[doc = "**API Contract:** Run `sand api show sand::command::Inventory::try_clear_item` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::command::Inventory::try_clear_item",
+        aliases = ["sand::cmd::Inventory::try_clear_item", "sand::prelude::Inventory::try_clear_item", "sand::prelude::cmd::Inventory::try_clear_item"],
+        module = "sand::command",
+        kind = "method",
+        summary = "Fallible [`Inventory::clear_item`] — validates the item ID shape.",
+        context = "Fallible [`Inventory::clear_item`] — validates the item ID shape. This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
+        minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
+        use_when = ["Constructing Minecraft commands through Sand's typed command model"],
+        avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
+        params(item = "`item` provides the item value or item predicate used to use fallible [`Inventory::clear_item`] — validates the item ID shape."),
+        returns = "On success, the value produced to use fallible [`Inventory::clear_item`] — validates the item ID shape; otherwise, the documented validation or export diagnostic.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(inventory_value: &sand::command::Inventory, item: impl Into < String >)  {\n    let try_clear_item = inventory_value.try_clear_item(item);\n}",
+    )]
     pub fn try_clear_item(&self, item: impl Into<String>) -> CommandResult<String> {
         let item = item.into();
         validate_item_str(&item, "Inventory::try_clear_item", "item")?;
@@ -441,7 +634,21 @@ impl Inventory {
     /// A count of `0` is meaningful vanilla syntax: it reports the matching
     /// count without removing anything, so it is not rejected.
     /// Never panics; use [`Inventory::try_clear_item_count`] to fail fast instead.
-    #[doc = "**API Contract:** Run `sand api show sand::command::Inventory::clear_item_count` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::command::Inventory::clear_item_count",
+        aliases = ["sand::cmd::Inventory::clear_item_count", "sand::prelude::Inventory::clear_item_count", "sand::prelude::cmd::Inventory::clear_item_count"],
+        module = "sand::command",
+        kind = "method",
+        summary = "`clear <selector> <item> <count>` — remove up to `count` of an item.",
+        context = "`clear <selector> <item> <count>` — remove up to `count` of an item. A count of `0` is meaningful vanilla syntax: it reports the matching count without removing anything, so it is not rejected. Never panics; use [`Inventory::try_clear_item_count`] to fail fast instead.",
+        minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
+        use_when = ["Constructing Minecraft commands through Sand's typed command model"],
+        avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
+        params(item = "`item` provides the item value or item predicate used to emit the documented `clear <selector> <item> <count>` — remove up to `count` of an item form.", count = "`clear <selector> <item> <count>` — remove up to `count` of an item."),
+        returns = "The string value produced to emit the documented `clear <selector> <item> <count>` — remove up to `count` of an item form.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(inventory_value: &sand::command::Inventory, item: impl Into < String >, count: u32)  {\n    let clear_item_count = inventory_value.clear_item_count(item, count);\n}",
+    )]
     pub fn clear_item_count(&self, item: impl Into<String>, count: u32) -> String {
         let item = item.into();
         let line = format!("clear {} {} {count}", self.selector, item);
@@ -450,7 +657,21 @@ impl Inventory {
     }
 
     /// Fallible [`Inventory::clear_item_count`] — validates the item ID shape.
-    #[doc = "**API Contract:** Run `sand api show sand::command::Inventory::try_clear_item_count` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::command::Inventory::try_clear_item_count",
+        aliases = ["sand::cmd::Inventory::try_clear_item_count", "sand::prelude::Inventory::try_clear_item_count", "sand::prelude::cmd::Inventory::try_clear_item_count"],
+        module = "sand::command",
+        kind = "method",
+        summary = "Fallible [`Inventory::clear_item_count`] — validates the item ID shape.",
+        context = "Fallible [`Inventory::clear_item_count`] — validates the item ID shape. This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
+        minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
+        use_when = ["Constructing Minecraft commands through Sand's typed command model"],
+        avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
+        params(item = "`item` provides the item value or item predicate used to use fallible [`Inventory::clear_item_count`] — validates the item ID shape.", count = "`count` provides the requested numeric amount used to use fallible [`Inventory::clear_item_count`] — validates the item ID shape."),
+        returns = "On success, the value produced to use fallible [`Inventory::clear_item_count`] — validates the item ID shape; otherwise, the documented validation or export diagnostic.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(inventory_value: &sand::command::Inventory, item: impl Into < String >, count: u32)  {\n    let try_clear_item_count = inventory_value.try_clear_item_count(item, count);\n}",
+    )]
     pub fn try_clear_item_count(
         &self,
         item: impl Into<String>,
@@ -462,7 +683,20 @@ impl Inventory {
     }
 
     /// `clear <selector>` — remove everything from the inventory.
-    #[doc = "**API Contract:** Run `sand api show sand::command::Inventory::clear_all` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::command::Inventory::clear_all",
+        aliases = ["sand::cmd::Inventory::clear_all", "sand::prelude::Inventory::clear_all", "sand::prelude::cmd::Inventory::clear_all"],
+        module = "sand::command",
+        kind = "method",
+        summary = "`clear <selector>` — remove everything from the inventory.",
+        context = "`clear <selector>` — remove everything from the inventory. This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
+        minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
+        use_when = ["Constructing Minecraft commands through Sand's typed command model"],
+        avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
+        returns = "The string value produced to emit the documented `clear <selector>` — remove everything from the inventory form.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(inventory_value: &sand::command::Inventory)  {\n    let clear_all = inventory_value.clear_all();\n}",
+    )]
     pub fn clear_all(&self) -> String {
         format!("clear {}", self.selector)
     }
@@ -472,7 +706,21 @@ impl Inventory {
     /// Copy the item in `source_slot` of another entity into `slot` of this entity.
     ///
     /// Never panics; use [`Inventory::try_copy_from`] to fail fast instead.
-    #[doc = "**API Contract:** Run `sand api show sand::command::Inventory::copy_from` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::command::Inventory::copy_from",
+        aliases = ["sand::cmd::Inventory::copy_from", "sand::prelude::Inventory::copy_from", "sand::prelude::cmd::Inventory::copy_from"],
+        module = "sand::command",
+        kind = "method",
+        summary = "Copy the item in `source_slot` of another entity into `slot` of this entity.",
+        context = "Copy the item in `source_slot` of another entity into `slot` of this entity. Never panics; use [`Inventory::try_copy_from`] to fail fast instead.",
+        minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
+        use_when = ["Constructing Minecraft commands through Sand's typed command model"],
+        avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
+        params(slot = "Copy the item in `source_slot` of another entity into `slot` of this entity.", source = "`source` provides the Minecraft target selection used to copy the item in `source_slot` of another entity into `slot` of this entity.", source_slot = "Copy the item in `source_slot` of another entity into `slot` of this entity."),
+        returns = "The string value produced to copy the item in `source_slot` of another entity into `slot` of this entity.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(inventory_value: &sand::command::Inventory, slot: impl Into < sand::command::ItemSlot >, source: sand::command::Selector, source_slot: impl Into < sand::command::ItemSlot >)  {\n    let copy_from = inventory_value.copy_from(slot, source, source_slot);\n}",
+    )]
     pub fn copy_from(
         &self,
         slot: impl Into<ItemSlot>,
@@ -492,7 +740,21 @@ impl Inventory {
     /// Fallible [`Inventory::copy_from`] — validates both the destination
     /// and source slots (neither may be out-of-range or a wildcard: a
     /// single-item copy resolves to exactly one slot on each side).
-    #[doc = "**API Contract:** Run `sand api show sand::command::Inventory::try_copy_from` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::command::Inventory::try_copy_from",
+        aliases = ["sand::cmd::Inventory::try_copy_from", "sand::prelude::Inventory::try_copy_from", "sand::prelude::cmd::Inventory::try_copy_from"],
+        module = "sand::command",
+        kind = "method",
+        summary = "Fallible [`Inventory::copy_from`] — validates both the destination and source slots (neither may be out-of-range or a wildcard: a single-item copy resolves to exactly one slot on each side).",
+        context = "Fallible [`Inventory::copy_from`] — validates both the destination and source slots (neither may be out-of-range or a wildcard: a single-item copy resolves to exactly one slot on each side). This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
+        minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
+        use_when = ["Constructing Minecraft commands through Sand's typed command model"],
+        avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
+        params(slot = "`slot` sets the slot for fallible [`Inventory::copy_from`] — validates both the destination and source slots (neither may be out-of-range or a wildcard: a single-item copy resolves to exactly one slot on each side).", source = "`source` provides the Minecraft target selection used to use fallible [`Inventory::copy_from`] — validates both the destination and source slots (neither may be out-of-range or a wildcard: a single-item copy resolves to exactly one slot on each side).", source_slot = "`source_slot` sets the source slot for fallible [`Inventory::copy_from`] — validates both the destination and source slots (neither may be out-of-range or a wildcard: a single-item copy resolves to exactly one slot on each side)."),
+        returns = "On success, the value produced to use fallible [`Inventory::copy_from`] — validates both the destination and source slots (neither may be out-of-range or a wildcard: a single-item copy resolves to exactly one slot on each side); otherwise, the documented validation or export diagnostic.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(inventory_value: &sand::command::Inventory, slot: impl Into < sand::command::ItemSlot >, source: sand::command::Selector, source_slot: impl Into < sand::command::ItemSlot >)  {\n    let try_copy_from = inventory_value.try_copy_from(slot, source, source_slot);\n}",
+    )]
     pub fn try_copy_from(
         &self,
         slot: impl Into<ItemSlot>,
@@ -517,7 +779,21 @@ impl Inventory {
     /// `item modify entity <selector> <slot> <modifier>` — apply an item modifier.
     ///
     /// Never panics; use [`Inventory::try_modify`] to fail fast instead.
-    #[doc = "**API Contract:** Run `sand api show sand::command::Inventory::modify` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::command::Inventory::modify",
+        aliases = ["sand::cmd::Inventory::modify", "sand::prelude::Inventory::modify", "sand::prelude::cmd::Inventory::modify"],
+        module = "sand::command",
+        kind = "method",
+        summary = "`item modify entity <selector> <slot> <modifier>` — apply an item modifier.",
+        context = "`item modify entity <selector> <slot> <modifier>` — apply an item modifier. Never panics; use [`Inventory::try_modify`] to fail fast instead.",
+        minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
+        use_when = ["Constructing Minecraft commands through Sand's typed command model"],
+        avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
+        params(slot = "`slot` supplies the documented `item modify entity <selector> <slot> <modifier>` — apply an item modifier form.", modifier = "`modifier` supplies the documented `item modify entity <selector> <slot> <modifier>` — apply an item modifier form."),
+        returns = "The string value produced to emit the documented `item modify entity <selector> <slot> <modifier>` — apply an item modifier form.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(inventory_value: &sand::command::Inventory, slot: impl Into < sand::command::ItemSlot >, modifier: impl Into < String >)  {\n    let modify = inventory_value.modify(slot, modifier);\n}",
+    )]
     pub fn modify(&self, slot: impl Into<ItemSlot>, modifier: impl Into<String>) -> String {
         let slot = slot.into();
         let modifier = modifier.into();
@@ -529,7 +805,21 @@ impl Inventory {
     /// Fallible [`Inventory::modify`] — rejects out-of-range/wildcard slots
     /// and modifier references that are not `namespace:path`-shaped (an
     /// optional leading `#` for item-modifier tags is accepted).
-    #[doc = "**API Contract:** Run `sand api show sand::command::Inventory::try_modify` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::command::Inventory::try_modify",
+        aliases = ["sand::cmd::Inventory::try_modify", "sand::prelude::Inventory::try_modify", "sand::prelude::cmd::Inventory::try_modify"],
+        module = "sand::command",
+        kind = "method",
+        summary = "Fallible [`Inventory::modify`] — rejects out-of-range/wildcard slots and modifier references that are not `namespace:path`-shaped (an optional leading `#` for item-modifier tags is accepted).",
+        context = "Fallible [`Inventory::modify`] — rejects out-of-range/wildcard slots and modifier references that are not `namespace:path`-shaped (an optional leading `#` for item-modifier tags is accepted). This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
+        minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
+        use_when = ["Constructing Minecraft commands through Sand's typed command model"],
+        avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
+        params(slot = "`slot` sets the slot for fallible [`Inventory::modify`] — rejects out-of-range/wildcard slots and modifier references that are not `namespace:path`-shaped (an optional leading `#` for item-modifier tags is accepted).", modifier = "`modifier` sets the modifier for fallible [`Inventory::modify`] — rejects out-of-range/wildcard slots and modifier references that are not `namespace:path`-shaped (an optional leading `#` for item-modifier tags is accepted)."),
+        returns = "On success, the value produced to use fallible [`Inventory::modify`] — rejects out-of-range/wildcard slots and modifier references that are not `namespace:path`-shaped (an optional leading `#` for item-modifier tags is accepted); otherwise, the documented validation or export diagnostic.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(inventory_value: &sand::command::Inventory, slot: impl Into < sand::command::ItemSlot >, modifier: impl Into < String >)  {\n    let try_modify = inventory_value.try_modify(slot, modifier);\n}",
+    )]
     pub fn try_modify(
         &self,
         slot: impl Into<ItemSlot>,

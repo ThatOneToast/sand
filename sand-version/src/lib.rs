@@ -60,7 +60,18 @@ pub const CI_LATEST_JAVA_VERSION: &str = "25";
 /// target is codegen-available in the default local and CI environments.
 pub const DEFAULT_CODEGEN_VERSION: &str = LATEST_KNOWN;
 
-#[doc = "**API Contract:** Run `sand api show sand::command::CommandProfile` for the canonical contract."]
+#[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::command::CommandProfile",
+    aliases = ["sand::cmd::CommandProfile", "sand::prelude::cmd::CommandProfile"],
+    module = "sand::command",
+    summary = "Cycle-safe command rendering context shared by `sand-commands` and `sand-core`.",
+    context = "Cycle-safe command rendering context shared by `sand-commands` and `sand-core`. This deliberately carries only version identity today. Command families can add narrowly-scoped capability flags as their vanilla syntax diverges; callers should not infer support merely from the version string.",
+    minecraft = "This deliberately carries only version identity today. Command families can add narrowly-scoped capability flags as their vanilla syntax diverges; callers should not infer support merely from the version string.",
+    use_when = ["Constructing Minecraft commands through Sand's typed command model"],
+    avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
+    example = "use sand::command::CommandProfile;",
+)]
 /// Cycle-safe command rendering context shared by `sand-commands` and
 /// `sand-core`.
 ///
@@ -75,7 +86,21 @@ pub struct CommandProfile {
 
 impl CommandProfile {
     /// Construct a command profile for a resolved Minecraft target.
-    #[doc = "**API Contract:** Run `sand api show sand::command::CommandProfile::new` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::command::CommandProfile::new",
+        aliases = ["sand::cmd::CommandProfile::new", "sand::prelude::cmd::CommandProfile::new"],
+        module = "sand::command",
+        kind = "method",
+        summary = "Construct a command profile for a resolved Minecraft target.",
+        context = "Construct a command profile for a resolved Minecraft target. This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
+        minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
+        use_when = ["Constructing Minecraft commands through Sand's typed command model"],
+        avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
+        params(requested_version = "`requested_version` is used when constructing a command profile for a resolved Minecraft target.", is_fallback = "`is_fallback` provides the switch that enables or disables the behavior used to construct a command profile for a resolved Minecraft target."),
+        returns = "A `CommandProfile` representing a command profile for a resolved Minecraft target.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(requested_version: impl Into < String >, is_fallback: bool)  {\n    let command_profile = sand::command::CommandProfile::new(requested_version, is_fallback);\n}",
+    )]
     pub fn new(requested_version: impl Into<String>, is_fallback: bool) -> Self {
         Self {
             requested_version: requested_version.into(),
@@ -85,19 +110,58 @@ impl CommandProfile {
 
     /// Compatibility profile used by direct command rendering without project
     /// configuration. Exporters should pass the project's resolved profile.
-    #[doc = "**API Contract:** Run `sand api show sand::command::CommandProfile::unprofiled` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::command::CommandProfile::unprofiled",
+        aliases = ["sand::cmd::CommandProfile::unprofiled", "sand::prelude::cmd::CommandProfile::unprofiled"],
+        module = "sand::command",
+        kind = "method",
+        summary = "Compatibility profile used by direct command rendering without project configuration. Exporters should pass the project's resolved profile.",
+        context = "Compatibility profile used by direct command rendering without project configuration. Exporters should pass the project's resolved profile. This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
+        minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
+        use_when = ["Constructing Minecraft commands through Sand's typed command model"],
+        avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
+        returns = "A `CommandProfile` configured for compatibility profile used by direct command rendering without project configuration. Exporters should pass the project's resolved profile.",
+        example = "use sand::prelude::*;\n\nfn demonstrate()  {\n    let command_profile = sand::command::CommandProfile::unprofiled();\n}",
+    )]
     pub fn unprofiled() -> Self {
         Self::new(LATEST_KNOWN, false)
     }
 
     /// Version requested by the project.
-    #[doc = "**API Contract:** Run `sand api show sand::command::CommandProfile::requested_version` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::command::CommandProfile::requested_version",
+        aliases = ["sand::cmd::CommandProfile::requested_version", "sand::prelude::cmd::CommandProfile::requested_version"],
+        module = "sand::command",
+        kind = "method",
+        summary = "Version requested by the project.",
+        context = "Version requested by the project. This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
+        minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
+        use_when = ["Constructing Minecraft commands through Sand's typed command model"],
+        avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
+        returns = "The string value produced to version requested by the project.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(command_profile_value: &sand::command::CommandProfile)  {\n    let requested_version = command_profile_value.requested_version();\n}",
+    )]
     pub fn requested_version(&self) -> &str {
         &self.requested_version
     }
 
     /// Whether resolution used Sand's conservative fallback profile.
-    #[doc = "**API Contract:** Run `sand api show sand::command::CommandProfile::is_fallback` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::command::CommandProfile::is_fallback",
+        aliases = ["sand::cmd::CommandProfile::is_fallback", "sand::prelude::cmd::CommandProfile::is_fallback"],
+        module = "sand::command",
+        kind = "method",
+        summary = "Whether resolution used Sand's conservative fallback profile.",
+        context = "Whether resolution used Sand's conservative fallback profile. This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
+        minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
+        use_when = ["Constructing Minecraft commands through Sand's typed command model"],
+        avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
+        returns = "`true` when the documented condition holds to determine whether resolution used Sand's conservative fallback profile; otherwise `false`.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(command_profile_value: &sand::command::CommandProfile)  {\n    let is_is_fallback = command_profile_value.is_fallback();\n}",
+    )]
     pub fn is_fallback(&self) -> bool {
         self.is_fallback
     }
@@ -105,7 +169,21 @@ impl CommandProfile {
     /// Whether this resolved command target is at least the given Java release.
     ///
     /// Unknown/fallback profiles are conservative and never claim support.
-    #[doc = "**API Contract:** Run `sand api show sand::command::CommandProfile::is_at_least` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::command::CommandProfile::is_at_least",
+        aliases = ["sand::cmd::CommandProfile::is_at_least", "sand::prelude::cmd::CommandProfile::is_at_least"],
+        module = "sand::command",
+        kind = "method",
+        summary = "Whether this resolved command target is at least the given Java release.",
+        context = "Whether this resolved command target is at least the given Java release. Unknown/fallback profiles are conservative and never claim support.",
+        minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
+        use_when = ["Constructing Minecraft commands through Sand's typed command model"],
+        avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
+        params(major = "`major` is the major considered when determining whether this resolved command target is at least the given Java release.", minor = "`minor` is the minor considered when determining whether this resolved command target is at least the given Java release.", patch = "`patch` is the patch considered when determining whether this resolved command target is at least the given Java release."),
+        returns = "`true` when the documented condition holds to determine whether this resolved command target is at least the given Java release; otherwise `false`.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(command_profile_value: &sand::command::CommandProfile, major: u32, minor: u32, patch: u32)  {\n    let is_is_at_least = command_profile_value.is_at_least(major, minor, patch);\n}",
+    )]
     pub fn is_at_least(&self, major: u32, minor: u32, patch: u32) -> bool {
         if self.is_fallback {
             return false;
@@ -138,37 +216,39 @@ impl CommandProfile {
 /// Keeping them in `sand-version` avoids a dependency cycle between
 /// `sand-components` and `sand-core`.
 ///
-/// **API Contract:** Run `sand api show sand::version::ComponentFeature` for the canonical contract.
+#[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::version::ComponentFeature",
+    module = "sand::version",
+    summary = "A Minecraft datapack component feature that may be gated by version.",
+    context = "A Minecraft datapack component feature that may be gated by version. Components declare their requirements via `DatapackComponent::required_features`, and the export layer checks them against [`VersionCaps`] resolved from the target `VersionProfile`. The variants mirror the `supports_*` fields of `sand::version::VersionProfile`. Keeping them in `sand-version` avoids a dependency cycle between `sand-components` and `sand-core`.",
+    minecraft = "Components declare their requirements via `DatapackComponent::required_features`, and the export layer checks them against [`VersionCaps`] resolved from the target `VersionProfile`.",
+    use_when = ["Adapting authored resources or integrations to an explicitly selected Minecraft target"],
+    avoid_when = ["Ordinary datapack code can rely on the target selected in sand.toml"],
+    example = "use sand::version::ComponentFeature;",
+    variants(AnimalVariants = "Biome-scoped animal variant registries — `chicken_variant`, `cow_variant`, `pig_variant` (1.21.5+).", ChatTypes = "Chat type registries (1.19+).", DamageTypes = "Damage type registries (1.19.4+).", Dialogs = "Data-driven dialogs (1.21.6+ / 26.x).", Enchantments = "Enchantment data components (1.21+).", ItemComponents = "Item data components — the 1.20.5+ component system (`minecraft:custom_data`, `minecraft:item_name`, etc.). Gates component-bearing recipe results and other JSON payloads that embed structured item components.", JukeboxSongs = "Jukebox song components (1.21+).", TrimAssets = "Armor trim assets — trim material and trim pattern components (1.19.4+).", VillagerTrades = "Data-driven Villager/Wandering Trader trade registries — `villager_trade` and `trade_set` (26.1+)."),
+)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum ComponentFeature {
-    #[doc = "**API Contract:** Run `sand api show sand::version::ComponentFeature::Dialogs` for the canonical contract."]
     /// Data-driven dialogs (1.21.6+ / 26.x).
     Dialogs,
-    #[doc = "**API Contract:** Run `sand api show sand::version::ComponentFeature::JukeboxSongs` for the canonical contract."]
     /// Jukebox song components (1.21+).
     JukeboxSongs,
-    #[doc = "**API Contract:** Run `sand api show sand::version::ComponentFeature::DamageTypes` for the canonical contract."]
     /// Damage type registries (1.19.4+).
     DamageTypes,
-    #[doc = "**API Contract:** Run `sand api show sand::version::ComponentFeature::ChatTypes` for the canonical contract."]
     /// Chat type registries (1.19+).
     ChatTypes,
-    #[doc = "**API Contract:** Run `sand api show sand::version::ComponentFeature::Enchantments` for the canonical contract."]
     /// Enchantment data components (1.21+).
     Enchantments,
-    #[doc = "**API Contract:** Run `sand api show sand::version::ComponentFeature::TrimAssets` for the canonical contract."]
     /// Armor trim assets — trim material and trim pattern components (1.19.4+).
     TrimAssets,
-    #[doc = "**API Contract:** Run `sand api show sand::version::ComponentFeature::ItemComponents` for the canonical contract."]
     /// Item data components — the 1.20.5+ component system (`minecraft:custom_data`,
     /// `minecraft:item_name`, etc.). Gates component-bearing recipe results and
     /// other JSON payloads that embed structured item components.
     ItemComponents,
-    #[doc = "**API Contract:** Run `sand api show sand::version::ComponentFeature::AnimalVariants` for the canonical contract."]
     /// Biome-scoped animal variant registries — `chicken_variant`,
     /// `cow_variant`, `pig_variant` (1.21.5+).
     AnimalVariants,
-    #[doc = "**API Contract:** Run `sand api show sand::version::ComponentFeature::VillagerTrades` for the canonical contract."]
     /// Data-driven Villager/Wandering Trader trade registries —
     /// `villager_trade` and `trade_set` (26.1+).
     VillagerTrades,
@@ -176,7 +256,19 @@ pub enum ComponentFeature {
 
 impl ComponentFeature {
     /// Human-readable feature name used in diagnostics.
-    #[doc = "**API Contract:** Run `sand api show sand::version::ComponentFeature::name` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::version::ComponentFeature::name",
+        module = "sand::version",
+        kind = "method",
+        summary = "Human-readable feature name used in diagnostics.",
+        context = "Human-readable feature name used in diagnostics. This version API lets reusable authoring and tooling make the same capability decisions as Sand's profile-aware component exporter.",
+        minecraft = "Capability checks describe the data-driven features accepted by the selected Minecraft Java Edition target before pack output is written.",
+        use_when = ["Adapting authored resources or integrations to an explicitly selected Minecraft target"],
+        avoid_when = ["Ordinary datapack code can rely on the target selected in sand.toml"],
+        returns = "The string value produced to human-readable feature name used in diagnostics.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(component_feature_value: sand::version::ComponentFeature)  {\n    let name = component_feature_value.name();\n}",
+    )]
     pub fn name(self) -> &'static str {
         match self {
             Self::Dialogs => "dialogs",
@@ -192,7 +284,18 @@ impl ComponentFeature {
     }
 
     /// All feature variants, in a stable order.
-    #[doc = "**API Contract:** Run `sand api show sand::version::ComponentFeature::ALL` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::version::ComponentFeature::ALL",
+        module = "sand::version",
+        kind = "associated_const",
+        summary = "All feature variants, in a stable order.",
+        context = "All feature variants, in a stable order. This version API lets reusable authoring and tooling make the same capability decisions as Sand's profile-aware component exporter.",
+        minecraft = "Capability checks describe the data-driven features accepted by the selected Minecraft Java Edition target before pack output is written.",
+        use_when = ["Adapting authored resources or integrations to an explicitly selected Minecraft target"],
+        avoid_when = ["Ordinary datapack code can rely on the target selected in sand.toml"],
+        example = "use sand::version::ComponentFeature;",
+    )]
     pub const ALL: &'static [ComponentFeature] = &[
         Self::Dialogs,
         Self::JukeboxSongs,
@@ -217,7 +320,17 @@ impl ComponentFeature {
 /// conservative policy: reject version-gated components unless the user
 /// explicitly targets a known exact profile.
 ///
-/// **API Contract:** Run `sand api show sand::version::VersionCaps` for the canonical contract.
+#[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::version::VersionCaps",
+    module = "sand::version",
+    summary = "Resolved version capability set used to gate component features.",
+    context = "Resolved version capability set used to gate component features. This is a slimmed-down, cycle-safe mirror of `sand::version::VersionProfile`'s `supports_*` fields. `sand-core` produces it via `VersionProfile::caps()`; `sand-components` and the export layer consume it without depending on `sand-core`. For fallback/unknown profiles, all feature flags are `false`, matching the conservative policy: reject version-gated components unless the user explicitly targets a known exact profile.",
+    minecraft = "This is a slimmed-down, cycle-safe mirror of `sand::version::VersionProfile`'s `supports_*` fields. `sand-core` produces it via `VersionProfile::caps()`; `sand-components` and the export layer consume it without depending on `sand-core`.",
+    use_when = ["Adapting authored resources or integrations to an explicitly selected Minecraft target"],
+    avoid_when = ["Ordinary datapack code can rely on the target selected in sand.toml"],
+    example = "use sand::version::VersionCaps;",
+)]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct VersionCaps {
     requested_version: String,
@@ -238,7 +351,19 @@ impl VersionCaps {
     ///
     /// Used by the compatibility (unprofiled) export path so existing
     /// callers retain their prior behavior.
-    #[doc = "**API Contract:** Run `sand api show sand::version::VersionCaps::all_enabled` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::version::VersionCaps::all_enabled",
+        module = "sand::version",
+        kind = "method",
+        summary = "Create a `VersionCaps` where all features are enabled.",
+        context = "Create a `VersionCaps` where all features are enabled. Used by the compatibility (unprofiled) export path so existing callers retain their prior behavior.",
+        minecraft = "Used by the compatibility (unprofiled) export path so existing callers retain their prior behavior.",
+        use_when = ["Adapting authored resources or integrations to an explicitly selected Minecraft target"],
+        avoid_when = ["Ordinary datapack code can rely on the target selected in sand.toml"],
+        returns = "A `VersionCaps` with every modeled feature enabled.",
+        example = "let caps = sand::version::VersionCaps::all_enabled();",
+    )]
     pub fn all_enabled() -> Self {
         Self {
             requested_version: LATEST_KNOWN.to_string(),
@@ -256,7 +381,19 @@ impl VersionCaps {
     }
 
     /// Create a `VersionCaps` where all features are disabled (fallback policy).
-    #[doc = "**API Contract:** Run `sand api show sand::version::VersionCaps::all_disabled` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::version::VersionCaps::all_disabled",
+        module = "sand::version",
+        kind = "method",
+        summary = "Create a `VersionCaps` where all features are disabled (fallback policy).",
+        context = "Create a `VersionCaps` where all features are disabled (fallback policy). This version API lets reusable authoring and tooling make the same capability decisions as Sand's profile-aware component exporter.",
+        minecraft = "Capability checks describe the data-driven features accepted by the selected Minecraft Java Edition target before pack output is written.",
+        use_when = ["Adapting authored resources or integrations to an explicitly selected Minecraft target"],
+        avoid_when = ["Ordinary datapack code can rely on the target selected in sand.toml"],
+        returns = "A `VersionCaps` with every modeled feature disabled for fallback behavior.",
+        example = "use sand::prelude::*;\n\nfn demonstrate()  {\n    let version_caps = sand::version::VersionCaps::all_disabled();\n}",
+    )]
     pub fn all_disabled() -> Self {
         Self {
             requested_version: "1.18".to_string(),
@@ -279,7 +416,20 @@ impl VersionCaps {
     /// A separate builder method (rather than a constructor parameter) keeps
     /// [`VersionCaps::from_flags`]/[`VersionCaps::from_profile_flags`] call
     /// sites stable as new narrowly-scoped features are added.
-    #[doc = "**API Contract:** Run `sand api show sand::version::VersionCaps::with_animal_variants` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::version::VersionCaps::with_animal_variants",
+        module = "sand::version",
+        kind = "method",
+        summary = "Set whether biome-scoped animal variant registries (`chicken_variant`, `cow_variant`, `pig_variant`; 1.21.5+) are supported.",
+        context = "Set whether biome-scoped animal variant registries (`chicken_variant`, `cow_variant`, `pig_variant`; 1.21.5+) are supported. A separate builder method (rather than a constructor parameter) keeps [`VersionCaps::from_flags`]/[`VersionCaps::from_profile_flags`] call sites stable as new narrowly-scoped features are added.",
+        minecraft = "Capability checks describe the data-driven features accepted by the selected Minecraft Java Edition target before pack output is written.",
+        use_when = ["Adapting authored resources or integrations to an explicitly selected Minecraft target"],
+        avoid_when = ["Ordinary datapack code can rely on the target selected in sand.toml"],
+        params(value = "`value` provides the value being applied or compared used to set whether biome-scoped animal variant registries (`chicken_variant`, `cow_variant`, `pig_variant`; 1.21.5+) are supported."),
+        returns = "The `VersionCaps` value with the documented change applied to set whether biome-scoped animal variant registries (`chicken_variant`, `cow_variant`, `pig_variant`; 1.21.5+) are supported.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(version_caps_value: sand::version::VersionCaps, value: bool)  {\n    let updated_version_caps = version_caps_value.with_animal_variants(value);\n}",
+    )]
     pub fn with_animal_variants(mut self, value: bool) -> Self {
         self.supports_animal_variants = value;
         self
@@ -292,14 +442,40 @@ impl VersionCaps {
     /// [`VersionCaps::with_animal_variants`] for the same reason: it keeps
     /// [`VersionCaps::from_flags`]/[`VersionCaps::from_profile_flags`] call
     /// sites stable.
-    #[doc = "**API Contract:** Run `sand api show sand::version::VersionCaps::with_villager_trades` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::version::VersionCaps::with_villager_trades",
+        module = "sand::version",
+        kind = "method",
+        summary = "Set whether the data-driven Villager/Wandering Trader trade registries (`villager_trade`, `trade_set`; 26.1+) are supported.",
+        context = "Set whether the data-driven Villager/Wandering Trader trade registries (`villager_trade`, `trade_set`; 26.1+) are supported. Follows the same builder-method pattern as [`VersionCaps::with_animal_variants`] for the same reason: it keeps [`VersionCaps::from_flags`]/[`VersionCaps::from_profile_flags`] call sites stable.",
+        minecraft = "Capability checks describe the data-driven features accepted by the selected Minecraft Java Edition target before pack output is written.",
+        use_when = ["Adapting authored resources or integrations to an explicitly selected Minecraft target"],
+        avoid_when = ["Ordinary datapack code can rely on the target selected in sand.toml"],
+        params(value = "`value` provides the value being applied or compared used to set whether the data-driven Villager/Wandering Trader trade registries (`villager_trade`, `trade_set`; 26.1+) are supported."),
+        returns = "The `VersionCaps` value with the documented change applied to set whether the data-driven Villager/Wandering Trader trade registries (`villager_trade`, `trade_set`; 26.1+) are supported.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(version_caps_value: sand::version::VersionCaps, value: bool)  {\n    let updated_version_caps = version_caps_value.with_villager_trades(value);\n}",
+    )]
     pub fn with_villager_trades(mut self, value: bool) -> Self {
         self.supports_villager_trades = value;
         self
     }
 
     /// Check whether a specific feature is supported by this capability set.
-    #[doc = "**API Contract:** Run `sand api show sand::version::VersionCaps::supports` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::version::VersionCaps::supports",
+        module = "sand::version",
+        kind = "method",
+        summary = "Check whether a specific feature is supported by this capability set.",
+        context = "Check whether a specific feature is supported by this capability set. This version API lets reusable authoring and tooling make the same capability decisions as Sand's profile-aware component exporter.",
+        minecraft = "Capability checks describe the data-driven features accepted by the selected Minecraft Java Edition target before pack output is written.",
+        use_when = ["Adapting authored resources or integrations to an explicitly selected Minecraft target"],
+        avoid_when = ["Ordinary datapack code can rely on the target selected in sand.toml"],
+        params(feature = "`feature` is the feature checked to determine whether a specific feature is supported by this capability set."),
+        returns = "`true` when the documented condition holds to check whether a specific feature is supported by this capability set; otherwise `false`.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(version_caps_value: &sand::version::VersionCaps, feature: sand::version::ComponentFeature)  {\n    let is_supports = version_caps_value.supports(feature);\n}",
+    )]
     pub fn supports(&self, feature: ComponentFeature) -> bool {
         match feature {
             ComponentFeature::Dialogs => self.supports_dialogs,
@@ -319,7 +495,20 @@ impl VersionCaps {
     /// This compatibility constructor retains the pre-profile API. Schema
     /// consumers treat it as the latest known target, matching unprofiled
     /// component export behavior.
-    #[doc = "**API Contract:** Run `sand api show sand::version::VersionCaps::from_flags` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::version::VersionCaps::from_flags",
+        module = "sand::version",
+        kind = "method",
+        summary = "Create an unprofiled `VersionCaps` from individual feature flags.",
+        context = "Create an unprofiled `VersionCaps` from individual feature flags. This compatibility constructor retains the pre-profile API. Schema consumers treat it as the latest known target, matching unprofiled component export behavior.",
+        minecraft = "This compatibility constructor retains the pre-profile API. Schema consumers treat it as the latest known target, matching unprofiled component export behavior.",
+        use_when = ["Adapting authored resources or integrations to an explicitly selected Minecraft target"],
+        avoid_when = ["Ordinary datapack code can rely on the target selected in sand.toml"],
+        params(supports_dialogs = "`supports_dialogs` provides the switch that enables or disables the behavior used to create an unprofiled `VersionCaps` from individual feature flags.", supports_jukebox_songs = "`supports_jukebox_songs` provides the switch that enables or disables the behavior used to create an unprofiled `VersionCaps` from individual feature flags.", supports_damage_types = "`supports_damage_types` provides the switch that enables or disables the behavior used to create an unprofiled `VersionCaps` from individual feature flags.", supports_chat_types = "`supports_chat_types` provides the switch that enables or disables the behavior used to create an unprofiled `VersionCaps` from individual feature flags.", supports_enchantments = "`supports_enchantments` provides the switch that enables or disables the behavior used to create an unprofiled `VersionCaps` from individual feature flags.", supports_trim_assets = "`supports_trim_assets` provides the switch that enables or disables the behavior used to create an unprofiled `VersionCaps` from individual feature flags.", supports_item_components = "`supports_item_components` provides the switch that enables or disables the behavior used to create an unprofiled `VersionCaps` from individual feature flags."),
+        returns = "A `VersionCaps` representing an unprofiled `VersionCaps` from individual feature flags.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(supports_dialogs: bool, supports_jukebox_songs: bool, supports_damage_types: bool, supports_chat_types: bool, supports_enchantments: bool, supports_trim_assets: bool, supports_item_components: bool)  {\n    let version_caps = sand::version::VersionCaps::from_flags(supports_dialogs, supports_jukebox_songs, supports_damage_types, supports_chat_types, supports_enchantments, supports_trim_assets, supports_item_components);\n}",
+    )]
     #[allow(clippy::too_many_arguments)]
     pub fn from_flags(
         supports_dialogs: bool,
@@ -347,7 +536,20 @@ impl VersionCaps {
     ///
     /// Used by `sand-core::VersionProfile::caps()` so schema consumers can
     /// distinguish targets that share the same feature flags.
-    #[doc = "**API Contract:** Run `sand api show sand::version::VersionCaps::from_profile_flags` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::version::VersionCaps::from_profile_flags",
+        module = "sand::version",
+        kind = "method",
+        summary = "Create a `VersionCaps` for a concrete resolved target profile.",
+        context = "Create a `VersionCaps` for a concrete resolved target profile. Used by `sand-core::VersionProfile::caps()` so schema consumers can distinguish targets that share the same feature flags.",
+        minecraft = "Capability checks describe the data-driven features accepted by the selected Minecraft Java Edition target before pack output is written.",
+        use_when = ["Adapting authored resources or integrations to an explicitly selected Minecraft target"],
+        avoid_when = ["Ordinary datapack code can rely on the target selected in sand.toml"],
+        params(requested_version = "`requested_version` is used when creating a `VersionCaps` for a concrete resolved target profile.", is_fallback = "`is_fallback` provides the switch that enables or disables the behavior used to create a `VersionCaps` for a concrete resolved target profile.", supports_dialogs = "`supports_dialogs` provides the switch that enables or disables the behavior used to create a `VersionCaps` for a concrete resolved target profile.", supports_jukebox_songs = "`supports_jukebox_songs` provides the switch that enables or disables the behavior used to create a `VersionCaps` for a concrete resolved target profile.", supports_damage_types = "`supports_damage_types` provides the switch that enables or disables the behavior used to create a `VersionCaps` for a concrete resolved target profile.", supports_chat_types = "`supports_chat_types` provides the switch that enables or disables the behavior used to create a `VersionCaps` for a concrete resolved target profile.", supports_enchantments = "`supports_enchantments` provides the switch that enables or disables the behavior used to create a `VersionCaps` for a concrete resolved target profile.", supports_trim_assets = "`supports_trim_assets` provides the switch that enables or disables the behavior used to create a `VersionCaps` for a concrete resolved target profile.", supports_item_components = "`supports_item_components` provides the switch that enables or disables the behavior used to create a `VersionCaps` for a concrete resolved target profile."),
+        returns = "A `VersionCaps` for the concrete resolved target profile.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(requested_version: impl Into < String >, is_fallback: bool, supports_dialogs: bool, supports_jukebox_songs: bool, supports_damage_types: bool, supports_chat_types: bool, supports_enchantments: bool, supports_trim_assets: bool, supports_item_components: bool)  {\n    let version_caps = sand::version::VersionCaps::from_profile_flags(requested_version, is_fallback, supports_dialogs, supports_jukebox_songs, supports_damage_types, supports_chat_types, supports_enchantments, supports_trim_assets, supports_item_components);\n}",
+    )]
     #[allow(clippy::too_many_arguments)]
     pub fn from_profile_flags(
         requested_version: impl Into<String>,
@@ -379,13 +581,37 @@ impl VersionCaps {
     }
 
     /// Version requested by the project that produced these capabilities.
-    #[doc = "**API Contract:** Run `sand api show sand::version::VersionCaps::requested_version` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::version::VersionCaps::requested_version",
+        module = "sand::version",
+        kind = "method",
+        summary = "Version requested by the project that produced these capabilities.",
+        context = "Version requested by the project that produced these capabilities. This version API lets reusable authoring and tooling make the same capability decisions as Sand's profile-aware component exporter.",
+        minecraft = "Capability checks describe the data-driven features accepted by the selected Minecraft Java Edition target before pack output is written.",
+        use_when = ["Adapting authored resources or integrations to an explicitly selected Minecraft target"],
+        avoid_when = ["Ordinary datapack code can rely on the target selected in sand.toml"],
+        returns = "The string value produced to version requested by the project that produced these capabilities.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(version_caps_value: &sand::version::VersionCaps)  {\n    let requested_version = version_caps_value.requested_version();\n}",
+    )]
     pub fn requested_version(&self) -> &str {
         &self.requested_version
     }
 
     /// Whether the version resolver used conservative fallback capabilities.
-    #[doc = "**API Contract:** Run `sand api show sand::version::VersionCaps::is_fallback` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::version::VersionCaps::is_fallback",
+        module = "sand::version",
+        kind = "method",
+        summary = "Whether the version resolver used conservative fallback capabilities.",
+        context = "Whether the version resolver used conservative fallback capabilities. This version API lets reusable authoring and tooling make the same capability decisions as Sand's profile-aware component exporter.",
+        minecraft = "Capability checks describe the data-driven features accepted by the selected Minecraft Java Edition target before pack output is written.",
+        use_when = ["Adapting authored resources or integrations to an explicitly selected Minecraft target"],
+        avoid_when = ["Ordinary datapack code can rely on the target selected in sand.toml"],
+        returns = "`true` when the documented condition holds to determine whether the version resolver used conservative fallback capabilities; otherwise `false`.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(version_caps_value: &sand::version::VersionCaps)  {\n    let is_is_fallback = version_caps_value.is_fallback();\n}",
+    )]
     pub fn is_fallback(&self) -> bool {
         self.is_fallback
     }
@@ -394,7 +620,20 @@ impl VersionCaps {
     ///
     /// `latest` resolves to [`LATEST_KNOWN`]. Unknown/fallback targets return
     /// `false`; callers must not infer schema support from a fallback profile.
-    #[doc = "**API Contract:** Run `sand api show sand::version::VersionCaps::is_at_least` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::version::VersionCaps::is_at_least",
+        module = "sand::version",
+        kind = "method",
+        summary = "Compare the requested target with a concrete Minecraft release.",
+        context = "Compare the requested target with a concrete Minecraft release. `latest` resolves to [`LATEST_KNOWN`]. Unknown/fallback targets return `false`; callers must not infer schema support from a fallback profile.",
+        minecraft = "Capability checks describe the data-driven features accepted by the selected Minecraft Java Edition target before pack output is written.",
+        use_when = ["Adapting authored resources or integrations to an explicitly selected Minecraft target"],
+        avoid_when = ["Ordinary datapack code can rely on the target selected in sand.toml"],
+        params(major = "`major` is the major used when comparing the requested target with a concrete Minecraft release.", minor = "`minor` is the minor used when comparing the requested target with a concrete Minecraft release.", patch = "`patch` is the patch used when comparing the requested target with a concrete Minecraft release."),
+        returns = "`true` when the documented condition holds to compare the requested target with a concrete Minecraft release; otherwise `false`.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(version_caps_value: &sand::version::VersionCaps, major: u32, minor: u32, patch: u32)  {\n    let is_is_at_least = version_caps_value.is_at_least(major, minor, patch);\n}",
+    )]
     pub fn is_at_least(&self, major: u32, minor: u32, patch: u32) -> bool {
         if self.is_fallback {
             return false;

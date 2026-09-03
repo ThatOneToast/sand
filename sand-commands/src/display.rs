@@ -8,7 +8,18 @@ use crate::render::{CommandProfile, RenderCommand, Validate};
 use crate::selector::Selector;
 use crate::text::TextComponent;
 
-#[doc = "**API Contract:** Run `sand api show sand::command::Title` for the canonical contract."]
+#[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::command::Title",
+    aliases = ["sand::cmd::Title", "sand::prelude::Title", "sand::prelude::cmd::Title"],
+    module = "sand::command",
+    summary = "Builder for a title payload and its timing command.",
+    context = "Builder for a title payload and its timing command. This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
+    minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
+    use_when = ["Constructing Minecraft commands through Sand's typed command model"],
+    avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
+    example = "use sand::command::Title;",
+)]
 /// Builder for a title payload and its timing command.
 #[derive(Debug, Clone)]
 pub struct Title {
@@ -23,7 +34,21 @@ pub struct Title {
 
 impl Title {
     /// Create a payload-oriented title builder.
-    #[doc = "**API Contract:** Run `sand api show sand::command::Title::of` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::command::Title::of",
+        aliases = ["sand::cmd::Title::of", "sand::prelude::Title::of", "sand::prelude::cmd::Title::of"],
+        module = "sand::command",
+        kind = "method",
+        summary = "Create a payload-oriented title builder.",
+        context = "Create a payload-oriented title builder. This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
+        minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
+        use_when = ["Constructing Minecraft commands through Sand's typed command model"],
+        avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
+        params(selector = "`selector` provides the Minecraft target selection used to create a payload-oriented title builder."),
+        returns = "A `Title` representing a payload-oriented title builder.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(selector: sand::command::Selector)  {\n    let title = sand::command::Title::of(selector);\n}",
+    )]
     pub fn of(selector: Selector) -> Self {
         Self {
             selector,
@@ -37,28 +62,84 @@ impl Title {
     }
 
     /// Sets the title text emitted by this title-command builder.
-    #[doc = "**API Contract:** Run `sand api show sand::command::Title::title` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::command::Title::title",
+        aliases = ["sand::cmd::Title::title", "sand::prelude::Title::title", "sand::prelude::cmd::Title::title"],
+        module = "sand::command",
+        kind = "method",
+        summary = "Sets the title text emitted by this title-command builder.",
+        context = "Sets the title text emitted by this title-command builder. This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
+        minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
+        use_when = ["Constructing Minecraft commands through Sand's typed command model"],
+        avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
+        params(text = "`text` provides the author-visible text applied when setting the title text emitted by this title-command builder."),
+        returns = "The `Title` value with the documented change applied to set the title text emitted by this title-command builder.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(title_value: sand::command::Title, text: sand::text::TextComponent)  {\n    let updated_title = title_value.title(text);\n}",
+    )]
     pub fn title(mut self, text: TextComponent) -> Self {
         self.title = Some(text);
         self
     }
 
     /// Sets the subtitle text emitted by this title-command builder.
-    #[doc = "**API Contract:** Run `sand api show sand::command::Title::subtitle` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::command::Title::subtitle",
+        aliases = ["sand::cmd::Title::subtitle", "sand::prelude::Title::subtitle", "sand::prelude::cmd::Title::subtitle"],
+        module = "sand::command",
+        kind = "method",
+        summary = "Sets the subtitle text emitted by this title-command builder.",
+        context = "Sets the subtitle text emitted by this title-command builder. This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
+        minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
+        use_when = ["Constructing Minecraft commands through Sand's typed command model"],
+        avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
+        params(text = "`text` provides the author-visible text applied when setting the subtitle text emitted by this title-command builder."),
+        returns = "The `Title` value with the documented change applied to set the subtitle text emitted by this title-command builder.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(title_value: sand::command::Title, text: sand::text::TextComponent)  {\n    let updated_title = title_value.subtitle(text);\n}",
+    )]
     pub fn subtitle(mut self, text: TextComponent) -> Self {
         self.subtitle = Some(text);
         self
     }
 
     /// Sets the actionbar text emitted by this title-command builder.
-    #[doc = "**API Contract:** Run `sand api show sand::command::Title::actionbar` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::command::Title::actionbar",
+        aliases = ["sand::cmd::Title::actionbar", "sand::prelude::Title::actionbar", "sand::prelude::cmd::Title::actionbar"],
+        module = "sand::command",
+        kind = "method",
+        summary = "Sets the actionbar text emitted by this title-command builder.",
+        context = "Sets the actionbar text emitted by this title-command builder. This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
+        minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
+        use_when = ["Constructing Minecraft commands through Sand's typed command model"],
+        avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
+        params(text = "`text` provides the author-visible text applied when setting the actionbar text emitted by this title-command builder."),
+        returns = "The `Title` value with the documented change applied to set the actionbar text emitted by this title-command builder.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(title_value: sand::command::Title, text: sand::text::TextComponent)  {\n    let updated_title = title_value.actionbar(text);\n}",
+    )]
     pub fn actionbar(mut self, text: TextComponent) -> Self {
         self.actionbar = Some(text);
         self
     }
 
     /// Sets the fade-in, display, and fade-out timings for this title sequence.
-    #[doc = "**API Contract:** Run `sand api show sand::command::Title::times` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::command::Title::times",
+        aliases = ["sand::cmd::Title::times", "sand::prelude::Title::times", "sand::prelude::cmd::Title::times"],
+        module = "sand::command",
+        kind = "method",
+        summary = "Sets the fade-in, display, and fade-out timings for this title sequence.",
+        context = "Sets the fade-in, display, and fade-out timings for this title sequence. This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
+        minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
+        use_when = ["Constructing Minecraft commands through Sand's typed command model"],
+        avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
+        params(fade_in = "`fade_in` provides the fade in applied when setting the fade-in, display, and fade-out timings for this title sequence.", stay = "`stay` provides the stay applied when setting the fade-in, display, and fade-out timings for this title sequence.", fade_out = "`fade_out` provides the fade out applied when setting the fade-in, display, and fade-out timings for this title sequence."),
+        returns = "The `Title` value with the documented change applied to set the fade-in, display, and fade-out timings for this title sequence.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(title_value: sand::command::Title, fade_in: u32, stay: u32, fade_out: u32)  {\n    let updated_title = title_value.times(fade_in, stay, fade_out);\n}",
+    )]
     pub fn times(mut self, fade_in: u32, stay: u32, fade_out: u32) -> Self {
         self.fade_in = fade_in;
         self.stay = stay;
@@ -67,14 +148,40 @@ impl Title {
     }
 
     /// Validate and render all commands. Empty payload builders are rejected.
-    #[doc = "**API Contract:** Run `sand api show sand::command::Title::try_build` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::command::Title::try_build",
+        aliases = ["sand::cmd::Title::try_build", "sand::prelude::Title::try_build", "sand::prelude::cmd::Title::try_build"],
+        module = "sand::command",
+        kind = "method",
+        summary = "Validate and render all commands. Empty payload builders are rejected.",
+        context = "Validate and render all commands. Empty payload builders are rejected. This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
+        minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
+        use_when = ["Constructing Minecraft commands through Sand's typed command model"],
+        avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
+        returns = "On success, the value produced to validate and render all commands. Empty payload builders are rejected; otherwise, the documented validation or export diagnostic.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(title_value: &sand::command::Title)  {\n    let try_build = title_value.try_build();\n}",
+    )]
     pub fn try_build(&self) -> CommandResult<Vec<String>> {
         self.validate(&CommandProfile::unprofiled())?;
         Ok(self.render_lines(true))
     }
 
     /// Compatibility renderer. Lines retain their typed node for export-time validation.
-    #[doc = "**API Contract:** Run `sand api show sand::command::Title::build` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::command::Title::build",
+        aliases = ["sand::cmd::Title::build", "sand::prelude::Title::build", "sand::prelude::cmd::Title::build"],
+        module = "sand::command",
+        kind = "method",
+        summary = "Compatibility renderer. Lines retain their typed node for export-time validation.",
+        context = "Compatibility renderer. Lines retain their typed node for export-time validation. This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
+        minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
+        use_when = ["Constructing Minecraft commands through Sand's typed command model"],
+        avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
+        returns = "The ordered values produced to use compatibility renderer. Lines retain their typed node for export-time validation.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(title_value: sand::command::Title)  {\n    let values = title_value.build();\n}",
+    )]
     pub fn build(self) -> Vec<String> {
         let lines = self.render_lines(true);
         for line in &lines {
@@ -104,13 +211,41 @@ impl Title {
     }
 
     /// Renders the Minecraft clear command for the selected title.
-    #[doc = "**API Contract:** Run `sand api show sand::command::Title::clear` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::command::Title::clear",
+        aliases = ["sand::cmd::Title::clear", "sand::prelude::Title::clear", "sand::prelude::cmd::Title::clear"],
+        module = "sand::command",
+        kind = "method",
+        summary = "Renders the Minecraft clear command for the selected title.",
+        context = "Renders the Minecraft clear command for the selected title. This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
+        minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
+        use_when = ["Constructing Minecraft commands through Sand's typed command model"],
+        avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
+        params(selector = "`selector` provides the Minecraft target selection used to render the Minecraft clear command for the selected title."),
+        returns = "The rendered Minecraft command text produced to render the Minecraft clear command for the selected title.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(selector: sand::command::Selector)  {\n    let command = sand::command::Title::clear(selector);\n}",
+    )]
     pub fn clear(selector: Selector) -> String {
         TitleCommand::Clear(selector).build_registered()
     }
 
     /// Renders the Minecraft reset command for the selected title.
-    #[doc = "**API Contract:** Run `sand api show sand::command::Title::reset` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::command::Title::reset",
+        aliases = ["sand::cmd::Title::reset", "sand::prelude::Title::reset", "sand::prelude::cmd::Title::reset"],
+        module = "sand::command",
+        kind = "method",
+        summary = "Renders the Minecraft reset command for the selected title.",
+        context = "Renders the Minecraft reset command for the selected title. This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
+        minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
+        use_when = ["Constructing Minecraft commands through Sand's typed command model"],
+        avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
+        params(selector = "`selector` provides the Minecraft target selection used to render the Minecraft reset command for the selected title."),
+        returns = "The rendered Minecraft command text produced to render the Minecraft reset command for the selected title.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(selector: sand::command::Selector)  {\n    let command = sand::command::Title::reset(selector);\n}",
+    )]
     pub fn reset(selector: Selector) -> String {
         TitleCommand::Reset(selector).build_registered()
     }
@@ -141,7 +276,18 @@ impl Validate for Title {
     }
 }
 
-#[doc = "**API Contract:** Run `sand api show sand::command::TitleTimes` for the canonical contract."]
+#[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::command::TitleTimes",
+    aliases = ["sand::cmd::TitleTimes", "sand::prelude::TitleTimes", "sand::prelude::cmd::TitleTimes"],
+    module = "sand::command",
+    summary = "Explicit timing-only title command.",
+    context = "Explicit timing-only title command. This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
+    minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
+    use_when = ["Constructing Minecraft commands through Sand's typed command model"],
+    avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
+    example = "use sand::command::TitleTimes;",
+)]
 /// Explicit timing-only title command.
 #[derive(Debug, Clone)]
 pub struct TitleTimes {
@@ -153,7 +299,21 @@ pub struct TitleTimes {
 
 impl TitleTimes {
     /// Creates a typed title times command builder from the supplied command inputs.
-    #[doc = "**API Contract:** Run `sand api show sand::command::TitleTimes::new` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::command::TitleTimes::new",
+        aliases = ["sand::cmd::TitleTimes::new", "sand::prelude::TitleTimes::new", "sand::prelude::cmd::TitleTimes::new"],
+        module = "sand::command",
+        kind = "method",
+        summary = "Creates a typed title times command builder from the supplied command inputs.",
+        context = "Creates a typed title times command builder from the supplied command inputs. This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
+        minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
+        use_when = ["Constructing Minecraft commands through Sand's typed command model"],
+        avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
+        params(selector = "`selector` provides the Minecraft target selection used to create a typed title times command builder from the supplied command inputs.", fade_in = "`fade_in` is used when creating a typed title times command builder from the supplied command inputs.", stay = "`stay` is used when creating a typed title times command builder from the supplied command inputs.", fade_out = "`fade_out` is used when creating a typed title times command builder from the supplied command inputs."),
+        returns = "A `TitleTimes` representing a typed title times command builder from the supplied command inputs.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(selector: sand::command::Selector, fade_in: u32, stay: u32, fade_out: u32)  {\n    let title_times = sand::command::TitleTimes::new(selector, fade_in, stay, fade_out);\n}",
+    )]
     pub fn new(selector: Selector, fade_in: u32, stay: u32, fade_out: u32) -> Self {
         Self {
             selector,
@@ -164,7 +324,20 @@ impl TitleTimes {
     }
 
     /// Renders the configured title times as validated Minecraft command text.
-    #[doc = "**API Contract:** Run `sand api show sand::command::TitleTimes::build` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::command::TitleTimes::build",
+        aliases = ["sand::cmd::TitleTimes::build", "sand::prelude::TitleTimes::build", "sand::prelude::cmd::TitleTimes::build"],
+        module = "sand::command",
+        kind = "method",
+        summary = "Renders the configured title times as validated Minecraft command text.",
+        context = "Renders the configured title times as validated Minecraft command text. This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
+        minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
+        use_when = ["Constructing Minecraft commands through Sand's typed command model"],
+        avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
+        returns = "The rendered Minecraft command text produced to render the configured title times as validated Minecraft command text.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(title_times_value: sand::command::TitleTimes)  {\n    let command = title_times_value.build();\n}",
+    )]
     pub fn build(self) -> String {
         TitleCommand::Times(self).build_registered()
     }
@@ -231,7 +404,18 @@ impl RenderCommand for TitleCommand {
     }
 }
 
-#[doc = "**API Contract:** Run `sand api show sand::command::Actionbar` for the canonical contract."]
+#[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::command::Actionbar",
+    aliases = ["sand::cmd::Actionbar", "sand::prelude::Actionbar", "sand::prelude::cmd::Actionbar"],
+    module = "sand::command",
+    summary = "Actionbar command helpers.",
+    context = "Actionbar command helpers. This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
+    minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
+    use_when = ["Constructing Minecraft commands through Sand's typed command model"],
+    avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
+    example = "use sand::command::Actionbar;",
+)]
 /// Actionbar command helpers.
 pub struct Actionbar;
 
@@ -251,10 +435,21 @@ impl Actionbar {
     /// assert!(command.contains("Ready"));
     /// ```
     ///
-    /// # API Contract
-    ///
-    /// Inspect the complete contract with
-    /// `sand api show sand::command::Actionbar::show`.
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::command::Actionbar::show",
+        aliases = ["sand::cmd::Actionbar::show", "sand::prelude::Actionbar::show", "sand::prelude::cmd::Actionbar::show"],
+        module = "sand::command",
+        kind = "method",
+        summary = "Renders the Minecraft show command for the selected actionbar.",
+        context = "Renders the Minecraft show command for the selected actionbar. `selector` identifies the players whose actionbar is updated. `text` is the typed text component serialized into the command's JSON payload.",
+        minecraft = "`selector` identifies the players whose actionbar is updated. `text` is the typed text component serialized into the command's JSON payload.",
+        use_when = ["Constructing Minecraft commands through Sand's typed command model"],
+        avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
+        params(selector = "`selector` identifies the players whose actionbar is updated. `text` is the typed text component serialized into the command's JSON payload.", text = "`selector` identifies the players whose actionbar is updated. `text` is the typed text component serialized into the command's JSON payload."),
+        returns = "The rendered Minecraft command text produced to render the Minecraft show command for the selected actionbar.",
+        example = "use {sand::command::Actionbar, sand::command::Selector, sand::text::Text};\nlet command = Actionbar::show(Selector::self_(), Text::new(\"Ready\").green());\nassert!(command.starts_with(\"title @s actionbar \"));\nassert!(command.contains(\"Ready\"));",
+    )]
     pub fn show(selector: Selector, text: TextComponent) -> String {
         TitleCommand::Actionbar {
             selector,
@@ -277,7 +472,21 @@ impl Actionbar {
     /// let command = Actionbar::show_raw("@s", r#"{"text":"Ready"}"#);
     /// assert_eq!(command, r#"title @s actionbar {"text":"Ready"}"#);
     /// ```
-    #[doc = "**API Contract:** Run `sand api show sand::command::Actionbar::show_raw` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::command::Actionbar::show_raw",
+        aliases = ["sand::cmd::Actionbar::show_raw", "sand::prelude::Actionbar::show_raw", "sand::prelude::cmd::Actionbar::show_raw"],
+        module = "sand::command",
+        kind = "method",
+        summary = "Renders an actionbar command from an unchecked selector and raw JSON text.",
+        context = "Renders an actionbar command from an unchecked selector and raw JSON text. `selector` is inserted verbatim as the command target and `json` is inserted verbatim as the text-component payload. Use [`Actionbar::show`] when typed selector and text validation are available. Returns the rendered `title <selector> actionbar <json>` command line.",
+        minecraft = "`selector` is inserted verbatim as the command target and `json` is inserted verbatim as the text-component payload. Use [`Actionbar::show`] when typed selector and text validation are available.",
+        use_when = ["Constructing Minecraft commands through Sand's typed command model"],
+        avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
+        params(selector = "`selector` is inserted verbatim as the command target and `json` is inserted verbatim as the text-component payload. Use [`Actionbar::show`] when typed selector and text validation are available.", json = "`selector` is inserted verbatim as the command target and `json` is inserted verbatim as the text-component payload. Use [`Actionbar::show`] when typed selector and text validation are available."),
+        returns = "Returns the rendered `title <selector> actionbar <json>` command line.",
+        example = "use sand::command::Actionbar;\nlet command = Actionbar::show_raw(\"@s\", r#\"{\"text\":\"Ready\"}\"#);\nassert_eq!(command, r#\"title @s actionbar {\"text\":\"Ready\"}\"#);",
+    )]
     pub fn show_raw(selector: impl fmt::Display, json: impl fmt::Display) -> String {
         TitleCommand::RawActionbar {
             selector: selector.to_string(),
@@ -288,29 +497,34 @@ impl Actionbar {
 }
 
 #[doc = "Defines the supported bossbar color forms for typed Minecraft commands."]
-#[doc = "**API Contract:** Run `sand api show sand::command::BossbarColor` for the canonical contract."]
+#[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::command::BossbarColor",
+    aliases = ["sand::cmd::BossbarColor", "sand::prelude::BossbarColor", "sand::prelude::cmd::BossbarColor"],
+    module = "sand::command",
+    summary = "Defines the supported bossbar color forms for typed Minecraft commands.",
+    context = "Defines the supported bossbar color forms for typed Minecraft commands. This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
+    minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
+    use_when = ["Constructing Minecraft commands through Sand's typed command model"],
+    avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
+    example = "use sand::command::BossbarColor;",
+    variants(Blue = "Selects the blue form of the bossbar color Minecraft command value.", Green = "Selects the green form of the bossbar color Minecraft command value.", Pink = "Selects the pink form of the bossbar color Minecraft command value.", Purple = "Selects the purple form of the bossbar color Minecraft command value.", Red = "Selects the red form of the bossbar color Minecraft command value.", White = "Selects the white form of the bossbar color Minecraft command value.", Yellow = "Selects the yellow form of the bossbar color Minecraft command value."),
+)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum BossbarColor {
     #[doc = "Selects the blue form of the bossbar color Minecraft command value."]
-    #[doc = "**API Contract:** Run `sand api show sand::command::BossbarColor::Blue` for the canonical contract."]
     Blue,
     #[doc = "Selects the green form of the bossbar color Minecraft command value."]
-    #[doc = "**API Contract:** Run `sand api show sand::command::BossbarColor::Green` for the canonical contract."]
     Green,
     #[doc = "Selects the pink form of the bossbar color Minecraft command value."]
-    #[doc = "**API Contract:** Run `sand api show sand::command::BossbarColor::Pink` for the canonical contract."]
     Pink,
     #[doc = "Selects the purple form of the bossbar color Minecraft command value."]
-    #[doc = "**API Contract:** Run `sand api show sand::command::BossbarColor::Purple` for the canonical contract."]
     Purple,
     #[doc = "Selects the red form of the bossbar color Minecraft command value."]
-    #[doc = "**API Contract:** Run `sand api show sand::command::BossbarColor::Red` for the canonical contract."]
     Red,
     #[doc = "Selects the white form of the bossbar color Minecraft command value."]
-    #[doc = "**API Contract:** Run `sand api show sand::command::BossbarColor::White` for the canonical contract."]
     White,
     #[doc = "Selects the yellow form of the bossbar color Minecraft command value."]
-    #[doc = "**API Contract:** Run `sand api show sand::command::BossbarColor::Yellow` for the canonical contract."]
     Yellow,
 }
 
@@ -329,23 +543,30 @@ impl fmt::Display for BossbarColor {
 }
 
 #[doc = "Defines the supported bossbar style forms for typed Minecraft commands."]
-#[doc = "**API Contract:** Run `sand api show sand::command::BossbarStyle` for the canonical contract."]
+#[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::command::BossbarStyle",
+    aliases = ["sand::cmd::BossbarStyle", "sand::prelude::BossbarStyle", "sand::prelude::cmd::BossbarStyle"],
+    module = "sand::command",
+    summary = "Defines the supported bossbar style forms for typed Minecraft commands.",
+    context = "Defines the supported bossbar style forms for typed Minecraft commands. This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
+    minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
+    use_when = ["Constructing Minecraft commands through Sand's typed command model"],
+    avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
+    example = "use sand::command::BossbarStyle;",
+    variants(Notched10 = "Selects the notched10 form of the bossbar style Minecraft command value.", Notched12 = "Selects the notched12 form of the bossbar style Minecraft command value.", Notched20 = "Selects the notched20 form of the bossbar style Minecraft command value.", Notched6 = "Selects the notched6 form of the bossbar style Minecraft command value.", Progress = "Selects the progress form of the bossbar style Minecraft command value."),
+)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum BossbarStyle {
     #[doc = "Selects the progress form of the bossbar style Minecraft command value."]
-    #[doc = "**API Contract:** Run `sand api show sand::command::BossbarStyle::Progress` for the canonical contract."]
     Progress,
     #[doc = "Selects the notched6 form of the bossbar style Minecraft command value."]
-    #[doc = "**API Contract:** Run `sand api show sand::command::BossbarStyle::Notched6` for the canonical contract."]
     Notched6,
     #[doc = "Selects the notched10 form of the bossbar style Minecraft command value."]
-    #[doc = "**API Contract:** Run `sand api show sand::command::BossbarStyle::Notched10` for the canonical contract."]
     Notched10,
     #[doc = "Selects the notched12 form of the bossbar style Minecraft command value."]
-    #[doc = "**API Contract:** Run `sand api show sand::command::BossbarStyle::Notched12` for the canonical contract."]
     Notched12,
     #[doc = "Selects the notched20 form of the bossbar style Minecraft command value."]
-    #[doc = "**API Contract:** Run `sand api show sand::command::BossbarStyle::Notched20` for the canonical contract."]
     Notched20,
 }
 
@@ -361,7 +582,18 @@ impl fmt::Display for BossbarStyle {
     }
 }
 
-#[doc = "**API Contract:** Run `sand api show sand::command::BossbarId` for the canonical contract."]
+#[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::command::BossbarId",
+    aliases = ["sand::cmd::BossbarId", "sand::prelude::BossbarId", "sand::prelude::cmd::BossbarId"],
+    module = "sand::command",
+    summary = "Canonical validated bossbar resource location.",
+    context = "Canonical validated bossbar resource location. This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
+    minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
+    use_when = ["Constructing Minecraft commands through Sand's typed command model"],
+    avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
+    example = "use sand::command::BossbarId;",
+)]
 /// Canonical validated bossbar resource location.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct BossbarId {
@@ -371,7 +603,21 @@ pub struct BossbarId {
 
 impl BossbarId {
     /// Parses and validates a typed bossbar id identifier.
-    #[doc = "**API Contract:** Run `sand api show sand::command::BossbarId::parse` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::command::BossbarId::parse",
+        aliases = ["sand::cmd::BossbarId::parse", "sand::prelude::BossbarId::parse", "sand::prelude::cmd::BossbarId::parse"],
+        module = "sand::command",
+        kind = "method",
+        summary = "Parses and validates a typed bossbar id identifier.",
+        context = "Parses and validates a typed bossbar id identifier. This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
+        minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
+        use_when = ["Constructing Minecraft commands through Sand's typed command model"],
+        avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
+        params(value = "`value` provides the value being applied or compared used to parse and validates a typed bossbar id identifier."),
+        returns = "On success, the value produced to parse and validates a typed bossbar id identifier; otherwise, the documented validation or export diagnostic.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(value: impl Into < String >)  {\n    let bossbar_id_result = sand::command::BossbarId::parse(value);\n}",
+    )]
     pub fn parse(value: impl Into<String>) -> CommandResult<Self> {
         let value = value.into();
         crate::validate::resource_location_shape(&value, "BossbarId", "id")
@@ -380,7 +626,21 @@ impl BossbarId {
     }
 
     /// Creates an unchecked bossbar identifier for advanced command interop.
-    #[doc = "**API Contract:** Run `sand api show sand::command::BossbarId::raw` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::command::BossbarId::raw",
+        aliases = ["sand::cmd::BossbarId::raw", "sand::prelude::BossbarId::raw", "sand::prelude::cmd::BossbarId::raw"],
+        module = "sand::command",
+        kind = "method",
+        summary = "Creates an unchecked bossbar identifier for advanced command interop.",
+        context = "Creates an unchecked bossbar identifier for advanced command interop. This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
+        minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
+        use_when = ["Constructing Minecraft commands through Sand's typed command model"],
+        avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
+        params(value = "`value` provides the value being applied or compared used to create an unchecked bossbar identifier for advanced command interop."),
+        returns = "A `BossbarId` representing an unchecked bossbar identifier for advanced command interop.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(value: impl Into < String >)  {\n    let bossbar_id = sand::command::BossbarId::raw(value);\n}",
+    )]
     pub fn raw(value: impl Into<String>) -> Self {
         Self {
             value: value.into(),
@@ -414,11 +674,34 @@ impl From<String> for BossbarId {
     }
 }
 
-#[doc = "**API Contract:** Run `sand api show sand::command::IntoBossbarId` for the canonical contract."]
+#[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::command::IntoBossbarId",
+    aliases = ["sand::cmd::IntoBossbarId", "sand::prelude::cmd::IntoBossbarId"],
+    module = "sand::command",
+    summary = "Conversion into a bossbar resource-location token.",
+    context = "Conversion into a bossbar resource-location token. This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
+    minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
+    use_when = ["Constructing Minecraft commands through Sand's typed command model"],
+    avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
+    example = "use sand::command::IntoBossbarId;",
+)]
 /// Conversion into a bossbar resource-location token.
 pub trait IntoBossbarId {
     /// Converts a value into the validated bossbar identifier accepted by command builders.
-    #[doc = "**API Contract:** Run `sand api show sand::command::IntoBossbarId::into_bossbar_id` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::command::IntoBossbarId::into_bossbar_id",
+        aliases = ["sand::cmd::IntoBossbarId::into_bossbar_id", "sand::prelude::cmd::IntoBossbarId::into_bossbar_id"],
+        module = "sand::command",
+        summary = "Converts a value into the validated bossbar identifier accepted by command builders.",
+        context = "Converts a value into the validated bossbar identifier accepted by command builders. This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
+        minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
+        use_when = ["Constructing Minecraft commands through Sand's typed command model"],
+        avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
+        returns = "The `BossbarId` value produced to convert a value into the validated bossbar identifier accepted by command builders.",
+        example = "use sand::prelude::*;\n\nfn demonstrate<T: sand::command::IntoBossbarId>(into_bossbar_id_value: T)  {\n    let into_bossbar_id = into_bossbar_id_value.into_bossbar_id();\n}",
+    )]
     fn into_bossbar_id(self) -> BossbarId;
 }
 
@@ -440,108 +723,91 @@ impl IntoBossbarId for &str {
     }
 }
 
-#[doc = "**API Contract:** Run `sand api show sand::command::BossbarCommand` for the canonical contract."]
+#[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::command::BossbarCommand",
+    aliases = ["sand::cmd::BossbarCommand", "sand::prelude::cmd::BossbarCommand"],
+    module = "sand::command",
+    summary = "Typed bossbar terminal command.",
+    context = "Typed bossbar terminal command. This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
+    minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
+    use_when = ["Constructing Minecraft commands through Sand's typed command model"],
+    avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
+    example = "use sand::command::BossbarCommand;",
+    variants(Add = "Selects the add form of the bossbar command Minecraft command value.", Get = "Selects the get form of the bossbar command Minecraft command value.", List = "Selects the list form of the bossbar command Minecraft command value.", Remove = "Selects the remove form of the bossbar command Minecraft command value.", SetColor = "Selects the set color form of the bossbar command Minecraft command value.", SetMax = "Selects the set max form of the bossbar command Minecraft command value.", SetName = "Selects the set name form of the bossbar command Minecraft command value.", SetPlayers = "Selects the set players form of the bossbar command Minecraft command value.", SetStyle = "Selects the set style form of the bossbar command Minecraft command value.", SetValue = "Selects the set value form of the bossbar command Minecraft command value.", SetVisible = "Selects the set visible form of the bossbar command Minecraft command value."),
+    variant_fields(Add(id = "`id` supplies the identifier for the `bossbar add` command.", name = "`name` supplies the name for the `bossbar add` command."), Get(field = "`field` supplies the field for the `bossbar get` command.", id = "`id` supplies the identifier for the `bossbar get` command."), Remove(id = "`id` supplies the identifier for the `bossbar remove` command."), SetColor(color = "`color` supplies the color for the `bossbar set color` command.", id = "`id` supplies the identifier for the `bossbar set color` command."), SetMax(id = "`id` supplies the identifier for the `bossbar set max` command.", max = "`max` supplies the maximum value for the `bossbar set max` command."), SetName(id = "`id` supplies the identifier for the `bossbar set name` command.", name = "`name` supplies the name for the `bossbar set name` command."), SetPlayers(id = "`id` supplies the identifier for the `bossbar set players` command.", players = "`players` supplies the players for the `bossbar set players` command."), SetStyle(id = "`id` supplies the identifier for the `bossbar set style` command.", style = "`style` supplies the style for the `bossbar set style` command."), SetValue(id = "`id` supplies the identifier for the `bossbar set value` command.", value = "`value` supplies the value for the `bossbar set value` command."), SetVisible(id = "`id` supplies the identifier for the `bossbar set visible` command.", visible = "`visible` supplies the visible for the `bossbar set visible` command.")),
+)]
 /// Typed bossbar terminal command.
 #[derive(Debug, Clone)]
 pub enum BossbarCommand {
     #[doc = "Selects the add form of the bossbar command Minecraft command value."]
-    #[doc = "**API Contract:** Run `sand api show sand::command::BossbarCommand::Add` for the canonical contract."]
     Add {
-        #[doc = "`id` provides the identifier when the variant selects the add form of the bossbar command Minecraft command value."]
-        #[doc = "**API Contract:** Run `sand api show sand::command::BossbarCommand::Add::id` for the canonical contract."]
+        #[doc = "`id` supplies the identifier for the `bossbar add` command."]
         id: BossbarId,
-        #[doc = "`name` provides the name when the variant selects the add form of the bossbar command Minecraft command value."]
-        #[doc = "**API Contract:** Run `sand api show sand::command::BossbarCommand::Add::name` for the canonical contract."]
+        #[doc = "`name` supplies the name for the `bossbar add` command."]
         name: TextComponent,
     },
     #[doc = "Selects the remove form of the bossbar command Minecraft command value."]
-    #[doc = "**API Contract:** Run `sand api show sand::command::BossbarCommand::Remove` for the canonical contract."]
     Remove {
-        #[doc = "`id` provides the identifier when the variant selects the remove form of the bossbar command Minecraft command value."]
-        #[doc = "**API Contract:** Run `sand api show sand::command::BossbarCommand::Remove::id` for the canonical contract."]
+        #[doc = "`id` supplies the identifier for the `bossbar remove` command."]
         id: BossbarId,
     },
     #[doc = "Selects the list form of the bossbar command Minecraft command value."]
-    #[doc = "**API Contract:** Run `sand api show sand::command::BossbarCommand::List` for the canonical contract."]
     List,
     #[doc = "Selects the set name form of the bossbar command Minecraft command value."]
-    #[doc = "**API Contract:** Run `sand api show sand::command::BossbarCommand::SetName` for the canonical contract."]
     SetName {
-        #[doc = "`id` provides the identifier when the variant selects the set name form of the bossbar command Minecraft command value."]
-        #[doc = "**API Contract:** Run `sand api show sand::command::BossbarCommand::SetName::id` for the canonical contract."]
+        #[doc = "`id` supplies the identifier for the `bossbar set name` command."]
         id: BossbarId,
-        #[doc = "`name` provides the name when the variant selects the set name form of the bossbar command Minecraft command value."]
-        #[doc = "**API Contract:** Run `sand api show sand::command::BossbarCommand::SetName::name` for the canonical contract."]
+        #[doc = "`name` supplies the name for the `bossbar set name` command."]
         name: TextComponent,
     },
     #[doc = "Selects the set color form of the bossbar command Minecraft command value."]
-    #[doc = "**API Contract:** Run `sand api show sand::command::BossbarCommand::SetColor` for the canonical contract."]
     SetColor {
-        #[doc = "`id` provides the identifier when the variant selects the set color form of the bossbar command Minecraft command value."]
-        #[doc = "**API Contract:** Run `sand api show sand::command::BossbarCommand::SetColor::id` for the canonical contract."]
+        #[doc = "`id` supplies the identifier for the `bossbar set color` command."]
         id: BossbarId,
-        #[doc = "`color` provides the color when the variant selects the set color form of the bossbar command Minecraft command value."]
-        #[doc = "**API Contract:** Run `sand api show sand::command::BossbarCommand::SetColor::color` for the canonical contract."]
+        #[doc = "`color` supplies the color for the `bossbar set color` command."]
         color: BossbarColor,
     },
     #[doc = "Selects the set style form of the bossbar command Minecraft command value."]
-    #[doc = "**API Contract:** Run `sand api show sand::command::BossbarCommand::SetStyle` for the canonical contract."]
     SetStyle {
-        #[doc = "`id` provides the identifier when the variant selects the set style form of the bossbar command Minecraft command value."]
-        #[doc = "**API Contract:** Run `sand api show sand::command::BossbarCommand::SetStyle::id` for the canonical contract."]
+        #[doc = "`id` supplies the identifier for the `bossbar set style` command."]
         id: BossbarId,
-        #[doc = "`style` provides the style when the variant selects the set style form of the bossbar command Minecraft command value."]
-        #[doc = "**API Contract:** Run `sand api show sand::command::BossbarCommand::SetStyle::style` for the canonical contract."]
+        #[doc = "`style` supplies the style for the `bossbar set style` command."]
         style: BossbarStyle,
     },
     #[doc = "Selects the set value form of the bossbar command Minecraft command value."]
-    #[doc = "**API Contract:** Run `sand api show sand::command::BossbarCommand::SetValue` for the canonical contract."]
     SetValue {
-        #[doc = "`id` provides the identifier when the variant selects the set value form of the bossbar command Minecraft command value."]
-        #[doc = "**API Contract:** Run `sand api show sand::command::BossbarCommand::SetValue::id` for the canonical contract."]
+        #[doc = "`id` supplies the identifier for the `bossbar set value` command."]
         id: BossbarId,
-        #[doc = "`value` provides the value when the variant selects the set value form of the bossbar command Minecraft command value."]
-        #[doc = "**API Contract:** Run `sand api show sand::command::BossbarCommand::SetValue::value` for the canonical contract."]
+        #[doc = "`value` supplies the value for the `bossbar set value` command."]
         value: u32,
     },
     #[doc = "Selects the set max form of the bossbar command Minecraft command value."]
-    #[doc = "**API Contract:** Run `sand api show sand::command::BossbarCommand::SetMax` for the canonical contract."]
     SetMax {
-        #[doc = "`id` provides the identifier when the variant selects the set max form of the bossbar command Minecraft command value."]
-        #[doc = "**API Contract:** Run `sand api show sand::command::BossbarCommand::SetMax::id` for the canonical contract."]
+        #[doc = "`id` supplies the identifier for the `bossbar set max` command."]
         id: BossbarId,
-        #[doc = "`max` provides the maximum value when the variant selects the set max form of the bossbar command Minecraft command value."]
-        #[doc = "**API Contract:** Run `sand api show sand::command::BossbarCommand::SetMax::max` for the canonical contract."]
+        #[doc = "`max` supplies the maximum value for the `bossbar set max` command."]
         max: u32,
     },
     #[doc = "Selects the set visible form of the bossbar command Minecraft command value."]
-    #[doc = "**API Contract:** Run `sand api show sand::command::BossbarCommand::SetVisible` for the canonical contract."]
     SetVisible {
-        #[doc = "`id` provides the identifier when the variant selects the set visible form of the bossbar command Minecraft command value."]
-        #[doc = "**API Contract:** Run `sand api show sand::command::BossbarCommand::SetVisible::id` for the canonical contract."]
+        #[doc = "`id` supplies the identifier for the `bossbar set visible` command."]
         id: BossbarId,
-        #[doc = "`visible` provides the visible when the variant selects the set visible form of the bossbar command Minecraft command value."]
-        #[doc = "**API Contract:** Run `sand api show sand::command::BossbarCommand::SetVisible::visible` for the canonical contract."]
+        #[doc = "`visible` supplies the visible for the `bossbar set visible` command."]
         visible: bool,
     },
     #[doc = "Selects the set players form of the bossbar command Minecraft command value."]
-    #[doc = "**API Contract:** Run `sand api show sand::command::BossbarCommand::SetPlayers` for the canonical contract."]
     SetPlayers {
-        #[doc = "`id` provides the identifier when the variant selects the set players form of the bossbar command Minecraft command value."]
-        #[doc = "**API Contract:** Run `sand api show sand::command::BossbarCommand::SetPlayers::id` for the canonical contract."]
+        #[doc = "`id` supplies the identifier for the `bossbar set players` command."]
         id: BossbarId,
-        #[doc = "`players` provides the players when the variant selects the set players form of the bossbar command Minecraft command value."]
-        #[doc = "**API Contract:** Run `sand api show sand::command::BossbarCommand::SetPlayers::players` for the canonical contract."]
+        #[doc = "`players` supplies the players for the `bossbar set players` command."]
         players: Selector,
     },
     #[doc = "Selects the get form of the bossbar command Minecraft command value."]
-    #[doc = "**API Contract:** Run `sand api show sand::command::BossbarCommand::Get` for the canonical contract."]
     Get {
-        #[doc = "`id` provides the identifier when the variant selects the get form of the bossbar command Minecraft command value."]
-        #[doc = "**API Contract:** Run `sand api show sand::command::BossbarCommand::Get::id` for the canonical contract."]
+        #[doc = "`id` supplies the identifier for the `bossbar get` command."]
         id: BossbarId,
-        #[doc = "`field` provides the field when the variant selects the get form of the bossbar command Minecraft command value."]
-        #[doc = "**API Contract:** Run `sand api show sand::command::BossbarCommand::Get::field` for the canonical contract."]
+        #[doc = "`field` supplies the field for the `bossbar get` command."]
         field: &'static str,
     },
 }
@@ -617,12 +883,37 @@ impl RenderCommand for BossbarCommand {
 }
 
 #[doc = "Builds or represents the typed bossbar Minecraft command value."]
-#[doc = "**API Contract:** Run `sand api show sand::command::Bossbar` for the canonical contract."]
+#[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::command::Bossbar",
+    aliases = ["sand::cmd::Bossbar", "sand::prelude::Bossbar", "sand::prelude::cmd::Bossbar"],
+    module = "sand::command",
+    summary = "Builds or represents the typed bossbar Minecraft command value.",
+    context = "Builds or represents the typed bossbar Minecraft command value. This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
+    minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
+    use_when = ["Constructing Minecraft commands through Sand's typed command model"],
+    avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
+    example = "use sand::command::Bossbar;",
+)]
 pub struct Bossbar;
 
 impl Bossbar {
     /// Renders the Minecraft add command for the selected bossbar.
-    #[doc = "**API Contract:** Run `sand api show sand::command::Bossbar::add` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::command::Bossbar::add",
+        aliases = ["sand::cmd::Bossbar::add", "sand::prelude::Bossbar::add", "sand::prelude::cmd::Bossbar::add"],
+        module = "sand::command",
+        kind = "method",
+        summary = "Renders the Minecraft add command for the selected bossbar.",
+        context = "Renders the Minecraft add command for the selected bossbar. This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
+        minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
+        use_when = ["Constructing Minecraft commands through Sand's typed command model"],
+        avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
+        params(id = "`id` provides the typed resource identifier or location used to render the Minecraft add command for the selected bossbar.", name = "`name` provides the author-visible text rendered when the Minecraft add command for the selected bossbar."),
+        returns = "The rendered Minecraft command text produced to render the Minecraft add command for the selected bossbar.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(id: impl sand::command::IntoBossbarId, name: sand::text::TextComponent)  {\n    let command = sand::command::Bossbar::add(id, name);\n}",
+    )]
     pub fn add(id: impl IntoBossbarId, name: TextComponent) -> String {
         BossbarCommand::Add {
             id: id.into_bossbar_id(),
@@ -631,7 +922,21 @@ impl Bossbar {
         .build_registered()
     }
     /// Renders the Minecraft remove command for the selected bossbar.
-    #[doc = "**API Contract:** Run `sand api show sand::command::Bossbar::remove` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::command::Bossbar::remove",
+        aliases = ["sand::cmd::Bossbar::remove", "sand::prelude::Bossbar::remove", "sand::prelude::cmd::Bossbar::remove"],
+        module = "sand::command",
+        kind = "method",
+        summary = "Renders the Minecraft remove command for the selected bossbar.",
+        context = "Renders the Minecraft remove command for the selected bossbar. This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
+        minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
+        use_when = ["Constructing Minecraft commands through Sand's typed command model"],
+        avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
+        params(id = "`id` provides the typed resource identifier or location used to render the Minecraft remove command for the selected bossbar."),
+        returns = "The rendered Minecraft command text produced to render the Minecraft remove command for the selected bossbar.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(id: impl sand::command::IntoBossbarId)  {\n    let command = sand::command::Bossbar::remove(id);\n}",
+    )]
     pub fn remove(id: impl IntoBossbarId) -> String {
         BossbarCommand::Remove {
             id: id.into_bossbar_id(),
@@ -639,12 +944,39 @@ impl Bossbar {
         .build_registered()
     }
     /// Renders the Minecraft list command for the selected bossbar.
-    #[doc = "**API Contract:** Run `sand api show sand::command::Bossbar::list` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::command::Bossbar::list",
+        aliases = ["sand::cmd::Bossbar::list", "sand::prelude::Bossbar::list", "sand::prelude::cmd::Bossbar::list"],
+        module = "sand::command",
+        kind = "method",
+        summary = "Renders the Minecraft list command for the selected bossbar.",
+        context = "Renders the Minecraft list command for the selected bossbar. This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
+        minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
+        use_when = ["Constructing Minecraft commands through Sand's typed command model"],
+        avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
+        returns = "The rendered Minecraft command text produced to render the Minecraft list command for the selected bossbar.",
+        example = "use sand::prelude::*;\n\nfn demonstrate()  {\n    let command = sand::command::Bossbar::list();\n}",
+    )]
     pub fn list() -> String {
         BossbarCommand::List.build_registered()
     }
     /// Renders the Minecraft command that sets value for the selected bossbar.
-    #[doc = "**API Contract:** Run `sand api show sand::command::Bossbar::set_value` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::command::Bossbar::set_value",
+        aliases = ["sand::cmd::Bossbar::set_value", "sand::prelude::Bossbar::set_value", "sand::prelude::cmd::Bossbar::set_value"],
+        module = "sand::command",
+        kind = "method",
+        summary = "Renders the Minecraft command that sets value for the selected bossbar.",
+        context = "Renders the Minecraft command that sets value for the selected bossbar. This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
+        minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
+        use_when = ["Constructing Minecraft commands through Sand's typed command model"],
+        avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
+        params(id = "`id` provides the typed resource identifier or location used to render the Minecraft command that sets value for the selected bossbar.", value = "`value` provides the value being applied or compared used to render the Minecraft command that sets value for the selected bossbar."),
+        returns = "The rendered Minecraft command text produced to render the Minecraft command that sets value for the selected bossbar.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(id: impl sand::command::IntoBossbarId, value: u32)  {\n    let command = sand::command::Bossbar::set_value(id, value);\n}",
+    )]
     pub fn set_value(id: impl IntoBossbarId, value: u32) -> String {
         BossbarCommand::SetValue {
             id: id.into_bossbar_id(),
@@ -653,7 +985,21 @@ impl Bossbar {
         .build_registered()
     }
     /// Renders the Minecraft command that sets max for the selected bossbar.
-    #[doc = "**API Contract:** Run `sand api show sand::command::Bossbar::set_max` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::command::Bossbar::set_max",
+        aliases = ["sand::cmd::Bossbar::set_max", "sand::prelude::Bossbar::set_max", "sand::prelude::cmd::Bossbar::set_max"],
+        module = "sand::command",
+        kind = "method",
+        summary = "Renders the Minecraft command that sets max for the selected bossbar.",
+        context = "Renders the Minecraft command that sets max for the selected bossbar. This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
+        minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
+        use_when = ["Constructing Minecraft commands through Sand's typed command model"],
+        avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
+        params(id = "`id` provides the typed resource identifier or location used to render the Minecraft command that sets max for the selected bossbar.", max = "`max` provides the inclusive upper bound used to render the Minecraft command that sets max for the selected bossbar."),
+        returns = "The rendered Minecraft command text produced to render the Minecraft command that sets max for the selected bossbar.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(id: impl sand::command::IntoBossbarId, max: u32)  {\n    let command = sand::command::Bossbar::set_max(id, max);\n}",
+    )]
     pub fn set_max(id: impl IntoBossbarId, max: u32) -> String {
         BossbarCommand::SetMax {
             id: id.into_bossbar_id(),
@@ -662,7 +1008,21 @@ impl Bossbar {
         .build_registered()
     }
     /// Renders the Minecraft command that sets players for the selected bossbar.
-    #[doc = "**API Contract:** Run `sand api show sand::command::Bossbar::set_players` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::command::Bossbar::set_players",
+        aliases = ["sand::cmd::Bossbar::set_players", "sand::prelude::Bossbar::set_players", "sand::prelude::cmd::Bossbar::set_players"],
+        module = "sand::command",
+        kind = "method",
+        summary = "Renders the Minecraft command that sets players for the selected bossbar.",
+        context = "Renders the Minecraft command that sets players for the selected bossbar. This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
+        minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
+        use_when = ["Constructing Minecraft commands through Sand's typed command model"],
+        avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
+        params(id = "`id` provides the typed resource identifier or location used to render the Minecraft command that sets players for the selected bossbar.", players = "`players` provides the Minecraft target selection used to render the Minecraft command that sets players for the selected bossbar."),
+        returns = "The rendered Minecraft command text produced to render the Minecraft command that sets players for the selected bossbar.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(id: impl sand::command::IntoBossbarId, players: sand::command::Selector)  {\n    let command = sand::command::Bossbar::set_players(id, players);\n}",
+    )]
     pub fn set_players(id: impl IntoBossbarId, players: Selector) -> String {
         BossbarCommand::SetPlayers {
             id: id.into_bossbar_id(),
@@ -671,7 +1031,21 @@ impl Bossbar {
         .build_registered()
     }
     /// Renders the Minecraft command that sets color for the selected bossbar.
-    #[doc = "**API Contract:** Run `sand api show sand::command::Bossbar::set_color` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::command::Bossbar::set_color",
+        aliases = ["sand::cmd::Bossbar::set_color", "sand::prelude::Bossbar::set_color", "sand::prelude::cmd::Bossbar::set_color"],
+        module = "sand::command",
+        kind = "method",
+        summary = "Renders the Minecraft command that sets color for the selected bossbar.",
+        context = "Renders the Minecraft command that sets color for the selected bossbar. This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
+        minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
+        use_when = ["Constructing Minecraft commands through Sand's typed command model"],
+        avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
+        params(id = "`id` provides the typed resource identifier or location used to render the Minecraft command that sets color for the selected bossbar.", color = "`color` provides the color rendered when the Minecraft command that sets color for the selected bossbar."),
+        returns = "The rendered Minecraft command text produced to render the Minecraft command that sets color for the selected bossbar.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(id: impl sand::command::IntoBossbarId, color: sand::command::BossbarColor)  {\n    let command = sand::command::Bossbar::set_color(id, color);\n}",
+    )]
     pub fn set_color(id: impl IntoBossbarId, color: BossbarColor) -> String {
         BossbarCommand::SetColor {
             id: id.into_bossbar_id(),
@@ -680,7 +1054,21 @@ impl Bossbar {
         .build_registered()
     }
     /// Renders the Minecraft command that sets style for the selected bossbar.
-    #[doc = "**API Contract:** Run `sand api show sand::command::Bossbar::set_style` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::command::Bossbar::set_style",
+        aliases = ["sand::cmd::Bossbar::set_style", "sand::prelude::Bossbar::set_style", "sand::prelude::cmd::Bossbar::set_style"],
+        module = "sand::command",
+        kind = "method",
+        summary = "Renders the Minecraft command that sets style for the selected bossbar.",
+        context = "Renders the Minecraft command that sets style for the selected bossbar. This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
+        minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
+        use_when = ["Constructing Minecraft commands through Sand's typed command model"],
+        avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
+        params(id = "`id` provides the typed resource identifier or location used to render the Minecraft command that sets style for the selected bossbar.", style = "`style` provides the style rendered when the Minecraft command that sets style for the selected bossbar."),
+        returns = "The rendered Minecraft command text produced to render the Minecraft command that sets style for the selected bossbar.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(id: impl sand::command::IntoBossbarId, style: sand::command::BossbarStyle)  {\n    let command = sand::command::Bossbar::set_style(id, style);\n}",
+    )]
     pub fn set_style(id: impl IntoBossbarId, style: BossbarStyle) -> String {
         BossbarCommand::SetStyle {
             id: id.into_bossbar_id(),
@@ -689,7 +1077,21 @@ impl Bossbar {
         .build_registered()
     }
     /// Renders the Minecraft command that sets name for the selected bossbar.
-    #[doc = "**API Contract:** Run `sand api show sand::command::Bossbar::set_name` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::command::Bossbar::set_name",
+        aliases = ["sand::cmd::Bossbar::set_name", "sand::prelude::Bossbar::set_name", "sand::prelude::cmd::Bossbar::set_name"],
+        module = "sand::command",
+        kind = "method",
+        summary = "Renders the Minecraft command that sets name for the selected bossbar.",
+        context = "Renders the Minecraft command that sets name for the selected bossbar. This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
+        minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
+        use_when = ["Constructing Minecraft commands through Sand's typed command model"],
+        avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
+        params(id = "`id` provides the typed resource identifier or location used to render the Minecraft command that sets name for the selected bossbar.", name = "`name` provides the author-visible text rendered when the Minecraft command that sets name for the selected bossbar."),
+        returns = "The rendered Minecraft command text produced to render the Minecraft command that sets name for the selected bossbar.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(id: impl sand::command::IntoBossbarId, name: sand::text::TextComponent)  {\n    let command = sand::command::Bossbar::set_name(id, name);\n}",
+    )]
     pub fn set_name(id: impl IntoBossbarId, name: TextComponent) -> String {
         BossbarCommand::SetName {
             id: id.into_bossbar_id(),
@@ -698,7 +1100,21 @@ impl Bossbar {
         .build_registered()
     }
     /// Renders the Minecraft command that sets visible for the selected bossbar.
-    #[doc = "**API Contract:** Run `sand api show sand::command::Bossbar::set_visible` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::command::Bossbar::set_visible",
+        aliases = ["sand::cmd::Bossbar::set_visible", "sand::prelude::Bossbar::set_visible", "sand::prelude::cmd::Bossbar::set_visible"],
+        module = "sand::command",
+        kind = "method",
+        summary = "Renders the Minecraft command that sets visible for the selected bossbar.",
+        context = "Renders the Minecraft command that sets visible for the selected bossbar. This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
+        minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
+        use_when = ["Constructing Minecraft commands through Sand's typed command model"],
+        avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
+        params(id = "`id` provides the typed resource identifier or location used to render the Minecraft command that sets visible for the selected bossbar.", visible = "`visible` provides the switch that enables or disables the behavior used to render the Minecraft command that sets visible for the selected bossbar."),
+        returns = "The rendered Minecraft command text produced to render the Minecraft command that sets visible for the selected bossbar.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(id: impl sand::command::IntoBossbarId, visible: bool)  {\n    let command = sand::command::Bossbar::set_visible(id, visible);\n}",
+    )]
     pub fn set_visible(id: impl IntoBossbarId, visible: bool) -> String {
         BossbarCommand::SetVisible {
             id: id.into_bossbar_id(),
@@ -707,7 +1123,21 @@ impl Bossbar {
         .build_registered()
     }
     /// Renders the Minecraft command that queries value for the selected bossbar.
-    #[doc = "**API Contract:** Run `sand api show sand::command::Bossbar::get_value` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::command::Bossbar::get_value",
+        aliases = ["sand::cmd::Bossbar::get_value", "sand::prelude::Bossbar::get_value", "sand::prelude::cmd::Bossbar::get_value"],
+        module = "sand::command",
+        kind = "method",
+        summary = "Renders the Minecraft command that queries value for the selected bossbar.",
+        context = "Renders the Minecraft command that queries value for the selected bossbar. This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
+        minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
+        use_when = ["Constructing Minecraft commands through Sand's typed command model"],
+        avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
+        params(id = "`id` provides the typed resource identifier or location used to render the Minecraft command that queries value for the selected bossbar."),
+        returns = "The rendered Minecraft command text produced to render the Minecraft command that queries value for the selected bossbar.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(id: impl sand::command::IntoBossbarId)  {\n    let command = sand::command::Bossbar::get_value(id);\n}",
+    )]
     pub fn get_value(id: impl IntoBossbarId) -> String {
         BossbarCommand::Get {
             id: id.into_bossbar_id(),
@@ -716,7 +1146,21 @@ impl Bossbar {
         .build_registered()
     }
     /// Renders the Minecraft command that queries max for the selected bossbar.
-    #[doc = "**API Contract:** Run `sand api show sand::command::Bossbar::get_max` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::command::Bossbar::get_max",
+        aliases = ["sand::cmd::Bossbar::get_max", "sand::prelude::Bossbar::get_max", "sand::prelude::cmd::Bossbar::get_max"],
+        module = "sand::command",
+        kind = "method",
+        summary = "Renders the Minecraft command that queries max for the selected bossbar.",
+        context = "Renders the Minecraft command that queries max for the selected bossbar. This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
+        minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
+        use_when = ["Constructing Minecraft commands through Sand's typed command model"],
+        avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
+        params(id = "`id` provides the typed resource identifier or location used to render the Minecraft command that queries max for the selected bossbar."),
+        returns = "The rendered Minecraft command text produced to render the Minecraft command that queries max for the selected bossbar.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(id: impl sand::command::IntoBossbarId)  {\n    let command = sand::command::Bossbar::get_max(id);\n}",
+    )]
     pub fn get_max(id: impl IntoBossbarId) -> String {
         BossbarCommand::Get {
             id: id.into_bossbar_id(),
@@ -725,7 +1169,21 @@ impl Bossbar {
         .build_registered()
     }
     /// Renders the Minecraft command that queries players for the selected bossbar.
-    #[doc = "**API Contract:** Run `sand api show sand::command::Bossbar::get_players` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::command::Bossbar::get_players",
+        aliases = ["sand::cmd::Bossbar::get_players", "sand::prelude::Bossbar::get_players", "sand::prelude::cmd::Bossbar::get_players"],
+        module = "sand::command",
+        kind = "method",
+        summary = "Renders the Minecraft command that queries players for the selected bossbar.",
+        context = "Renders the Minecraft command that queries players for the selected bossbar. This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
+        minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
+        use_when = ["Constructing Minecraft commands through Sand's typed command model"],
+        avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
+        params(id = "`id` provides the typed resource identifier or location used to render the Minecraft command that queries players for the selected bossbar."),
+        returns = "The rendered Minecraft command text produced to render the Minecraft command that queries players for the selected bossbar.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(id: impl sand::command::IntoBossbarId)  {\n    let command = sand::command::Bossbar::get_players(id);\n}",
+    )]
     pub fn get_players(id: impl IntoBossbarId) -> String {
         BossbarCommand::Get {
             id: id.into_bossbar_id(),

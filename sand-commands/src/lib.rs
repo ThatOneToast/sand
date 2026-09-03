@@ -84,7 +84,18 @@ pub use text::{
 
 // ── Build trait ───────────────────────────────────────────────────────────────
 
-#[doc = "**API Contract:** Run `sand api show sand::command::Build` for the canonical contract."]
+#[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::command::Build",
+    aliases = ["sand::cmd::Build", "sand::prelude::Build", "sand::prelude::cmd::Build"],
+    module = "sand::command",
+    summary = "Compatibility serialization trait for Minecraft command builders.",
+    context = "Compatibility serialization trait for Minecraft command builders. Existing builders use this infallible trait to preserve stable output. New typed APIs that accept user-controlled values should also implement [`RenderCommand`] so validation occurs before rendering. Implementors are required to satisfy: - [`Clone`] — required supertrait, derived via `#[derive(Clone)]` Rust's orphan rules prevent a blanket `impl<T: Build> From<&T> for String` (both `From` and `String` are foreign). Instead, every concrete `Build` type ships its own `impl From<T> for String` that delegates to `build()`, so `value.into()` works on any owned command value. For references, call `.build()` directly or `.clone().into()`.",
+    minecraft = "Rust's orphan rules prevent a blanket `impl<T: Build> From<&T> for String` (both `From` and `String` are foreign). Instead, every concrete `Build` type ships its own `impl From<T> for String` that delegates to `build()`, so `value.into()` works on any owned command value. For references, call `.build()` directly or `.clone().into()`.",
+    use_when = ["Constructing Minecraft commands through Sand's typed command model"],
+    avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
+    example = "use sand::command::Build;",
+)]
 /// Compatibility serialization trait for Minecraft command builders.
 ///
 /// Existing builders use this infallible trait to preserve stable output.
@@ -132,7 +143,19 @@ pub use text::{
 /// ```
 pub trait Build: Clone {
     /// Serialize this command to its Minecraft string representation.
-    #[doc = "**API Contract:** Run `sand api show sand::command::Build::build` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::command::Build::build",
+        aliases = ["sand::cmd::Build::build", "sand::prelude::Build::build", "sand::prelude::cmd::Build::build"],
+        module = "sand::command",
+        summary = "Serialize this command to its Minecraft string representation.",
+        context = "Serialize this command to its Minecraft string representation. This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
+        minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
+        use_when = ["Constructing Minecraft commands through Sand's typed command model"],
+        avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
+        returns = "The rendered Minecraft command text produced to serialize this command to its Minecraft string representation.",
+        example = "use sand::prelude::*;\n\nfn demonstrate<T: sand::command::Build>(build_value: &T)  {\n    let command = build_value.build();\n}",
+    )]
     fn build(&self) -> String;
 }
 

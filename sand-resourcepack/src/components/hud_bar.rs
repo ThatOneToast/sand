@@ -1,7 +1,19 @@
 use crate::component::{AssetOutput, ResourcePackComponent};
 use crate::components::font::{BitmapFont, BitmapProvider};
 
-#[doc = "**API Contract:** Run `sand api show sand::resourcepack::HudBar` for the canonical contract."]
+#[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::resourcepack::HudBar",
+    module = "sand::resourcepack",
+    summary = "A bitmap-font progress bar for HUD overlays. `HudBar` maps a horizontal sprite strip (a PNG containing `steps` frames side by side) to a sequence of unicode characters. Each character represents one fill level of the bar.",
+    context = "A bitmap-font progress bar for HUD overlays. `HudBar` maps a horizontal sprite strip (a PNG containing `steps` frames side by side) to a sequence of unicode characters. Each character represents one fill level of the bar. Use [`bar_text_json`](sand::resourcepack::bar_text_json) to get the JSON text component string for displaying a specific frame in `title`, `actionbar`, or `tellraw` commands — no manual unicode handling needed. | File | Purpose | |---|---| | `assets/<ns>/font/<font_name>.json` | Registers the bitmap provider | | `assets/<ns>/textures/<texture_dest>.png` | The copied sprite strip |",
+    minecraft = "Use [`bar_text_json`](sand::resourcepack::bar_text_json) to get the JSON text component string for displaying a specific frame in `title`, `actionbar`, or `tellraw` commands — no manual unicode handling needed.",
+    use_when = ["Use [`bar_text_json`](sand::resourcepack::bar_text_json) to get the JSON text component string for displaying a specific frame in `title`, `actionbar`, or `tellraw` commands — no manual unicode handling needed.", "Prefer the `hud_bar!` macro over constructing this struct directly. Unicode codepoints are assigned automatically — you do not need to specify them:"],
+    avoid_when = ["The project is datapack-only or needs unrelated resource-pack functionality not modeled by Sand"],
+    example = "use sand::resourcepack::HudBar;",
+    availability = ["Cargo feature: resourcepack"],
+    fields(ascent = "Vertical offset from the screen baseline to the top of the glyph.", font = "Name of the font file (without extension) this bar belongs to.", height = "Rendered height of each character in pixels.", name = "Identifier used in diagnostics and auto-unicode derivation.", steps = "Number of frames in the sprite strip (including the empty frame).", texture_dest = "Destination sub-path inside `assets/<namespace>/textures/` (without extension), e.g. `\"font/health_bar\"`.", texture_src = "Project-root-relative path to the source sprite strip PNG.", unicode_start = "Override the first unicode codepoint for the bar frames."),
+)]
 /// A bitmap-font progress bar for HUD overlays.
 ///
 /// `HudBar` maps a horizontal sprite strip (a PNG containing `steps` frames
@@ -44,11 +56,9 @@ use crate::components::font::{BitmapFont, BitmapProvider};
 /// mcfunction! { format!("title @a actionbar {json}"); }
 /// ```
 pub struct HudBar {
-    #[doc = "**API Contract:** Run `sand api show sand::resourcepack::HudBar::name` for the canonical contract."]
     /// Identifier used in diagnostics and auto-unicode derivation.
     pub name: &'static str,
 
-    #[doc = "**API Contract:** Run `sand api show sand::resourcepack::HudBar::texture_src` for the canonical contract."]
     /// Project-root-relative path to the source sprite strip PNG.
     ///
     /// The PNG should contain exactly `steps` frames arranged horizontally,
@@ -57,14 +67,12 @@ pub struct HudBar {
     /// Example: `"src/assets/health_bar.png"` (10 frames × 9 px tall).
     pub texture_src: &'static str,
 
-    #[doc = "**API Contract:** Run `sand api show sand::resourcepack::HudBar::texture_dest` for the canonical contract."]
     /// Destination sub-path inside `assets/<namespace>/textures/` (without
     /// extension), e.g. `"font/health_bar"`.
     ///
     /// Defaults to `"font/<name>"` when built via the macro.
     pub texture_dest: &'static str,
 
-    #[doc = "**API Contract:** Run `sand api show sand::resourcepack::HudBar::unicode_start` for the canonical contract."]
     /// Override the first unicode codepoint for the bar frames.
     ///
     /// When `None` (the default when using the macro), the codepoint is
@@ -73,22 +81,18 @@ pub struct HudBar {
     /// control the exact codepoint assignment.
     pub unicode_start: Option<char>,
 
-    #[doc = "**API Contract:** Run `sand api show sand::resourcepack::HudBar::steps` for the canonical contract."]
     /// Number of frames in the sprite strip (including the empty frame).
     ///
     /// A 10-step bar typically has 11 frames (0 % through 100 % in 10 %
     /// increments).
     pub steps: u32,
 
-    #[doc = "**API Contract:** Run `sand api show sand::resourcepack::HudBar::height` for the canonical contract."]
     /// Rendered height of each character in pixels.
     pub height: i32,
 
-    #[doc = "**API Contract:** Run `sand api show sand::resourcepack::HudBar::ascent` for the canonical contract."]
     /// Vertical offset from the screen baseline to the top of the glyph.
     pub ascent: i32,
 
-    #[doc = "**API Contract:** Run `sand api show sand::resourcepack::HudBar::font` for the canonical contract."]
     /// Name of the font file (without extension) this bar belongs to.
     ///
     /// Multiple bars and elements that share the same `font` are merged into

@@ -17,6 +17,14 @@ use serde::{Deserialize, Serialize};
 
 use crate::error::Result;
 
+/// Writes contract-derived Rustdoc attributes into generated Rust source.
+/// Generated code and provider metadata call this with the same [`ApiEntry`].
+pub(crate) fn write_contract_rustdoc(code: &mut String, indent: &str, entry: &ApiEntry) {
+    for line in sand_api_contract::render_rustdoc(entry) {
+        writeln!(code, "{indent}#[doc = {line:?}]").expect("writing to String cannot fail");
+    }
+}
+
 /// Schema version for generator-provider files.
 pub const PROVIDER_SCHEMA_VERSION: u32 = 1;
 

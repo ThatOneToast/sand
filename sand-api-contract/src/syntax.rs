@@ -11,6 +11,8 @@ use syn::{
     Visibility,
 };
 
+use crate::{ApiEntry, ApiKind, ApiParameter, render_rustdoc};
+
 /// Return the first complete prose sentence without treating punctuation in
 /// common abbreviations, versions, or resource filenames as a boundary.
 ///
@@ -147,6 +149,47 @@ pub struct GeneratedApiShape {
     pub signature: String,
     pub parameters: BTreeMap<String, String>,
     pub return_type: Option<String>,
+}
+
+/// Renders Rustdoc for a generated declaration from the same semantic object
+/// validated against its emitted Rust shape.
+#[must_use]
+pub fn render_generated_rustdoc(contract: &GeneratedApiContract) -> Vec<String> {
+    render_rustdoc(&ApiEntry {
+        canonical_path: contract.target.clone(),
+        aliases: Vec::new(),
+        canonical_module: String::new(),
+        kind: match contract.kind {
+            GeneratedApiKind::Struct => ApiKind::Struct,
+            GeneratedApiKind::Enum => ApiKind::Enum,
+            GeneratedApiKind::Function => ApiKind::Function,
+            GeneratedApiKind::Constant => ApiKind::Constant,
+            GeneratedApiKind::Field => ApiKind::Field,
+            GeneratedApiKind::Variant => ApiKind::Variant,
+            GeneratedApiKind::AssociatedConst => ApiKind::AssociatedConst,
+            GeneratedApiKind::AssociatedType => ApiKind::AssociatedType,
+            GeneratedApiKind::Method => ApiKind::Method,
+        },
+        signature: String::new(),
+        summary: contract.summary.clone(),
+        context: contract.context.clone(),
+        minecraft: contract.minecraft.clone(),
+        use_when: contract.use_when.clone(),
+        avoid_when: contract.avoid_when.clone(),
+        parameters: contract
+            .parameters
+            .iter()
+            .map(|(name, description)| ApiParameter {
+                name: name.clone(),
+                rust_type: None,
+                description: description.clone(),
+            })
+            .collect(),
+        returns: contract.returns.clone(),
+        return_type: None,
+        example: contract.example.clone(),
+        availability: Vec::new(),
+    })
 }
 
 /// Validate a generator's actual emitted public surface against its semantic
@@ -669,38 +712,16 @@ fn validate_generated_rustdoc(
         })
         .collect::<Vec<_>>()
         .join("\n");
-    for required in [
-        "# API Contract",
-        "**Context:**",
-        "**Minecraft behavior:**",
-        "**Use when:**",
-        "**Avoid when:**",
-        "**Example:**",
-        contract.summary.as_str(),
-        contract.context.as_str(),
-        contract.minecraft.as_str(),
-        contract.example.as_str(),
-    ] {
-        if !docs.contains(required) {
+    for required in render_generated_rustdoc(contract)
+        .into_iter()
+        .filter(|line| !line.is_empty() && !line.starts_with("```"))
+    {
+        if !docs.contains(&required) {
             return Err(syn::Error::new(
                 proc_macro2::Span::call_site(),
                 format!(
-                    "generated public API `{target}` is missing API Contract Rustdoc material `{required}`"
+                    "generated public API `{target}` is missing contract-derived Rustdoc material `{required}`"
                 ),
-            ));
-        }
-    }
-    for value in contract
-        .use_when
-        .iter()
-        .chain(&contract.avoid_when)
-        .chain(contract.parameters.values())
-        .chain(contract.returns.iter())
-    {
-        if !docs.contains(value) {
-            return Err(syn::Error::new(
-                proc_macro2::Span::call_site(),
-                format!("generated public API `{target}` Rustdoc omits contract text `{value}`"),
             ));
         }
     }
@@ -965,6 +986,17 @@ pub struct VariantFieldDescription {
     pub text: LitStr,
 }
 
+/// Additional facade aliases for a generated field or enum variant.
+///
+/// These are needed when a parent type has a separately contracted type alias:
+/// the alias is not an alias of the parent contract, but its public members are
+/// still valid lookup paths for the parent's generated member contracts.
+#[derive(Clone)]
+pub struct MemberAliases {
+    pub name: syn::Ident,
+    pub aliases: Vec<LitStr>,
+}
+
 /// Parsed `#[api(...)]` arguments, retaining spans for precise diagnostics.
 #[derive(Default)]
 pub struct ContractArgs {
@@ -991,6 +1023,7 @@ pub struct ContractArgs {
     pub variants: Option<Vec<Description>>,
     pub fields: Option<Vec<Description>>,
     pub variant_fields: Option<Vec<VariantFieldDescription>>,
+    pub member_aliases: Option<Vec<MemberAliases>>,
 }
 
 /// The declaration shape whose contract is being validated.
@@ -1093,11 +1126,38 @@ pub fn parse_contract_args(tokens: TokenStream) -> syn::Result<ContractArgs> {
             "variants" => parse_descriptions(&mut args.variants, &meta, "variants", "variant"),
             "fields" => parse_descriptions(&mut args.fields, &meta, "fields", "field"),
             "variant_fields" => parse_variant_fields(&mut args.variant_fields, &meta),
+            "member_aliases" => parse_member_aliases(&mut args.member_aliases, &meta),
             _ => Err(meta.error(format!("unknown API contract field `{key}`"))),
         }
     });
     parser.parse2(tokens)?;
     Ok(args)
+}
+
+fn parse_member_aliases(
+    slot: &mut Option<Vec<MemberAliases>>,
+    meta: &syn::meta::ParseNestedMeta<'_>,
+) -> syn::Result<()> {
+    if slot.is_some() {
+        return Err(meta.error("duplicate API contract field `member_aliases`"));
+    }
+    let mut members = Vec::new();
+    let mut names = BTreeSet::new();
+    meta.parse_nested_meta(|member| {
+        let name = member
+            .path
+            .get_ident()
+            .cloned()
+            .ok_or_else(|| member.error("member alias owners must be identifiers"))?;
+        if !names.insert(name.to_string()) {
+            return Err(member.error(format!("duplicate aliases for member `{name}`")));
+        }
+        let aliases = parse_string_array(&member)?;
+        members.push(MemberAliases { name, aliases });
+        Ok(())
+    })?;
+    *slot = Some(members);
+    Ok(())
 }
 
 fn parse_variant_fields(
@@ -1309,11 +1369,11 @@ pub fn validate_contract(args: &ContractArgs, target: &ContractTarget<'_>) -> sy
     }
     if let Some(kind) = &args.kind {
         match kind.value().as_str() {
-            "method" | "associated_const" | "associated_type" => {}
+            "method" | "trait_method" | "associated_const" | "associated_type" => {}
             _ => {
                 return Err(syn::Error::new_spanned(
                     kind,
-                    "`kind` must be `method`, `associated_const`, or `associated_type`",
+                    "`kind` must be `method`, `trait_method`, `associated_const`, or `associated_type`",
                 ));
             }
         }
@@ -1331,10 +1391,23 @@ pub fn validate_contract(args: &ContractArgs, target: &ContractTarget<'_>) -> sy
             ));
         }
     }
+    for member in args.member_aliases.as_deref().unwrap_or_default() {
+        let mut aliases = BTreeSet::new();
+        for alias in &member.aliases {
+            validate_path(alias, "member alias")?;
+            if !aliases.insert(alias.value()) {
+                return Err(syn::Error::new_spanned(
+                    alias,
+                    format!("duplicate API contract alias for member `{}`", member.name),
+                ));
+            }
+        }
+    }
 
     match target {
         ContractTarget::Function { signature, .. } => {
             reject_members(args, ident)?;
+            reject_member_aliases(args, ident)?;
             validate_function(args, signature)
         }
         ContractTarget::Struct(item) => {
@@ -1347,9 +1420,23 @@ pub fn validate_contract(args: &ContractArgs, target: &ContractTarget<'_>) -> sy
         }
         ContractTarget::Plain { .. } => {
             reject_members(args, ident)?;
+            reject_member_aliases(args, ident)?;
             reject_parameters_and_returns(args, ident)
         }
     }
+}
+
+fn reject_member_aliases(args: &ContractArgs, ident: &syn::Ident) -> syn::Result<()> {
+    if let Some(members) = &args.member_aliases {
+        return Err(syn::Error::new_spanned(
+            members.first().map_or_else(
+                || ident.to_token_stream(),
+                |member| member.name.to_token_stream(),
+            ),
+            "member aliases are only valid on structs and enums",
+        ));
+    }
+    Ok(())
 }
 
 fn reject_members(args: &ContractArgs, ident: &syn::Ident) -> syn::Result<()> {
@@ -1366,6 +1453,25 @@ fn reject_field_docs(args: &ContractArgs, ident: &syn::Ident) -> syn::Result<()>
             ),
             "field descriptions are only valid on structs with public named fields",
         ));
+    }
+    Ok(())
+}
+
+fn validate_member_aliases(
+    args: &ContractArgs,
+    actual: &BTreeMap<String, &syn::Ident>,
+    parent: &syn::Ident,
+) -> syn::Result<()> {
+    for member in args.member_aliases.as_deref().unwrap_or_default() {
+        if !actual.contains_key(&member.name.to_string()) {
+            return Err(syn::Error::new_spanned(
+                &member.name,
+                format!(
+                    "API contract provides aliases for nonexistent member `{}` on `{parent}`",
+                    member.name
+                ),
+            ));
+        }
     }
     Ok(())
 }
@@ -1482,7 +1588,8 @@ fn validate_struct_fields(args: &ContractArgs, item: &ItemStruct) -> syn::Result
         args.fields.as_deref().unwrap_or_default(),
         &actual,
         &item.ident,
-    )
+    )?;
+    validate_member_aliases(args, &actual, &item.ident)
 }
 
 fn validate_enum_variants(args: &ContractArgs, item: &ItemEnum) -> syn::Result<()> {
@@ -1499,6 +1606,7 @@ fn validate_enum_variants(args: &ContractArgs, item: &ItemEnum) -> syn::Result<(
         &actual,
         &item.ident,
     )?;
+    validate_member_aliases(args, &actual, &item.ident)?;
     let mut actual_fields = BTreeMap::new();
     for variant in &item.variants {
         if doc_hidden(&variant.attrs) {

@@ -34,51 +34,65 @@ const TYPED_FIELDS: &[&str] = &[
     "use_expansion_hack",
 ];
 
-#[doc = "**API Contract:** Run `sand api show sand::component::GenerationStep` for the canonical contract."]
+#[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::component::GenerationStep",
+    aliases = ["sand::prelude::GenerationStep"],
+    module = "sand::component",
+    summary = "The world-generation step a structure starts in.",
+    context = "The world-generation step a structure starts in. This is vanilla's shared `GenerationStep.Decoration` enum: the same ordered steps also bucket a biome's per-step `features` list-of-lists.",
+    minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+    use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+    avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+    example = "use sand::component::GenerationStep;",
+    variants(FluidSprings = "Places content during Minecraft's fluid springs generation step.", Lakes = "Places content during Minecraft's lakes generation step.", LocalModifications = "Places content during Minecraft's local modifications generation step.", RawGeneration = "Places content during Minecraft's raw generation generation step.", Strongholds = "Places content during Minecraft's strongholds generation step.", SurfaceStructures = "Places content during Minecraft's surface structures generation step.", TopLayerModification = "Places content during Minecraft's top layer modification generation step.", UndergroundDecoration = "Places content during Minecraft's underground decoration generation step.", UndergroundOres = "Places content during Minecraft's underground ores generation step.", UndergroundStructures = "Places content during Minecraft's underground structures generation step.", VegetalDecoration = "Places content during Minecraft's vegetal decoration generation step."),
+)]
 /// The world-generation step a structure starts in.
 ///
 /// This is vanilla's shared `GenerationStep.Decoration` enum: the same
 /// ordered steps also bucket a biome's per-step `features` list-of-lists.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum GenerationStep {
-    #[doc = "Selects the raw generation form in this typed Minecraft component schema."]
-    #[doc = "**API Contract:** Run `sand api show sand::component::GenerationStep::RawGeneration` for the canonical contract."]
+    #[doc = "Places content during Minecraft's raw generation generation step."]
     RawGeneration,
-    #[doc = "Selects the lakes form in this typed Minecraft component schema."]
-    #[doc = "**API Contract:** Run `sand api show sand::component::GenerationStep::Lakes` for the canonical contract."]
+    #[doc = "Places content during Minecraft's lakes generation step."]
     Lakes,
-    #[doc = "Selects the local modifications form in this typed Minecraft component schema."]
-    #[doc = "**API Contract:** Run `sand api show sand::component::GenerationStep::LocalModifications` for the canonical contract."]
+    #[doc = "Places content during Minecraft's local modifications generation step."]
     LocalModifications,
-    #[doc = "Selects the underground structures form in this typed Minecraft component schema."]
-    #[doc = "**API Contract:** Run `sand api show sand::component::GenerationStep::UndergroundStructures` for the canonical contract."]
+    #[doc = "Places content during Minecraft's underground structures generation step."]
     UndergroundStructures,
-    #[doc = "Selects the surface structures form in this typed Minecraft component schema."]
-    #[doc = "**API Contract:** Run `sand api show sand::component::GenerationStep::SurfaceStructures` for the canonical contract."]
+    #[doc = "Places content during Minecraft's surface structures generation step."]
     SurfaceStructures,
-    #[doc = "Selects the strongholds form in this typed Minecraft component schema."]
-    #[doc = "**API Contract:** Run `sand api show sand::component::GenerationStep::Strongholds` for the canonical contract."]
+    #[doc = "Places content during Minecraft's strongholds generation step."]
     Strongholds,
-    #[doc = "Selects the underground ores form in this typed Minecraft component schema."]
-    #[doc = "**API Contract:** Run `sand api show sand::component::GenerationStep::UndergroundOres` for the canonical contract."]
+    #[doc = "Places content during Minecraft's underground ores generation step."]
     UndergroundOres,
-    #[doc = "Selects the underground decoration form in this typed Minecraft component schema."]
-    #[doc = "**API Contract:** Run `sand api show sand::component::GenerationStep::UndergroundDecoration` for the canonical contract."]
+    #[doc = "Places content during Minecraft's underground decoration generation step."]
     UndergroundDecoration,
-    #[doc = "Selects the fluid springs form in this typed Minecraft component schema."]
-    #[doc = "**API Contract:** Run `sand api show sand::component::GenerationStep::FluidSprings` for the canonical contract."]
+    #[doc = "Places content during Minecraft's fluid springs generation step."]
     FluidSprings,
-    #[doc = "Selects the vegetal decoration form in this typed Minecraft component schema."]
-    #[doc = "**API Contract:** Run `sand api show sand::component::GenerationStep::VegetalDecoration` for the canonical contract."]
+    #[doc = "Places content during Minecraft's vegetal decoration generation step."]
     VegetalDecoration,
-    #[doc = "Selects the top layer modification form in this typed Minecraft component schema."]
-    #[doc = "**API Contract:** Run `sand api show sand::component::GenerationStep::TopLayerModification` for the canonical contract."]
+    #[doc = "Places content during Minecraft's top layer modification generation step."]
     TopLayerModification,
 }
 
 impl GenerationStep {
     /// The vanilla string written into datapack JSON.
-    #[doc = "**API Contract:** Run `sand api show sand::component::GenerationStep::as_str` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::GenerationStep::as_str",
+        aliases = ["sand::prelude::GenerationStep::as_str"],
+        module = "sand::component",
+        kind = "method",
+        summary = "The vanilla string written into datapack JSON.",
+        context = "The vanilla string written into datapack JSON. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        returns = "The string value produced to use the vanilla string written into datapack JSON.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(generation_step_value: &sand::component::GenerationStep)  {\n    let as_str = generation_step_value.as_str();\n}",
+    )]
     pub fn as_str(&self) -> &'static str {
         match self {
             Self::RawGeneration => "raw_generation",
@@ -114,30 +128,50 @@ impl GenerationStep {
     }
 }
 
-#[doc = "**API Contract:** Run `sand api show sand::component::TerrainAdaptation` for the canonical contract."]
+#[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::component::TerrainAdaptation",
+    aliases = ["sand::prelude::TerrainAdaptation"],
+    module = "sand::component",
+    summary = "How terrain is modified around a generated structure.",
+    context = "How terrain is modified around a generated structure. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+    minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+    use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+    avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+    example = "use sand::component::TerrainAdaptation;",
+    variants(BeardBox = "Applies Minecraft's beard box terrain adaptation.", BeardThin = "Applies Minecraft's beard thin terrain adaptation.", Bury = "Applies Minecraft's bury terrain adaptation.", Encapsulate = "Applies Minecraft's encapsulate terrain adaptation.", None = "Applies Minecraft's none terrain adaptation."),
+)]
 /// How terrain is modified around a generated structure.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum TerrainAdaptation {
-    #[doc = "Selects the none form in this typed Minecraft component schema."]
-    #[doc = "**API Contract:** Run `sand api show sand::component::TerrainAdaptation::None` for the canonical contract."]
+    #[doc = "Applies Minecraft's none terrain adaptation."]
     None,
-    #[doc = "Selects the beard thin form in this typed Minecraft component schema."]
-    #[doc = "**API Contract:** Run `sand api show sand::component::TerrainAdaptation::BeardThin` for the canonical contract."]
+    #[doc = "Applies Minecraft's beard thin terrain adaptation."]
     BeardThin,
-    #[doc = "Selects the beard box form in this typed Minecraft component schema."]
-    #[doc = "**API Contract:** Run `sand api show sand::component::TerrainAdaptation::BeardBox` for the canonical contract."]
+    #[doc = "Applies Minecraft's beard box terrain adaptation."]
     BeardBox,
-    #[doc = "Selects the bury form in this typed Minecraft component schema."]
-    #[doc = "**API Contract:** Run `sand api show sand::component::TerrainAdaptation::Bury` for the canonical contract."]
+    #[doc = "Applies Minecraft's bury terrain adaptation."]
     Bury,
-    #[doc = "Selects the encapsulate form in this typed Minecraft component schema."]
-    #[doc = "**API Contract:** Run `sand api show sand::component::TerrainAdaptation::Encapsulate` for the canonical contract."]
+    #[doc = "Applies Minecraft's encapsulate terrain adaptation."]
     Encapsulate,
 }
 
 impl TerrainAdaptation {
     /// The vanilla string written into datapack JSON.
-    #[doc = "**API Contract:** Run `sand api show sand::component::TerrainAdaptation::as_str` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::TerrainAdaptation::as_str",
+        aliases = ["sand::prelude::TerrainAdaptation::as_str"],
+        module = "sand::component",
+        kind = "method",
+        summary = "The vanilla string written into datapack JSON.",
+        context = "The vanilla string written into datapack JSON. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        returns = "The string value produced to use the vanilla string written into datapack JSON.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(terrain_adaptation_value: &sand::component::TerrainAdaptation)  {\n    let as_str = terrain_adaptation_value.as_str();\n}",
+    )]
     pub fn as_str(&self) -> &'static str {
         match self {
             Self::None => "none",
@@ -149,39 +183,56 @@ impl TerrainAdaptation {
     }
 }
 
-#[doc = "**API Contract:** Run `sand api show sand::component::MobCategory` for the canonical contract."]
+#[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::component::MobCategory",
+    aliases = ["sand::prelude::MobCategory"],
+    module = "sand::component",
+    summary = "A vanilla mob category used as a spawn-override key.",
+    context = "A vanilla mob category used as a spawn-override key. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+    minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+    use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+    avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+    example = "use sand::component::MobCategory;",
+    variants(Ambient = "Targets Minecraft's ambient mob category.", Axolotls = "Targets Minecraft's axolotls mob category.", Creature = "Targets Minecraft's creature mob category.", Misc = "Targets Minecraft's misc mob category.", Monster = "Targets Minecraft's monster mob category.", UndergroundWaterCreature = "Targets Minecraft's underground water creature mob category.", WaterAmbient = "Targets Minecraft's water ambient mob category.", WaterCreature = "Targets Minecraft's water creature mob category."),
+)]
 /// A vanilla mob category used as a spawn-override key.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub enum MobCategory {
-    #[doc = "Selects the monster form in this typed Minecraft component schema."]
-    #[doc = "**API Contract:** Run `sand api show sand::component::MobCategory::Monster` for the canonical contract."]
+    #[doc = "Targets Minecraft's monster mob category."]
     Monster,
-    #[doc = "Selects the creature form in this typed Minecraft component schema."]
-    #[doc = "**API Contract:** Run `sand api show sand::component::MobCategory::Creature` for the canonical contract."]
+    #[doc = "Targets Minecraft's creature mob category."]
     Creature,
-    #[doc = "Selects the ambient form in this typed Minecraft component schema."]
-    #[doc = "**API Contract:** Run `sand api show sand::component::MobCategory::Ambient` for the canonical contract."]
+    #[doc = "Targets Minecraft's ambient mob category."]
     Ambient,
-    #[doc = "Selects the axolotls form in this typed Minecraft component schema."]
-    #[doc = "**API Contract:** Run `sand api show sand::component::MobCategory::Axolotls` for the canonical contract."]
+    #[doc = "Targets Minecraft's axolotls mob category."]
     Axolotls,
-    #[doc = "Selects the underground water creature form in this typed Minecraft component schema."]
-    #[doc = "**API Contract:** Run `sand api show sand::component::MobCategory::UndergroundWaterCreature` for the canonical contract."]
+    #[doc = "Targets Minecraft's underground water creature mob category."]
     UndergroundWaterCreature,
-    #[doc = "Selects the water creature form in this typed Minecraft component schema."]
-    #[doc = "**API Contract:** Run `sand api show sand::component::MobCategory::WaterCreature` for the canonical contract."]
+    #[doc = "Targets Minecraft's water creature mob category."]
     WaterCreature,
-    #[doc = "Selects the water ambient form in this typed Minecraft component schema."]
-    #[doc = "**API Contract:** Run `sand api show sand::component::MobCategory::WaterAmbient` for the canonical contract."]
+    #[doc = "Targets Minecraft's water ambient mob category."]
     WaterAmbient,
-    #[doc = "Selects the misc form in this typed Minecraft component schema."]
-    #[doc = "**API Contract:** Run `sand api show sand::component::MobCategory::Misc` for the canonical contract."]
+    #[doc = "Targets Minecraft's misc mob category."]
     Misc,
 }
 
 impl MobCategory {
     /// The vanilla string written into datapack JSON.
-    #[doc = "**API Contract:** Run `sand api show sand::component::MobCategory::as_str` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::MobCategory::as_str",
+        aliases = ["sand::prelude::MobCategory::as_str"],
+        module = "sand::component",
+        kind = "method",
+        summary = "The vanilla string written into datapack JSON.",
+        context = "The vanilla string written into datapack JSON. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        returns = "The string value produced to use the vanilla string written into datapack JSON.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(mob_category_value: &sand::component::MobCategory)  {\n    let as_str = mob_category_value.as_str();\n}",
+    )]
     pub fn as_str(&self) -> &'static str {
         match self {
             Self::Monster => "monster",
@@ -196,21 +247,44 @@ impl MobCategory {
     }
 }
 
-#[doc = "**API Contract:** Run `sand api show sand::component::SpawnBoundingBox` for the canonical contract."]
+#[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::component::SpawnBoundingBox",
+    aliases = ["sand::prelude::SpawnBoundingBox"],
+    module = "sand::component",
+    summary = "Which part of a structure a spawn override applies to.",
+    context = "Which part of a structure a spawn override applies to. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+    minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+    use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+    avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+    example = "use sand::component::SpawnBoundingBox;",
+    variants(Full = "The structure's full bounding box.", Piece = "Only inside individual structure pieces."),
+)]
 /// Which part of a structure a spawn override applies to.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum SpawnBoundingBox {
-    #[doc = "**API Contract:** Run `sand api show sand::component::SpawnBoundingBox::Piece` for the canonical contract."]
     /// Only inside individual structure pieces.
     Piece,
-    #[doc = "**API Contract:** Run `sand api show sand::component::SpawnBoundingBox::Full` for the canonical contract."]
     /// The structure's full bounding box.
     Full,
 }
 
 impl SpawnBoundingBox {
     /// The vanilla string written into datapack JSON.
-    #[doc = "**API Contract:** Run `sand api show sand::component::SpawnBoundingBox::as_str` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::SpawnBoundingBox::as_str",
+        aliases = ["sand::prelude::SpawnBoundingBox::as_str"],
+        module = "sand::component",
+        kind = "method",
+        summary = "The vanilla string written into datapack JSON.",
+        context = "The vanilla string written into datapack JSON. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        returns = "The string value produced to use the vanilla string written into datapack JSON.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(spawn_bounding_box_value: &sand::component::SpawnBoundingBox)  {\n    let as_str = spawn_bounding_box_value.as_str();\n}",
+    )]
     pub fn as_str(&self) -> &'static str {
         match self {
             Self::Piece => "piece",
@@ -219,7 +293,18 @@ impl SpawnBoundingBox {
     }
 }
 
-#[doc = "**API Contract:** Run `sand api show sand::component::SpawnEntry` for the canonical contract."]
+#[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::component::SpawnEntry",
+    aliases = ["sand::prelude::SpawnEntry"],
+    module = "sand::component",
+    summary = "One weighted mob-spawn entry inside a [`SpawnOverride`].",
+    context = "One weighted mob-spawn entry inside a [`SpawnOverride`]. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+    minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+    use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+    avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+    example = "use sand::component::SpawnEntry;",
+)]
 /// One weighted mob-spawn entry inside a [`SpawnOverride`].
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SpawnEntry {
@@ -232,7 +317,21 @@ pub struct SpawnEntry {
 impl SpawnEntry {
     /// Create a spawn entry. `weight` and `min_count` must be at least 1 and
     /// `max_count` must be at least `min_count`; both are checked on export.
-    #[doc = "**API Contract:** Run `sand api show sand::component::SpawnEntry::new` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::SpawnEntry::new",
+        aliases = ["sand::prelude::SpawnEntry::new"],
+        module = "sand::component",
+        kind = "method",
+        summary = "Create a spawn entry. `weight` and `min_count` must be at least 1 and `max_count` must be at least `min_count`; both are checked on export.",
+        context = "Create a spawn entry. `weight` and `min_count` must be at least 1 and `max_count` must be at least `min_count`; both are checked on export. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(entity_type = "`entity_type` provides the typed Minecraft resource identifier used to create a spawn entry. `weight` and `min_count` must be at least 1 and `max_count` must be at least `min_count`; both are checked on export.", weight = "Create a spawn entry. `weight` and `min_count` must be at least 1 and `max_count` must be at least `min_count`; both are checked on export.", min_count = "Create a spawn entry. `weight` and `min_count` must be at least 1 and `max_count` must be at least `min_count`; both are checked on export.", max_count = "Create a spawn entry. `weight` and `min_count` must be at least 1 and `max_count` must be at least `min_count`; both are checked on export."),
+        returns = "A `SpawnEntry` representing a spawn entry. `weight` and `min_count` must be at least 1 and `max_count` must be at least `min_count`; both are checked on export.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(entity_type: sand::registry::EntityTypeId, weight: u32, min_count: u32, max_count: u32)  {\n    let spawn_entry = sand::component::SpawnEntry::new(entity_type, weight, min_count, max_count);\n}",
+    )]
     pub fn new(entity_type: EntityTypeId, weight: u32, min_count: u32, max_count: u32) -> Self {
         Self {
             entity_type,
@@ -289,7 +388,18 @@ impl SpawnEntry {
     }
 }
 
-#[doc = "**API Contract:** Run `sand api show sand::component::SpawnOverride` for the canonical contract."]
+#[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::component::SpawnOverride",
+    aliases = ["sand::prelude::SpawnOverride"],
+    module = "sand::component",
+    summary = "A per-mob-category spawn override for a structure.",
+    context = "A per-mob-category spawn override for a structure. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+    minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+    use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+    avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+    example = "use sand::component::SpawnOverride;",
+)]
 /// A per-mob-category spawn override for a structure.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SpawnOverride {
@@ -299,7 +409,21 @@ pub struct SpawnOverride {
 
 impl SpawnOverride {
     /// An override that suppresses all spawns of its category.
-    #[doc = "**API Contract:** Run `sand api show sand::component::SpawnOverride::none` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::SpawnOverride::none",
+        aliases = ["sand::prelude::SpawnOverride::none"],
+        module = "sand::component",
+        kind = "method",
+        summary = "An override that suppresses all spawns of its category.",
+        context = "An override that suppresses all spawns of its category. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(bounding_box = "`bounding_box` sets the bounding box for an override that suppresses all spawns of its category."),
+        returns = "A `SpawnOverride` configured for an override that suppresses all spawns of its category.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(bounding_box: sand::component::SpawnBoundingBox)  {\n    let spawn_override = sand::component::SpawnOverride::none(bounding_box);\n}",
+    )]
     pub fn none(bounding_box: SpawnBoundingBox) -> Self {
         Self {
             bounding_box,
@@ -308,7 +432,21 @@ impl SpawnOverride {
     }
 
     /// An override with an explicit spawn list.
-    #[doc = "**API Contract:** Run `sand api show sand::component::SpawnOverride::new` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::SpawnOverride::new",
+        aliases = ["sand::prelude::SpawnOverride::new"],
+        module = "sand::component",
+        kind = "method",
+        summary = "An override with an explicit spawn list.",
+        context = "An override with an explicit spawn list. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(bounding_box = "`bounding_box` sets the bounding box for an override with an explicit spawn list.", spawns = "`spawns` sets the spawns for an override with an explicit spawn list."),
+        returns = "A `SpawnOverride` configured for an override with an explicit spawn list.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(bounding_box: sand::component::SpawnBoundingBox, spawns: impl IntoIterator < Item = sand::component::SpawnEntry >)  {\n    let spawn_override = sand::component::SpawnOverride::new(bounding_box, spawns);\n}",
+    )]
     pub fn new(
         bounding_box: SpawnBoundingBox,
         spawns: impl IntoIterator<Item = SpawnEntry>,
@@ -320,7 +458,21 @@ impl SpawnOverride {
     }
 
     /// Append a spawn entry.
-    #[doc = "**API Contract:** Run `sand api show sand::component::SpawnOverride::spawn` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::SpawnOverride::spawn",
+        aliases = ["sand::prelude::SpawnOverride::spawn"],
+        module = "sand::component",
+        kind = "method",
+        summary = "Append a spawn entry.",
+        context = "Append a spawn entry. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(entry = "`entry` provides the entry appended when building a spawn entry."),
+        returns = "The `SpawnOverride` value with the documented change applied to append a spawn entry.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(spawn_override_value: sand::component::SpawnOverride, entry: sand::component::SpawnEntry)  {\n    let updated_spawn_override = spawn_override_value.spawn(entry);\n}",
+    )]
     pub fn spawn(mut self, entry: SpawnEntry) -> Self {
         self.spawns.push(entry);
         self
@@ -341,24 +493,27 @@ impl SpawnOverride {
     }
 }
 
-#[doc = "**API Contract:** Run `sand api show sand::component::BiomeSelector` for the canonical contract."]
+#[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::component::BiomeSelector",
+    aliases = ["sand::prelude::BiomeSelector"],
+    module = "sand::component",
+    summary = "The biome constraint of a structure: a biome tag or an explicit list.",
+    context = "The biome constraint of a structure: a biome tag or an explicit list. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+    minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+    use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+    avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+    example = "use sand::component::BiomeSelector;",
+    variants(Entries = "An explicit list of biome IDs.", Tag = "A biome tag reference, emitted as `#namespace:path`."),
+    variant_fields(Entries = ["An explicit list of biome IDs."], Tag = ["A biome tag reference, emitted as `#namespace:path`."]),
+)]
 /// The biome constraint of a structure: a biome tag or an explicit list.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum BiomeSelector {
-    #[doc = "**API Contract:** Run `sand api show sand::component::BiomeSelector::Tag` for the canonical contract."]
     /// A biome tag reference, emitted as `#namespace:path`.
-    Tag(
-        #[doc = "The `Tag` variant carries the value described by its variant semantics: A biome tag reference, emitted as `#namespace:path`."]
-        #[doc = "**API Contract:** Run `sand api show sand::component::BiomeSelector::Tag::0` for the canonical contract."]
-        TagId<BiomeId>,
-    ),
-    #[doc = "**API Contract:** Run `sand api show sand::component::BiomeSelector::Entries` for the canonical contract."]
+    Tag(#[doc = "A biome tag reference, emitted as `#namespace:path`."] TagId<BiomeId>),
     /// An explicit list of biome IDs.
-    Entries(
-        #[doc = "The `Entries` variant carries the value described by its variant semantics: An explicit list of biome IDs."]
-        #[doc = "**API Contract:** Run `sand api show sand::component::BiomeSelector::Entries::0` for the canonical contract."]
-        Vec<BiomeId>,
-    ),
+    Entries(#[doc = "An explicit list of biome IDs."] Vec<BiomeId>),
 }
 
 impl BiomeSelector {
@@ -398,7 +553,18 @@ impl BiomeSelector {
     }
 }
 
-#[doc = "**API Contract:** Run `sand api show sand::component::JigsawConfig` for the canonical contract."]
+#[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::component::JigsawConfig",
+    aliases = ["sand::prelude::JigsawConfig"],
+    module = "sand::component",
+    summary = "The jigsaw-specific configuration of a `minecraft:jigsaw` structure.",
+    context = "The jigsaw-specific configuration of a `minecraft:jigsaw` structure. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+    minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+    use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+    avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+    example = "use sand::component::JigsawConfig;",
+)]
 /// The jigsaw-specific configuration of a `minecraft:jigsaw` structure.
 #[derive(Debug, Clone, PartialEq)]
 pub struct JigsawConfig {
@@ -413,7 +579,21 @@ pub struct JigsawConfig {
 
 impl JigsawConfig {
     /// A jigsaw config with vanilla village-like defaults.
-    #[doc = "**API Contract:** Run `sand api show sand::component::JigsawConfig::new` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::JigsawConfig::new",
+        aliases = ["sand::prelude::JigsawConfig::new"],
+        module = "sand::component",
+        kind = "method",
+        summary = "A jigsaw config with vanilla village-like defaults.",
+        context = "A jigsaw config with vanilla village-like defaults. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(start_pool = "`start_pool` provides the typed Minecraft resource identifier used to use a jigsaw config with vanilla village-like defaults."),
+        returns = "A `JigsawConfig` configured for a jigsaw config with vanilla village-like defaults.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(start_pool: sand::registry::TemplatePoolId)  {\n    let jigsaw_config = sand::component::JigsawConfig::new(start_pool);\n}",
+    )]
     pub fn new(start_pool: TemplatePoolId) -> Self {
         Self {
             start_pool,
@@ -427,42 +607,126 @@ impl JigsawConfig {
     }
 
     /// Jigsaw expansion depth (`0..=20`).
-    #[doc = "**API Contract:** Run `sand api show sand::component::JigsawConfig::size` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::JigsawConfig::size",
+        aliases = ["sand::prelude::JigsawConfig::size"],
+        module = "sand::component",
+        kind = "method",
+        summary = "Jigsaw expansion depth (`0..=20`).",
+        context = "Jigsaw expansion depth (`0..=20`). This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(size = "`size` sets the jigsaw expansion depth (`0..=20`)."),
+        returns = "The `JigsawConfig` value with the documented change applied to jigsaw expansion depth (`0..=20`).",
+        example = "use sand::prelude::*;\n\nfn demonstrate(jigsaw_config_value: sand::component::JigsawConfig, size: u32)  {\n    let updated_jigsaw_config = jigsaw_config_value.size(size);\n}",
+    )]
     pub fn size(mut self, size: u32) -> Self {
         self.size = size;
         self
     }
 
     /// Sets the Minecraft start height property on this typed jigsaw config definition and returns the updated builder.
-    #[doc = "**API Contract:** Run `sand api show sand::component::JigsawConfig::start_height` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::JigsawConfig::start_height",
+        aliases = ["sand::prelude::JigsawConfig::start_height"],
+        module = "sand::component",
+        kind = "method",
+        summary = "Sets the Minecraft start height property on this typed jigsaw config definition and returns the updated builder.",
+        context = "Sets the Minecraft start height property on this typed jigsaw config definition and returns the updated builder. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(start_height = "`start_height` provides the start height applied when setting the Minecraft start height property on this typed jigsaw config definition and returns the updated builder."),
+        returns = "Sets the Minecraft start height property on this typed jigsaw config definition and returns the updated builder.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(jigsaw_config_value: sand::component::JigsawConfig, start_height: sand::component::HeightProvider)  {\n    let updated_jigsaw_config = jigsaw_config_value.start_height(start_height);\n}",
+    )]
     pub fn start_height(mut self, start_height: HeightProvider) -> Self {
         self.start_height = start_height;
         self
     }
 
     /// Sets the Minecraft start jigsaw name property on this typed jigsaw config definition and returns the updated builder.
-    #[doc = "**API Contract:** Run `sand api show sand::component::JigsawConfig::start_jigsaw_name` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::JigsawConfig::start_jigsaw_name",
+        aliases = ["sand::prelude::JigsawConfig::start_jigsaw_name"],
+        module = "sand::component",
+        kind = "method",
+        summary = "Sets the Minecraft start jigsaw name property on this typed jigsaw config definition and returns the updated builder.",
+        context = "Sets the Minecraft start jigsaw name property on this typed jigsaw config definition and returns the updated builder. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(name = "`name` provides the author-visible text applied when setting the Minecraft start jigsaw name property on this typed jigsaw config definition and returns the updated builder."),
+        returns = "Sets the Minecraft start jigsaw name property on this typed jigsaw config definition and returns the updated builder.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(jigsaw_config_value: sand::component::JigsawConfig, name: impl Into < String >)  {\n    let updated_jigsaw_config = jigsaw_config_value.start_jigsaw_name(name);\n}",
+    )]
     pub fn start_jigsaw_name(mut self, name: impl Into<String>) -> Self {
         self.start_jigsaw_name = Some(name.into());
         self
     }
 
     /// Sets the Minecraft project start to heightmap property on this typed jigsaw config definition and returns the updated builder.
-    #[doc = "**API Contract:** Run `sand api show sand::component::JigsawConfig::project_start_to_heightmap` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::JigsawConfig::project_start_to_heightmap",
+        aliases = ["sand::prelude::JigsawConfig::project_start_to_heightmap"],
+        module = "sand::component",
+        kind = "method",
+        summary = "Sets the Minecraft project start to heightmap property on this typed jigsaw config definition and returns the updated builder.",
+        context = "Sets the Minecraft project start to heightmap property on this typed jigsaw config definition and returns the updated builder. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(heightmap = "`heightmap` provides the heightmap applied when setting the Minecraft project start to heightmap property on this typed jigsaw config definition and returns the updated builder."),
+        returns = "Sets the Minecraft project start to heightmap property on this typed jigsaw config definition and returns the updated builder.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(jigsaw_config_value: sand::component::JigsawConfig, heightmap: sand::component::Heightmap)  {\n    let updated_jigsaw_config = jigsaw_config_value.project_start_to_heightmap(heightmap);\n}",
+    )]
     pub fn project_start_to_heightmap(mut self, heightmap: Heightmap) -> Self {
         self.project_start_to_heightmap = Some(heightmap);
         self
     }
 
     /// Maximum horizontal distance pieces may extend from the start (`1..=128`).
-    #[doc = "**API Contract:** Run `sand api show sand::component::JigsawConfig::max_distance_from_center` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::JigsawConfig::max_distance_from_center",
+        aliases = ["sand::prelude::JigsawConfig::max_distance_from_center"],
+        module = "sand::component",
+        kind = "method",
+        summary = "Maximum horizontal distance pieces may extend from the start (`1..=128`).",
+        context = "Maximum horizontal distance pieces may extend from the start (`1..=128`). This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(blocks = "`blocks` sets the maximum horizontal distance pieces may extend from the start (`1..=128`)."),
+        returns = "The `JigsawConfig` value with the documented change applied to maximum horizontal distance pieces may extend from the start (`1..=128`).",
+        example = "use sand::prelude::*;\n\nfn demonstrate(jigsaw_config_value: sand::component::JigsawConfig, blocks: u32)  {\n    let updated_jigsaw_config = jigsaw_config_value.max_distance_from_center(blocks);\n}",
+    )]
     pub fn max_distance_from_center(mut self, blocks: u32) -> Self {
         self.max_distance_from_center = blocks;
         self
     }
 
     /// Sets the Minecraft use expansion hack property on this typed jigsaw config definition and returns the updated builder.
-    #[doc = "**API Contract:** Run `sand api show sand::component::JigsawConfig::use_expansion_hack` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::JigsawConfig::use_expansion_hack",
+        aliases = ["sand::prelude::JigsawConfig::use_expansion_hack"],
+        module = "sand::component",
+        kind = "method",
+        summary = "Sets the Minecraft use expansion hack property on this typed jigsaw config definition and returns the updated builder.",
+        context = "Sets the Minecraft use expansion hack property on this typed jigsaw config definition and returns the updated builder. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(value = "`value` provides the value being applied or compared used to set the Minecraft use expansion hack property on this typed jigsaw config definition and returns the updated builder."),
+        returns = "Sets the Minecraft use expansion hack property on this typed jigsaw config definition and returns the updated builder.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(jigsaw_config_value: sand::component::JigsawConfig, value: bool)  {\n    let updated_jigsaw_config = jigsaw_config_value.use_expansion_hack(value);\n}",
+    )]
     pub fn use_expansion_hack(mut self, value: bool) -> Self {
         self.use_expansion_hack = value;
         self
@@ -517,7 +781,18 @@ impl JigsawConfig {
     }
 }
 
-#[doc = "**API Contract:** Run `sand api show sand::component::Structure` for the canonical contract."]
+#[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::component::Structure",
+    aliases = ["sand::prelude::Structure"],
+    module = "sand::component",
+    summary = "A structure definition (`data/<namespace>/worldgen/structure/<id>.json`).",
+    context = "A structure definition (`data/<namespace>/worldgen/structure/<id>.json`). This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+    minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+    use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+    avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+    example = "use sand::component::Structure;",
+)]
 /// A structure definition (`data/<namespace>/worldgen/structure/<id>.json`).
 ///
 /// ```
@@ -549,7 +824,21 @@ impl Structure {
     ///
     /// Non-jigsaw vanilla structure types carry type-specific fields that Sand
     /// does not model; supply those through [`Structure::raw_field`].
-    #[doc = "**API Contract:** Run `sand api show sand::component::Structure::new` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::Structure::new",
+        aliases = ["sand::prelude::Structure::new"],
+        module = "sand::component",
+        kind = "method",
+        summary = "Create a structure of an arbitrary typed structure type.",
+        context = "Create a structure of an arbitrary typed structure type. Non-jigsaw vanilla structure types carry type-specific fields that Sand does not model; supply those through [`Structure::raw_field`].",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(location = "`location` provides the typed resource identifier or location used to create a structure of an arbitrary typed structure type.", structure_type = "`structure_type` provides the typed Minecraft resource identifier used to create a structure of an arbitrary typed structure type.", biomes = "`biomes` provides the Minecraft target selection used to create a structure of an arbitrary typed structure type."),
+        returns = "A `Structure` representing a structure of an arbitrary typed structure type.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(location: sand::ResourceLocation, structure_type: sand::registry::StructureTypeId, biomes: sand::component::BiomeSelector)  {\n    let structure = sand::component::Structure::new(location, structure_type, biomes);\n}",
+    )]
     pub fn new(
         location: ResourceLocation,
         structure_type: StructureTypeId,
@@ -568,7 +857,21 @@ impl Structure {
     }
 
     /// Create a complete `minecraft:jigsaw` structure with vanilla-like defaults.
-    #[doc = "**API Contract:** Run `sand api show sand::component::Structure::jigsaw` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::Structure::jigsaw",
+        aliases = ["sand::prelude::Structure::jigsaw"],
+        module = "sand::component",
+        kind = "method",
+        summary = "Create a complete `minecraft:jigsaw` structure with vanilla-like defaults.",
+        context = "Create a complete `minecraft:jigsaw` structure with vanilla-like defaults. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(location = "`location` provides the typed resource identifier or location used to create a complete `minecraft:jigsaw` structure with vanilla-like defaults.", start_pool = "`start_pool` provides the typed Minecraft resource identifier used to create a complete `minecraft:jigsaw` structure with vanilla-like defaults.", biomes = "`biomes` provides the Minecraft target selection used to create a complete `minecraft:jigsaw` structure with vanilla-like defaults."),
+        returns = "A `Structure` representing a complete `minecraft:jigsaw` structure with vanilla-like defaults.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(location: sand::ResourceLocation, start_pool: sand::registry::TemplatePoolId, biomes: sand::component::BiomeSelector)  {\n    let structure = sand::component::Structure::jigsaw(location, start_pool, biomes);\n}",
+    )]
     pub fn jigsaw(
         location: ResourceLocation,
         start_pool: TemplatePoolId,
@@ -579,49 +882,147 @@ impl Structure {
     }
 
     /// Sets the Minecraft structure type property on this typed structure definition and returns the updated builder.
-    #[doc = "**API Contract:** Run `sand api show sand::component::Structure::structure_type` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::Structure::structure_type",
+        aliases = ["sand::prelude::Structure::structure_type"],
+        module = "sand::component",
+        kind = "method",
+        summary = "Sets the Minecraft structure type property on this typed structure definition and returns the updated builder.",
+        context = "Sets the Minecraft structure type property on this typed structure definition and returns the updated builder. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(structure_type = "`structure_type` provides the typed Minecraft resource identifier used to set the Minecraft structure type property on this typed structure definition and returns the updated builder."),
+        returns = "Sets the Minecraft structure type property on this typed structure definition and returns the updated builder.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(structure_value: sand::component::Structure, structure_type: sand::registry::StructureTypeId)  {\n    let updated_structure = structure_value.structure_type(structure_type);\n}",
+    )]
     pub fn structure_type(mut self, structure_type: StructureTypeId) -> Self {
         self.structure_type = structure_type;
         self
     }
 
     /// Sets the Minecraft biomes property on this typed structure definition and returns the updated builder.
-    #[doc = "**API Contract:** Run `sand api show sand::component::Structure::biomes` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::Structure::biomes",
+        aliases = ["sand::prelude::Structure::biomes"],
+        module = "sand::component",
+        kind = "method",
+        summary = "Sets the Minecraft biomes property on this typed structure definition and returns the updated builder.",
+        context = "Sets the Minecraft biomes property on this typed structure definition and returns the updated builder. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(biomes = "`biomes` provides the Minecraft target selection used to set the Minecraft biomes property on this typed structure definition and returns the updated builder."),
+        returns = "Sets the Minecraft biomes property on this typed structure definition and returns the updated builder.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(structure_value: sand::component::Structure, biomes: sand::component::BiomeSelector)  {\n    let updated_structure = structure_value.biomes(biomes);\n}",
+    )]
     pub fn biomes(mut self, biomes: BiomeSelector) -> Self {
         self.biomes = biomes;
         self
     }
 
     /// Sets the Minecraft step property on this typed structure definition and returns the updated builder.
-    #[doc = "**API Contract:** Run `sand api show sand::component::Structure::step` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::Structure::step",
+        aliases = ["sand::prelude::Structure::step"],
+        module = "sand::component",
+        kind = "method",
+        summary = "Sets the Minecraft step property on this typed structure definition and returns the updated builder.",
+        context = "Sets the Minecraft step property on this typed structure definition and returns the updated builder. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(step = "`step` provides the step applied when setting the Minecraft step property on this typed structure definition and returns the updated builder."),
+        returns = "Sets the Minecraft step property on this typed structure definition and returns the updated builder.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(structure_value: sand::component::Structure, step: sand::component::GenerationStep)  {\n    let updated_structure = structure_value.step(step);\n}",
+    )]
     pub fn step(mut self, step: GenerationStep) -> Self {
         self.step = step;
         self
     }
 
     /// Sets the Minecraft terrain adaptation property on this typed structure definition and returns the updated builder.
-    #[doc = "**API Contract:** Run `sand api show sand::component::Structure::terrain_adaptation` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::Structure::terrain_adaptation",
+        aliases = ["sand::prelude::Structure::terrain_adaptation"],
+        module = "sand::component",
+        kind = "method",
+        summary = "Sets the Minecraft terrain adaptation property on this typed structure definition and returns the updated builder.",
+        context = "Sets the Minecraft terrain adaptation property on this typed structure definition and returns the updated builder. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(adaptation = "`adaptation` provides the adaptation applied when setting the Minecraft terrain adaptation property on this typed structure definition and returns the updated builder."),
+        returns = "Sets the Minecraft terrain adaptation property on this typed structure definition and returns the updated builder.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(structure_value: sand::component::Structure, adaptation: sand::component::TerrainAdaptation)  {\n    let updated_structure = structure_value.terrain_adaptation(adaptation);\n}",
+    )]
     pub fn terrain_adaptation(mut self, adaptation: TerrainAdaptation) -> Self {
         self.terrain_adaptation = Some(adaptation);
         self
     }
 
     /// Replace the jigsaw configuration.
-    #[doc = "**API Contract:** Run `sand api show sand::component::Structure::jigsaw_config` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::Structure::jigsaw_config",
+        aliases = ["sand::prelude::Structure::jigsaw_config"],
+        module = "sand::component",
+        kind = "method",
+        summary = "Replace the jigsaw configuration.",
+        context = "Replace the jigsaw configuration. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(config = "`config` provides the replacement config when the jigsaw configuration."),
+        returns = "The `Structure` value with the documented change applied to replace the jigsaw configuration.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(structure_value: sand::component::Structure, config: sand::component::JigsawConfig)  {\n    let updated_structure = structure_value.jigsaw_config(config);\n}",
+    )]
     pub fn jigsaw_config(mut self, config: JigsawConfig) -> Self {
         self.jigsaw = Some(config);
         self
     }
 
     /// Modify the jigsaw configuration in place, if one is present.
-    #[doc = "**API Contract:** Run `sand api show sand::component::Structure::map_jigsaw_config` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::Structure::map_jigsaw_config",
+        aliases = ["sand::prelude::Structure::map_jigsaw_config"],
+        module = "sand::component",
+        kind = "method",
+        summary = "Modify the jigsaw configuration in place, if one is present.",
+        context = "Modify the jigsaw configuration in place, if one is present. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(f = "`f` is used to modify the jigsaw configuration in place, if one is present."),
+        returns = "The `Structure` value with the documented change applied to modify the jigsaw configuration in place, if one is present.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(structure_value: sand::component::Structure, f: impl FnOnce (sand::component::JigsawConfig) -> sand::component::JigsawConfig)  {\n    let updated_structure = structure_value.map_jigsaw_config(f);\n}",
+    )]
     pub fn map_jigsaw_config(mut self, f: impl FnOnce(JigsawConfig) -> JigsawConfig) -> Self {
         self.jigsaw = self.jigsaw.map(f);
         self
     }
 
     /// Add or replace a spawn override for one mob category.
-    #[doc = "**API Contract:** Run `sand api show sand::component::Structure::spawn_override` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::Structure::spawn_override",
+        aliases = ["sand::prelude::Structure::spawn_override"],
+        module = "sand::component",
+        kind = "method",
+        summary = "Add or replace a spawn override for one mob category.",
+        context = "Add or replace a spawn override for one mob category. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(category = "`category` provides the category added when building or replace a spawn override for one mob category.", spawns = "`spawns` provides the spawns added when building or replace a spawn override for one mob category."),
+        returns = "The `Structure` value with the documented change applied to add or replace a spawn override for one mob category.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(structure_value: sand::component::Structure, category: sand::component::MobCategory, spawns: sand::component::SpawnOverride)  {\n    let updated_structure = structure_value.spawn_override(category, spawns);\n}",
+    )]
     pub fn spawn_override(mut self, category: MobCategory, spawns: SpawnOverride) -> Self {
         self.spawn_overrides.insert(category, spawns);
         self
@@ -630,7 +1031,21 @@ impl Structure {
     /// Add a modded or version-specific field not represented by the typed API.
     ///
     /// Typed field names cannot be overridden through this escape hatch.
-    #[doc = "**API Contract:** Run `sand api show sand::component::Structure::raw_field` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::Structure::raw_field",
+        aliases = ["sand::prelude::Structure::raw_field"],
+        module = "sand::component",
+        kind = "method",
+        summary = "Add a modded or version-specific field not represented by the typed API.",
+        context = "Add a modded or version-specific field not represented by the typed API. Typed field names cannot be overridden through this escape hatch.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(key = "`key` provides the key that identifies the setting or entry used to add a modded or version-specific field not represented by the typed API.", value = "`value` provides the value being applied or compared used to add a modded or version-specific field not represented by the typed API."),
+        returns = "The `Structure` value with the documented change applied to add a modded or version-specific field not represented by the typed API.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(structure_value: sand::component::Structure, key: impl Into < String >, value: sand::component::RawJson)  {\n    let updated_structure = structure_value.raw_field(key, value);\n}",
+    )]
     pub fn raw_field(mut self, key: impl Into<String>, value: RawJson) -> Self {
         self.raw_fields.insert(key.into(), value);
         self

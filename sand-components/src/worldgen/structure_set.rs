@@ -20,7 +20,18 @@ const KIND: &str = "worldgen/structure_set";
 
 const TYPED_FIELDS: &[&str] = &["structures", "placement"];
 
-#[doc = "**API Contract:** Run `sand api show sand::component::StructureEntry` for the canonical contract."]
+#[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::component::StructureEntry",
+    aliases = ["sand::prelude::StructureEntry"],
+    module = "sand::component",
+    summary = "A weighted `worldgen/structure` reference inside a structure set.",
+    context = "A weighted `worldgen/structure` reference inside a structure set. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+    minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+    use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+    avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+    example = "use sand::component::StructureEntry;",
+)]
 /// A weighted `worldgen/structure` reference inside a structure set.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct StructureEntry {
@@ -30,7 +41,21 @@ pub struct StructureEntry {
 
 impl StructureEntry {
     /// `weight` must be at least 1; checked on export.
-    #[doc = "**API Contract:** Run `sand api show sand::component::StructureEntry::new` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::StructureEntry::new",
+        aliases = ["sand::prelude::StructureEntry::new"],
+        module = "sand::component",
+        kind = "method",
+        summary = "`weight` must be at least 1; checked on export.",
+        context = "`weight` must be at least 1; checked on export. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(structure = "`structure` provides the typed Minecraft resource identifier used to emit the documented `weight` must be at least 1; checked on export form.", weight = "`weight` must be at least 1; checked on export."),
+        returns = "A `StructureEntry` that emits the documented `weight` must be at least 1; checked on export form.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(structure: sand::registry::StructureId, weight: u32)  {\n    let structure_entry = sand::component::StructureEntry::new(structure, weight);\n}",
+    )]
     pub fn new(structure: StructureId, weight: u32) -> Self {
         Self { structure, weight }
     }
@@ -61,7 +86,18 @@ impl StructureEntry {
     }
 }
 
-#[doc = "**API Contract:** Run `sand api show sand::component::ExclusionZone` for the canonical contract."]
+#[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::component::ExclusionZone",
+    aliases = ["sand::prelude::ExclusionZone"],
+    module = "sand::component",
+    summary = "The exclusion-zone chunk count that another structure set must keep clear around a placement.",
+    context = "The exclusion-zone chunk count that another structure set must keep clear around a placement. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+    minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+    use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+    avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+    example = "use sand::component::ExclusionZone;",
+)]
 /// The exclusion-zone chunk count that another structure set must keep clear
 /// around a placement.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -75,7 +111,21 @@ impl ExclusionZone {
     /// structure set (kept as a string since vanilla exclusion zones may
     /// reference sets defined outside the current pack). `chunk_count` must
     /// be at least 1.
-    #[doc = "**API Contract:** Run `sand api show sand::component::ExclusionZone::new` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::ExclusionZone::new",
+        aliases = ["sand::prelude::ExclusionZone::new"],
+        module = "sand::component",
+        kind = "method",
+        summary = "`other_set` is the raw resource-location string of the other structure set (kept as a string since vanilla exclusion zones may reference sets defined outside the current pack). `chunk_count` must be at least 1.",
+        context = "`other_set` is the raw resource-location string of the other structure set (kept as a string since vanilla exclusion zones may reference sets defined outside the current pack). `chunk_count` must be at least 1. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(other_set = "`other_set` is the raw resource-location string of the other structure set (kept as a string since vanilla exclusion zones may reference sets defined outside the current pack). `chunk_count` must be at least 1.", chunk_count = "`other_set` is the raw resource-location string of the other structure set (kept as a string since vanilla exclusion zones may reference sets defined outside the current pack). `chunk_count` must be at least 1."),
+        returns = "An `ExclusionZone` that emits the documented `other_set` is the raw resource-location string of the other structure set (kept as a string since vanilla exclusion zones may reference sets defined outside the current pack). `chunk_count` must be at least 1 form.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(other_set: impl Into < String >, chunk_count: u32)  {\n    let exclusion_zone = sand::component::ExclusionZone::new(other_set, chunk_count);\n}",
+    )]
     pub fn new(other_set: impl Into<String>, chunk_count: u32) -> Self {
         Self {
             other_set: other_set.into(),
@@ -109,27 +159,48 @@ impl ExclusionZone {
     }
 }
 
-#[doc = "**API Contract:** Run `sand api show sand::component::FrequencyReductionMethod` for the canonical contract."]
+#[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::component::FrequencyReductionMethod",
+    aliases = ["sand::prelude::FrequencyReductionMethod"],
+    module = "sand::component",
+    summary = "The frequency reduction curve for random-spread placement.",
+    context = "The frequency reduction curve for random-spread placement. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+    minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+    use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+    avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+    example = "use sand::component::FrequencyReductionMethod;",
+    variants(Default = "Uses Minecraft's default frequency-reduction algorithm.", LegacyType1 = "Uses Minecraft's legacy type1 frequency-reduction algorithm.", LegacyType2 = "Uses Minecraft's legacy type2 frequency-reduction algorithm.", LegacyType3 = "Uses Minecraft's legacy type3 frequency-reduction algorithm."),
+)]
 /// The frequency reduction curve for random-spread placement.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum FrequencyReductionMethod {
-    #[doc = "Selects the default form in this typed Minecraft component schema."]
-    #[doc = "**API Contract:** Run `sand api show sand::component::FrequencyReductionMethod::Default` for the canonical contract."]
+    #[doc = "Uses Minecraft's default frequency-reduction algorithm."]
     Default,
-    #[doc = "Selects the legacy type1 form in this typed Minecraft component schema."]
-    #[doc = "**API Contract:** Run `sand api show sand::component::FrequencyReductionMethod::LegacyType1` for the canonical contract."]
+    #[doc = "Uses Minecraft's legacy type1 frequency-reduction algorithm."]
     LegacyType1,
-    #[doc = "Selects the legacy type2 form in this typed Minecraft component schema."]
-    #[doc = "**API Contract:** Run `sand api show sand::component::FrequencyReductionMethod::LegacyType2` for the canonical contract."]
+    #[doc = "Uses Minecraft's legacy type2 frequency-reduction algorithm."]
     LegacyType2,
-    #[doc = "Selects the legacy type3 form in this typed Minecraft component schema."]
-    #[doc = "**API Contract:** Run `sand api show sand::component::FrequencyReductionMethod::LegacyType3` for the canonical contract."]
+    #[doc = "Uses Minecraft's legacy type3 frequency-reduction algorithm."]
     LegacyType3,
 }
 
 impl FrequencyReductionMethod {
     /// The vanilla string written into datapack JSON.
-    #[doc = "**API Contract:** Run `sand api show sand::component::FrequencyReductionMethod::as_str` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::FrequencyReductionMethod::as_str",
+        aliases = ["sand::prelude::FrequencyReductionMethod::as_str"],
+        module = "sand::component",
+        kind = "method",
+        summary = "The vanilla string written into datapack JSON.",
+        context = "The vanilla string written into datapack JSON. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        returns = "The string value produced to use the vanilla string written into datapack JSON.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(frequency_reduction_method_value: &sand::component::FrequencyReductionMethod)  {\n    let as_str = frequency_reduction_method_value.as_str();\n}",
+    )]
     pub fn as_str(&self) -> &'static str {
         match self {
             Self::Default => "default",
@@ -140,21 +211,44 @@ impl FrequencyReductionMethod {
     }
 }
 
-#[doc = "**API Contract:** Run `sand api show sand::component::SpreadType` for the canonical contract."]
+#[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::component::SpreadType",
+    aliases = ["sand::prelude::SpreadType"],
+    module = "sand::component",
+    summary = "How random-spread candidate chunks are chosen inside each spacing cell.",
+    context = "How random-spread candidate chunks are chosen inside each spacing cell. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+    minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+    use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+    avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+    example = "use sand::component::SpreadType;",
+    variants(Linear = "Distributes candidate chunks with Minecraft's linear spread.", Triangular = "Distributes candidate chunks with Minecraft's triangular spread."),
+)]
 /// How random-spread candidate chunks are chosen inside each spacing cell.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum SpreadType {
-    #[doc = "Selects the linear form in this typed Minecraft component schema."]
-    #[doc = "**API Contract:** Run `sand api show sand::component::SpreadType::Linear` for the canonical contract."]
+    #[doc = "Distributes candidate chunks with Minecraft's linear spread."]
     Linear,
-    #[doc = "Selects the triangular form in this typed Minecraft component schema."]
-    #[doc = "**API Contract:** Run `sand api show sand::component::SpreadType::Triangular` for the canonical contract."]
+    #[doc = "Distributes candidate chunks with Minecraft's triangular spread."]
     Triangular,
 }
 
 impl SpreadType {
     /// The vanilla string written into datapack JSON.
-    #[doc = "**API Contract:** Run `sand api show sand::component::SpreadType::as_str` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::SpreadType::as_str",
+        aliases = ["sand::prelude::SpreadType::as_str"],
+        module = "sand::component",
+        kind = "method",
+        summary = "The vanilla string written into datapack JSON.",
+        context = "The vanilla string written into datapack JSON. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        returns = "The string value produced to use the vanilla string written into datapack JSON.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(spread_type_value: &sand::component::SpreadType)  {\n    let as_str = spread_type_value.as_str();\n}",
+    )]
     pub fn as_str(&self) -> &'static str {
         match self {
             Self::Linear => "linear",
@@ -163,54 +257,69 @@ impl SpreadType {
     }
 }
 
-#[doc = "**API Contract:** Run `sand api show sand::component::StructurePlacement` for the canonical contract."]
+#[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::component::StructurePlacement",
+    aliases = ["sand::prelude::StructurePlacement"],
+    module = "sand::component",
+    summary = "A structure-set placement strategy.",
+    context = "A structure-set placement strategy. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+    minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+    use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+    avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+    example = "use sand::component::StructurePlacement;",
+    variants(ConcentricRings = "`minecraft:concentric_rings` — rings of candidate chunks around the world origin, as used by strongholds.", RandomSpread = "`minecraft:random_spread` — an evenly distributed grid with jitter."),
+    variant_fields(ConcentricRings(count = "`count` provides the count when `minecraft:concentric_rings` — rings of candidate chunks around the world origin, as used by strongholds.", distance = "`distance` provides the distance when `minecraft:concentric_rings` — rings of candidate chunks around the world origin, as used by strongholds.", preferred_biomes = "`preferred_biomes` optionally provides the preferred biomes when `minecraft:concentric_rings` — rings of candidate chunks around the world origin, as used by strongholds.", spread = "`spread` provides the spread when `minecraft:concentric_rings` — rings of candidate chunks around the world origin, as used by strongholds."), RandomSpread(frequency = "`frequency` optionally supplies the placement frequency for this random-spread strategy.", frequency_reduction_method = "`frequency_reduction_method` optionally provides the frequency reduction method when `minecraft:random_spread` — an evenly distributed grid with jitter.", salt = "`salt` provides the salt when `minecraft:random_spread` — an evenly distributed grid with jitter.", separation = "`separation` provides the separation when `minecraft:random_spread` — an evenly distributed grid with jitter.", spacing = "`spacing` provides the spacing when `minecraft:random_spread` — an evenly distributed grid with jitter.", spread_type = "`spread_type` provides the spread type when `minecraft:random_spread` — an evenly distributed grid with jitter.")),
+)]
 /// A structure-set placement strategy.
 #[derive(Debug, Clone, PartialEq)]
 pub enum StructurePlacement {
-    #[doc = "**API Contract:** Run `sand api show sand::component::StructurePlacement::RandomSpread` for the canonical contract."]
     /// `minecraft:random_spread` — an evenly distributed grid with jitter.
     RandomSpread {
         /// `spacing` provides the spacing when `minecraft:random_spread` — an evenly distributed grid with jitter.
-        #[doc = "**API Contract:** Run `sand api show sand::component::StructurePlacement::RandomSpread::spacing` for the canonical contract."]
         spacing: u32,
         /// `separation` provides the separation when `minecraft:random_spread` — an evenly distributed grid with jitter.
-        #[doc = "**API Contract:** Run `sand api show sand::component::StructurePlacement::RandomSpread::separation` for the canonical contract."]
         separation: u32,
         /// `salt` provides the salt when `minecraft:random_spread` — an evenly distributed grid with jitter.
-        #[doc = "**API Contract:** Run `sand api show sand::component::StructurePlacement::RandomSpread::salt` for the canonical contract."]
         salt: i32,
         /// `spread_type` provides the spread type when `minecraft:random_spread` — an evenly distributed grid with jitter.
-        #[doc = "**API Contract:** Run `sand api show sand::component::StructurePlacement::RandomSpread::spread_type` for the canonical contract."]
         spread_type: SpreadType,
         /// `frequency` optionally supplies the placement frequency for this random-spread strategy.
-        #[doc = "**API Contract:** Run `sand api show sand::component::StructurePlacement::RandomSpread::frequency` for the canonical contract."]
         frequency: Option<f32>,
         /// `frequency_reduction_method` optionally provides the frequency reduction method when `minecraft:random_spread` — an evenly distributed grid with jitter.
-        #[doc = "**API Contract:** Run `sand api show sand::component::StructurePlacement::RandomSpread::frequency_reduction_method` for the canonical contract."]
         frequency_reduction_method: Option<FrequencyReductionMethod>,
     },
-    #[doc = "**API Contract:** Run `sand api show sand::component::StructurePlacement::ConcentricRings` for the canonical contract."]
     /// `minecraft:concentric_rings` — rings of candidate chunks around the
     /// world origin, as used by strongholds.
     ConcentricRings {
         /// `distance` provides the distance when `minecraft:concentric_rings` — rings of candidate chunks around the world origin, as used by strongholds.
-        #[doc = "**API Contract:** Run `sand api show sand::component::StructurePlacement::ConcentricRings::distance` for the canonical contract."]
         distance: u32,
         /// `spread` provides the spread when `minecraft:concentric_rings` — rings of candidate chunks around the world origin, as used by strongholds.
-        #[doc = "**API Contract:** Run `sand api show sand::component::StructurePlacement::ConcentricRings::spread` for the canonical contract."]
         spread: u32,
         /// `count` provides the count when `minecraft:concentric_rings` — rings of candidate chunks around the world origin, as used by strongholds.
-        #[doc = "**API Contract:** Run `sand api show sand::component::StructurePlacement::ConcentricRings::count` for the canonical contract."]
         count: u32,
         /// `preferred_biomes` optionally provides the preferred biomes when `minecraft:concentric_rings` — rings of candidate chunks around the world origin, as used by strongholds.
-        #[doc = "**API Contract:** Run `sand api show sand::component::StructurePlacement::ConcentricRings::preferred_biomes` for the canonical contract."]
         preferred_biomes: Option<Vec<String>>,
     },
 }
 
 impl StructurePlacement {
     /// A random-spread placement with vanilla village-like defaults.
-    #[doc = "**API Contract:** Run `sand api show sand::component::StructurePlacement::random_spread` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::StructurePlacement::random_spread",
+        aliases = ["sand::prelude::StructurePlacement::random_spread"],
+        module = "sand::component",
+        kind = "method",
+        summary = "A random-spread placement with vanilla village-like defaults.",
+        context = "A random-spread placement with vanilla village-like defaults. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(spacing = "`spacing` sets the spacing for a random-spread placement with vanilla village-like defaults.", separation = "`separation` sets the separation for a random-spread placement with vanilla village-like defaults.", salt = "`salt` sets the salt for a random-spread placement with vanilla village-like defaults."),
+        returns = "A `StructurePlacement` configured for a random-spread placement with vanilla village-like defaults.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(spacing: u32, separation: u32, salt: i32)  {\n    let structure_placement = sand::component::StructurePlacement::random_spread(spacing, separation, salt);\n}",
+    )]
     pub fn random_spread(spacing: u32, separation: u32, salt: i32) -> Self {
         Self::RandomSpread {
             spacing,
@@ -223,7 +332,21 @@ impl StructurePlacement {
     }
 
     /// A concentric-rings placement with vanilla stronghold-like defaults.
-    #[doc = "**API Contract:** Run `sand api show sand::component::StructurePlacement::concentric_rings` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::StructurePlacement::concentric_rings",
+        aliases = ["sand::prelude::StructurePlacement::concentric_rings"],
+        module = "sand::component",
+        kind = "method",
+        summary = "A concentric-rings placement with vanilla stronghold-like defaults.",
+        context = "A concentric-rings placement with vanilla stronghold-like defaults. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(distance = "`distance` sets the distance for a concentric-rings placement with vanilla stronghold-like defaults.", spread = "`spread` sets the spread for a concentric-rings placement with vanilla stronghold-like defaults.", count = "`count` provides the requested numeric amount used to use a concentric-rings placement with vanilla stronghold-like defaults."),
+        returns = "A `StructurePlacement` configured for a concentric-rings placement with vanilla stronghold-like defaults.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(distance: u32, spread: u32, count: u32)  {\n    let structure_placement = sand::component::StructurePlacement::concentric_rings(distance, spread, count);\n}",
+    )]
     pub fn concentric_rings(distance: u32, spread: u32, count: u32) -> Self {
         Self::ConcentricRings {
             distance,
@@ -374,7 +497,18 @@ impl StructurePlacement {
     }
 }
 
-#[doc = "**API Contract:** Run `sand api show sand::component::StructureSet` for the canonical contract."]
+#[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::component::StructureSet",
+    aliases = ["sand::prelude::StructureSet"],
+    module = "sand::component",
+    summary = "A structure set definition (`data/<namespace>/worldgen/structure_set/<id>.json`).",
+    context = "A structure set definition (`data/<namespace>/worldgen/structure_set/<id>.json`). This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+    minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+    use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+    avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+    example = "use sand::component::StructureSet;",
+)]
 /// A structure set definition (`data/<namespace>/worldgen/structure_set/<id>.json`).
 ///
 /// ```
@@ -400,7 +534,21 @@ pub struct StructureSet {
 
 impl StructureSet {
     /// Create a structure set from an explicit weighted structure list and placement.
-    #[doc = "**API Contract:** Run `sand api show sand::component::StructureSet::new` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::StructureSet::new",
+        aliases = ["sand::prelude::StructureSet::new"],
+        module = "sand::component",
+        kind = "method",
+        summary = "Create a structure set from an explicit weighted structure list and placement.",
+        context = "Create a structure set from an explicit weighted structure list and placement. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(location = "`location` provides the typed resource identifier or location used to create a structure set from an explicit weighted structure list and placement.", structures = "`structures` is used when creating a structure set from an explicit weighted structure list and placement.", placement = "`placement` is used when creating a structure set from an explicit weighted structure list and placement."),
+        returns = "A `StructureSet` representing a structure set from an explicit weighted structure list and placement.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(location: sand::ResourceLocation, structures: impl IntoIterator < Item = sand::component::StructureEntry >, placement: sand::component::StructurePlacement)  {\n    let structure_set = sand::component::StructureSet::new(location, structures, placement);\n}",
+    )]
     pub fn new(
         location: ResourceLocation,
         structures: impl IntoIterator<Item = StructureEntry>,
@@ -416,7 +564,21 @@ impl StructureSet {
     }
 
     /// Convenience constructor for a single-structure random-spread set.
-    #[doc = "**API Contract:** Run `sand api show sand::component::StructureSet::random_spread` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::StructureSet::random_spread",
+        aliases = ["sand::prelude::StructureSet::random_spread"],
+        module = "sand::component",
+        kind = "method",
+        summary = "Convenience constructor for a single-structure random-spread set.",
+        context = "Convenience constructor for a single-structure random-spread set. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(location = "`location` provides the typed resource identifier or location used to use convenience constructor for a single-structure random-spread set.", structure = "`structure` provides the typed Minecraft resource identifier used to use convenience constructor for a single-structure random-spread set.", spacing = "`spacing` sets the spacing for convenience constructor for a single-structure random-spread set.", separation = "`separation` sets the separation for convenience constructor for a single-structure random-spread set.", salt = "`salt` sets the salt for convenience constructor for a single-structure random-spread set."),
+        returns = "A `StructureSet` configured for convenience constructor for a single-structure random-spread set.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(location: sand::ResourceLocation, structure: sand::registry::StructureId, spacing: u32, separation: u32, salt: i32)  {\n    let structure_set = sand::component::StructureSet::random_spread(location, structure, spacing, separation, salt);\n}",
+    )]
     pub fn random_spread(
         location: ResourceLocation,
         structure: StructureId,
@@ -432,7 +594,21 @@ impl StructureSet {
     }
 
     /// Convenience constructor for a single-structure concentric-rings set.
-    #[doc = "**API Contract:** Run `sand api show sand::component::StructureSet::concentric_rings` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::StructureSet::concentric_rings",
+        aliases = ["sand::prelude::StructureSet::concentric_rings"],
+        module = "sand::component",
+        kind = "method",
+        summary = "Convenience constructor for a single-structure concentric-rings set.",
+        context = "Convenience constructor for a single-structure concentric-rings set. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(location = "`location` provides the typed resource identifier or location used to use convenience constructor for a single-structure concentric-rings set.", structure = "`structure` provides the typed Minecraft resource identifier used to use convenience constructor for a single-structure concentric-rings set.", distance = "`distance` sets the distance for convenience constructor for a single-structure concentric-rings set.", spread = "`spread` sets the spread for convenience constructor for a single-structure concentric-rings set.", count = "`count` provides the requested numeric amount used to use convenience constructor for a single-structure concentric-rings set."),
+        returns = "A `StructureSet` configured for convenience constructor for a single-structure concentric-rings set.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(location: sand::ResourceLocation, structure: sand::registry::StructureId, distance: u32, spread: u32, count: u32)  {\n    let structure_set = sand::component::StructureSet::concentric_rings(location, structure, distance, spread, count);\n}",
+    )]
     pub fn concentric_rings(
         location: ResourceLocation,
         structure: StructureId,
@@ -448,28 +624,84 @@ impl StructureSet {
     }
 
     /// Sets the Minecraft structures property on this typed structure set definition and returns the updated builder.
-    #[doc = "**API Contract:** Run `sand api show sand::component::StructureSet::structures` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::StructureSet::structures",
+        aliases = ["sand::prelude::StructureSet::structures"],
+        module = "sand::component",
+        kind = "method",
+        summary = "Sets the Minecraft structures property on this typed structure set definition and returns the updated builder.",
+        context = "Sets the Minecraft structures property on this typed structure set definition and returns the updated builder. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(structures = "`structures` provides the structures applied when setting the Minecraft structures property on this typed structure set definition and returns the updated builder."),
+        returns = "Sets the Minecraft structures property on this typed structure set definition and returns the updated builder.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(structure_set_value: sand::component::StructureSet, structures: impl IntoIterator < Item = sand::component::StructureEntry >)  {\n    let updated_structure_set = structure_set_value.structures(structures);\n}",
+    )]
     pub fn structures(mut self, structures: impl IntoIterator<Item = StructureEntry>) -> Self {
         self.structures = structures.into_iter().collect();
         self
     }
 
     /// Sets the Minecraft add structure property on this typed structure set definition and returns the updated builder.
-    #[doc = "**API Contract:** Run `sand api show sand::component::StructureSet::add_structure` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::StructureSet::add_structure",
+        aliases = ["sand::prelude::StructureSet::add_structure"],
+        module = "sand::component",
+        kind = "method",
+        summary = "Sets the Minecraft add structure property on this typed structure set definition and returns the updated builder.",
+        context = "Sets the Minecraft add structure property on this typed structure set definition and returns the updated builder. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(entry = "`entry` provides the entry applied when setting the Minecraft add structure property on this typed structure set definition and returns the updated builder."),
+        returns = "Sets the Minecraft add structure property on this typed structure set definition and returns the updated builder.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(structure_set_value: sand::component::StructureSet, entry: sand::component::StructureEntry)  {\n    let updated_structure_set = structure_set_value.add_structure(entry);\n}",
+    )]
     pub fn add_structure(mut self, entry: StructureEntry) -> Self {
         self.structures.push(entry);
         self
     }
 
     /// Sets the Minecraft placement property on this typed structure set definition and returns the updated builder.
-    #[doc = "**API Contract:** Run `sand api show sand::component::StructureSet::placement` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::StructureSet::placement",
+        aliases = ["sand::prelude::StructureSet::placement"],
+        module = "sand::component",
+        kind = "method",
+        summary = "Sets the Minecraft placement property on this typed structure set definition and returns the updated builder.",
+        context = "Sets the Minecraft placement property on this typed structure set definition and returns the updated builder. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(placement = "`placement` provides the placement applied when setting the Minecraft placement property on this typed structure set definition and returns the updated builder."),
+        returns = "Sets the Minecraft placement property on this typed structure set definition and returns the updated builder.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(structure_set_value: sand::component::StructureSet, placement: sand::component::StructurePlacement)  {\n    let updated_structure_set = structure_set_value.placement(placement);\n}",
+    )]
     pub fn placement(mut self, placement: StructurePlacement) -> Self {
         self.placement = placement;
         self
     }
 
     /// Sets the Minecraft exclusion zone property on this typed structure set definition and returns the updated builder.
-    #[doc = "**API Contract:** Run `sand api show sand::component::StructureSet::exclusion_zone` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::StructureSet::exclusion_zone",
+        aliases = ["sand::prelude::StructureSet::exclusion_zone"],
+        module = "sand::component",
+        kind = "method",
+        summary = "Sets the Minecraft exclusion zone property on this typed structure set definition and returns the updated builder.",
+        context = "Sets the Minecraft exclusion zone property on this typed structure set definition and returns the updated builder. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(zone = "`zone` provides the zone applied when setting the Minecraft exclusion zone property on this typed structure set definition and returns the updated builder."),
+        returns = "Sets the Minecraft exclusion zone property on this typed structure set definition and returns the updated builder.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(structure_set_value: sand::component::StructureSet, zone: sand::component::ExclusionZone)  {\n    let updated_structure_set = structure_set_value.exclusion_zone(zone);\n}",
+    )]
     pub fn exclusion_zone(mut self, zone: ExclusionZone) -> Self {
         self.exclusion_zone = Some(zone);
         self
@@ -478,7 +710,21 @@ impl StructureSet {
     /// Add a modded or version-specific field not represented by the typed API.
     ///
     /// Typed field names cannot be overridden through this escape hatch.
-    #[doc = "**API Contract:** Run `sand api show sand::component::StructureSet::raw_field` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::StructureSet::raw_field",
+        aliases = ["sand::prelude::StructureSet::raw_field"],
+        module = "sand::component",
+        kind = "method",
+        summary = "Add a modded or version-specific field not represented by the typed API.",
+        context = "Add a modded or version-specific field not represented by the typed API. Typed field names cannot be overridden through this escape hatch.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(key = "`key` provides the key that identifies the setting or entry used to add a modded or version-specific field not represented by the typed API.", value = "`value` provides the value being applied or compared used to add a modded or version-specific field not represented by the typed API."),
+        returns = "The `StructureSet` value with the documented change applied to add a modded or version-specific field not represented by the typed API.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(structure_set_value: sand::component::StructureSet, key: impl Into < String >, value: sand::component::RawJson)  {\n    let updated_structure_set = structure_set_value.raw_field(key, value);\n}",
+    )]
     pub fn raw_field(mut self, key: impl Into<String>, value: RawJson) -> Self {
         self.raw_fields.insert(key.into(), value);
         self

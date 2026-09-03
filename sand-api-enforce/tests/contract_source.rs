@@ -519,19 +519,20 @@ fn repository_contract_sources_are_the_actual_authored_declarations() {
     let workspace = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
         .parent()
         .unwrap();
-    let declarations = contract_declarations_from_files([
-        workspace.join("sand/src/lib.rs"),
-        workspace.join("sand/src/api_contracts.rs"),
-        workspace.join("sand-components/src/predicate/mod.rs"),
-        workspace.join("sand-components/src/predicates.rs"),
-        workspace.join("sand-core/src/condition.rs"),
-        workspace.join("sand-core/src/execute_when.rs"),
-        workspace.join("sand-core/src/advanced.rs"),
-        workspace.join("sand-core/src/version.rs"),
-        workspace.join("sand-core/src/vfx.rs"),
-    ])
-    .unwrap();
-    assert_eq!(declarations.len(), 4_579);
+    let mut sources = Vec::new();
+    for package in [
+        "sand",
+        "sand-commands",
+        "sand-components",
+        "sand-core",
+        "sand-resourcepack",
+        "sand-version",
+    ] {
+        collect_rust_sources(&workspace.join(package).join("src"), &mut sources);
+    }
+    sources.sort();
+    let declarations = contract_declarations_from_files(&sources).unwrap();
+    assert_eq!(declarations.len(), 4_887);
     assert_eq!(
         declarations.first().unwrap().canonical_path,
         "sand::EntityStateEnum"
@@ -581,6 +582,17 @@ fn repository_contract_sources_are_the_actual_authored_declarations() {
             "sand::prelude::cmd::Vfx::play".to_owned(),
         ])
     );
+}
+
+fn collect_rust_sources(directory: &std::path::Path, sources: &mut Vec<std::path::PathBuf>) {
+    for entry in std::fs::read_dir(directory).unwrap() {
+        let path = entry.unwrap().path();
+        if path.is_dir() {
+            collect_rust_sources(&path, sources);
+        } else if path.extension().is_some_and(|extension| extension == "rs") {
+            sources.push(path);
+        }
+    }
 }
 
 fn contract_binding_fixture(dummy_attributes: &str, features: &[&str]) -> ContractSourceError {

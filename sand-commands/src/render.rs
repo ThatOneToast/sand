@@ -474,15 +474,50 @@ fn required_token<'a>(
     })
 }
 
-#[doc = "**API Contract:** Run `sand api show sand::command::Validate` for the canonical contract."]
+#[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::command::Validate",
+    aliases = ["sand::cmd::Validate", "sand::prelude::Validate", "sand::prelude::cmd::Validate"],
+    module = "sand::command",
+    summary = "Validate a typed command value against the active Minecraft profile.",
+    context = "Validate a typed command value against the active Minecraft profile. This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
+    minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
+    use_when = ["Constructing Minecraft commands through Sand's typed command model"],
+    avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
+    example = "use sand::command::Validate;",
+)]
 /// Validate a typed command value against the active Minecraft profile.
 pub trait Validate {
     /// Reject invalid state before it can become command text.
-    #[doc = "**API Contract:** Run `sand api show sand::command::Validate::validate` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::command::Validate::validate",
+        aliases = ["sand::cmd::Validate::validate", "sand::prelude::Validate::validate", "sand::prelude::cmd::Validate::validate"],
+        module = "sand::command",
+        summary = "Reject invalid state before it can become command text.",
+        context = "Reject invalid state before it can become command text. This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
+        minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
+        use_when = ["Constructing Minecraft commands through Sand's typed command model"],
+        avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
+        params(profile = "`profile` is used to reject invalid state before it can become command text."),
+        returns = "On success, the value produced to reject invalid state before it can become command text; otherwise, the documented validation or export diagnostic.",
+        example = "use sand::prelude::*;\n\nfn demonstrate<T: sand::command::Validate>(validate_value: &T, profile: & sand::command::CommandProfile)  {\n    let validate = validate_value.validate(profile);\n}",
+    )]
     fn validate(&self, profile: &CommandProfile) -> CommandResult<()>;
 }
 
-#[doc = "**API Contract:** Run `sand api show sand::command::RenderCommand` for the canonical contract."]
+#[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::command::RenderCommand",
+    aliases = ["sand::cmd::RenderCommand", "sand::prelude::RenderCommand", "sand::prelude::cmd::RenderCommand"],
+    module = "sand::command",
+    summary = "Deterministically render a validated Minecraft command or command fragment.",
+    context = "Deterministically render a validated Minecraft command or command fragment. [`render`](Self::render) is the normal path. `render_unchecked` exists so compatibility `Display`/`Build` implementations can retain their historical output while exporters and new APIs use the fallible boundary.",
+    minecraft = "[`render`](Self::render) is the normal path. `render_unchecked` exists so compatibility `Display`/`Build` implementations can retain their historical output while exporters and new APIs use the fallible boundary.",
+    use_when = ["Constructing Minecraft commands through Sand's typed command model"],
+    avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
+    example = "use sand::command::RenderCommand;",
+)]
 /// Deterministically render a validated Minecraft command or command fragment.
 ///
 /// [`render`](Self::render) is the normal path. `render_unchecked` exists so
@@ -490,18 +525,56 @@ pub trait Validate {
 /// output while exporters and new APIs use the fallible boundary.
 pub trait RenderCommand: Validate {
     /// Render without validation. Normal callers should use [`render`](Self::render).
-    #[doc = "**API Contract:** Run `sand api show sand::command::RenderCommand::render_unchecked` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::command::RenderCommand::render_unchecked",
+        aliases = ["sand::cmd::RenderCommand::render_unchecked", "sand::prelude::RenderCommand::render_unchecked", "sand::prelude::cmd::RenderCommand::render_unchecked"],
+        module = "sand::command",
+        summary = "Render without validation. Normal callers should use [`render`](Self::render).",
+        context = "Render without validation. Normal callers should use [`render`](Self::render). This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
+        minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
+        use_when = ["Constructing Minecraft commands through Sand's typed command model"],
+        avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
+        params(profile = "`profile` provides the profile rendered when without validation. Normal callers should use [`render`](Self::render)."),
+        returns = "The string value produced to render without validation. Normal callers should use [`render`](Self::render).",
+        example = "use sand::prelude::*;\n\nfn demonstrate<T: sand::command::RenderCommand>(render_command_value: &T, profile: & sand::command::CommandProfile)  {\n    let render_unchecked = render_command_value.render_unchecked(profile);\n}",
+    )]
     fn render_unchecked(&self, profile: &CommandProfile) -> String;
 
     /// Validate, then render with the active Minecraft profile.
-    #[doc = "**API Contract:** Run `sand api show sand::command::RenderCommand::render` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::command::RenderCommand::render", kind = "trait_method",
+        aliases = ["sand::cmd::RenderCommand::render", "sand::prelude::RenderCommand::render", "sand::prelude::cmd::RenderCommand::render"],
+        module = "sand::command",
+        summary = "Validate, then render with the active Minecraft profile.",
+        context = "Validate, then render with the active Minecraft profile. This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
+        minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
+        use_when = ["Constructing Minecraft commands through Sand's typed command model"],
+        avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
+        params(profile = "`profile` is used to validate, then render with the active Minecraft profile."),
+        returns = "On success, the value produced to validate, then render with the active Minecraft profile; otherwise, the documented validation or export diagnostic.",
+        example = "use sand::prelude::*;\n\nfn demonstrate<T: sand::command::RenderCommand>(render_command_value: &T, profile: & sand::command::CommandProfile)  {\n    let render = render_command_value.render(profile);\n}",
+    )]
     fn render(&self, profile: &CommandProfile) -> CommandResult<String> {
         self.validate(profile)?;
         Ok(self.render_unchecked(profile))
     }
 
     /// Validate and render using the unprofiled compatibility target.
-    #[doc = "**API Contract:** Run `sand api show sand::command::RenderCommand::try_build` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::command::RenderCommand::try_build", kind = "trait_method",
+        aliases = ["sand::cmd::RenderCommand::try_build", "sand::prelude::RenderCommand::try_build", "sand::prelude::cmd::RenderCommand::try_build"],
+        module = "sand::command",
+        summary = "Validate and render using the unprofiled compatibility target.",
+        context = "Validate and render using the unprofiled compatibility target. This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
+        minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
+        use_when = ["Constructing Minecraft commands through Sand's typed command model"],
+        avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
+        returns = "On success, the value produced to validate and render using the unprofiled compatibility target; otherwise, the documented validation or export diagnostic.",
+        example = "use sand::prelude::*;\n\nfn demonstrate<T: sand::command::RenderCommand>(render_command_value: &T)  {\n    let try_build = render_command_value.try_build();\n}",
+    )]
     fn try_build(&self) -> CommandResult<String> {
         self.render(&CommandProfile::unprofiled())
     }

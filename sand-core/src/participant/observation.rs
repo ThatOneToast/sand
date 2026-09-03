@@ -126,26 +126,45 @@ use crate::participant::role::EntityParticipantRole;
 use crate::version::VersionProfile;
 use sand_commands::selector::SingleEntity;
 
-#[doc = "**API Contract:** Run `sand api show sand::participant::CorrelationSource` for the canonical contract."]
+#[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::participant::CorrelationSource",
+    module = "sand::participant",
+    summary = "The vanilla mechanism an observation's evidence comes from.",
+    context = "The vanilla mechanism an observation's evidence comes from. Participants are available only when the event plan declares a real observation or a valid same-cycle inheritance path; the exporter rejects unsupported transport.",
+    minecraft = "Entity relationships use the matching execute relation, while item snapshots are copied into Sand-owned command storage and cleaned up at the end of their declared lifetime.",
+    use_when = ["Declaring or reading a typed participant whose lifecycle is guaranteed by the event plan"],
+    avoid_when = ["Assuming an entity or item remains live beyond its declared invocation, event-cycle, or bounded correlation lifetime"],
+    example = "use sand::participant::CorrelationSource;",
+    variants(AttackerRelation = "`execute on attacker` — vanilla's own \"last entity that damaged me\" relation. The only source this phase implements."),
+)]
 /// The vanilla mechanism an observation's evidence comes from.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum CorrelationSource {
-    #[doc = "**API Contract:** Run `sand api show sand::participant::CorrelationSource::AttackerRelation` for the canonical contract."]
     /// `execute on attacker` — vanilla's own "last entity that damaged me"
     /// relation. The only source this phase implements.
     AttackerRelation,
 }
 
-#[doc = "**API Contract:** Run `sand api show sand::participant::CorrelationEvidence` for the canonical contract."]
+#[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::participant::CorrelationEvidence",
+    module = "sand::participant",
+    summary = "The evidence backing a correlated participant, exposed alongside the participant itself so callers (and diagnostics) can see *why* something is `Correlated` rather than treating the label as unexplained.",
+    context = "The evidence backing a correlated participant, exposed alongside the participant itself so callers (and diagnostics) can see *why* something is `Correlated` rather than treating the label as unexplained. Participants are available only when the event plan declares a real observation or a valid same-cycle inheritance path; the exporter rejects unsupported transport.",
+    minecraft = "Entity relationships use the matching execute relation, while item snapshots are copied into Sand-owned command storage and cleaned up at the end of their declared lifetime.",
+    use_when = ["Declaring or reading a typed participant whose lifecycle is guaranteed by the event plan"],
+    avoid_when = ["Assuming an entity or item remains live beyond its declared invocation, event-cycle, or bounded correlation lifetime"],
+    example = "use sand::participant::CorrelationEvidence;",
+    fields(min_version = "`(major, minor, patch)` — the vanilla version this evidence source requires. `execute on attacker` requires 1.20.2+.", source = "`source` provides the source when the evidence backing a correlated participant, exposed alongside the participant itself so callers (and diagnostics) can see *why* something is `Correlated` rather than treating the label as unexplained."),
+)]
 /// The evidence backing a correlated participant, exposed alongside the
 /// participant itself so callers (and diagnostics) can see *why* something
 /// is `Correlated` rather than treating the label as unexplained.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct CorrelationEvidence {
     /// `source` provides the source when the evidence backing a correlated participant, exposed alongside the participant itself so callers (and diagnostics) can see *why* something is `Correlated` rather than treating the label as unexplained.
-    #[doc = "**API Contract:** Run `sand api show sand::participant::CorrelationEvidence::source` for the canonical contract."]
     pub source: CorrelationSource,
-    #[doc = "**API Contract:** Run `sand api show sand::participant::CorrelationEvidence::min_version` for the canonical contract."]
     /// `(major, minor, patch)` — the vanilla version this evidence source
     /// requires. `execute on attacker` requires 1.20.2+.
     pub min_version: (u32, u32, u32),
@@ -153,14 +172,35 @@ pub struct CorrelationEvidence {
 
 impl CorrelationEvidence {
     #[doc = "Selects the attacker relation participant semantic."]
-    #[doc = "**API Contract:** Run `sand api show sand::participant::CorrelationEvidence::ATTACKER_RELATION` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::participant::CorrelationEvidence::ATTACKER_RELATION",
+        module = "sand::participant",
+        kind = "associated_const",
+        summary = "Selects the attacker relation participant semantic.",
+        context = "Selects the attacker relation participant semantic. Participants are available only when the event plan declares a real observation or a valid same-cycle inheritance path; the exporter rejects unsupported transport.",
+        minecraft = "Entity relationships use the matching execute relation, while item snapshots are copied into Sand-owned command storage and cleaned up at the end of their declared lifetime.",
+        use_when = ["Declaring or reading a typed participant whose lifecycle is guaranteed by the event plan"],
+        avoid_when = ["Assuming an entity or item remains live beyond its declared invocation, event-cycle, or bounded correlation lifetime"],
+        example = "use sand::participant::CorrelationEvidence;",
+    )]
     pub const ATTACKER_RELATION: CorrelationEvidence = CorrelationEvidence {
         source: CorrelationSource::AttackerRelation,
         min_version: (1, 20, 2),
     };
 }
 
-#[doc = "**API Contract:** Run `sand api show sand::participant::ObservationSchema` for the canonical contract."]
+#[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::participant::ObservationSchema",
+    module = "sand::participant",
+    summary = "Deterministic identity for one observation's generated storage path and temporary tag, derived from a caller-supplied event label the same way [`sand::item::SnapshotSchema`] derives its own key.",
+    context = "Deterministic identity for one observation's generated storage path and temporary tag, derived from a caller-supplied event label the same way [`sand::item::SnapshotSchema`] derives its own key. Participants are available only when the event plan declares a real observation or a valid same-cycle inheritance path; the exporter rejects unsupported transport.",
+    minecraft = "Entity relationships use the matching execute relation, while item snapshots are copied into Sand-owned command storage and cleaned up at the end of their declared lifetime.",
+    use_when = ["Declaring or reading a typed participant whose lifecycle is guaranteed by the event plan"],
+    avoid_when = ["Assuming an entity or item remains live beyond its declared invocation, event-cycle, or bounded correlation lifetime"],
+    example = "use sand::participant::ObservationSchema;",
+)]
 /// Deterministic identity for one observation's generated storage path and
 /// temporary tag, derived from a caller-supplied event label the same way
 /// [`crate::item::snapshot::SnapshotSchema`] derives its own key.
@@ -172,7 +212,20 @@ pub struct ObservationSchema {
 
 impl ObservationSchema {
     /// Creates the storage schema used to correlate participant observations for an event.
-    #[doc = "**API Contract:** Run `sand api show sand::participant::ObservationSchema::new` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::participant::ObservationSchema::new",
+        module = "sand::participant",
+        kind = "method",
+        summary = "Creates the storage schema used to correlate participant observations for an event.",
+        context = "Creates the storage schema used to correlate participant observations for an event. Participants are available only when the event plan declares a real observation or a valid same-cycle inheritance path; the exporter rejects unsupported transport.",
+        minecraft = "Entity relationships use the matching execute relation, while item snapshots are copied into Sand-owned command storage and cleaned up at the end of their declared lifetime.",
+        use_when = ["Declaring or reading a typed participant whose lifecycle is guaranteed by the event plan"],
+        avoid_when = ["Assuming an entity or item remains live beyond its declared invocation, event-cycle, or bounded correlation lifetime"],
+        params(storage = "`storage` is used when creating the storage schema used to correlate participant observations for an event.", event_label = "`event_label` is used when creating the storage schema used to correlate participant observations for an event."),
+        returns = "An `ObservationSchema` representing the storage schema used to correlate participant observations for an event.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(storage: impl Into < String >, event_label: & str)  {\n    let observation_schema = sand::participant::ObservationSchema::new(storage, event_label);\n}",
+    )]
     pub fn new(storage: impl Into<String>, event_label: &str) -> Self {
         Self {
             storage: storage.into(),
@@ -181,7 +234,19 @@ impl ObservationSchema {
     }
 
     /// Returns the command-storage resource used for observation snapshots.
-    #[doc = "**API Contract:** Run `sand api show sand::participant::ObservationSchema::storage` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::participant::ObservationSchema::storage",
+        module = "sand::participant",
+        kind = "method",
+        summary = "Returns the command-storage resource used for observation snapshots.",
+        context = "Returns the command-storage resource used for observation snapshots. Participants are available only when the event plan declares a real observation or a valid same-cycle inheritance path; the exporter rejects unsupported transport.",
+        minecraft = "Entity relationships use the matching execute relation, while item snapshots are copied into Sand-owned command storage and cleaned up at the end of their declared lifetime.",
+        use_when = ["Declaring or reading a typed participant whose lifecycle is guaranteed by the event plan"],
+        avoid_when = ["Assuming an entity or item remains live beyond its declared invocation, event-cycle, or bounded correlation lifetime"],
+        returns = "Returns the command-storage resource used for observation snapshots.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(observation_schema_value: &sand::participant::ObservationSchema)  {\n    let storage = observation_schema_value.storage();\n}",
+    )]
     pub fn storage(&self) -> &str {
         &self.storage
     }
@@ -199,7 +264,19 @@ impl ObservationSchema {
     }
 }
 
-#[doc = "**API Contract:** Run `sand api show sand::participant::ObservationError` for the canonical contract."]
+#[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::participant::ObservationError",
+    module = "sand::participant",
+    summary = "An observation that failed to construct — never a runtime \"no candidate found\" outcome (that is represented by [`CorrelatedEntityObservation::is_absent`] at generated-command time, since Sand cannot know at export time whether vanilla will find an attacker). This is a build-time/version diagnostic only.",
+    context = "An observation that failed to construct — never a runtime \"no candidate found\" outcome (that is represented by [`CorrelatedEntityObservation::is_absent`] at generated-command time, since Sand cannot know at export time whether vanilla will find an attacker). This is a build-time/version diagnostic only. Participants are available only when the event plan declares a real observation or a valid same-cycle inheritance path; the exporter rejects unsupported transport.",
+    minecraft = "Entity relationships use the matching execute relation, while item snapshots are copied into Sand-owned command storage and cleaned up at the end of their declared lifetime.",
+    use_when = ["Declaring or reading a typed participant whose lifecycle is guaranteed by the event plan"],
+    avoid_when = ["Assuming an entity or item remains live beyond its declared invocation, event-cycle, or bounded correlation lifetime"],
+    example = "use sand::participant::ObservationError;",
+    variants(UnsupportedVersion = "The active `VersionProfile` predates the evidence source's minimum version."),
+    variant_fields(UnsupportedVersion(evidence = "`evidence` provides the evidence identifier when the active `VersionProfile` predates the evidence source's minimum version.", role = "`role` provides the role when the active `VersionProfile` predates the evidence source's minimum version.", target_version = "`target_version` provides the target version when the active `VersionProfile` predates the evidence source's minimum version.")),
+)]
 /// An observation that failed to construct — never a runtime "no candidate
 /// found" outcome (that is represented by
 /// [`CorrelatedEntityObservation::is_absent`] at generated-command time,
@@ -207,18 +284,14 @@ impl ObservationSchema {
 /// attacker). This is a build-time/version diagnostic only.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ObservationError {
-    #[doc = "**API Contract:** Run `sand api show sand::participant::ObservationError::UnsupportedVersion` for the canonical contract."]
     /// The active `VersionProfile` predates the evidence source's minimum
     /// version.
     UnsupportedVersion {
         /// `role` provides the role when the active `VersionProfile` predates the evidence source's minimum version.
-        #[doc = "**API Contract:** Run `sand api show sand::participant::ObservationError::UnsupportedVersion::role` for the canonical contract."]
         role: EntityParticipantRole,
         /// `evidence` provides the evidence identifier when the active `VersionProfile` predates the evidence source's minimum version.
-        #[doc = "**API Contract:** Run `sand api show sand::participant::ObservationError::UnsupportedVersion::evidence` for the canonical contract."]
         evidence: CorrelationEvidence,
         /// `target_version` provides the target version when the active `VersionProfile` predates the evidence source's minimum version.
-        #[doc = "**API Contract:** Run `sand api show sand::participant::ObservationError::UnsupportedVersion::target_version` for the canonical contract."]
         target_version: String,
     },
 }
@@ -244,7 +317,17 @@ impl std::fmt::Display for ObservationError {
 
 impl std::error::Error for ObservationError {}
 
-#[doc = "**API Contract:** Run `sand api show sand::participant::CorrelatedEntityObservation` for the canonical contract."]
+#[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::participant::CorrelatedEntityObservation",
+    module = "sand::participant",
+    summary = "A correlated entity observation embedded into a generated command sequence: an immutable handle describing generated storage/tag identity, not a live runtime value.",
+    context = "A correlated entity observation embedded into a generated command sequence: an immutable handle describing generated storage/tag identity, not a live runtime value. Participants are available only when the event plan declares a real observation or a valid same-cycle inheritance path; the exporter rejects unsupported transport.",
+    minecraft = "Entity relationships use the matching execute relation, while item snapshots are copied into Sand-owned command storage and cleaned up at the end of their declared lifetime.",
+    use_when = ["Declaring or reading a typed participant whose lifecycle is guaranteed by the event plan"],
+    avoid_when = ["Assuming an entity or item remains live beyond its declared invocation, event-cycle, or bounded correlation lifetime"],
+    example = "use sand::participant::CorrelatedEntityObservation;",
+)]
 /// A correlated entity observation embedded into a generated command
 /// sequence: an immutable handle describing generated storage/tag identity,
 /// not a live runtime value.
@@ -258,7 +341,19 @@ pub struct CorrelatedEntityObservation {
 impl CorrelatedEntityObservation {
     /// A `Condition` true exactly when the underlying relation resolved to
     /// an entity for this invocation.
-    #[doc = "**API Contract:** Run `sand api show sand::participant::CorrelatedEntityObservation::is_present` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::participant::CorrelatedEntityObservation::is_present",
+        module = "sand::participant",
+        kind = "method",
+        summary = "A `Condition` true exactly when the underlying relation resolved to an entity for this invocation.",
+        context = "A `Condition` true exactly when the underlying relation resolved to an entity for this invocation. Participants are available only when the event plan declares a real observation or a valid same-cycle inheritance path; the exporter rejects unsupported transport.",
+        minecraft = "Entity relationships use the matching execute relation, while item snapshots are copied into Sand-owned command storage and cleaned up at the end of their declared lifetime.",
+        use_when = ["Declaring or reading a typed participant whose lifecycle is guaranteed by the event plan"],
+        avoid_when = ["Assuming an entity or item remains live beyond its declared invocation, event-cycle, or bounded correlation lifetime"],
+        returns = "The `Condition` value produced to use a `Condition` true exactly when the underlying relation resolved to an entity for this invocation.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(correlated_entity_observation_value: &sand::participant::CorrelatedEntityObservation)  {\n    let is_present = correlated_entity_observation_value.is_present();\n}",
+    )]
     pub fn is_present(&self) -> Condition {
         Condition::nbt_exists(
             sand_commands::DataTarget::storage(self.schema.storage().to_string()),
@@ -267,7 +362,19 @@ impl CorrelatedEntityObservation {
     }
 
     /// The negation of [`Self::is_present`].
-    #[doc = "**API Contract:** Run `sand api show sand::participant::CorrelatedEntityObservation::is_absent` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::participant::CorrelatedEntityObservation::is_absent",
+        module = "sand::participant",
+        kind = "method",
+        summary = "The negation of [`Self::is_present`].",
+        context = "The negation of [`Self::is_present`]. Participants are available only when the event plan declares a real observation or a valid same-cycle inheritance path; the exporter rejects unsupported transport.",
+        minecraft = "Entity relationships use the matching execute relation, while item snapshots are copied into Sand-owned command storage and cleaned up at the end of their declared lifetime.",
+        use_when = ["Declaring or reading a typed participant whose lifecycle is guaranteed by the event plan"],
+        avoid_when = ["Assuming an entity or item remains live beyond its declared invocation, event-cycle, or bounded correlation lifetime"],
+        returns = "The `Condition` value produced to use the negation of [`Self::is_present`].",
+        example = "use sand::prelude::*;\n\nfn demonstrate(correlated_entity_observation_value: &sand::participant::CorrelatedEntityObservation)  {\n    let is_absent = correlated_entity_observation_value.is_absent();\n}",
+    )]
     pub fn is_absent(&self) -> Condition {
         Condition::negate(self.is_present())
     }
@@ -279,7 +386,19 @@ impl CorrelatedEntityObservation {
     /// responsible for guarding its use accordingly (Sand cannot express
     /// "this Rust value only exists when true" for a runtime-only fact —
     /// the same honest limitation `ItemSnapshot` documents).
-    #[doc = "**API Contract:** Run `sand api show sand::participant::CorrelatedEntityObservation::participant` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::participant::CorrelatedEntityObservation::participant",
+        module = "sand::participant",
+        kind = "method",
+        summary = "The correlated entity participant handle. Always [`ParticipantReliability::Correlated`](sand::participant::ParticipantReliability::Correlated), [`ParticipantLifetime::SynchronousDescendants`] — see the module doc. Only meaningful when [`Self::is_present`] holds; the caller is responsible for guarding its use accordingly (Sand cannot express \"this Rust value only exists when true\" for a runtime-only fact — the same honest limitation `ItemSnapshot` documents).",
+        context = "The correlated entity participant handle. Always [`ParticipantReliability::Correlated`](sand::participant::ParticipantReliability::Correlated), [`ParticipantLifetime::SynchronousDescendants`] — see the module doc. Only meaningful when [`Self::is_present`] holds; the caller is responsible for guarding its use accordingly (Sand cannot express \"this Rust value only exists when true\" for a runtime-only fact — the same honest limitation `ItemSnapshot` documents). Participants are available only when the event plan declares a real observation or a valid same-cycle inheritance path; the exporter rejects unsupported transport.",
+        minecraft = "Entity relationships use the matching execute relation, while item snapshots are copied into Sand-owned command storage and cleaned up at the end of their declared lifetime.",
+        use_when = ["Declaring or reading a typed participant whose lifecycle is guaranteed by the event plan"],
+        avoid_when = ["Assuming an entity or item remains live beyond its declared invocation, event-cycle, or bounded correlation lifetime"],
+        returns = "The `EntityParticipant` value produced to use the correlated entity participant handle. Always [`ParticipantReliability::Correlated`](sand::participant::ParticipantReliability::Correlated), [`ParticipantLifetime::SynchronousDescendants`] — see the module doc. Only meaningful when [`Self::is_present`] holds; the caller is responsible for guarding its use accordingly (Sand cannot express \"this Rust value only exists when true\" for a runtime-only fact — the same honest limitation `ItemSnapshot` documents).",
+        example = "use sand::prelude::*;\n\nfn demonstrate(correlated_entity_observation_value: &sand::participant::CorrelatedEntityObservation)  {\n    let participant = correlated_entity_observation_value.participant();\n}",
+    )]
     pub fn participant(&self) -> EntityParticipant {
         EntityParticipant::correlated(
             SingleEntity::raw(format!("@e[tag={},limit=1]", self.schema.tag())),
@@ -289,13 +408,37 @@ impl CorrelatedEntityObservation {
     }
 
     /// Returns the correlation evidence that established this observation.
-    #[doc = "**API Contract:** Run `sand api show sand::participant::CorrelatedEntityObservation::evidence` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::participant::CorrelatedEntityObservation::evidence",
+        module = "sand::participant",
+        kind = "method",
+        summary = "Returns the correlation evidence that established this observation.",
+        context = "Returns the correlation evidence that established this observation. Participants are available only when the event plan declares a real observation or a valid same-cycle inheritance path; the exporter rejects unsupported transport.",
+        minecraft = "Entity relationships use the matching execute relation, while item snapshots are copied into Sand-owned command storage and cleaned up at the end of their declared lifetime.",
+        use_when = ["Declaring or reading a typed participant whose lifecycle is guaranteed by the event plan"],
+        avoid_when = ["Assuming an entity or item remains live beyond its declared invocation, event-cycle, or bounded correlation lifetime"],
+        returns = "Returns the correlation evidence that established this observation.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(correlated_entity_observation_value: &sand::participant::CorrelatedEntityObservation)  {\n    let evidence = correlated_entity_observation_value.evidence();\n}",
+    )]
     pub fn evidence(&self) -> CorrelationEvidence {
         self.evidence
     }
 
     /// Returns the semantic event role assigned to the observed entity.
-    #[doc = "**API Contract:** Run `sand api show sand::participant::CorrelatedEntityObservation::role` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::participant::CorrelatedEntityObservation::role",
+        module = "sand::participant",
+        kind = "method",
+        summary = "Returns the semantic event role assigned to the observed entity.",
+        context = "Returns the semantic event role assigned to the observed entity. Participants are available only when the event plan declares a real observation or a valid same-cycle inheritance path; the exporter rejects unsupported transport.",
+        minecraft = "Entity relationships use the matching execute relation, while item snapshots are copied into Sand-owned command storage and cleaned up at the end of their declared lifetime.",
+        use_when = ["Declaring or reading a typed participant whose lifecycle is guaranteed by the event plan"],
+        avoid_when = ["Assuming an entity or item remains live beyond its declared invocation, event-cycle, or bounded correlation lifetime"],
+        returns = "Returns the semantic event role assigned to the observed entity.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(correlated_entity_observation_value: &sand::participant::CorrelatedEntityObservation)  {\n    let role = correlated_entity_observation_value.role();\n}",
+    )]
     pub fn role(&self) -> EntityParticipantRole {
         self.role
     }
@@ -306,7 +449,19 @@ impl CorrelatedEntityObservation {
     /// [`observe_correlated_attacker`]'s generated sequence — exposed
     /// separately only so a caller building a non-linear composition can
     /// place it explicitly.
-    #[doc = "**API Contract:** Run `sand api show sand::participant::CorrelatedEntityObservation::cleanup_commands` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::participant::CorrelatedEntityObservation::cleanup_commands",
+        module = "sand::participant",
+        kind = "method",
+        summary = "Commands that unconditionally remove the temporary observation tag, regardless of whether an attacker was actually found. Already appended automatically at the end of [`observe_correlated_attacker`]'s generated sequence — exposed separately only so a caller building a non-linear composition can place it explicitly.",
+        context = "Commands that unconditionally remove the temporary observation tag, regardless of whether an attacker was actually found. Already appended automatically at the end of [`observe_correlated_attacker`]'s generated sequence — exposed separately only so a caller building a non-linear composition can place it explicitly. Participants are available only when the event plan declares a real observation or a valid same-cycle inheritance path; the exporter rejects unsupported transport.",
+        minecraft = "Entity relationships use the matching execute relation, while item snapshots are copied into Sand-owned command storage and cleaned up at the end of their declared lifetime.",
+        use_when = ["Declaring or reading a typed participant whose lifecycle is guaranteed by the event plan"],
+        avoid_when = ["Assuming an entity or item remains live beyond its declared invocation, event-cycle, or bounded correlation lifetime"],
+        returns = "The ordered values produced to command that unconditionally remove the temporary observation tag, regardless of whether an attacker was actually found. Already appended automatically at the end of [`observe_correlated_attacker`]'s generated sequence — exposed separately only so a caller building a non-linear composition can place it explicitly.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(correlated_entity_observation_value: &sand::participant::CorrelatedEntityObservation)  {\n    let values = correlated_entity_observation_value.cleanup_commands();\n}",
+    )]
     pub fn cleanup_commands(&self) -> Vec<String> {
         vec![sand_commands::builtins::tag_remove(
             sand_commands::selector::Selector::all_entities().tag(self.schema.tag()),
@@ -340,7 +495,19 @@ impl CorrelatedEntityObservation {
 /// point where `@s` is a known [`EntityContext`], the same
 /// documentation-only-parameter convention
 /// [`EntityScope::bind`](crate::entity::EntityScope::bind) already uses.
-#[doc = "**API Contract:** Run `sand api show sand::participant::observe_correlated_attacker` for the canonical contract."]
+#[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::participant::observe_correlated_attacker",
+    module = "sand::participant",
+    summary = "Observe the entity that last damaged (`execute on attacker`) the entity currently bound to `@s`, and embed `body`'s commands so they run with the observation still bound (see the module doc for exact ordering and lifetime).",
+    context = "Observe the entity that last damaged (`execute on attacker`) the entity currently bound to `@s`, and embed `body`'s commands so they run with the observation still bound (see the module doc for exact ordering and lifetime). `ctx` is the [`EntityContext`] for whichever entity is the intended *victim* — e.g. call this from a handler where `@s` is already the exact player subject of an `EntityHurtPlayer`-backed event ([`EntityDamagePlayerEvent`](sand::events::EntityDamagePlayerEvent)) or an `EntityKilledPlayer`-backed event ([`PlayerKillEvent`](sand::events::PlayerKillEvent), where the role would be [`EntityParticipantRole::Killer`] instead of [`EntityParticipantRole::Attacker`] — the underlying mechanism is identical, only the role and the event's own semantics differ). Returns [`ObservationError::UnsupportedVersion`] if `profile` predates `execute on attacker` (Minecraft 1.20.2). Does not fail for \"no attacker found\" — that is a runtime fact, checked via [`CorrelatedEntityObservation::is_present`]/`is_absent`, not a build-time error. `_ctx` is not read — it exists purely to type-constrain callers to a point where `@s` is a known [`EntityContext`], the same documentation-only-pa...",
+    minecraft = "Returns [`ObservationError::UnsupportedVersion`] if `profile` predates `execute on attacker` (Minecraft 1.20.2). Does not fail for \"no attacker found\" — that is a runtime fact, checked via [`CorrelatedEntityObservation::is_present`]/`is_absent`, not a build-time error.",
+    use_when = ["Declaring or reading a typed participant whose lifecycle is guaranteed by the event plan"],
+    avoid_when = ["Assuming an entity or item remains live beyond its declared invocation, event-cycle, or bounded correlation lifetime"],
+    params(_ctx = "`ctx` is the [`EntityContext`] for whichever entity is the intended *victim* — e.g. call this from a handler where `@s` is already the exact player subject of an `EntityHurtPlayer`-backed event ([`EntityDamagePlayerEvent`](sand::events::EntityDamagePlayerEvent)) or an `EntityKilledPlayer`-backed event ([`PlayerKillEvent`](sand::events::PlayerKillEvent), where the role would be [`EntityParticipantRole::Killer`] instead of [`EntityParticipantRole::Attacker`] — the underlying mechanism is identical, only the role and the event's own semantics differ).", profile = "Returns [`ObservationError::UnsupportedVersion`] if `profile` predates `execute on attacker` (Minecraft 1.20.2). Does not fail for \"no attacker found\" — that is a runtime fact, checked via [`CorrelatedEntityObservation::is_present`]/`is_absent`, not a build-time error.", schema = "`schema` provides the schema observed when tracking the entity that last damaged (`execute on attacker`) the entity currently bound to `@s`, and embed `body`'s commands so they run with the observation still bound (see the module doc for exact ordering and lifetime).", role = "`role` provides the role observed when tracking the entity that last damaged (`execute on attacker`) the entity currently bound to `@s`, and embed `body`'s commands so they run with the observation still bound (see the module doc for exact ordering and lifetime).", body = "Observe the entity that last damaged (`execute on attacker`) the entity currently bound to `@s`, and embed `body`'s commands so they run with the observation still bound (see the module doc for exact ordering and lifetime)."),
+    returns = "Returns [`ObservationError::UnsupportedVersion`] if `profile` predates `execute on attacker` (Minecraft 1.20.2). Does not fail for \"no attacker found\" — that is a runtime fact, checked via [`CorrelatedEntityObservation::is_present`]/`is_absent`, not a build-time error.",
+    example = "use sand::prelude::*;\n\nfn demonstrate<K : sand::entity::EntityKind + 'static>(ctx: & sand::entity::EntityContext < K >, profile: & sand::version::VersionProfile, schema: sand::participant::ObservationSchema, role: sand::participant::EntityParticipantRole, body: impl FnOnce (& sand::participant::CorrelatedEntityObservation) -> Vec < String >)  {\n    let observe_correlated_attacker = sand::participant::observe_correlated_attacker::<K>(ctx, profile, schema, role, body);\n}",
+)]
 pub fn observe_correlated_attacker<K: EntityKind>(
     _ctx: &EntityContext<K>,
     profile: &VersionProfile,

@@ -52,7 +52,18 @@ impl<Q: StateQuerySpec> StateQueryHandle<Q> {
     }
 }
 
-#[doc = "**API Contract:** Run `sand api show sand::entity::EntityQuery` for the canonical contract."]
+#[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::entity::EntityQuery",
+    aliases = ["sand::prelude::EntityQuery"],
+    module = "sand::entity",
+    summary = "A cardinality-aware query over entities, built on top of [`sand::command::EntityTarget`].",
+    context = "A cardinality-aware query over entities, built on top of [`sand::command::EntityTarget`]. `A` is [`One`] once the query has been narrowed (e.g. via [`EntityQuery::limit`]/[`EntityQuery::nearest`]) to select at most one entity, or [`Many`] while it may still select any number.",
+    minecraft = "Sand validates this definition and lowers it to entity-scoped selectors, scoreboards, NBT operations, and generated lifecycle functions as required.",
+    use_when = ["Defining or using typed entity behavior in a Sand datapack"],
+    avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
+    example = "use sand::entity::EntityQuery;",
+)]
 /// A cardinality-aware query over entities, built on top of
 /// [`sand_commands::selector::EntityTarget`].
 ///
@@ -64,15 +75,48 @@ pub struct EntityQuery<A> {
     target: EntityTarget<A>,
 }
 
-#[doc = "**API Contract:** Run `sand api show sand::entity::SingleEntityQuery` for the canonical contract."]
+#[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::entity::SingleEntityQuery",
+    aliases = ["sand::prelude::SingleEntityQuery"],
+    module = "sand::entity",
+    summary = "An [`EntityQuery`] narrowed to select exactly one entity.",
+    context = "An [`EntityQuery`] narrowed to select exactly one entity. This declaration belongs to Sand's typed entity model. Semantic definitions are public; selector rendering, validation bookkeeping, and compiler lowering remain internal.",
+    minecraft = "Sand validates this definition and lowers it to entity-scoped selectors, scoreboards, NBT operations, and generated lifecycle functions as required.",
+    use_when = ["Defining or using typed entity behavior in a Sand datapack"],
+    avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
+    example = "use sand::entity::SingleEntityQuery;",
+)]
 /// An [`EntityQuery`] narrowed to select exactly one entity.
 pub type SingleEntityQuery = EntityQuery<One>;
 
-#[doc = "**API Contract:** Run `sand api show sand::entity::EntityQueries` for the canonical contract."]
+#[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::entity::EntityQueries",
+    aliases = ["sand::prelude::EntityQueries"],
+    module = "sand::entity",
+    summary = "An [`EntityQuery`] that may select any number of entities.",
+    context = "An [`EntityQuery`] that may select any number of entities. This declaration belongs to Sand's typed entity model. Semantic definitions are public; selector rendering, validation bookkeeping, and compiler lowering remain internal.",
+    minecraft = "Sand validates this definition and lowers it to entity-scoped selectors, scoreboards, NBT operations, and generated lifecycle functions as required.",
+    use_when = ["Defining or using typed entity behavior in a Sand datapack"],
+    avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
+    example = "use sand::entity::EntityQueries;",
+)]
 /// An [`EntityQuery`] that may select any number of entities.
 pub type EntityQueries = EntityQuery<Many>;
 
-#[doc = "**API Contract:** Run `sand api show sand::entity::PlayerQuery` for the canonical contract."]
+#[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::entity::PlayerQuery",
+    aliases = ["sand::prelude::PlayerQuery"],
+    module = "sand::entity",
+    summary = "A cardinality-aware query over players, built on top of [`sand::command::PlayerTarget`].",
+    context = "A cardinality-aware query over players, built on top of [`sand::command::PlayerTarget`]. This declaration belongs to Sand's typed entity model. Semantic definitions are public; selector rendering, validation bookkeeping, and compiler lowering remain internal.",
+    minecraft = "Sand validates this definition and lowers it to entity-scoped selectors, scoreboards, NBT operations, and generated lifecycle functions as required.",
+    use_when = ["Defining or using typed entity behavior in a Sand datapack"],
+    avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
+    example = "use sand::entity::PlayerQuery;",
+)]
 /// A cardinality-aware query over players, built on top of
 /// [`sand_commands::selector::PlayerTarget`].
 #[derive(Debug, Clone)]
@@ -80,11 +124,33 @@ pub struct PlayerQuery<A> {
     target: PlayerTarget<A>,
 }
 
-#[doc = "**API Contract:** Run `sand api show sand::entity::SinglePlayerQuery` for the canonical contract."]
+#[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::entity::SinglePlayerQuery",
+    aliases = ["sand::prelude::SinglePlayerQuery"],
+    module = "sand::entity",
+    summary = "A [`PlayerQuery`] narrowed to select exactly one player.",
+    context = "A [`PlayerQuery`] narrowed to select exactly one player. This declaration belongs to Sand's typed entity model. Semantic definitions are public; selector rendering, validation bookkeeping, and compiler lowering remain internal.",
+    minecraft = "Sand validates this definition and lowers it to entity-scoped selectors, scoreboards, NBT operations, and generated lifecycle functions as required.",
+    use_when = ["Defining or using typed entity behavior in a Sand datapack"],
+    avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
+    example = "use sand::entity::SinglePlayerQuery;",
+)]
 /// A [`PlayerQuery`] narrowed to select exactly one player.
 pub type SinglePlayerQuery = PlayerQuery<One>;
 
-#[doc = "**API Contract:** Run `sand api show sand::entity::PlayerQueries` for the canonical contract."]
+#[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::entity::PlayerQueries",
+    aliases = ["sand::prelude::PlayerQueries"],
+    module = "sand::entity",
+    summary = "A [`PlayerQuery`] that may select any number of players.",
+    context = "A [`PlayerQuery`] that may select any number of players. This declaration belongs to Sand's typed entity model. Semantic definitions are public; selector rendering, validation bookkeeping, and compiler lowering remain internal.",
+    minecraft = "Sand validates this definition and lowers it to entity-scoped selectors, scoreboards, NBT operations, and generated lifecycle functions as required.",
+    use_when = ["Defining or using typed entity behavior in a Sand datapack"],
+    avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
+    example = "use sand::entity::PlayerQueries;",
+)]
 /// A [`PlayerQuery`] that may select any number of players.
 pub type PlayerQueries = PlayerQuery<Many>;
 
@@ -92,7 +158,20 @@ pub type PlayerQueries = PlayerQuery<Many>;
 
 impl EntityQuery<Many> {
     /// `@e` — all entities.
-    #[doc = "**API Contract:** Run `sand api show sand::entity::EntityQuery::entities` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::entity::EntityQuery::entities",
+        aliases = ["sand::entity::EntityQueries::entities", "sand::entity::SingleEntityQuery::entities", "sand::prelude::EntityQueries::entities", "sand::prelude::EntityQuery::entities", "sand::prelude::SingleEntityQuery::entities"],
+        module = "sand::entity",
+        kind = "method",
+        summary = "`@e` — all entities.",
+        context = "`@e` — all entities. This declaration belongs to Sand's typed entity model. Semantic definitions are public; selector rendering, validation bookkeeping, and compiler lowering remain internal.",
+        minecraft = "Sand validates this definition and lowers it to entity-scoped selectors, scoreboards, NBT operations, and generated lifecycle functions as required.",
+        use_when = ["Defining or using typed entity behavior in a Sand datapack"],
+        avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
+        returns = "An `EntityQuery` that emits the documented `@e` — all entities form.",
+        example = "use sand::prelude::*;\n\nfn demonstrate()  {\n    let entity_query = sand::entity::EntityQuery ::< sand::command::Many >::entities();\n}",
+    )]
     pub fn entities() -> Self {
         Self {
             target: EntityTargets::all(),
@@ -100,7 +179,21 @@ impl EntityQuery<Many> {
     }
 
     /// `@e[distance=..<radius>]` — all entities within `radius` blocks of the executor.
-    #[doc = "**API Contract:** Run `sand api show sand::entity::EntityQuery::nearby` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::entity::EntityQuery::nearby",
+        aliases = ["sand::entity::EntityQueries::nearby", "sand::entity::SingleEntityQuery::nearby", "sand::prelude::EntityQueries::nearby", "sand::prelude::EntityQuery::nearby", "sand::prelude::SingleEntityQuery::nearby"],
+        module = "sand::entity",
+        kind = "method",
+        summary = "`@e[distance=..<radius>]` — all entities within `radius` blocks of the executor.",
+        context = "`@e[distance=..<radius>]` — all entities within `radius` blocks of the executor. This declaration belongs to Sand's typed entity model. Semantic definitions are public; selector rendering, validation bookkeeping, and compiler lowering remain internal.",
+        minecraft = "Sand validates this definition and lowers it to entity-scoped selectors, scoreboards, NBT operations, and generated lifecycle functions as required.",
+        use_when = ["Defining or using typed entity behavior in a Sand datapack"],
+        avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
+        params(radius = "`@e[distance=..<radius>]` — all entities within `radius` blocks of the executor."),
+        returns = "An `EntityQuery` that emits the documented `@e[distance=..<radius>]` — all entities within `radius` blocks of the executor form.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(radius: f64)  {\n    let entity_query = sand::entity::EntityQuery ::< sand::command::Many >::nearby(radius);\n}",
+    )]
     pub fn nearby(radius: f64) -> Self {
         Self {
             target: EntityTargets::nearby(radius),
@@ -108,21 +201,62 @@ impl EntityQuery<Many> {
     }
 
     /// `type=<ty>` — restrict to entities of the given type.
-    #[doc = "**API Contract:** Run `sand api show sand::entity::EntityQuery::entity_type` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::entity::EntityQuery::entity_type",
+        aliases = ["sand::entity::EntityQueries::entity_type", "sand::entity::SingleEntityQuery::entity_type", "sand::prelude::EntityQueries::entity_type", "sand::prelude::EntityQuery::entity_type", "sand::prelude::SingleEntityQuery::entity_type"],
+        module = "sand::entity",
+        kind = "method",
+        summary = "`type=<ty>` — restrict to entities of the given type.",
+        context = "`type=<ty>` — restrict to entities of the given type. This declaration belongs to Sand's typed entity model. Semantic definitions are public; selector rendering, validation bookkeeping, and compiler lowering remain internal.",
+        minecraft = "Sand validates this definition and lowers it to entity-scoped selectors, scoreboards, NBT operations, and generated lifecycle functions as required.",
+        use_when = ["Defining or using typed entity behavior in a Sand datapack"],
+        avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
+        params(ty = "`ty` supplies the documented `type=<ty>` — restrict to entities of the given type form."),
+        returns = "The `EntityQuery` value with the documented change applied to emit the documented `type=<ty>` — restrict to entities of the given type form.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(entity_query_value: sand::entity::EntityQuery < sand::command::Many >, ty: impl sand::command::IntoEntityType)  {\n    let updated_entity_query = entity_query_value.entity_type(ty);\n}",
+    )]
     pub fn entity_type(mut self, ty: impl IntoEntityType) -> Self {
         self.target = self.target.entity_type(ty);
         self
     }
 
     /// `type=!<ty>` — exclude entities of the given type.
-    #[doc = "**API Contract:** Run `sand api show sand::entity::EntityQuery::not_entity_type` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::entity::EntityQuery::not_entity_type",
+        aliases = ["sand::entity::EntityQueries::not_entity_type", "sand::entity::SingleEntityQuery::not_entity_type", "sand::prelude::EntityQueries::not_entity_type", "sand::prelude::EntityQuery::not_entity_type", "sand::prelude::SingleEntityQuery::not_entity_type"],
+        module = "sand::entity",
+        kind = "method",
+        summary = "`type=!<ty>` — exclude entities of the given type.",
+        context = "`type=!<ty>` — exclude entities of the given type. This declaration belongs to Sand's typed entity model. Semantic definitions are public; selector rendering, validation bookkeeping, and compiler lowering remain internal.",
+        minecraft = "Sand validates this definition and lowers it to entity-scoped selectors, scoreboards, NBT operations, and generated lifecycle functions as required.",
+        use_when = ["Defining or using typed entity behavior in a Sand datapack"],
+        avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
+        params(ty = "`ty` supplies the documented `type=!<ty>` — exclude entities of the given type form."),
+        returns = "The `EntityQuery` value with the documented change applied to emit the documented `type=!<ty>` — exclude entities of the given type form.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(entity_query_value: sand::entity::EntityQuery < sand::command::Many >, ty: impl sand::command::IntoEntityType)  {\n    let updated_entity_query = entity_query_value.not_entity_type(ty);\n}",
+    )]
     pub fn not_entity_type(mut self, ty: impl IntoEntityType) -> Self {
         self.target = self.target.not_type(ty);
         self
     }
 
     /// `type=!minecraft:player` — exclude players from the result set.
-    #[doc = "**API Contract:** Run `sand api show sand::entity::EntityQuery::excluding_players` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::entity::EntityQuery::excluding_players",
+        aliases = ["sand::entity::EntityQueries::excluding_players", "sand::entity::SingleEntityQuery::excluding_players", "sand::prelude::EntityQueries::excluding_players", "sand::prelude::EntityQuery::excluding_players", "sand::prelude::SingleEntityQuery::excluding_players"],
+        module = "sand::entity",
+        kind = "method",
+        summary = "`type=!minecraft:player` — exclude players from the result set.",
+        context = "`type=!minecraft:player` — exclude players from the result set. This declaration belongs to Sand's typed entity model. Semantic definitions are public; selector rendering, validation bookkeeping, and compiler lowering remain internal.",
+        minecraft = "Sand validates this definition and lowers it to entity-scoped selectors, scoreboards, NBT operations, and generated lifecycle functions as required.",
+        use_when = ["Defining or using typed entity behavior in a Sand datapack"],
+        avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
+        returns = "The `EntityQuery` value with the documented change applied to emit the documented `type=!minecraft:player` — exclude players from the result set form.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(entity_query_value: sand::entity::EntityQuery < sand::command::Many >)  {\n    let updated_entity_query = entity_query_value.excluding_players();\n}",
+    )]
     pub fn excluding_players(mut self) -> Self {
         self.target = self.target.excluding_players();
         self
@@ -133,7 +267,21 @@ impl EntityQuery<Many> {
     /// Repeated calls merge into one vanilla `scores={...}` selector map.
     /// Duplicate predicates for the same field return a structured command
     /// error rather than silently choosing one bound.
-    #[doc = "**API Contract:** Run `sand api show sand::entity::EntityQuery::state` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::entity::EntityQuery::state",
+        aliases = ["sand::entity::EntityQueries::state", "sand::entity::SingleEntityQuery::state", "sand::prelude::EntityQueries::state", "sand::prelude::EntityQuery::state", "sand::prelude::SingleEntityQuery::state"],
+        module = "sand::entity",
+        kind = "method",
+        summary = "Restrict the query with a typed entity-state predicate.",
+        context = "Restrict the query with a typed entity-state predicate. Repeated calls merge into one vanilla `scores={...}` selector map. Duplicate predicates for the same field return a structured command error rather than silently choosing one bound.",
+        minecraft = "Repeated calls merge into one vanilla `scores={...}` selector map. Duplicate predicates for the same field return a structured command error rather than silently choosing one bound.",
+        use_when = ["Defining or using typed entity behavior in a Sand datapack"],
+        avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
+        params(predicate = "`predicate` provides the predicate that must match used to restrict the query with a typed entity-state predicate."),
+        returns = "The `sand :: command :: CommandResult < Self >` value produced to restrict the query with a typed entity-state predicate.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(entity_query_value: sand::entity::EntityQuery < sand::command::Many >, predicate: sand::entity::StatePredicate)  {\n    let state = entity_query_value.state(predicate);\n}",
+    )]
     pub fn state(
         mut self,
         predicate: crate::entity::state::StatePredicate,
@@ -146,35 +294,104 @@ impl EntityQuery<Many> {
     }
 
     /// `tag=<tag>` — restrict to entities with the given tag.
-    #[doc = "**API Contract:** Run `sand api show sand::entity::EntityQuery::tag` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::entity::EntityQuery::tag",
+        aliases = ["sand::entity::EntityQueries::tag", "sand::entity::SingleEntityQuery::tag", "sand::prelude::EntityQueries::tag", "sand::prelude::EntityQuery::tag", "sand::prelude::SingleEntityQuery::tag"],
+        module = "sand::entity",
+        kind = "method",
+        summary = "`tag=<tag>` — restrict to entities with the given tag.",
+        context = "`tag=<tag>` — restrict to entities with the given tag. This declaration belongs to Sand's typed entity model. Semantic definitions are public; selector rendering, validation bookkeeping, and compiler lowering remain internal.",
+        minecraft = "Sand validates this definition and lowers it to entity-scoped selectors, scoreboards, NBT operations, and generated lifecycle functions as required.",
+        use_when = ["Defining or using typed entity behavior in a Sand datapack"],
+        avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
+        params(tag = "`tag` supplies the documented `tag=<tag>` — restrict to entities with the given tag form."),
+        returns = "The `EntityQuery` value with the documented change applied to emit the documented `tag=<tag>` — restrict to entities with the given tag form.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(entity_query_value: sand::entity::EntityQuery < sand::command::Many >, tag: impl Into < String >)  {\n    let updated_entity_query = entity_query_value.tag(tag);\n}",
+    )]
     pub fn tag(mut self, tag: impl Into<String>) -> Self {
         self.target = self.target.tag(tag);
         self
     }
 
     /// `tag=!<tag>` — exclude entities with the given tag.
-    #[doc = "**API Contract:** Run `sand api show sand::entity::EntityQuery::without_tag` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::entity::EntityQuery::without_tag",
+        aliases = ["sand::entity::EntityQueries::without_tag", "sand::entity::SingleEntityQuery::without_tag", "sand::prelude::EntityQueries::without_tag", "sand::prelude::EntityQuery::without_tag", "sand::prelude::SingleEntityQuery::without_tag"],
+        module = "sand::entity",
+        kind = "method",
+        summary = "`tag=!<tag>` — exclude entities with the given tag.",
+        context = "`tag=!<tag>` — exclude entities with the given tag. This declaration belongs to Sand's typed entity model. Semantic definitions are public; selector rendering, validation bookkeeping, and compiler lowering remain internal.",
+        minecraft = "Sand validates this definition and lowers it to entity-scoped selectors, scoreboards, NBT operations, and generated lifecycle functions as required.",
+        use_when = ["Defining or using typed entity behavior in a Sand datapack"],
+        avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
+        params(tag = "`tag` supplies the documented `tag=!<tag>` — exclude entities with the given tag form."),
+        returns = "The `EntityQuery` value with the documented change applied to emit the documented `tag=!<tag>` — exclude entities with the given tag form.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(entity_query_value: sand::entity::EntityQuery < sand::command::Many >, tag: impl Into < String >)  {\n    let updated_entity_query = entity_query_value.without_tag(tag);\n}",
+    )]
     pub fn without_tag(mut self, tag: impl Into<String>) -> Self {
         self.target = self.target.not_tag(tag);
         self
     }
 
     /// `distance=..<max>` — restrict to entities within `max` blocks.
-    #[doc = "**API Contract:** Run `sand api show sand::entity::EntityQuery::within_blocks` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::entity::EntityQuery::within_blocks",
+        aliases = ["sand::entity::EntityQueries::within_blocks", "sand::entity::SingleEntityQuery::within_blocks", "sand::prelude::EntityQueries::within_blocks", "sand::prelude::EntityQuery::within_blocks", "sand::prelude::SingleEntityQuery::within_blocks"],
+        module = "sand::entity",
+        kind = "method",
+        summary = "`distance=..<max>` — restrict to entities within `max` blocks.",
+        context = "`distance=..<max>` — restrict to entities within `max` blocks. This declaration belongs to Sand's typed entity model. Semantic definitions are public; selector rendering, validation bookkeeping, and compiler lowering remain internal.",
+        minecraft = "Sand validates this definition and lowers it to entity-scoped selectors, scoreboards, NBT operations, and generated lifecycle functions as required.",
+        use_when = ["Defining or using typed entity behavior in a Sand datapack"],
+        avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
+        params(max = "`distance=..<max>` — restrict to entities within `max` blocks."),
+        returns = "The `EntityQuery` value with the documented change applied to emit the documented `distance=..<max>` — restrict to entities within `max` blocks form.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(entity_query_value: sand::entity::EntityQuery < sand::command::Many >, max: f64)  {\n    let updated_entity_query = entity_query_value.within_blocks(max);\n}",
+    )]
     pub fn within_blocks(mut self, max: f64) -> Self {
         self.target = self.target.within_blocks(max);
         self
     }
 
     /// `distance=<min>..<max>` — restrict to entities between `min` and `max` blocks.
-    #[doc = "**API Contract:** Run `sand api show sand::entity::EntityQuery::distance_range` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::entity::EntityQuery::distance_range",
+        aliases = ["sand::entity::EntityQueries::distance_range", "sand::entity::SingleEntityQuery::distance_range", "sand::prelude::EntityQueries::distance_range", "sand::prelude::EntityQuery::distance_range", "sand::prelude::SingleEntityQuery::distance_range"],
+        module = "sand::entity",
+        kind = "method",
+        summary = "`distance=<min>..<max>` — restrict to entities between `min` and `max` blocks.",
+        context = "`distance=<min>..<max>` — restrict to entities between `min` and `max` blocks. This declaration belongs to Sand's typed entity model. Semantic definitions are public; selector rendering, validation bookkeeping, and compiler lowering remain internal.",
+        minecraft = "Sand validates this definition and lowers it to entity-scoped selectors, scoreboards, NBT operations, and generated lifecycle functions as required.",
+        use_when = ["Defining or using typed entity behavior in a Sand datapack"],
+        avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
+        params(min = "`distance=<min>..<max>` — restrict to entities between `min` and `max` blocks.", max = "`distance=<min>..<max>` — restrict to entities between `min` and `max` blocks."),
+        returns = "The `EntityQuery` value with the documented change applied to emit the documented `distance=<min>..<max>` — restrict to entities between `min` and `max` blocks form.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(entity_query_value: sand::entity::EntityQuery < sand::command::Many >, min: f64, max: f64)  {\n    let updated_entity_query = entity_query_value.distance_range(min, max);\n}",
+    )]
     pub fn distance_range(mut self, min: f64, max: f64) -> Self {
         self.target = self.target.distance_range(min, max);
         self
     }
 
     /// `distance=0.1..` — exclude the current executor.
-    #[doc = "**API Contract:** Run `sand api show sand::entity::EntityQuery::excluding_self` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::entity::EntityQuery::excluding_self",
+        aliases = ["sand::entity::EntityQueries::excluding_self", "sand::entity::SingleEntityQuery::excluding_self", "sand::prelude::EntityQueries::excluding_self", "sand::prelude::EntityQuery::excluding_self", "sand::prelude::SingleEntityQuery::excluding_self"],
+        module = "sand::entity",
+        kind = "method",
+        summary = "`distance=0.1..` — exclude the current executor.",
+        context = "`distance=0.1..` — exclude the current executor. This declaration belongs to Sand's typed entity model. Semantic definitions are public; selector rendering, validation bookkeeping, and compiler lowering remain internal.",
+        minecraft = "Sand validates this definition and lowers it to entity-scoped selectors, scoreboards, NBT operations, and generated lifecycle functions as required.",
+        use_when = ["Defining or using typed entity behavior in a Sand datapack"],
+        avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
+        returns = "The `EntityQuery` value with the documented change applied to emit the documented `distance=0.1..` — exclude the current executor form.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(entity_query_value: sand::entity::EntityQuery < sand::command::Many >)  {\n    let updated_entity_query = entity_query_value.excluding_self();\n}",
+    )]
     pub fn excluding_self(mut self) -> Self {
         self.target = self.target.excluding_self();
         self
@@ -183,7 +400,21 @@ impl EntityQuery<Many> {
     /// Sort results (`sort=nearest|furthest|random|arbitrary`). Only affects
     /// order — does not by itself narrow cardinality; pair with
     /// [`EntityQuery::limit`] to guarantee at most one result.
-    #[doc = "**API Contract:** Run `sand api show sand::entity::EntityQuery::sort` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::entity::EntityQuery::sort",
+        aliases = ["sand::entity::EntityQueries::sort", "sand::entity::SingleEntityQuery::sort", "sand::prelude::EntityQueries::sort", "sand::prelude::EntityQuery::sort", "sand::prelude::SingleEntityQuery::sort"],
+        module = "sand::entity",
+        kind = "method",
+        summary = "Sort results (`sort=nearest|furthest|random|arbitrary`). Only affects order — does not by itself narrow cardinality; pair with [`EntityQuery::limit`] to guarantee at most one result.",
+        context = "Sort results (`sort=nearest|furthest|random|arbitrary`). Only affects order — does not by itself narrow cardinality; pair with [`EntityQuery::limit`] to guarantee at most one result. This declaration belongs to Sand's typed entity model. Semantic definitions are public; selector rendering, validation bookkeeping, and compiler lowering remain internal.",
+        minecraft = "Sand validates this definition and lowers it to entity-scoped selectors, scoreboards, NBT operations, and generated lifecycle functions as required.",
+        use_when = ["Defining or using typed entity behavior in a Sand datapack"],
+        avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
+        params(order = "`order` is used to sort results (`sort=nearest|furthest|random|arbitrary`). Only affects order — does not by itself narrow cardinality; pair with [`EntityQuery::limit`] to guarantee at most one result."),
+        returns = "The `EntityQuery` value with the documented change applied to sort results (`sort=nearest|furthest|random|arbitrary`). Only affects order — does not by itself narrow cardinality; pair with [`EntityQuery::limit`] to guarantee at most one result.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(entity_query_value: sand::entity::EntityQuery < sand::command::Many >, order: sand::command::SortOrder)  {\n    let updated_entity_query = entity_query_value.sort(order);\n}",
+    )]
     pub fn sort(self, order: SortOrder) -> Self {
         let selector = self.target.into_selector().sort(order);
         Self {
@@ -193,7 +424,21 @@ impl EntityQuery<Many> {
     }
 
     /// `limit=<n>` — narrow to at most `n` entities, and to [`One`] cardinality.
-    #[doc = "**API Contract:** Run `sand api show sand::entity::EntityQuery::limit` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::entity::EntityQuery::limit",
+        aliases = ["sand::entity::EntityQueries::limit", "sand::entity::SingleEntityQuery::limit", "sand::prelude::EntityQueries::limit", "sand::prelude::EntityQuery::limit", "sand::prelude::SingleEntityQuery::limit"],
+        module = "sand::entity",
+        kind = "method",
+        summary = "`limit=<n>` — narrow to at most `n` entities, and to [`One`] cardinality.",
+        context = "`limit=<n>` — narrow to at most `n` entities, and to [`One`] cardinality. This declaration belongs to Sand's typed entity model. Semantic definitions are public; selector rendering, validation bookkeeping, and compiler lowering remain internal.",
+        minecraft = "Sand validates this definition and lowers it to entity-scoped selectors, scoreboards, NBT operations, and generated lifecycle functions as required.",
+        use_when = ["Defining or using typed entity behavior in a Sand datapack"],
+        avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
+        params(n = "`limit=<n>` — narrow to at most `n` entities, and to [`One`] cardinality."),
+        returns = "The `sand :: command :: CommandResult < EntityQuery < One > >` value produced to emit the documented `limit=<n>` — narrow to at most `n` entities, and to [`One`] cardinality form.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(entity_query_value: sand::entity::EntityQuery < sand::command::Many >, n: i32)  {\n    let limit = entity_query_value.limit(n);\n}",
+    )]
     pub fn limit(self, n: i32) -> sand_commands::CommandResult<EntityQuery<One>> {
         Ok(EntityQuery {
             target: self.target.limit(n)?,
@@ -201,7 +446,20 @@ impl EntityQuery<Many> {
     }
 
     /// Sort by nearest and narrow to the single nearest entity.
-    #[doc = "**API Contract:** Run `sand api show sand::entity::EntityQuery::nearest` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::entity::EntityQuery::nearest",
+        aliases = ["sand::entity::EntityQueries::nearest", "sand::entity::SingleEntityQuery::nearest", "sand::prelude::EntityQueries::nearest", "sand::prelude::EntityQuery::nearest", "sand::prelude::SingleEntityQuery::nearest"],
+        module = "sand::entity",
+        kind = "method",
+        summary = "Sort by nearest and narrow to the single nearest entity.",
+        context = "Sort by nearest and narrow to the single nearest entity. This declaration belongs to Sand's typed entity model. Semantic definitions are public; selector rendering, validation bookkeeping, and compiler lowering remain internal.",
+        minecraft = "Sand validates this definition and lowers it to entity-scoped selectors, scoreboards, NBT operations, and generated lifecycle functions as required.",
+        use_when = ["Defining or using typed entity behavior in a Sand datapack"],
+        avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
+        returns = "The `EntityQuery < One >` value produced to sort by nearest and narrow to the single nearest entity.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(entity_query_value: sand::entity::EntityQuery < sand::command::Many >)  {\n    let nearest = entity_query_value.nearest();\n}",
+    )]
     pub fn nearest(self) -> EntityQuery<One> {
         EntityQuery {
             target: self.target.nearest(),
@@ -215,7 +473,6 @@ impl EntityQuery<Many> {
     /// generated function is deduplicated by body content (see
     /// [`crate::function::register_dyn_fn_dedup`]), so structurally identical
     /// `each` bodies across call sites share one generated function.
-    #[doc = "**API Contract:** Run `sand api show sand::entity::EntityQuery::each` for the canonical contract."]
     pub fn each(self, body: impl FnOnce(&EntityContext<AnyEntity>) -> Vec<String>) -> Vec<String> {
         lower_each(self.target.into_selector(), body)
     }
@@ -225,21 +482,62 @@ impl EntityQuery<Many> {
 
 impl EntityQuery<One> {
     /// Access the underlying single-arity selector.
-    #[doc = "**API Contract:** Run `sand api show sand::entity::EntityQuery::selector` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::entity::EntityQuery::selector",
+        aliases = ["sand::entity::EntityQueries::selector", "sand::entity::SingleEntityQuery::selector", "sand::prelude::EntityQueries::selector", "sand::prelude::EntityQuery::selector", "sand::prelude::SingleEntityQuery::selector"],
+        module = "sand::entity",
+        kind = "method",
+        summary = "Access the underlying single-arity selector.",
+        context = "Access the underlying single-arity selector. This declaration belongs to Sand's typed entity model. Semantic definitions are public; selector rendering, validation bookkeeping, and compiler lowering remain internal.",
+        minecraft = "Sand validates this definition and lowers it to entity-scoped selectors, scoreboards, NBT operations, and generated lifecycle functions as required.",
+        use_when = ["Defining or using typed entity behavior in a Sand datapack"],
+        avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
+        returns = "The `& Selector` value produced to acces the underlying single-arity selector.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(entity_query_value: &sand::entity::EntityQuery < sand::command::One >)  {\n    let selector = entity_query_value.selector();\n}",
+    )]
     pub fn selector(&self) -> &Selector {
         self.target.selector()
     }
 
     /// Run `body` with `@s` bound to the single matching entity (a no-op if
     /// there is none). See [`EntityQuery::<Many>::each`] for lowering details.
-    #[doc = "**API Contract:** Run `sand api show sand::entity::EntityQuery::each` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::entity::EntityQuery::each",
+        aliases = ["sand::entity::EntityQueries::each", "sand::entity::SingleEntityQuery::each", "sand::prelude::EntityQueries::each", "sand::prelude::EntityQuery::each", "sand::prelude::SingleEntityQuery::each"],
+        module = "sand::entity",
+        kind = "method",
+        summary = "Run `body` with `@s` bound to the single matching entity (a no-op if there is none). See [`EntityQuery::<Many>::each`] for lowering details.",
+        context = "Run `body` with `@s` bound to the single matching entity (a no-op if there is none). See [`EntityQuery::<Many>::each`] for lowering details. This declaration belongs to Sand's typed entity model. Semantic definitions are public; selector rendering, validation bookkeeping, and compiler lowering remain internal.",
+        minecraft = "Sand validates this definition and lowers it to entity-scoped selectors, scoreboards, NBT operations, and generated lifecycle functions as required.",
+        use_when = ["Defining or using typed entity behavior in a Sand datapack"],
+        avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
+        params(body = "Run `body` with `@s` bound to the single matching entity (a no-op if there is none). See [`EntityQuery::<Many>::each`] for lowering details."),
+        returns = "The ordered values produced to run `body` with `@s` bound to the single matching entity (a no-op if there is none). See [`EntityQuery::<Many>::each`] for lowering details.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(entity_query_value: sand::entity::EntityQuery < sand::command::One >, body: impl FnOnce (& sand::entity::EntityContext < sand::entity::AnyEntity >) -> Vec < String >)  {\n    let values = entity_query_value.each(body);\n}",
+    )]
     pub fn each(self, body: impl FnOnce(&EntityContext<AnyEntity>) -> Vec<String>) -> Vec<String> {
         lower_each(self.target.into_selector(), body)
     }
 
     /// Alias for [`EntityQuery::<One>::each`] that reads naturally at
     /// single-cardinality call sites.
-    #[doc = "**API Contract:** Run `sand api show sand::entity::EntityQuery::get` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::entity::EntityQuery::get",
+        aliases = ["sand::entity::EntityQueries::get", "sand::entity::SingleEntityQuery::get", "sand::prelude::EntityQueries::get", "sand::prelude::EntityQuery::get", "sand::prelude::SingleEntityQuery::get"],
+        module = "sand::entity",
+        kind = "method",
+        summary = "Alias for [`EntityQuery::<One>::each`] that reads naturally at single-cardinality call sites.",
+        context = "Alias for [`EntityQuery::<One>::each`] that reads naturally at single-cardinality call sites. This declaration belongs to Sand's typed entity model. Semantic definitions are public; selector rendering, validation bookkeeping, and compiler lowering remain internal.",
+        minecraft = "Sand validates this definition and lowers it to entity-scoped selectors, scoreboards, NBT operations, and generated lifecycle functions as required.",
+        use_when = ["Defining or using typed entity behavior in a Sand datapack"],
+        avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
+        params(body = "`body` sets the player-visible text for alias for [`EntityQuery::<One>::each`] that reads naturally at single-cardinality call sites."),
+        returns = "The ordered values produced to use alias for [`EntityQuery::<One>::each`] that reads naturally at single-cardinality call sites.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(entity_query_value: sand::entity::EntityQuery < sand::command::One >, body: impl FnOnce (& sand::entity::EntityContext < sand::entity::AnyEntity >) -> Vec < String >)  {\n    let values = entity_query_value.get(body);\n}",
+    )]
     pub fn get(self, body: impl FnOnce(&EntityContext<AnyEntity>) -> Vec<String>) -> Vec<String> {
         self.each(body)
     }
@@ -261,7 +559,20 @@ impl From<EntityTargets> for EntityQuery<Many> {
 
 impl PlayerQuery<Many> {
     /// `@a` — all players.
-    #[doc = "**API Contract:** Run `sand api show sand::entity::PlayerQuery::players` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::entity::PlayerQuery::players",
+        aliases = ["sand::entity::PlayerQueries::players", "sand::entity::SinglePlayerQuery::players", "sand::prelude::PlayerQueries::players", "sand::prelude::PlayerQuery::players", "sand::prelude::SinglePlayerQuery::players"],
+        module = "sand::entity",
+        kind = "method",
+        summary = "`@a` — all players.",
+        context = "`@a` — all players. This declaration belongs to Sand's typed entity model. Semantic definitions are public; selector rendering, validation bookkeeping, and compiler lowering remain internal.",
+        minecraft = "Sand validates this definition and lowers it to entity-scoped selectors, scoreboards, NBT operations, and generated lifecycle functions as required.",
+        use_when = ["Defining or using typed entity behavior in a Sand datapack"],
+        avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
+        returns = "A `PlayerQuery` that emits the documented `@a` — all players form.",
+        example = "use sand::prelude::*;\n\nfn demonstrate()  {\n    let player_query = sand::entity::PlayerQuery ::< sand::command::Many >::players();\n}",
+    )]
     pub fn players() -> Self {
         Self {
             target: PlayerTargets::all(),
@@ -270,7 +581,21 @@ impl PlayerQuery<Many> {
 
     /// Restrict players with a typed State predicate.
     ///
-    /// **API Contract:** Run `sand api show sand::entity::PlayerQuery::state`.
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::entity::PlayerQuery::state",
+        aliases = ["sand::entity::PlayerQueries::state", "sand::entity::SinglePlayerQuery::state", "sand::prelude::PlayerQueries::state", "sand::prelude::PlayerQuery::state", "sand::prelude::SinglePlayerQuery::state"],
+        module = "sand::entity",
+        kind = "method",
+        summary = "Restrict players with a typed State predicate.",
+        context = "Restrict players with a typed State predicate. This declaration belongs to Sand's typed entity model. Semantic definitions are public; selector rendering, validation bookkeeping, and compiler lowering remain internal.",
+        minecraft = "Sand validates this definition and lowers it to entity-scoped selectors, scoreboards, NBT operations, and generated lifecycle functions as required.",
+        use_when = ["Defining or using typed entity behavior in a Sand datapack"],
+        avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
+        params(predicate = "`predicate` provides the predicate that must match used to restrict players with a typed State predicate."),
+        returns = "The `sand :: command :: CommandResult < Self >` value produced to restrict players with a typed State predicate.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(player_query_value: sand::entity::PlayerQuery < sand::command::Many >, predicate: sand::entity::StatePredicate)  {\n    let state = player_query_value.state(predicate);\n}",
+    )]
     pub fn state(
         mut self,
         predicate: crate::entity::state::StatePredicate,
@@ -283,35 +608,105 @@ impl PlayerQuery<Many> {
     }
 
     /// `tag=<tag>` — restrict to players with the given tag.
-    #[doc = "**API Contract:** Run `sand api show sand::entity::PlayerQuery::tag` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::entity::PlayerQuery::tag",
+        aliases = ["sand::entity::PlayerQueries::tag", "sand::entity::SinglePlayerQuery::tag", "sand::prelude::PlayerQueries::tag", "sand::prelude::PlayerQuery::tag", "sand::prelude::SinglePlayerQuery::tag"],
+        module = "sand::entity",
+        kind = "method",
+        summary = "`tag=<tag>` — restrict to players with the given tag.",
+        context = "`tag=<tag>` — restrict to players with the given tag. This declaration belongs to Sand's typed entity model. Semantic definitions are public; selector rendering, validation bookkeeping, and compiler lowering remain internal.",
+        minecraft = "Sand validates this definition and lowers it to entity-scoped selectors, scoreboards, NBT operations, and generated lifecycle functions as required.",
+        use_when = ["Defining or using typed entity behavior in a Sand datapack"],
+        avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
+        params(tag = "`tag` supplies the documented `tag=<tag>` — restrict to players with the given tag form."),
+        returns = "The `PlayerQuery` value with the documented change applied to emit the documented `tag=<tag>` — restrict to players with the given tag form.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(player_query_value: sand::entity::PlayerQuery < sand::command::Many >, tag: impl Into < String >)  {\n    let updated_player_query = player_query_value.tag(tag);\n}",
+    )]
     pub fn tag(mut self, tag: impl Into<String>) -> Self {
         self.target = self.target.tag(tag);
         self
     }
 
     /// `tag=!<tag>` — exclude players with the given tag.
-    #[doc = "**API Contract:** Run `sand api show sand::entity::PlayerQuery::without_tag` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::entity::PlayerQuery::without_tag",
+        aliases = ["sand::entity::PlayerQueries::without_tag", "sand::entity::SinglePlayerQuery::without_tag", "sand::prelude::PlayerQueries::without_tag", "sand::prelude::PlayerQuery::without_tag", "sand::prelude::SinglePlayerQuery::without_tag"],
+        module = "sand::entity",
+        kind = "method",
+        summary = "`tag=!<tag>` — exclude players with the given tag.",
+        context = "`tag=!<tag>` — exclude players with the given tag. This declaration belongs to Sand's typed entity model. Semantic definitions are public; selector rendering, validation bookkeeping, and compiler lowering remain internal.",
+        minecraft = "Sand validates this definition and lowers it to entity-scoped selectors, scoreboards, NBT operations, and generated lifecycle functions as required.",
+        use_when = ["Defining or using typed entity behavior in a Sand datapack"],
+        avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
+        params(tag = "`tag` supplies the documented `tag=!<tag>` — exclude players with the given tag form."),
+        returns = "The `PlayerQuery` value with the documented change applied to emit the documented `tag=!<tag>` — exclude players with the given tag form.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(player_query_value: sand::entity::PlayerQuery < sand::command::Many >, tag: impl Into < String >)  {\n    let updated_player_query = player_query_value.without_tag(tag);\n}",
+    )]
     pub fn without_tag(mut self, tag: impl Into<String>) -> Self {
         self.target = self.target.not_tag(tag);
         self
     }
 
     /// `distance=..<max>` — restrict to players within `max` blocks.
-    #[doc = "**API Contract:** Run `sand api show sand::entity::PlayerQuery::within_blocks` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::entity::PlayerQuery::within_blocks",
+        aliases = ["sand::entity::PlayerQueries::within_blocks", "sand::entity::SinglePlayerQuery::within_blocks", "sand::prelude::PlayerQueries::within_blocks", "sand::prelude::PlayerQuery::within_blocks", "sand::prelude::SinglePlayerQuery::within_blocks"],
+        module = "sand::entity",
+        kind = "method",
+        summary = "`distance=..<max>` — restrict to players within `max` blocks.",
+        context = "`distance=..<max>` — restrict to players within `max` blocks. This declaration belongs to Sand's typed entity model. Semantic definitions are public; selector rendering, validation bookkeeping, and compiler lowering remain internal.",
+        minecraft = "Sand validates this definition and lowers it to entity-scoped selectors, scoreboards, NBT operations, and generated lifecycle functions as required.",
+        use_when = ["Defining or using typed entity behavior in a Sand datapack"],
+        avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
+        params(max = "`distance=..<max>` — restrict to players within `max` blocks."),
+        returns = "The `PlayerQuery` value with the documented change applied to emit the documented `distance=..<max>` — restrict to players within `max` blocks form.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(player_query_value: sand::entity::PlayerQuery < sand::command::Many >, max: f64)  {\n    let updated_player_query = player_query_value.within_blocks(max);\n}",
+    )]
     pub fn within_blocks(mut self, max: f64) -> Self {
         self.target = self.target.within_blocks(max);
         self
     }
 
     /// `distance=<min>..<max>` — restrict to players between `min` and `max` blocks.
-    #[doc = "**API Contract:** Run `sand api show sand::entity::PlayerQuery::distance_range` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::entity::PlayerQuery::distance_range",
+        aliases = ["sand::entity::PlayerQueries::distance_range", "sand::entity::SinglePlayerQuery::distance_range", "sand::prelude::PlayerQueries::distance_range", "sand::prelude::PlayerQuery::distance_range", "sand::prelude::SinglePlayerQuery::distance_range"],
+        module = "sand::entity",
+        kind = "method",
+        summary = "`distance=<min>..<max>` — restrict to players between `min` and `max` blocks.",
+        context = "`distance=<min>..<max>` — restrict to players between `min` and `max` blocks. This declaration belongs to Sand's typed entity model. Semantic definitions are public; selector rendering, validation bookkeeping, and compiler lowering remain internal.",
+        minecraft = "Sand validates this definition and lowers it to entity-scoped selectors, scoreboards, NBT operations, and generated lifecycle functions as required.",
+        use_when = ["Defining or using typed entity behavior in a Sand datapack"],
+        avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
+        params(min = "`distance=<min>..<max>` — restrict to players between `min` and `max` blocks.", max = "`distance=<min>..<max>` — restrict to players between `min` and `max` blocks."),
+        returns = "The `PlayerQuery` value with the documented change applied to emit the documented `distance=<min>..<max>` — restrict to players between `min` and `max` blocks form.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(player_query_value: sand::entity::PlayerQuery < sand::command::Many >, min: f64, max: f64)  {\n    let updated_player_query = player_query_value.distance_range(min, max);\n}",
+    )]
     pub fn distance_range(mut self, min: f64, max: f64) -> Self {
         self.target = self.target.distance_range(min, max);
         self
     }
 
     /// Sort results. See [`EntityQuery::sort`].
-    #[doc = "**API Contract:** Run `sand api show sand::entity::PlayerQuery::sort` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::entity::PlayerQuery::sort",
+        aliases = ["sand::entity::PlayerQueries::sort", "sand::entity::SinglePlayerQuery::sort", "sand::prelude::PlayerQueries::sort", "sand::prelude::PlayerQuery::sort", "sand::prelude::SinglePlayerQuery::sort"],
+        module = "sand::entity",
+        kind = "method",
+        summary = "Sort results. See [`EntityQuery::sort`].",
+        context = "Sort results. See [`EntityQuery::sort`]. This declaration belongs to Sand's typed entity model. Semantic definitions are public; selector rendering, validation bookkeeping, and compiler lowering remain internal.",
+        minecraft = "Sand validates this definition and lowers it to entity-scoped selectors, scoreboards, NBT operations, and generated lifecycle functions as required.",
+        use_when = ["Defining or using typed entity behavior in a Sand datapack"],
+        avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
+        params(order = "`order` is used to sort results. See [`EntityQuery::sort`]."),
+        returns = "The `PlayerQuery` value with the documented change applied to sort results. See [`EntityQuery::sort`].",
+        example = "use sand::prelude::*;\n\nfn demonstrate(player_query_value: sand::entity::PlayerQuery < sand::command::Many >, order: sand::command::SortOrder)  {\n    let updated_player_query = player_query_value.sort(order);\n}",
+    )]
     pub fn sort(self, order: SortOrder) -> Self {
         let selector = self.target.into_selector().sort(order);
         Self {
@@ -321,7 +716,21 @@ impl PlayerQuery<Many> {
     }
 
     /// `limit=<n>` — narrow to at most `n` players, and to [`One`] cardinality.
-    #[doc = "**API Contract:** Run `sand api show sand::entity::PlayerQuery::limit` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::entity::PlayerQuery::limit",
+        aliases = ["sand::entity::PlayerQueries::limit", "sand::entity::SinglePlayerQuery::limit", "sand::prelude::PlayerQueries::limit", "sand::prelude::PlayerQuery::limit", "sand::prelude::SinglePlayerQuery::limit"],
+        module = "sand::entity",
+        kind = "method",
+        summary = "`limit=<n>` — narrow to at most `n` players, and to [`One`] cardinality.",
+        context = "`limit=<n>` — narrow to at most `n` players, and to [`One`] cardinality. This declaration belongs to Sand's typed entity model. Semantic definitions are public; selector rendering, validation bookkeeping, and compiler lowering remain internal.",
+        minecraft = "Sand validates this definition and lowers it to entity-scoped selectors, scoreboards, NBT operations, and generated lifecycle functions as required.",
+        use_when = ["Defining or using typed entity behavior in a Sand datapack"],
+        avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
+        params(n = "`limit=<n>` — narrow to at most `n` players, and to [`One`] cardinality."),
+        returns = "The `sand :: command :: CommandResult < PlayerQuery < One > >` value produced to emit the documented `limit=<n>` — narrow to at most `n` players, and to [`One`] cardinality form.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(player_query_value: sand::entity::PlayerQuery < sand::command::Many >, n: i32)  {\n    let limit = player_query_value.limit(n);\n}",
+    )]
     pub fn limit(self, n: i32) -> sand_commands::CommandResult<PlayerQuery<One>> {
         Ok(PlayerQuery {
             target: self.target.limit(n)?,
@@ -329,7 +738,20 @@ impl PlayerQuery<Many> {
     }
 
     /// Sort by nearest and narrow to the single nearest player.
-    #[doc = "**API Contract:** Run `sand api show sand::entity::PlayerQuery::nearest` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::entity::PlayerQuery::nearest",
+        aliases = ["sand::entity::PlayerQueries::nearest", "sand::entity::SinglePlayerQuery::nearest", "sand::prelude::PlayerQueries::nearest", "sand::prelude::PlayerQuery::nearest", "sand::prelude::SinglePlayerQuery::nearest"],
+        module = "sand::entity",
+        kind = "method",
+        summary = "Sort by nearest and narrow to the single nearest player.",
+        context = "Sort by nearest and narrow to the single nearest player. This declaration belongs to Sand's typed entity model. Semantic definitions are public; selector rendering, validation bookkeeping, and compiler lowering remain internal.",
+        minecraft = "Sand validates this definition and lowers it to entity-scoped selectors, scoreboards, NBT operations, and generated lifecycle functions as required.",
+        use_when = ["Defining or using typed entity behavior in a Sand datapack"],
+        avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
+        returns = "The `PlayerQuery < One >` value produced to sort by nearest and narrow to the single nearest player.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(player_query_value: sand::entity::PlayerQuery < sand::command::Many >)  {\n    let nearest = player_query_value.nearest();\n}",
+    )]
     pub fn nearest(self) -> PlayerQuery<One> {
         PlayerQuery {
             target: self.target.nearest(),
@@ -337,7 +759,6 @@ impl PlayerQuery<Many> {
     }
 
     /// Run `body` with `@s` bound to each matching player in turn.
-    #[doc = "**API Contract:** Run `sand api show sand::entity::PlayerQuery::each` for the canonical contract."]
     pub fn each(self, body: impl FnOnce(&EntityContext<PlayerKind>) -> Vec<String>) -> Vec<String> {
         lower_each(self.target.into_selector(), body)
     }
@@ -347,20 +768,61 @@ impl PlayerQuery<Many> {
 
 impl PlayerQuery<One> {
     /// Access the underlying single-arity selector.
-    #[doc = "**API Contract:** Run `sand api show sand::entity::PlayerQuery::selector` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::entity::PlayerQuery::selector",
+        aliases = ["sand::entity::PlayerQueries::selector", "sand::entity::SinglePlayerQuery::selector", "sand::prelude::PlayerQueries::selector", "sand::prelude::PlayerQuery::selector", "sand::prelude::SinglePlayerQuery::selector"],
+        module = "sand::entity",
+        kind = "method",
+        summary = "Access the underlying single-arity selector.",
+        context = "Access the underlying single-arity selector. This declaration belongs to Sand's typed entity model. Semantic definitions are public; selector rendering, validation bookkeeping, and compiler lowering remain internal.",
+        minecraft = "Sand validates this definition and lowers it to entity-scoped selectors, scoreboards, NBT operations, and generated lifecycle functions as required.",
+        use_when = ["Defining or using typed entity behavior in a Sand datapack"],
+        avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
+        returns = "The `& Selector` value produced to acces the underlying single-arity selector.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(player_query_value: &sand::entity::PlayerQuery < sand::command::One >)  {\n    let selector = player_query_value.selector();\n}",
+    )]
     pub fn selector(&self) -> &Selector {
         self.target.selector()
     }
 
     /// Run `body` with `@s` bound to the single matching player (a no-op if
     /// there is none).
-    #[doc = "**API Contract:** Run `sand api show sand::entity::PlayerQuery::each` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::entity::PlayerQuery::each",
+        aliases = ["sand::entity::PlayerQueries::each", "sand::entity::SinglePlayerQuery::each", "sand::prelude::PlayerQueries::each", "sand::prelude::PlayerQuery::each", "sand::prelude::SinglePlayerQuery::each"],
+        module = "sand::entity",
+        kind = "method",
+        summary = "Run `body` with `@s` bound to the single matching player (a no-op if there is none).",
+        context = "Run `body` with `@s` bound to the single matching player (a no-op if there is none). This declaration belongs to Sand's typed entity model. Semantic definitions are public; selector rendering, validation bookkeeping, and compiler lowering remain internal.",
+        minecraft = "Sand validates this definition and lowers it to entity-scoped selectors, scoreboards, NBT operations, and generated lifecycle functions as required.",
+        use_when = ["Defining or using typed entity behavior in a Sand datapack"],
+        avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
+        params(body = "Run `body` with `@s` bound to the single matching player (a no-op if there is none)."),
+        returns = "The ordered values produced to run `body` with `@s` bound to the single matching player (a no-op if there is none).",
+        example = "use sand::prelude::*;\n\nfn demonstrate(player_query_value: sand::entity::PlayerQuery < sand::command::One >, body: impl FnOnce (& sand::entity::EntityContext < sand::entity::PlayerKind >) -> Vec < String >)  {\n    let values = player_query_value.each(body);\n}",
+    )]
     pub fn each(self, body: impl FnOnce(&EntityContext<PlayerKind>) -> Vec<String>) -> Vec<String> {
         lower_each(self.target.into_selector(), body)
     }
 
     /// Alias for [`PlayerQuery::<One>::each`].
-    #[doc = "**API Contract:** Run `sand api show sand::entity::PlayerQuery::get` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::entity::PlayerQuery::get",
+        aliases = ["sand::entity::PlayerQueries::get", "sand::entity::SinglePlayerQuery::get", "sand::prelude::PlayerQueries::get", "sand::prelude::PlayerQuery::get", "sand::prelude::SinglePlayerQuery::get"],
+        module = "sand::entity",
+        kind = "method",
+        summary = "Alias for [`PlayerQuery::<One>::each`].",
+        context = "Alias for [`PlayerQuery::<One>::each`]. This declaration belongs to Sand's typed entity model. Semantic definitions are public; selector rendering, validation bookkeeping, and compiler lowering remain internal.",
+        minecraft = "Sand validates this definition and lowers it to entity-scoped selectors, scoreboards, NBT operations, and generated lifecycle functions as required.",
+        use_when = ["Defining or using typed entity behavior in a Sand datapack"],
+        avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
+        params(body = "`body` sets the player-visible text for alias for [`PlayerQuery::<One>::each`]."),
+        returns = "The ordered values produced to use alias for [`PlayerQuery::<One>::each`].",
+        example = "use sand::prelude::*;\n\nfn demonstrate(player_query_value: sand::entity::PlayerQuery < sand::command::One >, body: impl FnOnce (& sand::entity::EntityContext < sand::entity::PlayerKind >) -> Vec < String >)  {\n    let values = player_query_value.get(body);\n}",
+    )]
     pub fn get(self, body: impl FnOnce(&EntityContext<PlayerKind>) -> Vec<String>) -> Vec<String> {
         self.each(body)
     }

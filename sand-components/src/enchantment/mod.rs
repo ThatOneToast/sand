@@ -66,21 +66,45 @@ use crate::validation;
 
 // ── EnchantmentCost ───────────────────────────────────────────────────────────
 
-#[doc = "**API Contract:** Run `sand api show sand::component::EnchantmentCost` for the canonical contract."]
+#[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::component::EnchantmentCost",
+    aliases = ["sand::prelude::EnchantmentCost"],
+    module = "sand::component",
+    summary = "The level cost configuration for enchanting (min or max enchanting-table cost).",
+    context = "The level cost configuration for enchanting (min or max enchanting-table cost). This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+    minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+    use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+    avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+    example = "use sand::component::EnchantmentCost;",
+    fields(base = "Base cost at enchantment level 1.", per_level_above_first = "Additional cost added per enchantment level above 1."),
+)]
 /// The level cost configuration for enchanting (min or max enchanting-table cost).
 #[derive(Clone)]
 pub struct EnchantmentCost {
-    #[doc = "**API Contract:** Run `sand api show sand::component::EnchantmentCost::base` for the canonical contract."]
     /// Base cost at enchantment level 1.
     pub base: u32,
-    #[doc = "**API Contract:** Run `sand api show sand::component::EnchantmentCost::per_level_above_first` for the canonical contract."]
     /// Additional cost added per enchantment level above 1.
     pub per_level_above_first: u32,
 }
 
 impl EnchantmentCost {
     /// Creates a new cost with the given base and per-level values.
-    #[doc = "**API Contract:** Run `sand api show sand::component::EnchantmentCost::new` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::EnchantmentCost::new",
+        aliases = ["sand::prelude::EnchantmentCost::new"],
+        module = "sand::component",
+        kind = "method",
+        summary = "Creates a new cost with the given base and per-level values.",
+        context = "Creates a new cost with the given base and per-level values. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(base = "`base` is used when creating a new cost with the given base and per-level values.", per_level_above_first = "`per_level_above_first` is used when creating a new cost with the given base and per-level values."),
+        returns = "An `EnchantmentCost` representing a new cost with the given base and per-level values.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(base: u32, per_level_above_first: u32)  {\n    let enchantment_cost = sand::component::EnchantmentCost::new(base, per_level_above_first);\n}",
+    )]
     pub fn new(base: u32, per_level_above_first: u32) -> Self {
         Self {
             base,
@@ -98,7 +122,18 @@ impl EnchantmentCost {
 
 // ── ItemOrTag / EnchantmentOrTag ─────────────────────────────────────────────
 
-#[doc = "**API Contract:** Run `sand api show sand::component::ItemOrTag` for the canonical contract."]
+#[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::component::ItemOrTag",
+    aliases = ["sand::prelude::ItemOrTag"],
+    module = "sand::component",
+    summary = "A typed reference to a single item or an item tag, used by [`Enchantment::supported_items`] and [`Enchantment::primary_items`].",
+    context = "A typed reference to a single item or an item tag, used by [`Enchantment::supported_items`] and [`Enchantment::primary_items`]. Construct one from an [`ItemId`] or `TagId<ItemId>` — both convert automatically via `Into`.",
+    minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+    use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+    avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+    example = "use sand::component::ItemOrTag;",
+)]
 /// A typed reference to a single item or an item tag, used by
 /// [`Enchantment::supported_items`] and [`Enchantment::primary_items`].
 ///
@@ -134,7 +169,18 @@ impl ItemOrTag {
     }
 }
 
-#[doc = "**API Contract:** Run `sand api show sand::component::EnchantmentOrTag` for the canonical contract."]
+#[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::component::EnchantmentOrTag",
+    aliases = ["sand::prelude::EnchantmentOrTag"],
+    module = "sand::component",
+    summary = "A typed reference to a single enchantment or an enchantment tag, used by [`Enchantment::exclusive_set`].",
+    context = "A typed reference to a single enchantment or an enchantment tag, used by [`Enchantment::exclusive_set`]. Construct one from an [`EnchantmentId`] or `TagId<EnchantmentId>` — both convert automatically via `Into`.",
+    minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+    use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+    avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+    example = "use sand::component::EnchantmentOrTag;",
+)]
 /// A typed reference to a single enchantment or an enchantment tag, used by
 /// [`Enchantment::exclusive_set`].
 ///
@@ -205,7 +251,19 @@ impl EnchantmentDescription {
 
 // ── EnchantmentValueOperation / LevelBasedValue ──────────────────────────────
 
-#[doc = "**API Contract:** Run `sand api show sand::component::EnchantmentValueOperation` for the canonical contract."]
+#[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::component::EnchantmentValueOperation",
+    aliases = ["sand::prelude::EnchantmentValueOperation"],
+    module = "sand::component",
+    summary = "How a typed value effect combines with any existing value for the same effect component (Minecraft's `ValueEffect` operation kinds).",
+    context = "How a typed value effect combines with any existing value for the same effect component (Minecraft's `ValueEffect` operation kinds). `minecraft:multiply`, `minecraft:remove_binomial`, and `minecraft:all_of` are not modelled yet; use [`Enchantment::raw_effect_component`] for those.",
+    minecraft = "`minecraft:multiply`, `minecraft:remove_binomial`, and `minecraft:all_of` are not modelled yet; use [`Enchantment::raw_effect_component`] for those.",
+    use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+    avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+    example = "use sand::component::EnchantmentValueOperation;",
+    variants(Add = "`minecraft:add` — adds the level-based value to the existing value.", Set = "`minecraft:set` — overwrites the existing value."),
+)]
 /// How a typed value effect combines with any existing value for the same
 /// effect component (Minecraft's `ValueEffect` operation kinds).
 ///
@@ -213,10 +271,8 @@ impl EnchantmentDescription {
 /// are not modelled yet; use [`Enchantment::raw_effect_component`] for those.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum EnchantmentValueOperation {
-    #[doc = "**API Contract:** Run `sand api show sand::component::EnchantmentValueOperation::Add` for the canonical contract."]
     /// `minecraft:add` — adds the level-based value to the existing value.
     Add,
-    #[doc = "**API Contract:** Run `sand api show sand::component::EnchantmentValueOperation::Set` for the canonical contract."]
     /// `minecraft:set` — overwrites the existing value.
     Set,
 }
@@ -230,27 +286,35 @@ impl EnchantmentValueOperation {
     }
 }
 
-#[doc = "**API Contract:** Run `sand api show sand::component::LevelBasedValue` for the canonical contract."]
+#[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::component::LevelBasedValue",
+    aliases = ["sand::prelude::LevelBasedValue"],
+    module = "sand::component",
+    summary = "A level-scaled numeric value used by typed enchantment value effects (Minecraft's `LevelBasedValue`).",
+    context = "A level-scaled numeric value used by typed enchantment value effects (Minecraft's `LevelBasedValue`). This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+    minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+    use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+    avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+    example = "use sand::component::LevelBasedValue;",
+    variants(Constant = "A value that does not depend on enchantment level. Serializes as a bare JSON number (Minecraft's documented shorthand).", Linear = "`minecraft:linear` — `base + per_level_above_first * (level - 1)`."),
+    variant_fields(Constant = ["A value that does not depend on enchantment level. Serializes as a bare JSON number (Minecraft's documented shorthand)."], Linear(base = "`base` provides the base when `minecraft:linear` — `base + per_level_above_first * (level - 1)`.", per_level_above_first = "`per_level_above_first` provides the per level above first when `minecraft:linear` — `base + per_level_above_first * (level - 1)`.")),
+)]
 /// A level-scaled numeric value used by typed enchantment value effects
 /// (Minecraft's `LevelBasedValue`).
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum LevelBasedValue {
-    #[doc = "**API Contract:** Run `sand api show sand::component::LevelBasedValue::Constant` for the canonical contract."]
     /// A value that does not depend on enchantment level. Serializes as a
     /// bare JSON number (Minecraft's documented shorthand).
     Constant(
-        #[doc = "The `Constant` variant carries the value described by its variant semantics: A value that does not depend on enchantment level. Serializes as a bare JSON number (Minecraft's documented shorthand)."]
-        #[doc = "**API Contract:** Run `sand api show sand::component::LevelBasedValue::Constant::0` for the canonical contract."]
-        f64,
+        #[doc = "A value that does not depend on enchantment level. Serializes as a bare JSON number (Minecraft's documented shorthand)."]
+         f64,
     ),
-    #[doc = "**API Contract:** Run `sand api show sand::component::LevelBasedValue::Linear` for the canonical contract."]
     /// `minecraft:linear` — `base + per_level_above_first * (level - 1)`.
     Linear {
         /// `base` provides the base when `minecraft:linear` — `base + per_level_above_first * (level - 1)`.
-        #[doc = "**API Contract:** Run `sand api show sand::component::LevelBasedValue::Linear::base` for the canonical contract."]
         base: f64,
         /// `per_level_above_first` provides the per level above first when `minecraft:linear` — `base + per_level_above_first * (level - 1)`.
-        #[doc = "**API Contract:** Run `sand api show sand::component::LevelBasedValue::Linear::per_level_above_first` for the canonical contract."]
         per_level_above_first: f64,
     },
 }
@@ -379,7 +443,18 @@ impl SlotEntry {
     }
 }
 
-#[doc = "**API Contract:** Run `sand api show sand::component::Enchantment` for the canonical contract."]
+#[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::component::Enchantment",
+    aliases = ["sand::prelude::Enchantment"],
+    module = "sand::component",
+    summary = "An enchantment definition (`data/<namespace>/enchantment/<id>.json`).",
+    context = "An enchantment definition (`data/<namespace>/enchantment/<id>.json`). This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+    minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+    use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+    avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+    example = "use sand::component::Enchantment;",
+)]
 /// An enchantment definition (`data/<namespace>/enchantment/<id>.json`).
 pub struct Enchantment {
     location: ResourceLocation,
@@ -399,7 +474,21 @@ pub struct Enchantment {
 
 impl Enchantment {
     /// Creates a new enchantment with sensible defaults.
-    #[doc = "**API Contract:** Run `sand api show sand::component::Enchantment::new` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::Enchantment::new",
+        aliases = ["sand::prelude::Enchantment::new"],
+        module = "sand::component",
+        kind = "method",
+        summary = "Creates a new enchantment with sensible defaults.",
+        context = "Creates a new enchantment with sensible defaults. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(location = "`location` provides the typed resource identifier or location used to create a new enchantment with sensible defaults."),
+        returns = "An `Enchantment` representing a new enchantment with sensible defaults.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(location: sand::ResourceLocation)  {\n    let enchantment = sand::component::Enchantment::new(location);\n}",
+    )]
     pub fn new(location: ResourceLocation) -> Self {
         Self {
             location,
@@ -419,14 +508,42 @@ impl Enchantment {
     }
 
     /// Sets the description as a typed text component.
-    #[doc = "**API Contract:** Run `sand api show sand::component::Enchantment::description` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::Enchantment::description",
+        aliases = ["sand::prelude::Enchantment::description"],
+        module = "sand::component",
+        kind = "method",
+        summary = "Sets the description as a typed text component.",
+        context = "Sets the description as a typed text component. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(desc = "`desc` provides the player-visible text applied when setting the description as a typed text component."),
+        returns = "The `Enchantment` value with the documented change applied to set the description as a typed text component.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(enchantment_value: sand::component::Enchantment, desc: sand::text::TextComponent)  {\n    let updated_enchantment = enchantment_value.description(desc);\n}",
+    )]
     pub fn description(mut self, desc: TextComponent) -> Self {
         self.description = Some(EnchantmentDescription::Typed(Box::new(desc)));
         self
     }
 
     /// Convenience: sets the description as a plain translation key.
-    #[doc = "**API Contract:** Run `sand api show sand::component::Enchantment::description_translate` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::Enchantment::description_translate",
+        aliases = ["sand::prelude::Enchantment::description_translate"],
+        module = "sand::component",
+        kind = "method",
+        summary = "Convenience: sets the description as a plain translation key.",
+        context = "Convenience: sets the description as a plain translation key. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(key = "`key` provides the key that identifies the setting or entry used to convenience sets the description as a plain translation key."),
+        returns = "The `Enchantment` value with the documented change applied to convenience sets the description as a plain translation key.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(enchantment_value: sand::component::Enchantment, key: impl Into < String >)  {\n    let updated_enchantment = enchantment_value.description_translate(key);\n}",
+    )]
     pub fn description_translate(mut self, key: impl Into<String>) -> Self {
         self.description = Some(EnchantmentDescription::Typed(Box::new(
             TextComponent::translate(key),
@@ -435,7 +552,21 @@ impl Enchantment {
     }
 
     /// Use a raw JSON text component when the typed text API cannot represent it.
-    #[doc = "**API Contract:** Run `sand api show sand::component::Enchantment::raw_description` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::Enchantment::raw_description",
+        aliases = ["sand::prelude::Enchantment::raw_description"],
+        module = "sand::component",
+        kind = "method",
+        summary = "Use a raw JSON text component when the typed text API cannot represent it.",
+        context = "Use a raw JSON text component when the typed text API cannot represent it. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Use a raw JSON text component when the typed text API cannot represent it."],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(desc = "`desc` sets the desc for a raw JSON text component when the typed text API cannot represent it."),
+        returns = "The `Enchantment` value with the documented change applied to use a raw JSON text component when the typed text API cannot represent it.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(enchantment_value: sand::component::Enchantment, desc: sand::component::RawJson)  {\n    let updated_enchantment = enchantment_value.raw_description(desc);\n}",
+    )]
     pub fn raw_description(mut self, desc: RawJson) -> Self {
         self.description = Some(EnchantmentDescription::Raw(desc));
         self
@@ -444,7 +575,21 @@ impl Enchantment {
     /// Sets the supported items — the items this enchantment can be applied
     /// to (e.g. any sword, or a specific item). Accepts an [`ItemId`] or a
     /// `TagId<ItemId>`.
-    #[doc = "**API Contract:** Run `sand api show sand::component::Enchantment::supported_items` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::Enchantment::supported_items",
+        aliases = ["sand::prelude::Enchantment::supported_items"],
+        module = "sand::component",
+        kind = "method",
+        summary = "Sets the supported items — the items this enchantment can be applied to (e.g. any sword, or a specific item). Accepts an [`ItemId`] or a `TagId<ItemId>`.",
+        context = "Sets the supported items — the items this enchantment can be applied to (e.g. any sword, or a specific item). Accepts an [`ItemId`] or a `TagId<ItemId>`. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(items = "`items` provides the items applied when setting the supported items — the items this enchantment can be applied to (e.g. any sword, or a specific item). Accepts an [`ItemId`] or a `TagId<ItemId>`."),
+        returns = "The `Enchantment` value with the documented change applied to set the supported items — the items this enchantment can be applied to (e.g. any sword, or a specific item). Accepts an [`ItemId`] or a `TagId<ItemId>`.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(enchantment_value: sand::component::Enchantment, items: impl Into < sand::component::ItemOrTag >)  {\n    let updated_enchantment = enchantment_value.supported_items(items);\n}",
+    )]
     pub fn supported_items(mut self, items: impl Into<ItemOrTag>) -> Self {
         self.supported_items = Some(items.into());
         self
@@ -453,7 +598,21 @@ impl Enchantment {
     /// Sets the primary items — the subset of supported items this
     /// enchantment appears for at an enchanting table. Accepts an [`ItemId`]
     /// or a `TagId<ItemId>`.
-    #[doc = "**API Contract:** Run `sand api show sand::component::Enchantment::primary_items` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::Enchantment::primary_items",
+        aliases = ["sand::prelude::Enchantment::primary_items"],
+        module = "sand::component",
+        kind = "method",
+        summary = "Sets the primary items — the subset of supported items this enchantment appears for at an enchanting table. Accepts an [`ItemId`] or a `TagId<ItemId>`.",
+        context = "Sets the primary items — the subset of supported items this enchantment appears for at an enchanting table. Accepts an [`ItemId`] or a `TagId<ItemId>`. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(items = "`items` provides the items applied when setting the primary items — the subset of supported items this enchantment appears for at an enchanting table. Accepts an [`ItemId`] or a `TagId<ItemId>`."),
+        returns = "The `Enchantment` value with the documented change applied to set the primary items — the subset of supported items this enchantment appears for at an enchanting table. Accepts an [`ItemId`] or a `TagId<ItemId>`.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(enchantment_value: sand::component::Enchantment, items: impl Into < sand::component::ItemOrTag >)  {\n    let updated_enchantment = enchantment_value.primary_items(items);\n}",
+    )]
     pub fn primary_items(mut self, items: impl Into<ItemOrTag>) -> Self {
         self.primary_items = Some(items.into());
         self
@@ -462,56 +621,168 @@ impl Enchantment {
     /// Sets the exclusive set — enchantments sharing this set (or tag) are
     /// mutually exclusive. Accepts an [`EnchantmentId`] or a
     /// `TagId<EnchantmentId>`.
-    #[doc = "**API Contract:** Run `sand api show sand::component::Enchantment::exclusive_set` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::Enchantment::exclusive_set",
+        aliases = ["sand::prelude::Enchantment::exclusive_set"],
+        module = "sand::component",
+        kind = "method",
+        summary = "Sets the exclusive set — enchantments sharing this set (or tag) are mutually exclusive. Accepts an [`EnchantmentId`] or a `TagId<EnchantmentId>`.",
+        context = "Sets the exclusive set — enchantments sharing this set (or tag) are mutually exclusive. Accepts an [`EnchantmentId`] or a `TagId<EnchantmentId>`. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(tag = "`tag` provides the tag applied when setting the exclusive set — enchantments sharing this set (or tag) are mutually exclusive. Accepts an [`EnchantmentId`] or a `TagId<EnchantmentId>`."),
+        returns = "The `Enchantment` value with the documented change applied to set the exclusive set — enchantments sharing this set (or tag) are mutually exclusive. Accepts an [`EnchantmentId`] or a `TagId<EnchantmentId>`.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(enchantment_value: sand::component::Enchantment, tag: impl Into < sand::component::EnchantmentOrTag >)  {\n    let updated_enchantment = enchantment_value.exclusive_set(tag);\n}",
+    )]
     pub fn exclusive_set(mut self, tag: impl Into<EnchantmentOrTag>) -> Self {
         self.exclusive_set = Some(tag.into());
         self
     }
 
     /// Sets the enchantment weight (higher = more common, 1–1024).
-    #[doc = "**API Contract:** Run `sand api show sand::component::Enchantment::weight` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::Enchantment::weight",
+        aliases = ["sand::prelude::Enchantment::weight"],
+        module = "sand::component",
+        kind = "method",
+        summary = "Sets the enchantment weight (higher = more common, 1–1024).",
+        context = "Sets the enchantment weight (higher = more common, 1–1024). This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(w = "`w` provides the w applied when setting the enchantment weight (higher = more common, 1–1024)."),
+        returns = "The `Enchantment` value with the documented change applied to set the enchantment weight (higher = more common, 1–1024).",
+        example = "use sand::prelude::*;\n\nfn demonstrate(enchantment_value: sand::component::Enchantment, w: u32)  {\n    let updated_enchantment = enchantment_value.weight(w);\n}",
+    )]
     pub fn weight(mut self, w: u32) -> Self {
         self.weight = w;
         self
     }
 
     /// Sets the maximum enchantment level (1–255).
-    #[doc = "**API Contract:** Run `sand api show sand::component::Enchantment::max_level` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::Enchantment::max_level",
+        aliases = ["sand::prelude::Enchantment::max_level"],
+        module = "sand::component",
+        kind = "method",
+        summary = "Sets the maximum enchantment level (1–255).",
+        context = "Sets the maximum enchantment level (1–255). This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(lvl = "`lvl` provides the lvl applied when setting the maximum enchantment level (1–255)."),
+        returns = "The `Enchantment` value with the documented change applied to set the maximum enchantment level (1–255).",
+        example = "use sand::prelude::*;\n\nfn demonstrate(enchantment_value: sand::component::Enchantment, lvl: u32)  {\n    let updated_enchantment = enchantment_value.max_level(lvl);\n}",
+    )]
     pub fn max_level(mut self, lvl: u32) -> Self {
         self.max_level = lvl;
         self
     }
 
     /// Sets the minimum enchanting-table cost.
-    #[doc = "**API Contract:** Run `sand api show sand::component::Enchantment::min_cost` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::Enchantment::min_cost",
+        aliases = ["sand::prelude::Enchantment::min_cost"],
+        module = "sand::component",
+        kind = "method",
+        summary = "Sets the minimum enchanting-table cost.",
+        context = "Sets the minimum enchanting-table cost. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(cost = "`cost` provides the cost applied when setting the minimum enchanting-table cost."),
+        returns = "The `Enchantment` value with the documented change applied to set the minimum enchanting-table cost.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(enchantment_value: sand::component::Enchantment, cost: sand::component::EnchantmentCost)  {\n    let updated_enchantment = enchantment_value.min_cost(cost);\n}",
+    )]
     pub fn min_cost(mut self, cost: EnchantmentCost) -> Self {
         self.min_cost = cost;
         self
     }
 
     /// Sets the maximum enchanting-table cost.
-    #[doc = "**API Contract:** Run `sand api show sand::component::Enchantment::max_cost` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::Enchantment::max_cost",
+        aliases = ["sand::prelude::Enchantment::max_cost"],
+        module = "sand::component",
+        kind = "method",
+        summary = "Sets the maximum enchanting-table cost.",
+        context = "Sets the maximum enchanting-table cost. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(cost = "`cost` provides the cost applied when setting the maximum enchanting-table cost."),
+        returns = "The `Enchantment` value with the documented change applied to set the maximum enchanting-table cost.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(enchantment_value: sand::component::Enchantment, cost: sand::component::EnchantmentCost)  {\n    let updated_enchantment = enchantment_value.max_cost(cost);\n}",
+    )]
     pub fn max_cost(mut self, cost: EnchantmentCost) -> Self {
         self.max_cost = cost;
         self
     }
 
     /// Sets the anvil cost (XP levels).
-    #[doc = "**API Contract:** Run `sand api show sand::component::Enchantment::anvil_cost` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::Enchantment::anvil_cost",
+        aliases = ["sand::prelude::Enchantment::anvil_cost"],
+        module = "sand::component",
+        kind = "method",
+        summary = "Sets the anvil cost (XP levels).",
+        context = "Sets the anvil cost (XP levels). This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(cost = "`cost` provides the cost applied when setting the anvil cost (XP levels)."),
+        returns = "The `Enchantment` value with the documented change applied to set the anvil cost (XP levels).",
+        example = "use sand::prelude::*;\n\nfn demonstrate(enchantment_value: sand::component::Enchantment, cost: u32)  {\n    let updated_enchantment = enchantment_value.anvil_cost(cost);\n}",
+    )]
     pub fn anvil_cost(mut self, cost: u32) -> Self {
         self.anvil_cost = cost;
         self
     }
 
     /// Adds a typed equipment slot this enchantment is active in.
-    #[doc = "**API Contract:** Run `sand api show sand::component::Enchantment::slot` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::Enchantment::slot",
+        aliases = ["sand::prelude::Enchantment::slot"],
+        module = "sand::component",
+        kind = "method",
+        summary = "Adds a typed equipment slot this enchantment is active in.",
+        context = "Adds a typed equipment slot this enchantment is active in. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(slot = "`slot` provides the slot added when building a typed equipment slot this enchantment is active in."),
+        returns = "The `Enchantment` value with the documented change applied to add a typed equipment slot this enchantment is active in.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(enchantment_value: sand::component::Enchantment, slot: sand::component::EquipmentSlotGroup)  {\n    let updated_enchantment = enchantment_value.slot(slot);\n}",
+    )]
     pub fn slot(mut self, slot: EquipmentSlotGroup) -> Self {
         self.slots.push(SlotEntry::Typed(slot));
         self
     }
 
     /// Sets all active equipment slots from typed values.
-    #[doc = "**API Contract:** Run `sand api show sand::component::Enchantment::slots` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::Enchantment::slots",
+        aliases = ["sand::prelude::Enchantment::slots"],
+        module = "sand::component",
+        kind = "method",
+        summary = "Sets all active equipment slots from typed values.",
+        context = "Sets all active equipment slots from typed values. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(slots = "`slots` provides the slots applied when setting all active equipment slots from typed values."),
+        returns = "The `Enchantment` value with the documented change applied to set all active equipment slots from typed values.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(enchantment_value: sand::component::Enchantment, slots: impl IntoIterator < Item = sand::component::EquipmentSlotGroup >)  {\n    let updated_enchantment = enchantment_value.slots(slots);\n}",
+    )]
     pub fn slots(mut self, slots: impl IntoIterator<Item = EquipmentSlotGroup>) -> Self {
         self.slots = slots.into_iter().map(SlotEntry::Typed).collect();
         self
@@ -519,7 +790,21 @@ impl Enchantment {
 
     /// Adds a raw equipment slot name — an escape hatch for slot groups not
     /// yet represented by [`EquipmentSlotGroup`].
-    #[doc = "**API Contract:** Run `sand api show sand::component::Enchantment::raw_slot` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::Enchantment::raw_slot",
+        aliases = ["sand::prelude::Enchantment::raw_slot"],
+        module = "sand::component",
+        kind = "method",
+        summary = "Adds a raw equipment slot name — an escape hatch for slot groups not yet represented by [`EquipmentSlotGroup`].",
+        context = "Adds a raw equipment slot name — an escape hatch for slot groups not yet represented by [`EquipmentSlotGroup`]. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(slot = "`slot` provides the slot added when building a raw equipment slot name — an escape hatch for slot groups not yet represented by [`EquipmentSlotGroup`]."),
+        returns = "The `Enchantment` value with the documented change applied to add a raw equipment slot name — an escape hatch for slot groups not yet represented by [`EquipmentSlotGroup`].",
+        example = "use sand::prelude::*;\n\nfn demonstrate(enchantment_value: sand::component::Enchantment, slot: impl Into < String >)  {\n    let updated_enchantment = enchantment_value.raw_slot(slot);\n}",
+    )]
     pub fn raw_slot(mut self, slot: impl Into<String>) -> Self {
         self.slots.push(SlotEntry::Raw(slot.into()));
         self
@@ -527,7 +812,21 @@ impl Enchantment {
 
     /// Sets all active equipment slots from raw names — an escape hatch for
     /// slot groups not yet represented by [`EquipmentSlotGroup`].
-    #[doc = "**API Contract:** Run `sand api show sand::component::Enchantment::raw_slots` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::Enchantment::raw_slots",
+        aliases = ["sand::prelude::Enchantment::raw_slots"],
+        module = "sand::component",
+        kind = "method",
+        summary = "Sets all active equipment slots from raw names — an escape hatch for slot groups not yet represented by [`EquipmentSlotGroup`].",
+        context = "Sets all active equipment slots from raw names — an escape hatch for slot groups not yet represented by [`EquipmentSlotGroup`]. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(slots = "`slots` provides the slots applied when setting all active equipment slots from raw names — an escape hatch for slot groups not yet represented by [`EquipmentSlotGroup`]."),
+        returns = "The `Enchantment` value with the documented change applied to set all active equipment slots from raw names — an escape hatch for slot groups not yet represented by [`EquipmentSlotGroup`].",
+        example = "use sand::prelude::*;\n\nfn demonstrate(enchantment_value: sand::component::Enchantment, slots: impl IntoIterator < Item = impl Into < String > >)  {\n    let updated_enchantment = enchantment_value.raw_slots(slots);\n}",
+    )]
     pub fn raw_slots(mut self, slots: impl IntoIterator<Item = impl Into<String>>) -> Self {
         self.slots = slots
             .into_iter()
@@ -538,7 +837,21 @@ impl Enchantment {
 
     /// Adds a typed `minecraft:damage` value effect (used by Sharpness,
     /// Smite, Bane of Arthropods, Impaling, Power).
-    #[doc = "**API Contract:** Run `sand api show sand::component::Enchantment::damage_effect` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::Enchantment::damage_effect",
+        aliases = ["sand::prelude::Enchantment::damage_effect"],
+        module = "sand::component",
+        kind = "method",
+        summary = "Adds a typed `minecraft:damage` value effect (used by Sharpness, Smite, Bane of Arthropods, Impaling, Power).",
+        context = "Adds a typed `minecraft:damage` value effect (used by Sharpness, Smite, Bane of Arthropods, Impaling, Power). This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(operation = "`operation` provides the operation added when building a typed `minecraft:damage` value effect (used by Sharpness, Smite, Bane of Arthropods, Impaling, Power).", value = "`value` provides the value being applied or compared used to add a typed `minecraft:damage` value effect (used by Sharpness, Smite, Bane of Arthropods, Impaling, Power)."),
+        returns = "The `Enchantment` value with the documented change applied to add a typed `minecraft:damage` value effect (used by Sharpness, Smite, Bane of Arthropods, Impaling, Power).",
+        example = "use sand::prelude::*;\n\nfn demonstrate(enchantment_value: sand::component::Enchantment, operation: sand::component::EnchantmentValueOperation, value: sand::component::LevelBasedValue)  {\n    let updated_enchantment = enchantment_value.damage_effect(operation, value);\n}",
+    )]
     pub fn damage_effect(
         self,
         operation: EnchantmentValueOperation,
@@ -549,7 +862,21 @@ impl Enchantment {
 
     /// Adds a typed `minecraft:knockback` value effect (used by Knockback,
     /// Punch).
-    #[doc = "**API Contract:** Run `sand api show sand::component::Enchantment::knockback_effect` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::Enchantment::knockback_effect",
+        aliases = ["sand::prelude::Enchantment::knockback_effect"],
+        module = "sand::component",
+        kind = "method",
+        summary = "Adds a typed `minecraft:knockback` value effect (used by Knockback, Punch).",
+        context = "Adds a typed `minecraft:knockback` value effect (used by Knockback, Punch). This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(operation = "`operation` provides the operation added when building a typed `minecraft:knockback` value effect (used by Knockback, Punch).", value = "`value` provides the value being applied or compared used to add a typed `minecraft:knockback` value effect (used by Knockback, Punch)."),
+        returns = "The `Enchantment` value with the documented change applied to add a typed `minecraft:knockback` value effect (used by Knockback, Punch).",
+        example = "use sand::prelude::*;\n\nfn demonstrate(enchantment_value: sand::component::Enchantment, operation: sand::component::EnchantmentValueOperation, value: sand::component::LevelBasedValue)  {\n    let updated_enchantment = enchantment_value.knockback_effect(operation, value);\n}",
+    )]
     pub fn knockback_effect(
         self,
         operation: EnchantmentValueOperation,
@@ -560,7 +887,21 @@ impl Enchantment {
 
     /// Adds a typed `minecraft:armor_effectiveness` value effect (used by
     /// Breach).
-    #[doc = "**API Contract:** Run `sand api show sand::component::Enchantment::armor_effectiveness_effect` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::Enchantment::armor_effectiveness_effect",
+        aliases = ["sand::prelude::Enchantment::armor_effectiveness_effect"],
+        module = "sand::component",
+        kind = "method",
+        summary = "Adds a typed `minecraft:armor_effectiveness` value effect (used by Breach).",
+        context = "Adds a typed `minecraft:armor_effectiveness` value effect (used by Breach). This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(operation = "`operation` provides the operation added when building a typed `minecraft:armor_effectiveness` value effect (used by Breach).", value = "`value` provides the value being applied or compared used to add a typed `minecraft:armor_effectiveness` value effect (used by Breach)."),
+        returns = "The `Enchantment` value with the documented change applied to add a typed `minecraft:armor_effectiveness` value effect (used by Breach).",
+        example = "use sand::prelude::*;\n\nfn demonstrate(enchantment_value: sand::component::Enchantment, operation: sand::component::EnchantmentValueOperation, value: sand::component::LevelBasedValue)  {\n    let updated_enchantment = enchantment_value.armor_effectiveness_effect(operation, value);\n}",
+    )]
     pub fn armor_effectiveness_effect(
         self,
         operation: EnchantmentValueOperation,
@@ -577,7 +918,21 @@ impl Enchantment {
     /// Prefer the dedicated `*_effect` helpers for the well-known vanilla
     /// value effects; use this for custom namespaced components that share
     /// the same `{"effect": {"type": ..., "value": ...}}` shape.
-    #[doc = "**API Contract:** Run `sand api show sand::component::Enchantment::value_effect` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::Enchantment::value_effect",
+        aliases = ["sand::prelude::Enchantment::value_effect"],
+        module = "sand::component",
+        kind = "method",
+        summary = "Adds a typed value effect under an arbitrary effect component ID. Prefer the dedicated `*_effect` helpers for the well-known vanilla value effects; use this for custom namespaced components that share the same `{\"effect\": {\"type\": ..., \"value\": ...}}` shape.",
+        context = "Adds a typed value effect under an arbitrary effect component ID. Prefer the dedicated `*_effect` helpers for the well-known vanilla value effects; use this for custom namespaced components that share the same `{\"effect\": {\"type\": ..., \"value\": ...}}` shape. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(component = "`component` provides the typed Minecraft resource identifier used to add a typed value effect under an arbitrary effect component ID. Prefer the dedicated `*_effect` helpers for the well-known vanilla value effects; use this for custom namespaced components that share the same `{\"effect\": {\"type\": ..., \"value\": ...}}` shape.", operation = "`operation` provides the operation added when building a typed value effect under an arbitrary effect component ID. Prefer the dedicated `*_effect` helpers for the well-known vanilla value effects; use this for custom namespaced components that share the same `{\"effect\": {\"type\": ..., \"value\": ...}}` shape.", value = "`value` provides the value being applied or compared used to add a typed value effect under an arbitrary effect component ID. Prefer the dedicated `*_effect` helpers for the well-known vanilla value effects; use this for custom namespaced components that share the same `{\"effect\": {\"type\": ..., \"value\": ...}}` shape."),
+        returns = "The `Enchantment` value with the documented change applied to add a typed value effect under an arbitrary effect component ID. Prefer the dedicated `*_effect` helpers for the well-known vanilla value effects; use this for custom namespaced components that share the same `{\"effect\": {\"type\": ..., \"value\": ...}}` shape.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(enchantment_value: sand::component::Enchantment, component: sand::registry::EnchantmentEffectComponentId, operation: sand::component::EnchantmentValueOperation, value: sand::component::LevelBasedValue)  {\n    let updated_enchantment = enchantment_value.value_effect(component, operation, value);\n}",
+    )]
     pub fn value_effect(
         mut self,
         component: EnchantmentEffectComponentId,
@@ -594,7 +949,21 @@ impl Enchantment {
     /// Adds a raw JSON effect entry under a typed effect component ID — an
     /// escape hatch for effect shapes Sand does not yet model (e.g.
     /// `minecraft:attributes`, `minecraft:all_of`, or custom/modded effects).
-    #[doc = "**API Contract:** Run `sand api show sand::component::Enchantment::raw_effect_component` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::Enchantment::raw_effect_component",
+        aliases = ["sand::prelude::Enchantment::raw_effect_component"],
+        module = "sand::component",
+        kind = "method",
+        summary = "Adds a raw JSON effect entry under a typed effect component ID — an escape hatch for effect shapes Sand does not yet model (e.g. `minecraft:attributes`, `minecraft:all_of`, or custom/modded effects).",
+        context = "Adds a raw JSON effect entry under a typed effect component ID — an escape hatch for effect shapes Sand does not yet model (e.g. `minecraft:attributes`, `minecraft:all_of`, or custom/modded effects). This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(component = "`component` provides the typed Minecraft resource identifier used to add a raw JSON effect entry under a typed effect component ID — an escape hatch for effect shapes Sand does not yet model (e.g. `minecraft:attributes`, `minecraft:all_of`, or custom/modded effects).", value = "`value` provides the value being applied or compared used to add a raw JSON effect entry under a typed effect component ID — an escape hatch for effect shapes Sand does not yet model (e.g. `minecraft:attributes`, `minecraft:all_of`, or custom/modded effects)."),
+        returns = "The `Enchantment` value with the documented change applied to add a raw JSON effect entry under a typed effect component ID — an escape hatch for effect shapes Sand does not yet model (e.g. `minecraft:attributes`, `minecraft:all_of`, or custom/modded effects).",
+        example = "use sand::prelude::*;\n\nfn demonstrate(enchantment_value: sand::component::Enchantment, component: sand::registry::EnchantmentEffectComponentId, value: sand::component::RawJson)  {\n    let updated_enchantment = enchantment_value.raw_effect_component(component, value);\n}",
+    )]
     pub fn raw_effect_component(
         mut self,
         component: EnchantmentEffectComponentId,
@@ -610,7 +979,21 @@ impl Enchantment {
     /// Sets the entire effects map as raw JSON, replacing any typed or
     /// per-component raw entries added so far. An escape hatch for whole
     /// custom effect maps.
-    #[doc = "**API Contract:** Run `sand api show sand::component::Enchantment::raw_effects` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::Enchantment::raw_effects",
+        aliases = ["sand::prelude::Enchantment::raw_effects"],
+        module = "sand::component",
+        kind = "method",
+        summary = "Sets the entire effects map as raw JSON, replacing any typed or per-component raw entries added so far. An escape hatch for whole custom effect maps.",
+        context = "Sets the entire effects map as raw JSON, replacing any typed or per-component raw entries added so far. An escape hatch for whole custom effect maps. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(effects = "`effects` provides the effects applied when setting the entire effects map as raw JSON, replacing any typed or per-component raw entries added so far. An escape hatch for whole custom effect maps."),
+        returns = "The `Enchantment` value with the documented change applied to set the entire effects map as raw JSON, replacing any typed or per-component raw entries added so far. An escape hatch for whole custom effect maps.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(enchantment_value: sand::component::Enchantment, effects: sand::component::RawJson)  {\n    let updated_enchantment = enchantment_value.raw_effects(effects);\n}",
+    )]
     pub fn raw_effects(mut self, effects: RawJson) -> Self {
         self.raw_effects = Some(effects);
         self

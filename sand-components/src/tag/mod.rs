@@ -7,22 +7,46 @@ use crate::error::{Result, SandError};
 use crate::registry::{BlockId, EntityTypeId, FunctionId, ItemId, TagId, VillagerTradeId};
 use crate::resource_location::ResourceLocation;
 
-#[doc = "**API Contract:** Run `sand api show sand::component::Tag` for the canonical contract."]
+#[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::component::Tag",
+    aliases = ["sand::prelude::Tag"],
+    module = "sand::component",
+    summary = "A Minecraft tag file that groups entities, items, blocks, or other objects together.",
+    context = "A Minecraft tag file that groups entities, items, blocks, or other objects together. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+    minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+    use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+    avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+    example = "use sand::component::Tag;",
+    fields(location = "The resource location for this tag.", values = "List of tag entries (item/block/entity IDs or tag references)."),
+)]
 /// A Minecraft tag file that groups entities, items, blocks, or other objects together.
 pub struct Tag {
-    #[doc = "**API Contract:** Run `sand api show sand::component::Tag::location` for the canonical contract."]
     /// The resource location for this tag.
     pub location: ResourceLocation,
     /// Whether this tag replaces existing tag definitions.
     replace: bool,
-    #[doc = "**API Contract:** Run `sand api show sand::component::Tag::values` for the canonical contract."]
     /// List of tag entries (item/block/entity IDs or tag references).
     pub values: Vec<String>,
 }
 
 impl Tag {
     /// Create a new tag with the given resource location.
-    #[doc = "**API Contract:** Run `sand api show sand::component::Tag::new` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::Tag::new",
+        aliases = ["sand::prelude::Tag::new"],
+        module = "sand::component",
+        kind = "method",
+        summary = "Create a new tag with the given resource location.",
+        context = "Create a new tag with the given resource location. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(location = "`location` provides the typed resource identifier or location used to create a new tag with the given resource location."),
+        returns = "A `Tag` representing a new tag with the given resource location.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(location: sand::ResourceLocation)  {\n    let tag = sand::component::Tag::new(location);\n}",
+    )]
     pub fn new(location: ResourceLocation) -> Self {
         Self {
             location,
@@ -32,21 +56,63 @@ impl Tag {
     }
 
     /// Add a single entry to this tag.
-    #[doc = "**API Contract:** Run `sand api show sand::component::Tag::entry` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::Tag::entry",
+        aliases = ["sand::prelude::Tag::entry"],
+        module = "sand::component",
+        kind = "method",
+        summary = "Add a single entry to this tag.",
+        context = "Add a single entry to this tag. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(id = "`id` provides the typed resource identifier or location used to add a single entry to this tag."),
+        returns = "The `Tag` value with the documented change applied to add a single entry to this tag.",
+        example = "use std::fmt;\nuse sand::prelude::*;\n\nfn demonstrate(tag_value: sand::component::Tag, id: impl std::fmt::Display)  {\n    let updated_tag = tag_value.entry(id);\n}",
+    )]
     pub fn entry(mut self, id: impl std::fmt::Display) -> Self {
         self.values.push(id.to_string());
         self
     }
 
     /// Add a reference to another tag (prefixed with `#`).
-    #[doc = "**API Contract:** Run `sand api show sand::component::Tag::tag_ref` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::Tag::tag_ref",
+        aliases = ["sand::prelude::Tag::tag_ref"],
+        module = "sand::component",
+        kind = "method",
+        summary = "Add a reference to another tag (prefixed with `#`).",
+        context = "Add a reference to another tag (prefixed with `#`). This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(tag = "`tag` provides the tag added when building a reference to another tag (prefixed with `#`)."),
+        returns = "The `Tag` value with the documented change applied to add a reference to another tag (prefixed with `#`).",
+        example = "use std::fmt;\nuse sand::prelude::*;\n\nfn demonstrate(tag_value: sand::component::Tag, tag: impl std::fmt::Display)  {\n    let updated_tag = tag_value.tag_ref(tag);\n}",
+    )]
     pub fn tag_ref(mut self, tag: impl std::fmt::Display) -> Self {
         self.values.push(format!("#{tag}"));
         self
     }
 
     /// Set whether this tag replaces existing tag definitions.
-    #[doc = "**API Contract:** Run `sand api show sand::component::Tag::replace` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::Tag::replace",
+        aliases = ["sand::prelude::Tag::replace"],
+        module = "sand::component",
+        kind = "method",
+        summary = "Set whether this tag replaces existing tag definitions.",
+        context = "Set whether this tag replaces existing tag definitions. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(v = "`v` provides the switch that enables or disables the behavior used to set whether this tag replaces existing tag definitions."),
+        returns = "The `Tag` value with the documented change applied to set whether this tag replaces existing tag definitions.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(tag_value: sand::component::Tag, v: bool)  {\n    let updated_tag = tag_value.replace(v);\n}",
+    )]
     pub fn replace(mut self, v: bool) -> Self {
         self.replace = v;
         self
@@ -74,17 +140,52 @@ mod sealed {
     pub trait Sealed {}
 }
 
-#[doc = "**API Contract:** Run `sand api show sand::component::TagRegistry` for the canonical contract."]
+#[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::component::TagRegistry",
+    aliases = ["sand::prelude::TagRegistry"],
+    module = "sand::component",
+    summary = "Registry marker implemented by IDs that have a vanilla datapack tag directory.",
+    context = "Registry marker implemented by IDs that have a vanilla datapack tag directory. This sealed mapping mirrors `registry_coverage::TAG_COVERAGE`; it prevents an item tag from being exported under `tags/block`, or from accepting a block ID by accident.",
+    minecraft = "This sealed mapping mirrors `registry_coverage::TAG_COVERAGE`; it prevents an item tag from being exported under `tags/block`, or from accepting a block ID by accident.",
+    use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+    avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+    example = "use sand::component::TagRegistry;",
+)]
 /// Registry marker implemented by IDs that have a vanilla datapack tag directory.
 ///
 /// This sealed mapping mirrors `registry_coverage::TAG_COVERAGE`; it prevents an
 /// item tag from being exported under `tags/block`, or from accepting a block ID
 /// by accident.
 pub trait TagRegistry: sealed::Sealed + Sized + std::fmt::Display {
-    #[doc = "**API Contract:** Run `sand api show sand::component::TagRegistry::REGISTRY_KEY` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::TagRegistry::REGISTRY_KEY",
+        aliases = ["sand::prelude::TagRegistry::REGISTRY_KEY"],
+        module = "sand::component",
+        kind = "associated_const",
+        summary = "Registry whose values the tag contains.",
+        context = "Registry whose values the tag contains. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        example = "use sand::component::TagRegistry;",
+    )]
     /// Registry whose values the tag contains.
     const REGISTRY_KEY: &'static str;
-    #[doc = "**API Contract:** Run `sand api show sand::component::TagRegistry::TAG_DIR` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::TagRegistry::TAG_DIR",
+        aliases = ["sand::prelude::TagRegistry::TAG_DIR"],
+        module = "sand::component",
+        kind = "associated_const",
+        summary = "Directory relative to `data/<namespace>/`.",
+        context = "Directory relative to `data/<namespace>/`. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        example = "use sand::component::TagRegistry;",
+    )]
     /// Directory relative to `data/<namespace>/`.
     const TAG_DIR: &'static str;
 }
@@ -116,7 +217,18 @@ enum EntryKind<T> {
     Raw(String),
 }
 
-#[doc = "**API Contract:** Run `sand api show sand::component::TagEntry` for the canonical contract."]
+#[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::component::TagEntry",
+    aliases = ["sand::prelude::TagEntry"],
+    module = "sand::component",
+    summary = "One registry-checked entry in a [`TypedTag`]. Required entries serialize as strings. Optional entries use vanilla's `{ \"id\": ..., \"required\": false }` form. Raw constructors validate the resource location and normalize tag references to exactly one leading `#`.",
+    context = "One registry-checked entry in a [`TypedTag`]. Required entries serialize as strings. Optional entries use vanilla's `{ \"id\": ..., \"required\": false }` form. Raw constructors validate the resource location and normalize tag references to exactly one leading `#`. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+    minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+    use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+    avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+    example = "use sand::component::TagEntry;",
+)]
 /// One registry-checked entry in a [`TypedTag`].
 ///
 /// Required entries serialize as strings. Optional entries use vanilla's
@@ -130,7 +242,21 @@ pub struct TagEntry<T> {
 
 impl<T> TagEntry<T> {
     /// Create a required registry value entry.
-    #[doc = "**API Contract:** Run `sand api show sand::component::TagEntry::value` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::TagEntry::value",
+        aliases = ["sand::prelude::TagEntry::value"],
+        module = "sand::component",
+        kind = "method",
+        summary = "Create a required registry value entry.",
+        context = "Create a required registry value entry. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(value = "`value` provides the value being applied or compared used to create a required registry value entry."),
+        returns = "A `TagEntry` representing a required registry value entry.",
+        example = "use sand::prelude::*;\n\nfn demonstrate<T: 'static>(value: T)  {\n    let tag_entry = sand::component::TagEntry ::< T >::value(value);\n}",
+    )]
     pub fn value(value: T) -> Self {
         Self {
             kind: EntryKind::Value(value),
@@ -139,7 +265,21 @@ impl<T> TagEntry<T> {
     }
 
     /// Create an optional registry value entry.
-    #[doc = "**API Contract:** Run `sand api show sand::component::TagEntry::optional_value` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::TagEntry::optional_value",
+        aliases = ["sand::prelude::TagEntry::optional_value"],
+        module = "sand::component",
+        kind = "method",
+        summary = "Create an optional registry value entry.",
+        context = "Create an optional registry value entry. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(value = "`value` provides the value being applied or compared used to create an optional registry value entry."),
+        returns = "A `TagEntry` representing an optional registry value entry.",
+        example = "use sand::prelude::*;\n\nfn demonstrate<T: 'static>(value: T)  {\n    let tag_entry = sand::component::TagEntry ::< T >::optional_value(value);\n}",
+    )]
     pub fn optional_value(value: T) -> Self {
         Self {
             kind: EntryKind::Value(value),
@@ -148,7 +288,21 @@ impl<T> TagEntry<T> {
     }
 
     /// Create a required reference to another tag in the same registry.
-    #[doc = "**API Contract:** Run `sand api show sand::component::TagEntry::tag` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::TagEntry::tag",
+        aliases = ["sand::prelude::TagEntry::tag"],
+        module = "sand::component",
+        kind = "method",
+        summary = "Create a required reference to another tag in the same registry.",
+        context = "Create a required reference to another tag in the same registry. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(tag = "`tag` is used when creating a required reference to another tag in the same registry."),
+        returns = "A `TagEntry` representing a required reference to another tag in the same registry.",
+        example = "use sand::prelude::*;\n\nfn demonstrate<T: 'static>(tag: sand::component::TagId < T >)  {\n    let tag_entry = sand::component::TagEntry ::< T >::tag(tag);\n}",
+    )]
     pub fn tag(tag: TagId<T>) -> Self {
         Self {
             kind: EntryKind::Tag(tag),
@@ -157,7 +311,21 @@ impl<T> TagEntry<T> {
     }
 
     /// Create an optional reference to another tag in the same registry.
-    #[doc = "**API Contract:** Run `sand api show sand::component::TagEntry::optional_tag` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::TagEntry::optional_tag",
+        aliases = ["sand::prelude::TagEntry::optional_tag"],
+        module = "sand::component",
+        kind = "method",
+        summary = "Create an optional reference to another tag in the same registry.",
+        context = "Create an optional reference to another tag in the same registry. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(tag = "`tag` is used when creating an optional reference to another tag in the same registry."),
+        returns = "A `TagEntry` representing an optional reference to another tag in the same registry.",
+        example = "use sand::prelude::*;\n\nfn demonstrate<T: 'static>(tag: sand::component::TagId < T >)  {\n    let tag_entry = sand::component::TagEntry ::< T >::optional_tag(tag);\n}",
+    )]
     pub fn optional_tag(tag: TagId<T>) -> Self {
         Self {
             kind: EntryKind::Tag(tag),
@@ -166,13 +334,41 @@ impl<T> TagEntry<T> {
     }
 
     /// Validated escape hatch for a value ID or `#`-prefixed tag reference.
-    #[doc = "**API Contract:** Run `sand api show sand::component::TagEntry::raw` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::TagEntry::raw",
+        aliases = ["sand::prelude::TagEntry::raw"],
+        module = "sand::component",
+        kind = "method",
+        summary = "Validated escape hatch for a value ID or `#`-prefixed tag reference.",
+        context = "Validated escape hatch for a value ID or `#`-prefixed tag reference. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(id = "`id` provides the typed resource identifier or location used to use validated escape hatch for a value ID or `#`-prefixed tag reference."),
+        returns = "On success, the value produced to use validated escape hatch for a value ID or `#`-prefixed tag reference; otherwise, the documented validation or export diagnostic.",
+        example = "use sand::prelude::*;\n\nfn demonstrate<T: 'static>(id: impl AsRef < str >)  {\n    let raw = sand::component::TagEntry ::< T >::raw(id);\n}",
+    )]
     pub fn raw(id: impl AsRef<str>) -> Result<Self> {
         Self::raw_with_required(id.as_ref(), true)
     }
 
     /// Validated optional escape hatch for a value ID or tag reference.
-    #[doc = "**API Contract:** Run `sand api show sand::component::TagEntry::optional_raw` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::TagEntry::optional_raw",
+        aliases = ["sand::prelude::TagEntry::optional_raw"],
+        module = "sand::component",
+        kind = "method",
+        summary = "Validated optional escape hatch for a value ID or tag reference.",
+        context = "Validated optional escape hatch for a value ID or tag reference. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(id = "`id` provides the typed resource identifier or location used to use validated optional escape hatch for a value ID or tag reference."),
+        returns = "On success, the value produced to use validated optional escape hatch for a value ID or tag reference; otherwise, the documented validation or export diagnostic.",
+        example = "use sand::prelude::*;\n\nfn demonstrate<T: 'static>(id: impl AsRef < str >)  {\n    let optional_raw = sand::component::TagEntry ::< T >::optional_raw(id);\n}",
+    )]
     pub fn optional_raw(id: impl AsRef<str>) -> Result<Self> {
         Self::raw_with_required(id.as_ref(), false)
     }
@@ -217,7 +413,18 @@ impl<T: std::fmt::Display> TagEntry<T> {
     }
 }
 
-#[doc = "**API Contract:** Run `sand api show sand::component::TypedTag` for the canonical contract."]
+#[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::component::TypedTag",
+    aliases = ["sand::prelude::TypedTag"],
+    module = "sand::component",
+    summary = "A tag whose entries and output directory are tied to registry type `T`.",
+    context = "A tag whose entries and output directory are tied to registry type `T`. Entries retain insertion order, including duplicates, matching the legacy [`Tag`] behavior and making output deterministic. Empty typed tags are rejected by default; call [`TypedTag::allow_empty`] when an intentionally empty tag is required.",
+    minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+    use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+    avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+    example = "use sand::component::TypedTag;",
+)]
 /// A tag whose entries and output directory are tied to registry type `T`.
 ///
 /// Entries retain insertion order, including duplicates, matching the legacy
@@ -241,7 +448,21 @@ pub struct TypedTag<T: TagRegistry> {
 
 impl<T: TagRegistry> TypedTag<T> {
     /// Create an empty typed tag. Add values or explicitly call `allow_empty(true)`.
-    #[doc = "**API Contract:** Run `sand api show sand::component::TypedTag::new` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::TypedTag::new",
+        aliases = ["sand::prelude::TypedTag::new"],
+        module = "sand::component",
+        kind = "method",
+        summary = "Create an empty typed tag. Add values or explicitly call `allow_empty(true)`.",
+        context = "Create an empty typed tag. Add values or explicitly call `allow_empty(true)`. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(location = "`location` provides the typed resource identifier or location used to create an empty typed tag. Add values or explicitly call `allow_empty(true)`."),
+        returns = "A `TypedTag` representing an empty typed tag. Add values or explicitly call `allow_empty(true)`.",
+        example = "use sand::prelude::*;\n\nfn demonstrate<T : sand::component::TagRegistry + 'static>(location: sand::component::TagId < T >)  {\n    let typed_tag = sand::component::TypedTag ::< T >::new(location);\n}",
+    )]
     pub fn new(location: TagId<T>) -> Self {
         Self {
             location,
@@ -253,62 +474,201 @@ impl<T: TagRegistry> TypedTag<T> {
     }
 
     /// Add a required value.
-    #[doc = "**API Contract:** Run `sand api show sand::component::TypedTag::entry` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::TypedTag::entry",
+        aliases = ["sand::prelude::TypedTag::entry"],
+        module = "sand::component",
+        kind = "method",
+        summary = "Add a required value.",
+        context = "Add a required value. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(value = "`value` provides the value being applied or compared used to add a required value."),
+        returns = "The `TypedTag` value with the documented change applied to add a required value.",
+        example = "use sand::prelude::*;\n\nfn demonstrate<T : sand::component::TagRegistry + 'static>(typed_tag_value: sand::component::TypedTag < T >, value: T)  {\n    let updated_typed_tag = typed_tag_value.entry(value);\n}",
+    )]
     pub fn entry(mut self, value: T) -> Self {
         self.values.push(TagEntry::value(value));
         self
     }
     /// Add an optional value.
-    #[doc = "**API Contract:** Run `sand api show sand::component::TypedTag::optional_entry` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::TypedTag::optional_entry",
+        aliases = ["sand::prelude::TypedTag::optional_entry"],
+        module = "sand::component",
+        kind = "method",
+        summary = "Add an optional value.",
+        context = "Add an optional value. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(value = "`value` provides the value being applied or compared used to add an optional value."),
+        returns = "The `TypedTag` value with the documented change applied to add an optional value.",
+        example = "use sand::prelude::*;\n\nfn demonstrate<T : sand::component::TagRegistry + 'static>(typed_tag_value: sand::component::TypedTag < T >, value: T)  {\n    let updated_typed_tag = typed_tag_value.optional_entry(value);\n}",
+    )]
     pub fn optional_entry(mut self, value: T) -> Self {
         self.values.push(TagEntry::optional_value(value));
         self
     }
     /// Add a required reference to another tag in this registry.
-    #[doc = "**API Contract:** Run `sand api show sand::component::TypedTag::tag_ref` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::TypedTag::tag_ref",
+        aliases = ["sand::prelude::TypedTag::tag_ref"],
+        module = "sand::component",
+        kind = "method",
+        summary = "Add a required reference to another tag in this registry.",
+        context = "Add a required reference to another tag in this registry. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(tag = "`tag` provides the tag added when building a required reference to another tag in this registry."),
+        returns = "The `TypedTag` value with the documented change applied to add a required reference to another tag in this registry.",
+        example = "use sand::prelude::*;\n\nfn demonstrate<T : sand::component::TagRegistry + 'static>(typed_tag_value: sand::component::TypedTag < T >, tag: sand::component::TagId < T >)  {\n    let updated_typed_tag = typed_tag_value.tag_ref(tag);\n}",
+    )]
     pub fn tag_ref(mut self, tag: TagId<T>) -> Self {
         self.values.push(TagEntry::tag(tag));
         self
     }
     /// Add an optional reference to another tag in this registry.
-    #[doc = "**API Contract:** Run `sand api show sand::component::TypedTag::optional_tag_ref` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::TypedTag::optional_tag_ref",
+        aliases = ["sand::prelude::TypedTag::optional_tag_ref"],
+        module = "sand::component",
+        kind = "method",
+        summary = "Add an optional reference to another tag in this registry.",
+        context = "Add an optional reference to another tag in this registry. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(tag = "`tag` provides the tag added when building an optional reference to another tag in this registry."),
+        returns = "The `TypedTag` value with the documented change applied to add an optional reference to another tag in this registry.",
+        example = "use sand::prelude::*;\n\nfn demonstrate<T : sand::component::TagRegistry + 'static>(typed_tag_value: sand::component::TypedTag < T >, tag: sand::component::TagId < T >)  {\n    let updated_typed_tag = typed_tag_value.optional_tag_ref(tag);\n}",
+    )]
     pub fn optional_tag_ref(mut self, tag: TagId<T>) -> Self {
         self.values.push(TagEntry::optional_tag(tag));
         self
     }
     /// Add a validated raw value or tag reference.
-    #[doc = "**API Contract:** Run `sand api show sand::component::TypedTag::raw_entry` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::TypedTag::raw_entry",
+        aliases = ["sand::prelude::TypedTag::raw_entry"],
+        module = "sand::component",
+        kind = "method",
+        summary = "Add a validated raw value or tag reference.",
+        context = "Add a validated raw value or tag reference. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(id = "`id` provides the typed resource identifier or location used to add a validated raw value or tag reference."),
+        returns = "On success, the value produced to add a validated raw value or tag reference; otherwise, the documented validation or export diagnostic.",
+        example = "use sand::prelude::*;\n\nfn demonstrate<T : sand::component::TagRegistry + 'static>(typed_tag_value: sand::component::TypedTag < T >, id: impl AsRef < str >)  {\n    let raw_entry = typed_tag_value.raw_entry(id);\n}",
+    )]
     pub fn raw_entry(mut self, id: impl AsRef<str>) -> Result<Self> {
         self.values.push(TagEntry::raw(id)?);
         Ok(self)
     }
     /// Add a validated optional raw value or tag reference.
-    #[doc = "**API Contract:** Run `sand api show sand::component::TypedTag::optional_raw_entry` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::TypedTag::optional_raw_entry",
+        aliases = ["sand::prelude::TypedTag::optional_raw_entry"],
+        module = "sand::component",
+        kind = "method",
+        summary = "Add a validated optional raw value or tag reference.",
+        context = "Add a validated optional raw value or tag reference. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(id = "`id` provides the typed resource identifier or location used to add a validated optional raw value or tag reference."),
+        returns = "On success, the value produced to add a validated optional raw value or tag reference; otherwise, the documented validation or export diagnostic.",
+        example = "use sand::prelude::*;\n\nfn demonstrate<T : sand::component::TagRegistry + 'static>(typed_tag_value: sand::component::TypedTag < T >, id: impl AsRef < str >)  {\n    let optional_raw_entry = typed_tag_value.optional_raw_entry(id);\n}",
+    )]
     pub fn optional_raw_entry(mut self, id: impl AsRef<str>) -> Result<Self> {
         self.values.push(TagEntry::optional_raw(id)?);
         Ok(self)
     }
     /// Add an already constructed typed entry.
-    #[doc = "**API Contract:** Run `sand api show sand::component::TypedTag::with_entry` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::TypedTag::with_entry",
+        aliases = ["sand::prelude::TypedTag::with_entry"],
+        module = "sand::component",
+        kind = "method",
+        summary = "Add an already constructed typed entry.",
+        context = "Add an already constructed typed entry. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(entry = "`entry` provides the entry added when building an already constructed typed entry."),
+        returns = "The `TypedTag` value with the documented change applied to add an already constructed typed entry.",
+        example = "use sand::prelude::*;\n\nfn demonstrate<T : sand::component::TagRegistry + 'static>(typed_tag_value: sand::component::TypedTag < T >, entry: sand::component::TagEntry < T >)  {\n    let updated_typed_tag = typed_tag_value.with_entry(entry);\n}",
+    )]
     pub fn with_entry(mut self, entry: TagEntry<T>) -> Self {
         self.values.push(entry);
         self
     }
 
     /// Set vanilla's replacement flag.
-    #[doc = "**API Contract:** Run `sand api show sand::component::TypedTag::replace` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::TypedTag::replace",
+        aliases = ["sand::prelude::TypedTag::replace"],
+        module = "sand::component",
+        kind = "method",
+        summary = "Set vanilla's replacement flag.",
+        context = "Set vanilla's replacement flag. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(replace = "`replace` provides the switch that enables or disables the behavior used to set vanilla's replacement flag."),
+        returns = "The `TypedTag` value with the documented change applied to set vanilla's replacement flag.",
+        example = "use sand::prelude::*;\n\nfn demonstrate<T : sand::component::TagRegistry + 'static>(typed_tag_value: sand::component::TypedTag < T >, replace: bool)  {\n    let updated_typed_tag = typed_tag_value.replace(replace);\n}",
+    )]
     pub fn replace(mut self, replace: bool) -> Self {
         self.replace = replace;
         self
     }
     /// Permit or reject an empty values array. Empty tags are rejected by default.
-    #[doc = "**API Contract:** Run `sand api show sand::component::TypedTag::allow_empty` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::TypedTag::allow_empty",
+        aliases = ["sand::prelude::TypedTag::allow_empty"],
+        module = "sand::component",
+        kind = "method",
+        summary = "Permit or reject an empty values array. Empty tags are rejected by default.",
+        context = "Permit or reject an empty values array. Empty tags are rejected by default. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(allow = "`allow` provides the switch that enables or disables the behavior used to permit or reject an empty values array. Empty tags are rejected by default."),
+        returns = "The `TypedTag` value with the documented change applied to permit or reject an empty values array. Empty tags are rejected by default.",
+        example = "use sand::prelude::*;\n\nfn demonstrate<T : sand::component::TagRegistry + 'static>(typed_tag_value: sand::component::TypedTag < T >, allow: bool)  {\n    let updated_typed_tag = typed_tag_value.allow_empty(allow);\n}",
+    )]
     pub fn allow_empty(mut self, allow: bool) -> Self {
         self.allow_empty = allow;
         self
     }
     /// Entries in deterministic insertion order. Duplicates are retained.
-    #[doc = "**API Contract:** Run `sand api show sand::component::TypedTag::values` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::TypedTag::values",
+        aliases = ["sand::prelude::TypedTag::values"],
+        module = "sand::component",
+        kind = "method",
+        summary = "Entries in deterministic insertion order. Duplicates are retained.",
+        context = "Entries in deterministic insertion order. Duplicates are retained. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        returns = "The `& [TagEntry < T >]` value produced to entrie in deterministic insertion order. Duplicates are retained.",
+        example = "use sand::prelude::*;\n\nfn demonstrate<T : sand::component::TagRegistry + 'static>(typed_tag_value: &sand::component::TypedTag < T >)  {\n    let values = typed_tag_value.values();\n}",
+    )]
     pub fn values(&self) -> &[TagEntry<T>] {
         &self.values
     }

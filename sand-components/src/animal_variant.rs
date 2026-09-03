@@ -27,7 +27,17 @@ use crate::validation;
 ///   }
 /// }
 /// ```
-#[doc = "**API Contract:** Run `sand api show sand::component::SpawnCondition` for the canonical contract."]
+#[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::component::SpawnCondition",
+    module = "sand::component",
+    summary = "One entry of a variant registry's `spawn_conditions` prioritized list.",
+    context = "One entry of a variant registry's `spawn_conditions` prioritized list. Serializes as:",
+    minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+    use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+    avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+    example = "use sand::component::SpawnCondition;",
+)]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SpawnCondition {
     biomes: Value,
@@ -37,7 +47,20 @@ pub struct SpawnCondition {
 impl SpawnCondition {
     /// A biome-scoped spawn condition for a single biome ID or tag reference
     /// (e.g. `"minecraft:snowy_taiga"` or `"#minecraft:is_snowy"`).
-    #[doc = "**API Contract:** Run `sand api show sand::component::SpawnCondition::biome` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::SpawnCondition::biome",
+        module = "sand::component",
+        kind = "method",
+        summary = "A biome-scoped spawn condition for a single biome ID or tag reference (e.g. `\"minecraft:snowy_taiga\"` or `\"#minecraft:is_snowy\"`).",
+        context = "A biome-scoped spawn condition for a single biome ID or tag reference (e.g. `\"minecraft:snowy_taiga\"` or `\"#minecraft:is_snowy\"`). This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(biome_id = "`biome_id` sets the biome id for a biome-scoped spawn condition for a single biome ID or tag reference (e.g. `\"minecraft:snowy_taiga\"` or `\"#minecraft:is_snowy\"`).", priority = "`priority` sets the priority for a biome-scoped spawn condition for a single biome ID or tag reference (e.g. `\"minecraft:snowy_taiga\"` or `\"#minecraft:is_snowy\"`)."),
+        returns = "A `SpawnCondition` configured for a biome-scoped spawn condition for a single biome ID or tag reference (e.g. `\"minecraft:snowy_taiga\"` or `\"#minecraft:is_snowy\"`).",
+        example = "use sand::prelude::*;\n\nfn demonstrate(biome_id: impl Into < String >, priority: i32)  {\n    let spawn_condition = sand::component::SpawnCondition::biome(biome_id, priority);\n}",
+    )]
     pub fn biome(biome_id: impl Into<String>, priority: i32) -> Self {
         Self {
             biomes: Value::String(biome_id.into()),
@@ -47,7 +70,20 @@ impl SpawnCondition {
 
     /// A biome-scoped spawn condition matching any of several biome IDs /
     /// tag references.
-    #[doc = "**API Contract:** Run `sand api show sand::component::SpawnCondition::biomes` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::SpawnCondition::biomes",
+        module = "sand::component",
+        kind = "method",
+        summary = "A biome-scoped spawn condition matching any of several biome IDs / tag references.",
+        context = "A biome-scoped spawn condition matching any of several biome IDs / tag references. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(biome_ids = "`biome_ids` sets the biome ids for a biome-scoped spawn condition matching any of several biome IDs / tag references.", priority = "`priority` sets the priority for a biome-scoped spawn condition matching any of several biome IDs / tag references."),
+        returns = "A `SpawnCondition` configured for a biome-scoped spawn condition matching any of several biome IDs / tag references.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(biome_ids: impl IntoIterator < Item = impl Into < String > >, priority: i32)  {\n    let spawn_condition = sand::component::SpawnCondition::biomes(biome_ids, priority);\n}",
+    )]
     pub fn biomes(biome_ids: impl IntoIterator<Item = impl Into<String>>, priority: i32) -> Self {
         Self {
             biomes: Value::Array(
@@ -65,7 +101,20 @@ impl SpawnCondition {
     /// Explicit escape hatch: the value still passes through the same
     /// biome-selector validation as [`SpawnCondition::biome`] /
     /// [`SpawnCondition::biomes`] at export time.
-    #[doc = "**API Contract:** Run `sand api show sand::component::SpawnCondition::biomes_raw` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::SpawnCondition::biomes_raw",
+        module = "sand::component",
+        kind = "method",
+        summary = "Build a biome condition from a raw JSON `biomes` shape.",
+        context = "Build a biome condition from a raw JSON `biomes` shape. Explicit escape hatch: the value still passes through the same biome-selector validation as [`SpawnCondition::biome`] / [`SpawnCondition::biomes`] at export time.",
+        minecraft = "Explicit escape hatch: the value still passes through the same biome-selector validation as [`SpawnCondition::biome`] / [`SpawnCondition::biomes`] at export time.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(biomes = "Build a biome condition from a raw JSON `biomes` shape.", priority = "`priority` provides the priority used to build a biome condition from a raw JSON `biomes` shape."),
+        returns = "A `SpawnCondition` that builds a biome condition from a raw JSON `biomes` shape.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(biomes: sand::component::RawJson, priority: i32)  {\n    let spawn_condition = sand::component::SpawnCondition::biomes_raw(biomes, priority);\n}",
+    )]
     pub fn biomes_raw(biomes: RawJson, priority: i32) -> Self {
         Self {
             biomes: biomes.into_value(),

@@ -524,33 +524,38 @@ fn presence_execute(target: &DataTarget, path: &str) -> Execute {
 
 // ── Integration seam for #230 ───────────────────────────────────────────────
 
-#[doc = "**API Contract:** Run `sand api show sand::participant::ItemParticipantRole` for the canonical contract."]
+#[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::participant::ItemParticipantRole",
+    aliases = ["sand::item::ItemRole", "sand::item::snapshot::ItemRole", "sand::prelude::ItemParticipantRole"],
+    module = "sand::participant",
+    summary = "The role an item plays in a future participant-rich event context (#230). Phase 7 defines this purely as a stable label to pair with an [`ItemSnapshot`] via [`EventItem`] — it does not implement any role-specific observation/correlation backend; that is #230's work.",
+    context = "The role an item plays in a future participant-rich event context (#230). Phase 7 defines this purely as a stable label to pair with an [`ItemSnapshot`] via [`EventItem`] — it does not implement any role-specific observation/correlation backend; that is #230's work. Participants are available only when the event plan declares a real observation or a valid same-cycle inheritance path; the exporter rejects unsupported transport.",
+    minecraft = "Entity relationships use the matching execute relation, while item snapshots are copied into Sand-owned command storage and cleaned up at the end of their declared lifetime.",
+    use_when = ["Declaring or reading a typed participant whose lifecycle is guaranteed by the event plan"],
+    avoid_when = ["Assuming an entity or item remains live beyond its declared invocation, event-cycle, or bounded correlation lifetime"],
+    example = "use sand::participant::ItemParticipantRole;",
+    variants(Ammunition = "The ammunition item consumed to fire a projectile.", DroppedItem = "An item that was dropped as part of the event.", EquippedItem = "An item equipped as part of the event.", ProjectileItem = "A projectile's own item form, where representable.", Tool = "The tool used for a block-interaction event.", UsedItem = "The item directly used to trigger the event (e.g. a consumed item, a placed block's item, a used tool).", Weapon = "The item wielded as a weapon in a combat event."),
+)]
 /// The role an item plays in a future participant-rich event context
 /// (#230). Phase 7 defines this purely as a stable label to pair with an
 /// [`ItemSnapshot`] via [`EventItem`] — it does not implement any
 /// role-specific observation/correlation backend; that is #230's work.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum ItemRole {
-    #[doc = "**API Contract:** Run `sand api show sand::participant::ItemParticipantRole::UsedItem` for the canonical contract."]
     /// The item directly used to trigger the event (e.g. a consumed item,
     /// a placed block's item, a used tool).
     UsedItem,
-    #[doc = "**API Contract:** Run `sand api show sand::participant::ItemParticipantRole::Weapon` for the canonical contract."]
     /// The item wielded as a weapon in a combat event.
     Weapon,
-    #[doc = "**API Contract:** Run `sand api show sand::participant::ItemParticipantRole::Tool` for the canonical contract."]
     /// The tool used for a block-interaction event.
     Tool,
-    #[doc = "**API Contract:** Run `sand api show sand::participant::ItemParticipantRole::ProjectileItem` for the canonical contract."]
     /// A projectile's own item form, where representable.
     ProjectileItem,
-    #[doc = "**API Contract:** Run `sand api show sand::participant::ItemParticipantRole::Ammunition` for the canonical contract."]
     /// The ammunition item consumed to fire a projectile.
     Ammunition,
-    #[doc = "**API Contract:** Run `sand api show sand::participant::ItemParticipantRole::DroppedItem` for the canonical contract."]
     /// An item that was dropped as part of the event.
     DroppedItem,
-    #[doc = "**API Contract:** Run `sand api show sand::participant::ItemParticipantRole::EquippedItem` for the canonical contract."]
     /// An item equipped as part of the event.
     EquippedItem,
 }

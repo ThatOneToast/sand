@@ -16,21 +16,44 @@ use crate::validation;
 
 const KIND: &str = "worldgen/template_pool";
 
-#[doc = "**API Contract:** Run `sand api show sand::component::Projection` for the canonical contract."]
+#[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::component::Projection",
+    aliases = ["sand::prelude::Projection"],
+    module = "sand::component",
+    summary = "A jigsaw structure's projection mode against surrounding terrain.",
+    context = "A jigsaw structure's projection mode against surrounding terrain. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+    minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+    use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+    avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+    example = "use sand::component::Projection;",
+    variants(Rigid = "The piece is placed exactly as authored, ignoring terrain height.", TerrainMatching = "The piece is translated vertically to match surrounding terrain."),
+)]
 /// A jigsaw structure's projection mode against surrounding terrain.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Projection {
-    #[doc = "**API Contract:** Run `sand api show sand::component::Projection::Rigid` for the canonical contract."]
     /// The piece is placed exactly as authored, ignoring terrain height.
     Rigid,
-    #[doc = "**API Contract:** Run `sand api show sand::component::Projection::TerrainMatching` for the canonical contract."]
     /// The piece is translated vertically to match surrounding terrain.
     TerrainMatching,
 }
 
 impl Projection {
     /// The vanilla string written into datapack JSON.
-    #[doc = "**API Contract:** Run `sand api show sand::component::Projection::as_str` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::Projection::as_str",
+        aliases = ["sand::prelude::Projection::as_str"],
+        module = "sand::component",
+        kind = "method",
+        summary = "The vanilla string written into datapack JSON.",
+        context = "The vanilla string written into datapack JSON. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        returns = "The string value produced to use the vanilla string written into datapack JSON.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(projection_value: &sand::component::Projection)  {\n    let as_str = projection_value.as_str();\n}",
+    )]
     pub fn as_str(&self) -> &'static str {
         match self {
             Self::Rigid => "rigid",
@@ -39,24 +62,29 @@ impl Projection {
     }
 }
 
-#[doc = "**API Contract:** Run `sand api show sand::component::ProcessorsRef` for the canonical contract."]
+#[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::component::ProcessorsRef",
+    aliases = ["sand::prelude::ProcessorsRef"],
+    module = "sand::component",
+    summary = "The processor list a pool element uses, as either a typed reference or an inline anonymous processor list.",
+    context = "The processor list a pool element uses, as either a typed reference or an inline anonymous processor list. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+    minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+    use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+    avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+    example = "use sand::component::ProcessorsRef;",
+    variants(Inline = "An inline anonymous processor list object (`{\"processors\": [...]}`).", Named = "A reference to a `worldgen/processor_list` entry."),
+    variant_fields(Inline = ["An inline anonymous processor list object (`{\"processors\": [...]}`)."], Named = ["A reference to a `worldgen/processor_list` entry."]),
+)]
 /// The processor list a pool element uses, as either a typed reference or an
 /// inline anonymous processor list.
 #[derive(Debug, Clone, PartialEq)]
 pub enum ProcessorsRef {
-    #[doc = "**API Contract:** Run `sand api show sand::component::ProcessorsRef::Named` for the canonical contract."]
     /// A reference to a `worldgen/processor_list` entry.
-    Named(
-        #[doc = "The `Named` variant carries the value described by its variant semantics: A reference to a `worldgen/processor_list` entry."]
-        #[doc = "**API Contract:** Run `sand api show sand::component::ProcessorsRef::Named::0` for the canonical contract."]
-        ProcessorListId,
-    ),
-    #[doc = "**API Contract:** Run `sand api show sand::component::ProcessorsRef::Inline` for the canonical contract."]
+    Named(#[doc = "A reference to a `worldgen/processor_list` entry."] ProcessorListId),
     /// An inline anonymous processor list object (`{"processors": [...]}`).
     Inline(
-        #[doc = "The `Inline` variant carries the value described by its variant semantics: An inline anonymous processor list object (`{\"processors\": [...]}`)."]
-        #[doc = "**API Contract:** Run `sand api show sand::component::ProcessorsRef::Inline::0` for the canonical contract."]
-        RawJson,
+        #[doc = "An inline anonymous processor list object (`{\"processors\": [...]}`)."] RawJson,
     ),
 }
 
@@ -86,73 +114,80 @@ impl ProcessorsRef {
     }
 }
 
-#[doc = "**API Contract:** Run `sand api show sand::component::PoolElement` for the canonical contract."]
+#[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::component::PoolElement",
+    aliases = ["sand::prelude::PoolElement"],
+    module = "sand::component",
+    summary = "One jigsaw pool element (the `element` payload inside a weighted entry).",
+    context = "One jigsaw pool element (the `element` payload inside a weighted entry). This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+    minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+    use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+    avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+    example = "use sand::component::PoolElement;",
+    variants(Empty = "`minecraft:empty_pool_element` — a placeholder that generates nothing.", Feature = "`minecraft:feature_pool_element` — places a configured feature.", LegacySingle = "`minecraft:legacy_single_pool_element` — like `Single`, but preserves pre-1.13 block/data behavior for legacy structure templates.", List = "`minecraft:list_pool_element` — an ordered list of alternative elements, the first of which that can be placed is used.", Raw = "An explicitly raw pool element object for unsupported or modded types.", Single = "`minecraft:single_pool_element` — a single `.nbt` structure template."),
+    variant_fields(Feature(feature = "`feature` provides the feature identifier when `minecraft:feature_pool_element` — places a configured feature.", projection = "`projection` provides the projection when `minecraft:feature_pool_element` — places a configured feature."), LegacySingle(location = "`location` provides the location identifier when `minecraft:legacy_single_pool_element` — like `Single`, but preserves pre-1.13 block/data behavior for legacy structure templates.", processors = "`processors` provides the processors when `minecraft:legacy_single_pool_element` — like `Single`, but preserves pre-1.13 block/data behavior for legacy structure templates.", projection = "`projection` provides the projection when `minecraft:legacy_single_pool_element` — like `Single`, but preserves pre-1.13 block/data behavior for legacy structure templates."), List(elements = "`elements` provides the elements when `minecraft:list_pool_element` — an ordered list of alternative elements, the first of which that can be placed is used.", projection = "`projection` provides the projection when `minecraft:list_pool_element` — an ordered list of alternative elements, the first of which that can be placed is used."), Raw = ["An explicitly raw pool element object for unsupported or modded types."], Single(location = "`location` provides the location identifier when `minecraft:single_pool_element` — a single `.nbt` structure template.", processors = "`processors` provides the processors when `minecraft:single_pool_element` — a single `.nbt` structure template.", projection = "`projection` provides the projection when `minecraft:single_pool_element` — a single `.nbt` structure template.")),
+)]
 /// One jigsaw pool element (the `element` payload inside a weighted entry).
 #[derive(Debug, Clone, PartialEq)]
 pub enum PoolElement {
-    #[doc = "**API Contract:** Run `sand api show sand::component::PoolElement::Single` for the canonical contract."]
     /// `minecraft:single_pool_element` — a single `.nbt` structure template.
     Single {
         /// `location` provides the location identifier when `minecraft:single_pool_element` — a single `.nbt` structure template.
-        #[doc = "**API Contract:** Run `sand api show sand::component::PoolElement::Single::location` for the canonical contract."]
         location: StructureTemplateId,
         /// `processors` provides the processors when `minecraft:single_pool_element` — a single `.nbt` structure template.
-        #[doc = "**API Contract:** Run `sand api show sand::component::PoolElement::Single::processors` for the canonical contract."]
         processors: ProcessorsRef,
         /// `projection` provides the projection when `minecraft:single_pool_element` — a single `.nbt` structure template.
-        #[doc = "**API Contract:** Run `sand api show sand::component::PoolElement::Single::projection` for the canonical contract."]
         projection: Projection,
     },
-    #[doc = "**API Contract:** Run `sand api show sand::component::PoolElement::LegacySingle` for the canonical contract."]
     /// `minecraft:legacy_single_pool_element` — like `Single`, but preserves
     /// pre-1.13 block/data behavior for legacy structure templates.
     LegacySingle {
         /// `location` provides the location identifier when `minecraft:legacy_single_pool_element` — like `Single`, but preserves pre-1.13 block/data behavior for legacy structure templates.
-        #[doc = "**API Contract:** Run `sand api show sand::component::PoolElement::LegacySingle::location` for the canonical contract."]
         location: StructureTemplateId,
         /// `processors` provides the processors when `minecraft:legacy_single_pool_element` — like `Single`, but preserves pre-1.13 block/data behavior for legacy structure templates.
-        #[doc = "**API Contract:** Run `sand api show sand::component::PoolElement::LegacySingle::processors` for the canonical contract."]
         processors: ProcessorsRef,
         /// `projection` provides the projection when `minecraft:legacy_single_pool_element` — like `Single`, but preserves pre-1.13 block/data behavior for legacy structure templates.
-        #[doc = "**API Contract:** Run `sand api show sand::component::PoolElement::LegacySingle::projection` for the canonical contract."]
         projection: Projection,
     },
-    #[doc = "**API Contract:** Run `sand api show sand::component::PoolElement::Empty` for the canonical contract."]
     /// `minecraft:empty_pool_element` — a placeholder that generates nothing.
     Empty,
-    #[doc = "**API Contract:** Run `sand api show sand::component::PoolElement::Feature` for the canonical contract."]
     /// `minecraft:feature_pool_element` — places a configured feature.
     Feature {
         /// `feature` provides the feature identifier when `minecraft:feature_pool_element` — places a configured feature.
-        #[doc = "**API Contract:** Run `sand api show sand::component::PoolElement::Feature::feature` for the canonical contract."]
         feature: ResourceLocation,
         /// `projection` provides the projection when `minecraft:feature_pool_element` — places a configured feature.
-        #[doc = "**API Contract:** Run `sand api show sand::component::PoolElement::Feature::projection` for the canonical contract."]
         projection: Projection,
     },
-    #[doc = "**API Contract:** Run `sand api show sand::component::PoolElement::List` for the canonical contract."]
     /// `minecraft:list_pool_element` — an ordered list of alternative
     /// elements, the first of which that can be placed is used.
     List {
         /// `elements` provides the elements when `minecraft:list_pool_element` — an ordered list of alternative elements, the first of which that can be placed is used.
-        #[doc = "**API Contract:** Run `sand api show sand::component::PoolElement::List::elements` for the canonical contract."]
         elements: Vec<PoolElement>,
         /// `projection` provides the projection when `minecraft:list_pool_element` — an ordered list of alternative elements, the first of which that can be placed is used.
-        #[doc = "**API Contract:** Run `sand api show sand::component::PoolElement::List::projection` for the canonical contract."]
         projection: Projection,
     },
-    #[doc = "**API Contract:** Run `sand api show sand::component::PoolElement::Raw` for the canonical contract."]
     /// An explicitly raw pool element object for unsupported or modded types.
-    Raw(
-        #[doc = "The `Raw` variant carries the value described by its variant semantics: An explicitly raw pool element object for unsupported or modded types."]
-        #[doc = "**API Contract:** Run `sand api show sand::component::PoolElement::Raw::0` for the canonical contract."]
-        RawJson,
-    ),
+    Raw(#[doc = "An explicitly raw pool element object for unsupported or modded types."] RawJson),
 }
 
 impl PoolElement {
     /// A `minecraft:single_pool_element` with vanilla `minecraft:empty` processors and rigid projection.
-    #[doc = "**API Contract:** Run `sand api show sand::component::PoolElement::single` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::PoolElement::single",
+        aliases = ["sand::prelude::PoolElement::single"],
+        module = "sand::component",
+        kind = "method",
+        summary = "A `minecraft:single_pool_element` with vanilla `minecraft:empty` processors and rigid projection.",
+        context = "A `minecraft:single_pool_element` with vanilla `minecraft:empty` processors and rigid projection. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(location = "`location` provides the typed resource identifier or location used to use a `minecraft:single_pool_element` with vanilla `minecraft:empty` processors and rigid projection."),
+        returns = "A `PoolElement` configured for a `minecraft:single_pool_element` with vanilla `minecraft:empty` processors and rigid projection.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(location: sand::registry::StructureTemplateId)  {\n    let pool_element = sand::component::PoolElement::single(location);\n}",
+    )]
     pub fn single(location: StructureTemplateId) -> Self {
         Self::Single {
             location,
@@ -273,7 +308,18 @@ impl PoolElement {
     }
 }
 
-#[doc = "**API Contract:** Run `sand api show sand::component::PoolEntry` for the canonical contract."]
+#[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::component::PoolEntry",
+    aliases = ["sand::prelude::PoolEntry"],
+    module = "sand::component",
+    summary = "A weighted pool element entry.",
+    context = "A weighted pool element entry. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+    minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+    use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+    avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+    example = "use sand::component::PoolEntry;",
+)]
 /// A weighted pool element entry.
 #[derive(Debug, Clone, PartialEq)]
 pub struct PoolEntry {
@@ -283,7 +329,21 @@ pub struct PoolEntry {
 
 impl PoolEntry {
     /// `weight` must be at least 1; checked on export.
-    #[doc = "**API Contract:** Run `sand api show sand::component::PoolEntry::new` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::PoolEntry::new",
+        aliases = ["sand::prelude::PoolEntry::new"],
+        module = "sand::component",
+        kind = "method",
+        summary = "`weight` must be at least 1; checked on export.",
+        context = "`weight` must be at least 1; checked on export. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(element = "`element` supplies the documented `weight` must be at least 1; checked on export form.", weight = "`weight` must be at least 1; checked on export."),
+        returns = "A `PoolEntry` that emits the documented `weight` must be at least 1; checked on export form.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(element: sand::component::PoolElement, weight: u32)  {\n    let pool_entry = sand::component::PoolEntry::new(element, weight);\n}",
+    )]
     pub fn new(element: PoolElement, weight: u32) -> Self {
         Self { element, weight }
     }
@@ -310,7 +370,18 @@ impl PoolEntry {
     }
 }
 
-#[doc = "**API Contract:** Run `sand api show sand::component::TemplatePool` for the canonical contract."]
+#[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::component::TemplatePool",
+    aliases = ["sand::prelude::TemplatePool"],
+    module = "sand::component",
+    summary = "A template pool definition (`data/<namespace>/worldgen/template_pool/<id>.json`).",
+    context = "A template pool definition (`data/<namespace>/worldgen/template_pool/<id>.json`). This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+    minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+    use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+    avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+    example = "use sand::component::TemplatePool;",
+)]
 /// A template pool definition (`data/<namespace>/worldgen/template_pool/<id>.json`).
 ///
 /// ```
@@ -337,7 +408,21 @@ pub struct TemplatePool {
 
 impl TemplatePool {
     /// Create a template pool with an explicit fallback and weighted elements.
-    #[doc = "**API Contract:** Run `sand api show sand::component::TemplatePool::new` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::TemplatePool::new",
+        aliases = ["sand::prelude::TemplatePool::new"],
+        module = "sand::component",
+        kind = "method",
+        summary = "Create a template pool with an explicit fallback and weighted elements.",
+        context = "Create a template pool with an explicit fallback and weighted elements. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(location = "`location` provides the typed resource identifier or location used to create a template pool with an explicit fallback and weighted elements.", fallback = "`fallback` provides the typed Minecraft resource identifier used to create a template pool with an explicit fallback and weighted elements.", elements = "`elements` is used when creating a template pool with an explicit fallback and weighted elements."),
+        returns = "A `TemplatePool` representing a template pool with an explicit fallback and weighted elements.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(location: sand::ResourceLocation, fallback: sand::registry::TemplatePoolId, elements: impl IntoIterator < Item = sand::component::PoolEntry >)  {\n    let template_pool = sand::component::TemplatePool::new(location, fallback, elements);\n}",
+    )]
     pub fn new(
         location: ResourceLocation,
         fallback: TemplatePoolId,
@@ -351,21 +436,63 @@ impl TemplatePool {
     }
 
     /// Sets the Minecraft fallback property on this typed template pool definition and returns the updated builder.
-    #[doc = "**API Contract:** Run `sand api show sand::component::TemplatePool::fallback` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::TemplatePool::fallback",
+        aliases = ["sand::prelude::TemplatePool::fallback"],
+        module = "sand::component",
+        kind = "method",
+        summary = "Sets the Minecraft fallback property on this typed template pool definition and returns the updated builder.",
+        context = "Sets the Minecraft fallback property on this typed template pool definition and returns the updated builder. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(fallback = "`fallback` provides the typed Minecraft resource identifier used to set the Minecraft fallback property on this typed template pool definition and returns the updated builder."),
+        returns = "Sets the Minecraft fallback property on this typed template pool definition and returns the updated builder.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(template_pool_value: sand::component::TemplatePool, fallback: sand::registry::TemplatePoolId)  {\n    let updated_template_pool = template_pool_value.fallback(fallback);\n}",
+    )]
     pub fn fallback(mut self, fallback: TemplatePoolId) -> Self {
         self.fallback = fallback;
         self
     }
 
     /// Sets the Minecraft element property on this typed template pool definition and returns the updated builder.
-    #[doc = "**API Contract:** Run `sand api show sand::component::TemplatePool::element` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::TemplatePool::element",
+        aliases = ["sand::prelude::TemplatePool::element"],
+        module = "sand::component",
+        kind = "method",
+        summary = "Sets the Minecraft element property on this typed template pool definition and returns the updated builder.",
+        context = "Sets the Minecraft element property on this typed template pool definition and returns the updated builder. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(entry = "`entry` provides the entry applied when setting the Minecraft element property on this typed template pool definition and returns the updated builder."),
+        returns = "Sets the Minecraft element property on this typed template pool definition and returns the updated builder.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(template_pool_value: sand::component::TemplatePool, entry: sand::component::PoolEntry)  {\n    let updated_template_pool = template_pool_value.element(entry);\n}",
+    )]
     pub fn element(mut self, entry: PoolEntry) -> Self {
         self.elements.push(entry);
         self
     }
 
     /// Sets the Minecraft elements property on this typed template pool definition and returns the updated builder.
-    #[doc = "**API Contract:** Run `sand api show sand::component::TemplatePool::elements` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::TemplatePool::elements",
+        aliases = ["sand::prelude::TemplatePool::elements"],
+        module = "sand::component",
+        kind = "method",
+        summary = "Sets the Minecraft elements property on this typed template pool definition and returns the updated builder.",
+        context = "Sets the Minecraft elements property on this typed template pool definition and returns the updated builder. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(elements = "`elements` provides the elements applied when setting the Minecraft elements property on this typed template pool definition and returns the updated builder."),
+        returns = "Sets the Minecraft elements property on this typed template pool definition and returns the updated builder.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(template_pool_value: sand::component::TemplatePool, elements: impl IntoIterator < Item = sand::component::PoolEntry >)  {\n    let updated_template_pool = template_pool_value.elements(elements);\n}",
+    )]
     pub fn elements(mut self, elements: impl IntoIterator<Item = PoolEntry>) -> Self {
         self.elements = elements.into_iter().collect();
         self

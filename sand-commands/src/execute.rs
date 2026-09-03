@@ -30,7 +30,18 @@ use crate::scoreboard::{ScoreCmp, ScoreHolder};
 use crate::selector::Selector;
 use crate::validate;
 
-#[doc = "**API Contract:** Run `sand api show sand::command::Execute` for the canonical contract."]
+#[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::command::Execute",
+    aliases = ["sand::cmd::Execute", "sand::prelude::Execute", "sand::prelude::cmd::Execute"],
+    module = "sand::command",
+    summary = "Builder for the `execute` command chain. Call builder methods to add sub-commands, then call [`run`](Execute::run) or [`run_raw`](Execute::run_raw) to complete the command.",
+    context = "Builder for the `execute` command chain. Call builder methods to add sub-commands, then call [`run`](Execute::run) or [`run_raw`](Execute::run_raw) to complete the command. This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
+    minecraft = "Call builder methods to add sub-commands, then call [`run`](Execute::run) or [`run_raw`](Execute::run_raw) to complete the command.",
+    use_when = ["Call builder methods to add sub-commands, then call [`run`](Execute::run) or [`run_raw`](Execute::run_raw) to complete the command."],
+    avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
+    example = "use sand::command::Execute;",
+)]
 /// Builder for the `execute` command chain.
 ///
 /// Call builder methods to add sub-commands, then call [`run`](Execute::run) or
@@ -106,7 +117,20 @@ enum ExecuteCheck {
 
 impl Execute {
     /// Create a new `Execute` builder with no sub-commands.
-    #[doc = "**API Contract:** Run `sand api show sand::command::Execute::new` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::command::Execute::new",
+        aliases = ["sand::cmd::Execute::new", "sand::prelude::Execute::new", "sand::prelude::cmd::Execute::new"],
+        module = "sand::command",
+        kind = "method",
+        summary = "Create a new `Execute` builder with no sub-commands.",
+        context = "Create a new `Execute` builder with no sub-commands. This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
+        minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
+        use_when = ["Constructing Minecraft commands through Sand's typed command model"],
+        avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
+        returns = "An `Execute` representing a new `Execute` builder with no sub-commands.",
+        example = "use sand::prelude::*;\n\nfn demonstrate()  {\n    let execute = sand::command::Execute::new();\n}",
+    )]
     pub fn new() -> Self {
         Self {
             operations: vec![],
@@ -179,7 +203,21 @@ impl Execute {
     // ── Context sub-commands ──────────────────────────────────────────────────
 
     /// `as <selector>` — change the executing entity.
-    #[doc = "**API Contract:** Run `sand api show sand::command::Execute::as_` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::command::Execute::as_",
+        aliases = ["sand::cmd::Execute::as_", "sand::prelude::Execute::as_", "sand::prelude::cmd::Execute::as_"],
+        module = "sand::command",
+        kind = "method",
+        summary = "`as <selector>` — change the executing entity.",
+        context = "`as <selector>` — change the executing entity. This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
+        minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
+        use_when = ["Constructing Minecraft commands through Sand's typed command model"],
+        avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
+        params(selector = "`selector` provides the Minecraft target selection used to emit the documented `as <selector>` — change the executing entity form."),
+        returns = "The `Execute` value with the documented change applied to emit the documented `as <selector>` — change the executing entity form.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(execute_value: sand::command::Execute, selector: sand::command::Selector)  {\n    let updated_execute = execute_value.as_(selector);\n}",
+    )]
     pub fn as_(mut self, selector: Selector) -> Self {
         self.check_selector("as", &selector);
         self.operations.push(ExecuteOp::As(selector));
@@ -187,7 +225,21 @@ impl Execute {
     }
 
     /// `at <selector>` — change position and rotation to match the selected entity.
-    #[doc = "**API Contract:** Run `sand api show sand::command::Execute::at` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::command::Execute::at",
+        aliases = ["sand::cmd::Execute::at", "sand::prelude::Execute::at", "sand::prelude::cmd::Execute::at"],
+        module = "sand::command",
+        kind = "method",
+        summary = "`at <selector>` — change position and rotation to match the selected entity.",
+        context = "`at <selector>` — change position and rotation to match the selected entity. This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
+        minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
+        use_when = ["Constructing Minecraft commands through Sand's typed command model"],
+        avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
+        params(selector = "`selector` provides the Minecraft target selection used to emit the documented `at <selector>` — change position and rotation to match the selected entity form."),
+        returns = "The `Execute` value with the documented change applied to emit the documented `at <selector>` — change position and rotation to match the selected entity form.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(execute_value: sand::command::Execute, selector: sand::command::Selector)  {\n    let updated_execute = execute_value.at(selector);\n}",
+    )]
     pub fn at(mut self, selector: Selector) -> Self {
         self.check_selector("at", &selector);
         self.operations.push(ExecuteOp::At(selector));
@@ -195,7 +247,21 @@ impl Execute {
     }
 
     /// `positioned <pos>` — change execution position to the given coordinates.
-    #[doc = "**API Contract:** Run `sand api show sand::command::Execute::positioned` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::command::Execute::positioned",
+        aliases = ["sand::cmd::Execute::positioned", "sand::prelude::Execute::positioned", "sand::prelude::cmd::Execute::positioned"],
+        module = "sand::command",
+        kind = "method",
+        summary = "`positioned <pos>` — change execution position to the given coordinates.",
+        context = "`positioned <pos>` — change execution position to the given coordinates. This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
+        minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
+        use_when = ["Constructing Minecraft commands through Sand's typed command model"],
+        avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
+        params(pos = "`pos` supplies the documented `positioned <pos>` — change execution position to the given coordinates form."),
+        returns = "The `Execute` value with the documented change applied to emit the documented `positioned <pos>` — change execution position to the given coordinates form.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(execute_value: sand::command::Execute, pos: sand::command::Vec3)  {\n    let updated_execute = execute_value.positioned(pos);\n}",
+    )]
     pub fn positioned(mut self, pos: Vec3) -> Self {
         self.check_vec3("positioned", &pos);
         self.operations.push(ExecuteOp::Positioned(pos));
@@ -203,7 +269,21 @@ impl Execute {
     }
 
     /// `positioned as <selector>` — change position to match the selected entity.
-    #[doc = "**API Contract:** Run `sand api show sand::command::Execute::positioned_as` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::command::Execute::positioned_as",
+        aliases = ["sand::cmd::Execute::positioned_as", "sand::prelude::Execute::positioned_as", "sand::prelude::cmd::Execute::positioned_as"],
+        module = "sand::command",
+        kind = "method",
+        summary = "`positioned as <selector>` — change position to match the selected entity.",
+        context = "`positioned as <selector>` — change position to match the selected entity. This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
+        minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
+        use_when = ["Constructing Minecraft commands through Sand's typed command model"],
+        avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
+        params(selector = "`selector` provides the Minecraft target selection used to emit the documented `positioned as <selector>` — change position to match the selected entity form."),
+        returns = "The `Execute` value with the documented change applied to emit the documented `positioned as <selector>` — change position to match the selected entity form.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(execute_value: sand::command::Execute, selector: sand::command::Selector)  {\n    let updated_execute = execute_value.positioned_as(selector);\n}",
+    )]
     pub fn positioned_as(mut self, selector: Selector) -> Self {
         self.check_selector("positioned_as", &selector);
         self.operations.push(ExecuteOp::PositionedAs(selector));
@@ -211,7 +291,21 @@ impl Execute {
     }
 
     /// `rotated <rotation>` — change execution rotation.
-    #[doc = "**API Contract:** Run `sand api show sand::command::Execute::rotated` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::command::Execute::rotated",
+        aliases = ["sand::cmd::Execute::rotated", "sand::prelude::Execute::rotated", "sand::prelude::cmd::Execute::rotated"],
+        module = "sand::command",
+        kind = "method",
+        summary = "`rotated <rotation>` — change execution rotation.",
+        context = "`rotated <rotation>` — change execution rotation. This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
+        minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
+        use_when = ["Constructing Minecraft commands through Sand's typed command model"],
+        avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
+        params(rotation = "`rotation` supplies the documented `rotated <rotation>` — change execution rotation form."),
+        returns = "The `Execute` value with the documented change applied to emit the documented `rotated <rotation>` — change execution rotation form.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(execute_value: sand::command::Execute, rotation: sand::command::Rotation)  {\n    let updated_execute = execute_value.rotated(rotation);\n}",
+    )]
     pub fn rotated(mut self, rotation: Rotation) -> Self {
         self.checks.push(ExecuteCheck::Rotation {
             index: self.next_index(),
@@ -223,7 +317,21 @@ impl Execute {
     }
 
     /// `rotated as <selector>` — change rotation to match the selected entity.
-    #[doc = "**API Contract:** Run `sand api show sand::command::Execute::rotated_as` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::command::Execute::rotated_as",
+        aliases = ["sand::cmd::Execute::rotated_as", "sand::prelude::Execute::rotated_as", "sand::prelude::cmd::Execute::rotated_as"],
+        module = "sand::command",
+        kind = "method",
+        summary = "`rotated as <selector>` — change rotation to match the selected entity.",
+        context = "`rotated as <selector>` — change rotation to match the selected entity. This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
+        minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
+        use_when = ["Constructing Minecraft commands through Sand's typed command model"],
+        avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
+        params(selector = "`selector` provides the Minecraft target selection used to emit the documented `rotated as <selector>` — change rotation to match the selected entity form."),
+        returns = "The `Execute` value with the documented change applied to emit the documented `rotated as <selector>` — change rotation to match the selected entity form.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(execute_value: sand::command::Execute, selector: sand::command::Selector)  {\n    let updated_execute = execute_value.rotated_as(selector);\n}",
+    )]
     pub fn rotated_as(mut self, selector: Selector) -> Self {
         self.check_selector("rotated_as", &selector);
         self.operations.push(ExecuteOp::RotatedAs(selector));
@@ -231,7 +339,21 @@ impl Execute {
     }
 
     /// `facing <pos>` — rotate execution to face a position in the world.
-    #[doc = "**API Contract:** Run `sand api show sand::command::Execute::facing` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::command::Execute::facing",
+        aliases = ["sand::cmd::Execute::facing", "sand::prelude::Execute::facing", "sand::prelude::cmd::Execute::facing"],
+        module = "sand::command",
+        kind = "method",
+        summary = "`facing <pos>` — rotate execution to face a position in the world.",
+        context = "`facing <pos>` — rotate execution to face a position in the world. This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
+        minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
+        use_when = ["Constructing Minecraft commands through Sand's typed command model"],
+        avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
+        params(pos = "`pos` supplies the documented `facing <pos>` — rotate execution to face a position in the world form."),
+        returns = "The `Execute` value with the documented change applied to emit the documented `facing <pos>` — rotate execution to face a position in the world form.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(execute_value: sand::command::Execute, pos: sand::command::Vec3)  {\n    let updated_execute = execute_value.facing(pos);\n}",
+    )]
     pub fn facing(mut self, pos: Vec3) -> Self {
         self.check_vec3("facing", &pos);
         self.operations.push(ExecuteOp::Facing(pos));
@@ -239,7 +361,21 @@ impl Execute {
     }
 
     /// `facing entity <selector> <anchor>` — rotate execution to face an entity's anchor point.
-    #[doc = "**API Contract:** Run `sand api show sand::command::Execute::facing_entity` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::command::Execute::facing_entity",
+        aliases = ["sand::cmd::Execute::facing_entity", "sand::prelude::Execute::facing_entity", "sand::prelude::cmd::Execute::facing_entity"],
+        module = "sand::command",
+        kind = "method",
+        summary = "`facing entity <selector> <anchor>` — rotate execution to face an entity's anchor point.",
+        context = "`facing entity <selector> <anchor>` — rotate execution to face an entity's anchor point. This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
+        minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
+        use_when = ["Constructing Minecraft commands through Sand's typed command model"],
+        avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
+        params(selector = "`selector` provides the Minecraft target selection used to emit the documented `facing entity <selector> <anchor>` — rotate execution to face an entity's anchor point form.", anchor = "`anchor` supplies the documented `facing entity <selector> <anchor>` — rotate execution to face an entity's anchor point form."),
+        returns = "The `Execute` value with the documented change applied to emit the documented `facing entity <selector> <anchor>` — rotate execution to face an entity's anchor point form.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(execute_value: sand::command::Execute, selector: sand::command::Selector, anchor: sand::command::Anchor)  {\n    let updated_execute = execute_value.facing_entity(selector, anchor);\n}",
+    )]
     pub fn facing_entity(mut self, selector: Selector, anchor: Anchor) -> Self {
         self.check_selector("facing_entity", &selector);
         self.operations.push(ExecuteOp::FacingEntity {
@@ -250,7 +386,21 @@ impl Execute {
     }
 
     /// `in <dimension>` — change dimension for subsequent commands.
-    #[doc = "**API Contract:** Run `sand api show sand::command::Execute::in_` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::command::Execute::in_",
+        aliases = ["sand::cmd::Execute::in_", "sand::prelude::Execute::in_", "sand::prelude::cmd::Execute::in_"],
+        module = "sand::command",
+        kind = "method",
+        summary = "`in <dimension>` — change dimension for subsequent commands.",
+        context = "`in <dimension>` — change dimension for subsequent commands. This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
+        minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
+        use_when = ["Constructing Minecraft commands through Sand's typed command model"],
+        avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
+        params(dimension = "`dimension` supplies the documented `in <dimension>` — change dimension for subsequent commands form."),
+        returns = "The `Execute` value with the documented change applied to emit the documented `in <dimension>` — change dimension for subsequent commands form.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(execute_value: sand::command::Execute, dimension: impl Into < String >)  {\n    let updated_execute = execute_value.in_(dimension);\n}",
+    )]
     pub fn in_(mut self, dimension: impl Into<String>) -> Self {
         let dimension = dimension.into();
         self.check_resource("in", "dimension", &dimension, false);
@@ -259,14 +409,42 @@ impl Execute {
     }
 
     /// `align <axes>` — snap coordinates to the block grid along specified axes.
-    #[doc = "**API Contract:** Run `sand api show sand::command::Execute::align` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::command::Execute::align",
+        aliases = ["sand::cmd::Execute::align", "sand::prelude::Execute::align", "sand::prelude::cmd::Execute::align"],
+        module = "sand::command",
+        kind = "method",
+        summary = "`align <axes>` — snap coordinates to the block grid along specified axes.",
+        context = "`align <axes>` — snap coordinates to the block grid along specified axes. This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
+        minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
+        use_when = ["Constructing Minecraft commands through Sand's typed command model"],
+        avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
+        params(axes = "`axes` supplies the documented `align <axes>` — snap coordinates to the block grid along specified axes form."),
+        returns = "The `Execute` value with the documented change applied to emit the documented `align <axes>` — snap coordinates to the block grid along specified axes form.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(execute_value: sand::command::Execute, axes: sand::command::Swizzle)  {\n    let updated_execute = execute_value.align(axes);\n}",
+    )]
     pub fn align(mut self, axes: Swizzle) -> Self {
         self.operations.push(ExecuteOp::Align(axes));
         self
     }
 
     /// `positioned over <heightmap>` — snap y-coordinate to the top of the given heightmap (1.19.4+).
-    #[doc = "**API Contract:** Run `sand api show sand::command::Execute::positioned_over` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::command::Execute::positioned_over",
+        aliases = ["sand::cmd::Execute::positioned_over", "sand::prelude::Execute::positioned_over", "sand::prelude::cmd::Execute::positioned_over"],
+        module = "sand::command",
+        kind = "method",
+        summary = "`positioned over <heightmap>` — snap y-coordinate to the top of the given heightmap (1.19.4+).",
+        context = "`positioned over <heightmap>` — snap y-coordinate to the top of the given heightmap (1.19.4+). This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
+        minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
+        use_when = ["Constructing Minecraft commands through Sand's typed command model"],
+        avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
+        params(heightmap = "`heightmap` supplies the documented `positioned over <heightmap>` — snap y-coordinate to the top of the given heightmap (1.19.4+) form."),
+        returns = "The `Execute` value with the documented change applied to emit the documented `positioned over <heightmap>` — snap y-coordinate to the top of the given heightmap (1.19.4+) form.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(execute_value: sand::command::Execute, heightmap: impl Into < String >)  {\n    let updated_execute = execute_value.positioned_over(heightmap);\n}",
+    )]
     pub fn positioned_over(mut self, heightmap: impl Into<String>) -> Self {
         self.operations
             .push(ExecuteOp::PositionedOver(heightmap.into()));
@@ -274,21 +452,63 @@ impl Execute {
     }
 
     /// `anchored <anchor>` — change the anchor point for position calculations.
-    #[doc = "**API Contract:** Run `sand api show sand::command::Execute::anchored` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::command::Execute::anchored",
+        aliases = ["sand::cmd::Execute::anchored", "sand::prelude::Execute::anchored", "sand::prelude::cmd::Execute::anchored"],
+        module = "sand::command",
+        kind = "method",
+        summary = "`anchored <anchor>` — change the anchor point for position calculations.",
+        context = "`anchored <anchor>` — change the anchor point for position calculations. This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
+        minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
+        use_when = ["Constructing Minecraft commands through Sand's typed command model"],
+        avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
+        params(anchor = "`anchor` supplies the documented `anchored <anchor>` — change the anchor point for position calculations form."),
+        returns = "The `Execute` value with the documented change applied to emit the documented `anchored <anchor>` — change the anchor point for position calculations form.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(execute_value: sand::command::Execute, anchor: sand::command::Anchor)  {\n    let updated_execute = execute_value.anchored(anchor);\n}",
+    )]
     pub fn anchored(mut self, anchor: Anchor) -> Self {
         self.operations.push(ExecuteOp::Anchored(anchor));
         self
     }
 
     /// `on <relation>` — follow an entity relationship chain.
-    #[doc = "**API Contract:** Run `sand api show sand::command::Execute::on` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::command::Execute::on",
+        aliases = ["sand::cmd::Execute::on", "sand::prelude::Execute::on", "sand::prelude::cmd::Execute::on"],
+        module = "sand::command",
+        kind = "method",
+        summary = "`on <relation>` — follow an entity relationship chain.",
+        context = "`on <relation>` — follow an entity relationship chain. This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
+        minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
+        use_when = ["Constructing Minecraft commands through Sand's typed command model"],
+        avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
+        params(relation = "`relation` supplies the documented `on <relation>` — follow an entity relationship chain form."),
+        returns = "The `Execute` value with the documented change applied to emit the documented `on <relation>` — follow an entity relationship chain form.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(execute_value: sand::command::Execute, relation: impl Into < String >)  {\n    let updated_execute = execute_value.on(relation);\n}",
+    )]
     pub fn on(mut self, relation: impl Into<String>) -> Self {
         self.operations.push(ExecuteOp::On(relation.into()));
         self
     }
 
     /// `summon <entity_type>` — summon an entity and execute as it immediately.
-    #[doc = "**API Contract:** Run `sand api show sand::command::Execute::summon` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::command::Execute::summon",
+        aliases = ["sand::cmd::Execute::summon", "sand::prelude::Execute::summon", "sand::prelude::cmd::Execute::summon"],
+        module = "sand::command",
+        kind = "method",
+        summary = "`summon <entity_type>` — summon an entity and execute as it immediately.",
+        context = "`summon <entity_type>` — summon an entity and execute as it immediately. This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
+        minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
+        use_when = ["Constructing Minecraft commands through Sand's typed command model"],
+        avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
+        params(entity_type = "`entity_type` supplies the documented `summon <entity_type>` — summon an entity and execute as it immediately form."),
+        returns = "The `Execute` value with the documented change applied to emit the documented `summon <entity_type>` — summon an entity and execute as it immediately form.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(execute_value: sand::command::Execute, entity_type: impl sand::command::IntoEntityType)  {\n    let updated_execute = execute_value.summon(entity_type);\n}",
+    )]
     pub fn summon(mut self, entity_type: impl crate::selector::IntoEntityType) -> Self {
         let entity_type = entity_type.into_entity_type();
         self.check_resource("summon", "entity_type", &entity_type, false);
@@ -299,7 +519,21 @@ impl Execute {
     // ── Condition sub-commands ────────────────────────────────────────────────
 
     /// `if entity <selector>` — execute only if the selector matches at least one entity.
-    #[doc = "**API Contract:** Run `sand api show sand::command::Execute::if_entity` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::command::Execute::if_entity",
+        aliases = ["sand::cmd::Execute::if_entity", "sand::prelude::Execute::if_entity", "sand::prelude::cmd::Execute::if_entity"],
+        module = "sand::command",
+        kind = "method",
+        summary = "`if entity <selector>` — execute only if the selector matches at least one entity.",
+        context = "`if entity <selector>` — execute only if the selector matches at least one entity. This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
+        minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
+        use_when = ["Constructing Minecraft commands through Sand's typed command model"],
+        avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
+        params(selector = "`selector` provides the Minecraft target selection used to emit the documented `if entity <selector>` — execute only if the selector matches at least one entity form."),
+        returns = "The `Execute` value with the documented change applied to emit the documented `if entity <selector>` — execute only if the selector matches at least one entity form.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(execute_value: sand::command::Execute, selector: sand::command::Selector)  {\n    let updated_execute = execute_value.if_entity(selector);\n}",
+    )]
     pub fn if_entity(mut self, selector: Selector) -> Self {
         self.check_selector("if_entity", &selector);
         self.operations
@@ -308,7 +542,21 @@ impl Execute {
     }
 
     /// `unless entity <selector>` — execute only if the selector matches NO entities.
-    #[doc = "**API Contract:** Run `sand api show sand::command::Execute::unless_entity` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::command::Execute::unless_entity",
+        aliases = ["sand::cmd::Execute::unless_entity", "sand::prelude::Execute::unless_entity", "sand::prelude::cmd::Execute::unless_entity"],
+        module = "sand::command",
+        kind = "method",
+        summary = "`unless entity <selector>` — execute only if the selector matches NO entities.",
+        context = "`unless entity <selector>` — execute only if the selector matches NO entities. This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
+        minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
+        use_when = ["Constructing Minecraft commands through Sand's typed command model"],
+        avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
+        params(selector = "`selector` provides the Minecraft target selection used to emit the documented `unless entity <selector>` — execute only if the selector matches NO entities form."),
+        returns = "The `Execute` value with the documented change applied to emit the documented `unless entity <selector>` — execute only if the selector matches NO entities form.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(execute_value: sand::command::Execute, selector: sand::command::Selector)  {\n    let updated_execute = execute_value.unless_entity(selector);\n}",
+    )]
     pub fn unless_entity(mut self, selector: Selector) -> Self {
         self.check_selector("unless_entity", &selector);
         self.operations
@@ -317,7 +565,21 @@ impl Execute {
     }
 
     /// `if entity @s[team=<team>]` — continue only if the current entity is on the given team.
-    #[doc = "**API Contract:** Run `sand api show sand::command::Execute::if_on_team` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::command::Execute::if_on_team",
+        aliases = ["sand::cmd::Execute::if_on_team", "sand::prelude::Execute::if_on_team", "sand::prelude::cmd::Execute::if_on_team"],
+        module = "sand::command",
+        kind = "method",
+        summary = "`if entity @s[team=<team>]` — continue only if the current entity is on the given team.",
+        context = "`if entity @s[team=<team>]` — continue only if the current entity is on the given team. This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
+        minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
+        use_when = ["Constructing Minecraft commands through Sand's typed command model"],
+        avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
+        params(team = "`team` supplies the documented `if entity @s[team=<team>]` — continue only if the current entity is on the given team form."),
+        returns = "The `Execute` value with the documented change applied to emit the documented `if entity @s[team=<team>]` — continue only if the current entity is on the given team form.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(execute_value: sand::command::Execute, team: impl Into < String >)  {\n    let updated_execute = execute_value.if_on_team(team);\n}",
+    )]
     pub fn if_on_team(mut self, team: impl Into<String>) -> Self {
         self.operations
             .push(ExecuteOp::If(ConditionIr::Team(team.into())));
@@ -325,7 +587,21 @@ impl Execute {
     }
 
     /// `unless entity @s[team=<team>]` — skip if the current entity is on the given team.
-    #[doc = "**API Contract:** Run `sand api show sand::command::Execute::unless_on_team` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::command::Execute::unless_on_team",
+        aliases = ["sand::cmd::Execute::unless_on_team", "sand::prelude::Execute::unless_on_team", "sand::prelude::cmd::Execute::unless_on_team"],
+        module = "sand::command",
+        kind = "method",
+        summary = "`unless entity @s[team=<team>]` — skip if the current entity is on the given team.",
+        context = "`unless entity @s[team=<team>]` — skip if the current entity is on the given team. This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
+        minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
+        use_when = ["Constructing Minecraft commands through Sand's typed command model"],
+        avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
+        params(team = "`team` supplies the documented `unless entity @s[team=<team>]` — skip if the current entity is on the given team form."),
+        returns = "The `Execute` value with the documented change applied to emit the documented `unless entity @s[team=<team>]` — skip if the current entity is on the given team form.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(execute_value: sand::command::Execute, team: impl Into < String >)  {\n    let updated_execute = execute_value.unless_on_team(team);\n}",
+    )]
     pub fn unless_on_team(mut self, team: impl Into<String>) -> Self {
         self.operations
             .push(ExecuteOp::Unless(ConditionIr::Team(team.into())));
@@ -333,7 +609,21 @@ impl Execute {
     }
 
     /// `if score <a> <a_obj> = <b> <b_obj>` — continue only if the two scores are equal.
-    #[doc = "**API Contract:** Run `sand api show sand::command::Execute::if_score` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::command::Execute::if_score",
+        aliases = ["sand::cmd::Execute::if_score", "sand::prelude::Execute::if_score", "sand::prelude::cmd::Execute::if_score"],
+        module = "sand::command",
+        kind = "method",
+        summary = "`if score <a> <a_obj> = <b> <b_obj>` — continue only if the two scores are equal.",
+        context = "`if score <a> <a_obj> = <b> <b_obj>` — continue only if the two scores are equal. This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
+        minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
+        use_when = ["Constructing Minecraft commands through Sand's typed command model"],
+        avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
+        params(a = "`a` provides the Minecraft target selection used to emit the documented `if score <a> <a_obj> = <b> <b_obj>` — continue only if the two scores are equal form.", a_obj = "`a_obj` supplies the documented `if score <a> <a_obj> = <b> <b_obj>` — continue only if the two scores are equal form.", b = "`b` provides the Minecraft target selection used to emit the documented `if score <a> <a_obj> = <b> <b_obj>` — continue only if the two scores are equal form.", b_obj = "`b_obj` supplies the documented `if score <a> <a_obj> = <b> <b_obj>` — continue only if the two scores are equal form."),
+        returns = "The `Execute` value with the documented change applied to emit the documented `if score <a> <a_obj> = <b> <b_obj>` — continue only if the two scores are equal form.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(execute_value: sand::command::Execute, a: sand::command::Selector, a_obj: impl Into < String >, b: sand::command::Selector, b_obj: impl Into < String >)  {\n    let updated_execute = execute_value.if_score(a, a_obj, b, b_obj);\n}",
+    )]
     pub fn if_score(
         mut self,
         a: Selector,
@@ -369,7 +659,21 @@ impl Execute {
     }
 
     /// `unless score <a> <a_obj> = <b> <b_obj>` — skip if two scores are equal.
-    #[doc = "**API Contract:** Run `sand api show sand::command::Execute::unless_score` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::command::Execute::unless_score",
+        aliases = ["sand::cmd::Execute::unless_score", "sand::prelude::Execute::unless_score", "sand::prelude::cmd::Execute::unless_score"],
+        module = "sand::command",
+        kind = "method",
+        summary = "`unless score <a> <a_obj> = <b> <b_obj>` — skip if two scores are equal.",
+        context = "`unless score <a> <a_obj> = <b> <b_obj>` — skip if two scores are equal. This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
+        minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
+        use_when = ["Constructing Minecraft commands through Sand's typed command model"],
+        avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
+        params(primary_selector = "`primary_selector` provides the Minecraft target selection used to emit the documented `unless score <a> <a_obj> = <b> <b_obj>` — skip if two scores are equal form.", primary = "`primary` supplies the documented `unless score <a> <a_obj> = <b> <b_obj>` — skip if two scores are equal form.", secondary_selector = "`secondary_selector` provides the Minecraft target selection used to emit the documented `unless score <a> <a_obj> = <b> <b_obj>` — skip if two scores are equal form.", secondary = "`secondary` supplies the documented `unless score <a> <a_obj> = <b> <b_obj>` — skip if two scores are equal form."),
+        returns = "The `Execute` value with the documented change applied to emit the documented `unless score <a> <a_obj> = <b> <b_obj>` — skip if two scores are equal form.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(execute_value: sand::command::Execute, primary_selector: sand::command::Selector, primary: impl Into < String >, secondary_selector: sand::command::Selector, secondary: impl Into < String >)  {\n    let updated_execute = execute_value.unless_score(primary_selector, primary, secondary_selector, secondary);\n}",
+    )]
     pub fn unless_score(
         mut self,
         primary_selector: Selector,
@@ -405,7 +709,21 @@ impl Execute {
     }
 
     /// `if block <pos> <block>` — execute only if the block at `pos` matches.
-    #[doc = "**API Contract:** Run `sand api show sand::command::Execute::if_block` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::command::Execute::if_block",
+        aliases = ["sand::cmd::Execute::if_block", "sand::prelude::Execute::if_block", "sand::prelude::cmd::Execute::if_block"],
+        module = "sand::command",
+        kind = "method",
+        summary = "`if block <pos> <block>` — execute only if the block at `pos` matches.",
+        context = "`if block <pos> <block>` — execute only if the block at `pos` matches. This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
+        minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
+        use_when = ["Constructing Minecraft commands through Sand's typed command model"],
+        avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
+        params(pos = "`if block <pos> <block>` — execute only if the block at `pos` matches.", block = "`block` provides the block value or block predicate used to emit the documented `if block <pos> <block>` — execute only if the block at `pos` matches form."),
+        returns = "The `Execute` value with the documented change applied to emit the documented `if block <pos> <block>` — execute only if the block at `pos` matches form.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(execute_value: sand::command::Execute, pos: sand::command::BlockPos, block: impl Into < String >)  {\n    let updated_execute = execute_value.if_block(pos, block);\n}",
+    )]
     pub fn if_block(mut self, pos: BlockPos, block: impl Into<String>) -> Self {
         self.check_block_pos("if_block", &pos);
         self.operations.push(ExecuteOp::If(ConditionIr::Block {
@@ -416,7 +734,21 @@ impl Execute {
     }
 
     /// `unless block <pos> <block>` — execute only if the block at `pos` does NOT match.
-    #[doc = "**API Contract:** Run `sand api show sand::command::Execute::unless_block` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::command::Execute::unless_block",
+        aliases = ["sand::cmd::Execute::unless_block", "sand::prelude::Execute::unless_block", "sand::prelude::cmd::Execute::unless_block"],
+        module = "sand::command",
+        kind = "method",
+        summary = "`unless block <pos> <block>` — execute only if the block at `pos` does NOT match.",
+        context = "`unless block <pos> <block>` — execute only if the block at `pos` does NOT match. This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
+        minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
+        use_when = ["Constructing Minecraft commands through Sand's typed command model"],
+        avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
+        params(pos = "`unless block <pos> <block>` — execute only if the block at `pos` does NOT match.", block = "`block` provides the block value or block predicate used to emit the documented `unless block <pos> <block>` — execute only if the block at `pos` does NOT match form."),
+        returns = "The `Execute` value with the documented change applied to emit the documented `unless block <pos> <block>` — execute only if the block at `pos` does NOT match form.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(execute_value: sand::command::Execute, pos: sand::command::BlockPos, block: impl Into < String >)  {\n    let updated_execute = execute_value.unless_block(pos, block);\n}",
+    )]
     pub fn unless_block(mut self, pos: BlockPos, block: impl Into<String>) -> Self {
         self.check_block_pos("unless_block", &pos);
         self.operations.push(ExecuteOp::Unless(ConditionIr::Block {
@@ -429,7 +761,21 @@ impl Execute {
     /// `if score <holder> <obj> matches <range>` — execute if a score falls within the range.
     ///
     /// Range can be `"5"` (exact), `"5.."` (5 or more), `"..5"` (5 or less), or `"1..10"`.
-    #[doc = "**API Contract:** Run `sand api show sand::command::Execute::if_score_matches` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::command::Execute::if_score_matches",
+        aliases = ["sand::cmd::Execute::if_score_matches", "sand::prelude::Execute::if_score_matches", "sand::prelude::cmd::Execute::if_score_matches"],
+        module = "sand::command",
+        kind = "method",
+        summary = "`if score <holder> <obj> matches <range>` — execute if a score falls within the range.",
+        context = "`if score <holder> <obj> matches <range>` — execute if a score falls within the range. Range can be `\"5\"` (exact), `\"5..\"` (5 or more), `\"..5\"` (5 or less), or `\"1..10\"`.",
+        minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
+        use_when = ["Constructing Minecraft commands through Sand's typed command model"],
+        avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
+        params(holder = "`holder` supplies the documented `if score <holder> <obj> matches <range>` — execute if a score falls within the range form.", objective = "`objective` supplies the documented `if score <holder> <obj> matches <range>` — execute if a score falls within the range form.", range = "`range` supplies the documented `if score <holder> <obj> matches <range>` — execute if a score falls within the range form."),
+        returns = "The `Execute` value with the documented change applied to emit the documented `if score <holder> <obj> matches <range>` — execute if a score falls within the range form.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(execute_value: sand::command::Execute, holder: impl Into < String >, objective: impl Into < String >, range: impl Into < String >)  {\n    let updated_execute = execute_value.if_score_matches(holder, objective, range);\n}",
+    )]
     pub fn if_score_matches(
         mut self,
         holder: impl Into<String>,
@@ -455,7 +801,21 @@ impl Execute {
     }
 
     /// `unless score <holder> <obj> matches <range>` — execute if a score falls OUTSIDE the range.
-    #[doc = "**API Contract:** Run `sand api show sand::command::Execute::unless_score_matches` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::command::Execute::unless_score_matches",
+        aliases = ["sand::cmd::Execute::unless_score_matches", "sand::prelude::Execute::unless_score_matches", "sand::prelude::cmd::Execute::unless_score_matches"],
+        module = "sand::command",
+        kind = "method",
+        summary = "`unless score <holder> <obj> matches <range>` — execute if a score falls OUTSIDE the range.",
+        context = "`unless score <holder> <obj> matches <range>` — execute if a score falls OUTSIDE the range. This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
+        minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
+        use_when = ["Constructing Minecraft commands through Sand's typed command model"],
+        avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
+        params(holder = "`holder` supplies the documented `unless score <holder> <obj> matches <range>` — execute if a score falls OUTSIDE the range form.", objective = "`objective` supplies the documented `unless score <holder> <obj> matches <range>` — execute if a score falls OUTSIDE the range form.", range = "`range` supplies the documented `unless score <holder> <obj> matches <range>` — execute if a score falls OUTSIDE the range form."),
+        returns = "The `Execute` value with the documented change applied to emit the documented `unless score <holder> <obj> matches <range>` — execute if a score falls OUTSIDE the range form.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(execute_value: sand::command::Execute, holder: impl Into < String >, objective: impl Into < String >, range: impl Into < String >)  {\n    let updated_execute = execute_value.unless_score_matches(holder, objective, range);\n}",
+    )]
     pub fn unless_score_matches(
         mut self,
         holder: impl Into<String>,
@@ -481,7 +841,21 @@ impl Execute {
     }
 
     /// `if score <a> <a_obj> <cmp> <b> <b_obj>` — compare two scores.
-    #[doc = "**API Contract:** Run `sand api show sand::command::Execute::if_score_compare` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::command::Execute::if_score_compare",
+        aliases = ["sand::cmd::Execute::if_score_compare", "sand::prelude::Execute::if_score_compare", "sand::prelude::cmd::Execute::if_score_compare"],
+        module = "sand::command",
+        kind = "method",
+        summary = "`if score <a> <a_obj> <cmp> <b> <b_obj>` — compare two scores.",
+        context = "`if score <a> <a_obj> <cmp> <b> <b_obj>` — compare two scores. This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
+        minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
+        use_when = ["Constructing Minecraft commands through Sand's typed command model"],
+        avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
+        params(a = "`a` supplies the documented `if score <a> <a_obj> <cmp> <b> <b_obj>` — compare two scores form.", a_obj = "`a_obj` supplies the documented `if score <a> <a_obj> <cmp> <b> <b_obj>` — compare two scores form.", cmp = "`cmp` supplies the documented `if score <a> <a_obj> <cmp> <b> <b_obj>` — compare two scores form.", b = "`b` supplies the documented `if score <a> <a_obj> <cmp> <b> <b_obj>` — compare two scores form.", b_obj = "`b_obj` supplies the documented `if score <a> <a_obj> <cmp> <b> <b_obj>` — compare two scores form."),
+        returns = "The `Execute` value with the documented change applied to emit the documented `if score <a> <a_obj> <cmp> <b> <b_obj>` — compare two scores form.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(execute_value: sand::command::Execute, a: impl Into < String >, a_obj: impl Into < String >, cmp: sand::command::ScoreCmp, b: impl Into < String >, b_obj: impl Into < String >)  {\n    let updated_execute = execute_value.if_score_compare(a, a_obj, cmp, b, b_obj);\n}",
+    )]
     pub fn if_score_compare(
         mut self,
         a: impl Into<String>,
@@ -508,7 +882,21 @@ impl Execute {
     }
 
     /// `unless score <a> <a_obj> <cmp> <b> <b_obj>` — skip if the comparison is true.
-    #[doc = "**API Contract:** Run `sand api show sand::command::Execute::unless_score_compare` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::command::Execute::unless_score_compare",
+        aliases = ["sand::cmd::Execute::unless_score_compare", "sand::prelude::Execute::unless_score_compare", "sand::prelude::cmd::Execute::unless_score_compare"],
+        module = "sand::command",
+        kind = "method",
+        summary = "`unless score <a> <a_obj> <cmp> <b> <b_obj>` — skip if the comparison is true.",
+        context = "`unless score <a> <a_obj> <cmp> <b> <b_obj>` — skip if the comparison is true. This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
+        minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
+        use_when = ["Constructing Minecraft commands through Sand's typed command model"],
+        avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
+        params(a = "`a` supplies the documented `unless score <a> <a_obj> <cmp> <b> <b_obj>` — skip if the comparison is true form.", a_obj = "`a_obj` supplies the documented `unless score <a> <a_obj> <cmp> <b> <b_obj>` — skip if the comparison is true form.", cmp = "`cmp` supplies the documented `unless score <a> <a_obj> <cmp> <b> <b_obj>` — skip if the comparison is true form.", b = "`b` supplies the documented `unless score <a> <a_obj> <cmp> <b> <b_obj>` — skip if the comparison is true form.", b_obj = "`b_obj` supplies the documented `unless score <a> <a_obj> <cmp> <b> <b_obj>` — skip if the comparison is true form."),
+        returns = "The `Execute` value with the documented change applied to emit the documented `unless score <a> <a_obj> <cmp> <b> <b_obj>` — skip if the comparison is true form.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(execute_value: sand::command::Execute, a: impl Into < String >, a_obj: impl Into < String >, cmp: sand::command::ScoreCmp, b: impl Into < String >, b_obj: impl Into < String >)  {\n    let updated_execute = execute_value.unless_score_compare(a, a_obj, cmp, b, b_obj);\n}",
+    )]
     pub fn unless_score_compare(
         mut self,
         a: impl Into<String>,
@@ -537,7 +925,21 @@ impl Execute {
     // ── Score comparison shorthands ───────────────────────────────────────────
 
     /// `if score <a> <a_obj> = <b> <b_obj>` — continue if scores are equal.
-    #[doc = "**API Contract:** Run `sand api show sand::command::Execute::if_score_eq` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::command::Execute::if_score_eq",
+        aliases = ["sand::cmd::Execute::if_score_eq", "sand::prelude::Execute::if_score_eq", "sand::prelude::cmd::Execute::if_score_eq"],
+        module = "sand::command",
+        kind = "method",
+        summary = "`if score <a> <a_obj> = <b> <b_obj>` — continue if scores are equal.",
+        context = "`if score <a> <a_obj> = <b> <b_obj>` — continue if scores are equal. This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
+        minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
+        use_when = ["Constructing Minecraft commands through Sand's typed command model"],
+        avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
+        params(a = "`a` supplies the documented `if score <a> <a_obj> = <b> <b_obj>` — continue if scores are equal form.", a_obj = "`a_obj` supplies the documented `if score <a> <a_obj> = <b> <b_obj>` — continue if scores are equal form.", b = "`b` supplies the documented `if score <a> <a_obj> = <b> <b_obj>` — continue if scores are equal form.", b_obj = "`b_obj` supplies the documented `if score <a> <a_obj> = <b> <b_obj>` — continue if scores are equal form."),
+        returns = "The `Execute` value with the documented change applied to emit the documented `if score <a> <a_obj> = <b> <b_obj>` — continue if scores are equal form.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(execute_value: sand::command::Execute, a: impl Into < String >, a_obj: impl Into < String >, b: impl Into < String >, b_obj: impl Into < String >)  {\n    let updated_execute = execute_value.if_score_eq(a, a_obj, b, b_obj);\n}",
+    )]
     pub fn if_score_eq(
         self,
         a: impl Into<String>,
@@ -549,7 +951,21 @@ impl Execute {
     }
 
     /// `unless score <a> <a_obj> = <b> <b_obj>` — skip if scores are equal.
-    #[doc = "**API Contract:** Run `sand api show sand::command::Execute::unless_score_eq` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::command::Execute::unless_score_eq",
+        aliases = ["sand::cmd::Execute::unless_score_eq", "sand::prelude::Execute::unless_score_eq", "sand::prelude::cmd::Execute::unless_score_eq"],
+        module = "sand::command",
+        kind = "method",
+        summary = "`unless score <a> <a_obj> = <b> <b_obj>` — skip if scores are equal.",
+        context = "`unless score <a> <a_obj> = <b> <b_obj>` — skip if scores are equal. This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
+        minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
+        use_when = ["Constructing Minecraft commands through Sand's typed command model"],
+        avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
+        params(a = "`a` supplies the documented `unless score <a> <a_obj> = <b> <b_obj>` — skip if scores are equal form.", a_obj = "`a_obj` supplies the documented `unless score <a> <a_obj> = <b> <b_obj>` — skip if scores are equal form.", b = "`b` supplies the documented `unless score <a> <a_obj> = <b> <b_obj>` — skip if scores are equal form.", b_obj = "`b_obj` supplies the documented `unless score <a> <a_obj> = <b> <b_obj>` — skip if scores are equal form."),
+        returns = "The `Execute` value with the documented change applied to emit the documented `unless score <a> <a_obj> = <b> <b_obj>` — skip if scores are equal form.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(execute_value: sand::command::Execute, a: impl Into < String >, a_obj: impl Into < String >, b: impl Into < String >, b_obj: impl Into < String >)  {\n    let updated_execute = execute_value.unless_score_eq(a, a_obj, b, b_obj);\n}",
+    )]
     pub fn unless_score_eq(
         self,
         a: impl Into<String>,
@@ -561,7 +977,21 @@ impl Execute {
     }
 
     /// `if score ... < ...` — continue if `a` is strictly less than `b`.
-    #[doc = "**API Contract:** Run `sand api show sand::command::Execute::if_score_lt` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::command::Execute::if_score_lt",
+        aliases = ["sand::cmd::Execute::if_score_lt", "sand::prelude::Execute::if_score_lt", "sand::prelude::cmd::Execute::if_score_lt"],
+        module = "sand::command",
+        kind = "method",
+        summary = "`if score ... < ...` — continue if `a` is strictly less than `b`.",
+        context = "`if score ... < ...` — continue if `a` is strictly less than `b`. This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
+        minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
+        use_when = ["Constructing Minecraft commands through Sand's typed command model"],
+        avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
+        params(a = "`if score ... < ...` — continue if `a` is strictly less than `b`.", a_obj = "`a_obj` supplies the documented `if score ... < ...` — continue if `a` is strictly less than `b` form.", b = "`if score ... < ...` — continue if `a` is strictly less than `b`.", b_obj = "`b_obj` supplies the documented `if score ... < ...` — continue if `a` is strictly less than `b` form."),
+        returns = "The `Execute` value with the documented change applied to emit the documented `if score ... < ...` — continue if `a` is strictly less than `b` form.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(execute_value: sand::command::Execute, a: impl Into < String >, a_obj: impl Into < String >, b: impl Into < String >, b_obj: impl Into < String >)  {\n    let updated_execute = execute_value.if_score_lt(a, a_obj, b, b_obj);\n}",
+    )]
     pub fn if_score_lt(
         self,
         a: impl Into<String>,
@@ -573,7 +1003,21 @@ impl Execute {
     }
 
     /// `unless score ... < ...` — skip if `a` is strictly less than `b`.
-    #[doc = "**API Contract:** Run `sand api show sand::command::Execute::unless_score_lt` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::command::Execute::unless_score_lt",
+        aliases = ["sand::cmd::Execute::unless_score_lt", "sand::prelude::Execute::unless_score_lt", "sand::prelude::cmd::Execute::unless_score_lt"],
+        module = "sand::command",
+        kind = "method",
+        summary = "`unless score ... < ...` — skip if `a` is strictly less than `b`.",
+        context = "`unless score ... < ...` — skip if `a` is strictly less than `b`. This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
+        minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
+        use_when = ["Constructing Minecraft commands through Sand's typed command model"],
+        avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
+        params(a = "`unless score ... < ...` — skip if `a` is strictly less than `b`.", a_obj = "`a_obj` supplies the documented `unless score ... < ...` — skip if `a` is strictly less than `b` form.", b = "`unless score ... < ...` — skip if `a` is strictly less than `b`.", b_obj = "`b_obj` supplies the documented `unless score ... < ...` — skip if `a` is strictly less than `b` form."),
+        returns = "The `Execute` value with the documented change applied to emit the documented `unless score ... < ...` — skip if `a` is strictly less than `b` form.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(execute_value: sand::command::Execute, a: impl Into < String >, a_obj: impl Into < String >, b: impl Into < String >, b_obj: impl Into < String >)  {\n    let updated_execute = execute_value.unless_score_lt(a, a_obj, b, b_obj);\n}",
+    )]
     pub fn unless_score_lt(
         self,
         a: impl Into<String>,
@@ -585,7 +1029,21 @@ impl Execute {
     }
 
     /// `if score ... <= ...` — continue if `a` is less than or equal to `b`.
-    #[doc = "**API Contract:** Run `sand api show sand::command::Execute::if_score_lte` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::command::Execute::if_score_lte",
+        aliases = ["sand::cmd::Execute::if_score_lte", "sand::prelude::Execute::if_score_lte", "sand::prelude::cmd::Execute::if_score_lte"],
+        module = "sand::command",
+        kind = "method",
+        summary = "`if score ... <= ...` — continue if `a` is less than or equal to `b`.",
+        context = "`if score ... <= ...` — continue if `a` is less than or equal to `b`. This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
+        minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
+        use_when = ["Constructing Minecraft commands through Sand's typed command model"],
+        avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
+        params(a = "`if score ... <= ...` — continue if `a` is less than or equal to `b`.", a_obj = "`a_obj` supplies the documented `if score ... <= ...` — continue if `a` is less than or equal to `b` form.", b = "`if score ... <= ...` — continue if `a` is less than or equal to `b`.", b_obj = "`b_obj` supplies the documented `if score ... <= ...` — continue if `a` is less than or equal to `b` form."),
+        returns = "The `Execute` value with the documented change applied to emit the documented `if score ... <= ...` — continue if `a` is less than or equal to `b` form.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(execute_value: sand::command::Execute, a: impl Into < String >, a_obj: impl Into < String >, b: impl Into < String >, b_obj: impl Into < String >)  {\n    let updated_execute = execute_value.if_score_lte(a, a_obj, b, b_obj);\n}",
+    )]
     pub fn if_score_lte(
         self,
         a: impl Into<String>,
@@ -597,7 +1055,21 @@ impl Execute {
     }
 
     /// `unless score ... <= ...` — skip if `a` is less than or equal to `b`.
-    #[doc = "**API Contract:** Run `sand api show sand::command::Execute::unless_score_lte` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::command::Execute::unless_score_lte",
+        aliases = ["sand::cmd::Execute::unless_score_lte", "sand::prelude::Execute::unless_score_lte", "sand::prelude::cmd::Execute::unless_score_lte"],
+        module = "sand::command",
+        kind = "method",
+        summary = "`unless score ... <= ...` — skip if `a` is less than or equal to `b`.",
+        context = "`unless score ... <= ...` — skip if `a` is less than or equal to `b`. This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
+        minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
+        use_when = ["Constructing Minecraft commands through Sand's typed command model"],
+        avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
+        params(a = "`unless score ... <= ...` — skip if `a` is less than or equal to `b`.", a_obj = "`a_obj` supplies the documented `unless score ... <= ...` — skip if `a` is less than or equal to `b` form.", b = "`unless score ... <= ...` — skip if `a` is less than or equal to `b`.", b_obj = "`b_obj` supplies the documented `unless score ... <= ...` — skip if `a` is less than or equal to `b` form."),
+        returns = "The `Execute` value with the documented change applied to emit the documented `unless score ... <= ...` — skip if `a` is less than or equal to `b` form.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(execute_value: sand::command::Execute, a: impl Into < String >, a_obj: impl Into < String >, b: impl Into < String >, b_obj: impl Into < String >)  {\n    let updated_execute = execute_value.unless_score_lte(a, a_obj, b, b_obj);\n}",
+    )]
     pub fn unless_score_lte(
         self,
         a: impl Into<String>,
@@ -609,7 +1081,21 @@ impl Execute {
     }
 
     /// `if score ... > ...` — continue if `a` is strictly greater than `b`.
-    #[doc = "**API Contract:** Run `sand api show sand::command::Execute::if_score_gt` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::command::Execute::if_score_gt",
+        aliases = ["sand::cmd::Execute::if_score_gt", "sand::prelude::Execute::if_score_gt", "sand::prelude::cmd::Execute::if_score_gt"],
+        module = "sand::command",
+        kind = "method",
+        summary = "`if score ... > ...` — continue if `a` is strictly greater than `b`.",
+        context = "`if score ... > ...` — continue if `a` is strictly greater than `b`. This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
+        minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
+        use_when = ["Constructing Minecraft commands through Sand's typed command model"],
+        avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
+        params(a = "`if score ... > ...` — continue if `a` is strictly greater than `b`.", a_obj = "`a_obj` supplies the documented `if score ... > ...` — continue if `a` is strictly greater than `b` form.", b = "`if score ... > ...` — continue if `a` is strictly greater than `b`.", b_obj = "`b_obj` supplies the documented `if score ... > ...` — continue if `a` is strictly greater than `b` form."),
+        returns = "The `Execute` value with the documented change applied to emit the documented `if score ... > ...` — continue if `a` is strictly greater than `b` form.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(execute_value: sand::command::Execute, a: impl Into < String >, a_obj: impl Into < String >, b: impl Into < String >, b_obj: impl Into < String >)  {\n    let updated_execute = execute_value.if_score_gt(a, a_obj, b, b_obj);\n}",
+    )]
     pub fn if_score_gt(
         self,
         a: impl Into<String>,
@@ -621,7 +1107,21 @@ impl Execute {
     }
 
     /// `unless score ... > ...` — skip if `a` is strictly greater than `b`.
-    #[doc = "**API Contract:** Run `sand api show sand::command::Execute::unless_score_gt` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::command::Execute::unless_score_gt",
+        aliases = ["sand::cmd::Execute::unless_score_gt", "sand::prelude::Execute::unless_score_gt", "sand::prelude::cmd::Execute::unless_score_gt"],
+        module = "sand::command",
+        kind = "method",
+        summary = "`unless score ... > ...` — skip if `a` is strictly greater than `b`.",
+        context = "`unless score ... > ...` — skip if `a` is strictly greater than `b`. This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
+        minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
+        use_when = ["Constructing Minecraft commands through Sand's typed command model"],
+        avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
+        params(a = "`unless score ... > ...` — skip if `a` is strictly greater than `b`.", a_obj = "`a_obj` supplies the documented `unless score ... > ...` — skip if `a` is strictly greater than `b` form.", b = "`unless score ... > ...` — skip if `a` is strictly greater than `b`.", b_obj = "`b_obj` supplies the documented `unless score ... > ...` — skip if `a` is strictly greater than `b` form."),
+        returns = "The `Execute` value with the documented change applied to emit the documented `unless score ... > ...` — skip if `a` is strictly greater than `b` form.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(execute_value: sand::command::Execute, a: impl Into < String >, a_obj: impl Into < String >, b: impl Into < String >, b_obj: impl Into < String >)  {\n    let updated_execute = execute_value.unless_score_gt(a, a_obj, b, b_obj);\n}",
+    )]
     pub fn unless_score_gt(
         self,
         a: impl Into<String>,
@@ -633,7 +1133,21 @@ impl Execute {
     }
 
     /// `if score ... >= ...` — continue if `a` is greater than or equal to `b`.
-    #[doc = "**API Contract:** Run `sand api show sand::command::Execute::if_score_gte` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::command::Execute::if_score_gte",
+        aliases = ["sand::cmd::Execute::if_score_gte", "sand::prelude::Execute::if_score_gte", "sand::prelude::cmd::Execute::if_score_gte"],
+        module = "sand::command",
+        kind = "method",
+        summary = "`if score ... >= ...` — continue if `a` is greater than or equal to `b`.",
+        context = "`if score ... >= ...` — continue if `a` is greater than or equal to `b`. This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
+        minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
+        use_when = ["Constructing Minecraft commands through Sand's typed command model"],
+        avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
+        params(a = "`if score ... >= ...` — continue if `a` is greater than or equal to `b`.", a_obj = "`a_obj` supplies the documented `if score ... >= ...` — continue if `a` is greater than or equal to `b` form.", b = "`if score ... >= ...` — continue if `a` is greater than or equal to `b`.", b_obj = "`b_obj` supplies the documented `if score ... >= ...` — continue if `a` is greater than or equal to `b` form."),
+        returns = "The `Execute` value with the documented change applied to emit the documented `if score ... >= ...` — continue if `a` is greater than or equal to `b` form.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(execute_value: sand::command::Execute, a: impl Into < String >, a_obj: impl Into < String >, b: impl Into < String >, b_obj: impl Into < String >)  {\n    let updated_execute = execute_value.if_score_gte(a, a_obj, b, b_obj);\n}",
+    )]
     pub fn if_score_gte(
         self,
         a: impl Into<String>,
@@ -645,7 +1159,21 @@ impl Execute {
     }
 
     /// `unless score ... >= ...` — skip if `a` is greater than or equal to `b`.
-    #[doc = "**API Contract:** Run `sand api show sand::command::Execute::unless_score_gte` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::command::Execute::unless_score_gte",
+        aliases = ["sand::cmd::Execute::unless_score_gte", "sand::prelude::Execute::unless_score_gte", "sand::prelude::cmd::Execute::unless_score_gte"],
+        module = "sand::command",
+        kind = "method",
+        summary = "`unless score ... >= ...` — skip if `a` is greater than or equal to `b`.",
+        context = "`unless score ... >= ...` — skip if `a` is greater than or equal to `b`. This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
+        minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
+        use_when = ["Constructing Minecraft commands through Sand's typed command model"],
+        avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
+        params(a = "`unless score ... >= ...` — skip if `a` is greater than or equal to `b`.", a_obj = "`a_obj` supplies the documented `unless score ... >= ...` — skip if `a` is greater than or equal to `b` form.", b = "`unless score ... >= ...` — skip if `a` is greater than or equal to `b`.", b_obj = "`b_obj` supplies the documented `unless score ... >= ...` — skip if `a` is greater than or equal to `b` form."),
+        returns = "The `Execute` value with the documented change applied to emit the documented `unless score ... >= ...` — skip if `a` is greater than or equal to `b` form.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(execute_value: sand::command::Execute, a: impl Into < String >, a_obj: impl Into < String >, b: impl Into < String >, b_obj: impl Into < String >)  {\n    let updated_execute = execute_value.unless_score_gte(a, a_obj, b, b_obj);\n}",
+    )]
     pub fn unless_score_gte(
         self,
         a: impl Into<String>,
@@ -659,7 +1187,21 @@ impl Execute {
     // ── Data / NBT conditions ─────────────────────────────────────────────────
 
     /// `if data entity <selector> <path>` — continue if entity NBT has a value at `path`.
-    #[doc = "**API Contract:** Run `sand api show sand::command::Execute::if_data_entity` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::command::Execute::if_data_entity",
+        aliases = ["sand::cmd::Execute::if_data_entity", "sand::prelude::Execute::if_data_entity", "sand::prelude::cmd::Execute::if_data_entity"],
+        module = "sand::command",
+        kind = "method",
+        summary = "`if data entity <selector> <path>` — continue if entity NBT has a value at `path`.",
+        context = "`if data entity <selector> <path>` — continue if entity NBT has a value at `path`. This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
+        minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
+        use_when = ["Constructing Minecraft commands through Sand's typed command model"],
+        avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
+        params(selector = "`selector` provides the Minecraft target selection used to emit the documented `if data entity <selector> <path>` — continue if entity NBT has a value at `path` form.", path = "`if data entity <selector> <path>` — continue if entity NBT has a value at `path`."),
+        returns = "The `Execute` value with the documented change applied to emit the documented `if data entity <selector> <path>` — continue if entity NBT has a value at `path` form.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(execute_value: sand::command::Execute, selector: sand::command::Selector, path: impl Into < String >)  {\n    let updated_execute = execute_value.if_data_entity(selector, path);\n}",
+    )]
     pub fn if_data_entity(mut self, selector: Selector, path: impl Into<String>) -> Self {
         self.check_selector("if_data_entity", &selector);
         self.operations.push(ExecuteOp::If(ConditionIr::Data {
@@ -670,7 +1212,21 @@ impl Execute {
     }
 
     /// `unless data entity <selector> <path>` — skip if entity NBT has a value at `path`.
-    #[doc = "**API Contract:** Run `sand api show sand::command::Execute::unless_data_entity` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::command::Execute::unless_data_entity",
+        aliases = ["sand::cmd::Execute::unless_data_entity", "sand::prelude::Execute::unless_data_entity", "sand::prelude::cmd::Execute::unless_data_entity"],
+        module = "sand::command",
+        kind = "method",
+        summary = "`unless data entity <selector> <path>` — skip if entity NBT has a value at `path`.",
+        context = "`unless data entity <selector> <path>` — skip if entity NBT has a value at `path`. This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
+        minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
+        use_when = ["Constructing Minecraft commands through Sand's typed command model"],
+        avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
+        params(selector = "`selector` provides the Minecraft target selection used to emit the documented `unless data entity <selector> <path>` — skip if entity NBT has a value at `path` form.", path = "`unless data entity <selector> <path>` — skip if entity NBT has a value at `path`."),
+        returns = "The `Execute` value with the documented change applied to emit the documented `unless data entity <selector> <path>` — skip if entity NBT has a value at `path` form.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(execute_value: sand::command::Execute, selector: sand::command::Selector, path: impl Into < String >)  {\n    let updated_execute = execute_value.unless_data_entity(selector, path);\n}",
+    )]
     pub fn unless_data_entity(mut self, selector: Selector, path: impl Into<String>) -> Self {
         self.check_selector("unless_data_entity", &selector);
         self.operations.push(ExecuteOp::Unless(ConditionIr::Data {
@@ -681,7 +1237,21 @@ impl Execute {
     }
 
     /// `if data block <pos> <path>` — continue if block NBT has a value at `path`.
-    #[doc = "**API Contract:** Run `sand api show sand::command::Execute::if_data_block` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::command::Execute::if_data_block",
+        aliases = ["sand::cmd::Execute::if_data_block", "sand::prelude::Execute::if_data_block", "sand::prelude::cmd::Execute::if_data_block"],
+        module = "sand::command",
+        kind = "method",
+        summary = "`if data block <pos> <path>` — continue if block NBT has a value at `path`.",
+        context = "`if data block <pos> <path>` — continue if block NBT has a value at `path`. This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
+        minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
+        use_when = ["Constructing Minecraft commands through Sand's typed command model"],
+        avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
+        params(pos = "`pos` supplies the documented `if data block <pos> <path>` — continue if block NBT has a value at `path` form.", path = "`if data block <pos> <path>` — continue if block NBT has a value at `path`."),
+        returns = "The `Execute` value with the documented change applied to emit the documented `if data block <pos> <path>` — continue if block NBT has a value at `path` form.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(execute_value: sand::command::Execute, pos: sand::command::BlockPos, path: impl Into < String >)  {\n    let updated_execute = execute_value.if_data_block(pos, path);\n}",
+    )]
     pub fn if_data_block(mut self, pos: BlockPos, path: impl Into<String>) -> Self {
         self.check_block_pos("if_data_block", &pos);
         self.operations.push(ExecuteOp::If(ConditionIr::Data {
@@ -692,7 +1262,21 @@ impl Execute {
     }
 
     /// `unless data block <pos> <path>` — skip if block NBT has a value at `path`.
-    #[doc = "**API Contract:** Run `sand api show sand::command::Execute::unless_data_block` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::command::Execute::unless_data_block",
+        aliases = ["sand::cmd::Execute::unless_data_block", "sand::prelude::Execute::unless_data_block", "sand::prelude::cmd::Execute::unless_data_block"],
+        module = "sand::command",
+        kind = "method",
+        summary = "`unless data block <pos> <path>` — skip if block NBT has a value at `path`.",
+        context = "`unless data block <pos> <path>` — skip if block NBT has a value at `path`. This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
+        minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
+        use_when = ["Constructing Minecraft commands through Sand's typed command model"],
+        avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
+        params(pos = "`pos` supplies the documented `unless data block <pos> <path>` — skip if block NBT has a value at `path` form.", path = "`unless data block <pos> <path>` — skip if block NBT has a value at `path`."),
+        returns = "The `Execute` value with the documented change applied to emit the documented `unless data block <pos> <path>` — skip if block NBT has a value at `path` form.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(execute_value: sand::command::Execute, pos: sand::command::BlockPos, path: impl Into < String >)  {\n    let updated_execute = execute_value.unless_data_block(pos, path);\n}",
+    )]
     pub fn unless_data_block(mut self, pos: BlockPos, path: impl Into<String>) -> Self {
         self.check_block_pos("unless_data_block", &pos);
         self.operations.push(ExecuteOp::Unless(ConditionIr::Data {
@@ -703,7 +1287,21 @@ impl Execute {
     }
 
     /// `if data storage <source> <path>` — continue if storage has a value at `path`.
-    #[doc = "**API Contract:** Run `sand api show sand::command::Execute::if_data_storage` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::command::Execute::if_data_storage",
+        aliases = ["sand::cmd::Execute::if_data_storage", "sand::prelude::Execute::if_data_storage", "sand::prelude::cmd::Execute::if_data_storage"],
+        module = "sand::command",
+        kind = "method",
+        summary = "`if data storage <source> <path>` — continue if storage has a value at `path`.",
+        context = "`if data storage <source> <path>` — continue if storage has a value at `path`. This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
+        minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
+        use_when = ["Constructing Minecraft commands through Sand's typed command model"],
+        avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
+        params(source = "`source` supplies the documented `if data storage <source> <path>` — continue if storage has a value at `path` form.", path = "`if data storage <source> <path>` — continue if storage has a value at `path`."),
+        returns = "The `Execute` value with the documented change applied to emit the documented `if data storage <source> <path>` — continue if storage has a value at `path` form.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(execute_value: sand::command::Execute, source: impl Into < String >, path: impl Into < String >)  {\n    let updated_execute = execute_value.if_data_storage(source, path);\n}",
+    )]
     pub fn if_data_storage(mut self, source: impl Into<String>, path: impl Into<String>) -> Self {
         let source = source.into();
         self.check_resource("if_data_storage", "storage", &source, false);
@@ -715,7 +1313,21 @@ impl Execute {
     }
 
     /// `unless data storage <source> <path>` — skip if storage has a value at `path`.
-    #[doc = "**API Contract:** Run `sand api show sand::command::Execute::unless_data_storage` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::command::Execute::unless_data_storage",
+        aliases = ["sand::cmd::Execute::unless_data_storage", "sand::prelude::Execute::unless_data_storage", "sand::prelude::cmd::Execute::unless_data_storage"],
+        module = "sand::command",
+        kind = "method",
+        summary = "`unless data storage <source> <path>` — skip if storage has a value at `path`.",
+        context = "`unless data storage <source> <path>` — skip if storage has a value at `path`. This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
+        minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
+        use_when = ["Constructing Minecraft commands through Sand's typed command model"],
+        avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
+        params(source = "`source` supplies the documented `unless data storage <source> <path>` — skip if storage has a value at `path` form.", path = "`unless data storage <source> <path>` — skip if storage has a value at `path`."),
+        returns = "The `Execute` value with the documented change applied to emit the documented `unless data storage <source> <path>` — skip if storage has a value at `path` form.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(execute_value: sand::command::Execute, source: impl Into < String >, path: impl Into < String >)  {\n    let updated_execute = execute_value.unless_data_storage(source, path);\n}",
+    )]
     pub fn unless_data_storage(
         mut self,
         source: impl Into<String>,
@@ -733,7 +1345,21 @@ impl Execute {
     // ── World conditions ──────────────────────────────────────────────────────
 
     /// `if biome <pos> <biome>` — continue if the biome at `pos` matches (1.19.4+).
-    #[doc = "**API Contract:** Run `sand api show sand::command::Execute::if_biome` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::command::Execute::if_biome",
+        aliases = ["sand::cmd::Execute::if_biome", "sand::prelude::Execute::if_biome", "sand::prelude::cmd::Execute::if_biome"],
+        module = "sand::command",
+        kind = "method",
+        summary = "`if biome <pos> <biome>` — continue if the biome at `pos` matches (1.19.4+).",
+        context = "`if biome <pos> <biome>` — continue if the biome at `pos` matches (1.19.4+). This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
+        minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
+        use_when = ["Constructing Minecraft commands through Sand's typed command model"],
+        avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
+        params(pos = "`if biome <pos> <biome>` — continue if the biome at `pos` matches (1.19.4+).", biome = "`biome` supplies the documented `if biome <pos> <biome>` — continue if the biome at `pos` matches (1.19.4+) form."),
+        returns = "The `Execute` value with the documented change applied to emit the documented `if biome <pos> <biome>` — continue if the biome at `pos` matches (1.19.4+) form.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(execute_value: sand::command::Execute, pos: sand::command::BlockPos, biome: impl Into < String >)  {\n    let updated_execute = execute_value.if_biome(pos, biome);\n}",
+    )]
     pub fn if_biome(mut self, pos: BlockPos, biome: impl Into<String>) -> Self {
         let biome = biome.into();
         self.check_block_pos("if_biome", &pos);
@@ -746,7 +1372,21 @@ impl Execute {
     }
 
     /// `unless biome <pos> <biome>` — skip if the biome at `pos` matches.
-    #[doc = "**API Contract:** Run `sand api show sand::command::Execute::unless_biome` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::command::Execute::unless_biome",
+        aliases = ["sand::cmd::Execute::unless_biome", "sand::prelude::Execute::unless_biome", "sand::prelude::cmd::Execute::unless_biome"],
+        module = "sand::command",
+        kind = "method",
+        summary = "`unless biome <pos> <biome>` — skip if the biome at `pos` matches.",
+        context = "`unless biome <pos> <biome>` — skip if the biome at `pos` matches. This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
+        minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
+        use_when = ["Constructing Minecraft commands through Sand's typed command model"],
+        avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
+        params(pos = "`unless biome <pos> <biome>` — skip if the biome at `pos` matches.", biome = "`biome` supplies the documented `unless biome <pos> <biome>` — skip if the biome at `pos` matches form."),
+        returns = "The `Execute` value with the documented change applied to emit the documented `unless biome <pos> <biome>` — skip if the biome at `pos` matches form.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(execute_value: sand::command::Execute, pos: sand::command::BlockPos, biome: impl Into < String >)  {\n    let updated_execute = execute_value.unless_biome(pos, biome);\n}",
+    )]
     pub fn unless_biome(mut self, pos: BlockPos, biome: impl Into<String>) -> Self {
         let biome = biome.into();
         self.check_block_pos("unless_biome", &pos);
@@ -759,7 +1399,21 @@ impl Execute {
     }
 
     /// `if dimension <dimension>` — continue if executing in the given dimension (1.21+).
-    #[doc = "**API Contract:** Run `sand api show sand::command::Execute::if_dimension` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::command::Execute::if_dimension",
+        aliases = ["sand::cmd::Execute::if_dimension", "sand::prelude::Execute::if_dimension", "sand::prelude::cmd::Execute::if_dimension"],
+        module = "sand::command",
+        kind = "method",
+        summary = "`if dimension <dimension>` — continue if executing in the given dimension (1.21+).",
+        context = "`if dimension <dimension>` — continue if executing in the given dimension (1.21+). This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
+        minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
+        use_when = ["Constructing Minecraft commands through Sand's typed command model"],
+        avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
+        params(dimension = "`dimension` supplies the documented `if dimension <dimension>` — continue if executing in the given dimension (1.21+) form."),
+        returns = "The `Execute` value with the documented change applied to emit the documented `if dimension <dimension>` — continue if executing in the given dimension (1.21+) form.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(execute_value: sand::command::Execute, dimension: impl Into < String >)  {\n    let updated_execute = execute_value.if_dimension(dimension);\n}",
+    )]
     pub fn if_dimension(mut self, dimension: impl Into<String>) -> Self {
         let dimension = dimension.into();
         self.check_resource("if_dimension", "dimension", &dimension, false);
@@ -769,7 +1423,21 @@ impl Execute {
     }
 
     /// `unless dimension <dimension>` — skip if executing in the given dimension (1.21+).
-    #[doc = "**API Contract:** Run `sand api show sand::command::Execute::unless_dimension` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::command::Execute::unless_dimension",
+        aliases = ["sand::cmd::Execute::unless_dimension", "sand::prelude::Execute::unless_dimension", "sand::prelude::cmd::Execute::unless_dimension"],
+        module = "sand::command",
+        kind = "method",
+        summary = "`unless dimension <dimension>` — skip if executing in the given dimension (1.21+).",
+        context = "`unless dimension <dimension>` — skip if executing in the given dimension (1.21+). This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
+        minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
+        use_when = ["Constructing Minecraft commands through Sand's typed command model"],
+        avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
+        params(dimension = "`dimension` supplies the documented `unless dimension <dimension>` — skip if executing in the given dimension (1.21+) form."),
+        returns = "The `Execute` value with the documented change applied to emit the documented `unless dimension <dimension>` — skip if executing in the given dimension (1.21+) form.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(execute_value: sand::command::Execute, dimension: impl Into < String >)  {\n    let updated_execute = execute_value.unless_dimension(dimension);\n}",
+    )]
     pub fn unless_dimension(mut self, dimension: impl Into<String>) -> Self {
         let dimension = dimension.into();
         self.check_resource("unless_dimension", "dimension", &dimension, false);
@@ -779,7 +1447,21 @@ impl Execute {
     }
 
     /// `if loaded <pos>` — continue only if the chunk at `pos` is fully loaded.
-    #[doc = "**API Contract:** Run `sand api show sand::command::Execute::if_loaded` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::command::Execute::if_loaded",
+        aliases = ["sand::cmd::Execute::if_loaded", "sand::prelude::Execute::if_loaded", "sand::prelude::cmd::Execute::if_loaded"],
+        module = "sand::command",
+        kind = "method",
+        summary = "`if loaded <pos>` — continue only if the chunk at `pos` is fully loaded.",
+        context = "`if loaded <pos>` — continue only if the chunk at `pos` is fully loaded. This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
+        minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
+        use_when = ["Constructing Minecraft commands through Sand's typed command model"],
+        avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
+        params(pos = "`if loaded <pos>` — continue only if the chunk at `pos` is fully loaded."),
+        returns = "The `Execute` value with the documented change applied to emit the documented `if loaded <pos>` — continue only if the chunk at `pos` is fully loaded form.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(execute_value: sand::command::Execute, pos: sand::command::BlockPos)  {\n    let updated_execute = execute_value.if_loaded(pos);\n}",
+    )]
     pub fn if_loaded(mut self, pos: BlockPos) -> Self {
         self.check_block_pos("if_loaded", &pos);
         self.operations
@@ -788,7 +1470,21 @@ impl Execute {
     }
 
     /// `unless loaded <pos>` — skip if the chunk at `pos` is NOT fully loaded.
-    #[doc = "**API Contract:** Run `sand api show sand::command::Execute::unless_loaded` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::command::Execute::unless_loaded",
+        aliases = ["sand::cmd::Execute::unless_loaded", "sand::prelude::Execute::unless_loaded", "sand::prelude::cmd::Execute::unless_loaded"],
+        module = "sand::command",
+        kind = "method",
+        summary = "`unless loaded <pos>` — skip if the chunk at `pos` is NOT fully loaded.",
+        context = "`unless loaded <pos>` — skip if the chunk at `pos` is NOT fully loaded. This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
+        minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
+        use_when = ["Constructing Minecraft commands through Sand's typed command model"],
+        avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
+        params(pos = "`unless loaded <pos>` — skip if the chunk at `pos` is NOT fully loaded."),
+        returns = "The `Execute` value with the documented change applied to emit the documented `unless loaded <pos>` — skip if the chunk at `pos` is NOT fully loaded form.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(execute_value: sand::command::Execute, pos: sand::command::BlockPos)  {\n    let updated_execute = execute_value.unless_loaded(pos);\n}",
+    )]
     pub fn unless_loaded(mut self, pos: BlockPos) -> Self {
         self.check_block_pos("unless_loaded", &pos);
         self.operations
@@ -797,7 +1493,21 @@ impl Execute {
     }
 
     /// `if items entity <selector> <slot> <item>` — execute if an entity has a matching item.
-    #[doc = "**API Contract:** Run `sand api show sand::command::Execute::if_items_entity` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::command::Execute::if_items_entity",
+        aliases = ["sand::cmd::Execute::if_items_entity", "sand::prelude::Execute::if_items_entity", "sand::prelude::cmd::Execute::if_items_entity"],
+        module = "sand::command",
+        kind = "method",
+        summary = "`if items entity <selector> <slot> <item>` — execute if an entity has a matching item.",
+        context = "`if items entity <selector> <slot> <item>` — execute if an entity has a matching item. This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
+        minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
+        use_when = ["Constructing Minecraft commands through Sand's typed command model"],
+        avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
+        params(selector = "`selector` provides the Minecraft target selection used to emit the documented `if items entity <selector> <slot> <item>` — execute if an entity has a matching item form.", slot = "`slot` supplies the documented `if items entity <selector> <slot> <item>` — execute if an entity has a matching item form.", item = "`item` provides the item value or item predicate used to emit the documented `if items entity <selector> <slot> <item>` — execute if an entity has a matching item form."),
+        returns = "The `Execute` value with the documented change applied to emit the documented `if items entity <selector> <slot> <item>` — execute if an entity has a matching item form.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(execute_value: sand::command::Execute, selector: sand::command::Selector, slot: sand::command::ItemSlot, item: impl Into < String >)  {\n    let updated_execute = execute_value.if_items_entity(selector, slot, item);\n}",
+    )]
     pub fn if_items_entity(
         mut self,
         selector: Selector,
@@ -820,7 +1530,21 @@ impl Execute {
     }
 
     /// `unless items entity <selector> <slot> <item>` — skip if the entity has the item.
-    #[doc = "**API Contract:** Run `sand api show sand::command::Execute::unless_items_entity` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::command::Execute::unless_items_entity",
+        aliases = ["sand::cmd::Execute::unless_items_entity", "sand::prelude::Execute::unless_items_entity", "sand::prelude::cmd::Execute::unless_items_entity"],
+        module = "sand::command",
+        kind = "method",
+        summary = "`unless items entity <selector> <slot> <item>` — skip if the entity has the item.",
+        context = "`unless items entity <selector> <slot> <item>` — skip if the entity has the item. This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
+        minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
+        use_when = ["Constructing Minecraft commands through Sand's typed command model"],
+        avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
+        params(selector = "`selector` provides the Minecraft target selection used to emit the documented `unless items entity <selector> <slot> <item>` — skip if the entity has the item form.", slot = "`slot` supplies the documented `unless items entity <selector> <slot> <item>` — skip if the entity has the item form.", item = "`item` provides the item value or item predicate used to emit the documented `unless items entity <selector> <slot> <item>` — skip if the entity has the item form."),
+        returns = "The `Execute` value with the documented change applied to emit the documented `unless items entity <selector> <slot> <item>` — skip if the entity has the item form.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(execute_value: sand::command::Execute, selector: sand::command::Selector, slot: sand::command::ItemSlot, item: impl Into < String >)  {\n    let updated_execute = execute_value.unless_items_entity(selector, slot, item);\n}",
+    )]
     pub fn unless_items_entity(
         mut self,
         selector: Selector,
@@ -843,7 +1567,21 @@ impl Execute {
     }
 
     /// `if items block <pos> <slot> <item>` — execute if a block container has a matching item.
-    #[doc = "**API Contract:** Run `sand api show sand::command::Execute::if_items_block` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::command::Execute::if_items_block",
+        aliases = ["sand::cmd::Execute::if_items_block", "sand::prelude::Execute::if_items_block", "sand::prelude::cmd::Execute::if_items_block"],
+        module = "sand::command",
+        kind = "method",
+        summary = "`if items block <pos> <slot> <item>` — execute if a block container has a matching item.",
+        context = "`if items block <pos> <slot> <item>` — execute if a block container has a matching item. This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
+        minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
+        use_when = ["Constructing Minecraft commands through Sand's typed command model"],
+        avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
+        params(pos = "`pos` supplies the documented `if items block <pos> <slot> <item>` — execute if a block container has a matching item form.", slot = "`slot` supplies the documented `if items block <pos> <slot> <item>` — execute if a block container has a matching item form.", item = "`item` provides the item value or item predicate used to emit the documented `if items block <pos> <slot> <item>` — execute if a block container has a matching item form."),
+        returns = "The `Execute` value with the documented change applied to emit the documented `if items block <pos> <slot> <item>` — execute if a block container has a matching item form.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(execute_value: sand::command::Execute, pos: sand::command::BlockPos, slot: sand::command::ItemSlot, item: impl Into < String >)  {\n    let updated_execute = execute_value.if_items_block(pos, slot, item);\n}",
+    )]
     pub fn if_items_block(
         mut self,
         pos: BlockPos,
@@ -865,7 +1603,21 @@ impl Execute {
     }
 
     /// `unless items block <pos> <slot> <item>` — skip if the block container has the item.
-    #[doc = "**API Contract:** Run `sand api show sand::command::Execute::unless_items_block` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::command::Execute::unless_items_block",
+        aliases = ["sand::cmd::Execute::unless_items_block", "sand::prelude::Execute::unless_items_block", "sand::prelude::cmd::Execute::unless_items_block"],
+        module = "sand::command",
+        kind = "method",
+        summary = "`unless items block <pos> <slot> <item>` — skip if the block container has the item.",
+        context = "`unless items block <pos> <slot> <item>` — skip if the block container has the item. This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
+        minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
+        use_when = ["Constructing Minecraft commands through Sand's typed command model"],
+        avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
+        params(pos = "`pos` supplies the documented `unless items block <pos> <slot> <item>` — skip if the block container has the item form.", slot = "`slot` supplies the documented `unless items block <pos> <slot> <item>` — skip if the block container has the item form.", item = "`item` provides the item value or item predicate used to emit the documented `unless items block <pos> <slot> <item>` — skip if the block container has the item form."),
+        returns = "The `Execute` value with the documented change applied to emit the documented `unless items block <pos> <slot> <item>` — skip if the block container has the item form.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(execute_value: sand::command::Execute, pos: sand::command::BlockPos, slot: sand::command::ItemSlot, item: impl Into < String >)  {\n    let updated_execute = execute_value.unless_items_block(pos, slot, item);\n}",
+    )]
     pub fn unless_items_block(
         mut self,
         pos: BlockPos,
@@ -888,7 +1640,21 @@ impl Execute {
     }
 
     /// `if predicate <predicate>` — execute if a loot table predicate evaluates to true.
-    #[doc = "**API Contract:** Run `sand api show sand::command::Execute::if_predicate` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::command::Execute::if_predicate",
+        aliases = ["sand::cmd::Execute::if_predicate", "sand::prelude::Execute::if_predicate", "sand::prelude::cmd::Execute::if_predicate"],
+        module = "sand::command",
+        kind = "method",
+        summary = "`if predicate <predicate>` — execute if a loot table predicate evaluates to true.",
+        context = "`if predicate <predicate>` — execute if a loot table predicate evaluates to true. This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
+        minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
+        use_when = ["Constructing Minecraft commands through Sand's typed command model"],
+        avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
+        params(predicate = "`predicate` provides the predicate that must match used to emit the documented `if predicate <predicate>` — execute if a loot table predicate evaluates to true form."),
+        returns = "The `Execute` value with the documented change applied to emit the documented `if predicate <predicate>` — execute if a loot table predicate evaluates to true form.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(execute_value: sand::command::Execute, predicate: impl Into < String >)  {\n    let updated_execute = execute_value.if_predicate(predicate);\n}",
+    )]
     pub fn if_predicate(mut self, predicate: impl Into<String>) -> Self {
         let predicate = predicate.into();
         self.check_resource("if_predicate", "predicate", &predicate, false);
@@ -902,7 +1668,21 @@ impl Execute {
     /// This compatibility method creates [`ExecuteOp::Raw`]. Sand preserves
     /// the fragment verbatim and cannot structurally validate or version-check
     /// it. Prefer typed condition methods for new code.
-    #[doc = "**API Contract:** Run `sand api show sand::command::Execute::if_` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::command::Execute::if_",
+        aliases = ["sand::cmd::Execute::if_", "sand::prelude::Execute::if_", "sand::prelude::cmd::Execute::if_"],
+        module = "sand::command",
+        kind = "method",
+        summary = "Append a legacy raw execute fragment (e.g. from `Objective::if_matches`).",
+        context = "Append a legacy raw execute fragment (e.g. from `Objective::if_matches`). This compatibility method creates [`ExecuteOp::Raw`]. Sand preserves the fragment verbatim and cannot structurally validate or version-check it. Prefer typed condition methods for new code.",
+        minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
+        use_when = ["Constructing Minecraft commands through Sand's typed command model"],
+        avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
+        params(condition = "`condition` provides the condition that gates the operation used to append a legacy raw execute fragment (e.g. from `Objective::if_matches`)."),
+        returns = "The `Execute` value with the documented change applied to append a legacy raw execute fragment (e.g. from `Objective::if_matches`).",
+        example = "use sand::prelude::*;\n\nfn demonstrate(execute_value: sand::command::Execute, condition: impl Into < String >)  {\n    let updated_execute = execute_value.if_(condition);\n}",
+    )]
     pub fn if_(mut self, condition: impl Into<String>) -> Self {
         self.operations.push(ExecuteOp::Raw(condition.into()));
         self
@@ -911,7 +1691,21 @@ impl Execute {
     /// Append an explicitly opaque execute subcommand.
     ///
     /// Raw operations are not parsed, optimized, rewritten, or version-checked.
-    #[doc = "**API Contract:** Run `sand api show sand::command::Execute::raw_operation` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::command::Execute::raw_operation",
+        aliases = ["sand::cmd::Execute::raw_operation", "sand::prelude::Execute::raw_operation", "sand::prelude::cmd::Execute::raw_operation"],
+        module = "sand::command",
+        kind = "method",
+        summary = "Append an explicitly opaque execute subcommand. Raw operations are not parsed, optimized, rewritten, or version-checked.",
+        context = "Append an explicitly opaque execute subcommand. Raw operations are not parsed, optimized, rewritten, or version-checked. This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
+        minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
+        use_when = ["Constructing Minecraft commands through Sand's typed command model"],
+        avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
+        params(fragment = "`fragment` provides the fragment appended when building an explicitly opaque execute subcommand. Raw operations are not parsed, optimized, rewritten, or version-checked."),
+        returns = "The `Execute` value with the documented change applied to append an explicitly opaque execute subcommand. Raw operations are not parsed, optimized, rewritten, or version-checked.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(execute_value: sand::command::Execute, fragment: impl Into < String >)  {\n    let updated_execute = execute_value.raw_operation(fragment);\n}",
+    )]
     pub fn raw_operation(mut self, fragment: impl Into<String>) -> Self {
         self.operations.push(ExecuteOp::Raw(fragment.into()));
         self
@@ -923,7 +1717,21 @@ impl Execute {
     ///
     /// Accepts any type that converts to [`ItemSlot`], including wildcard
     /// variants such as `ItemSlot::AnyHotbar`.
-    #[doc = "**API Contract:** Run `sand api show sand::command::Execute::if_items` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::command::Execute::if_items",
+        aliases = ["sand::cmd::Execute::if_items", "sand::prelude::Execute::if_items", "sand::prelude::cmd::Execute::if_items"],
+        module = "sand::command",
+        kind = "method",
+        summary = "`if items entity <selector> <slot> <item>` — execute if the slot holds a matching item.",
+        context = "`if items entity <selector> <slot> <item>` — execute if the slot holds a matching item. Accepts any type that converts to [`ItemSlot`], including wildcard variants such as `ItemSlot::AnyHotbar`.",
+        minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
+        use_when = ["Constructing Minecraft commands through Sand's typed command model"],
+        avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
+        params(selector = "`selector` provides the Minecraft target selection used to emit the documented `if items entity <selector> <slot> <item>` — execute if the slot holds a matching item form.", slot = "`slot` supplies the documented `if items entity <selector> <slot> <item>` — execute if the slot holds a matching item form.", item = "`item` provides the item value or item predicate used to emit the documented `if items entity <selector> <slot> <item>` — execute if the slot holds a matching item form."),
+        returns = "The `Execute` value with the documented change applied to emit the documented `if items entity <selector> <slot> <item>` — execute if the slot holds a matching item form.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(execute_value: sand::command::Execute, selector: sand::command::Selector, slot: impl Into < sand::command::ItemSlot >, item: impl Into < String >)  {\n    let updated_execute = execute_value.if_items(selector, slot, item);\n}",
+    )]
     pub fn if_items(
         mut self,
         selector: Selector,
@@ -947,7 +1755,21 @@ impl Execute {
     }
 
     /// `unless items entity <selector> <slot> <item>` — execute if the slot does NOT match.
-    #[doc = "**API Contract:** Run `sand api show sand::command::Execute::unless_items` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::command::Execute::unless_items",
+        aliases = ["sand::cmd::Execute::unless_items", "sand::prelude::Execute::unless_items", "sand::prelude::cmd::Execute::unless_items"],
+        module = "sand::command",
+        kind = "method",
+        summary = "`unless items entity <selector> <slot> <item>` — execute if the slot does NOT match.",
+        context = "`unless items entity <selector> <slot> <item>` — execute if the slot does NOT match. This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
+        minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
+        use_when = ["Constructing Minecraft commands through Sand's typed command model"],
+        avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
+        params(selector = "`selector` provides the Minecraft target selection used to emit the documented `unless items entity <selector> <slot> <item>` — execute if the slot does NOT match form.", slot = "`slot` supplies the documented `unless items entity <selector> <slot> <item>` — execute if the slot does NOT match form.", item = "`item` provides the item value or item predicate used to emit the documented `unless items entity <selector> <slot> <item>` — execute if the slot does NOT match form."),
+        returns = "The `Execute` value with the documented change applied to emit the documented `unless items entity <selector> <slot> <item>` — execute if the slot does NOT match form.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(execute_value: sand::command::Execute, selector: sand::command::Selector, slot: impl Into < sand::command::ItemSlot >, item: impl Into < String >)  {\n    let updated_execute = execute_value.unless_items(selector, slot, item);\n}",
+    )]
     pub fn unless_items(
         mut self,
         selector: Selector,
@@ -973,7 +1795,21 @@ impl Execute {
     // ── Store sub-commands ────────────────────────────────────────────────────
 
     /// `store result score <holder> <objective>` — capture the `run` result into a score.
-    #[doc = "**API Contract:** Run `sand api show sand::command::Execute::store_result_score` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::command::Execute::store_result_score",
+        aliases = ["sand::cmd::Execute::store_result_score", "sand::prelude::Execute::store_result_score", "sand::prelude::cmd::Execute::store_result_score"],
+        module = "sand::command",
+        kind = "method",
+        summary = "`store result score <holder> <objective>` — capture the `run` result into a score.",
+        context = "`store result score <holder> <objective>` — capture the `run` result into a score. This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
+        minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
+        use_when = ["Constructing Minecraft commands through Sand's typed command model"],
+        avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
+        params(holder = "`holder` supplies the documented `store result score <holder> <objective>` — capture the `run` result into a score form.", objective = "`objective` supplies the documented `store result score <holder> <objective>` — capture the `run` result into a score form."),
+        returns = "The `Execute` value with the documented change applied to emit the documented `store result score <holder> <objective>` — capture the `run` result into a score form.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(execute_value: sand::command::Execute, holder: sand::command::ScoreHolder, objective: impl Into < String >)  {\n    let updated_execute = execute_value.store_result_score(holder, objective);\n}",
+    )]
     pub fn store_result_score(mut self, holder: ScoreHolder, objective: impl Into<String>) -> Self {
         let objective = objective.into();
         self.checks.push(ExecuteCheck::Holder {
@@ -995,7 +1831,21 @@ impl Execute {
     }
 
     /// `store success score <holder> <objective>` — store 1 if `run` succeeds, 0 if it fails.
-    #[doc = "**API Contract:** Run `sand api show sand::command::Execute::store_success_score` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::command::Execute::store_success_score",
+        aliases = ["sand::cmd::Execute::store_success_score", "sand::prelude::Execute::store_success_score", "sand::prelude::cmd::Execute::store_success_score"],
+        module = "sand::command",
+        kind = "method",
+        summary = "`store success score <holder> <objective>` — store 1 if `run` succeeds, 0 if it fails.",
+        context = "`store success score <holder> <objective>` — store 1 if `run` succeeds, 0 if it fails. This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
+        minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
+        use_when = ["Constructing Minecraft commands through Sand's typed command model"],
+        avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
+        params(holder = "`holder` supplies the documented `store success score <holder> <objective>` — store 1 if `run` succeeds, 0 if it fails form.", objective = "`objective` supplies the documented `store success score <holder> <objective>` — store 1 if `run` succeeds, 0 if it fails form."),
+        returns = "The `Execute` value with the documented change applied to emit the documented `store success score <holder> <objective>` — store 1 if `run` succeeds, 0 if it fails form.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(execute_value: sand::command::Execute, holder: sand::command::ScoreHolder, objective: impl Into < String >)  {\n    let updated_execute = execute_value.store_success_score(holder, objective);\n}",
+    )]
     pub fn store_success_score(
         mut self,
         holder: ScoreHolder,
@@ -1021,7 +1871,21 @@ impl Execute {
     }
 
     /// `store result nbt <target> <path> <type> <scale>` — write the `run` result into NBT.
-    #[doc = "**API Contract:** Run `sand api show sand::command::Execute::store_result_nbt` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::command::Execute::store_result_nbt",
+        aliases = ["sand::cmd::Execute::store_result_nbt", "sand::prelude::Execute::store_result_nbt", "sand::prelude::cmd::Execute::store_result_nbt"],
+        module = "sand::command",
+        kind = "method",
+        summary = "`store result nbt <target> <path> <type> <scale>` — write the `run` result into NBT.",
+        context = "`store result nbt <target> <path> <type> <scale>` — write the `run` result into NBT. This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
+        minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
+        use_when = ["Constructing Minecraft commands through Sand's typed command model"],
+        avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
+        params(target = "`target` provides the entity, block, or command target used to emit the documented `store result nbt <target> <path> <type> <scale>` — write the `run` result into NBT form.", path = "`path` provides the typed resource identifier or location used to emit the documented `store result nbt <target> <path> <type> <scale>` — write the `run` result into NBT form.", kind = "`kind` supplies the documented `store result nbt <target> <path> <type> <scale>` — write the `run` result into NBT form.", scale = "`scale` supplies the documented `store result nbt <target> <path> <type> <scale>` — write the `run` result into NBT form."),
+        returns = "The `Execute` value with the documented change applied to emit the documented `store result nbt <target> <path> <type> <scale>` — write the `run` result into NBT form.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(execute_value: sand::command::Execute, target: sand::data::DataTarget, path: impl Into < String >, kind: sand::command::NbtStoreKind, scale: f64)  {\n    let updated_execute = execute_value.store_result_nbt(target, path, kind, scale);\n}",
+    )]
     pub fn store_result_nbt(
         mut self,
         target: DataTarget,
@@ -1046,7 +1910,21 @@ impl Execute {
     }
 
     /// `store success nbt <target> <path> <type> <scale>` — write 1/0 (success/fail) into NBT.
-    #[doc = "**API Contract:** Run `sand api show sand::command::Execute::store_success_nbt` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::command::Execute::store_success_nbt",
+        aliases = ["sand::cmd::Execute::store_success_nbt", "sand::prelude::Execute::store_success_nbt", "sand::prelude::cmd::Execute::store_success_nbt"],
+        module = "sand::command",
+        kind = "method",
+        summary = "`store success nbt <target> <path> <type> <scale>` — write 1/0 (success/fail) into NBT.",
+        context = "`store success nbt <target> <path> <type> <scale>` — write 1/0 (success/fail) into NBT. This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
+        minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
+        use_when = ["Constructing Minecraft commands through Sand's typed command model"],
+        avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
+        params(target = "`target` provides the entity, block, or command target used to emit the documented `store success nbt <target> <path> <type> <scale>` — write 1/0 (success/fail) into NBT form.", path = "`path` provides the typed resource identifier or location used to emit the documented `store success nbt <target> <path> <type> <scale>` — write 1/0 (success/fail) into NBT form.", kind = "`kind` supplies the documented `store success nbt <target> <path> <type> <scale>` — write 1/0 (success/fail) into NBT form.", scale = "`scale` supplies the documented `store success nbt <target> <path> <type> <scale>` — write 1/0 (success/fail) into NBT form."),
+        returns = "The `Execute` value with the documented change applied to emit the documented `store success nbt <target> <path> <type> <scale>` — write 1/0 (success/fail) into NBT form.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(execute_value: sand::command::Execute, target: sand::data::DataTarget, path: impl Into < String >, kind: sand::command::NbtStoreKind, scale: f64)  {\n    let updated_execute = execute_value.store_success_nbt(target, path, kind, scale);\n}",
+    )]
     pub fn store_success_nbt(
         mut self,
         target: DataTarget,
@@ -1071,7 +1949,21 @@ impl Execute {
     }
 
     /// `store result bossbar <id> value` — write the `run` result into a bossbar's current value.
-    #[doc = "**API Contract:** Run `sand api show sand::command::Execute::store_result_bossbar` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::command::Execute::store_result_bossbar",
+        aliases = ["sand::cmd::Execute::store_result_bossbar", "sand::prelude::Execute::store_result_bossbar", "sand::prelude::cmd::Execute::store_result_bossbar"],
+        module = "sand::command",
+        kind = "method",
+        summary = "`store result bossbar <id> value` — write the `run` result into a bossbar's current value.",
+        context = "`store result bossbar <id> value` — write the `run` result into a bossbar's current value. This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
+        minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
+        use_when = ["Constructing Minecraft commands through Sand's typed command model"],
+        avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
+        params(id = "`id` provides the typed resource identifier or location used to emit the documented `store result bossbar <id> value` — write the `run` result into a bossbar's current value form.", attribute = "`attribute` supplies the documented `store result bossbar <id> value` — write the `run` result into a bossbar's current value form."),
+        returns = "The `Execute` value with the documented change applied to emit the documented `store result bossbar <id> value` — write the `run` result into a bossbar's current value form.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(execute_value: sand::command::Execute, id: impl Into < String >, attribute: impl Into < String >)  {\n    let updated_execute = execute_value.store_result_bossbar(id, attribute);\n}",
+    )]
     pub fn store_result_bossbar(
         mut self,
         id: impl Into<String>,
@@ -1086,7 +1978,21 @@ impl Execute {
     }
 
     /// `store success bossbar <id> <attribute>` — write success/failure into a bossbar attribute.
-    #[doc = "**API Contract:** Run `sand api show sand::command::Execute::store_success_bossbar` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::command::Execute::store_success_bossbar",
+        aliases = ["sand::cmd::Execute::store_success_bossbar", "sand::prelude::Execute::store_success_bossbar", "sand::prelude::cmd::Execute::store_success_bossbar"],
+        module = "sand::command",
+        kind = "method",
+        summary = "`store success bossbar <id> <attribute>` — write success/failure into a bossbar attribute.",
+        context = "`store success bossbar <id> <attribute>` — write success/failure into a bossbar attribute. This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
+        minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
+        use_when = ["Constructing Minecraft commands through Sand's typed command model"],
+        avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
+        params(id = "`id` provides the typed resource identifier or location used to emit the documented `store success bossbar <id> <attribute>` — write success/failure into a bossbar attribute form.", attribute = "`attribute` supplies the documented `store success bossbar <id> <attribute>` — write success/failure into a bossbar attribute form."),
+        returns = "The `Execute` value with the documented change applied to emit the documented `store success bossbar <id> <attribute>` — write success/failure into a bossbar attribute form.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(execute_value: sand::command::Execute, id: impl Into < String >, attribute: impl Into < String >)  {\n    let updated_execute = execute_value.store_success_bossbar(id, attribute);\n}",
+    )]
     pub fn store_success_bossbar(
         mut self,
         id: impl Into<String>,
@@ -1107,14 +2013,42 @@ impl Execute {
     /// This retains the historical infallible string API. Prefer [`try_run`](Self::try_run)
     /// for typed terminal commands; exported compatibility output is validated
     /// again with function context before files are accepted.
-    #[doc = "**API Contract:** Run `sand api show sand::command::Execute::run` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::command::Execute::run",
+        aliases = ["sand::cmd::Execute::run", "sand::prelude::Execute::run", "sand::prelude::cmd::Execute::run"],
+        module = "sand::command",
+        kind = "method",
+        summary = "Compatibility renderer for `run <command>`. This retains the historical infallible string API. Prefer [`try_run`](Self::try_run) for typed terminal commands; exported compatibility output is validated again with function context before files are accepted.",
+        context = "Compatibility renderer for `run <command>`. This retains the historical infallible string API. Prefer [`try_run`](Self::try_run) for typed terminal commands; exported compatibility output is validated again with function context before files are accepted. This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
+        minecraft = "This retains the historical infallible string API. Prefer [`try_run`](Self::try_run) for typed terminal commands; exported compatibility output is validated again with function context before files are accepted.",
+        use_when = ["Constructing Minecraft commands through Sand's typed command model"],
+        avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
+        params(cmd = "`cmd` sets the cmd for compatibility renderer for `run <command>`. This retains the historical infallible string API. Prefer [`try_run`](Self::try_run) for typed terminal commands; exported compatibility output is validated again with function context before files are accepted."),
+        returns = "The rendered Minecraft command text produced to use compatibility renderer for `run <command>`. This retains the historical infallible string API. Prefer [`try_run`](Self::try_run) for typed terminal commands; exported compatibility output is validated again with function context before files are accepted.",
+        example = "use std::fmt;\nuse sand::prelude::*;\n\nfn demonstrate(execute_value: sand::command::Execute, cmd: impl fmt::Display)  {\n    let command = execute_value.run(cmd);\n}",
+    )]
     pub fn run(self, cmd: impl fmt::Display) -> String {
         self.finish(cmd)
     }
 
     /// Validate the whole execute chain and a typed terminal command before
     /// rendering. Errors identify the failing execute subcommand.
-    #[doc = "**API Contract:** Run `sand api show sand::command::Execute::try_run` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::command::Execute::try_run",
+        aliases = ["sand::cmd::Execute::try_run", "sand::prelude::Execute::try_run", "sand::prelude::cmd::Execute::try_run"],
+        module = "sand::command",
+        kind = "method",
+        summary = "Validate the whole execute chain and a typed terminal command before rendering. Errors identify the failing execute subcommand.",
+        context = "Validate the whole execute chain and a typed terminal command before rendering. Errors identify the failing execute subcommand. This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
+        minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
+        use_when = ["Constructing Minecraft commands through Sand's typed command model"],
+        avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
+        params(cmd = "`cmd` is the cmd checked when validating the whole execute chain and a typed terminal command before rendering. Errors identify the failing execute subcommand."),
+        returns = "On success, the value produced to validate the whole execute chain and a typed terminal command before rendering. Errors identify the failing execute subcommand; otherwise, the documented validation or export diagnostic.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(execute_value: sand::command::Execute, cmd: & impl sand::command::RenderCommand)  {\n    let try_run = execute_value.try_run(cmd);\n}",
+    )]
     pub fn try_run(self, cmd: &impl RenderCommand) -> CommandResult<String> {
         let profile = CommandProfile::unprofiled();
         self.validate(&profile)?;
@@ -1127,7 +2061,21 @@ impl Execute {
     }
 
     /// Like [`run`](Execute::run) but more explicit about accepting raw strings.
-    #[doc = "**API Contract:** Run `sand api show sand::command::Execute::run_raw` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::command::Execute::run_raw",
+        aliases = ["sand::cmd::Execute::run_raw", "sand::prelude::Execute::run_raw", "sand::prelude::cmd::Execute::run_raw"],
+        module = "sand::command",
+        kind = "method",
+        summary = "Like [`run`](Execute::run) but more explicit about accepting raw strings.",
+        context = "Like [`run`](Execute::run) but more explicit about accepting raw strings. This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
+        minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
+        use_when = ["Constructing Minecraft commands through Sand's typed command model"],
+        avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
+        params(cmd = "`cmd` sets the cmd for like [`run`](Execute::run) but more explicit about accepting raw strings."),
+        returns = "The string value produced to use like [`run`](Execute::run) but more explicit about accepting raw strings.",
+        example = "use std::fmt;\nuse sand::prelude::*;\n\nfn demonstrate(execute_value: sand::command::Execute, cmd: impl fmt::Display)  {\n    let run_raw = execute_value.run_raw(cmd);\n}",
+    )]
     pub fn run_raw(self, cmd: impl fmt::Display) -> String {
         self.finish(cmd)
     }
@@ -1135,7 +2083,21 @@ impl Execute {
     /// Validate the typed execute chain, then append an explicitly raw terminal
     /// command. The raw text bypasses typed grammar modeling but must remain one
     /// `.mcfunction`-safe line without a leading slash.
-    #[doc = "**API Contract:** Run `sand api show sand::command::Execute::try_run_raw` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::command::Execute::try_run_raw",
+        aliases = ["sand::cmd::Execute::try_run_raw", "sand::prelude::Execute::try_run_raw", "sand::prelude::cmd::Execute::try_run_raw"],
+        module = "sand::command",
+        kind = "method",
+        summary = "Validate the typed execute chain, then append an explicitly raw terminal command. The raw text bypasses typed grammar modeling but must remain one `.mcfunction`-safe line without a leading slash.",
+        context = "Validate the typed execute chain, then append an explicitly raw terminal command. The raw text bypasses typed grammar modeling but must remain one `.mcfunction`-safe line without a leading slash. This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
+        minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
+        use_when = ["Constructing Minecraft commands through Sand's typed command model"],
+        avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
+        params(cmd = "`cmd` is the cmd checked when validating the typed execute chain, then append an explicitly raw terminal command. The raw text bypasses typed grammar modeling but must remain one `.mcfunction`-safe line without a leading slash."),
+        returns = "On success, the value produced to validate the typed execute chain, then append an explicitly raw terminal command. The raw text bypasses typed grammar modeling but must remain one `.mcfunction`-safe line without a leading slash; otherwise, the documented validation or export diagnostic.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(execute_value: sand::command::Execute, cmd: sand::command::RawCommand)  {\n    let try_run_raw = execute_value.try_run_raw(cmd);\n}",
+    )]
     pub fn try_run_raw(self, cmd: RawCommand) -> CommandResult<String> {
         let profile = CommandProfile::unprofiled();
         self.validate(&profile)?;
@@ -1153,7 +2115,21 @@ impl Execute {
     }
 
     /// Run a named function: `execute ... run function <namespace:path>`.
-    #[doc = "**API Contract:** Run `sand api show sand::command::Execute::run_fn` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::command::Execute::run_fn",
+        aliases = ["sand::cmd::Execute::run_fn", "sand::prelude::Execute::run_fn", "sand::prelude::cmd::Execute::run_fn"],
+        module = "sand::command",
+        kind = "method",
+        summary = "Run a named function: `execute ... run function <namespace:path>`.",
+        context = "Run a named function: `execute ... run function <namespace:path>`. This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
+        minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
+        use_when = ["Constructing Minecraft commands through Sand's typed command model"],
+        avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
+        params(function = "`function` provides the callback invoked by this operation used to run a named function: `execute ... run function <namespace:path>`."),
+        returns = "The string value produced to run a named function: `execute ... run function <namespace:path>`.",
+        example = "use std::fmt;\nuse sand::prelude::*;\n\nfn demonstrate(execute_value: sand::command::Execute, function: impl fmt::Display)  {\n    let run_fn = execute_value.run_fn(function);\n}",
+    )]
     pub fn run_fn(self, function: impl fmt::Display) -> String {
         self.finish(format!("function {function}"))
     }
@@ -1165,7 +2141,20 @@ impl Execute {
     }
 
     /// Borrow the ordered operation IR.
-    #[doc = "**API Contract:** Run `sand api show sand::command::Execute::operations` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::command::Execute::operations",
+        aliases = ["sand::cmd::Execute::operations", "sand::prelude::Execute::operations", "sand::prelude::cmd::Execute::operations"],
+        module = "sand::command",
+        kind = "method",
+        summary = "Borrow the ordered operation IR.",
+        context = "Borrow the ordered operation IR. This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
+        minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
+        use_when = ["Constructing Minecraft commands through Sand's typed command model"],
+        avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
+        returns = "The `& [ExecuteOp]` value produced to borrow the ordered operation IR.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(execute_value: &sand::command::Execute)  {\n    let operations = execute_value.operations();\n}",
+    )]
     pub fn operations(&self) -> &[ExecuteOp] {
         &self.operations
     }

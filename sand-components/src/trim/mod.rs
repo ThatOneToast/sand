@@ -48,7 +48,18 @@ use crate::registry::ItemId;
 use crate::resource_location::ResourceLocation;
 use crate::validation;
 
-#[doc = "**API Contract:** Run `sand api show sand::component::TrimAssetName` for the canonical contract."]
+#[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::component::TrimAssetName",
+    aliases = ["sand::prelude::TrimAssetName"],
+    module = "sand::component",
+    summary = "A validated, un-namespaced trim texture asset name.",
+    context = "A validated, un-namespaced trim texture asset name. Minecraft uses values such as `quartz` and `redstone_darker` here rather than registry IDs. Paths may contain lowercase resource-path characters, including `/`, but not a namespace separator.",
+    minecraft = "Minecraft uses values such as `quartz` and `redstone_darker` here rather than registry IDs. Paths may contain lowercase resource-path characters, including `/`, but not a namespace separator.",
+    use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+    avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+    example = "use sand::component::TrimAssetName;",
+)]
 /// A validated, un-namespaced trim texture asset name.
 ///
 /// Minecraft uses values such as `quartz` and `redstone_darker` here rather
@@ -74,7 +85,21 @@ impl TrimAssetName {
     /// assert_eq!(asset.as_str(), "redstone_darker");
     /// # Ok::<(), sand_components::SandError>(())
     /// ```
-    #[doc = "**API Contract:** Run `sand api show sand::component::TrimAssetName::new` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::TrimAssetName::new",
+        aliases = ["sand::prelude::TrimAssetName::new"],
+        module = "sand::component",
+        kind = "method",
+        summary = "Validates an un-namespaced trim texture path such as `quartz` or `redstone_darker`.",
+        context = "Validates an un-namespaced trim texture path such as `quartz` or `redstone_darker`. `name` is the texture path stored in the trim-material JSON. A namespace separator is rejected because Minecraft expects a path rather than a registry identifier in this field. On success, returns the validated trim asset name; invalid resource-path characters or a namespace separator produce a [`SandError`].",
+        minecraft = "`name` is the texture path stored in the trim-material JSON. A namespace separator is rejected because Minecraft expects a path rather than a registry identifier in this field.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(name = "`name` is the texture path stored in the trim-material JSON. A namespace separator is rejected because Minecraft expects a path rather than a registry identifier in this field."),
+        returns = "On success, returns the validated trim asset name; invalid resource-path characters or a namespace separator produce a [`SandError`].",
+        example = "use sand::component::TrimAssetName;\nlet asset = TrimAssetName::new(\"redstone_darker\")?;\nassert_eq!(asset.as_str(), \"redstone_darker\");",
+    )]
     pub fn new(name: impl AsRef<str>) -> SandResult<Self> {
         let name = name.as_ref();
         if name.contains(':') {
@@ -85,7 +110,20 @@ impl TrimAssetName {
     }
 
     /// Returns the canonical Minecraft representation of this component value.
-    #[doc = "**API Contract:** Run `sand api show sand::component::TrimAssetName::as_str` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::TrimAssetName::as_str",
+        aliases = ["sand::prelude::TrimAssetName::as_str"],
+        module = "sand::component",
+        kind = "method",
+        summary = "Returns the canonical Minecraft representation of this component value.",
+        context = "Returns the canonical Minecraft representation of this component value. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        returns = "Returns the canonical Minecraft representation of this component value.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(trim_asset_name_value: &sand::component::TrimAssetName)  {\n    let as_str = trim_asset_name_value.as_str();\n}",
+    )]
     pub fn as_str(&self) -> &str {
         &self.0
     }
@@ -136,7 +174,18 @@ enum ArmorMaterialOverrides {
 
 // ── TrimMaterial ──────────────────────────────────────────────────────────────
 
-#[doc = "**API Contract:** Run `sand api show sand::component::TrimMaterial` for the canonical contract."]
+#[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::component::TrimMaterial",
+    aliases = ["sand::prelude::TrimMaterial"],
+    module = "sand::component",
+    summary = "A trim material definition (`data/<namespace>/trim_material/<id>.json`).",
+    context = "A trim material definition (`data/<namespace>/trim_material/<id>.json`). This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+    minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+    use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+    avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+    example = "use sand::component::TrimMaterial;",
+)]
 /// A trim material definition (`data/<namespace>/trim_material/<id>.json`).
 pub struct TrimMaterial {
     location: ResourceLocation,
@@ -156,7 +205,21 @@ pub struct TrimMaterial {
 
 impl TrimMaterial {
     /// Starts a trim-material definition at `location`; required material fields are added with the builder methods.
-    #[doc = "**API Contract:** Run `sand api show sand::component::TrimMaterial::new` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::TrimMaterial::new",
+        aliases = ["sand::prelude::TrimMaterial::new"],
+        module = "sand::component",
+        kind = "method",
+        summary = "Starts a trim-material definition at `location`; required material fields are added with the builder methods.",
+        context = "Starts a trim-material definition at `location`; required material fields are added with the builder methods. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(location = "Starts a trim-material definition at `location`; required material fields are added with the builder methods."),
+        returns = "A `TrimMaterial` initialized to a trim-material definition at `location`; required material fields are added with the builder methods.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(location: sand::ResourceLocation)  {\n    let trim_material = sand::component::TrimMaterial::new(location);\n}",
+    )]
     pub fn new(location: ResourceLocation) -> Self {
         Self {
             location,
@@ -169,42 +232,126 @@ impl TrimMaterial {
     }
 
     /// Sets the Minecraft asset name property on this typed trim material definition and returns the updated builder.
-    #[doc = "**API Contract:** Run `sand api show sand::component::TrimMaterial::asset_name` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::TrimMaterial::asset_name",
+        aliases = ["sand::prelude::TrimMaterial::asset_name"],
+        module = "sand::component",
+        kind = "method",
+        summary = "Sets the Minecraft asset name property on this typed trim material definition and returns the updated builder.",
+        context = "Sets the Minecraft asset name property on this typed trim material definition and returns the updated builder. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(name = "`name` provides the author-visible text applied when setting the Minecraft asset name property on this typed trim material definition and returns the updated builder."),
+        returns = "Sets the Minecraft asset name property on this typed trim material definition and returns the updated builder.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(trim_material_value: sand::component::TrimMaterial, name: sand::component::TrimAssetName)  {\n    let updated_trim_material = trim_material_value.asset_name(name);\n}",
+    )]
     pub fn asset_name(mut self, name: TrimAssetName) -> Self {
         self.asset_name = Some(name);
         self
     }
 
     /// Sets the Minecraft ingredient property on this typed trim material definition and returns the updated builder.
-    #[doc = "**API Contract:** Run `sand api show sand::component::TrimMaterial::ingredient` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::TrimMaterial::ingredient",
+        aliases = ["sand::prelude::TrimMaterial::ingredient"],
+        module = "sand::component",
+        kind = "method",
+        summary = "Sets the Minecraft ingredient property on this typed trim material definition and returns the updated builder.",
+        context = "Sets the Minecraft ingredient property on this typed trim material definition and returns the updated builder. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(item = "`item` provides the item value or item predicate used to set the Minecraft ingredient property on this typed trim material definition and returns the updated builder."),
+        returns = "Sets the Minecraft ingredient property on this typed trim material definition and returns the updated builder.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(trim_material_value: sand::component::TrimMaterial, item: sand::registry::ItemId)  {\n    let updated_trim_material = trim_material_value.ingredient(item);\n}",
+    )]
     pub fn ingredient(mut self, item: ItemId) -> Self {
         self.ingredient = Some(item);
         self
     }
 
     /// Sets the Minecraft item model index property on this typed trim material definition and returns the updated builder.
-    #[doc = "**API Contract:** Run `sand api show sand::component::TrimMaterial::item_model_index` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::TrimMaterial::item_model_index",
+        aliases = ["sand::prelude::TrimMaterial::item_model_index"],
+        module = "sand::component",
+        kind = "method",
+        summary = "Sets the Minecraft item model index property on this typed trim material definition and returns the updated builder.",
+        context = "Sets the Minecraft item model index property on this typed trim material definition and returns the updated builder. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(index = "`index` provides the index applied when setting the Minecraft item model index property on this typed trim material definition and returns the updated builder."),
+        returns = "Sets the Minecraft item model index property on this typed trim material definition and returns the updated builder.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(trim_material_value: sand::component::TrimMaterial, index: f32)  {\n    let updated_trim_material = trim_material_value.item_model_index(index);\n}",
+    )]
     pub fn item_model_index(mut self, index: f32) -> Self {
         self.item_model_index = index;
         self
     }
 
     /// Sets the Minecraft description property on this typed trim material definition and returns the updated builder.
-    #[doc = "**API Contract:** Run `sand api show sand::component::TrimMaterial::description` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::TrimMaterial::description",
+        aliases = ["sand::prelude::TrimMaterial::description"],
+        module = "sand::component",
+        kind = "method",
+        summary = "Sets the Minecraft description property on this typed trim material definition and returns the updated builder.",
+        context = "Sets the Minecraft description property on this typed trim material definition and returns the updated builder. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(desc = "`desc` provides the player-visible text applied when setting the Minecraft description property on this typed trim material definition and returns the updated builder."),
+        returns = "Sets the Minecraft description property on this typed trim material definition and returns the updated builder.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(trim_material_value: sand::component::TrimMaterial, desc: sand::text::TextComponent)  {\n    let updated_trim_material = trim_material_value.description(desc);\n}",
+    )]
     pub fn description(mut self, desc: TextComponent) -> Self {
         self.description = Some(TrimDescription::Typed(Box::new(desc)));
         self
     }
 
     /// Use a raw JSON text component when the typed text API cannot represent it.
-    #[doc = "**API Contract:** Run `sand api show sand::component::TrimMaterial::raw_description` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::TrimMaterial::raw_description",
+        aliases = ["sand::prelude::TrimMaterial::raw_description"],
+        module = "sand::component",
+        kind = "method",
+        summary = "Use a raw JSON text component when the typed text API cannot represent it.",
+        context = "Use a raw JSON text component when the typed text API cannot represent it. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Use a raw JSON text component when the typed text API cannot represent it."],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(desc = "`desc` sets the desc for a raw JSON text component when the typed text API cannot represent it."),
+        returns = "The `TrimMaterial` value with the documented change applied to use a raw JSON text component when the typed text API cannot represent it.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(trim_material_value: sand::component::TrimMaterial, desc: sand::component::RawJson)  {\n    let updated_trim_material = trim_material_value.raw_description(desc);\n}",
+    )]
     pub fn raw_description(mut self, desc: RawJson) -> Self {
         self.description = Some(TrimDescription::Raw(desc));
         self
     }
 
     /// Override asset names for specific armor-material resource IDs.
-    #[doc = "**API Contract:** Run `sand api show sand::component::TrimMaterial::override_armor_materials` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::TrimMaterial::override_armor_materials",
+        aliases = ["sand::prelude::TrimMaterial::override_armor_materials"],
+        module = "sand::component",
+        kind = "method",
+        summary = "Override asset names for specific armor-material resource IDs.",
+        context = "Override asset names for specific armor-material resource IDs. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(overrides = "`overrides` provides the typed Minecraft resource identifier used to override asset names for specific armor-material resource IDs."),
+        returns = "The `TrimMaterial` value with the documented change applied to override asset names for specific armor-material resource IDs.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(trim_material_value: sand::component::TrimMaterial, overrides: impl IntoIterator < Item = (sand::ResourceLocation , sand::component::TrimAssetName) >)  {\n    let updated_trim_material = trim_material_value.override_armor_materials(overrides);\n}",
+    )]
     pub fn override_armor_materials(
         mut self,
         overrides: impl IntoIterator<Item = (ResourceLocation, TrimAssetName)>,
@@ -219,7 +366,21 @@ impl TrimMaterial {
     }
 
     /// Use a raw override object for unsupported or modded armor-material shapes.
-    #[doc = "**API Contract:** Run `sand api show sand::component::TrimMaterial::raw_override_armor_materials` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::TrimMaterial::raw_override_armor_materials",
+        aliases = ["sand::prelude::TrimMaterial::raw_override_armor_materials"],
+        module = "sand::component",
+        kind = "method",
+        summary = "Use a raw override object for unsupported or modded armor-material shapes.",
+        context = "Use a raw override object for unsupported or modded armor-material shapes. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Use a raw override object for unsupported or modded armor-material shapes."],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(overrides = "`overrides` sets the overrides for a raw override object for unsupported or modded armor-material shapes."),
+        returns = "The `TrimMaterial` value with the documented change applied to use a raw override object for unsupported or modded armor-material shapes.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(trim_material_value: sand::component::TrimMaterial, overrides: sand::component::RawJson)  {\n    let updated_trim_material = trim_material_value.raw_override_armor_materials(overrides);\n}",
+    )]
     pub fn raw_override_armor_materials(mut self, overrides: RawJson) -> Self {
         self.override_armor_materials = Some(ArmorMaterialOverrides::Raw(overrides));
         self
@@ -325,7 +486,18 @@ impl DatapackComponent for TrimMaterial {
 
 // ── TrimPattern ───────────────────────────────────────────────────────────────
 
-#[doc = "**API Contract:** Run `sand api show sand::component::TrimPattern` for the canonical contract."]
+#[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::component::TrimPattern",
+    aliases = ["sand::prelude::TrimPattern"],
+    module = "sand::component",
+    summary = "A trim pattern definition (`data/<namespace>/trim_pattern/<id>.json`).",
+    context = "A trim pattern definition (`data/<namespace>/trim_pattern/<id>.json`). This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+    minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+    use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+    avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+    example = "use sand::component::TrimPattern;",
+)]
 /// A trim pattern definition (`data/<namespace>/trim_pattern/<id>.json`).
 pub struct TrimPattern {
     location: ResourceLocation,
@@ -341,7 +513,21 @@ pub struct TrimPattern {
 
 impl TrimPattern {
     /// Starts a trim-pattern definition at `location`; required pattern fields are added with the builder methods.
-    #[doc = "**API Contract:** Run `sand api show sand::component::TrimPattern::new` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::TrimPattern::new",
+        aliases = ["sand::prelude::TrimPattern::new"],
+        module = "sand::component",
+        kind = "method",
+        summary = "Starts a trim-pattern definition at `location`; required pattern fields are added with the builder methods.",
+        context = "Starts a trim-pattern definition at `location`; required pattern fields are added with the builder methods. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(location = "Starts a trim-pattern definition at `location`; required pattern fields are added with the builder methods."),
+        returns = "A `TrimPattern` initialized to a trim-pattern definition at `location`; required pattern fields are added with the builder methods.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(location: sand::ResourceLocation)  {\n    let trim_pattern = sand::component::TrimPattern::new(location);\n}",
+    )]
     pub fn new(location: ResourceLocation) -> Self {
         Self {
             location,
@@ -353,35 +539,105 @@ impl TrimPattern {
     }
 
     /// Sets the Minecraft asset id property on this typed trim pattern definition and returns the updated builder.
-    #[doc = "**API Contract:** Run `sand api show sand::component::TrimPattern::asset_id` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::TrimPattern::asset_id",
+        aliases = ["sand::prelude::TrimPattern::asset_id"],
+        module = "sand::component",
+        kind = "method",
+        summary = "Sets the Minecraft asset id property on this typed trim pattern definition and returns the updated builder.",
+        context = "Sets the Minecraft asset id property on this typed trim pattern definition and returns the updated builder. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(id = "`id` provides the typed resource identifier or location used to set the Minecraft asset id property on this typed trim pattern definition and returns the updated builder."),
+        returns = "Sets the Minecraft asset id property on this typed trim pattern definition and returns the updated builder.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(trim_pattern_value: sand::component::TrimPattern, id: sand::ResourceLocation)  {\n    let updated_trim_pattern = trim_pattern_value.asset_id(id);\n}",
+    )]
     pub fn asset_id(mut self, id: ResourceLocation) -> Self {
         self.asset_id = Some(id);
         self
     }
 
     /// Sets the Minecraft template item property on this typed trim pattern definition and returns the updated builder.
-    #[doc = "**API Contract:** Run `sand api show sand::component::TrimPattern::template_item` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::TrimPattern::template_item",
+        aliases = ["sand::prelude::TrimPattern::template_item"],
+        module = "sand::component",
+        kind = "method",
+        summary = "Sets the Minecraft template item property on this typed trim pattern definition and returns the updated builder.",
+        context = "Sets the Minecraft template item property on this typed trim pattern definition and returns the updated builder. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(item = "`item` provides the item value or item predicate used to set the Minecraft template item property on this typed trim pattern definition and returns the updated builder."),
+        returns = "Sets the Minecraft template item property on this typed trim pattern definition and returns the updated builder.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(trim_pattern_value: sand::component::TrimPattern, item: sand::registry::ItemId)  {\n    let updated_trim_pattern = trim_pattern_value.template_item(item);\n}",
+    )]
     pub fn template_item(mut self, item: ItemId) -> Self {
         self.template_item = Some(item);
         self
     }
 
     /// Sets the Minecraft description property on this typed trim pattern definition and returns the updated builder.
-    #[doc = "**API Contract:** Run `sand api show sand::component::TrimPattern::description` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::TrimPattern::description",
+        aliases = ["sand::prelude::TrimPattern::description"],
+        module = "sand::component",
+        kind = "method",
+        summary = "Sets the Minecraft description property on this typed trim pattern definition and returns the updated builder.",
+        context = "Sets the Minecraft description property on this typed trim pattern definition and returns the updated builder. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(desc = "`desc` provides the player-visible text applied when setting the Minecraft description property on this typed trim pattern definition and returns the updated builder."),
+        returns = "Sets the Minecraft description property on this typed trim pattern definition and returns the updated builder.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(trim_pattern_value: sand::component::TrimPattern, desc: sand::text::TextComponent)  {\n    let updated_trim_pattern = trim_pattern_value.description(desc);\n}",
+    )]
     pub fn description(mut self, desc: TextComponent) -> Self {
         self.description = Some(TrimDescription::Typed(Box::new(desc)));
         self
     }
 
     /// Use a raw JSON text component when the typed text API cannot represent it.
-    #[doc = "**API Contract:** Run `sand api show sand::component::TrimPattern::raw_description` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::TrimPattern::raw_description",
+        aliases = ["sand::prelude::TrimPattern::raw_description"],
+        module = "sand::component",
+        kind = "method",
+        summary = "Use a raw JSON text component when the typed text API cannot represent it.",
+        context = "Use a raw JSON text component when the typed text API cannot represent it. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Use a raw JSON text component when the typed text API cannot represent it."],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(desc = "`desc` sets the desc for a raw JSON text component when the typed text API cannot represent it."),
+        returns = "The `TrimPattern` value with the documented change applied to use a raw JSON text component when the typed text API cannot represent it.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(trim_pattern_value: sand::component::TrimPattern, desc: sand::component::RawJson)  {\n    let updated_trim_pattern = trim_pattern_value.raw_description(desc);\n}",
+    )]
     pub fn raw_description(mut self, desc: RawJson) -> Self {
         self.description = Some(TrimDescription::Raw(desc));
         self
     }
 
     /// Sets the Minecraft decal property on this typed trim pattern definition and returns the updated builder.
-    #[doc = "**API Contract:** Run `sand api show sand::component::TrimPattern::decal` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::TrimPattern::decal",
+        aliases = ["sand::prelude::TrimPattern::decal"],
+        module = "sand::component",
+        kind = "method",
+        summary = "Sets the Minecraft decal property on this typed trim pattern definition and returns the updated builder.",
+        context = "Sets the Minecraft decal property on this typed trim pattern definition and returns the updated builder. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(v = "`v` provides the switch that enables or disables the behavior used to set the Minecraft decal property on this typed trim pattern definition and returns the updated builder."),
+        returns = "Sets the Minecraft decal property on this typed trim pattern definition and returns the updated builder.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(trim_pattern_value: sand::component::TrimPattern, v: bool)  {\n    let updated_trim_pattern = trim_pattern_value.decal(v);\n}",
+    )]
     pub fn decal(mut self, v: bool) -> Self {
         self.decal = v;
         self

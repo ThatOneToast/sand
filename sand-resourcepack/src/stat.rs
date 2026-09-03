@@ -51,7 +51,19 @@ enum StatSource {
 
 // ── BarStat ────────────────────────────────────────────────────────────────────
 
-#[doc = "**API Contract:** Run `sand api show sand::resourcepack::BarStat` for the canonical contract."]
+#[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::resourcepack::BarStat",
+    module = "sand::resourcepack",
+    summary = "Combines a [`BarHandle`] with auto-managed scoreboard objectives and per-tick update math.",
+    context = "Combines a [`BarHandle`] with auto-managed scoreboard objectives and per-tick update math. All auto-created objectives use the bar's `name` as a prefix so they are easy to identify in `/scoreboard` output: | Objective | Purpose | |---|---| | `<name>_frame` | Current frame index fed to [`HudLayout`](sand::resourcepack::HudLayout) | | `_<name>_hp` | Raw current HP ×100 (Health source only) | | `_<name>_maxhp` | Raw max HP ×100 (Health source only) |",
+    minecraft = "All auto-created objectives use the bar's `name` as a prefix so they are easy to identify in `/scoreboard` output:",
+    use_when = ["Building HUD bars, HUD elements, textures, or resource-pack output alongside a Sand datapack"],
+    avoid_when = ["The project is datapack-only or needs unrelated resource-pack functionality not modeled by Sand"],
+    example = "use sand::resourcepack::BarStat;",
+    availability = ["Cargo feature: resourcepack"],
+    fields(frame_obj = "Scoreboard objective that stores the current frame index.", handle = "The bar this stat drives."),
+)]
 /// Combines a [`BarHandle`] with auto-managed scoreboard objectives and
 /// per-tick update math.
 ///
@@ -95,10 +107,8 @@ enum StatSource {
 /// }
 /// ```
 pub struct BarStat {
-    #[doc = "**API Contract:** Run `sand api show sand::resourcepack::BarStat::handle` for the canonical contract."]
     /// The bar this stat drives.
     pub handle: BarHandle,
-    #[doc = "**API Contract:** Run `sand api show sand::resourcepack::BarStat::frame_obj` for the canonical contract."]
     /// Scoreboard objective that stores the current frame index.
     ///
     /// Pass this directly to [`BarHandle::broadcast_commands`] if you are not
@@ -118,7 +128,21 @@ impl BarStat {
     /// - `<name>_frame` — frame index
     /// - `_<name>_hp`   — current HP ×100 (hidden; prefixed with `_`)
     /// - `_<name>_maxhp` — max HP ×100 (hidden)
-    #[doc = "**API Contract:** Run `sand api show sand::resourcepack::BarStat::health` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::resourcepack::BarStat::health",
+        module = "sand::resourcepack",
+        kind = "method",
+        summary = "Create a `BarStat` that tracks player health. The generated `update` commands read `Health` NBT and the `max_health` generic attribute, then scale the result into `0..handle.steps`.",
+        context = "Create a `BarStat` that tracks player health. The generated `update` commands read `Health` NBT and the `max_health` generic attribute, then scale the result into `0..handle.steps`. Objectives created by `setup()`: - `<name>_frame` — frame index - `_<name>_hp`   — current HP ×100 (hidden; prefixed with `_`) - `_<name>_maxhp` — max HP ×100 (hidden)",
+        minecraft = "The generated `update` commands read `Health` NBT and the `max_health` generic attribute, then scale the result into `0..handle.steps`.",
+        use_when = ["Building HUD bars, HUD elements, textures, or resource-pack output alongside a Sand datapack"],
+        avoid_when = ["The project is datapack-only or needs unrelated resource-pack functionality not modeled by Sand"],
+        params(handle = "`handle` is used when creating a `BarStat` that tracks player health. The generated `update` commands read `Health` NBT and the `max_health` generic attribute, then scale the result into `0..handle.steps`."),
+        returns = "A `BarStat` that tracks player health. The generated `update` commands read `Health` NBT and the `max_health` generic attribute, then scale the result into `0..handle.steps`.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(handle: sand::resourcepack::BarHandle)  {\n    let bar_stat = sand::resourcepack::BarStat::health(handle);\n}",
+        availability = ["Cargo feature: resourcepack"],
+    )]
     pub fn health(handle: BarHandle) -> Self {
         let n = handle.name;
         Self {
@@ -141,7 +165,21 @@ impl BarStat {
     ///
     /// (The source objective is **not** created automatically — it is assumed
     /// to already exist and be populated by your own commands.)
-    #[doc = "**API Contract:** Run `sand api show sand::resourcepack::BarStat::score` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::resourcepack::BarStat::score",
+        module = "sand::resourcepack",
+        kind = "method",
+        summary = "Create a `BarStat` that tracks an arbitrary scoreboard objective.",
+        context = "Create a `BarStat` that tracks an arbitrary scoreboard objective. The value of `source_objective` is mapped linearly from `0..=max_val` to `0..=steps-1`. Values outside `[0, max_val]` are clamped. Objectives created by `setup()`: - `<name>_frame` — frame index (The source objective is not created automatically — it is assumed to already exist and be populated by your own commands.)",
+        minecraft = "(The source objective is not created automatically — it is assumed to already exist and be populated by your own commands.)",
+        use_when = ["Building HUD bars, HUD elements, textures, or resource-pack output alongside a Sand datapack"],
+        avoid_when = ["The project is datapack-only or needs unrelated resource-pack functionality not modeled by Sand"],
+        params(handle = "`handle` is used when creating a `BarStat` that tracks an arbitrary scoreboard objective.", source_objective = "The value of `source_objective` is mapped linearly from `0..=max_val` to `0..=steps-1`. Values outside `[0, max_val]` are clamped.", max_val = "`max_val` is used when creating a `BarStat` that tracks an arbitrary scoreboard objective."),
+        returns = "A `BarStat` that tracks an arbitrary scoreboard objective.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(handle: sand::resourcepack::BarHandle, source_objective: impl Into < String >, max_val: i32)  {\n    let bar_stat = sand::resourcepack::BarStat::score(handle, source_objective, max_val);\n}",
+        availability = ["Cargo feature: resourcepack"],
+    )]
     pub fn score(handle: BarHandle, source_objective: impl Into<String>, max_val: i32) -> Self {
         let n = handle.name;
         Self {
@@ -157,7 +195,20 @@ impl BarStat {
     /// Return the commands that create all required scoreboard objectives.
     ///
     /// Call this from your `#[datapack_component(Load)]` function.
-    #[doc = "**API Contract:** Run `sand api show sand::resourcepack::BarStat::setup` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::resourcepack::BarStat::setup",
+        module = "sand::resourcepack",
+        kind = "method",
+        summary = "Return the commands that create all required scoreboard objectives.",
+        context = "Return the commands that create all required scoreboard objectives. Call this from your `#[datapack_component(Load)]` function.",
+        minecraft = "Call this from your `#[datapack_component(Load)]` function.",
+        use_when = ["Call this from your `#[datapack_component(Load)]` function."],
+        avoid_when = ["The project is datapack-only or needs unrelated resource-pack functionality not modeled by Sand"],
+        returns = "Return the commands that create all required scoreboard objectives.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(bar_stat_value: &sand::resourcepack::BarStat)  {\n    let values = bar_stat_value.setup();\n}",
+        availability = ["Cargo feature: resourcepack"],
+    )]
     pub fn setup(&self) -> Vec<String> {
         let mut cmds = Vec::new();
         let frame = &self.frame_obj;
@@ -183,7 +234,21 @@ impl BarStat {
     /// [`HudLayout`](crate::HudLayout) commands.
     ///
     /// `executor` is typically `"@a"`.
-    #[doc = "**API Contract:** Run `sand api show sand::resourcepack::BarStat::update` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::resourcepack::BarStat::update",
+        module = "sand::resourcepack",
+        kind = "method",
+        summary = "Return the commands that read the stat, scale it, and clamp the frame objective to `0..=steps-1`.",
+        context = "Return the commands that read the stat, scale it, and clamp the frame objective to `0..=steps-1`. Call this from your `#[datapack_component(Tick)]` function before emitting [`HudLayout`](sand::resourcepack::HudLayout) commands. `executor` is typically `\"@a\"`.",
+        minecraft = "Call this from your `#[datapack_component(Tick)]` function before emitting [`HudLayout`](sand::resourcepack::HudLayout) commands.",
+        use_when = ["Call this from your `#[datapack_component(Tick)]` function before emitting [`HudLayout`](sand::resourcepack::HudLayout) commands."],
+        avoid_when = ["The project is datapack-only or needs unrelated resource-pack functionality not modeled by Sand"],
+        params(executor = "`executor` is typically `\"@a\"`."),
+        returns = "Return the commands that read the stat, scale it, and clamp the frame objective to `0..=steps-1`.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(bar_stat_value: &sand::resourcepack::BarStat, executor: & str)  {\n    let values = bar_stat_value.update(executor);\n}",
+        availability = ["Cargo feature: resourcepack"],
+    )]
     pub fn update(&self, executor: &str) -> Vec<String> {
         let mut cmds = Vec::new();
         let frame = &self.frame_obj;

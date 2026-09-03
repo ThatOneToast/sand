@@ -97,6 +97,129 @@ pub struct ApiEntry {
     pub availability: Vec<String>,
 }
 
+/// Renders the author-facing Rustdoc produced from one semantic API contract.
+///
+/// The renderer is intentionally kind-aware. Normal callable and type APIs
+/// receive the complete behavioral contract, while fields, variants, and
+/// constants receive compact local documentation instead of meaningless
+/// boilerplate sections. The CLI and generated Rust both consume the same
+/// [`ApiEntry`] values, so wording cannot drift between structured metadata
+/// and IDE hover documentation.
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub enum RustdocExampleMode {
+    /// Compile the example as a doctest without executing it.
+    NoRun,
+    /// Do not compile the example because it requires generated project context.
+    #[default]
+    Ignore,
+}
+
+/// Renders Rustdoc for a generated or implementation-crate surface.
+///
+/// These surfaces retain facade-shaped examples for users but cannot depend
+/// back on `sand` without creating a Cargo cycle. Facade-defined `#[api]`
+/// items select checked [`RustdocExampleMode::NoRun`] explicitly.
+#[must_use]
+pub fn render_rustdoc(entry: &ApiEntry) -> Vec<String> {
+    render_rustdoc_with_example_mode(entry, RustdocExampleMode::Ignore)
+}
+
+/// Renders Rustdoc with an explicit example testability policy.
+///
+/// `Ignore` is reserved for examples that cannot compile outside generated
+/// project context; ordinary endpoint examples use the checked `NoRun` mode.
+#[must_use]
+pub fn render_rustdoc_with_example_mode(
+    entry: &ApiEntry,
+    example_mode: RustdocExampleMode,
+) -> Vec<String> {
+    let mut lines = vec![entry.summary.clone()];
+    let compact = matches!(
+        entry.kind,
+        ApiKind::Variant
+            | ApiKind::Field
+            | ApiKind::Constant
+            | ApiKind::AssociatedConst
+            | ApiKind::AssociatedType
+            | ApiKind::TypeAlias
+    );
+
+    if !compact {
+        push_section(
+            &mut lines,
+            "Context",
+            std::iter::once(entry.context.as_str()),
+        );
+        push_section(
+            &mut lines,
+            "Minecraft behavior",
+            std::iter::once(entry.minecraft.as_str()),
+        );
+        if !entry.parameters.is_empty() {
+            let parameters = entry
+                .parameters
+                .iter()
+                .map(|parameter| format!("- `{}` — {}", parameter.name, parameter.description));
+            push_owned_section(&mut lines, "Parameters", parameters);
+        }
+        if let Some(returns) = entry.returns.as_deref() {
+            push_section(&mut lines, "Returns", std::iter::once(returns));
+        }
+        push_owned_section(
+            &mut lines,
+            "Use when",
+            entry.use_when.iter().map(|value| format!("- {value}")),
+        );
+        push_owned_section(
+            &mut lines,
+            "Avoid when",
+            entry.avoid_when.iter().map(|value| format!("- {value}")),
+        );
+    }
+
+    let availability = entry
+        .availability
+        .iter()
+        .filter(|value| value.as_str() != "all configurations")
+        .map(|value| format!("- {value}"));
+    push_owned_section(&mut lines, "Availability", availability);
+
+    if !compact && !entry.example.trim().is_empty() {
+        let fence = match example_mode {
+            RustdocExampleMode::NoRun => "```rust,no_run",
+            RustdocExampleMode::Ignore => "```rust,ignore",
+        };
+        lines.extend([String::new(), "# Example".into(), fence.into()]);
+        lines.extend(entry.example.trim().lines().map(ToOwned::to_owned));
+        lines.push("```".into());
+    }
+    lines
+}
+
+fn push_section<'a>(
+    lines: &mut Vec<String>,
+    heading: &str,
+    values: impl IntoIterator<Item = &'a str>,
+) {
+    push_owned_section(lines, heading, values.into_iter().map(ToOwned::to_owned));
+}
+
+fn push_owned_section(
+    lines: &mut Vec<String>,
+    heading: &str,
+    values: impl IntoIterator<Item = String>,
+) {
+    let values = values
+        .into_iter()
+        .filter(|value| !value.trim().is_empty())
+        .collect::<Vec<_>>();
+    if values.is_empty() {
+        return;
+    }
+    lines.extend([String::new(), format!("# {heading}")]);
+    lines.extend(values);
+}
+
 /// Complete metadata export for one installed Sand version.
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub struct ApiCatalog {
@@ -627,6 +750,53 @@ fn validate_entry(entry: &ApiEntry) -> Result<(), CatalogError> {
 
 fn validate_resolved_quality(entries: &[ApiEntry]) -> Result<(), CatalogError> {
     for entry in entries {
+        let contains_cli_redirect = std::iter::once(entry.summary.as_str())
+            .chain(std::iter::once(entry.context.as_str()))
+            .chain(std::iter::once(entry.minecraft.as_str()))
+            .chain(entry.use_when.iter().map(String::as_str))
+            .chain(entry.avoid_when.iter().map(String::as_str))
+            .chain(
+                entry
+                    .parameters
+                    .iter()
+                    .map(|parameter| parameter.description.as_str()),
+            )
+            .chain(entry.returns.as_deref())
+            .chain(std::iter::once(entry.example.as_str()))
+            .any(|prose| prose.contains("sand api show"));
+        if contains_cli_redirect {
+            return Err(CatalogError::InvalidEntry {
+                path: entry.canonical_path.clone(),
+                message: "semantic documentation must be local, not a `sand api show` redirect"
+                    .into(),
+            });
+        }
+        let contains_generated_filler = std::iter::once(entry.summary.as_str())
+            .chain(std::iter::once(entry.context.as_str()))
+            .chain(std::iter::once(entry.minecraft.as_str()))
+            .chain(entry.use_when.iter().map(String::as_str))
+            .chain(entry.avoid_when.iter().map(String::as_str))
+            .chain(
+                entry
+                    .parameters
+                    .iter()
+                    .map(|parameter| parameter.description.as_str()),
+            )
+            .chain(entry.returns.as_deref())
+            .any(|prose| {
+                (prose.starts_with("A newly constructed `") && prose.contains(" configured to "))
+                    || (prose.contains(" supplies the ") && prose.contains(" value used to "))
+                    || prose.contains("when the variant selects the ")
+                    || prose.contains("form in this typed Minecraft component schema")
+            });
+        if contains_generated_filler {
+            return Err(CatalogError::InvalidEntry {
+                path: entry.canonical_path.clone(),
+                message:
+                    "semantic documentation is generic filler generated without local semantics"
+                        .into(),
+            });
+        }
         let compact_signature = entry.signature.replace(char::is_whitespace, "");
         if entry.signature.contains("#[doc")
             || entry.signature.contains("# [doc")
@@ -679,7 +849,8 @@ fn validate_resolved_quality(entries: &[ApiEntry]) -> Result<(), CatalogError> {
         }) {
             return Err(CatalogError::InvalidEntry {
                 path: entry.canonical_path.clone(),
-                message: "parameter documentation only repeats its Rust type".into(),
+                message: "parameter documentation is generic filler rather than local semantics"
+                    .into(),
             });
         }
         if entry.returns.as_deref().is_some_and(|returns| {
@@ -688,7 +859,8 @@ fn validate_resolved_quality(entries: &[ApiEntry]) -> Result<(), CatalogError> {
         }) {
             return Err(CatalogError::InvalidEntry {
                 path: entry.canonical_path.clone(),
-                message: "return documentation only repeats its Rust type".into(),
+                message: "return documentation is generic filler rather than local semantics"
+                    .into(),
             });
         }
         if entry.kind == ApiKind::Field && entry.example.trim().is_empty() {
@@ -1253,6 +1425,24 @@ mod tests {
                 .contains("behavioral example")
         );
 
+        let mut cli_redirect = ApiEntry::from(&REGISTRATION);
+        cli_redirect.minecraft =
+            "Run `sand api show sand::predicate::EquipmentPredicate::slot`.".into();
+        let catalog = ApiCatalog::from_entries_with_coverage(
+            "0.1.0",
+            configuration(1),
+            vec![cli_redirect],
+            ApiCoverage::unverified(),
+        )
+        .unwrap();
+        assert!(
+            catalog
+                .validate_quality()
+                .unwrap_err()
+                .to_string()
+                .contains("must be local")
+        );
+
         for (summary, parameter, returns, expected) in [
             (
                 "Builds or resolves value.",
@@ -1264,7 +1454,7 @@ mod tests {
                 "Selects an equipment slot.",
                 "Rust parameter with type `EquipmentSlot`.",
                 "A predicate builder.",
-                "only repeats its Rust type",
+                "generic filler",
             ),
             (
                 "Creates this typed datapack component definition.",
@@ -1288,7 +1478,19 @@ mod tests {
                 "Selects an equipment slot.",
                 "The selected equipment slot.",
                 "A value with Rust type `Predicate`.",
-                "only repeats its Rust type",
+                "generic filler",
+            ),
+            (
+                "Selects an equipment slot.",
+                "`slot` supplies the slot value used to choose an equipment slot.",
+                "A predicate builder.",
+                "generic filler",
+            ),
+            (
+                "Selects an equipment slot.",
+                "The selected equipment slot.",
+                "A newly constructed `Predicate` configured to select an equipment slot.",
+                "generic filler",
             ),
         ] {
             let mut filler = ApiEntry::from(&REGISTRATION);
@@ -1302,14 +1504,30 @@ mod tests {
                 ApiCoverage::unverified(),
             )
             .unwrap();
-            assert!(
-                catalog
-                    .validate_quality()
-                    .unwrap_err()
-                    .to_string()
-                    .contains(expected)
-            );
+            let error = catalog.validate_quality().unwrap_err().to_string();
+            assert!(error.contains(expected), "{summary}: {error}");
         }
+
+        let mut generated_member = ApiEntry::from(&REGISTRATION);
+        generated_member.kind = ApiKind::Variant;
+        generated_member.summary =
+            "Selects the red form in this typed Minecraft component schema.".into();
+        generated_member.parameters.clear();
+        generated_member.returns = None;
+        let catalog = ApiCatalog::from_entries_with_coverage(
+            "0.1.0",
+            configuration(1),
+            vec![generated_member],
+            ApiCoverage::unverified(),
+        )
+        .unwrap();
+        assert!(
+            catalog
+                .validate_quality()
+                .unwrap_err()
+                .to_string()
+                .contains("generic filler")
+        );
     }
 
     #[test]
@@ -1353,6 +1571,44 @@ mod tests {
         let method = catalog.find("sand::prelude::Thing::build").unwrap();
         assert_eq!(method.canonical_path, "sand::topic::Thing::build");
         assert_eq!(method.aliases, ["sand::prelude::Thing::build"]);
+    }
+
+    #[test]
+    fn rustdoc_renderer_is_complete_for_callables_and_compact_for_members() {
+        let method = ApiEntry::from(&REGISTRATION);
+        let documentation =
+            render_rustdoc_with_example_mode(&method, RustdocExampleMode::NoRun).join("\n");
+        for section in [
+            "# Context",
+            "# Minecraft behavior",
+            "# Parameters",
+            "# Use when",
+            "# Avoid when",
+            "# Availability",
+            "# Example",
+        ] {
+            assert!(documentation.contains(section), "missing {section}");
+        }
+        assert!(!documentation.contains("sand api show"));
+        assert!(documentation.contains("```rust,no_run"));
+
+        let ignored = render_rustdoc_with_example_mode(
+            &ApiEntry::from(&REGISTRATION),
+            RustdocExampleMode::Ignore,
+        )
+        .join("\n");
+        assert!(ignored.contains("```rust,ignore"));
+
+        let mut variant = method;
+        variant.kind = ApiKind::Variant;
+        variant.summary = "Selects the red team color used by Minecraft.".into();
+        let documentation = render_rustdoc(&variant).join("\n");
+        assert_eq!(
+            documentation,
+            "Selects the red team color used by Minecraft.\n\n# Availability\n- feature = predicates"
+        );
+        assert!(!documentation.contains("Returns"));
+        assert!(!documentation.contains("Avoid when"));
     }
 
     #[test]

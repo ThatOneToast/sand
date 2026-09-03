@@ -94,7 +94,18 @@ pub(crate) fn validate_registered_line(line: &str, profile: &CommandProfile) -> 
 
 // ── BlockState ────────────────────────────────────────────────────────────────
 
-#[doc = "**API Contract:** Run `sand api show sand::command::BlockState` for the canonical contract."]
+#[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::command::BlockState",
+    aliases = ["sand::cmd::BlockState", "sand::prelude::BlockState", "sand::prelude::cmd::BlockState"],
+    module = "sand::command",
+    summary = "A Minecraft block state string like `minecraft:oak_stairs[facing=east,half=bottom]`.",
+    context = "A Minecraft block state string like `minecraft:oak_stairs[facing=east,half=bottom]`. Properties are sorted alphabetically so output is deterministic. `BlockState` accepts any block ID/property strings without validating them eagerly — construction stays ergonomic for chained builder syntax. Validation happens at the fallible boundary: [`BlockState::validate`], or transitively through [`SetBlock::try_build`], [`Fill::try_build`], and [`CloneBlocks::try_build`]. The infallible [`Build::build`]/`Display` paths remain available as a documented raw/unchecked escape hatch for custom or future block-state syntax Sand does not yet model.",
+    minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
+    use_when = ["Constructing Minecraft commands through Sand's typed command model"],
+    avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
+    example = "use sand::command::BlockState;",
+)]
 /// A Minecraft block state string like `minecraft:oak_stairs[facing=east,half=bottom]`.
 ///
 /// Properties are sorted alphabetically so output is deterministic.
@@ -114,7 +125,21 @@ pub struct BlockState {
 
 impl BlockState {
     /// Start building a block state string for the given block ID (e.g. `"minecraft:stone"`).
-    #[doc = "**API Contract:** Run `sand api show sand::command::BlockState::of` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::command::BlockState::of",
+        aliases = ["sand::cmd::BlockState::of", "sand::prelude::BlockState::of", "sand::prelude::cmd::BlockState::of"],
+        module = "sand::command",
+        kind = "method",
+        summary = "Start building a block state string for the given block ID (e.g. `\"minecraft:stone\"`).",
+        context = "Start building a block state string for the given block ID (e.g. `\"minecraft:stone\"`). This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
+        minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
+        use_when = ["Constructing Minecraft commands through Sand's typed command model"],
+        avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
+        params(block = "`block` provides the block value or block predicate used to start building a block state string for the given block ID (e.g. `\"minecraft:stone\"`)."),
+        returns = "A `BlockState` initialized to building a block state string for the given block ID (e.g. `\"minecraft:stone\"`).",
+        example = "use sand::prelude::*;\n\nfn demonstrate(block: impl Into < String >)  {\n    let block_state = sand::command::BlockState::of(block);\n}",
+    )]
     pub fn of(block: impl Into<String>) -> Self {
         Self {
             block: block.into(),
@@ -123,14 +148,42 @@ impl BlockState {
     }
 
     /// Add a single block state property (e.g. `"facing"`, `"east"`).
-    #[doc = "**API Contract:** Run `sand api show sand::command::BlockState::prop` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::command::BlockState::prop",
+        aliases = ["sand::cmd::BlockState::prop", "sand::prelude::BlockState::prop", "sand::prelude::cmd::BlockState::prop"],
+        module = "sand::command",
+        kind = "method",
+        summary = "Add a single block state property (e.g. `\"facing\"`, `\"east\"`).",
+        context = "Add a single block state property (e.g. `\"facing\"`, `\"east\"`). This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
+        minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
+        use_when = ["Constructing Minecraft commands through Sand's typed command model"],
+        avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
+        params(key = "`key` provides the key that identifies the setting or entry used to add a single block state property (e.g. `\"facing\"`, `\"east\"`).", value = "`value` provides the value being applied or compared used to add a single block state property (e.g. `\"facing\"`, `\"east\"`)."),
+        returns = "The `BlockState` value with the documented change applied to add a single block state property (e.g. `\"facing\"`, `\"east\"`).",
+        example = "use sand::prelude::*;\n\nfn demonstrate(block_state_value: sand::command::BlockState, key: impl Into < String >, value: impl Into < String >)  {\n    let updated_block_state = block_state_value.prop(key, value);\n}",
+    )]
     pub fn prop(mut self, key: impl Into<String>, value: impl Into<String>) -> Self {
         self.props.insert(key.into(), value.into());
         self
     }
 
     /// Add multiple block state properties at once from an iterator of `(key, value)` pairs.
-    #[doc = "**API Contract:** Run `sand api show sand::command::BlockState::props` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::command::BlockState::props",
+        aliases = ["sand::cmd::BlockState::props", "sand::prelude::BlockState::props", "sand::prelude::cmd::BlockState::props"],
+        module = "sand::command",
+        kind = "method",
+        summary = "Add multiple block state properties at once from an iterator of `(key, value)` pairs.",
+        context = "Add multiple block state properties at once from an iterator of `(key, value)` pairs. This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
+        minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
+        use_when = ["Constructing Minecraft commands through Sand's typed command model"],
+        avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
+        params(iter = "`iter` provides the iter added when building multiple block state properties at once from an iterator of `(key, value)` pairs."),
+        returns = "The `BlockState` value with the documented change applied to add multiple block state properties at once from an iterator of `(key, value)` pairs.",
+        example = "use sand::prelude::*;\n\nfn demonstrate<K: 'static, V: 'static>(block_state_value: sand::command::BlockState, iter: impl IntoIterator < Item = (K , V) >) where K : Into < String > , V : Into < String > {\n    let updated_block_state = block_state_value.props::<K, V>(iter);\n}",
+    )]
     pub fn props<K, V>(mut self, iter: impl IntoIterator<Item = (K, V)>) -> Self
     where
         K: Into<String>,
@@ -215,18 +268,27 @@ impl From<String> for BlockState {
 
 // ── SetBlockMode ──────────────────────────────────────────────────────────────
 
-#[doc = "**API Contract:** Run `sand api show sand::command::SetBlockMode` for the canonical contract."]
+#[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::command::SetBlockMode",
+    aliases = ["sand::cmd::SetBlockMode", "sand::prelude::SetBlockMode", "sand::prelude::cmd::SetBlockMode"],
+    module = "sand::command",
+    summary = "Mode for the `setblock` command.",
+    context = "Mode for the `setblock` command. This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
+    minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
+    use_when = ["Constructing Minecraft commands through Sand's typed command model"],
+    avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
+    example = "use sand::command::SetBlockMode;",
+    variants(Destroy = "Destroy the block, dropping items.", Keep = "Keep the block if it exists (don't replace).", Replace = "Replace the block (default)."),
+)]
 /// Mode for the `setblock` command.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum SetBlockMode {
-    #[doc = "**API Contract:** Run `sand api show sand::command::SetBlockMode::Replace` for the canonical contract."]
     /// Replace the block (default).
     #[default]
     Replace,
-    #[doc = "**API Contract:** Run `sand api show sand::command::SetBlockMode::Destroy` for the canonical contract."]
     /// Destroy the block, dropping items.
     Destroy,
-    #[doc = "**API Contract:** Run `sand api show sand::command::SetBlockMode::Keep` for the canonical contract."]
     /// Keep the block if it exists (don't replace).
     Keep,
 }
@@ -244,7 +306,18 @@ impl fmt::Display for SetBlockMode {
 
 // ── SetBlock ──────────────────────────────────────────────────────────────────
 
-#[doc = "**API Contract:** Run `sand api show sand::command::SetBlock` for the canonical contract."]
+#[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::command::SetBlock",
+    aliases = ["sand::cmd::SetBlock", "sand::prelude::SetBlock", "sand::prelude::cmd::SetBlock"],
+    module = "sand::command",
+    summary = "Builder for the `setblock` command.",
+    context = "Builder for the `setblock` command. This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
+    minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
+    use_when = ["Constructing Minecraft commands through Sand's typed command model"],
+    avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
+    example = "use sand::command::SetBlock;",
+)]
 /// Builder for the `setblock` command.
 #[derive(Debug, Clone)]
 pub struct SetBlock {
@@ -255,7 +328,21 @@ pub struct SetBlock {
 
 impl SetBlock {
     /// Create a new `setblock` command at the given position.
-    #[doc = "**API Contract:** Run `sand api show sand::command::SetBlock::new` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::command::SetBlock::new",
+        aliases = ["sand::cmd::SetBlock::new", "sand::prelude::SetBlock::new", "sand::prelude::cmd::SetBlock::new"],
+        module = "sand::command",
+        kind = "method",
+        summary = "Create a new `setblock` command at the given position.",
+        context = "Create a new `setblock` command at the given position. This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
+        minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
+        use_when = ["Constructing Minecraft commands through Sand's typed command model"],
+        avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
+        params(pos = "`pos` is used when creating a new `setblock` command at the given position.", block = "`block` provides the block value or block predicate used to create a new `setblock` command at the given position."),
+        returns = "A `SetBlock` representing a new `setblock` command at the given position.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(pos: sand::command::BlockPos, block: impl Into < sand::command::BlockState >)  {\n    let set_block = sand::command::SetBlock::new(pos, block);\n}",
+    )]
     pub fn new(pos: BlockPos, block: impl Into<BlockState>) -> Self {
         Self {
             pos,
@@ -265,7 +352,21 @@ impl SetBlock {
     }
 
     /// Set the mode for this `setblock` command.
-    #[doc = "**API Contract:** Run `sand api show sand::command::SetBlock::mode` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::command::SetBlock::mode",
+        aliases = ["sand::cmd::SetBlock::mode", "sand::prelude::SetBlock::mode", "sand::prelude::cmd::SetBlock::mode"],
+        module = "sand::command",
+        kind = "method",
+        summary = "Set the mode for this `setblock` command.",
+        context = "Set the mode for this `setblock` command. This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
+        minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
+        use_when = ["Constructing Minecraft commands through Sand's typed command model"],
+        avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
+        params(mode = "`mode` provides the mode applied when setting the mode for this `setblock` command."),
+        returns = "The `SetBlock` value with the documented change applied to set the mode for this `setblock` command.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(set_block_value: sand::command::SetBlock, mode: sand::command::SetBlockMode)  {\n    let updated_set_block = set_block_value.mode(mode);\n}",
+    )]
     pub fn mode(mut self, mode: SetBlockMode) -> Self {
         self.mode = mode;
         self
@@ -320,32 +421,35 @@ impl RenderCommand for SetBlock {
 
 // ── FillMode ──────────────────────────────────────────────────────────────────
 
-#[doc = "**API Contract:** Run `sand api show sand::command::FillMode` for the canonical contract."]
+#[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::command::FillMode",
+    aliases = ["sand::cmd::FillMode", "sand::prelude::FillMode", "sand::prelude::cmd::FillMode"],
+    module = "sand::command",
+    summary = "Mode for the `fill` command.",
+    context = "Mode for the `fill` command. This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
+    minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
+    use_when = ["Constructing Minecraft commands through Sand's typed command model"],
+    avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
+    example = "use sand::command::FillMode;",
+    variants(Destroy = "Destroy blocks, dropping items.", Hollow = "Replace only non-air blocks (hollow out a structure).", Keep = "Only replace air blocks.", Outline = "Replace only the outer shell of the region (create an outline).", Replace = "Replace all blocks in the region (default).", ReplaceFilter = "`replace <filter>` — only replace blocks matching `filter`."),
+    variant_fields(ReplaceFilter = ["`replace <filter>` — only replace blocks matching `filter`."]),
+)]
 /// Mode for the `fill` command.
 #[derive(Debug, Clone, PartialEq)]
 pub enum FillMode {
-    #[doc = "**API Contract:** Run `sand api show sand::command::FillMode::Replace` for the canonical contract."]
     /// Replace all blocks in the region (default).
     Replace,
-    #[doc = "**API Contract:** Run `sand api show sand::command::FillMode::Destroy` for the canonical contract."]
     /// Destroy blocks, dropping items.
     Destroy,
-    #[doc = "**API Contract:** Run `sand api show sand::command::FillMode::Hollow` for the canonical contract."]
     /// Replace only non-air blocks (hollow out a structure).
     Hollow,
-    #[doc = "**API Contract:** Run `sand api show sand::command::FillMode::Outline` for the canonical contract."]
     /// Replace only the outer shell of the region (create an outline).
     Outline,
-    #[doc = "**API Contract:** Run `sand api show sand::command::FillMode::Keep` for the canonical contract."]
     /// Only replace air blocks.
     Keep,
-    #[doc = "**API Contract:** Run `sand api show sand::command::FillMode::ReplaceFilter` for the canonical contract."]
     /// `replace <filter>` — only replace blocks matching `filter`.
-    ReplaceFilter(
-        #[doc = "The `ReplaceFilter` variant carries the value described by its variant semantics: `replace <filter>` — only replace blocks matching `filter`."]
-        #[doc = "**API Contract:** Run `sand api show sand::command::FillMode::ReplaceFilter::0` for the canonical contract."]
-        String,
-    ),
+    ReplaceFilter(#[doc = "`replace <filter>` — only replace blocks matching `filter`."] String),
 }
 
 impl fmt::Display for FillMode {
@@ -363,7 +467,18 @@ impl fmt::Display for FillMode {
 
 // ── Fill ──────────────────────────────────────────────────────────────────────
 
-#[doc = "**API Contract:** Run `sand api show sand::command::Fill` for the canonical contract."]
+#[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::command::Fill",
+    aliases = ["sand::cmd::Fill", "sand::prelude::Fill", "sand::prelude::cmd::Fill"],
+    module = "sand::command",
+    summary = "Builder for the `fill` command.",
+    context = "Builder for the `fill` command. This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
+    minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
+    use_when = ["Constructing Minecraft commands through Sand's typed command model"],
+    avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
+    example = "use sand::command::Fill;",
+)]
 /// Builder for the `fill` command.
 #[derive(Debug, Clone)]
 pub struct Fill {
@@ -375,7 +490,21 @@ pub struct Fill {
 
 impl Fill {
     /// Create a new `fill` command for the region from `from` to `to`.
-    #[doc = "**API Contract:** Run `sand api show sand::command::Fill::new` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::command::Fill::new",
+        aliases = ["sand::cmd::Fill::new", "sand::prelude::Fill::new", "sand::prelude::cmd::Fill::new"],
+        module = "sand::command",
+        kind = "method",
+        summary = "Create a new `fill` command for the region from `from` to `to`.",
+        context = "Create a new `fill` command for the region from `from` to `to`. This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
+        minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
+        use_when = ["Constructing Minecraft commands through Sand's typed command model"],
+        avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
+        params(from = "Create a new `fill` command for the region from `from` to `to`.", to = "Create a new `fill` command for the region from `from` to `to`.", block = "`block` provides the block value or block predicate used to create a new `fill` command for the region from `from` to `to`."),
+        returns = "A `Fill` representing a new `fill` command for the region from `from` to `to`.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(from: sand::command::BlockPos, to: sand::command::BlockPos, block: impl Into < sand::command::BlockState >)  {\n    let fill = sand::command::Fill::new(from, to, block);\n}",
+    )]
     pub fn new(from: BlockPos, to: BlockPos, block: impl Into<BlockState>) -> Self {
         Self {
             from,
@@ -386,7 +515,21 @@ impl Fill {
     }
 
     /// Set the mode for this `fill` command.
-    #[doc = "**API Contract:** Run `sand api show sand::command::Fill::mode` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::command::Fill::mode",
+        aliases = ["sand::cmd::Fill::mode", "sand::prelude::Fill::mode", "sand::prelude::cmd::Fill::mode"],
+        module = "sand::command",
+        kind = "method",
+        summary = "Set the mode for this `fill` command.",
+        context = "Set the mode for this `fill` command. This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
+        minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
+        use_when = ["Constructing Minecraft commands through Sand's typed command model"],
+        avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
+        params(mode = "`mode` provides the mode applied when setting the mode for this `fill` command."),
+        returns = "The `Fill` value with the documented change applied to set the mode for this `fill` command.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(fill_value: sand::command::Fill, mode: sand::command::FillMode)  {\n    let updated_fill = fill_value.mode(mode);\n}",
+    )]
     pub fn mode(mut self, mode: FillMode) -> Self {
         self.mode = mode;
         self
@@ -450,34 +593,52 @@ impl RenderCommand for Fill {
 
 // ── CloneMaskMode / CloneMode ─────────────────────────────────────────────────
 
-#[doc = "**API Contract:** Run `sand api show sand::command::CloneMaskMode` for the canonical contract."]
+#[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::command::CloneMaskMode",
+    aliases = ["sand::cmd::CloneMaskMode", "sand::prelude::CloneMaskMode", "sand::prelude::cmd::CloneMaskMode"],
+    module = "sand::command",
+    summary = "Mask mode for the `clone` command.",
+    context = "Mask mode for the `clone` command. This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
+    minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
+    use_when = ["Constructing Minecraft commands through Sand's typed command model"],
+    avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
+    example = "use sand::command::CloneMaskMode;",
+    variants(Filtered = "Only clone blocks matching a filter.", Masked = "Only clone non-air blocks (skip air).", Replace = "Clone all blocks (default)."),
+)]
 /// Mask mode for the `clone` command.
 #[derive(Debug, Clone, Copy, Default)]
 pub enum CloneMaskMode {
-    #[doc = "**API Contract:** Run `sand api show sand::command::CloneMaskMode::Replace` for the canonical contract."]
     /// Clone all blocks (default).
     #[default]
     Replace,
-    #[doc = "**API Contract:** Run `sand api show sand::command::CloneMaskMode::Masked` for the canonical contract."]
     /// Only clone non-air blocks (skip air).
     Masked,
-    #[doc = "**API Contract:** Run `sand api show sand::command::CloneMaskMode::Filtered` for the canonical contract."]
     /// Only clone blocks matching a filter.
     Filtered,
 }
 
-#[doc = "**API Contract:** Run `sand api show sand::command::CloneMode` for the canonical contract."]
+#[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::command::CloneMode",
+    aliases = ["sand::cmd::CloneMode", "sand::prelude::CloneMode", "sand::prelude::cmd::CloneMode"],
+    module = "sand::command",
+    summary = "Clone mode for the `clone` command.",
+    context = "Clone mode for the `clone` command. This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
+    minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
+    use_when = ["Constructing Minecraft commands through Sand's typed command model"],
+    avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
+    example = "use sand::command::CloneMode;",
+    variants(Force = "Force-clone even if blocks overlap.", Move = "Move blocks (clone then clear source).", Normal = "Normal cloning (default)."),
+)]
 /// Clone mode for the `clone` command.
 #[derive(Debug, Clone, Copy, Default)]
 pub enum CloneMode {
-    #[doc = "**API Contract:** Run `sand api show sand::command::CloneMode::Normal` for the canonical contract."]
     /// Normal cloning (default).
     #[default]
     Normal,
-    #[doc = "**API Contract:** Run `sand api show sand::command::CloneMode::Force` for the canonical contract."]
     /// Force-clone even if blocks overlap.
     Force,
-    #[doc = "**API Contract:** Run `sand api show sand::command::CloneMode::Move` for the canonical contract."]
     /// Move blocks (clone then clear source).
     Move,
 }
@@ -504,7 +665,18 @@ impl fmt::Display for CloneMode {
 
 // ── CloneBlocks ───────────────────────────────────────────────────────────────
 
-#[doc = "**API Contract:** Run `sand api show sand::command::CloneBlocks` for the canonical contract."]
+#[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::command::CloneBlocks",
+    aliases = ["sand::cmd::CloneBlocks", "sand::prelude::CloneBlocks", "sand::prelude::cmd::CloneBlocks"],
+    module = "sand::command",
+    summary = "Builder for the `clone` command.",
+    context = "Builder for the `clone` command. This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
+    minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
+    use_when = ["Constructing Minecraft commands through Sand's typed command model"],
+    avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
+    example = "use sand::command::CloneBlocks;",
+)]
 /// Builder for the `clone` command.
 #[derive(Debug, Clone)]
 pub struct CloneBlocks {
@@ -518,7 +690,21 @@ pub struct CloneBlocks {
 
 impl CloneBlocks {
     /// Create a new `clone` command from region `from..to` to `dest`.
-    #[doc = "**API Contract:** Run `sand api show sand::command::CloneBlocks::new` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::command::CloneBlocks::new",
+        aliases = ["sand::cmd::CloneBlocks::new", "sand::prelude::CloneBlocks::new", "sand::prelude::cmd::CloneBlocks::new"],
+        module = "sand::command",
+        kind = "method",
+        summary = "Create a new `clone` command from region `from..to` to `dest`.",
+        context = "Create a new `clone` command from region `from..to` to `dest`. This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
+        minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
+        use_when = ["Constructing Minecraft commands through Sand's typed command model"],
+        avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
+        params(from = "`from` is used when creating a new `clone` command from region `from..to` to `dest`.", to = "`to` is used when creating a new `clone` command from region `from..to` to `dest`.", dest = "Create a new `clone` command from region `from..to` to `dest`."),
+        returns = "A `CloneBlocks` representing a new `clone` command from region `from..to` to `dest`.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(from: sand::command::BlockPos, to: sand::command::BlockPos, dest: sand::command::BlockPos)  {\n    let clone_blocks = sand::command::CloneBlocks::new(from, to, dest);\n}",
+    )]
     pub fn new(from: BlockPos, to: BlockPos, dest: BlockPos) -> Self {
         Self {
             from,
@@ -531,14 +717,41 @@ impl CloneBlocks {
     }
 
     /// Only clone non-air blocks.
-    #[doc = "**API Contract:** Run `sand api show sand::command::CloneBlocks::masked` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::command::CloneBlocks::masked",
+        aliases = ["sand::cmd::CloneBlocks::masked", "sand::prelude::CloneBlocks::masked", "sand::prelude::cmd::CloneBlocks::masked"],
+        module = "sand::command",
+        kind = "method",
+        summary = "Only clone non-air blocks.",
+        context = "Only clone non-air blocks. This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
+        minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
+        use_when = ["Constructing Minecraft commands through Sand's typed command model"],
+        avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
+        returns = "The `CloneBlocks` value with the documented change applied to only clone non-air blocks.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(clone_blocks_value: sand::command::CloneBlocks)  {\n    let updated_clone_blocks = clone_blocks_value.masked();\n}",
+    )]
     pub fn masked(mut self) -> Self {
         self.mask_mode = CloneMaskMode::Masked;
         self
     }
 
     /// Only clone blocks matching the given filter.
-    #[doc = "**API Contract:** Run `sand api show sand::command::CloneBlocks::filtered` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::command::CloneBlocks::filtered",
+        aliases = ["sand::cmd::CloneBlocks::filtered", "sand::prelude::CloneBlocks::filtered", "sand::prelude::cmd::CloneBlocks::filtered"],
+        module = "sand::command",
+        kind = "method",
+        summary = "Only clone blocks matching the given filter.",
+        context = "Only clone blocks matching the given filter. This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
+        minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
+        use_when = ["Constructing Minecraft commands through Sand's typed command model"],
+        avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
+        params(block = "`block` provides the block value or block predicate used to only clone blocks matching the given filter."),
+        returns = "The `CloneBlocks` value with the documented change applied to only clone blocks matching the given filter.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(clone_blocks_value: sand::command::CloneBlocks, block: impl Into < String >)  {\n    let updated_clone_blocks = clone_blocks_value.filtered(block);\n}",
+    )]
     pub fn filtered(mut self, block: impl Into<String>) -> Self {
         self.mask_mode = CloneMaskMode::Filtered;
         self.filter = Some(block.into());
@@ -546,7 +759,21 @@ impl CloneBlocks {
     }
 
     /// Set the clone mode (normal, force, or move).
-    #[doc = "**API Contract:** Run `sand api show sand::command::CloneBlocks::clone_mode` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::command::CloneBlocks::clone_mode",
+        aliases = ["sand::cmd::CloneBlocks::clone_mode", "sand::prelude::CloneBlocks::clone_mode", "sand::prelude::cmd::CloneBlocks::clone_mode"],
+        module = "sand::command",
+        kind = "method",
+        summary = "Set the clone mode (normal, force, or move).",
+        context = "Set the clone mode (normal, force, or move). This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
+        minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
+        use_when = ["Constructing Minecraft commands through Sand's typed command model"],
+        avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
+        params(mode = "`mode` provides the mode applied when setting the clone mode (normal, force, or move)."),
+        returns = "The `CloneBlocks` value with the documented change applied to set the clone mode (normal, force, or move).",
+        example = "use sand::prelude::*;\n\nfn demonstrate(clone_blocks_value: sand::command::CloneBlocks, mode: sand::command::CloneMode)  {\n    let updated_clone_blocks = clone_blocks_value.clone_mode(mode);\n}",
+    )]
     pub fn clone_mode(mut self, mode: CloneMode) -> Self {
         self.clone_mode = mode;
         self

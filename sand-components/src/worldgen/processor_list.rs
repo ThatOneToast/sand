@@ -17,7 +17,18 @@ use crate::worldgen::providers::{BlockState, Heightmap};
 
 const KIND: &str = "worldgen/processor_list";
 
-#[doc = "**API Contract:** Run `sand api show sand::component::ProcessorRule` for the canonical contract."]
+#[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::component::ProcessorRule",
+    aliases = ["sand::prelude::ProcessorRule"],
+    module = "sand::component",
+    summary = "One rule of a `minecraft:rule` processor. `input_predicate`, `location_predicate`, and `position_predicate` remain raw JSON: vanilla's block-state/position predicate grammar is broad and is better served by an explicit escape hatch than a partial typed model. `output_state` is typed since it is the common case authors need to get right — a plain replacement block state.",
+    context = "One rule of a `minecraft:rule` processor. `input_predicate`, `location_predicate`, and `position_predicate` remain raw JSON: vanilla's block-state/position predicate grammar is broad and is better served by an explicit escape hatch than a partial typed model. `output_state` is typed since it is the common case authors need to get right — a plain replacement block state. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+    minecraft = "`input_predicate`, `location_predicate`, and `position_predicate` remain raw JSON: vanilla's block-state/position predicate grammar is broad and is better served by an explicit escape hatch than a partial typed model. `output_state` is typed since it is the common case authors need to get right — a plain replacement block state.",
+    use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+    avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+    example = "use sand::component::ProcessorRule;",
+)]
 /// One rule of a `minecraft:rule` processor.
 ///
 /// `input_predicate`, `location_predicate`, and `position_predicate` remain
@@ -37,7 +48,21 @@ pub struct ProcessorRule {
 impl ProcessorRule {
     /// `input_predicate` must be a JSON object matching vanilla's block
     /// predicate grammar (e.g. `{"predicate_type": "minecraft:block_match", "block": "minecraft:stone"}`).
-    #[doc = "**API Contract:** Run `sand api show sand::component::ProcessorRule::new` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::ProcessorRule::new",
+        aliases = ["sand::prelude::ProcessorRule::new"],
+        module = "sand::component",
+        kind = "method",
+        summary = "`input_predicate` must be a JSON object matching vanilla's block predicate grammar (e.g. `{\"predicate_type\": \"minecraft:block_match\", \"block\": \"minecraft:stone\"}`).",
+        context = "`input_predicate` must be a JSON object matching vanilla's block predicate grammar (e.g. `{\"predicate_type\": \"minecraft:block_match\", \"block\": \"minecraft:stone\"}`). This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(input_predicate = "`input_predicate` must be a JSON object matching vanilla's block predicate grammar (e.g. `{\"predicate_type\": \"minecraft:block_match\", \"block\": \"minecraft:stone\"}`).", output_state = "`output_state` supplies the documented `input_predicate` must be a JSON object matching vanilla's block predicate grammar (e.g. `{\"predicate_type\": \"minecraft:block_match\", \"block\": \"minecraft:stone\"}`) form."),
+        returns = "A `ProcessorRule` that emits the documented `input_predicate` must be a JSON object matching vanilla's block predicate grammar (e.g. `{\"predicate_type\": \"minecraft:block_match\", \"block\": \"minecraft:stone\"}`) form.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(input_predicate: sand::component::RawJson, output_state: sand::component::BlockState)  {\n    let processor_rule = sand::component::ProcessorRule::new(input_predicate, output_state);\n}",
+    )]
     pub fn new(input_predicate: RawJson, output_state: BlockState) -> Self {
         Self {
             input_predicate,
@@ -49,21 +74,63 @@ impl ProcessorRule {
     }
 
     /// Sets the Minecraft location predicate property on this typed processor rule definition and returns the updated builder.
-    #[doc = "**API Contract:** Run `sand api show sand::component::ProcessorRule::location_predicate` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::ProcessorRule::location_predicate",
+        aliases = ["sand::prelude::ProcessorRule::location_predicate"],
+        module = "sand::component",
+        kind = "method",
+        summary = "Sets the Minecraft location predicate property on this typed processor rule definition and returns the updated builder.",
+        context = "Sets the Minecraft location predicate property on this typed processor rule definition and returns the updated builder. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(predicate = "`predicate` provides the predicate that must match used to set the Minecraft location predicate property on this typed processor rule definition and returns the updated builder."),
+        returns = "Sets the Minecraft location predicate property on this typed processor rule definition and returns the updated builder.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(processor_rule_value: sand::component::ProcessorRule, predicate: sand::component::RawJson)  {\n    let updated_processor_rule = processor_rule_value.location_predicate(predicate);\n}",
+    )]
     pub fn location_predicate(mut self, predicate: RawJson) -> Self {
         self.location_predicate = Some(predicate);
         self
     }
 
     /// Sets the Minecraft position predicate property on this typed processor rule definition and returns the updated builder.
-    #[doc = "**API Contract:** Run `sand api show sand::component::ProcessorRule::position_predicate` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::ProcessorRule::position_predicate",
+        aliases = ["sand::prelude::ProcessorRule::position_predicate"],
+        module = "sand::component",
+        kind = "method",
+        summary = "Sets the Minecraft position predicate property on this typed processor rule definition and returns the updated builder.",
+        context = "Sets the Minecraft position predicate property on this typed processor rule definition and returns the updated builder. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(predicate = "`predicate` provides the predicate that must match used to set the Minecraft position predicate property on this typed processor rule definition and returns the updated builder."),
+        returns = "Sets the Minecraft position predicate property on this typed processor rule definition and returns the updated builder.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(processor_rule_value: sand::component::ProcessorRule, predicate: sand::component::RawJson)  {\n    let updated_processor_rule = processor_rule_value.position_predicate(predicate);\n}",
+    )]
     pub fn position_predicate(mut self, predicate: RawJson) -> Self {
         self.position_predicate = Some(predicate);
         self
     }
 
     /// Sets the Minecraft output nbt property on this typed processor rule definition and returns the updated builder.
-    #[doc = "**API Contract:** Run `sand api show sand::component::ProcessorRule::output_nbt` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::ProcessorRule::output_nbt",
+        aliases = ["sand::prelude::ProcessorRule::output_nbt"],
+        module = "sand::component",
+        kind = "method",
+        summary = "Sets the Minecraft output nbt property on this typed processor rule definition and returns the updated builder.",
+        context = "Sets the Minecraft output nbt property on this typed processor rule definition and returns the updated builder. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(nbt = "`nbt` provides the NBT payload used to set the Minecraft output nbt property on this typed processor rule definition and returns the updated builder."),
+        returns = "Sets the Minecraft output nbt property on this typed processor rule definition and returns the updated builder.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(processor_rule_value: sand::component::ProcessorRule, nbt: impl Into < String >)  {\n    let updated_processor_rule = processor_rule_value.output_nbt(nbt);\n}",
+    )]
     pub fn output_nbt(mut self, nbt: impl Into<String>) -> Self {
         self.output_nbt = Some(nbt.into());
         self
@@ -126,51 +193,49 @@ impl ProcessorRule {
     }
 }
 
-#[doc = "**API Contract:** Run `sand api show sand::component::Processor` for the canonical contract."]
+#[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::component::Processor",
+    aliases = ["sand::prelude::Processor"],
+    module = "sand::component",
+    summary = "A single structure-processing step.",
+    context = "A single structure-processing step. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+    minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+    use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+    avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+    example = "use sand::component::Processor;",
+    variants(BlockIgnore = "`minecraft:block_ignore` — blocks in this list are skipped entirely.", Gravity = "`minecraft:gravity` — applies gravity to loose blocks relative to a heightmap.", JigsawReplacement = "`minecraft:jigsaw_replacement` — replaces jigsaw marker blocks; no fields.", ProtectedBlocks = "`minecraft:protected_blocks` — blocks matching this tag are preserved.", Raw = "An explicitly raw processor object for unsupported or modded types.", Rule = "`minecraft:rule` — replaces matching block states with typed rules."),
+    variant_fields(BlockIgnore = ["`minecraft:block_ignore` — blocks in this list are skipped entirely."], Gravity(heightmap = "`heightmap` provides the heightmap when `minecraft:gravity` — applies gravity to loose blocks relative to a heightmap.", offset = "`offset` provides the offset when `minecraft:gravity` — applies gravity to loose blocks relative to a heightmap."), ProtectedBlocks = ["`minecraft:protected_blocks` — blocks matching this tag are preserved."], Raw = ["An explicitly raw processor object for unsupported or modded types."], Rule = ["`minecraft:rule` — replaces matching block states with typed rules."]),
+)]
 /// A single structure-processing step.
 #[derive(Debug, Clone, PartialEq)]
 pub enum Processor {
-    #[doc = "**API Contract:** Run `sand api show sand::component::Processor::BlockIgnore` for the canonical contract."]
     /// `minecraft:block_ignore` — blocks in this list are skipped entirely.
     BlockIgnore(
-        #[doc = "The `BlockIgnore` variant carries the value described by its variant semantics: `minecraft:block_ignore` — blocks in this list are skipped entirely."]
-        #[doc = "**API Contract:** Run `sand api show sand::component::Processor::BlockIgnore::0` for the canonical contract."]
+        #[doc = "`minecraft:block_ignore` — blocks in this list are skipped entirely."]
         Vec<BlockId>,
     ),
-    #[doc = "**API Contract:** Run `sand api show sand::component::Processor::ProtectedBlocks` for the canonical contract."]
     /// `minecraft:protected_blocks` — blocks matching this tag are preserved.
     ProtectedBlocks(
-        #[doc = "The `ProtectedBlocks` variant carries the value described by its variant semantics: `minecraft:protected_blocks` — blocks matching this tag are preserved."]
-        #[doc = "**API Contract:** Run `sand api show sand::component::Processor::ProtectedBlocks::0` for the canonical contract."]
+        #[doc = "`minecraft:protected_blocks` — blocks matching this tag are preserved."]
         TagId<BlockId>,
     ),
-    #[doc = "**API Contract:** Run `sand api show sand::component::Processor::Gravity` for the canonical contract."]
     /// `minecraft:gravity` — applies gravity to loose blocks relative to a heightmap.
     Gravity {
         #[doc = "`heightmap` provides the heightmap when `minecraft:gravity` — applies gravity to loose blocks relative to a heightmap."]
-        #[doc = "**API Contract:** Run `sand api show sand::component::Processor::Gravity::heightmap` for the canonical contract."]
         heightmap: Heightmap,
         #[doc = "`offset` provides the offset when `minecraft:gravity` — applies gravity to loose blocks relative to a heightmap."]
-        #[doc = "**API Contract:** Run `sand api show sand::component::Processor::Gravity::offset` for the canonical contract."]
         offset: i32,
     },
-    #[doc = "**API Contract:** Run `sand api show sand::component::Processor::JigsawReplacement` for the canonical contract."]
     /// `minecraft:jigsaw_replacement` — replaces jigsaw marker blocks; no fields.
     JigsawReplacement,
-    #[doc = "**API Contract:** Run `sand api show sand::component::Processor::Rule` for the canonical contract."]
     /// `minecraft:rule` — replaces matching block states with typed rules.
     Rule(
-        #[doc = "The `Rule` variant carries the value described by its variant semantics: `minecraft:rule` — replaces matching block states with typed rules."]
-        #[doc = "**API Contract:** Run `sand api show sand::component::Processor::Rule::0` for the canonical contract."]
+        #[doc = "`minecraft:rule` — replaces matching block states with typed rules."]
         Vec<ProcessorRule>,
     ),
-    #[doc = "**API Contract:** Run `sand api show sand::component::Processor::Raw` for the canonical contract."]
     /// An explicitly raw processor object for unsupported or modded types.
-    Raw(
-        #[doc = "The `Raw` variant carries the value described by its variant semantics: An explicitly raw processor object for unsupported or modded types."]
-        #[doc = "**API Contract:** Run `sand api show sand::component::Processor::Raw::0` for the canonical contract."]
-        RawJson,
-    ),
+    Raw(#[doc = "An explicitly raw processor object for unsupported or modded types."] RawJson),
 }
 
 impl Processor {
@@ -266,7 +331,18 @@ impl Processor {
     }
 }
 
-#[doc = "**API Contract:** Run `sand api show sand::component::ProcessorList` for the canonical contract."]
+#[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::component::ProcessorList",
+    aliases = ["sand::prelude::ProcessorList"],
+    module = "sand::component",
+    summary = "A processor list definition (`data/<namespace>/worldgen/processor_list/<id>.json`).",
+    context = "A processor list definition (`data/<namespace>/worldgen/processor_list/<id>.json`). This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+    minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+    use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+    avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+    example = "use sand::component::ProcessorList;",
+)]
 /// A processor list definition (`data/<namespace>/worldgen/processor_list/<id>.json`).
 ///
 /// ```
@@ -288,7 +364,21 @@ pub struct ProcessorList {
 
 impl ProcessorList {
     /// Create a processor list from an ordered sequence of processors.
-    #[doc = "**API Contract:** Run `sand api show sand::component::ProcessorList::new` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::ProcessorList::new",
+        aliases = ["sand::prelude::ProcessorList::new"],
+        module = "sand::component",
+        kind = "method",
+        summary = "Create a processor list from an ordered sequence of processors.",
+        context = "Create a processor list from an ordered sequence of processors. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(location = "`location` provides the typed resource identifier or location used to create a processor list from an ordered sequence of processors.", processors = "`processors` is used when creating a processor list from an ordered sequence of processors."),
+        returns = "A `ProcessorList` representing a processor list from an ordered sequence of processors.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(location: sand::ResourceLocation, processors: impl IntoIterator < Item = sand::component::Processor >)  {\n    let processor_list = sand::component::ProcessorList::new(location, processors);\n}",
+    )]
     pub fn new(
         location: ResourceLocation,
         processors: impl IntoIterator<Item = Processor>,
@@ -300,20 +390,62 @@ impl ProcessorList {
     }
 
     /// `minecraft:empty` — the vanilla no-op processor list shape (empty list).
-    #[doc = "**API Contract:** Run `sand api show sand::component::ProcessorList::empty` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::ProcessorList::empty",
+        aliases = ["sand::prelude::ProcessorList::empty"],
+        module = "sand::component",
+        kind = "method",
+        summary = "`minecraft:empty` — the vanilla no-op processor list shape (empty list).",
+        context = "`minecraft:empty` — the vanilla no-op processor list shape (empty list). This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(location = "`location` provides the typed resource identifier or location used to emit the documented `minecraft:empty` — the vanilla no-op processor list shape (empty list) form."),
+        returns = "A `ProcessorList` that emits the documented `minecraft:empty` — the vanilla no-op processor list shape (empty list) form.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(location: sand::ResourceLocation)  {\n    let processor_list = sand::component::ProcessorList::empty(location);\n}",
+    )]
     pub fn empty(location: ResourceLocation) -> Self {
         Self::new(location, Vec::new())
     }
 
     /// Sets the Minecraft processor property on this typed processor list definition and returns the updated builder.
-    #[doc = "**API Contract:** Run `sand api show sand::component::ProcessorList::processor` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::ProcessorList::processor",
+        aliases = ["sand::prelude::ProcessorList::processor"],
+        module = "sand::component",
+        kind = "method",
+        summary = "Sets the Minecraft processor property on this typed processor list definition and returns the updated builder.",
+        context = "Sets the Minecraft processor property on this typed processor list definition and returns the updated builder. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(processor = "`processor` provides the processor applied when setting the Minecraft processor property on this typed processor list definition and returns the updated builder."),
+        returns = "Sets the Minecraft processor property on this typed processor list definition and returns the updated builder.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(processor_list_value: sand::component::ProcessorList, processor: sand::component::Processor)  {\n    let updated_processor_list = processor_list_value.processor(processor);\n}",
+    )]
     pub fn processor(mut self, processor: Processor) -> Self {
         self.processors.push(processor);
         self
     }
 
     /// Sets the Minecraft processors property on this typed processor list definition and returns the updated builder.
-    #[doc = "**API Contract:** Run `sand api show sand::component::ProcessorList::processors` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::ProcessorList::processors",
+        aliases = ["sand::prelude::ProcessorList::processors"],
+        module = "sand::component",
+        kind = "method",
+        summary = "Sets the Minecraft processors property on this typed processor list definition and returns the updated builder.",
+        context = "Sets the Minecraft processors property on this typed processor list definition and returns the updated builder. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(processors = "`processors` provides the processors applied when setting the Minecraft processors property on this typed processor list definition and returns the updated builder."),
+        returns = "Sets the Minecraft processors property on this typed processor list definition and returns the updated builder.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(processor_list_value: sand::component::ProcessorList, processors: impl IntoIterator < Item = sand::component::Processor >)  {\n    let updated_processor_list = processor_list_value.processors(processors);\n}",
+    )]
     pub fn processors(mut self, processors: impl IntoIterator<Item = Processor>) -> Self {
         self.processors = processors.into_iter().collect();
         self

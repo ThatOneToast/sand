@@ -66,13 +66,22 @@ enum FeaturesValue {
 /// [`Biome::raw_temperature_modifier`] if a future Minecraft version adds
 /// more accepted values before Sand's typed enum is updated.
 ///
-/// **API Contract:** Run `sand api show sand::component::TemperatureModifier` for the canonical contract.
+#[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::component::TemperatureModifier",
+    module = "sand::component",
+    summary = "Typed `temperature_modifier` value for a [`Biome`].",
+    context = "Typed `temperature_modifier` value for a [`Biome`]. Vanilla currently only accepts `\"none\"` and `\"frozen\"`; use [`Biome::raw_temperature_modifier`] if a future Minecraft version adds more accepted values before Sand's typed enum is updated.",
+    minecraft = "Vanilla currently only accepts `\"none\"` and `\"frozen\"`; use [`Biome::raw_temperature_modifier`] if a future Minecraft version adds more accepted values before Sand's typed enum is updated.",
+    use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+    avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+    example = "use sand::component::TemperatureModifier;",
+    variants(Frozen = "`\"frozen\"` — used by biomes like frozen ocean.", None = "`\"none\"` — no modification (the default)."),
+)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum TemperatureModifier {
-    #[doc = "**API Contract:** Run `sand api show sand::component::TemperatureModifier::None` for the canonical contract."]
     /// `"none"` — no modification (the default).
     None,
-    #[doc = "**API Contract:** Run `sand api show sand::component::TemperatureModifier::Frozen` for the canonical contract."]
     /// `"frozen"` — used by biomes like frozen ocean.
     Frozen,
 }
@@ -106,7 +115,17 @@ impl TemperatureModifierValue {
 
 /// Visual and audio effects for a biome.
 ///
-/// **API Contract:** Run `sand api show sand::component::BiomeEffects` for the canonical contract.
+#[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::component::BiomeEffects",
+    module = "sand::component",
+    summary = "Visual and audio effects for a biome.",
+    context = "Visual and audio effects for a biome. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+    minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+    use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+    avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+    example = "use sand::component::BiomeEffects;",
+)]
 #[derive(Clone)]
 pub struct BiomeEffects {
     /// Fog color (RGB integer, e.g. `0xC0D8FF`).
@@ -135,7 +154,20 @@ pub struct BiomeEffects {
 
 impl BiomeEffects {
     /// Creates effects with the minimum required colors.
-    #[doc = "**API Contract:** Run `sand api show sand::component::BiomeEffects::new` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::BiomeEffects::new",
+        module = "sand::component",
+        kind = "method",
+        summary = "Creates effects with the minimum required colors.",
+        context = "Creates effects with the minimum required colors. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(fog_color = "`fog_color` is used when creating effects with the minimum required colors.", water_color = "`water_color` is used when creating effects with the minimum required colors.", water_fog_color = "`water_fog_color` is used when creating effects with the minimum required colors.", sky_color = "`sky_color` is used when creating effects with the minimum required colors."),
+        returns = "A `BiomeEffects` representing effects with the minimum required colors.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(fog_color: u32, water_color: u32, water_fog_color: u32, sky_color: u32)  {\n    let biome_effects = sand::component::BiomeEffects::new(fog_color, water_color, water_fog_color, sky_color);\n}",
+    )]
     pub fn new(fog_color: u32, water_color: u32, water_fog_color: u32, sky_color: u32) -> Self {
         Self {
             fog_color,
@@ -153,28 +185,80 @@ impl BiomeEffects {
     }
 
     /// Overrides the grass color.
-    #[doc = "**API Contract:** Run `sand api show sand::component::BiomeEffects::grass_color` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::BiomeEffects::grass_color",
+        module = "sand::component",
+        kind = "method",
+        summary = "Overrides the grass color.",
+        context = "Overrides the grass color. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(color = "`color` is used to override the grass color."),
+        returns = "The `BiomeEffects` value with the documented change applied to override the grass color.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(biome_effects_value: sand::component::BiomeEffects, color: u32)  {\n    let updated_biome_effects = biome_effects_value.grass_color(color);\n}",
+    )]
     pub fn grass_color(mut self, color: u32) -> Self {
         self.grass_color = Some(color);
         self
     }
 
     /// Overrides the foliage color.
-    #[doc = "**API Contract:** Run `sand api show sand::component::BiomeEffects::foliage_color` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::BiomeEffects::foliage_color",
+        module = "sand::component",
+        kind = "method",
+        summary = "Overrides the foliage color.",
+        context = "Overrides the foliage color. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(color = "`color` is used to override the foliage color."),
+        returns = "The `BiomeEffects` value with the documented change applied to override the foliage color.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(biome_effects_value: sand::component::BiomeEffects, color: u32)  {\n    let updated_biome_effects = biome_effects_value.foliage_color(color);\n}",
+    )]
     pub fn foliage_color(mut self, color: u32) -> Self {
         self.foliage_color = Some(color);
         self
     }
 
     /// Sets the ambient particle effect through the explicit raw JSON escape hatch.
-    #[doc = "**API Contract:** Run `sand api show sand::component::BiomeEffects::particle` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::BiomeEffects::particle",
+        module = "sand::component",
+        kind = "method",
+        summary = "Sets the ambient particle effect through the explicit raw JSON escape hatch.",
+        context = "Sets the ambient particle effect through the explicit raw JSON escape hatch. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(particle = "`particle` provides the particle applied when setting the ambient particle effect through the explicit raw JSON escape hatch."),
+        returns = "The `BiomeEffects` value with the documented change applied to set the ambient particle effect through the explicit raw JSON escape hatch.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(biome_effects_value: sand::component::BiomeEffects, particle: sand::component::RawJson)  {\n    let updated_biome_effects = biome_effects_value.particle(particle);\n}",
+    )]
     pub fn particle(mut self, particle: RawJson) -> Self {
         self.particle = Some(particle.into_value());
         self
     }
 
     /// Sets the ambient loop sound to a typed [`SoundEventId`].
-    #[doc = "**API Contract:** Run `sand api show sand::component::BiomeEffects::ambient_sound` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::BiomeEffects::ambient_sound",
+        module = "sand::component",
+        kind = "method",
+        summary = "Sets the ambient loop sound to a typed [`SoundEventId`].",
+        context = "Sets the ambient loop sound to a typed [`SoundEventId`]. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(sound = "`sound` provides the typed Minecraft resource identifier used to set the ambient loop sound to a typed [`SoundEventId`]."),
+        returns = "The `BiomeEffects` value with the documented change applied to set the ambient loop sound to a typed [`SoundEventId`].",
+        example = "use sand::prelude::*;\n\nfn demonstrate(biome_effects_value: sand::component::BiomeEffects, sound: sand::registry::SoundEventId)  {\n    let updated_biome_effects = biome_effects_value.ambient_sound(sound);\n}",
+    )]
     pub fn ambient_sound(mut self, sound: SoundEventId) -> Self {
         self.ambient_sound = Some(AmbientSoundReference::Typed(sound));
         self
@@ -185,28 +269,80 @@ impl BiomeEffects {
     ///
     /// Prefer [`BiomeEffects::ambient_sound`] with a [`SoundEventId`]. This
     /// escape hatch exists for modded or version-specific sound references.
-    #[doc = "**API Contract:** Run `sand api show sand::component::BiomeEffects::raw_ambient_sound` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::BiomeEffects::raw_ambient_sound",
+        module = "sand::component",
+        kind = "method",
+        summary = "Sets the ambient loop sound through the explicit raw compatibility path.",
+        context = "Sets the ambient loop sound through the explicit raw compatibility path. Prefer [`BiomeEffects::ambient_sound`] with a [`SoundEventId`]. This escape hatch exists for modded or version-specific sound references.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Prefer [`BiomeEffects::ambient_sound`] with a [`SoundEventId`]. This escape hatch exists for modded or version-specific sound references."],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(sound = "`sound` provides the sound applied when setting the ambient loop sound through the explicit raw compatibility path."),
+        returns = "The `BiomeEffects` value with the documented change applied to set the ambient loop sound through the explicit raw compatibility path.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(biome_effects_value: sand::component::BiomeEffects, sound: impl Into < String >)  {\n    let updated_biome_effects = biome_effects_value.raw_ambient_sound(sound);\n}",
+    )]
     pub fn raw_ambient_sound(mut self, sound: impl Into<String>) -> Self {
         self.ambient_sound = Some(AmbientSoundReference::Raw(sound.into()));
         self
     }
 
     /// Sets the mood sound through the explicit raw JSON escape hatch.
-    #[doc = "**API Contract:** Run `sand api show sand::component::BiomeEffects::mood_sound` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::BiomeEffects::mood_sound",
+        module = "sand::component",
+        kind = "method",
+        summary = "Sets the mood sound through the explicit raw JSON escape hatch.",
+        context = "Sets the mood sound through the explicit raw JSON escape hatch. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(sound = "`sound` provides the sound applied when setting the mood sound through the explicit raw JSON escape hatch."),
+        returns = "The `BiomeEffects` value with the documented change applied to set the mood sound through the explicit raw JSON escape hatch.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(biome_effects_value: sand::component::BiomeEffects, sound: sand::component::RawJson)  {\n    let updated_biome_effects = biome_effects_value.mood_sound(sound);\n}",
+    )]
     pub fn mood_sound(mut self, sound: RawJson) -> Self {
         self.mood_sound = Some(sound.into_value());
         self
     }
 
     /// Sets the additions sound through the explicit raw JSON escape hatch.
-    #[doc = "**API Contract:** Run `sand api show sand::component::BiomeEffects::additions_sound` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::BiomeEffects::additions_sound",
+        module = "sand::component",
+        kind = "method",
+        summary = "Sets the additions sound through the explicit raw JSON escape hatch.",
+        context = "Sets the additions sound through the explicit raw JSON escape hatch. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(sound = "`sound` provides the sound applied when setting the additions sound through the explicit raw JSON escape hatch."),
+        returns = "The `BiomeEffects` value with the documented change applied to set the additions sound through the explicit raw JSON escape hatch.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(biome_effects_value: sand::component::BiomeEffects, sound: sand::component::RawJson)  {\n    let updated_biome_effects = biome_effects_value.additions_sound(sound);\n}",
+    )]
     pub fn additions_sound(mut self, sound: RawJson) -> Self {
         self.additions_sound = Some(sound.into_value());
         self
     }
 
     /// Sets the background music through the explicit raw JSON escape hatch.
-    #[doc = "**API Contract:** Run `sand api show sand::component::BiomeEffects::music` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::BiomeEffects::music",
+        module = "sand::component",
+        kind = "method",
+        summary = "Sets the background music through the explicit raw JSON escape hatch.",
+        context = "Sets the background music through the explicit raw JSON escape hatch. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(music = "`music` provides the music applied when setting the background music through the explicit raw JSON escape hatch."),
+        returns = "The `BiomeEffects` value with the documented change applied to set the background music through the explicit raw JSON escape hatch.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(biome_effects_value: sand::component::BiomeEffects, music: sand::component::RawJson)  {\n    let updated_biome_effects = biome_effects_value.music(music);\n}",
+    )]
     pub fn music(mut self, music: RawJson) -> Self {
         self.music = Some(music.into_value());
         self
@@ -321,15 +457,25 @@ impl BiomeEffects {
 
 // ── CarvingStep ──────────────────────────────────────────────────────────────
 
-#[doc = "**API Contract:** Run `sand api show sand::component::CarvingStep` for the canonical contract."]
+#[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::component::CarvingStep",
+    aliases = ["sand::prelude::CarvingStep"],
+    module = "sand::component",
+    summary = "A vanilla carving step. Biomes group configured carvers by the step in which they run.",
+    context = "A vanilla carving step. Biomes group configured carvers by the step in which they run. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+    minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+    use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+    avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+    example = "use sand::component::CarvingStep;",
+    variants(Air = "Carvers that run before surface decoration (most caves and ravines).", Liquid = "Carvers that run after surface decoration and only affect liquids (underwater caves)."),
+)]
 /// A vanilla carving step. Biomes group configured carvers by the step in
 /// which they run.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub enum CarvingStep {
-    #[doc = "**API Contract:** Run `sand api show sand::component::CarvingStep::Air` for the canonical contract."]
     /// Carvers that run before surface decoration (most caves and ravines).
     Air,
-    #[doc = "**API Contract:** Run `sand api show sand::component::CarvingStep::Liquid` for the canonical contract."]
     /// Carvers that run after surface decoration and only affect liquids
     /// (underwater caves).
     Liquid,
@@ -337,7 +483,20 @@ pub enum CarvingStep {
 
 impl CarvingStep {
     /// The vanilla lowercase key written into biome JSON (`"air"`/`"liquid"`).
-    #[doc = "**API Contract:** Run `sand api show sand::component::CarvingStep::as_str` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::CarvingStep::as_str",
+        aliases = ["sand::prelude::CarvingStep::as_str"],
+        module = "sand::component",
+        kind = "method",
+        summary = "The vanilla lowercase key written into biome JSON (`\"air\"`/`\"liquid\"`).",
+        context = "The vanilla lowercase key written into biome JSON (`\"air\"`/`\"liquid\"`). This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        returns = "The string value produced to use the vanilla lowercase key written into biome JSON (`\"air\"`/`\"liquid\"`).",
+        example = "use sand::prelude::*;\n\nfn demonstrate(carving_step_value: &sand::component::CarvingStep)  {\n    let as_str = carving_step_value.as_str();\n}",
+    )]
     pub fn as_str(&self) -> &'static str {
         match self {
             Self::Air => "air",
@@ -350,7 +509,17 @@ impl CarvingStep {
 
 /// A biome definition (`data/<namespace>/worldgen/biome/<id>.json`).
 ///
-/// **API Contract:** Run `sand api show sand::component::Biome` for the canonical contract.
+#[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::component::Biome",
+    module = "sand::component",
+    summary = "A biome definition (`data/<namespace>/worldgen/biome/<id>.json`).",
+    context = "A biome definition (`data/<namespace>/worldgen/biome/<id>.json`). This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+    minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+    use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+    avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+    example = "use sand::component::Biome;",
+)]
 pub struct Biome {
     location: ResourceLocation,
     /// Whether it rains (false = snows if cold enough).
@@ -378,7 +547,20 @@ pub struct Biome {
 
 impl Biome {
     /// Creates a new biome with required base fields.
-    #[doc = "**API Contract:** Run `sand api show sand::component::Biome::new` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::Biome::new",
+        module = "sand::component",
+        kind = "method",
+        summary = "Creates a new biome with required base fields.",
+        context = "Creates a new biome with required base fields. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(location = "`location` provides the typed resource identifier or location used to create a new biome with required base fields.", effects = "`effects` is used when creating a new biome with required base fields."),
+        returns = "A `Biome` representing a new biome with required base fields.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(location: sand::ResourceLocation, effects: sand::component::BiomeEffects)  {\n    let biome = sand::component::Biome::new(location, effects);\n}",
+    )]
     pub fn new(location: ResourceLocation, effects: BiomeEffects) -> Self {
         Self {
             location,
@@ -396,21 +578,60 @@ impl Biome {
     }
 
     /// Sets whether the biome has precipitation (rain/snow).
-    #[doc = "**API Contract:** Run `sand api show sand::component::Biome::has_precipitation` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::Biome::has_precipitation",
+        module = "sand::component",
+        kind = "method",
+        summary = "Sets whether the biome has precipitation (rain/snow).",
+        context = "Sets whether the biome has precipitation (rain/snow). This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(v = "`v` provides the switch that enables or disables the behavior used to set whether the biome has precipitation (rain/snow)."),
+        returns = "The `Biome` value with the documented change applied to set whether the biome has precipitation (rain/snow).",
+        example = "use sand::prelude::*;\n\nfn demonstrate(biome_value: sand::component::Biome, v: bool)  {\n    let updated_biome = biome_value.has_precipitation(v);\n}",
+    )]
     pub fn has_precipitation(mut self, v: bool) -> Self {
         self.has_precipitation = v;
         self
     }
 
     /// Sets the biome temperature.
-    #[doc = "**API Contract:** Run `sand api show sand::component::Biome::temperature` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::Biome::temperature",
+        module = "sand::component",
+        kind = "method",
+        summary = "Sets the biome temperature.",
+        context = "Sets the biome temperature. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(temp = "`temp` provides the temp applied when setting the biome temperature."),
+        returns = "The `Biome` value with the documented change applied to set the biome temperature.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(biome_value: sand::component::Biome, temp: f32)  {\n    let updated_biome = biome_value.temperature(temp);\n}",
+    )]
     pub fn temperature(mut self, temp: f32) -> Self {
         self.temperature = temp;
         self
     }
 
     /// Sets the temperature modifier to a typed [`TemperatureModifier`].
-    #[doc = "**API Contract:** Run `sand api show sand::component::Biome::temperature_modifier` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::Biome::temperature_modifier",
+        module = "sand::component",
+        kind = "method",
+        summary = "Sets the temperature modifier to a typed [`TemperatureModifier`].",
+        context = "Sets the temperature modifier to a typed [`TemperatureModifier`]. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(modifier = "`modifier` provides the modifier applied when setting the temperature modifier to a typed [`TemperatureModifier`]."),
+        returns = "The `Biome` value with the documented change applied to set the temperature modifier to a typed [`TemperatureModifier`].",
+        example = "use sand::prelude::*;\n\nfn demonstrate(biome_value: sand::component::Biome, modifier: sand::component::TemperatureModifier)  {\n    let updated_biome = biome_value.temperature_modifier(modifier);\n}",
+    )]
     pub fn temperature_modifier(mut self, modifier: TemperatureModifier) -> Self {
         self.temperature_modifier = TemperatureModifierValue::Typed(modifier);
         self
@@ -424,14 +645,40 @@ impl Biome {
     /// hatch is retained in case a future Minecraft version adds more
     /// accepted values before Sand's typed enum is updated, but export-time
     /// validation still rejects anything else today.
-    #[doc = "**API Contract:** Run `sand api show sand::component::Biome::raw_temperature_modifier` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::Biome::raw_temperature_modifier",
+        module = "sand::component",
+        kind = "method",
+        summary = "Sets the temperature modifier through the explicit raw compatibility path.",
+        context = "Sets the temperature modifier through the explicit raw compatibility path. Prefer [`Biome::temperature_modifier`] with a [`TemperatureModifier`]. Vanilla currently only accepts `\"none\"` and `\"frozen\"`; this escape hatch is retained in case a future Minecraft version adds more accepted values before Sand's typed enum is updated, but export-time validation still rejects anything else today.",
+        minecraft = "Prefer [`Biome::temperature_modifier`] with a [`TemperatureModifier`]. Vanilla currently only accepts `\"none\"` and `\"frozen\"`; this escape hatch is retained in case a future Minecraft version adds more accepted values before Sand's typed enum is updated, but export-time validation still rejects anything else today.",
+        use_when = ["Prefer [`Biome::temperature_modifier`] with a [`TemperatureModifier`]. Vanilla currently only accepts `\"none\"` and `\"frozen\"`; this escape hatch is retained in case a future Minecraft version adds more accepted values before Sand's typed enum is updated, but export-time validation still rejects anything else today."],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(modifier = "`modifier` provides the modifier applied when setting the temperature modifier through the explicit raw compatibility path."),
+        returns = "The `Biome` value with the documented change applied to set the temperature modifier through the explicit raw compatibility path.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(biome_value: sand::component::Biome, modifier: impl Into < String >)  {\n    let updated_biome = biome_value.raw_temperature_modifier(modifier);\n}",
+    )]
     pub fn raw_temperature_modifier(mut self, modifier: impl Into<String>) -> Self {
         self.temperature_modifier = TemperatureModifierValue::Raw(modifier.into());
         self
     }
 
     /// Sets the downfall value (0.0–1.0).
-    #[doc = "**API Contract:** Run `sand api show sand::component::Biome::downfall` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::Biome::downfall",
+        module = "sand::component",
+        kind = "method",
+        summary = "Sets the downfall value (0.0–1.0).",
+        context = "Sets the downfall value (0.0–1.0). This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(downfall = "`downfall` provides the downfall applied when setting the downfall value (0.0–1.0)."),
+        returns = "The `Biome` value with the documented change applied to set the downfall value (0.0–1.0).",
+        example = "use sand::prelude::*;\n\nfn demonstrate(biome_value: sand::component::Biome, downfall: f32)  {\n    let updated_biome = biome_value.downfall(downfall);\n}",
+    )]
     pub fn downfall(mut self, downfall: f32) -> Self {
         self.downfall = downfall;
         self
@@ -445,7 +692,20 @@ impl Biome {
     /// This escape hatch exists for modded carver references or shapes
     /// outside the typed carving-step map. Mutually exclusive with
     /// [`Biome::carver_step`].
-    #[doc = "**API Contract:** Run `sand api show sand::component::Biome::raw_carvers` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::Biome::raw_carvers",
+        module = "sand::component",
+        kind = "method",
+        summary = "Sets the carvers list through the explicit raw JSON escape hatch.",
+        context = "Sets the carvers list through the explicit raw JSON escape hatch. Prefer [`Biome::carver_step`] with a typed [`ConfiguredCarverId`] (obtained from [`sand::component::ConfiguredCarver::id`]) on the normal path. This escape hatch exists for modded carver references or shapes outside the typed carving-step map. Mutually exclusive with [`Biome::carver_step`].",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Prefer [`Biome::carver_step`] with a typed [`ConfiguredCarverId`] (obtained from [`sand::component::ConfiguredCarver::id`]) on the normal path. This escape hatch exists for modded carver references or shapes outside the typed carving-step map. Mutually exclusive with [`Biome::carver_step`]."],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(carvers = "`carvers` provides the carvers applied when setting the carvers list through the explicit raw JSON escape hatch."),
+        returns = "The `Biome` value with the documented change applied to set the carvers list through the explicit raw JSON escape hatch.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(biome_value: sand::component::Biome, carvers: sand::component::RawJson)  {\n    let updated_biome = biome_value.raw_carvers(carvers);\n}",
+    )]
     pub fn raw_carvers(mut self, carvers: RawJson) -> Self {
         self.carvers = Some(carvers.into_value());
         self
@@ -459,7 +719,20 @@ impl Biome {
     /// [`ConfiguredCarver`](crate::worldgen::ConfiguredCarver) and pass
     /// [`ConfiguredCarver::id`](crate::worldgen::ConfiguredCarver::id) here.
     /// Mutually exclusive with [`Biome::raw_carvers`].
-    #[doc = "**API Contract:** Run `sand api show sand::component::Biome::carver_step` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::Biome::carver_step",
+        module = "sand::component",
+        kind = "method",
+        summary = "References a configured carver by typed ID under the given carving step (`air` or `liquid`), preserving vanilla's step-grouped map/array shape (`{\"air\": [...], \"liquid\": [...]}`).",
+        context = "References a configured carver by typed ID under the given carving step (`air` or `liquid`), preserving vanilla's step-grouped map/array shape (`{\"air\": [...], \"liquid\": [...]}`). Author the referenced carver with [`ConfiguredCarver`](sand::component::ConfiguredCarver) and pass [`ConfiguredCarver::id`](sand::component::ConfiguredCarver::id) here. Mutually exclusive with [`Biome::raw_carvers`].",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(step = "`step` is used to reference a configured carver by typed ID under the given carving step (`air` or `liquid`), preserving vanilla's step-grouped map/array shape (`{\"air\": [...], \"liquid\": [...]}`).", carver = "`carver` provides the typed Minecraft resource identifier used to reference a configured carver by typed ID under the given carving step (`air` or `liquid`), preserving vanilla's step-grouped map/array shape (`{\"air\": [...], \"liquid\": [...]}`)."),
+        returns = "The `Biome` value with the documented change applied to reference a configured carver by typed ID under the given carving step (`air` or `liquid`), preserving vanilla's step-grouped map/array shape (`{\"air\": [...], \"liquid\": [...]}`).",
+        example = "use sand::prelude::*;\n\nfn demonstrate(biome_value: sand::component::Biome, step: sand::component::CarvingStep, carver: sand::registry::ConfiguredCarverId)  {\n    let updated_biome = biome_value.carver_step(step, carver);\n}",
+    )]
     pub fn carver_step(mut self, step: CarvingStep, carver: ConfiguredCarverId) -> Self {
         self.typed_carvers.entry(step).or_default().push(carver);
         self
@@ -471,7 +744,20 @@ impl Biome {
     /// Repeated calls append to the same step and accumulate across steps.
     /// If [`Biome::raw_features`] was used previously, this replaces it with
     /// a fresh typed feature map (typed and raw features are not merged).
-    #[doc = "**API Contract:** Run `sand api show sand::component::Biome::feature` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::Biome::feature",
+        module = "sand::component",
+        kind = "method",
+        summary = "Adds a typed configured-feature reference to the given [`GenerationStep`]'s bucket of the `features` list-of-lists.",
+        context = "Adds a typed configured-feature reference to the given [`GenerationStep`]'s bucket of the `features` list-of-lists. Repeated calls append to the same step and accumulate across steps. If [`Biome::raw_features`] was used previously, this replaces it with a fresh typed feature map (typed and raw features are not merged).",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(step = "`step` provides the step added when building a typed configured-feature reference to the given [`GenerationStep`]'s bucket of the `features` list-of-lists.", feature = "`feature` provides the typed Minecraft resource identifier used to add a typed configured-feature reference to the given [`GenerationStep`]'s bucket of the `features` list-of-lists."),
+        returns = "The `Biome` value with the documented change applied to add a typed configured-feature reference to the given [`GenerationStep`]'s bucket of the `features` list-of-lists.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(biome_value: sand::component::Biome, step: sand::component::GenerationStep, feature: sand::registry::ConfiguredFeatureId)  {\n    let updated_biome = biome_value.feature(step, feature);\n}",
+    )]
     pub fn feature(mut self, step: GenerationStep, feature: ConfiguredFeatureId) -> Self {
         let mut steps = match self.features {
             Some(FeaturesValue::Typed(steps)) => steps,
@@ -488,21 +774,60 @@ impl Biome {
     /// Prefer [`Biome::feature`] with a [`GenerationStep`] and
     /// [`ConfiguredFeatureId`]. This escape hatch exists for modded or
     /// version-specific feature shapes.
-    #[doc = "**API Contract:** Run `sand api show sand::component::Biome::raw_features` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::Biome::raw_features",
+        module = "sand::component",
+        kind = "method",
+        summary = "Sets the features list-of-lists through the explicit raw compatibility path.",
+        context = "Sets the features list-of-lists through the explicit raw compatibility path. Prefer [`Biome::feature`] with a [`GenerationStep`] and [`ConfiguredFeatureId`]. This escape hatch exists for modded or version-specific feature shapes.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Prefer [`Biome::feature`] with a [`GenerationStep`] and [`ConfiguredFeatureId`]. This escape hatch exists for modded or version-specific feature shapes."],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(features = "`features` provides the features applied when setting the features list-of-lists through the explicit raw compatibility path."),
+        returns = "The `Biome` value with the documented change applied to set the features list-of-lists through the explicit raw compatibility path.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(biome_value: sand::component::Biome, features: sand::component::RawJson)  {\n    let updated_biome = biome_value.raw_features(features);\n}",
+    )]
     pub fn raw_features(mut self, features: RawJson) -> Self {
         self.features = Some(FeaturesValue::Raw(features.into_value()));
         self
     }
 
     /// Sets the spawners object through the explicit raw JSON escape hatch.
-    #[doc = "**API Contract:** Run `sand api show sand::component::Biome::spawners` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::Biome::spawners",
+        module = "sand::component",
+        kind = "method",
+        summary = "Sets the spawners object through the explicit raw JSON escape hatch.",
+        context = "Sets the spawners object through the explicit raw JSON escape hatch. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(spawners = "`spawners` provides the spawners applied when setting the spawners object through the explicit raw JSON escape hatch."),
+        returns = "The `Biome` value with the documented change applied to set the spawners object through the explicit raw JSON escape hatch.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(biome_value: sand::component::Biome, spawners: sand::component::RawJson)  {\n    let updated_biome = biome_value.spawners(spawners);\n}",
+    )]
     pub fn spawners(mut self, spawners: RawJson) -> Self {
         self.spawners = Some(spawners.into_value());
         self
     }
 
     /// Sets the spawn costs object through the explicit raw JSON escape hatch.
-    #[doc = "**API Contract:** Run `sand api show sand::component::Biome::spawn_costs` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::Biome::spawn_costs",
+        module = "sand::component",
+        kind = "method",
+        summary = "Sets the spawn costs object through the explicit raw JSON escape hatch.",
+        context = "Sets the spawn costs object through the explicit raw JSON escape hatch. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(costs = "`costs` provides the costs applied when setting the spawn costs object through the explicit raw JSON escape hatch."),
+        returns = "The `Biome` value with the documented change applied to set the spawn costs object through the explicit raw JSON escape hatch.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(biome_value: sand::component::Biome, costs: sand::component::RawJson)  {\n    let updated_biome = biome_value.spawn_costs(costs);\n}",
+    )]
     pub fn spawn_costs(mut self, costs: RawJson) -> Self {
         self.spawn_costs = Some(costs.into_value());
         self

@@ -29,7 +29,17 @@ use crate::validation;
 
 const TYPED_FIELDS: &[&str] = &["asset_id", "spawn_conditions"];
 
-#[doc = "**API Contract:** Run `sand api show sand::component::ChickenVariant` for the canonical contract."]
+#[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::component::ChickenVariant",
+    module = "sand::component",
+    summary = "A chicken variant definition (`data/<namespace>/chicken_variant/<id>.json`).",
+    context = "A chicken variant definition (`data/<namespace>/chicken_variant/<id>.json`). Chicken variants select the texture used when a chicken spawns, based on an ordered, prioritized list of biome spawn conditions.",
+    minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+    use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+    avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+    example = "use sand::component::ChickenVariant;",
+)]
 /// A chicken variant definition (`data/<namespace>/chicken_variant/<id>.json`).
 ///
 /// Chicken variants select the texture used when a chicken spawns, based on
@@ -43,7 +53,20 @@ pub struct ChickenVariant {
 
 impl ChickenVariant {
     /// Create a new chicken variant with the given resource location.
-    #[doc = "**API Contract:** Run `sand api show sand::component::ChickenVariant::new` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::ChickenVariant::new",
+        module = "sand::component",
+        kind = "method",
+        summary = "Create a new chicken variant with the given resource location.",
+        context = "Create a new chicken variant with the given resource location. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(location = "`location` provides the typed resource identifier or location used to create a new chicken variant with the given resource location."),
+        returns = "A `ChickenVariant` representing a new chicken variant with the given resource location.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(location: sand::ResourceLocation)  {\n    let chicken_variant = sand::component::ChickenVariant::new(location);\n}",
+    )]
     pub fn new(location: ResourceLocation) -> Self {
         Self {
             location,
@@ -54,21 +77,60 @@ impl ChickenVariant {
     }
 
     /// Set the texture asset ID (e.g. `"minecraft:entity/chicken/cold_chicken"`).
-    #[doc = "**API Contract:** Run `sand api show sand::component::ChickenVariant::asset_id` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::ChickenVariant::asset_id",
+        module = "sand::component",
+        kind = "method",
+        summary = "Set the texture asset ID (e.g. `\"minecraft:entity/chicken/cold_chicken\"`).",
+        context = "Set the texture asset ID (e.g. `\"minecraft:entity/chicken/cold_chicken\"`). This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(id = "`id` provides the typed resource identifier or location used to set the texture asset ID (e.g. `\"minecraft:entity/chicken/cold_chicken\"`)."),
+        returns = "The `ChickenVariant` value with the documented change applied to set the texture asset ID (e.g. `\"minecraft:entity/chicken/cold_chicken\"`).",
+        example = "use sand::prelude::*;\n\nfn demonstrate(chicken_variant_value: sand::component::ChickenVariant, id: impl Into < String >)  {\n    let updated_chicken_variant = chicken_variant_value.asset_id(id);\n}",
+    )]
     pub fn asset_id(mut self, id: impl Into<String>) -> Self {
         self.asset_id = id.into();
         self
     }
 
     /// Add one prioritized biome spawn condition.
-    #[doc = "**API Contract:** Run `sand api show sand::component::ChickenVariant::spawn_condition` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::ChickenVariant::spawn_condition",
+        module = "sand::component",
+        kind = "method",
+        summary = "Add one prioritized biome spawn condition.",
+        context = "Add one prioritized biome spawn condition. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(condition = "`condition` provides the condition that gates the operation used to add one prioritized biome spawn condition."),
+        returns = "The `ChickenVariant` value with the documented change applied to add one prioritized biome spawn condition.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(chicken_variant_value: sand::component::ChickenVariant, condition: sand::component::SpawnCondition)  {\n    let updated_chicken_variant = chicken_variant_value.spawn_condition(condition);\n}",
+    )]
     pub fn spawn_condition(mut self, condition: SpawnCondition) -> Self {
         self.spawn_conditions.push(condition);
         self
     }
 
     /// Replace the full ordered list of biome spawn conditions.
-    #[doc = "**API Contract:** Run `sand api show sand::component::ChickenVariant::spawn_conditions` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::ChickenVariant::spawn_conditions",
+        module = "sand::component",
+        kind = "method",
+        summary = "Replace the full ordered list of biome spawn conditions.",
+        context = "Replace the full ordered list of biome spawn conditions. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(conditions = "`conditions` provides the replacement conditions when the full ordered list of biome spawn conditions."),
+        returns = "The `ChickenVariant` value with the documented change applied to replace the full ordered list of biome spawn conditions.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(chicken_variant_value: sand::component::ChickenVariant, conditions: impl IntoIterator < Item = sand::component::SpawnCondition >)  {\n    let updated_chicken_variant = chicken_variant_value.spawn_conditions(conditions);\n}",
+    )]
     pub fn spawn_conditions(
         mut self,
         conditions: impl IntoIterator<Item = SpawnCondition>,
@@ -80,7 +142,20 @@ impl ChickenVariant {
     /// Add a modded or version-specific field not represented by the typed API.
     ///
     /// Typed field names cannot be overridden through this escape hatch.
-    #[doc = "**API Contract:** Run `sand api show sand::component::ChickenVariant::raw_field` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::ChickenVariant::raw_field",
+        module = "sand::component",
+        kind = "method",
+        summary = "Add a modded or version-specific field not represented by the typed API.",
+        context = "Add a modded or version-specific field not represented by the typed API. Typed field names cannot be overridden through this escape hatch.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(key = "`key` provides the key that identifies the setting or entry used to add a modded or version-specific field not represented by the typed API.", value = "`value` provides the value being applied or compared used to add a modded or version-specific field not represented by the typed API."),
+        returns = "The `ChickenVariant` value with the documented change applied to add a modded or version-specific field not represented by the typed API.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(chicken_variant_value: sand::component::ChickenVariant, key: impl Into < String >, value: sand::component::RawJson)  {\n    let updated_chicken_variant = chicken_variant_value.raw_field(key, value);\n}",
+    )]
     pub fn raw_field(mut self, key: impl Into<String>, value: RawJson) -> Self {
         self.raw_fields.insert(key.into(), value);
         self

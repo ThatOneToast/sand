@@ -2,7 +2,19 @@
 
 use crate::item::SnapshotReliability;
 
-#[doc = "**API Contract:** Run `sand api show sand::participant::ParticipantReliability` for the canonical contract."]
+#[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::participant::ParticipantReliability",
+    aliases = ["sand::prelude::ParticipantReliability"],
+    module = "sand::participant",
+    summary = "How strong the evidence is for a captured/referenced event participant.",
+    context = "How strong the evidence is for a captured/referenced event participant. Variants are declared weakest-first so the derived [`Ord`] doubles as a strength ordering: `a.meets(b)` is exactly `a >= b`. This is the single reliability vocabulary for every kind of participant (entities, players, items, locations) — see [`SnapshotReliability::as_participant_reliability`] for how Phase 7's item-specific enum maps into it. - [`Unavailable`](Self::Unavailable) — nothing could be supplied. - [`Inferred`](Self::Inferred) — selected through a heuristic/query that may be ambiguous (e.g. a nearest-entity guess). Phase 8 defines this level; nothing in the current codebase produces it yet. - [`Correlated`](Self::Correlated) — associated through a bounded observation mechanism with stated constraints (a plausible match, not a value the triggering mechanism directly handed to Sand). Nothing in the current codebase produces this for entities yet; Phase 7's `SnapshotReliability::Correlated` maps here for items. - [`ExactSnapshot`](Self::ExactSnapshot) — data was copied at (or as close as Sand can get to) the authoritative event boundary and is immutable afterward. This is what every `ItemSnapshot` cap...",
+    minecraft = "- [`Unavailable`](Self::Unavailable) — nothing could be supplied. - [`Inferred`](Self::Inferred) — selected through a heuristic/query that may be ambiguous (e.g. a nearest-entity guess). Phase 8 defines this level; nothing in the current codebase produces it yet. - [`Correlated`](Self::Correlated) — associated through a bounded observation mechanism with stated constraints (a plausible match, not a value the triggering mechanism directly handed to Sand). Nothing in the current codebase produces this for entities yet; Phase 7's `SnapshotReliability::Correlated` maps here for items. - [`ExactSnapshot`](Self::ExactSnapshot) — data was copied at (or as close as Sand can get to) the authoritative event boundary and is immutable afterward. This is what every `ItemSnapshot` capture produces (items are never referenced live — they are always copied into storage) — see [`ItemEvidenceQualifier`] for the finer-grained distinction Phase 7 draws between the two item capture points. - [`Exact`](Self::Exact) — a live, authoritative reference supplied directly by the triggering vanilla execution context (e.g. the advancement reward function's `@s`, or a tick-polled player's `@s`). Reserved for references that remain usable for further live command building, not frozen copies.",
+    use_when = ["Declaring or reading a typed participant whose lifecycle is guaranteed by the event plan"],
+    avoid_when = ["Assuming an entity or item remains live beyond its declared invocation, event-cycle, or bounded correlation lifetime"],
+    example = "use sand::participant::ParticipantReliability;",
+    variants(Correlated = "Selects the correlated participant semantic.", Exact = "Selects the exact participant semantic.", ExactSnapshot = "Selects the exact snapshot participant semantic.", Inferred = "Selects the inferred participant semantic.", Unavailable = "Selects the unavailable participant semantic."),
+)]
 /// How strong the evidence is for a captured/referenced event participant.
 ///
 /// Variants are declared weakest-first so the derived [`Ord`] doubles as a
@@ -40,19 +52,14 @@ use crate::item::SnapshotReliability;
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum ParticipantReliability {
     #[doc = "Selects the unavailable participant semantic."]
-    #[doc = "**API Contract:** Run `sand api show sand::participant::ParticipantReliability::Unavailable` for the canonical contract."]
     Unavailable,
     #[doc = "Selects the inferred participant semantic."]
-    #[doc = "**API Contract:** Run `sand api show sand::participant::ParticipantReliability::Inferred` for the canonical contract."]
     Inferred,
     #[doc = "Selects the correlated participant semantic."]
-    #[doc = "**API Contract:** Run `sand api show sand::participant::ParticipantReliability::Correlated` for the canonical contract."]
     Correlated,
     #[doc = "Selects the exact snapshot participant semantic."]
-    #[doc = "**API Contract:** Run `sand api show sand::participant::ParticipantReliability::ExactSnapshot` for the canonical contract."]
     ExactSnapshot,
     #[doc = "Selects the exact participant semantic."]
-    #[doc = "**API Contract:** Run `sand api show sand::participant::ParticipantReliability::Exact` for the canonical contract."]
     Exact,
 }
 
@@ -63,23 +70,46 @@ impl ParticipantReliability {
     /// `true`. This is the check behind
     /// [`PlayerParticipant::require_exact`](super::reference::PlayerParticipant::require_exact)
     /// and its siblings.
-    #[doc = "**API Contract:** Run `sand api show sand::participant::ParticipantReliability::meets` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::participant::ParticipantReliability::meets",
+        aliases = ["sand::prelude::ParticipantReliability::meets"],
+        module = "sand::participant",
+        kind = "method",
+        summary = "Whether this reliability level satisfies a `required` floor.",
+        context = "Whether this reliability level satisfies a `required` floor. `Correlated.meets(Exact)` is `false`; `Exact.meets(Correlated)` is `true`. This is the check behind [`PlayerParticipant::require_exact`](super::reference::PlayerParticipant::require_exact) and its siblings.",
+        minecraft = "Entity relationships use the matching execute relation, while item snapshots are copied into Sand-owned command storage and cleaned up at the end of their declared lifetime.",
+        use_when = ["Declaring or reading a typed participant whose lifecycle is guaranteed by the event plan"],
+        avoid_when = ["Assuming an entity or item remains live beyond its declared invocation, event-cycle, or bounded correlation lifetime"],
+        params(required = "Whether this reliability level satisfies a `required` floor."),
+        returns = "`true` when the documented condition holds to determine whether this reliability level satisfies a `required` floor; otherwise `false`.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(participant_reliability_value: sand::participant::ParticipantReliability, required: sand::participant::ParticipantReliability)  {\n    let is_meets = participant_reliability_value.meets(required);\n}",
+    )]
     pub fn meets(self, required: ParticipantReliability) -> bool {
         self >= required
     }
 }
 
-#[doc = "**API Contract:** Run `sand api show sand::participant::ItemEvidenceQualifier` for the canonical contract."]
+#[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::participant::ItemEvidenceQualifier",
+    module = "sand::participant",
+    summary = "Finer-grained evidence for an item participant's [`ExactSnapshot`](ParticipantReliability::ExactSnapshot) reliability, preserving the distinction Phase 7's `SnapshotReliability` draws between its two \"exact\" levels rather than flattening them.",
+    context = "Finer-grained evidence for an item participant's [`ExactSnapshot`](ParticipantReliability::ExactSnapshot) reliability, preserving the distinction Phase 7's `SnapshotReliability` draws between its two \"exact\" levels rather than flattening them. Participants are available only when the event plan declares a real observation or a valid same-cycle inheritance path; the exporter rejects unsupported transport.",
+    minecraft = "Entity relationships use the matching execute relation, while item snapshots are copied into Sand-owned command storage and cleaned up at the end of their declared lifetime.",
+    use_when = ["Declaring or reading a typed participant whose lifecycle is guaranteed by the event plan"],
+    avoid_when = ["Assuming an entity or item remains live beyond its declared invocation, event-cycle, or bounded correlation lifetime"],
+    example = "use sand::participant::ItemEvidenceQualifier;",
+    variants(CapturedAtFirstSandControl = "Copied at the first point Sand's own generated code ran, but vanilla may already have mutated the source before the triggering criterion fired at all — [`SnapshotReliability::ExactPostTrigger`].", CapturedBeforeVanillaMutation = "Copied before any vanilla-side mutation window Sand knows of — [`SnapshotReliability::Exact`]."),
+)]
 /// Finer-grained evidence for an item participant's [`ExactSnapshot`](ParticipantReliability::ExactSnapshot)
 /// reliability, preserving the distinction Phase 7's `SnapshotReliability`
 /// draws between its two "exact" levels rather than flattening them.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum ItemEvidenceQualifier {
-    #[doc = "**API Contract:** Run `sand api show sand::participant::ItemEvidenceQualifier::CapturedBeforeVanillaMutation` for the canonical contract."]
     /// Copied before any vanilla-side mutation window Sand knows of —
     /// [`SnapshotReliability::Exact`].
     CapturedBeforeVanillaMutation,
-    #[doc = "**API Contract:** Run `sand api show sand::participant::ItemEvidenceQualifier::CapturedAtFirstSandControl` for the canonical contract."]
     /// Copied at the first point Sand's own generated code ran, but vanilla
     /// may already have mutated the source before the triggering criterion
     /// fired at all — [`SnapshotReliability::ExactPostTrigger`].

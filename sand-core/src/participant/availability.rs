@@ -8,43 +8,46 @@
 //! optionality (e.g. "no offhand item this occurrence"), but the outer
 //! unsupported/unavailable states are never collapsed into it.
 
-#[doc = "**API Contract:** Run `sand api show sand::participant::ParticipantUnavailableReason` for the canonical contract."]
+#[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::participant::ParticipantUnavailableReason",
+    aliases = ["sand::prelude::ParticipantUnavailableReason"],
+    module = "sand::participant",
+    summary = "A small, stable, public vocabulary of reasons a participant could not be supplied. Exporter-internal errors are not exposed through this type — see the module doc.",
+    context = "A small, stable, public vocabulary of reasons a participant could not be supplied. Exporter-internal errors are not exposed through this type — see the module doc. Participants are available only when the event plan declares a real observation or a valid same-cycle inheritance path; the exporter rejects unsupported transport.",
+    minecraft = "Entity relationships use the matching execute relation, while item snapshots are copied into Sand-owned command storage and cleaned up at the end of their declared lifetime.",
+    use_when = ["Declaring or reading a typed participant whose lifecycle is guaranteed by the event plan"],
+    avoid_when = ["Assuming an entity or item remains live beyond its declared invocation, event-cycle, or bounded correlation lifetime"],
+    example = "use sand::participant::ParticipantUnavailableReason;",
+    variants(AmbiguousCandidates = "More than one candidate matched and none could be chosen safely.", CorrelationExpired = "A bounded correlation window closed before this participant could be associated.", ItemSourceAlreadyMutated = "The item source had already been mutated/consumed by vanilla before Sand could capture it.", LifetimeExpired = "The participant reference was used outside the [`ParticipantLifetime`](super::lifetime::ParticipantLifetime) it was valid for.", NoMatchingObservation = "A correlation/observation query ran and matched nothing.", NotApplicable = "This role does not apply to this event at all (e.g. \"victim\" on a non-combat event).", NotSuppliedByTrigger = "The triggering mechanism (advancement criterion, tick condition) never supplies this participant at all.", UnsupportedBackend = "The event's dispatch backend (tick-polled vs. advancement-backed vs. graph-bridged) does not supply this participant.", UnsupportedVersion = "The active `VersionProfile`/target version does not support the mechanism this participant would come from."),
+)]
 /// A small, stable, public vocabulary of reasons a participant could not be
 /// supplied. Exporter-internal errors are not exposed through this type —
 /// see the module doc.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum ParticipantUnavailableReason {
-    #[doc = "**API Contract:** Run `sand api show sand::participant::ParticipantUnavailableReason::NotSuppliedByTrigger` for the canonical contract."]
     /// The triggering mechanism (advancement criterion, tick condition)
     /// never supplies this participant at all.
     NotSuppliedByTrigger,
-    #[doc = "**API Contract:** Run `sand api show sand::participant::ParticipantUnavailableReason::UnsupportedVersion` for the canonical contract."]
     /// The active `VersionProfile`/target version does not support the
     /// mechanism this participant would come from.
     UnsupportedVersion,
-    #[doc = "**API Contract:** Run `sand api show sand::participant::ParticipantUnavailableReason::UnsupportedBackend` for the canonical contract."]
     /// The event's dispatch backend (tick-polled vs. advancement-backed vs.
     /// graph-bridged) does not supply this participant.
     UnsupportedBackend,
-    #[doc = "**API Contract:** Run `sand api show sand::participant::ParticipantUnavailableReason::AmbiguousCandidates` for the canonical contract."]
     /// More than one candidate matched and none could be chosen safely.
     AmbiguousCandidates,
-    #[doc = "**API Contract:** Run `sand api show sand::participant::ParticipantUnavailableReason::CorrelationExpired` for the canonical contract."]
     /// A bounded correlation window closed before this participant could be
     /// associated.
     CorrelationExpired,
-    #[doc = "**API Contract:** Run `sand api show sand::participant::ParticipantUnavailableReason::NoMatchingObservation` for the canonical contract."]
     /// A correlation/observation query ran and matched nothing.
     NoMatchingObservation,
-    #[doc = "**API Contract:** Run `sand api show sand::participant::ParticipantUnavailableReason::NotApplicable` for the canonical contract."]
     /// This role does not apply to this event at all (e.g. "victim" on a
     /// non-combat event).
     NotApplicable,
-    #[doc = "**API Contract:** Run `sand api show sand::participant::ParticipantUnavailableReason::ItemSourceAlreadyMutated` for the canonical contract."]
     /// The item source had already been mutated/consumed by vanilla before
     /// Sand could capture it.
     ItemSourceAlreadyMutated,
-    #[doc = "**API Contract:** Run `sand api show sand::participant::ParticipantUnavailableReason::LifetimeExpired` for the canonical contract."]
     /// The participant reference was used outside the
     /// [`ParticipantLifetime`](super::lifetime::ParticipantLifetime) it was
     /// valid for.
@@ -54,7 +57,20 @@ pub enum ParticipantUnavailableReason {
 impl ParticipantUnavailableReason {
     /// A short, stable, human-readable description suitable for
     /// diagnostics.
-    #[doc = "**API Contract:** Run `sand api show sand::participant::ParticipantUnavailableReason::description` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::participant::ParticipantUnavailableReason::description",
+        aliases = ["sand::prelude::ParticipantUnavailableReason::description"],
+        module = "sand::participant",
+        kind = "method",
+        summary = "A short, stable, human-readable description suitable for diagnostics.",
+        context = "A short, stable, human-readable description suitable for diagnostics. Participants are available only when the event plan declares a real observation or a valid same-cycle inheritance path; the exporter rejects unsupported transport.",
+        minecraft = "Entity relationships use the matching execute relation, while item snapshots are copied into Sand-owned command storage and cleaned up at the end of their declared lifetime.",
+        use_when = ["Declaring or reading a typed participant whose lifecycle is guaranteed by the event plan"],
+        avoid_when = ["Assuming an entity or item remains live beyond its declared invocation, event-cycle, or bounded correlation lifetime"],
+        returns = "The string value produced to use a short, stable, human-readable description suitable for diagnostics.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(participant_unavailable_reason_value: sand::participant::ParticipantUnavailableReason)  {\n    let description = participant_unavailable_reason_value.description();\n}",
+    )]
     pub fn description(self) -> &'static str {
         match self {
             Self::NotSuppliedByTrigger => "not supplied by the triggering mechanism",
@@ -72,7 +88,20 @@ impl ParticipantUnavailableReason {
     }
 }
 
-#[doc = "**API Contract:** Run `sand api show sand::participant::ParticipantAvailability` for the canonical contract."]
+#[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::participant::ParticipantAvailability",
+    aliases = ["sand::prelude::ParticipantAvailability"],
+    module = "sand::participant",
+    summary = "Whether a typed participant could be supplied for a specific event occurrence, and why not if not.",
+    context = "Whether a typed participant could be supplied for a specific event occurrence, and why not if not. Never collapse this into `Option<T>` — the whole point is to keep \"unsupported\"/\"ambiguous\"/\"expired\" distinguishable from a event-semantic `None`.",
+    minecraft = "Entity relationships use the matching execute relation, while item snapshots are copied into Sand-owned command storage and cleaned up at the end of their declared lifetime.",
+    use_when = ["Declaring or reading a typed participant whose lifecycle is guaranteed by the event plan"],
+    avoid_when = ["Assuming an entity or item remains live beyond its declared invocation, event-cycle, or bounded correlation lifetime"],
+    example = "use sand::participant::ParticipantAvailability;",
+    variants(Available = "Selects the available participant semantic.", Unavailable = "Selects the unavailable participant semantic."),
+    variant_fields(Available = ["Selects the available participant semantic."], Unavailable = ["Selects the unavailable participant semantic."]),
+)]
 /// Whether a typed participant could be supplied for a specific event
 /// occurrence, and why not if not.
 ///
@@ -82,30 +111,48 @@ impl ParticipantUnavailableReason {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ParticipantAvailability<T> {
     #[doc = "Selects the available participant semantic."]
-    #[doc = "**API Contract:** Run `sand api show sand::participant::ParticipantAvailability::Available` for the canonical contract."]
-    Available(
-        #[doc = "The `Available` variant carries the value described by its variant semantics: Selects the available participant semantic."]
-        #[doc = "**API Contract:** Run `sand api show sand::participant::ParticipantAvailability::Available::0` for the canonical contract."]
-        T,
-    ),
+    Available(#[doc = "Selects the available participant semantic."] T),
     #[doc = "Selects the unavailable participant semantic."]
-    #[doc = "**API Contract:** Run `sand api show sand::participant::ParticipantAvailability::Unavailable` for the canonical contract."]
     Unavailable(
-        #[doc = "The `Unavailable` variant carries the value described by its variant semantics: Selects the unavailable participant semantic."]
-        #[doc = "**API Contract:** Run `sand api show sand::participant::ParticipantAvailability::Unavailable::0` for the canonical contract."]
-        ParticipantUnavailableReason,
+        #[doc = "Selects the unavailable participant semantic."] ParticipantUnavailableReason,
     ),
 }
 
 impl<T> ParticipantAvailability<T> {
     /// Reports whether the event plan made this participant available to the handler.
-    #[doc = "**API Contract:** Run `sand api show sand::participant::ParticipantAvailability::is_available` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::participant::ParticipantAvailability::is_available",
+        aliases = ["sand::prelude::ParticipantAvailability::is_available"],
+        module = "sand::participant",
+        kind = "method",
+        summary = "Reports whether the event plan made this participant available to the handler.",
+        context = "Reports whether the event plan made this participant available to the handler. Participants are available only when the event plan declares a real observation or a valid same-cycle inheritance path; the exporter rejects unsupported transport.",
+        minecraft = "Entity relationships use the matching execute relation, while item snapshots are copied into Sand-owned command storage and cleaned up at the end of their declared lifetime.",
+        use_when = ["Declaring or reading a typed participant whose lifecycle is guaranteed by the event plan"],
+        avoid_when = ["Assuming an entity or item remains live beyond its declared invocation, event-cycle, or bounded correlation lifetime"],
+        returns = "`true` when the documented condition holds to report whether the event plan made this participant available to the handler; otherwise `false`.",
+        example = "use sand::prelude::*;\n\nfn demonstrate<T: 'static>(participant_availability_value: &sand::participant::ParticipantAvailability < T >)  {\n    let is_is_available = participant_availability_value.is_available();\n}",
+    )]
     pub fn is_available(&self) -> bool {
         matches!(self, Self::Available(_))
     }
 
     /// Returns why the participant is unavailable, or `None` when it is available.
-    #[doc = "**API Contract:** Run `sand api show sand::participant::ParticipantAvailability::reason` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::participant::ParticipantAvailability::reason",
+        aliases = ["sand::prelude::ParticipantAvailability::reason"],
+        module = "sand::participant",
+        kind = "method",
+        summary = "Returns why the participant is unavailable, or `None` when it is available.",
+        context = "Returns why the participant is unavailable, or `None` when it is available. Participants are available only when the event plan declares a real observation or a valid same-cycle inheritance path; the exporter rejects unsupported transport.",
+        minecraft = "Entity relationships use the matching execute relation, while item snapshots are copied into Sand-owned command storage and cleaned up at the end of their declared lifetime.",
+        use_when = ["Declaring or reading a typed participant whose lifecycle is guaranteed by the event plan"],
+        avoid_when = ["Assuming an entity or item remains live beyond its declared invocation, event-cycle, or bounded correlation lifetime"],
+        returns = "Returns why the participant is unavailable, or `None` when it is available.",
+        example = "use sand::prelude::*;\n\nfn demonstrate<T: 'static>(participant_availability_value: &sand::participant::ParticipantAvailability < T >)  {\n    let reason = participant_availability_value.reason();\n}",
+    )]
     pub fn reason(&self) -> Option<ParticipantUnavailableReason> {
         match self {
             Self::Available(_) => None,
@@ -114,7 +161,20 @@ impl<T> ParticipantAvailability<T> {
     }
 
     /// Extracts the participant value when available.
-    #[doc = "**API Contract:** Run `sand api show sand::participant::ParticipantAvailability::available` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::participant::ParticipantAvailability::available",
+        aliases = ["sand::prelude::ParticipantAvailability::available"],
+        module = "sand::participant",
+        kind = "method",
+        summary = "Extracts the participant value when available.",
+        context = "Extracts the participant value when available. Participants are available only when the event plan declares a real observation or a valid same-cycle inheritance path; the exporter rejects unsupported transport.",
+        minecraft = "Entity relationships use the matching execute relation, while item snapshots are copied into Sand-owned command storage and cleaned up at the end of their declared lifetime.",
+        use_when = ["Declaring or reading a typed participant whose lifecycle is guaranteed by the event plan"],
+        avoid_when = ["Assuming an entity or item remains live beyond its declared invocation, event-cycle, or bounded correlation lifetime"],
+        returns = "The matching value used to extract the participant value when available, or `None` when that value is unavailable.",
+        example = "use sand::prelude::*;\n\nfn demonstrate<T: 'static>(participant_availability_value: sand::participant::ParticipantAvailability < T >)  {\n    let available = participant_availability_value.available();\n}",
+    )]
     pub fn available(self) -> Option<T> {
         match self {
             Self::Available(value) => Some(value),
@@ -123,7 +183,21 @@ impl<T> ParticipantAvailability<T> {
     }
 
     /// Transforms an available participant while preserving its unavailable reason.
-    #[doc = "**API Contract:** Run `sand api show sand::participant::ParticipantAvailability::map` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::participant::ParticipantAvailability::map",
+        aliases = ["sand::prelude::ParticipantAvailability::map"],
+        module = "sand::participant",
+        kind = "method",
+        summary = "Transforms an available participant while preserving its unavailable reason.",
+        context = "Transforms an available participant while preserving its unavailable reason. Participants are available only when the event plan declares a real observation or a valid same-cycle inheritance path; the exporter rejects unsupported transport.",
+        minecraft = "Entity relationships use the matching execute relation, while item snapshots are copied into Sand-owned command storage and cleaned up at the end of their declared lifetime.",
+        use_when = ["Declaring or reading a typed participant whose lifecycle is guaranteed by the event plan"],
+        avoid_when = ["Assuming an entity or item remains live beyond its declared invocation, event-cycle, or bounded correlation lifetime"],
+        params(f = "`f` is used to transform an available participant while preserving its unavailable reason."),
+        returns = "The `ParticipantAvailability < U >` value produced to transform an available participant while preserving its unavailable reason.",
+        example = "use sand::prelude::*;\n\nfn demonstrate<T: 'static, U: 'static>(participant_availability_value: sand::participant::ParticipantAvailability < T >, f: impl FnOnce (T) -> U)  {\n    let map = participant_availability_value.map::<U>(f);\n}",
+    )]
     pub fn map<U>(self, f: impl FnOnce(T) -> U) -> ParticipantAvailability<U> {
         match self {
             Self::Available(value) => ParticipantAvailability::Available(f(value)),

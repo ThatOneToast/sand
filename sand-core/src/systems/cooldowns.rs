@@ -30,7 +30,19 @@ static REGISTERED: Mutex<Vec<String>> = Mutex::new(Vec::new());
 ///
 /// Each registered cooldown will have `cooldown.tick_all_players()` included in the
 /// generated tick function. Duplicate objective names are deduplicated.
-#[doc = "**API Contract:** Run `sand api show sand::systems::cooldowns::register_cooldown` for the canonical contract."]
+#[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::systems::cooldowns::register_cooldown",
+    module = "sand::systems",
+    summary = "Register a cooldown for automatic ticking by the export pipeline.",
+    context = "Register a cooldown for automatic ticking by the export pipeline. Each registered cooldown will have `cooldown.tick_all_players()` included in the generated tick function. Duplicate objective names are deduplicated.",
+    minecraft = "The exact commands, resources, and lifecycle behavior are described by the defining item's source documentation for the selected feature and Minecraft profile.",
+    use_when = ["Opting into the documented higher-level gameplay behavior instead of assembling its commands manually"],
+    avoid_when = ["Using the API outside its documented system scope or feature configuration"],
+    params(cd = "`cd` is used to register a cooldown for automatic ticking by the export pipeline."),
+    example = "use sand::prelude::*;\n\nfn demonstrate(cd: & sand::state::Cooldown)  {\n    let register_cooldown = sand::systems::cooldowns::register_cooldown(cd);\n}",
+    availability = ["Cargo feature: systems-cooldowns"],
+)]
 pub fn register_cooldown(cd: &Cooldown) {
     let cmd = cd.tick_all_players();
     let mut guard = REGISTERED.lock().expect("cooldown registry poisoned");

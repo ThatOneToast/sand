@@ -18,7 +18,17 @@ use crate::registry::BlockId;
 use crate::resource_location::ResourceLocation;
 use crate::validation;
 
-#[doc = "**API Contract:** Run `sand api show sand::component::BlockState` for the canonical contract."]
+#[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::component::BlockState",
+    module = "sand::component",
+    summary = "A concrete block state: a block identifier plus optional property values.",
+    context = "A concrete block state: a block identifier plus optional property values. This is the datapack JSON form used by structure processors and feature configs (`{\"Name\": …, \"Properties\": {…}}`). It is deliberately distinct from the command-side `sand::command::BlockState`, which renders `minecraft:stone[facing=north]`.",
+    minecraft = "This is the datapack JSON form used by structure processors and feature configs (`{\"Name\": …, \"Properties\": {…}}`). It is deliberately distinct from the command-side `sand::command::BlockState`, which renders `minecraft:stone[facing=north]`.",
+    use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+    avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+    example = "use sand::component::BlockState;",
+)]
 /// A concrete block state: a block identifier plus optional property values.
 ///
 /// This is the datapack JSON form used by structure processors and feature
@@ -41,7 +51,20 @@ pub struct BlockState {
 
 impl BlockState {
     /// Create a block state with no property overrides.
-    #[doc = "**API Contract:** Run `sand api show sand::component::BlockState::new` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::BlockState::new",
+        module = "sand::component",
+        kind = "method",
+        summary = "Create a block state with no property overrides.",
+        context = "Create a block state with no property overrides. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(block = "`block` provides the block value or block predicate used to create a block state with no property overrides."),
+        returns = "A `BlockState` representing a block state with no property overrides.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(block: sand::registry::BlockId)  {\n    let block_state = sand::component::BlockState::new(block);\n}",
+    )]
     pub fn new(block: BlockId) -> Self {
         Self {
             block,
@@ -50,14 +73,39 @@ impl BlockState {
     }
 
     /// Set a block-state property (deterministically ordered on export).
-    #[doc = "**API Contract:** Run `sand api show sand::component::BlockState::property` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::BlockState::property",
+        module = "sand::component",
+        kind = "method",
+        summary = "Set a block-state property (deterministically ordered on export).",
+        context = "Set a block-state property (deterministically ordered on export). This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(key = "`key` provides the key that identifies the setting or entry used to set a block-state property (deterministically ordered on export).", value = "`value` provides the value being applied or compared used to set a block-state property (deterministically ordered on export)."),
+        returns = "The `BlockState` value with the documented change applied to set a block-state property (deterministically ordered on export).",
+        example = "use sand::prelude::*;\n\nfn demonstrate(block_state_value: sand::component::BlockState, key: impl Into < String >, value: impl Into < String >)  {\n    let updated_block_state = block_state_value.property(key, value);\n}",
+    )]
     pub fn property(mut self, key: impl Into<String>, value: impl Into<String>) -> Self {
         self.properties.insert(key.into(), value.into());
         self
     }
 
     /// The block this state refers to.
-    #[doc = "**API Contract:** Run `sand api show sand::component::BlockState::block` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::BlockState::block",
+        module = "sand::component",
+        kind = "method",
+        summary = "The block this state refers to.",
+        context = "The block this state refers to. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        returns = "The `& BlockId` value produced to use the block this state refers to.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(block_state_value: &sand::component::BlockState)  {\n    let block = block_state_value.block();\n}",
+    )]
     pub fn block(&self) -> &BlockId {
         &self.block
     }
@@ -101,7 +149,17 @@ impl BlockState {
     }
 }
 
-#[doc = "**API Contract:** Run `sand api show sand::component::WeightedBlockState` for the canonical contract."]
+#[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::component::WeightedBlockState",
+    module = "sand::component",
+    summary = "A weighted entry of a [`BlockStateProvider::Weighted`] provider.",
+    context = "A weighted entry of a [`BlockStateProvider::Weighted`] provider. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+    minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+    use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+    avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+    example = "use sand::component::WeightedBlockState;",
+)]
 /// A weighted entry of a [`BlockStateProvider::Weighted`] provider.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct WeightedBlockState {
@@ -111,41 +169,85 @@ pub struct WeightedBlockState {
 
 impl WeightedBlockState {
     /// Create a weighted block-state entry. `weight` must be at least 1.
-    #[doc = "**API Contract:** Run `sand api show sand::component::WeightedBlockState::new` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::WeightedBlockState::new",
+        module = "sand::component",
+        kind = "method",
+        summary = "Create a weighted block-state entry. `weight` must be at least 1.",
+        context = "Create a weighted block-state entry. `weight` must be at least 1. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(state = "`state` is used when creating a weighted block-state entry. `weight` must be at least 1.", weight = "Create a weighted block-state entry. `weight` must be at least 1."),
+        returns = "A `WeightedBlockState` representing a weighted block-state entry. `weight` must be at least 1.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(state: sand::component::BlockState, weight: u32)  {\n    let weighted_block_state = sand::component::WeightedBlockState::new(state, weight);\n}",
+    )]
     pub fn new(state: BlockState, weight: u32) -> Self {
         Self { state, weight }
     }
 }
 
-#[doc = "**API Contract:** Run `sand api show sand::component::BlockStateProvider` for the canonical contract."]
+#[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::component::BlockStateProvider",
+    module = "sand::component",
+    summary = "A typed block-state provider used by worldgen feature configs.",
+    context = "A typed block-state provider used by worldgen feature configs. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+    minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+    use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+    avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+    example = "use sand::component::BlockStateProvider;",
+    variants(Simple = "`minecraft:simple_state_provider` — always the same block state.", Weighted = "`minecraft:weighted_state_provider` — a weighted random choice."),
+    variant_fields(Simple = ["`minecraft:simple_state_provider` — always the same block state."], Weighted = ["`minecraft:weighted_state_provider` — a weighted random choice."]),
+)]
 /// A typed block-state provider used by worldgen feature configs.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum BlockStateProvider {
-    #[doc = "**API Contract:** Run `sand api show sand::component::BlockStateProvider::Simple` for the canonical contract."]
     /// `minecraft:simple_state_provider` — always the same block state.
-    Simple(
-        #[doc = "The `Simple` variant carries the value described by its variant semantics: `minecraft:simple_state_provider` — always the same block state."]
-        #[doc = "**API Contract:** Run `sand api show sand::component::BlockStateProvider::Simple::0` for the canonical contract."]
-        BlockState,
-    ),
-    #[doc = "**API Contract:** Run `sand api show sand::component::BlockStateProvider::Weighted` for the canonical contract."]
+    Simple(#[doc = "`minecraft:simple_state_provider` — always the same block state."] BlockState),
     /// `minecraft:weighted_state_provider` — a weighted random choice.
     Weighted(
-        #[doc = "The `Weighted` variant carries the value described by its variant semantics: `minecraft:weighted_state_provider` — a weighted random choice."]
-        #[doc = "**API Contract:** Run `sand api show sand::component::BlockStateProvider::Weighted::0` for the canonical contract."]
+        #[doc = "`minecraft:weighted_state_provider` — a weighted random choice."]
         Vec<WeightedBlockState>,
     ),
 }
 
 impl BlockStateProvider {
     /// Convenience constructor for a `minecraft:simple_state_provider`.
-    #[doc = "**API Contract:** Run `sand api show sand::component::BlockStateProvider::simple` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::BlockStateProvider::simple",
+        module = "sand::component",
+        kind = "method",
+        summary = "Convenience constructor for a `minecraft:simple_state_provider`.",
+        context = "Convenience constructor for a `minecraft:simple_state_provider`. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(state = "`state` sets the state for convenience constructor for a `minecraft:simple_state_provider`."),
+        returns = "A `BlockStateProvider` configured for convenience constructor for a `minecraft:simple_state_provider`.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(state: sand::component::BlockState)  {\n    let block_state_provider = sand::component::BlockStateProvider::simple(state);\n}",
+    )]
     pub fn simple(state: BlockState) -> Self {
         Self::Simple(state)
     }
 
     /// Convenience constructor for a `minecraft:weighted_state_provider`.
-    #[doc = "**API Contract:** Run `sand api show sand::component::BlockStateProvider::weighted` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::BlockStateProvider::weighted",
+        module = "sand::component",
+        kind = "method",
+        summary = "Convenience constructor for a `minecraft:weighted_state_provider`.",
+        context = "Convenience constructor for a `minecraft:weighted_state_provider`. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(entries = "`entries` sets the entries for convenience constructor for a `minecraft:weighted_state_provider`."),
+        returns = "A `BlockStateProvider` configured for convenience constructor for a `minecraft:weighted_state_provider`.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(entries: impl IntoIterator < Item = sand::component::WeightedBlockState >)  {\n    let block_state_provider = sand::component::BlockStateProvider::weighted(entries);\n}",
+    )]
     pub fn weighted(entries: impl IntoIterator<Item = WeightedBlockState>) -> Self {
         Self::Weighted(entries.into_iter().collect())
     }
@@ -211,36 +313,47 @@ impl BlockStateProvider {
 const MIN_ANCHOR: i32 = -2032;
 const MAX_ANCHOR: i32 = 2031;
 
-#[doc = "**API Contract:** Run `sand api show sand::component::VerticalAnchor` for the canonical contract."]
+#[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::component::VerticalAnchor",
+    aliases = ["sand::prelude::VerticalAnchor"],
+    module = "sand::component",
+    summary = "A vanilla vertical anchor (`{\"absolute\": 0}`, `{\"above_bottom\": 8}`, …).",
+    context = "A vanilla vertical anchor (`{\"absolute\": 0}`, `{\"above_bottom\": 8}`, …). This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+    minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+    use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+    avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+    example = "use sand::component::VerticalAnchor;",
+    variants(AboveBottom = "An offset above the dimension's minimum build height.", Absolute = "An absolute Y coordinate.", BelowTop = "An offset below the dimension's maximum build height."),
+    variant_fields(AboveBottom = ["An offset above the dimension's minimum build height."], Absolute = ["An absolute Y coordinate."], BelowTop = ["An offset below the dimension's maximum build height."]),
+)]
 /// A vanilla vertical anchor (`{"absolute": 0}`, `{"above_bottom": 8}`, …).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum VerticalAnchor {
-    #[doc = "**API Contract:** Run `sand api show sand::component::VerticalAnchor::Absolute` for the canonical contract."]
     /// An absolute Y coordinate.
-    Absolute(
-        #[doc = "The `Absolute` variant carries the value described by its variant semantics: An absolute Y coordinate."]
-        #[doc = "**API Contract:** Run `sand api show sand::component::VerticalAnchor::Absolute::0` for the canonical contract."]
-        i32,
-    ),
-    #[doc = "**API Contract:** Run `sand api show sand::component::VerticalAnchor::AboveBottom` for the canonical contract."]
+    Absolute(#[doc = "An absolute Y coordinate."] i32),
     /// An offset above the dimension's minimum build height.
-    AboveBottom(
-        #[doc = "The `AboveBottom` variant carries the value described by its variant semantics: An offset above the dimension's minimum build height."]
-        #[doc = "**API Contract:** Run `sand api show sand::component::VerticalAnchor::AboveBottom::0` for the canonical contract."]
-        i32,
-    ),
-    #[doc = "**API Contract:** Run `sand api show sand::component::VerticalAnchor::BelowTop` for the canonical contract."]
+    AboveBottom(#[doc = "An offset above the dimension's minimum build height."] i32),
     /// An offset below the dimension's maximum build height.
-    BelowTop(
-        #[doc = "The `BelowTop` variant carries the value described by its variant semantics: An offset below the dimension's maximum build height."]
-        #[doc = "**API Contract:** Run `sand api show sand::component::VerticalAnchor::BelowTop::0` for the canonical contract."]
-        i32,
-    ),
+    BelowTop(#[doc = "An offset below the dimension's maximum build height."] i32),
 }
 
 impl VerticalAnchor {
     /// Serialize to the vanilla single-key anchor object.
-    #[doc = "**API Contract:** Run `sand api show sand::component::VerticalAnchor::to_json` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::VerticalAnchor::to_json",
+        aliases = ["sand::prelude::VerticalAnchor::to_json"],
+        module = "sand::component",
+        kind = "method",
+        summary = "Serialize to the vanilla single-key anchor object.",
+        context = "Serialize to the vanilla single-key anchor object. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        returns = "The `Value` value produced to serialize to the vanilla single-key anchor object.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(vertical_anchor_value: &sand::component::VerticalAnchor)  {\n    let to_json = vertical_anchor_value.to_json();\n}",
+    )]
     pub fn to_json(&self) -> Value {
         let (key, value) = match self {
             Self::Absolute(value) => ("absolute", *value),
@@ -279,61 +392,86 @@ impl VerticalAnchor {
     }
 }
 
-#[doc = "**API Contract:** Run `sand api show sand::component::HeightProvider` for the canonical contract."]
+#[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::component::HeightProvider",
+    aliases = ["sand::prelude::HeightProvider"],
+    module = "sand::component",
+    summary = "A vanilla height provider. [`HeightProvider::Raw`] is the explicit escape hatch for provider types Sand does not model yet (for example `weighted_list`).",
+    context = "A vanilla height provider. [`HeightProvider::Raw`] is the explicit escape hatch for provider types Sand does not model yet (for example `weighted_list`). This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+    minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+    use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+    avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+    example = "use sand::component::HeightProvider;",
+    variants(Constant = "A constant anchor, emitted using the vanilla inline shorthand.", Raw = "An explicitly raw height provider object.", Trapezoid = "A trapezoidal distribution between two anchors.", Uniform = "A uniformly sampled inclusive anchor range."),
+    variant_fields(Constant = ["A constant anchor, emitted using the vanilla inline shorthand."], Raw = ["An explicitly raw height provider object."], Trapezoid(max_inclusive = "`max_inclusive` provides the max inclusive when a trapezoidal distribution between two anchors.", min_inclusive = "`min_inclusive` provides the min inclusive when a trapezoidal distribution between two anchors.", plateau = "`plateau` provides the plateau when a trapezoidal distribution between two anchors."), Uniform(max_inclusive = "`max_inclusive` provides the max inclusive when a uniformly sampled inclusive anchor range.", min_inclusive = "`min_inclusive` provides the min inclusive when a uniformly sampled inclusive anchor range.")),
+)]
 /// A vanilla height provider.
 ///
 /// [`HeightProvider::Raw`] is the explicit escape hatch for provider types
 /// Sand does not model yet (for example `weighted_list`).
 #[derive(Debug, Clone, PartialEq)]
 pub enum HeightProvider {
-    #[doc = "**API Contract:** Run `sand api show sand::component::HeightProvider::Constant` for the canonical contract."]
     /// A constant anchor, emitted using the vanilla inline shorthand.
     Constant(
-        #[doc = "The `Constant` variant carries the value described by its variant semantics: A constant anchor, emitted using the vanilla inline shorthand."]
-        #[doc = "**API Contract:** Run `sand api show sand::component::HeightProvider::Constant::0` for the canonical contract."]
-        VerticalAnchor,
+        #[doc = "A constant anchor, emitted using the vanilla inline shorthand."] VerticalAnchor,
     ),
-    #[doc = "**API Contract:** Run `sand api show sand::component::HeightProvider::Uniform` for the canonical contract."]
     /// A uniformly sampled inclusive anchor range.
     Uniform {
         /// `min_inclusive` provides the min inclusive when a uniformly sampled inclusive anchor range.
-        #[doc = "**API Contract:** Run `sand api show sand::component::HeightProvider::Uniform::min_inclusive` for the canonical contract."]
         min_inclusive: VerticalAnchor,
         /// `max_inclusive` provides the max inclusive when a uniformly sampled inclusive anchor range.
-        #[doc = "**API Contract:** Run `sand api show sand::component::HeightProvider::Uniform::max_inclusive` for the canonical contract."]
         max_inclusive: VerticalAnchor,
     },
-    #[doc = "**API Contract:** Run `sand api show sand::component::HeightProvider::Trapezoid` for the canonical contract."]
     /// A trapezoidal distribution between two anchors.
     Trapezoid {
         /// `min_inclusive` provides the min inclusive when a trapezoidal distribution between two anchors.
-        #[doc = "**API Contract:** Run `sand api show sand::component::HeightProvider::Trapezoid::min_inclusive` for the canonical contract."]
         min_inclusive: VerticalAnchor,
         /// `max_inclusive` provides the max inclusive when a trapezoidal distribution between two anchors.
-        #[doc = "**API Contract:** Run `sand api show sand::component::HeightProvider::Trapezoid::max_inclusive` for the canonical contract."]
         max_inclusive: VerticalAnchor,
         /// `plateau` provides the plateau when a trapezoidal distribution between two anchors.
-        #[doc = "**API Contract:** Run `sand api show sand::component::HeightProvider::Trapezoid::plateau` for the canonical contract."]
         plateau: i32,
     },
-    #[doc = "**API Contract:** Run `sand api show sand::component::HeightProvider::Raw` for the canonical contract."]
     /// An explicitly raw height provider object.
-    Raw(
-        #[doc = "The `Raw` variant carries the value described by its variant semantics: An explicitly raw height provider object."]
-        #[doc = "**API Contract:** Run `sand api show sand::component::HeightProvider::Raw::0` for the canonical contract."]
-        RawJson,
-    ),
+    Raw(#[doc = "An explicitly raw height provider object."] RawJson),
 }
 
 impl HeightProvider {
     /// A constant absolute-Y height provider.
-    #[doc = "**API Contract:** Run `sand api show sand::component::HeightProvider::absolute` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::HeightProvider::absolute",
+        aliases = ["sand::prelude::HeightProvider::absolute"],
+        module = "sand::component",
+        kind = "method",
+        summary = "A constant absolute-Y height provider.",
+        context = "A constant absolute-Y height provider. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(y = "`y` provides the y-coordinate used to use a constant absolute-Y height provider."),
+        returns = "A `HeightProvider` configured for a constant absolute-Y height provider.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(y: i32)  {\n    let height_provider = sand::component::HeightProvider::absolute(y);\n}",
+    )]
     pub fn absolute(y: i32) -> Self {
         Self::Constant(VerticalAnchor::Absolute(y))
     }
 
     /// Serialize to the vanilla height provider JSON.
-    #[doc = "**API Contract:** Run `sand api show sand::component::HeightProvider::to_json` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::HeightProvider::to_json",
+        aliases = ["sand::prelude::HeightProvider::to_json"],
+        module = "sand::component",
+        kind = "method",
+        summary = "Serialize to the vanilla height provider JSON.",
+        context = "Serialize to the vanilla height provider JSON. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        returns = "The `Value` value produced to serialize to the vanilla height provider JSON.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(height_provider_value: &sand::component::HeightProvider)  {\n    let to_json = height_provider_value.to_json();\n}",
+    )]
     pub fn to_json(&self) -> Value {
         match self {
             Self::Constant(anchor) => anchor.to_json(),
@@ -433,33 +571,52 @@ fn require_ordered_anchors(
     Ok(())
 }
 
-#[doc = "**API Contract:** Run `sand api show sand::component::Heightmap` for the canonical contract."]
+#[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::component::Heightmap",
+    aliases = ["sand::prelude::Heightmap"],
+    module = "sand::component",
+    summary = "A vanilla chunk heightmap selector.",
+    context = "A vanilla chunk heightmap selector. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+    minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+    use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+    avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+    example = "use sand::component::Heightmap;",
+    variants(MotionBlocking = "Samples Minecraft's motion blocking heightmap.", MotionBlockingNoLeaves = "Samples Minecraft's motion blocking no leaves heightmap.", OceanFloor = "Samples Minecraft's ocean floor heightmap.", OceanFloorWg = "Samples Minecraft's ocean floor wg heightmap.", WorldSurface = "Samples Minecraft's world surface heightmap.", WorldSurfaceWg = "Samples Minecraft's world surface wg heightmap."),
+)]
 /// A vanilla chunk heightmap selector.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Heightmap {
-    #[doc = "Selects the world surface wg form in this typed Minecraft component schema."]
-    #[doc = "**API Contract:** Run `sand api show sand::component::Heightmap::WorldSurfaceWg` for the canonical contract."]
+    #[doc = "Samples Minecraft's world surface wg heightmap."]
     WorldSurfaceWg,
-    #[doc = "Selects the world surface form in this typed Minecraft component schema."]
-    #[doc = "**API Contract:** Run `sand api show sand::component::Heightmap::WorldSurface` for the canonical contract."]
+    #[doc = "Samples Minecraft's world surface heightmap."]
     WorldSurface,
-    #[doc = "Selects the ocean floor wg form in this typed Minecraft component schema."]
-    #[doc = "**API Contract:** Run `sand api show sand::component::Heightmap::OceanFloorWg` for the canonical contract."]
+    #[doc = "Samples Minecraft's ocean floor wg heightmap."]
     OceanFloorWg,
-    #[doc = "Selects the ocean floor form in this typed Minecraft component schema."]
-    #[doc = "**API Contract:** Run `sand api show sand::component::Heightmap::OceanFloor` for the canonical contract."]
+    #[doc = "Samples Minecraft's ocean floor heightmap."]
     OceanFloor,
-    #[doc = "Selects the motion blocking form in this typed Minecraft component schema."]
-    #[doc = "**API Contract:** Run `sand api show sand::component::Heightmap::MotionBlocking` for the canonical contract."]
+    #[doc = "Samples Minecraft's motion blocking heightmap."]
     MotionBlocking,
-    #[doc = "Selects the motion blocking no leaves form in this typed Minecraft component schema."]
-    #[doc = "**API Contract:** Run `sand api show sand::component::Heightmap::MotionBlockingNoLeaves` for the canonical contract."]
+    #[doc = "Samples Minecraft's motion blocking no leaves heightmap."]
     MotionBlockingNoLeaves,
 }
 
 impl Heightmap {
     /// The vanilla uppercase enum name written into datapack JSON.
-    #[doc = "**API Contract:** Run `sand api show sand::component::Heightmap::as_str` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::Heightmap::as_str",
+        aliases = ["sand::prelude::Heightmap::as_str"],
+        module = "sand::component",
+        kind = "method",
+        summary = "The vanilla uppercase enum name written into datapack JSON.",
+        context = "The vanilla uppercase enum name written into datapack JSON. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        returns = "The string value produced to use the vanilla uppercase enum name written into datapack JSON.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(heightmap_value: &sand::component::Heightmap)  {\n    let as_str = heightmap_value.as_str();\n}",
+    )]
     pub fn as_str(&self) -> &'static str {
         match self {
             Self::WorldSurfaceWg => "WORLD_SURFACE_WG",

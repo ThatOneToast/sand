@@ -35,46 +35,75 @@ use crate::entity::state::{
 use crate::resource_ref::FunctionId;
 use crate::state::Ticks;
 
-#[doc = "**API Contract:** Run `sand api show sand::entity::AdoptionSource` for the canonical contract."]
+#[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::entity::AdoptionSource",
+    aliases = ["sand::prelude::AdoptionSource"],
+    module = "sand::entity",
+    summary = "Which externally existing entities an adoption scan may initialize.",
+    context = "Which externally existing entities an adoption scan may initialize. This declaration belongs to Sand's typed entity model. Semantic definitions are public; selector rendering, validation bookkeeping, and compiler lowering remain internal.",
+    minecraft = "Sand validates this definition and lowers it to entity-scoped selectors, scoreboards, NBT operations, and generated lifecycle functions as required.",
+    use_when = ["Defining or using typed entity behavior in a Sand datapack"],
+    avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
+    example = "use sand::entity::AdoptionSource;",
+    variants(External = "Entities carrying the archetype's Sand-owned external provenance tag.", Natural = "Unmarked entities not carrying this archetype's external provenance tag.", NaturalAndExternal = "Both natural and externally created entities."),
+)]
 /// Which externally existing entities an adoption scan may initialize.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[non_exhaustive]
 pub enum AdoptionSource {
-    #[doc = "**API Contract:** Run `sand api show sand::entity::AdoptionSource::Natural` for the canonical contract."]
     /// Unmarked entities not carrying this archetype's external provenance tag.
     ///
     /// Vanilla exposes no general spawn-provenance predicate, so commands
     /// from other packs that omit the explicit external tag are
     /// indistinguishable from natural spawns.
     Natural,
-    #[doc = "**API Contract:** Run `sand api show sand::entity::AdoptionSource::External` for the canonical contract."]
     /// Entities carrying the archetype's Sand-owned external provenance tag.
     ///
     /// Other datapacks can obtain the tag from
     /// [`EntityArchetype::external_adoption_tag`].
     External,
-    #[doc = "**API Contract:** Run `sand api show sand::entity::AdoptionSource::NaturalAndExternal` for the canonical contract."]
     /// Both natural and externally created entities.
     NaturalAndExternal,
 }
 
-#[doc = "**API Contract:** Run `sand api show sand::entity::SpecialEntityPolicy` for the canonical contract."]
+#[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::entity::SpecialEntityPolicy",
+    aliases = ["sand::prelude::SpecialEntityPolicy"],
+    module = "sand::entity",
+    summary = "Treatment of named, tamed, owned, or otherwise special entities.",
+    context = "Treatment of named, tamed, owned, or otherwise special entities. This declaration belongs to Sand's typed entity model. Semantic definitions are public; selector rendering, validation bookkeeping, and compiler lowering remain internal.",
+    minecraft = "Sand validates this definition and lowers it to entity-scoped selectors, scoreboards, NBT operations, and generated lifecycle functions as required.",
+    use_when = ["Defining or using typed entity behavior in a Sand datapack"],
+    avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
+    example = "use sand::entity::SpecialEntityPolicy;",
+    variants(Exclude = "Exclude special entities from automatic adoption.", Include = "Include them and allow explicitly owned properties to reconcile.", Preserve = "Adopt them while preserving unrelated name/owner/taming state."),
+)]
 /// Treatment of named, tamed, owned, or otherwise special entities.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[non_exhaustive]
 pub enum SpecialEntityPolicy {
-    #[doc = "**API Contract:** Run `sand api show sand::entity::SpecialEntityPolicy::Exclude` for the canonical contract."]
     /// Exclude special entities from automatic adoption.
     Exclude,
-    #[doc = "**API Contract:** Run `sand api show sand::entity::SpecialEntityPolicy::Preserve` for the canonical contract."]
     /// Adopt them while preserving unrelated name/owner/taming state.
     Preserve,
-    #[doc = "**API Contract:** Run `sand api show sand::entity::SpecialEntityPolicy::Include` for the canonical contract."]
     /// Include them and allow explicitly owned properties to reconcile.
     Include,
 }
 
-#[doc = "**API Contract:** Run `sand api show sand::entity::Adoption` for the canonical contract."]
+#[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::entity::Adoption",
+    aliases = ["sand::prelude::Adoption"],
+    module = "sand::entity",
+    summary = "A typed adoption scan. The entity type comes from the archetype's `K`; callers cannot create an unconstrained `@e` scan. Scans see loaded chunks only. `every` bounds work by running one type-constrained scan every N server ticks.",
+    context = "A typed adoption scan. The entity type comes from the archetype's `K`; callers cannot create an unconstrained `@e` scan. Scans see loaded chunks only. `every` bounds work by running one type-constrained scan every N server ticks. This declaration belongs to Sand's typed entity model. Semantic definitions are public; selector rendering, validation bookkeeping, and compiler lowering remain internal.",
+    minecraft = "Sand validates this definition and lowers it to entity-scoped selectors, scoreboards, NBT operations, and generated lifecycle functions as required.",
+    use_when = ["Defining or using typed entity behavior in a Sand datapack"],
+    avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
+    example = "use sand::entity::Adoption;",
+)]
 /// A typed adoption scan.
 ///
 /// The entity type comes from the archetype's `K`; callers cannot create an
@@ -93,7 +122,20 @@ pub struct Adoption {
 
 impl Adoption {
     /// Adopt natural and external entities once per tick.
-    #[doc = "**API Contract:** Run `sand api show sand::entity::Adoption::natural_and_external` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::entity::Adoption::natural_and_external",
+        aliases = ["sand::prelude::Adoption::natural_and_external"],
+        module = "sand::entity",
+        kind = "method",
+        summary = "Adopt natural and external entities once per tick.",
+        context = "Adopt natural and external entities once per tick. This declaration belongs to Sand's typed entity model. Semantic definitions are public; selector rendering, validation bookkeeping, and compiler lowering remain internal.",
+        minecraft = "Sand validates this definition and lowers it to entity-scoped selectors, scoreboards, NBT operations, and generated lifecycle functions as required.",
+        use_when = ["Defining or using typed entity behavior in a Sand datapack"],
+        avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
+        returns = "An `Adoption` that adopts natural and external entities once per tick.",
+        example = "use sand::prelude::*;\n\nfn demonstrate()  {\n    let adoption = sand::entity::Adoption::natural_and_external();\n}",
+    )]
     #[must_use]
     pub fn natural_and_external() -> Self {
         Self {
@@ -108,7 +150,20 @@ impl Adoption {
     }
 
     /// Restrict adoption to the natural-spawn policy.
-    #[doc = "**API Contract:** Run `sand api show sand::entity::Adoption::natural` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::entity::Adoption::natural",
+        aliases = ["sand::prelude::Adoption::natural"],
+        module = "sand::entity",
+        kind = "method",
+        summary = "Restrict adoption to the natural-spawn policy.",
+        context = "Restrict adoption to the natural-spawn policy. This declaration belongs to Sand's typed entity model. Semantic definitions are public; selector rendering, validation bookkeeping, and compiler lowering remain internal.",
+        minecraft = "Sand validates this definition and lowers it to entity-scoped selectors, scoreboards, NBT operations, and generated lifecycle functions as required.",
+        use_when = ["Defining or using typed entity behavior in a Sand datapack"],
+        avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
+        returns = "An `Adoption` that restricts adoption to the natural-spawn policy.",
+        example = "use sand::prelude::*;\n\nfn demonstrate()  {\n    let adoption = sand::entity::Adoption::natural();\n}",
+    )]
     #[must_use]
     pub fn natural() -> Self {
         Self {
@@ -118,7 +173,20 @@ impl Adoption {
     }
 
     /// Restrict adoption to externally summoned entities.
-    #[doc = "**API Contract:** Run `sand api show sand::entity::Adoption::external` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::entity::Adoption::external",
+        aliases = ["sand::prelude::Adoption::external"],
+        module = "sand::entity",
+        kind = "method",
+        summary = "Restrict adoption to externally summoned entities.",
+        context = "Restrict adoption to externally summoned entities. This declaration belongs to Sand's typed entity model. Semantic definitions are public; selector rendering, validation bookkeeping, and compiler lowering remain internal.",
+        minecraft = "Sand validates this definition and lowers it to entity-scoped selectors, scoreboards, NBT operations, and generated lifecycle functions as required.",
+        use_when = ["Defining or using typed entity behavior in a Sand datapack"],
+        avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
+        returns = "An `Adoption` that restricts adoption to externally summoned entities.",
+        example = "use sand::prelude::*;\n\nfn demonstrate()  {\n    let adoption = sand::entity::Adoption::external();\n}",
+    )]
     #[must_use]
     pub fn external() -> Self {
         Self {
@@ -130,7 +198,21 @@ impl Adoption {
     /// Set the scan cadence.
     ///
     /// A zero interval is rejected during archetype compilation.
-    #[doc = "**API Contract:** Run `sand api show sand::entity::Adoption::every` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::entity::Adoption::every",
+        aliases = ["sand::prelude::Adoption::every"],
+        module = "sand::entity",
+        kind = "method",
+        summary = "Set the scan cadence. A zero interval is rejected during archetype compilation.",
+        context = "Set the scan cadence. A zero interval is rejected during archetype compilation. This declaration belongs to Sand's typed entity model. Semantic definitions are public; selector rendering, validation bookkeeping, and compiler lowering remain internal.",
+        minecraft = "Sand validates this definition and lowers it to entity-scoped selectors, scoreboards, NBT operations, and generated lifecycle functions as required.",
+        use_when = ["Defining or using typed entity behavior in a Sand datapack"],
+        avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
+        params(ticks = "`ticks` provides the Minecraft tick duration used to set the scan cadence. A zero interval is rejected during archetype compilation."),
+        returns = "The `Adoption` value with the documented change applied to set the scan cadence. A zero interval is rejected during archetype compilation.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(adoption_value: sand::entity::Adoption, ticks: sand::state::Ticks)  {\n    let updated_adoption = adoption_value.every(ticks);\n}",
+    )]
     #[must_use]
     pub fn every(mut self, ticks: Ticks) -> Self {
         self.every = ticks;
@@ -141,7 +223,21 @@ impl Adoption {
     ///
     /// Global type-constrained scans remain supported; this option is useful
     /// for packs that deliberately run the coordinator at player positions.
-    #[doc = "**API Contract:** Run `sand api show sand::entity::Adoption::within_blocks` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::entity::Adoption::within_blocks",
+        aliases = ["sand::prelude::Adoption::within_blocks"],
+        module = "sand::entity",
+        kind = "method",
+        summary = "Limit adoption to a radius around each scan executor.",
+        context = "Limit adoption to a radius around each scan executor. Global type-constrained scans remain supported; this option is useful for packs that deliberately run the coordinator at player positions.",
+        minecraft = "Sand validates this definition and lowers it to entity-scoped selectors, scoreboards, NBT operations, and generated lifecycle functions as required.",
+        use_when = ["Defining or using typed entity behavior in a Sand datapack"],
+        avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
+        params(blocks = "`blocks` is used to limit adoption to a radius around each scan executor."),
+        returns = "The `Adoption` value with the documented change applied to limit adoption to a radius around each scan executor.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(adoption_value: sand::entity::Adoption, blocks: f64)  {\n    let updated_adoption = adoption_value.within_blocks(blocks);\n}",
+    )]
     #[must_use]
     pub fn within_blocks(mut self, blocks: f64) -> Self {
         self.max_distance = Some(blocks);
@@ -149,7 +245,21 @@ impl Adoption {
     }
 
     /// Choose how named/tamed/owned entities are treated.
-    #[doc = "**API Contract:** Run `sand api show sand::entity::Adoption::special_entities` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::entity::Adoption::special_entities",
+        aliases = ["sand::prelude::Adoption::special_entities"],
+        module = "sand::entity",
+        kind = "method",
+        summary = "Choose how named/tamed/owned entities are treated.",
+        context = "Choose how named/tamed/owned entities are treated. This declaration belongs to Sand's typed entity model. Semantic definitions are public; selector rendering, validation bookkeeping, and compiler lowering remain internal.",
+        minecraft = "Sand validates this definition and lowers it to entity-scoped selectors, scoreboards, NBT operations, and generated lifecycle functions as required.",
+        use_when = ["Choose how named/tamed/owned entities are treated."],
+        avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
+        params(policy = "`policy` is used to choose how named/tamed/owned entities are treated."),
+        returns = "The `Adoption` value with the documented change applied to choose how named/tamed/owned entities are treated.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(adoption_value: sand::entity::Adoption, policy: sand::entity::SpecialEntityPolicy)  {\n    let updated_adoption = adoption_value.special_entities(policy);\n}",
+    )]
     #[must_use]
     pub fn special_entities(mut self, policy: SpecialEntityPolicy) -> Self {
         self.special = policy;
@@ -157,7 +267,21 @@ impl Adoption {
     }
 
     /// Require a validated entity tag in addition to the typed entity kind.
-    #[doc = "**API Contract:** Run `sand api show sand::entity::Adoption::requiring_tag` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::entity::Adoption::requiring_tag",
+        aliases = ["sand::prelude::Adoption::requiring_tag"],
+        module = "sand::entity",
+        kind = "method",
+        summary = "Require a validated entity tag in addition to the typed entity kind.",
+        context = "Require a validated entity tag in addition to the typed entity kind. This declaration belongs to Sand's typed entity model. Semantic definitions are public; selector rendering, validation bookkeeping, and compiler lowering remain internal.",
+        minecraft = "Sand validates this definition and lowers it to entity-scoped selectors, scoreboards, NBT operations, and generated lifecycle functions as required.",
+        use_when = ["Defining or using typed entity behavior in a Sand datapack"],
+        avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
+        params(tag = "`tag` is used to require a validated entity tag in addition to the typed entity kind."),
+        returns = "The `Adoption` value with the documented change applied to require a validated entity tag in addition to the typed entity kind.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(adoption_value: sand::entity::Adoption, tag: sand::entity::EntityTag)  {\n    let updated_adoption = adoption_value.requiring_tag(tag);\n}",
+    )]
     #[must_use]
     pub fn requiring_tag(mut self, tag: crate::entity::property::EntityTag) -> Self {
         self.required_tags.push(tag);
@@ -165,7 +289,21 @@ impl Adoption {
     }
 
     /// Exclude a validated entity tag from adoption.
-    #[doc = "**API Contract:** Run `sand api show sand::entity::Adoption::excluding_tag` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::entity::Adoption::excluding_tag",
+        aliases = ["sand::prelude::Adoption::excluding_tag"],
+        module = "sand::entity",
+        kind = "method",
+        summary = "Exclude a validated entity tag from adoption.",
+        context = "Exclude a validated entity tag from adoption. This declaration belongs to Sand's typed entity model. Semantic definitions are public; selector rendering, validation bookkeeping, and compiler lowering remain internal.",
+        minecraft = "Sand validates this definition and lowers it to entity-scoped selectors, scoreboards, NBT operations, and generated lifecycle functions as required.",
+        use_when = ["Defining or using typed entity behavior in a Sand datapack"],
+        avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
+        params(tag = "`tag` is used to exclude a validated entity tag from adoption."),
+        returns = "The `Adoption` value with the documented change applied to exclude a validated entity tag from adoption.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(adoption_value: sand::entity::Adoption, tag: sand::entity::EntityTag)  {\n    let updated_adoption = adoption_value.excluding_tag(tag);\n}",
+    )]
     #[must_use]
     pub fn excluding_tag(mut self, tag: crate::entity::property::EntityTag) -> Self {
         self.excluded_tags.push(tag);
@@ -176,7 +314,21 @@ impl Adoption {
     ///
     /// Multiple fields are merged into one selector `scores` map, avoiding
     /// handwritten score syntax and additional outer scans.
-    #[doc = "**API Contract:** Run `sand api show sand::entity::Adoption::where_state` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::entity::Adoption::where_state",
+        aliases = ["sand::prelude::Adoption::where_state"],
+        module = "sand::entity",
+        kind = "method",
+        summary = "Restrict adoption with a typed state predicate. Multiple fields are merged into one selector `scores` map, avoiding handwritten score syntax and additional outer scans.",
+        context = "Restrict adoption with a typed state predicate. Multiple fields are merged into one selector `scores` map, avoiding handwritten score syntax and additional outer scans. This declaration belongs to Sand's typed entity model. Semantic definitions are public; selector rendering, validation bookkeeping, and compiler lowering remain internal.",
+        minecraft = "Sand validates this definition and lowers it to entity-scoped selectors, scoreboards, NBT operations, and generated lifecycle functions as required.",
+        use_when = ["Defining or using typed entity behavior in a Sand datapack"],
+        avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
+        params(predicate = "`predicate` provides the predicate that must match used to restrict adoption with a typed state predicate. Multiple fields are merged into one selector `scores` map, avoiding handwritten score syntax and additional outer scans."),
+        returns = "The `Adoption` value with the documented change applied to restrict adoption with a typed state predicate. Multiple fields are merged into one selector `scores` map, avoiding handwritten score syntax and additional outer scans.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(adoption_value: sand::entity::Adoption, predicate: sand::entity::StatePredicate)  {\n    let updated_adoption = adoption_value.where_state(predicate);\n}",
+    )]
     #[must_use]
     pub fn where_state(mut self, predicate: crate::entity::state::StatePredicate) -> Self {
         self.state_predicates.push(predicate);
@@ -184,50 +336,77 @@ impl Adoption {
     }
 }
 
-#[doc = "**API Contract:** Run `sand api show sand::entity::ReconcilePolicy` for the canonical contract."]
+#[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::entity::ReconcilePolicy",
+    aliases = ["sand::prelude::ReconcilePolicy"],
+    module = "sand::entity",
+    summary = "When an initialized entity is checked against its archetype.",
+    context = "When an initialized entity is checked against its archetype. This declaration belongs to Sand's typed entity model. Semantic definitions are public; selector rendering, validation bookkeeping, and compiler lowering remain internal.",
+    minecraft = "Sand validates this definition and lowers it to entity-scoped selectors, scoreboards, NBT operations, and generated lifecycle functions as required.",
+    use_when = ["Defining or using typed entity behavior in a Sand datapack"],
+    avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
+    example = "use sand::entity::ReconcilePolicy;",
+    variants(Every = "Reconcile at an explicit interval.", InitializeOnly = "Initialize once and never automatically reapply owned properties.", Manual = "Reconciliation occurs only through a generated manual function.", WhenDirty = "Reconcile only when a state dependency is dirty.", WhenSchemaChanges = "Reconcile after a schema/archetype version changes."),
+    variant_fields(Every = ["Reconcile at an explicit interval."]),
+)]
 /// When an initialized entity is checked against its archetype.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[non_exhaustive]
 pub enum ReconcilePolicy {
-    #[doc = "**API Contract:** Run `sand api show sand::entity::ReconcilePolicy::InitializeOnly` for the canonical contract."]
     /// Initialize once and never automatically reapply owned properties.
     InitializeOnly,
-    #[doc = "**API Contract:** Run `sand api show sand::entity::ReconcilePolicy::WhenSchemaChanges` for the canonical contract."]
     /// Reconcile after a schema/archetype version changes.
     WhenSchemaChanges,
-    #[doc = "**API Contract:** Run `sand api show sand::entity::ReconcilePolicy::WhenDirty` for the canonical contract."]
     /// Reconcile only when a state dependency is dirty.
     WhenDirty,
-    #[doc = "**API Contract:** Run `sand api show sand::entity::ReconcilePolicy::Every` for the canonical contract."]
     /// Reconcile at an explicit interval.
-    Every(
-        #[doc = "The `Every` variant carries the value described by its variant semantics: Reconcile at an explicit interval."]
-        #[doc = "**API Contract:** Run `sand api show sand::entity::ReconcilePolicy::Every::0` for the canonical contract."]
-        Ticks,
-    ),
-    #[doc = "**API Contract:** Run `sand api show sand::entity::ReconcilePolicy::Manual` for the canonical contract."]
+    Every(#[doc = "Reconcile at an explicit interval."] Ticks),
     /// Reconciliation occurs only through a generated manual function.
     Manual,
 }
 
-#[doc = "**API Contract:** Run `sand api show sand::entity::Migration` for the canonical contract."]
+#[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::entity::Migration",
+    aliases = ["sand::prelude::Migration"],
+    module = "sand::entity",
+    summary = "One contiguous ordered archetype migration.",
+    context = "One contiguous ordered archetype migration. This declaration belongs to Sand's typed entity model. Semantic definitions are public; selector rendering, validation bookkeeping, and compiler lowering remain internal.",
+    minecraft = "Sand validates this definition and lowers it to entity-scoped selectors, scoreboards, NBT operations, and generated lifecycle functions as required.",
+    use_when = ["Defining or using typed entity behavior in a Sand datapack"],
+    avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
+    example = "use sand::entity::Migration;",
+    fields(action = "Canonical typed migration function.", from = "Version this step accepts.", to = "Version written only after the callback completes."),
+)]
 /// One contiguous ordered archetype migration.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Migration {
-    #[doc = "**API Contract:** Run `sand api show sand::entity::Migration::from` for the canonical contract."]
     /// Version this step accepts.
     pub from: u32,
-    #[doc = "**API Contract:** Run `sand api show sand::entity::Migration::to` for the canonical contract."]
     /// Version written only after the callback completes.
     pub to: u32,
-    #[doc = "**API Contract:** Run `sand api show sand::entity::Migration::action` for the canonical contract."]
     /// Canonical typed migration function.
     pub action: FunctionId,
 }
 
 impl Migration {
     /// Construct a migration step.
-    #[doc = "**API Contract:** Run `sand api show sand::entity::Migration::new` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::entity::Migration::new",
+        aliases = ["sand::prelude::Migration::new"],
+        module = "sand::entity",
+        kind = "method",
+        summary = "Construct a migration step.",
+        context = "Construct a migration step. This declaration belongs to Sand's typed entity model. Semantic definitions are public; selector rendering, validation bookkeeping, and compiler lowering remain internal.",
+        minecraft = "Sand validates this definition and lowers it to entity-scoped selectors, scoreboards, NBT operations, and generated lifecycle functions as required.",
+        use_when = ["Defining or using typed entity behavior in a Sand datapack"],
+        avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
+        params(from = "`from` is used when constructing a migration step.", to = "`to` is used when constructing a migration step.", action = "`action` provides the typed Minecraft resource identifier used to construct a migration step."),
+        returns = "A `Migration` representing a migration step.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(from: u32, to: u32, action: sand::resource_ref::FunctionId)  {\n    let migration = sand::entity::Migration::new(from, to, action);\n}",
+    )]
     #[must_use]
     pub fn new(from: u32, to: u32, action: FunctionId) -> Self {
         Self { from, to, action }
@@ -261,10 +440,18 @@ pub(crate) struct CompiledArchetype {
 }
 
 /// Reusable lifecycle definition for entity kind `K` and state schema `S`.
-///
-/// # API Contract
-///
-/// `sand api show sand::entity::EntityArchetype`
+#[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::entity::EntityArchetype",
+    aliases = ["sand::prelude::EntityArchetype"],
+    module = "sand::entity",
+    summary = "Reusable lifecycle definition for entity kind `K` and state schema `S`.",
+    context = "Reusable lifecycle definition for entity kind `K` and state schema `S`. This declaration belongs to Sand's typed entity model. Semantic definitions are public; selector rendering, validation bookkeeping, and compiler lowering remain internal.",
+    minecraft = "Sand validates this definition and lowers it to entity-scoped selectors, scoreboards, NBT operations, and generated lifecycle functions as required.",
+    use_when = ["Defining or using typed entity behavior in a Sand datapack"],
+    avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
+    example = "use sand::entity::EntityArchetype;",
+)]
 #[derive(Debug, Clone)]
 pub struct EntityArchetype<K, S> {
     id: ResourceLocation,
@@ -313,10 +500,21 @@ where
     ///     "demo:managed_zombie".parse()?,
     /// );
     /// ```
-    ///
-    /// # API Contract
-    ///
-    /// `sand api show sand::entity::EntityArchetype::new`
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::entity::EntityArchetype::new",
+        aliases = ["sand::prelude::EntityArchetype::new"],
+        module = "sand::entity",
+        kind = "method",
+        summary = "Create an archetype. The identifier namespaces every generated objective, marker, storage path, and helper function. The default version is the state schema version and reconciliation is version-driven.",
+        context = "Create an archetype. The identifier namespaces every generated objective, marker, storage path, and helper function. The default version is the state schema version and reconciliation is version-driven. `id` is the stable resource location used to derive those generated names. Renaming it after release creates a distinct archetype identity. Returns a new archetype builder using the state schema's current version and schema-change reconciliation policy.",
+        minecraft = "Minecraft receives the resulting objectives, marker tags, storage paths, migration functions, and reconciliation commands at export.",
+        use_when = ["Use this constructor when declaring the canonical lifecycle policy for one entity kind and state schema."],
+        avoid_when = ["Avoid creating multiple archetypes with the same identifier; their generated Minecraft objectives and helper functions would collide."],
+        params(id = "`id` is the stable resource location used to derive those generated names. Renaming it after release creates a distinct archetype identity."),
+        returns = "Returns a new archetype builder using the state schema's current version and schema-change reconciliation policy.",
+        example = "let archetype = EntityArchetype::<Zombie, MyState>::new(\n\"demo:managed_zombie\".parse()?,\n);",
+    )]
     #[must_use]
     pub fn new(id: ResourceLocation) -> Self {
         let version = S::schema().version;
@@ -338,7 +536,21 @@ where
     }
 
     /// Override the archetype version independently of the schema version.
-    #[doc = "**API Contract:** Run `sand api show sand::entity::EntityArchetype::version` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::entity::EntityArchetype::version",
+        aliases = ["sand::prelude::EntityArchetype::version"],
+        module = "sand::entity",
+        kind = "method",
+        summary = "Override the archetype version independently of the schema version.",
+        context = "Override the archetype version independently of the schema version. This declaration belongs to Sand's typed entity model. Semantic definitions are public; selector rendering, validation bookkeeping, and compiler lowering remain internal.",
+        minecraft = "Sand validates this definition and lowers it to entity-scoped selectors, scoreboards, NBT operations, and generated lifecycle functions as required.",
+        use_when = ["Defining or using typed entity behavior in a Sand datapack"],
+        avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
+        params(version = "`version` is used to override the archetype version independently of the schema version."),
+        returns = "The `EntityArchetype` value with the documented change applied to override the archetype version independently of the schema version.",
+        example = "use sand::prelude::*;\n\nfn demonstrate<K: 'static, S: 'static>(entity_archetype_value: sand::entity::EntityArchetype < K , S >, version: u32) where K : sand::entity::KnownEntityKind , S : sand::entity::EntityState {\n    let updated_entity_archetype = entity_archetype_value.version(version);\n}",
+    )]
     #[must_use]
     pub fn version(mut self, version: u32) -> Self {
         self.version = version;
@@ -346,7 +558,21 @@ where
     }
 
     /// Discover and initialize existing loaded entities.
-    #[doc = "**API Contract:** Run `sand api show sand::entity::EntityArchetype::adopt` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::entity::EntityArchetype::adopt",
+        aliases = ["sand::prelude::EntityArchetype::adopt"],
+        module = "sand::entity",
+        kind = "method",
+        summary = "Discover and initialize existing loaded entities.",
+        context = "Discover and initialize existing loaded entities. This declaration belongs to Sand's typed entity model. Semantic definitions are public; selector rendering, validation bookkeeping, and compiler lowering remain internal.",
+        minecraft = "Sand validates this definition and lowers it to entity-scoped selectors, scoreboards, NBT operations, and generated lifecycle functions as required.",
+        use_when = ["Defining or using typed entity behavior in a Sand datapack"],
+        avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
+        params(adoption = "`adoption` is used to discover and initialize existing loaded entities."),
+        returns = "The `EntityArchetype` value with the documented change applied to discover and initialize existing loaded entities.",
+        example = "use sand::prelude::*;\n\nfn demonstrate<K: 'static, S: 'static>(entity_archetype_value: sand::entity::EntityArchetype < K , S >, adoption: sand::entity::Adoption) where K : sand::entity::KnownEntityKind , S : sand::entity::EntityState {\n    let updated_entity_archetype = entity_archetype_value.adopt(adoption);\n}",
+    )]
     #[must_use]
     pub fn adopt(mut self, adoption: Adoption) -> Self {
         self.adoption = Some(adoption);
@@ -354,7 +580,21 @@ where
     }
 
     /// Choose automatic reconciliation behavior.
-    #[doc = "**API Contract:** Run `sand api show sand::entity::EntityArchetype::reconcile` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::entity::EntityArchetype::reconcile",
+        aliases = ["sand::prelude::EntityArchetype::reconcile"],
+        module = "sand::entity",
+        kind = "method",
+        summary = "Choose automatic reconciliation behavior.",
+        context = "Choose automatic reconciliation behavior. This declaration belongs to Sand's typed entity model. Semantic definitions are public; selector rendering, validation bookkeeping, and compiler lowering remain internal.",
+        minecraft = "Sand validates this definition and lowers it to entity-scoped selectors, scoreboards, NBT operations, and generated lifecycle functions as required.",
+        use_when = ["Choose automatic reconciliation behavior."],
+        avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
+        params(policy = "`policy` is used to choose automatic reconciliation behavior."),
+        returns = "The `EntityArchetype` value with the documented change applied to choose automatic reconciliation behavior.",
+        example = "use sand::prelude::*;\n\nfn demonstrate<K: 'static, S: 'static>(entity_archetype_value: sand::entity::EntityArchetype < K , S >, policy: sand::entity::ReconcilePolicy) where K : sand::entity::KnownEntityKind , S : sand::entity::EntityState {\n    let updated_entity_archetype = entity_archetype_value.reconcile(policy);\n}",
+    )]
     #[must_use]
     pub fn reconcile(mut self, policy: ReconcilePolicy) -> Self {
         self.reconcile = policy;
@@ -362,7 +602,21 @@ where
     }
 
     /// Run a typed function after state/native setup and before completion is marked.
-    #[doc = "**API Contract:** Run `sand api show sand::entity::EntityArchetype::initialize_with` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::entity::EntityArchetype::initialize_with",
+        aliases = ["sand::prelude::EntityArchetype::initialize_with"],
+        module = "sand::entity",
+        kind = "method",
+        summary = "Run a typed function after state/native setup and before completion is marked.",
+        context = "Run a typed function after state/native setup and before completion is marked. This declaration belongs to Sand's typed entity model. Semantic definitions are public; selector rendering, validation bookkeeping, and compiler lowering remain internal.",
+        minecraft = "Sand validates this definition and lowers it to entity-scoped selectors, scoreboards, NBT operations, and generated lifecycle functions as required.",
+        use_when = ["Defining or using typed entity behavior in a Sand datapack"],
+        avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
+        params(function = "`function` provides the callback invoked by this operation used to run a typed function after state/native setup and before completion is marked."),
+        returns = "The `EntityArchetype` value with the documented change applied to run a typed function after state/native setup and before completion is marked.",
+        example = "use sand::prelude::*;\n\nfn demonstrate<K: 'static, S: 'static>(entity_archetype_value: sand::entity::EntityArchetype < K , S >, function: sand::resource_ref::FunctionId) where K : sand::entity::KnownEntityKind , S : sand::entity::EntityState {\n    let updated_entity_archetype = entity_archetype_value.initialize_with(function);\n}",
+    )]
     #[must_use]
     pub fn initialize_with(mut self, function: FunctionId) -> Self {
         self.initialize = Some(function);
@@ -374,7 +628,21 @@ where
     /// Vanilla provides no reliable callback for every external removal or
     /// unloaded entity. This callback is guaranteed only when the generated
     /// cleanup function is explicitly invoked while the entity is loaded.
-    #[doc = "**API Contract:** Run `sand api show sand::entity::EntityArchetype::cleanup_with` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::entity::EntityArchetype::cleanup_with",
+        aliases = ["sand::prelude::EntityArchetype::cleanup_with"],
+        module = "sand::entity",
+        kind = "method",
+        summary = "Run a best-effort typed cleanup callback before Sand-owned state is cleared.",
+        context = "Run a best-effort typed cleanup callback before Sand-owned state is cleared. Vanilla provides no reliable callback for every external removal or unloaded entity. This callback is guaranteed only when the generated cleanup function is explicitly invoked while the entity is loaded.",
+        minecraft = "Sand validates this definition and lowers it to entity-scoped selectors, scoreboards, NBT operations, and generated lifecycle functions as required.",
+        use_when = ["Defining or using typed entity behavior in a Sand datapack"],
+        avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
+        params(function = "`function` provides the callback invoked by this operation used to run a best-effort typed cleanup callback before Sand-owned state is cleared."),
+        returns = "The `EntityArchetype` value with the documented change applied to run a best-effort typed cleanup callback before Sand-owned state is cleared.",
+        example = "use sand::prelude::*;\n\nfn demonstrate<K: 'static, S: 'static>(entity_archetype_value: sand::entity::EntityArchetype < K , S >, function: sand::resource_ref::FunctionId) where K : sand::entity::KnownEntityKind , S : sand::entity::EntityState {\n    let updated_entity_archetype = entity_archetype_value.cleanup_with(function);\n}",
+    )]
     #[must_use]
     pub fn cleanup_with(mut self, function: FunctionId) -> Self {
         self.cleanup = Some(function);
@@ -382,7 +650,21 @@ where
     }
 
     /// Add one ordered migration.
-    #[doc = "**API Contract:** Run `sand api show sand::entity::EntityArchetype::migration` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::entity::EntityArchetype::migration",
+        aliases = ["sand::prelude::EntityArchetype::migration"],
+        module = "sand::entity",
+        kind = "method",
+        summary = "Add one ordered migration.",
+        context = "Add one ordered migration. This declaration belongs to Sand's typed entity model. Semantic definitions are public; selector rendering, validation bookkeeping, and compiler lowering remain internal.",
+        minecraft = "Sand validates this definition and lowers it to entity-scoped selectors, scoreboards, NBT operations, and generated lifecycle functions as required.",
+        use_when = ["Defining or using typed entity behavior in a Sand datapack"],
+        avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
+        params(migration = "`migration` provides the migration added when building one ordered migration."),
+        returns = "The `EntityArchetype` value with the documented change applied to add one ordered migration.",
+        example = "use sand::prelude::*;\n\nfn demonstrate<K: 'static, S: 'static>(entity_archetype_value: sand::entity::EntityArchetype < K , S >, migration: sand::entity::Migration) where K : sand::entity::KnownEntityKind , S : sand::entity::EntityState {\n    let updated_entity_archetype = entity_archetype_value.migration(migration);\n}",
+    )]
     #[must_use]
     pub fn migration(mut self, migration: Migration) -> Self {
         self.migrations.push(migration);
@@ -396,7 +678,20 @@ where
     /// are preserved. Cleanup detaches the same composition in reverse order.
     /// Repeated composition declarations are deduplicated by their flattened
     /// presence identities and never allocate a second copy of State.
-    #[doc = "**API Contract:** Run `sand api show sand::entity::EntityArchetype::components` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::entity::EntityArchetype::components",
+        aliases = ["sand::prelude::EntityArchetype::components"],
+        module = "sand::entity",
+        kind = "method",
+        summary = "Compose an independent State component or nested bundle into this archetype.",
+        context = "Compose an independent State component or nested bundle into this archetype. The generated initialize path attaches every unique component through its canonical lifecycle, so existing values and per-component versions are preserved. Cleanup detaches the same composition in reverse order. Repeated composition declarations are deduplicated by their flattened presence identities and never allocate a second copy of State.",
+        minecraft = "Sand validates this definition and lowers it to entity-scoped selectors, scoreboards, NBT operations, and generated lifecycle functions as required.",
+        use_when = ["Defining or using typed entity behavior in a Sand datapack"],
+        avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
+        returns = "The `EntityArchetype` value with the documented change applied to compose an independent State component or nested bundle into this archetype.",
+        example = "use sand::prelude::*;\n\nfn demonstrate<K: 'static, S: 'static, B: 'static>(entity_archetype_value: sand::entity::EntityArchetype < K , S >) where K : sand::entity::KnownEntityKind , S : sand::entity::EntityState, B : sand::entity::StateComposition {\n    let updated_entity_archetype = entity_archetype_value.components::<B>();\n}",
+    )]
     #[must_use]
     pub fn components<B>(mut self) -> Self
     where
@@ -424,7 +719,21 @@ where
     /// The exporter lowers the curve to entity-scoped scoreboard arithmetic
     /// and marks the result dirty only when one of its source scores changes.
     /// Cycles among derived targets are rejected before resources are written.
-    #[doc = "**API Contract:** Run `sand api show sand::entity::EntityArchetype::derive` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::entity::EntityArchetype::derive",
+        aliases = ["sand::prelude::EntityArchetype::derive"],
+        module = "sand::entity",
+        kind = "method",
+        summary = "Add a cached derived score and its typed dependency declaration.",
+        context = "Add a cached derived score and its typed dependency declaration. The exporter lowers the curve to entity-scoped scoreboard arithmetic and marks the result dirty only when one of its source scores changes. Cycles among derived targets are rejected before resources are written.",
+        minecraft = "The exporter lowers the curve to entity-scoped scoreboard arithmetic and marks the result dirty only when one of its source scores changes. Cycles among derived targets are rejected before resources are written.",
+        use_when = ["Defining or using typed entity behavior in a Sand datapack"],
+        avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
+        params(derivation = "`derivation` provides the derived-stat selector used to add a cached derived score and its typed dependency declaration."),
+        returns = "The `EntityArchetype` value with the documented change applied to add a cached derived score and its typed dependency declaration.",
+        example = "use sand::prelude::*;\n\nfn demonstrate<K: 'static, S: 'static>(entity_archetype_value: sand::entity::EntityArchetype < K , S >, derivation: sand::entity::EntityDerivation) where K : sand::entity::KnownEntityKind , S : sand::entity::EntityState {\n    let updated_entity_archetype = entity_archetype_value.derive(derivation);\n}",
+    )]
     #[must_use]
     pub fn derive(mut self, derivation: EntityDerivation) -> Self {
         self.derivations.push(derivation);
@@ -432,7 +741,21 @@ where
     }
 
     /// Run a typed action when entity-bound state crosses a declared boundary.
-    #[doc = "**API Contract:** Run `sand api show sand::entity::EntityArchetype::on` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::entity::EntityArchetype::on",
+        aliases = ["sand::prelude::EntityArchetype::on"],
+        module = "sand::entity",
+        kind = "method",
+        summary = "Run a typed action when entity-bound state crosses a declared boundary.",
+        context = "Run a typed action when entity-bound state crosses a declared boundary. This declaration belongs to Sand's typed entity model. Semantic definitions are public; selector rendering, validation bookkeeping, and compiler lowering remain internal.",
+        minecraft = "Sand validates this definition and lowers it to entity-scoped selectors, scoreboards, NBT operations, and generated lifecycle functions as required.",
+        use_when = ["Defining or using typed entity behavior in a Sand datapack"],
+        avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
+        params(transition = "`transition` provides the transition used when running a typed action when entity-bound state crosses a declared boundary.", action = "`action` provides the action used when running a typed action when entity-bound state crosses a declared boundary."),
+        returns = "The `EntityArchetype` value with the documented change applied to run a typed action when entity-bound state crosses a declared boundary.",
+        example = "use sand::prelude::*;\n\nfn demonstrate<K: 'static, S: 'static>(entity_archetype_value: sand::entity::EntityArchetype < K , S >, transition: sand::entity::EntityTransition, action: sand::entity::EntityAction) where K : sand::entity::KnownEntityKind , S : sand::entity::EntityState {\n    let updated_entity_archetype = entity_archetype_value.on(transition, action);\n}",
+    )]
     #[must_use]
     pub fn on(mut self, transition: EntityTransition, action: EntityAction) -> Self {
         self.transitions
@@ -441,7 +764,21 @@ where
     }
 
     /// Add an archetype-owned tag while preserving unrelated tags.
-    #[doc = "**API Contract:** Run `sand api show sand::entity::EntityArchetype::tag` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::entity::EntityArchetype::tag",
+        aliases = ["sand::prelude::EntityArchetype::tag"],
+        module = "sand::entity",
+        kind = "method",
+        summary = "Add an archetype-owned tag while preserving unrelated tags.",
+        context = "Add an archetype-owned tag while preserving unrelated tags. This declaration belongs to Sand's typed entity model. Semantic definitions are public; selector rendering, validation bookkeeping, and compiler lowering remain internal.",
+        minecraft = "Sand validates this definition and lowers it to entity-scoped selectors, scoreboards, NBT operations, and generated lifecycle functions as required.",
+        use_when = ["Defining or using typed entity behavior in a Sand datapack"],
+        avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
+        params(binding = "`binding` provides the binding added when building an archetype-owned tag while preserving unrelated tags."),
+        returns = "The `EntityArchetype` value with the documented change applied to add an archetype-owned tag while preserving unrelated tags.",
+        example = "use sand::prelude::*;\n\nfn demonstrate<K: 'static, S: 'static>(entity_archetype_value: sand::entity::EntityArchetype < K , S >, binding: sand::entity::TagBinding) where K : sand::entity::KnownEntityKind , S : sand::entity::EntityState {\n    let updated_entity_archetype = entity_archetype_value.tag(binding);\n}",
+    )]
     #[must_use]
     pub fn tag(mut self, binding: TagBinding) -> Self {
         self.properties.push(ArchetypeProperty::Tag(binding));
@@ -449,7 +786,21 @@ where
     }
 
     /// Add/remove an owned tag when a typed flag changes.
-    #[doc = "**API Contract:** Run `sand api show sand::entity::EntityArchetype::tag_when` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::entity::EntityArchetype::tag_when",
+        aliases = ["sand::prelude::EntityArchetype::tag_when"],
+        module = "sand::entity",
+        kind = "method",
+        summary = "Add/remove an owned tag when a typed flag changes.",
+        context = "Add/remove an owned tag when a typed flag changes. This declaration belongs to Sand's typed entity model. Semantic definitions are public; selector rendering, validation bookkeeping, and compiler lowering remain internal.",
+        minecraft = "Sand validates this definition and lowers it to entity-scoped selectors, scoreboards, NBT operations, and generated lifecycle functions as required.",
+        use_when = ["Defining or using typed entity behavior in a Sand datapack"],
+        avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
+        params(flag = "`flag` is used to add/remove an owned tag when a typed flag changes.", binding = "`binding` is used to add/remove an owned tag when a typed flag changes."),
+        returns = "The `EntityArchetype` value with the documented change applied to add/remove an owned tag when a typed flag changes.",
+        example = "use sand::prelude::*;\n\nfn demonstrate<K: 'static, S: 'static>(entity_archetype_value: sand::entity::EntityArchetype < K , S >, flag: sand::entity::EntityFlag, binding: sand::entity::TagBinding) where K : sand::entity::KnownEntityKind , S : sand::entity::EntityState {\n    let updated_entity_archetype = entity_archetype_value.tag_when(flag, binding);\n}",
+    )]
     #[must_use]
     pub fn tag_when(mut self, flag: EntityFlag, binding: TagBinding) -> Self {
         let binding = binding.refresh(RefreshPolicy::WhenSourceChanges);
@@ -459,7 +810,21 @@ where
     }
 
     /// Add typed team membership while leaving team configuration external.
-    #[doc = "**API Contract:** Run `sand api show sand::entity::EntityArchetype::team` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::entity::EntityArchetype::team",
+        aliases = ["sand::prelude::EntityArchetype::team"],
+        module = "sand::entity",
+        kind = "method",
+        summary = "Add typed team membership while leaving team configuration external.",
+        context = "Add typed team membership while leaving team configuration external. This declaration belongs to Sand's typed entity model. Semantic definitions are public; selector rendering, validation bookkeeping, and compiler lowering remain internal.",
+        minecraft = "Sand validates this definition and lowers it to entity-scoped selectors, scoreboards, NBT operations, and generated lifecycle functions as required.",
+        use_when = ["Defining or using typed entity behavior in a Sand datapack"],
+        avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
+        params(binding = "`binding` provides the binding added when building typed team membership while leaving team configuration external."),
+        returns = "The `EntityArchetype` value with the documented change applied to add typed team membership while leaving team configuration external.",
+        example = "use sand::prelude::*;\n\nfn demonstrate<K: 'static, S: 'static>(entity_archetype_value: sand::entity::EntityArchetype < K , S >, binding: sand::entity::TeamBinding) where K : sand::entity::KnownEntityKind , S : sand::entity::EntityState {\n    let updated_entity_archetype = entity_archetype_value.team(binding);\n}",
+    )]
     #[must_use]
     pub fn team(mut self, binding: TeamBinding) -> Self {
         self.properties.push(ArchetypeProperty::Team(binding));
@@ -467,7 +832,21 @@ where
     }
 
     /// Join/leave an owned team when a typed flag changes.
-    #[doc = "**API Contract:** Run `sand api show sand::entity::EntityArchetype::team_when` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::entity::EntityArchetype::team_when",
+        aliases = ["sand::prelude::EntityArchetype::team_when"],
+        module = "sand::entity",
+        kind = "method",
+        summary = "Join/leave an owned team when a typed flag changes.",
+        context = "Join/leave an owned team when a typed flag changes. This declaration belongs to Sand's typed entity model. Semantic definitions are public; selector rendering, validation bookkeeping, and compiler lowering remain internal.",
+        minecraft = "Sand validates this definition and lowers it to entity-scoped selectors, scoreboards, NBT operations, and generated lifecycle functions as required.",
+        use_when = ["Defining or using typed entity behavior in a Sand datapack"],
+        avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
+        params(flag = "`flag` is used to join/leave an owned team when a typed flag changes.", binding = "`binding` is used to join/leave an owned team when a typed flag changes."),
+        returns = "The `EntityArchetype` value with the documented change applied to join/leave an owned team when a typed flag changes.",
+        example = "use sand::prelude::*;\n\nfn demonstrate<K: 'static, S: 'static>(entity_archetype_value: sand::entity::EntityArchetype < K , S >, flag: sand::entity::EntityFlag, binding: sand::entity::TeamBinding) where K : sand::entity::KnownEntityKind , S : sand::entity::EntityState {\n    let updated_entity_archetype = entity_archetype_value.team_when(flag, binding);\n}",
+    )]
     #[must_use]
     pub fn team_when(mut self, flag: EntityFlag, binding: TeamBinding) -> Self {
         let binding = binding.refresh(RefreshPolicy::WhenSourceChanges);
@@ -477,14 +856,40 @@ where
     }
 
     /// Archetype identifier.
-    #[doc = "**API Contract:** Run `sand api show sand::entity::EntityArchetype::id` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::entity::EntityArchetype::id",
+        aliases = ["sand::prelude::EntityArchetype::id"],
+        module = "sand::entity",
+        kind = "method",
+        summary = "Archetype identifier.",
+        context = "Archetype identifier. This declaration belongs to Sand's typed entity model. Semantic definitions are public; selector rendering, validation bookkeeping, and compiler lowering remain internal.",
+        minecraft = "Sand validates this definition and lowers it to entity-scoped selectors, scoreboards, NBT operations, and generated lifecycle functions as required.",
+        use_when = ["Defining or using typed entity behavior in a Sand datapack"],
+        avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
+        returns = "The `& ResourceLocation` value produced to archetype identifier.",
+        example = "use sand::prelude::*;\n\nfn demonstrate<K: 'static, S: 'static>(entity_archetype_value: &sand::entity::EntityArchetype < K , S >) where K : sand::entity::KnownEntityKind , S : sand::entity::EntityState {\n    let id = entity_archetype_value.id();\n}",
+    )]
     #[must_use]
     pub fn id(&self) -> &ResourceLocation {
         &self.id
     }
 
     /// Sand-owned initialized marker, deterministic across exports.
-    #[doc = "**API Contract:** Run `sand api show sand::entity::EntityArchetype::initialized_tag` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::entity::EntityArchetype::initialized_tag",
+        aliases = ["sand::prelude::EntityArchetype::initialized_tag"],
+        module = "sand::entity",
+        kind = "method",
+        summary = "Sand-owned initialized marker, deterministic across exports.",
+        context = "Sand-owned initialized marker, deterministic across exports. This declaration belongs to Sand's typed entity model. Semantic definitions are public; selector rendering, validation bookkeeping, and compiler lowering remain internal.",
+        minecraft = "Sand validates this definition and lowers it to entity-scoped selectors, scoreboards, NBT operations, and generated lifecycle functions as required.",
+        use_when = ["Defining or using typed entity behavior in a Sand datapack"],
+        avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
+        returns = "The string value produced to sand-owned initialized marker, deterministic across exports.",
+        example = "use sand::prelude::*;\n\nfn demonstrate<K: 'static, S: 'static>(entity_archetype_value: &sand::entity::EntityArchetype < K , S >) where K : sand::entity::KnownEntityKind , S : sand::entity::EntityState {\n    let initialized_tag = entity_archetype_value.initialized_tag();\n}",
+    )]
     #[must_use]
     pub fn initialized_tag(&self) -> String {
         initialized_tag(&self.id.to_string())
@@ -492,7 +897,20 @@ where
 
     /// Sand-owned tag used to opt an externally summoned entity into an
     /// [`Adoption::external`] scan.
-    #[doc = "**API Contract:** Run `sand api show sand::entity::EntityArchetype::external_adoption_tag` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::entity::EntityArchetype::external_adoption_tag",
+        aliases = ["sand::prelude::EntityArchetype::external_adoption_tag"],
+        module = "sand::entity",
+        kind = "method",
+        summary = "Sand-owned tag used to opt an externally summoned entity into an [`Adoption::external`] scan.",
+        context = "Sand-owned tag used to opt an externally summoned entity into an [`Adoption::external`] scan. This declaration belongs to Sand's typed entity model. Semantic definitions are public; selector rendering, validation bookkeeping, and compiler lowering remain internal.",
+        minecraft = "Sand validates this definition and lowers it to entity-scoped selectors, scoreboards, NBT operations, and generated lifecycle functions as required.",
+        use_when = ["Defining or using typed entity behavior in a Sand datapack"],
+        avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
+        returns = "The `sand :: entity :: EntityTag` value produced to sand-owned tag used to opt an externally summoned entity into an [`Adoption::external`] scan.",
+        example = "use sand::prelude::*;\n\nfn demonstrate<K: 'static, S: 'static>(entity_archetype_value: &sand::entity::EntityArchetype < K , S >) where K : sand::entity::KnownEntityKind , S : sand::entity::EntityState {\n    let external_adoption_tag = entity_archetype_value.external_adoption_tag();\n}",
+    )]
     #[must_use]
     pub fn external_adoption_tag(&self) -> crate::entity::property::EntityTag {
         crate::entity::property::EntityTag::generated(external_tag(&self.id.to_string()))
@@ -502,7 +920,20 @@ where
     ///
     /// This command is execution-scoped. It does not create or return a
     /// persistent entity reference.
-    #[doc = "**API Contract:** Run `sand api show sand::entity::EntityArchetype::attach` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::entity::EntityArchetype::attach",
+        aliases = ["sand::prelude::EntityArchetype::attach"],
+        module = "sand::entity",
+        kind = "method",
+        summary = "Call the generated attach/initialize function for the current `@s`.",
+        context = "Call the generated attach/initialize function for the current `@s`. This command is execution-scoped. It does not create or return a persistent entity reference.",
+        minecraft = "This command is execution-scoped. It does not create or return a persistent entity reference.",
+        use_when = ["Call the generated attach/initialize function for the current `@s`."],
+        avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
+        returns = "The string value produced to call the generated attach/initialize function for the current `@s`.",
+        example = "use sand::prelude::*;\n\nfn demonstrate<K: 'static, S: 'static>(entity_archetype_value: &sand::entity::EntityArchetype < K , S >) where K : sand::entity::KnownEntityKind , S : sand::entity::EntityState {\n    let attach = entity_archetype_value.attach();\n}",
+    )]
     #[must_use]
     pub fn attach(&self) -> String {
         format!(
@@ -516,7 +947,20 @@ where
     ///
     /// Vanilla's `execute summon` binds the new entity directly to `@s`, so
     /// no selector, temporary tag, or global scratch identity is required.
-    #[doc = "**API Contract:** Run `sand api show sand::entity::EntityArchetype::summon` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::entity::EntityArchetype::summon",
+        aliases = ["sand::prelude::EntityArchetype::summon"],
+        module = "sand::entity",
+        kind = "method",
+        summary = "Summon this archetype and initialize the newly created entity.",
+        context = "Summon this archetype and initialize the newly created entity. Vanilla's `execute summon` binds the new entity directly to `@s`, so no selector, temporary tag, or global scratch identity is required.",
+        minecraft = "Sand validates this definition and lowers it to entity-scoped selectors, scoreboards, NBT operations, and generated lifecycle functions as required.",
+        use_when = ["Defining or using typed entity behavior in a Sand datapack"],
+        avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
+        returns = "The ordered values produced to summon this archetype and initialize the newly created entity.",
+        example = "use sand::prelude::*;\n\nfn demonstrate<K: 'static, S: 'static>(entity_archetype_value: &sand::entity::EntityArchetype < K , S >) where K : sand::entity::KnownEntityKind , S : sand::entity::EntityState {\n    let values = entity_archetype_value.summon();\n}",
+    )]
     #[must_use]
     pub fn summon(&self) -> Vec<String> {
         let entity_type = K::entity_type();
@@ -570,7 +1014,21 @@ where
     S: EntityState,
 {
     /// Bind a state-aware custom name and visibility.
-    #[doc = "**API Contract:** Run `sand api show sand::entity::EntityArchetype::name` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::entity::EntityArchetype::name",
+        aliases = ["sand::prelude::EntityArchetype::name"],
+        module = "sand::entity",
+        kind = "method",
+        summary = "Bind a state-aware custom name and visibility.",
+        context = "Bind a state-aware custom name and visibility. This declaration belongs to Sand's typed entity model. Semantic definitions are public; selector rendering, validation bookkeeping, and compiler lowering remain internal.",
+        minecraft = "Sand validates this definition and lowers it to entity-scoped selectors, scoreboards, NBT operations, and generated lifecycle functions as required.",
+        use_when = ["Defining or using typed entity behavior in a Sand datapack"],
+        avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
+        params(binding = "`binding` provides the binding used when binding a state-aware custom name and visibility."),
+        returns = "The `EntityArchetype` value with the documented change applied to bind a state-aware custom name and visibility.",
+        example = "use sand::prelude::*;\n\nfn demonstrate<K: 'static, S: 'static>(entity_archetype_value: sand::entity::EntityArchetype < K , S >, binding: sand::entity::NameBinding) where K : sand::entity::KnownEntityKind + sand::entity::SafeEntityDataWriteKind , S : sand::entity::EntityState {\n    let updated_entity_archetype = entity_archetype_value.name(binding);\n}",
+    )]
     #[must_use]
     pub fn name(mut self, binding: NameBinding) -> Self {
         self.properties.push(ArchetypeProperty::Name(binding));
@@ -578,7 +1036,21 @@ where
     }
 
     /// Bind a stable typed native-NBT field.
-    #[doc = "**API Contract:** Run `sand api show sand::entity::EntityArchetype::native_data` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::entity::EntityArchetype::native_data",
+        aliases = ["sand::prelude::EntityArchetype::native_data"],
+        module = "sand::entity",
+        kind = "method",
+        summary = "Bind a stable typed native-NBT field.",
+        context = "Bind a stable typed native-NBT field. This declaration belongs to Sand's typed entity model. Semantic definitions are public; selector rendering, validation bookkeeping, and compiler lowering remain internal.",
+        minecraft = "Sand validates this definition and lowers it to entity-scoped selectors, scoreboards, NBT operations, and generated lifecycle functions as required.",
+        use_when = ["Defining or using typed entity behavior in a Sand datapack"],
+        avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
+        params(binding = "`binding` provides the binding used when binding a stable typed native-NBT field."),
+        returns = "The `EntityArchetype` value with the documented change applied to bind a stable typed native-NBT field.",
+        example = "use sand::prelude::*;\n\nfn demonstrate<K: 'static, S: 'static>(entity_archetype_value: sand::entity::EntityArchetype < K , S >, binding: sand::entity::EntityNbtBinding) where K : sand::entity::KnownEntityKind + sand::entity::SafeEntityDataWriteKind , S : sand::entity::EntityState {\n    let updated_entity_archetype = entity_archetype_value.native_data(binding);\n}",
+    )]
     #[must_use]
     pub fn native_data(mut self, binding: EntityNbtBinding) -> Self {
         self.properties.push(ArchetypeProperty::Nbt(binding));
@@ -592,7 +1064,21 @@ where
     S: EntityState,
 {
     /// Synchronize current/max health according to an explicit resize policy.
-    #[doc = "**API Contract:** Run `sand api show sand::entity::EntityArchetype::health` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::entity::EntityArchetype::health",
+        aliases = ["sand::prelude::EntityArchetype::health"],
+        module = "sand::entity",
+        kind = "method",
+        summary = "Synchronize current/max health according to an explicit resize policy.",
+        context = "Synchronize current/max health according to an explicit resize policy. This declaration belongs to Sand's typed entity model. Semantic definitions are public; selector rendering, validation bookkeeping, and compiler lowering remain internal.",
+        minecraft = "Sand validates this definition and lowers it to entity-scoped selectors, scoreboards, NBT operations, and generated lifecycle functions as required.",
+        use_when = ["Defining or using typed entity behavior in a Sand datapack"],
+        avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
+        params(binding = "`binding` is used to synchronize current/max health according to an explicit resize policy."),
+        returns = "The `EntityArchetype` value with the documented change applied to synchronize current/max health according to an explicit resize policy.",
+        example = "use sand::prelude::*;\n\nfn demonstrate<K: 'static, S: 'static>(entity_archetype_value: sand::entity::EntityArchetype < K , S >, binding: sand::entity::HealthBinding) where K : sand::entity::KnownEntityKind + sand::entity::MutableLivingEntityKind , S : sand::entity::EntityState {\n    let updated_entity_archetype = entity_archetype_value.health(binding);\n}",
+    )]
     #[must_use]
     pub fn health(mut self, binding: HealthBinding) -> Self {
         self.properties.push(ArchetypeProperty::Health(binding));
@@ -600,7 +1086,21 @@ where
     }
 
     /// Bind an attribute base value.
-    #[doc = "**API Contract:** Run `sand api show sand::entity::EntityArchetype::attribute` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::entity::EntityArchetype::attribute",
+        aliases = ["sand::prelude::EntityArchetype::attribute"],
+        module = "sand::entity",
+        kind = "method",
+        summary = "Bind an attribute base value.",
+        context = "Bind an attribute base value. This declaration belongs to Sand's typed entity model. Semantic definitions are public; selector rendering, validation bookkeeping, and compiler lowering remain internal.",
+        minecraft = "Sand validates this definition and lowers it to entity-scoped selectors, scoreboards, NBT operations, and generated lifecycle functions as required.",
+        use_when = ["Defining or using typed entity behavior in a Sand datapack"],
+        avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
+        params(binding = "`binding` provides the binding used when binding an attribute base value."),
+        returns = "The `EntityArchetype` value with the documented change applied to bind an attribute base value.",
+        example = "use sand::prelude::*;\n\nfn demonstrate<K: 'static, S: 'static>(entity_archetype_value: sand::entity::EntityArchetype < K , S >, binding: sand::entity::AttributeBinding) where K : sand::entity::KnownEntityKind + sand::entity::MutableLivingEntityKind , S : sand::entity::EntityState {\n    let updated_entity_archetype = entity_archetype_value.attribute(binding);\n}",
+    )]
     #[must_use]
     pub fn attribute(mut self, binding: AttributeBinding) -> Self {
         self.properties.push(ArchetypeProperty::Attribute(binding));
@@ -608,7 +1108,21 @@ where
     }
 
     /// Bind one idempotent namespaced attribute modifier.
-    #[doc = "**API Contract:** Run `sand api show sand::entity::EntityArchetype::attribute_modifier` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::entity::EntityArchetype::attribute_modifier",
+        aliases = ["sand::prelude::EntityArchetype::attribute_modifier"],
+        module = "sand::entity",
+        kind = "method",
+        summary = "Bind one idempotent namespaced attribute modifier.",
+        context = "Bind one idempotent namespaced attribute modifier. This declaration belongs to Sand's typed entity model. Semantic definitions are public; selector rendering, validation bookkeeping, and compiler lowering remain internal.",
+        minecraft = "Sand validates this definition and lowers it to entity-scoped selectors, scoreboards, NBT operations, and generated lifecycle functions as required.",
+        use_when = ["Defining or using typed entity behavior in a Sand datapack"],
+        avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
+        params(binding = "`binding` provides the binding used when binding one idempotent namespaced attribute modifier."),
+        returns = "The `EntityArchetype` value with the documented change applied to bind one idempotent namespaced attribute modifier.",
+        example = "use sand::prelude::*;\n\nfn demonstrate<K: 'static, S: 'static>(entity_archetype_value: sand::entity::EntityArchetype < K , S >, binding: sand::entity::AttributeModifierBinding) where K : sand::entity::KnownEntityKind + sand::entity::MutableLivingEntityKind , S : sand::entity::EntityState {\n    let updated_entity_archetype = entity_archetype_value.attribute_modifier(binding);\n}",
+    )]
     #[must_use]
     pub fn attribute_modifier(mut self, binding: AttributeModifierBinding) -> Self {
         self.properties
@@ -617,7 +1131,21 @@ where
     }
 
     /// Apply an archetype-owned status effect on refresh.
-    #[doc = "**API Contract:** Run `sand api show sand::entity::EntityArchetype::effect` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::entity::EntityArchetype::effect",
+        aliases = ["sand::prelude::EntityArchetype::effect"],
+        module = "sand::entity",
+        kind = "method",
+        summary = "Apply an archetype-owned status effect on refresh.",
+        context = "Apply an archetype-owned status effect on refresh. This declaration belongs to Sand's typed entity model. Semantic definitions are public; selector rendering, validation bookkeeping, and compiler lowering remain internal.",
+        minecraft = "Sand validates this definition and lowers it to entity-scoped selectors, scoreboards, NBT operations, and generated lifecycle functions as required.",
+        use_when = ["Defining or using typed entity behavior in a Sand datapack"],
+        avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
+        params(binding = "`binding` provides the binding applied when an archetype-owned status effect on refresh."),
+        returns = "The `EntityArchetype` value with the documented change applied to apply an archetype-owned status effect on refresh.",
+        example = "use sand::prelude::*;\n\nfn demonstrate<K: 'static, S: 'static>(entity_archetype_value: sand::entity::EntityArchetype < K , S >, binding: sand::entity::EffectBinding) where K : sand::entity::KnownEntityKind + sand::entity::MutableLivingEntityKind , S : sand::entity::EntityState {\n    let updated_entity_archetype = entity_archetype_value.effect(binding);\n}",
+    )]
     #[must_use]
     pub fn effect(mut self, binding: EffectBinding) -> Self {
         self.properties.push(ArchetypeProperty::Effect(binding));
@@ -625,7 +1153,21 @@ where
     }
 
     /// Apply/remove an effect only when `flag` is enabled/disabled.
-    #[doc = "**API Contract:** Run `sand api show sand::entity::EntityArchetype::effect_when` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::entity::EntityArchetype::effect_when",
+        aliases = ["sand::prelude::EntityArchetype::effect_when"],
+        module = "sand::entity",
+        kind = "method",
+        summary = "Apply/remove an effect only when `flag` is enabled/disabled.",
+        context = "Apply/remove an effect only when `flag` is enabled/disabled. This declaration belongs to Sand's typed entity model. Semantic definitions are public; selector rendering, validation bookkeeping, and compiler lowering remain internal.",
+        minecraft = "Sand validates this definition and lowers it to entity-scoped selectors, scoreboards, NBT operations, and generated lifecycle functions as required.",
+        use_when = ["Defining or using typed entity behavior in a Sand datapack"],
+        avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
+        params(flag = "Apply/remove an effect only when `flag` is enabled/disabled.", binding = "`binding` is used to apply/remove an effect only when `flag` is enabled/disabled."),
+        returns = "The `EntityArchetype` value with the documented change applied to apply/remove an effect only when `flag` is enabled/disabled.",
+        example = "use sand::prelude::*;\n\nfn demonstrate<K: 'static, S: 'static>(entity_archetype_value: sand::entity::EntityArchetype < K , S >, flag: sand::entity::EntityFlag, binding: sand::entity::EffectBinding) where K : sand::entity::KnownEntityKind + sand::entity::MutableLivingEntityKind , S : sand::entity::EntityState {\n    let updated_entity_archetype = entity_archetype_value.effect_when(flag, binding);\n}",
+    )]
     #[must_use]
     pub fn effect_when(mut self, flag: EntityFlag, binding: EffectBinding) -> Self {
         self.properties
@@ -634,7 +1176,21 @@ where
     }
 
     /// Own one typed equipment slot using Sand's canonical item stack model.
-    #[doc = "**API Contract:** Run `sand api show sand::entity::EntityArchetype::equipment` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::entity::EntityArchetype::equipment",
+        aliases = ["sand::prelude::EntityArchetype::equipment"],
+        module = "sand::entity",
+        kind = "method",
+        summary = "Own one typed equipment slot using Sand's canonical item stack model.",
+        context = "Own one typed equipment slot using Sand's canonical item stack model. This declaration belongs to Sand's typed entity model. Semantic definitions are public; selector rendering, validation bookkeeping, and compiler lowering remain internal.",
+        minecraft = "Sand validates this definition and lowers it to entity-scoped selectors, scoreboards, NBT operations, and generated lifecycle functions as required.",
+        use_when = ["Defining or using typed entity behavior in a Sand datapack"],
+        avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
+        params(binding = "`binding` is used to own one typed equipment slot using Sand's canonical item stack model."),
+        returns = "The `EntityArchetype` value with the documented change applied to own one typed equipment slot using Sand's canonical item stack model.",
+        example = "use sand::prelude::*;\n\nfn demonstrate<K: 'static, S: 'static>(entity_archetype_value: sand::entity::EntityArchetype < K , S >, binding: sand::entity::EquipmentBinding) where K : sand::entity::KnownEntityKind + sand::entity::MutableLivingEntityKind , S : sand::entity::EntityState {\n    let updated_entity_archetype = entity_archetype_value.equipment(binding);\n}",
+    )]
     #[must_use]
     pub fn equipment(mut self, binding: EquipmentBinding) -> Self {
         self.properties
@@ -643,7 +1199,21 @@ where
     }
 
     /// Equip/clear one owned slot when a typed flag changes.
-    #[doc = "**API Contract:** Run `sand api show sand::entity::EntityArchetype::equipment_when` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::entity::EntityArchetype::equipment_when",
+        aliases = ["sand::prelude::EntityArchetype::equipment_when"],
+        module = "sand::entity",
+        kind = "method",
+        summary = "Equip/clear one owned slot when a typed flag changes.",
+        context = "Equip/clear one owned slot when a typed flag changes. This declaration belongs to Sand's typed entity model. Semantic definitions are public; selector rendering, validation bookkeeping, and compiler lowering remain internal.",
+        minecraft = "Sand validates this definition and lowers it to entity-scoped selectors, scoreboards, NBT operations, and generated lifecycle functions as required.",
+        use_when = ["Defining or using typed entity behavior in a Sand datapack"],
+        avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
+        params(flag = "`flag` is used to equip/clear one owned slot when a typed flag changes.", binding = "`binding` is used to equip/clear one owned slot when a typed flag changes."),
+        returns = "The `EntityArchetype` value with the documented change applied to equip/clear one owned slot when a typed flag changes.",
+        example = "use sand::prelude::*;\n\nfn demonstrate<K: 'static, S: 'static>(entity_archetype_value: sand::entity::EntityArchetype < K , S >, flag: sand::entity::EntityFlag, binding: sand::entity::EquipmentBinding) where K : sand::entity::KnownEntityKind + sand::entity::MutableLivingEntityKind , S : sand::entity::EntityState {\n    let updated_entity_archetype = entity_archetype_value.equipment_when(flag, binding);\n}",
+    )]
     #[must_use]
     pub fn equipment_when(mut self, flag: EntityFlag, binding: EquipmentBinding) -> Self {
         let binding = binding.refresh(RefreshPolicy::WhenSourceChanges);
@@ -769,7 +1339,18 @@ fn dedup_commands(commands: &mut Vec<String>) {
     commands.retain(|command| seen.insert(command.clone()));
 }
 
-#[doc = "**API Contract:** Run `sand api show sand::entity::EntityDerivation` for the canonical contract."]
+#[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::entity::EntityDerivation",
+    aliases = ["sand::prelude::EntityDerivation"],
+    module = "sand::entity",
+    summary = "A named numeric derivation cached in a typed entity score.",
+    context = "A named numeric derivation cached in a typed entity score. Curves use integer fixed-point arithmetic. For native properties whose Minecraft command accepts whole values, choose scale `1`; higher scales preserve fractional values for later score arithmetic.",
+    minecraft = "Curves use integer fixed-point arithmetic. For native properties whose Minecraft command accepts whole values, choose scale `1`; higher scales preserve fractional values for later score arithmetic.",
+    use_when = ["Defining or using typed entity behavior in a Sand datapack"],
+    avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
+    example = "use sand::entity::EntityDerivation;",
+)]
 /// A named numeric derivation cached in a typed entity score.
 ///
 /// Curves use integer fixed-point arithmetic. For native properties whose
@@ -784,114 +1365,120 @@ pub struct EntityDerivation {
     output: DerivedScoreEncoding,
 }
 
-#[doc = "**API Contract:** Run `sand api show sand::entity::DerivedScoreEncoding` for the canonical contract."]
+#[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::entity::DerivedScoreEncoding",
+    aliases = ["sand::prelude::DerivedScoreEncoding"],
+    module = "sand::entity",
+    summary = "Representation written to a derivation's target score.",
+    context = "Representation written to a derivation's target score. This declaration belongs to Sand's typed entity model. Semantic definitions are public; selector rendering, validation bookkeeping, and compiler lowering remain internal.",
+    minecraft = "Sand validates this definition and lowers it to entity-scoped selectors, scoreboards, NBT operations, and generated lifecycle functions as required.",
+    use_when = ["Defining or using typed entity behavior in a Sand datapack"],
+    avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
+    example = "use sand::entity::DerivedScoreEncoding;",
+    variants(FixedPoint = "Keep scaled fixed-point units in the target score.", Whole = "Divide the fixed-point result by its scale before caching it."),
+)]
 /// Representation written to a derivation's target score.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[non_exhaustive]
 pub enum DerivedScoreEncoding {
-    #[doc = "**API Contract:** Run `sand api show sand::entity::DerivedScoreEncoding::Whole` for the canonical contract."]
     /// Divide the fixed-point result by its scale before caching it.
     Whole,
-    #[doc = "**API Contract:** Run `sand api show sand::entity::DerivedScoreEncoding::FixedPoint` for the canonical contract."]
     /// Keep scaled fixed-point units in the target score.
     FixedPoint,
 }
 
-#[doc = "**API Contract:** Run `sand api show sand::entity::ThresholdDirection` for the canonical contract."]
+#[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::entity::ThresholdDirection",
+    aliases = ["sand::prelude::ThresholdDirection"],
+    module = "sand::entity",
+    summary = "Direction used by threshold-crossing transitions.",
+    context = "Direction used by threshold-crossing transitions. This declaration belongs to Sand's typed entity model. Semantic definitions are public; selector rendering, validation bookkeeping, and compiler lowering remain internal.",
+    minecraft = "Sand validates this definition and lowers it to entity-scoped selectors, scoreboards, NBT operations, and generated lifecycle functions as required.",
+    use_when = ["Defining or using typed entity behavior in a Sand datapack"],
+    avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
+    example = "use sand::entity::ThresholdDirection;",
+    variants(Falling = "Fire when the score moves from above to at most the threshold.", Rising = "Fire when the score moves from below to at least the threshold."),
+)]
 /// Direction used by threshold-crossing transitions.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[non_exhaustive]
 pub enum ThresholdDirection {
-    #[doc = "**API Contract:** Run `sand api show sand::entity::ThresholdDirection::Rising` for the canonical contract."]
     /// Fire when the score moves from below to at least the threshold.
     Rising,
-    #[doc = "**API Contract:** Run `sand api show sand::entity::ThresholdDirection::Falling` for the canonical contract."]
     /// Fire when the score moves from above to at most the threshold.
     Falling,
 }
 
-#[doc = "**API Contract:** Run `sand api show sand::entity::EntityTransition` for the canonical contract."]
+#[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::entity::EntityTransition",
+    aliases = ["sand::prelude::EntityTransition"],
+    module = "sand::entity",
+    summary = "A state change observed for one loaded archetyped entity.",
+    context = "A state change observed for one loaded archetyped entity. This declaration belongs to Sand's typed entity model. Semantic definitions are public; selector rendering, validation bookkeeping, and compiler lowering remain internal.",
+    minecraft = "Sand validates this definition and lowers it to entity-scoped selectors, scoreboards, NBT operations, and generated lifecycle functions as required.",
+    use_when = ["Defining or using typed entity behavior in a Sand datapack"],
+    avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
+    example = "use sand::entity::EntityTransition;",
+    variants(Changed = "Any numeric, enum, or flag value change.", CooldownReady = "A cooldown reached its ready state.", EnumChangedTo = "An enum changed to one stable encoding.", FlagDisabled = "A flag changed from enabled to disabled.", FlagEnabled = "A flag changed from disabled to enabled.", HealthPercentage = "A current/max-health percentage boundary was crossed.", Threshold = "A whole-score threshold was crossed.", TimerElapsed = "A timer reached zero from a positive value."),
+    variant_fields(Changed = ["Any numeric, enum, or flag value change."], CooldownReady = ["A cooldown reached its ready state."], EnumChangedTo(encoding = "Stable enum encoding.", field = "Enum score field."), FlagDisabled = ["A flag changed from enabled to disabled."], FlagEnabled = ["A flag changed from disabled to enabled."], HealthPercentage(basis_points = "Inclusive percentage in basis points (`10_000 == 100%`).", current = "Current-health score.", direction = "Crossing direction.", maximum = "Maximum-health score."), Threshold(direction = "Crossing direction.", field = "Source score.", value = "Inclusive boundary."), TimerElapsed = ["A timer reached zero from a positive value."]),
+)]
 /// A state change observed for one loaded archetyped entity.
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[non_exhaustive]
 pub enum EntityTransition {
-    #[doc = "**API Contract:** Run `sand api show sand::entity::EntityTransition::Changed` for the canonical contract."]
     /// Any numeric, enum, or flag value change.
-    Changed(
-        #[doc = "The `Changed` variant carries the value described by its variant semantics: Any numeric, enum, or flag value change."]
-        #[doc = "**API Contract:** Run `sand api show sand::entity::EntityTransition::Changed::0` for the canonical contract."]
-        EntityTransitionField,
-    ),
-    #[doc = "**API Contract:** Run `sand api show sand::entity::EntityTransition::FlagEnabled` for the canonical contract."]
+    Changed(#[doc = "Any numeric, enum, or flag value change."] EntityTransitionField),
     /// A flag changed from disabled to enabled.
-    FlagEnabled(
-        #[doc = "The `FlagEnabled` variant carries the value described by its variant semantics: A flag changed from disabled to enabled."]
-        #[doc = "**API Contract:** Run `sand api show sand::entity::EntityTransition::FlagEnabled::0` for the canonical contract."]
-        EntityTransitionField,
-    ),
-    #[doc = "**API Contract:** Run `sand api show sand::entity::EntityTransition::FlagDisabled` for the canonical contract."]
+    FlagEnabled(#[doc = "A flag changed from disabled to enabled."] EntityTransitionField),
     /// A flag changed from enabled to disabled.
-    FlagDisabled(
-        #[doc = "The `FlagDisabled` variant carries the value described by its variant semantics: A flag changed from enabled to disabled."]
-        #[doc = "**API Contract:** Run `sand api show sand::entity::EntityTransition::FlagDisabled::0` for the canonical contract."]
-        EntityTransitionField,
-    ),
-    #[doc = "**API Contract:** Run `sand api show sand::entity::EntityTransition::EnumChangedTo` for the canonical contract."]
+    FlagDisabled(#[doc = "A flag changed from enabled to disabled."] EntityTransitionField),
     /// An enum changed to one stable encoding.
     EnumChangedTo {
-        #[doc = "**API Contract:** Run `sand api show sand::entity::EntityTransition::EnumChangedTo::field` for the canonical contract."]
         /// Enum score field.
         field: EntityTransitionField,
-        #[doc = "**API Contract:** Run `sand api show sand::entity::EntityTransition::EnumChangedTo::encoding` for the canonical contract."]
         /// Stable enum encoding.
         encoding: i32,
     },
-    #[doc = "**API Contract:** Run `sand api show sand::entity::EntityTransition::Threshold` for the canonical contract."]
     /// A whole-score threshold was crossed.
     Threshold {
-        #[doc = "**API Contract:** Run `sand api show sand::entity::EntityTransition::Threshold::field` for the canonical contract."]
         /// Source score.
         field: EntityTransitionField,
-        #[doc = "**API Contract:** Run `sand api show sand::entity::EntityTransition::Threshold::value` for the canonical contract."]
         /// Inclusive boundary.
         value: i32,
-        #[doc = "**API Contract:** Run `sand api show sand::entity::EntityTransition::Threshold::direction` for the canonical contract."]
         /// Crossing direction.
         direction: ThresholdDirection,
     },
-    #[doc = "**API Contract:** Run `sand api show sand::entity::EntityTransition::HealthPercentage` for the canonical contract."]
     /// A current/max-health percentage boundary was crossed.
     HealthPercentage {
-        #[doc = "**API Contract:** Run `sand api show sand::entity::EntityTransition::HealthPercentage::current` for the canonical contract."]
         /// Current-health score.
         current: EntityTransitionField,
-        #[doc = "**API Contract:** Run `sand api show sand::entity::EntityTransition::HealthPercentage::maximum` for the canonical contract."]
         /// Maximum-health score.
         maximum: EntityTransitionField,
-        #[doc = "**API Contract:** Run `sand api show sand::entity::EntityTransition::HealthPercentage::basis_points` for the canonical contract."]
         /// Inclusive percentage in basis points (`10_000 == 100%`).
         basis_points: u16,
-        #[doc = "**API Contract:** Run `sand api show sand::entity::EntityTransition::HealthPercentage::direction` for the canonical contract."]
         /// Crossing direction.
         direction: ThresholdDirection,
     },
-    #[doc = "**API Contract:** Run `sand api show sand::entity::EntityTransition::TimerElapsed` for the canonical contract."]
     /// A timer reached zero from a positive value.
-    TimerElapsed(
-        #[doc = "The `TimerElapsed` variant carries the value described by its variant semantics: A timer reached zero from a positive value."]
-        #[doc = "**API Contract:** Run `sand api show sand::entity::EntityTransition::TimerElapsed::0` for the canonical contract."]
-        EntityTransitionField,
-    ),
-    #[doc = "**API Contract:** Run `sand api show sand::entity::EntityTransition::CooldownReady` for the canonical contract."]
+    TimerElapsed(#[doc = "A timer reached zero from a positive value."] EntityTransitionField),
     /// A cooldown reached its ready state.
-    CooldownReady(
-        #[doc = "The `CooldownReady` variant carries the value described by its variant semantics: A cooldown reached its ready state."]
-        #[doc = "**API Contract:** Run `sand api show sand::entity::EntityTransition::CooldownReady::0` for the canonical contract."]
-        EntityTransitionField,
-    ),
+    CooldownReady(#[doc = "A cooldown reached its ready state."] EntityTransitionField),
 }
 
-#[doc = "**API Contract:** Run `sand api show sand::entity::EntityTransitionField` for the canonical contract."]
+#[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::entity::EntityTransitionField",
+    module = "sand::entity",
+    summary = "Type-erased identity of a typed state field used by a transition plan.",
+    context = "Type-erased identity of a typed state field used by a transition plan. Construct this through [`EntityTransition`] helpers; the stored objective is generated from schema metadata, never accepted as a raw string.",
+    minecraft = "Sand validates this definition and lowers it to entity-scoped selectors, scoreboards, NBT operations, and generated lifecycle functions as required.",
+    use_when = ["Defining or using typed entity behavior in a Sand datapack"],
+    avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
+    example = "use sand::entity::EntityTransitionField;",
+)]
 /// Type-erased identity of a typed state field used by a transition plan.
 ///
 /// Construct this through [`EntityTransition`] helpers; the stored objective
@@ -915,28 +1502,84 @@ impl EntityTransitionField {
 
 impl EntityTransition {
     /// Observe any change to a typed field.
-    #[doc = "**API Contract:** Run `sand api show sand::entity::EntityTransition::changed` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::entity::EntityTransition::changed",
+        aliases = ["sand::prelude::EntityTransition::changed"],
+        module = "sand::entity",
+        kind = "method",
+        summary = "Observe any change to a typed field.",
+        context = "Observe any change to a typed field. This declaration belongs to Sand's typed entity model. Semantic definitions are public; selector rendering, validation bookkeeping, and compiler lowering remain internal.",
+        minecraft = "Sand validates this definition and lowers it to entity-scoped selectors, scoreboards, NBT operations, and generated lifecycle functions as required.",
+        use_when = ["Defining or using typed entity behavior in a Sand datapack"],
+        avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
+        params(field = "`field` provides the field observed when tracking any change to a typed field."),
+        returns = "An `EntityTransition` observing any change to a typed field.",
+        example = "use sand::prelude::*;\n\nfn demonstrate<F : sand::entity::EntityStateField + 'static>(field: F)  {\n    let entity_transition = sand::entity::EntityTransition::changed::<F>(field);\n}",
+    )]
     #[must_use]
     pub fn changed<F: EntityStateField>(field: F) -> Self {
         Self::Changed(EntityTransitionField::typed(field))
     }
 
     /// Observe a flag becoming enabled.
-    #[doc = "**API Contract:** Run `sand api show sand::entity::EntityTransition::flag_enabled` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::entity::EntityTransition::flag_enabled",
+        aliases = ["sand::prelude::EntityTransition::flag_enabled"],
+        module = "sand::entity",
+        kind = "method",
+        summary = "Observe a flag becoming enabled.",
+        context = "Observe a flag becoming enabled. This declaration belongs to Sand's typed entity model. Semantic definitions are public; selector rendering, validation bookkeeping, and compiler lowering remain internal.",
+        minecraft = "Sand validates this definition and lowers it to entity-scoped selectors, scoreboards, NBT operations, and generated lifecycle functions as required.",
+        use_when = ["Defining or using typed entity behavior in a Sand datapack"],
+        avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
+        params(field = "`field` provides the field observed when tracking a flag becoming enabled."),
+        returns = "An `EntityTransition` observing a flag becoming enabled.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(field: sand::entity::EntityFlag)  {\n    let entity_transition = sand::entity::EntityTransition::flag_enabled(field);\n}",
+    )]
     #[must_use]
     pub fn flag_enabled(field: EntityFlag) -> Self {
         Self::FlagEnabled(EntityTransitionField::typed(field))
     }
 
     /// Observe a flag becoming disabled.
-    #[doc = "**API Contract:** Run `sand api show sand::entity::EntityTransition::flag_disabled` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::entity::EntityTransition::flag_disabled",
+        aliases = ["sand::prelude::EntityTransition::flag_disabled"],
+        module = "sand::entity",
+        kind = "method",
+        summary = "Observe a flag becoming disabled.",
+        context = "Observe a flag becoming disabled. This declaration belongs to Sand's typed entity model. Semantic definitions are public; selector rendering, validation bookkeeping, and compiler lowering remain internal.",
+        minecraft = "Sand validates this definition and lowers it to entity-scoped selectors, scoreboards, NBT operations, and generated lifecycle functions as required.",
+        use_when = ["Defining or using typed entity behavior in a Sand datapack"],
+        avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
+        params(field = "`field` provides the field observed when tracking a flag becoming disabled."),
+        returns = "An `EntityTransition` observing a flag becoming disabled.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(field: sand::entity::EntityFlag)  {\n    let entity_transition = sand::entity::EntityTransition::flag_disabled(field);\n}",
+    )]
     #[must_use]
     pub fn flag_disabled(field: EntityFlag) -> Self {
         Self::FlagDisabled(EntityTransitionField::typed(field))
     }
 
     /// Observe a typed enum becoming one variant.
-    #[doc = "**API Contract:** Run `sand api show sand::entity::EntityTransition::enum_changed_to` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::entity::EntityTransition::enum_changed_to",
+        aliases = ["sand::prelude::EntityTransition::enum_changed_to"],
+        module = "sand::entity",
+        kind = "method",
+        summary = "Observe a typed enum becoming one variant.",
+        context = "Observe a typed enum becoming one variant. This declaration belongs to Sand's typed entity model. Semantic definitions are public; selector rendering, validation bookkeeping, and compiler lowering remain internal.",
+        minecraft = "Sand validates this definition and lowers it to entity-scoped selectors, scoreboards, NBT operations, and generated lifecycle functions as required.",
+        use_when = ["Defining or using typed entity behavior in a Sand datapack"],
+        avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
+        params(field = "`field` provides the field observed when tracking a typed enum becoming one variant.", value = "`value` provides the value being applied or compared used to observe a typed enum becoming one variant."),
+        returns = "An `EntityTransition` observing a typed enum becoming one variant.",
+        example = "use sand::prelude::*;\n\nfn demonstrate<T : sand::entity::EntityEnumValue + 'static>(field: sand::entity::EntityEnum < T >, value: T)  {\n    let entity_transition = sand::entity::EntityTransition::enum_changed_to::<T>(field, value);\n}",
+    )]
     #[must_use]
     pub fn enum_changed_to<T: crate::entity::state::EntityEnumValue>(
         field: crate::entity::state::EntityEnum<T>,
@@ -949,7 +1592,21 @@ impl EntityTransition {
     }
 
     /// Observe an inclusive threshold crossing.
-    #[doc = "**API Contract:** Run `sand api show sand::entity::EntityTransition::threshold` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::entity::EntityTransition::threshold",
+        aliases = ["sand::prelude::EntityTransition::threshold"],
+        module = "sand::entity",
+        kind = "method",
+        summary = "Observe an inclusive threshold crossing.",
+        context = "Observe an inclusive threshold crossing. This declaration belongs to Sand's typed entity model. Semantic definitions are public; selector rendering, validation bookkeeping, and compiler lowering remain internal.",
+        minecraft = "Sand validates this definition and lowers it to entity-scoped selectors, scoreboards, NBT operations, and generated lifecycle functions as required.",
+        use_when = ["Defining or using typed entity behavior in a Sand datapack"],
+        avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
+        params(field = "`field` provides the field observed when tracking an inclusive threshold crossing.", value = "`value` provides the value being applied or compared used to observe an inclusive threshold crossing.", direction = "`direction` provides the direction observed when tracking an inclusive threshold crossing."),
+        returns = "An `EntityTransition` observing an inclusive threshold crossing.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(field: impl sand::entity::EntityStateField, value: i32, direction: sand::entity::ThresholdDirection)  {\n    let entity_transition = sand::entity::EntityTransition::threshold(field, value, direction);\n}",
+    )]
     #[must_use]
     pub fn threshold(
         field: impl EntityStateField,
@@ -964,7 +1621,21 @@ impl EntityTransition {
     }
 
     /// Observe a health-ratio crossing in basis points.
-    #[doc = "**API Contract:** Run `sand api show sand::entity::EntityTransition::health_percentage` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::entity::EntityTransition::health_percentage",
+        aliases = ["sand::prelude::EntityTransition::health_percentage"],
+        module = "sand::entity",
+        kind = "method",
+        summary = "Observe a health-ratio crossing in basis points.",
+        context = "Observe a health-ratio crossing in basis points. This declaration belongs to Sand's typed entity model. Semantic definitions are public; selector rendering, validation bookkeeping, and compiler lowering remain internal.",
+        minecraft = "Sand validates this definition and lowers it to entity-scoped selectors, scoreboards, NBT operations, and generated lifecycle functions as required.",
+        use_when = ["Defining or using typed entity behavior in a Sand datapack"],
+        avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
+        params(current = "`current` provides the current observed when tracking a health-ratio crossing in basis points.", maximum = "`maximum` provides the maximum observed when tracking a health-ratio crossing in basis points.", basis_points = "`basis_points` provides the basis points observed when tracking a health-ratio crossing in basis points.", direction = "`direction` provides the direction observed when tracking a health-ratio crossing in basis points."),
+        returns = "An `EntityTransition` observing a health-ratio crossing in basis points.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(current: impl sand::entity::EntityStateField, maximum: impl sand::entity::EntityStateField, basis_points: u16, direction: sand::entity::ThresholdDirection)  {\n    let entity_transition = sand::entity::EntityTransition::health_percentage(current, maximum, basis_points, direction);\n}",
+    )]
     #[must_use]
     pub fn health_percentage(
         current: impl EntityStateField,
@@ -981,14 +1652,42 @@ impl EntityTransition {
     }
 
     /// Observe a timer reaching zero.
-    #[doc = "**API Contract:** Run `sand api show sand::entity::EntityTransition::timer_elapsed` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::entity::EntityTransition::timer_elapsed",
+        aliases = ["sand::prelude::EntityTransition::timer_elapsed"],
+        module = "sand::entity",
+        kind = "method",
+        summary = "Observe a timer reaching zero.",
+        context = "Observe a timer reaching zero. This declaration belongs to Sand's typed entity model. Semantic definitions are public; selector rendering, validation bookkeeping, and compiler lowering remain internal.",
+        minecraft = "Sand validates this definition and lowers it to entity-scoped selectors, scoreboards, NBT operations, and generated lifecycle functions as required.",
+        use_when = ["Defining or using typed entity behavior in a Sand datapack"],
+        avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
+        params(field = "`field` provides the field observed when tracking a timer reaching zero."),
+        returns = "An `EntityTransition` observing a timer reaching zero.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(field: sand::entity::EntityTimer)  {\n    let entity_transition = sand::entity::EntityTransition::timer_elapsed(field);\n}",
+    )]
     #[must_use]
     pub fn timer_elapsed(field: crate::entity::state::EntityTimer) -> Self {
         Self::TimerElapsed(EntityTransitionField::typed(field))
     }
 
     /// Observe a cooldown becoming ready.
-    #[doc = "**API Contract:** Run `sand api show sand::entity::EntityTransition::cooldown_ready` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::entity::EntityTransition::cooldown_ready",
+        aliases = ["sand::prelude::EntityTransition::cooldown_ready"],
+        module = "sand::entity",
+        kind = "method",
+        summary = "Observe a cooldown becoming ready.",
+        context = "Observe a cooldown becoming ready. This declaration belongs to Sand's typed entity model. Semantic definitions are public; selector rendering, validation bookkeeping, and compiler lowering remain internal.",
+        minecraft = "Sand validates this definition and lowers it to entity-scoped selectors, scoreboards, NBT operations, and generated lifecycle functions as required.",
+        use_when = ["Defining or using typed entity behavior in a Sand datapack"],
+        avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
+        params(field = "`field` provides the field observed when tracking a cooldown becoming ready."),
+        returns = "An `EntityTransition` observing a cooldown becoming ready.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(field: sand::entity::EntityCooldown)  {\n    let entity_transition = sand::entity::EntityTransition::cooldown_ready(field);\n}",
+    )]
     #[must_use]
     pub fn cooldown_ready(field: crate::entity::state::EntityCooldown) -> Self {
         Self::CooldownReady(EntityTransitionField::typed(field))
@@ -1007,7 +1706,20 @@ impl EntityTransition {
     }
 }
 
-#[doc = "**API Contract:** Run `sand api show sand::entity::EntityAction` for the canonical contract."]
+#[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::entity::EntityAction",
+    aliases = ["sand::prelude::EntityAction"],
+    module = "sand::entity",
+    summary = "Typed work dispatched by an entity transition. [`Self::Run`] composes with the existing event/function infrastructure: the registered function runs with the transitioning entity bound to `@s` and can mutate state, update properties, summon, dispatch VFX, or transform the entity using normal Sand authoring APIs.",
+    context = "Typed work dispatched by an entity transition. [`Self::Run`] composes with the existing event/function infrastructure: the registered function runs with the transitioning entity bound to `@s` and can mutate state, update properties, summon, dispatch VFX, or transform the entity using normal Sand authoring APIs. This declaration belongs to Sand's typed entity model. Semantic definitions are public; selector rendering, validation bookkeeping, and compiler lowering remain internal.",
+    minecraft = "Sand validates this definition and lowers it to entity-scoped selectors, scoreboards, NBT operations, and generated lifecycle functions as required.",
+    use_when = ["Defining or using typed entity behavior in a Sand datapack"],
+    avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
+    example = "use sand::entity::EntityAction;",
+    variants(AddTag = "Add a validated entity tag.", ApplyEffect = "Add or refresh a typed status effect.", Despawn = "Remove the current non-player entity.", Dispatch = "Dispatch a typed event function.", RemoveEffect = "Remove a typed status effect.", RemoveTag = "Remove a validated entity tag.", Run = "Call a canonical registered datapack function."),
+    variant_fields(AddTag = ["Add a validated entity tag."], ApplyEffect = ["Add or refresh a typed status effect."], Dispatch = ["Dispatch a typed event function."], RemoveEffect = ["Remove a typed status effect."], RemoveTag = ["Remove a validated entity tag."], Run = ["Call a canonical registered datapack function."]),
+)]
 /// Typed work dispatched by an entity transition.
 ///
 /// [`Self::Run`] composes with the existing event/function infrastructure:
@@ -1017,49 +1729,18 @@ impl EntityTransition {
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[non_exhaustive]
 pub enum EntityAction {
-    #[doc = "**API Contract:** Run `sand api show sand::entity::EntityAction::Run` for the canonical contract."]
     /// Call a canonical registered datapack function.
-    Run(
-        #[doc = "The `Run` variant carries the value described by its variant semantics: Call a canonical registered datapack function."]
-        #[doc = "**API Contract:** Run `sand api show sand::entity::EntityAction::Run::0` for the canonical contract."]
-        FunctionId,
-    ),
-    #[doc = "**API Contract:** Run `sand api show sand::entity::EntityAction::Dispatch` for the canonical contract."]
+    Run(#[doc = "Call a canonical registered datapack function."] FunctionId),
     /// Dispatch a typed event function.
-    Dispatch(
-        #[doc = "The `Dispatch` variant carries the value described by its variant semantics: Dispatch a typed event function."]
-        #[doc = "**API Contract:** Run `sand api show sand::entity::EntityAction::Dispatch::0` for the canonical contract."]
-        crate::entity::property::EntityEventId,
-    ),
-    #[doc = "**API Contract:** Run `sand api show sand::entity::EntityAction::ApplyEffect` for the canonical contract."]
+    Dispatch(#[doc = "Dispatch a typed event function."] crate::entity::property::EntityEventId),
     /// Add or refresh a typed status effect.
-    ApplyEffect(
-        #[doc = "The `ApplyEffect` variant carries the value described by its variant semantics: Add or refresh a typed status effect."]
-        #[doc = "**API Contract:** Run `sand api show sand::entity::EntityAction::ApplyEffect::0` for the canonical contract."]
-        EffectBinding,
-    ),
-    #[doc = "**API Contract:** Run `sand api show sand::entity::EntityAction::RemoveEffect` for the canonical contract."]
+    ApplyEffect(#[doc = "Add or refresh a typed status effect."] EffectBinding),
     /// Remove a typed status effect.
-    RemoveEffect(
-        #[doc = "The `RemoveEffect` variant carries the value described by its variant semantics: Remove a typed status effect."]
-        #[doc = "**API Contract:** Run `sand api show sand::entity::EntityAction::RemoveEffect::0` for the canonical contract."]
-        sand_components::StatusEffectId,
-    ),
-    #[doc = "**API Contract:** Run `sand api show sand::entity::EntityAction::AddTag` for the canonical contract."]
+    RemoveEffect(#[doc = "Remove a typed status effect."] sand_components::StatusEffectId),
     /// Add a validated entity tag.
-    AddTag(
-        #[doc = "The `AddTag` variant carries the value described by its variant semantics: Add a validated entity tag."]
-        #[doc = "**API Contract:** Run `sand api show sand::entity::EntityAction::AddTag::0` for the canonical contract."]
-        crate::entity::property::EntityTag,
-    ),
-    #[doc = "**API Contract:** Run `sand api show sand::entity::EntityAction::RemoveTag` for the canonical contract."]
+    AddTag(#[doc = "Add a validated entity tag."] crate::entity::property::EntityTag),
     /// Remove a validated entity tag.
-    RemoveTag(
-        #[doc = "The `RemoveTag` variant carries the value described by its variant semantics: Remove a validated entity tag."]
-        #[doc = "**API Contract:** Run `sand api show sand::entity::EntityAction::RemoveTag::0` for the canonical contract."]
-        crate::entity::property::EntityTag,
-    ),
-    #[doc = "**API Contract:** Run `sand api show sand::entity::EntityAction::Despawn` for the canonical contract."]
+    RemoveTag(#[doc = "Remove a validated entity tag."] crate::entity::property::EntityTag),
     /// Remove the current non-player entity.
     Despawn,
 }
@@ -1072,7 +1753,21 @@ struct EntityTransitionRule {
 
 impl EntityDerivation {
     /// Create a derivation using Sand's default scale of 1000.
-    #[doc = "**API Contract:** Run `sand api show sand::entity::EntityDerivation::new` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::entity::EntityDerivation::new",
+        aliases = ["sand::prelude::EntityDerivation::new"],
+        module = "sand::entity",
+        kind = "method",
+        summary = "Create a derivation using Sand's default scale of 1000.",
+        context = "Create a derivation using Sand's default scale of 1000. This declaration belongs to Sand's typed entity model. Semantic definitions are public; selector rendering, validation bookkeeping, and compiler lowering remain internal.",
+        minecraft = "Sand validates this definition and lowers it to entity-scoped selectors, scoreboards, NBT operations, and generated lifecycle functions as required.",
+        use_when = ["Defining or using typed entity behavior in a Sand datapack"],
+        avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
+        params(name = "`name` is used when creating a derivation using Sand's default scale of 1000.", target = "`target` provides the entity, block, or command target used to create a derivation using Sand's default scale of 1000.", curve = "`curve` is used when creating a derivation using Sand's default scale of 1000."),
+        returns = "An `EntityDerivation` representing a derivation using Sand's default scale of 1000.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(name: impl Into < String >, target: sand::entity::EntityScore < i32 >, curve: sand::entity::StatCurve)  {\n    let entity_derivation = sand::entity::EntityDerivation::new(name, target, curve);\n}",
+    )]
     #[must_use]
     pub fn new(
         name: impl Into<String>,
@@ -1089,7 +1784,21 @@ impl EntityDerivation {
     }
 
     /// Select fixed-point scale, rounding, and overflow semantics.
-    #[doc = "**API Contract:** Run `sand api show sand::entity::EntityDerivation::fixed_point` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::entity::EntityDerivation::fixed_point",
+        aliases = ["sand::prelude::EntityDerivation::fixed_point"],
+        module = "sand::entity",
+        kind = "method",
+        summary = "Select fixed-point scale, rounding, and overflow semantics.",
+        context = "Select fixed-point scale, rounding, and overflow semantics. This declaration belongs to Sand's typed entity model. Semantic definitions are public; selector rendering, validation bookkeeping, and compiler lowering remain internal.",
+        minecraft = "Sand validates this definition and lowers it to entity-scoped selectors, scoreboards, NBT operations, and generated lifecycle functions as required.",
+        use_when = ["Defining or using typed entity behavior in a Sand datapack"],
+        avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
+        params(fixed = "`fixed` provides the fixed-value inputs used to select fixed-point scale, rounding, and overflow semantics."),
+        returns = "The `EntityDerivation` value with the documented change applied to select fixed-point scale, rounding, and overflow semantics.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(entity_derivation_value: sand::entity::EntityDerivation, fixed: sand::entity::FixedPoint)  {\n    let updated_entity_derivation = entity_derivation_value.fixed_point(fixed);\n}",
+    )]
     #[must_use]
     pub fn fixed_point(mut self, fixed: FixedPoint) -> Self {
         self.fixed = fixed;
@@ -1098,7 +1807,20 @@ impl EntityDerivation {
 
     /// Keep fixed-point units instead of converting the cached target to a
     /// whole scoreboard value.
-    #[doc = "**API Contract:** Run `sand api show sand::entity::EntityDerivation::store_fixed_point` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::entity::EntityDerivation::store_fixed_point",
+        aliases = ["sand::prelude::EntityDerivation::store_fixed_point"],
+        module = "sand::entity",
+        kind = "method",
+        summary = "Keep fixed-point units instead of converting the cached target to a whole scoreboard value.",
+        context = "Keep fixed-point units instead of converting the cached target to a whole scoreboard value. This declaration belongs to Sand's typed entity model. Semantic definitions are public; selector rendering, validation bookkeeping, and compiler lowering remain internal.",
+        minecraft = "Sand validates this definition and lowers it to entity-scoped selectors, scoreboards, NBT operations, and generated lifecycle functions as required.",
+        use_when = ["Defining or using typed entity behavior in a Sand datapack"],
+        avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
+        returns = "The `EntityDerivation` value with the documented change applied to keep fixed-point units instead of converting the cached target to a whole scoreboard value.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(entity_derivation_value: sand::entity::EntityDerivation)  {\n    let updated_entity_derivation = entity_derivation_value.store_fixed_point();\n}",
+    )]
     #[must_use]
     pub fn store_fixed_point(mut self) -> Self {
         self.output = DerivedScoreEncoding::FixedPoint;
@@ -1106,35 +1828,100 @@ impl EntityDerivation {
     }
 
     /// Stable diagnostic/resource name.
-    #[doc = "**API Contract:** Run `sand api show sand::entity::EntityDerivation::name` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::entity::EntityDerivation::name",
+        aliases = ["sand::prelude::EntityDerivation::name"],
+        module = "sand::entity",
+        kind = "method",
+        summary = "Stable diagnostic/resource name.",
+        context = "Stable diagnostic/resource name. This declaration belongs to Sand's typed entity model. Semantic definitions are public; selector rendering, validation bookkeeping, and compiler lowering remain internal.",
+        minecraft = "Sand validates this definition and lowers it to entity-scoped selectors, scoreboards, NBT operations, and generated lifecycle functions as required.",
+        use_when = ["Defining or using typed entity behavior in a Sand datapack"],
+        avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
+        returns = "The string value produced to use stable diagnostic/resource name.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(entity_derivation_value: &sand::entity::EntityDerivation)  {\n    let name = entity_derivation_value.name();\n}",
+    )]
     #[must_use]
     pub fn name(&self) -> &str {
         &self.name
     }
 
     /// Typed score receiving the cached value.
-    #[doc = "**API Contract:** Run `sand api show sand::entity::EntityDerivation::target` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::entity::EntityDerivation::target",
+        aliases = ["sand::prelude::EntityDerivation::target"],
+        module = "sand::entity",
+        kind = "method",
+        summary = "Typed score receiving the cached value.",
+        context = "Typed score receiving the cached value. This declaration belongs to Sand's typed entity model. Semantic definitions are public; selector rendering, validation bookkeeping, and compiler lowering remain internal.",
+        minecraft = "Sand validates this definition and lowers it to entity-scoped selectors, scoreboards, NBT operations, and generated lifecycle functions as required.",
+        use_when = ["Defining or using typed entity behavior in a Sand datapack"],
+        avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
+        returns = "The `sand :: entity :: EntityScore < i32 >` value produced to typed score receiving the cached value.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(entity_derivation_value: &sand::entity::EntityDerivation)  {\n    let target = entity_derivation_value.target();\n}",
+    )]
     #[must_use]
     pub const fn target(&self) -> crate::entity::state::EntityScore<i32> {
         self.target
     }
 
     /// Curve expression.
-    #[doc = "**API Contract:** Run `sand api show sand::entity::EntityDerivation::curve` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::entity::EntityDerivation::curve",
+        aliases = ["sand::prelude::EntityDerivation::curve"],
+        module = "sand::entity",
+        kind = "method",
+        summary = "Curve expression.",
+        context = "Curve expression. This declaration belongs to Sand's typed entity model. Semantic definitions are public; selector rendering, validation bookkeeping, and compiler lowering remain internal.",
+        minecraft = "Sand validates this definition and lowers it to entity-scoped selectors, scoreboards, NBT operations, and generated lifecycle functions as required.",
+        use_when = ["Defining or using typed entity behavior in a Sand datapack"],
+        avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
+        returns = "The `& StatCurve` value produced to curve expression.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(entity_derivation_value: &sand::entity::EntityDerivation)  {\n    let curve = entity_derivation_value.curve();\n}",
+    )]
     #[must_use]
     pub fn curve(&self) -> &StatCurve {
         &self.curve
     }
 
     /// Fixed-point representation.
-    #[doc = "**API Contract:** Run `sand api show sand::entity::EntityDerivation::fixed` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::entity::EntityDerivation::fixed",
+        aliases = ["sand::prelude::EntityDerivation::fixed"],
+        module = "sand::entity",
+        kind = "method",
+        summary = "Fixed-point representation.",
+        context = "Fixed-point representation. This declaration belongs to Sand's typed entity model. Semantic definitions are public; selector rendering, validation bookkeeping, and compiler lowering remain internal.",
+        minecraft = "Sand validates this definition and lowers it to entity-scoped selectors, scoreboards, NBT operations, and generated lifecycle functions as required.",
+        use_when = ["Defining or using typed entity behavior in a Sand datapack"],
+        avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
+        returns = "The `FixedPoint` value produced to fixed-point representation.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(entity_derivation_value: &sand::entity::EntityDerivation)  {\n    let fixed = entity_derivation_value.fixed();\n}",
+    )]
     #[must_use]
     pub const fn fixed(&self) -> FixedPoint {
         self.fixed
     }
 
     /// Target score representation.
-    #[doc = "**API Contract:** Run `sand api show sand::entity::EntityDerivation::output_encoding` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::entity::EntityDerivation::output_encoding",
+        aliases = ["sand::prelude::EntityDerivation::output_encoding"],
+        module = "sand::entity",
+        kind = "method",
+        summary = "Target score representation.",
+        context = "Target score representation. This declaration belongs to Sand's typed entity model. Semantic definitions are public; selector rendering, validation bookkeeping, and compiler lowering remain internal.",
+        minecraft = "Sand validates this definition and lowers it to entity-scoped selectors, scoreboards, NBT operations, and generated lifecycle functions as required.",
+        use_when = ["Defining or using typed entity behavior in a Sand datapack"],
+        avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
+        returns = "The `DerivedScoreEncoding` value produced to target score representation.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(entity_derivation_value: &sand::entity::EntityDerivation)  {\n    let output_encoding = entity_derivation_value.output_encoding();\n}",
+    )]
     #[must_use]
     pub const fn output_encoding(&self) -> DerivedScoreEncoding {
         self.output

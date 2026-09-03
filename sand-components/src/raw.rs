@@ -39,7 +39,18 @@ use std::fmt;
 
 // ── RawJson ───────────────────────────────────────────────────────────────────
 
-#[doc = "**API Contract:** Run `sand api show sand::component::RawJson` for the canonical contract."]
+#[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::component::RawJson",
+    aliases = ["sand::prelude::RawJson"],
+    module = "sand::component",
+    summary = "A raw `serde_json::Value` used as an explicit escape hatch in datapack APIs.",
+    context = "A raw `serde_json::Value` used as an explicit escape hatch in datapack APIs. Prefer typed predicate/component APIs.  Use this only for modded or future Minecraft features not yet covered by Sand's typed model.",
+    minecraft = "Prefer typed predicate/component APIs.  Use this only for modded or future Minecraft features not yet covered by Sand's typed model.",
+    use_when = ["Prefer typed predicate/component APIs.  Use this only for modded or future Minecraft features not yet covered by Sand's typed model."],
+    avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+    example = "use sand::component::RawJson;",
+)]
 /// A raw `serde_json::Value` used as an explicit escape hatch in datapack APIs.
 ///
 /// Prefer typed predicate/component APIs.  Use this only for modded or
@@ -66,19 +77,59 @@ impl RawJson {
     /// let raw = RawJson::new(serde_json::json!({"modded": true}));
     /// assert_eq!(raw.as_value()["modded"], true);
     /// ```
-    #[doc = "**API Contract:** Run `sand api show sand::component::RawJson::new` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::RawJson::new",
+        aliases = ["sand::prelude::RawJson::new"],
+        module = "sand::component",
+        kind = "method",
+        summary = "Wrap an arbitrary JSON value as an explicit raw escape hatch.",
+        context = "Wrap an arbitrary JSON value as an explicit raw escape hatch. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(v = "`v` provides the v wrapped when creating an arbitrary JSON value as an explicit raw escape hatch."),
+        returns = "A `RawJson` wrapping an arbitrary JSON value as an explicit raw escape hatch.",
+        example = "use sand::component::RawJson;\nlet raw = RawJson::new(serde_json::json!({\"modded\": true}));\nassert_eq!(raw.as_value()[\"modded\"], true);",
+    )]
     pub fn new(v: Value) -> Self {
         Self(v)
     }
 
     /// Access the inner `serde_json::Value`.
-    #[doc = "**API Contract:** Run `sand api show sand::component::RawJson::as_value` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::RawJson::as_value",
+        aliases = ["sand::prelude::RawJson::as_value"],
+        module = "sand::component",
+        kind = "method",
+        summary = "Access the inner `serde_json::Value`.",
+        context = "Access the inner `serde_json::Value`. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        returns = "The `& Value` value produced to acces the inner `serde_json::Value`.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(raw_json_value: &sand::component::RawJson)  {\n    let as_value = raw_json_value.as_value();\n}",
+    )]
     pub fn as_value(&self) -> &Value {
         &self.0
     }
 
     /// Consume and return the inner `serde_json::Value`.
-    #[doc = "**API Contract:** Run `sand api show sand::component::RawJson::into_value` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::RawJson::into_value",
+        aliases = ["sand::prelude::RawJson::into_value"],
+        module = "sand::component",
+        kind = "method",
+        summary = "Consume and return the inner `serde_json::Value`.",
+        context = "Consume and return the inner `serde_json::Value`. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        returns = "The `Value` value produced to consume and return the inner `serde_json::Value`.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(raw_json_value: sand::component::RawJson)  {\n    let into_value = raw_json_value.into_value();\n}",
+    )]
     pub fn into_value(self) -> Value {
         self.0
     }
@@ -110,7 +161,18 @@ impl fmt::Display for RawJson {
 
 // ── RawSnbt ───────────────────────────────────────────────────────────────────
 
-#[doc = "**API Contract:** Run `sand api show sand::component::RawSnbt` for the canonical contract."]
+#[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::component::RawSnbt",
+    aliases = ["sand::prelude::RawSnbt"],
+    module = "sand::component",
+    summary = "A raw SNBT (Stringified NBT) string used as an explicit escape hatch.",
+    context = "A raw SNBT (Stringified NBT) string used as an explicit escape hatch. Use this when no typed NBT builder covers the compound or list you need. It is passed verbatim into generated commands — no validation is performed.",
+    minecraft = "Use this when no typed NBT builder covers the compound or list you need. It is passed verbatim into generated commands — no validation is performed.",
+    use_when = ["Use this when no typed NBT builder covers the compound or list you need. It is passed verbatim into generated commands — no validation is performed."],
+    avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+    example = "use sand::component::RawSnbt;",
+)]
 /// A raw SNBT (Stringified NBT) string used as an explicit escape hatch.
 ///
 /// Use this when no typed NBT builder covers the compound or list you need.
@@ -128,13 +190,40 @@ pub struct RawSnbt(String);
 
 impl RawSnbt {
     /// Wrap a raw SNBT string as an explicit escape hatch.
-    #[doc = "**API Contract:** Run `sand api show sand::component::RawSnbt::new` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::RawSnbt::new",
+        aliases = ["sand::prelude::RawSnbt::new"],
+        module = "sand::component",
+        kind = "method",
+        summary = "Wrap a raw SNBT string as an explicit escape hatch.",
+        context = "Wrap a raw SNBT string as an explicit escape hatch. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(s = "`s` provides the s wrapped when creating a raw SNBT string as an explicit escape hatch."),
+        returns = "A `RawSnbt` wrapping a raw SNBT string as an explicit escape hatch.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(s: impl Into < String >)  {\n    let raw_snbt = sand::component::RawSnbt::new(s);\n}",
+    )]
     pub fn new(s: impl Into<String>) -> Self {
         Self(s.into())
     }
 
     /// Access the inner SNBT string.
-    #[doc = "**API Contract:** Run `sand api show sand::component::RawSnbt::as_str` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::RawSnbt::as_str",
+        aliases = ["sand::prelude::RawSnbt::as_str"],
+        module = "sand::component",
+        kind = "method",
+        summary = "Access the inner SNBT string.",
+        context = "Access the inner SNBT string. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        returns = "The string value produced to acces the inner SNBT string.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(raw_snbt_value: &sand::component::RawSnbt)  {\n    let as_str = raw_snbt_value.as_str();\n}",
+    )]
     pub fn as_str(&self) -> &str {
         &self.0
     }
@@ -177,7 +266,18 @@ pub use sand_commands::RawCommand;
 
 // ── RawComponent ──────────────────────────────────────────────────────────────
 
-#[doc = "**API Contract:** Run `sand api show sand::component::RawComponent` for the canonical contract."]
+#[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::component::RawComponent",
+    aliases = ["sand::prelude::RawComponent"],
+    module = "sand::component",
+    summary = "A raw item component string (`key=snbt_value`) used as an explicit escape hatch.",
+    context = "A raw item component string (`key=snbt_value`) used as an explicit escape hatch. Use this for item components not yet covered by Sand's typed `CustomItem` API. The string is appended verbatim to the generated item component list.",
+    minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+    use_when = ["Use this for item components not yet covered by Sand's typed `CustomItem` API. The string is appended verbatim to the generated item component list."],
+    avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+    example = "use sand::component::RawComponent;",
+)]
 /// A raw item component string (`key=snbt_value`) used as an explicit escape hatch.
 ///
 /// Use this for item components not yet covered by Sand's typed `CustomItem` API.
@@ -200,7 +300,21 @@ pub struct RawComponent {
 
 impl RawComponent {
     /// Create a raw item component from a `key` and its SNBT `value`.
-    #[doc = "**API Contract:** Run `sand api show sand::component::RawComponent::new` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::RawComponent::new",
+        aliases = ["sand::prelude::RawComponent::new"],
+        module = "sand::component",
+        kind = "method",
+        summary = "Create a raw item component from a `key` and its SNBT `value`.",
+        context = "Create a raw item component from a `key` and its SNBT `value`. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(key = "Create a raw item component from a `key` and its SNBT `value`.", value = "Create a raw item component from a `key` and its SNBT `value`."),
+        returns = "A `RawComponent` representing a raw item component from a `key` and its SNBT `value`.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(key: impl Into < String >, value: impl Into < String >)  {\n    let raw_component = sand::component::RawComponent::new(key, value);\n}",
+    )]
     pub fn new(key: impl Into<String>, value: impl Into<String>) -> Self {
         Self {
             key: key.into(),
@@ -209,13 +323,39 @@ impl RawComponent {
     }
 
     /// The component key (e.g. `"bundle_contents"`).
-    #[doc = "**API Contract:** Run `sand api show sand::component::RawComponent::key` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::RawComponent::key",
+        aliases = ["sand::prelude::RawComponent::key"],
+        module = "sand::component",
+        kind = "method",
+        summary = "The component key (e.g. `\"bundle_contents\"`).",
+        context = "The component key (e.g. `\"bundle_contents\"`). This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        returns = "The string value produced to use the component key (e.g. `\"bundle_contents\"`).",
+        example = "use sand::prelude::*;\n\nfn demonstrate(raw_component_value: &sand::component::RawComponent)  {\n    let key = raw_component_value.key();\n}",
+    )]
     pub fn key(&self) -> &str {
         &self.key
     }
 
     /// The raw SNBT value string (e.g. `"{items:[]}"`).
-    #[doc = "**API Contract:** Run `sand api show sand::component::RawComponent::value` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::RawComponent::value",
+        aliases = ["sand::prelude::RawComponent::value"],
+        module = "sand::component",
+        kind = "method",
+        summary = "The raw SNBT value string (e.g. `\"{items:[]}\"`).",
+        context = "The raw SNBT value string (e.g. `\"{items:[]}\"`). This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        returns = "The string value produced to use the raw SNBT value string (e.g. `\"{items:[]}\"`).",
+        example = "use sand::prelude::*;\n\nfn demonstrate(raw_component_value: &sand::component::RawComponent)  {\n    let value = raw_component_value.value();\n}",
+    )]
     pub fn value(&self) -> &str {
         &self.value
     }

@@ -25,7 +25,19 @@ use png::Encoder;
 
 // ── Color ─────────────────────────────────────────────────────────────────────
 
-#[doc = "**API Contract:** Run `sand api show sand::resourcepack::Color` for the canonical contract."]
+#[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::resourcepack::Color",
+    module = "sand::resourcepack",
+    summary = "An RGBA color with 8-bit components, used as sprite fill parameters.",
+    context = "An RGBA color with 8-bit components, used as sprite fill parameters. Colors in the `create!()` and `gen!()` macros are specified as packed `0xRRGGBBAA` `u32` literals: - `0xFF4444FF` — opaque red - `0x222244FF` — opaque dark navy - `0x00000080` — 50% transparent black",
+    minecraft = "The resourcepack exporter writes version-appropriate assets, bitmap-font providers, and pack metadata for the selected Minecraft profile.",
+    use_when = ["Building HUD bars, HUD elements, textures, or resource-pack output alongside a Sand datapack"],
+    avoid_when = ["The project is datapack-only or needs unrelated resource-pack functionality not modeled by Sand"],
+    example = "use sand::resourcepack::Color;",
+    availability = ["Cargo feature: resourcepack"],
+    fields(a = "Alpha channel (0 = fully transparent, 255 = fully opaque).", b = "Blue channel (0–255).", g = "Green channel (0–255).", r = "Red channel (0–255)."),
+)]
 /// An RGBA color with 8-bit components, used as sprite fill parameters.
 ///
 /// Colors in the `create!()` and `gen!()` macros are specified as packed
@@ -48,16 +60,12 @@ use png::Encoder;
 /// ```
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Color {
-    #[doc = "**API Contract:** Run `sand api show sand::resourcepack::Color::r` for the canonical contract."]
     /// Red channel (0–255).
     pub r: u8,
-    #[doc = "**API Contract:** Run `sand api show sand::resourcepack::Color::g` for the canonical contract."]
     /// Green channel (0–255).
     pub g: u8,
-    #[doc = "**API Contract:** Run `sand api show sand::resourcepack::Color::b` for the canonical contract."]
     /// Blue channel (0–255).
     pub b: u8,
-    #[doc = "**API Contract:** Run `sand api show sand::resourcepack::Color::a` for the canonical contract."]
     /// Alpha channel (0 = fully transparent, 255 = fully opaque).
     pub a: u8,
 }
@@ -66,7 +74,21 @@ impl Color {
     /// Create a color from individual RGBA components.
     ///
     /// All channels are `0–255`. Alpha `255` is fully opaque; `0` is transparent.
-    #[doc = "**API Contract:** Run `sand api show sand::resourcepack::Color::rgba` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::resourcepack::Color::rgba",
+        module = "sand::resourcepack",
+        kind = "method",
+        summary = "Create a color from individual RGBA components. All channels are `0–255`. Alpha `255` is fully opaque; `0` is transparent.",
+        context = "Create a color from individual RGBA components. All channels are `0–255`. Alpha `255` is fully opaque; `0` is transparent. This API defines client-side HUD, font, texture, or resource-pack output while keeping asset registration and exporter inventory wiring private.",
+        minecraft = "The resourcepack exporter writes version-appropriate assets, bitmap-font providers, and pack metadata for the selected Minecraft profile.",
+        use_when = ["Building HUD bars, HUD elements, textures, or resource-pack output alongside a Sand datapack"],
+        avoid_when = ["The project is datapack-only or needs unrelated resource-pack functionality not modeled by Sand"],
+        params(r = "`r` is used when creating a color from individual RGBA components. All channels are `0–255`. Alpha `255` is fully opaque; `0` is transparent.", g = "`g` is used when creating a color from individual RGBA components. All channels are `0–255`. Alpha `255` is fully opaque; `0` is transparent.", b = "`b` is used when creating a color from individual RGBA components. All channels are `0–255`. Alpha `255` is fully opaque; `0` is transparent.", a = "`a` is used when creating a color from individual RGBA components. All channels are `0–255`. Alpha `255` is fully opaque; `0` is transparent."),
+        returns = "A `Color` representing a color from individual RGBA components. All channels are `0–255`. Alpha `255` is fully opaque; `0` is transparent.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(r: u8, g: u8, b: u8, a: u8)  {\n    let color = sand::resourcepack::Color::rgba(r, g, b, a);\n}",
+        availability = ["Cargo feature: resourcepack"],
+    )]
     pub const fn rgba(r: u8, g: u8, b: u8, a: u8) -> Self {
         Color { r, g, b, a }
     }
@@ -82,10 +104,21 @@ impl Color {
     /// let red = Color::from_u32(0xFF0000FF);
     /// assert_eq!((red.r, red.g, red.b, red.a), (255, 0, 0, 255));
     /// ```
-    ///
-    /// # API Contract
-    ///
-    /// `sand api show sand::resourcepack::Color::from_u32`
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::resourcepack::Color::from_u32",
+        module = "sand::resourcepack",
+        kind = "method",
+        summary = "Create a color from a packed `0xRRGGBBAA` `u32` literal.",
+        context = "Create a color from a packed `0xRRGGBBAA` `u32` literal. This is the format used by the `create!` and `gen!` macros.",
+        minecraft = "The resourcepack exporter writes version-appropriate assets, bitmap-font providers, and pack metadata for the selected Minecraft profile.",
+        use_when = ["Building HUD bars, HUD elements, textures, or resource-pack output alongside a Sand datapack"],
+        avoid_when = ["The project is datapack-only or needs unrelated resource-pack functionality not modeled by Sand"],
+        params(packed = "`packed` is used when creating a color from a packed `0xRRGGBBAA` `u32` literal."),
+        returns = "A `Color` representing a color from a packed `0xRRGGBBAA` `u32` literal.",
+        example = "use sand::resourcepack::Color;\nlet red = Color::from_u32(0xFF0000FF);\nassert_eq!((red.r, red.g, red.b, red.a), (255, 0, 0, 255));",
+        availability = ["Cargo feature: resourcepack"],
+    )]
     pub const fn from_u32(packed: u32) -> Self {
         Color {
             r: ((packed >> 24) & 0xFF) as u8,

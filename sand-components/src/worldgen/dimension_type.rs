@@ -36,25 +36,30 @@ const TYPED_FIELDS: &[&str] = &[
     "monster_spawn_block_light_limit",
 ];
 
-#[doc = "**API Contract:** Run `sand api show sand::component::MonsterSpawnLightLevel` for the canonical contract."]
+#[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::component::MonsterSpawnLightLevel",
+    aliases = ["sand::prelude::MonsterSpawnLightLevel"],
+    module = "sand::component",
+    summary = "The sky-light range in which monsters may spawn.",
+    context = "The sky-light range in which monsters may spawn. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+    minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+    use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+    avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+    example = "use sand::component::MonsterSpawnLightLevel;",
+    variants(Constant = "A single light level.", Uniform = "A uniformly sampled inclusive light-level range."),
+    variant_fields(Constant = ["A single light level."], Uniform(max_inclusive = "`max_inclusive` provides the max inclusive when a uniformly sampled inclusive light-level range.", min_inclusive = "`min_inclusive` provides the min inclusive when a uniformly sampled inclusive light-level range.")),
+)]
 /// The sky-light range in which monsters may spawn.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum MonsterSpawnLightLevel {
-    #[doc = "**API Contract:** Run `sand api show sand::component::MonsterSpawnLightLevel::Constant` for the canonical contract."]
     /// A single light level.
-    Constant(
-        #[doc = "The `Constant` variant carries the value described by its variant semantics: A single light level."]
-        #[doc = "**API Contract:** Run `sand api show sand::component::MonsterSpawnLightLevel::Constant::0` for the canonical contract."]
-        u8,
-    ),
-    #[doc = "**API Contract:** Run `sand api show sand::component::MonsterSpawnLightLevel::Uniform` for the canonical contract."]
+    Constant(#[doc = "A single light level."] u8),
     /// A uniformly sampled inclusive light-level range.
     Uniform {
         /// `min_inclusive` provides the min inclusive when a uniformly sampled inclusive light-level range.
-        #[doc = "**API Contract:** Run `sand api show sand::component::MonsterSpawnLightLevel::Uniform::min_inclusive` for the canonical contract."]
         min_inclusive: u8,
         /// `max_inclusive` provides the max inclusive when a uniformly sampled inclusive light-level range.
-        #[doc = "**API Contract:** Run `sand api show sand::component::MonsterSpawnLightLevel::Uniform::max_inclusive` for the canonical contract."]
         max_inclusive: u8,
     },
 }
@@ -104,7 +109,18 @@ impl MonsterSpawnLightLevel {
     }
 }
 
-#[doc = "**API Contract:** Run `sand api show sand::component::DimensionType` for the canonical contract."]
+#[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::component::DimensionType",
+    aliases = ["sand::prelude::DimensionType"],
+    module = "sand::component",
+    summary = "A Minecraft dimension type definition. The constructor uses overworld-like defaults, producing a complete valid shape without requiring raw JSON:.",
+    context = "A Minecraft dimension type definition. The constructor uses overworld-like defaults, producing a complete valid shape without requiring raw JSON:",
+    minecraft = "The constructor uses overworld-like defaults, producing a complete valid shape without requiring raw JSON:",
+    use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+    avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+    example = "use sand::component::DimensionType;",
+)]
 /// A Minecraft dimension type definition.
 ///
 /// The constructor uses overworld-like defaults, producing a complete valid
@@ -144,7 +160,21 @@ pub struct DimensionType {
 
 impl DimensionType {
     /// Create a complete dimension type with vanilla overworld-like defaults.
-    #[doc = "**API Contract:** Run `sand api show sand::component::DimensionType::new` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::DimensionType::new",
+        aliases = ["sand::prelude::DimensionType::new"],
+        module = "sand::component",
+        kind = "method",
+        summary = "Create a complete dimension type with vanilla overworld-like defaults.",
+        context = "Create a complete dimension type with vanilla overworld-like defaults. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(location = "`location` provides the typed resource identifier or location used to create a complete dimension type with vanilla overworld-like defaults."),
+        returns = "A `DimensionType` representing a complete dimension type with vanilla overworld-like defaults.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(location: sand::ResourceLocation)  {\n    let dimension_type = sand::component::DimensionType::new(location);\n}",
+    )]
     pub fn new(location: ResourceLocation) -> Self {
         Self {
             location,
@@ -179,139 +209,418 @@ impl DimensionType {
     ///
     /// This named alias is convenient when an example should emphasize which
     /// vanilla behavior the defaults model.
-    #[doc = "**API Contract:** Run `sand api show sand::component::DimensionType::overworld_like` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::DimensionType::overworld_like",
+        aliases = ["sand::prelude::DimensionType::overworld_like"],
+        module = "sand::component",
+        kind = "method",
+        summary = "Create a complete dimension type with vanilla overworld-like defaults.",
+        context = "Create a complete dimension type with vanilla overworld-like defaults. This named alias is convenient when an example should emphasize which vanilla behavior the defaults model.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(location = "`location` provides the typed resource identifier or location used to create a complete dimension type with vanilla overworld-like defaults."),
+        returns = "A `DimensionType` representing a complete dimension type with vanilla overworld-like defaults.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(location: sand::ResourceLocation)  {\n    let dimension_type = sand::component::DimensionType::overworld_like(location);\n}",
+    )]
     pub fn overworld_like(location: ResourceLocation) -> Self {
         Self::new(location)
     }
 
     /// Sets the Minecraft fixed time property on this typed dimension type definition and returns the updated builder.
-    #[doc = "**API Contract:** Run `sand api show sand::component::DimensionType::fixed_time` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::DimensionType::fixed_time",
+        aliases = ["sand::prelude::DimensionType::fixed_time"],
+        module = "sand::component",
+        kind = "method",
+        summary = "Sets the Minecraft fixed time property on this typed dimension type definition and returns the updated builder.",
+        context = "Sets the Minecraft fixed time property on this typed dimension type definition and returns the updated builder. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(time = "`time` provides the time applied when setting the Minecraft fixed time property on this typed dimension type definition and returns the updated builder."),
+        returns = "Sets the Minecraft fixed time property on this typed dimension type definition and returns the updated builder.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(dimension_type_value: sand::component::DimensionType, time: i64)  {\n    let updated_dimension_type = dimension_type_value.fixed_time(time);\n}",
+    )]
     pub fn fixed_time(mut self, time: i64) -> Self {
         self.fixed_time = Some(time);
         self
     }
 
     /// Sets the Minecraft without fixed time property on this typed dimension type definition and returns the updated builder.
-    #[doc = "**API Contract:** Run `sand api show sand::component::DimensionType::without_fixed_time` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::DimensionType::without_fixed_time",
+        aliases = ["sand::prelude::DimensionType::without_fixed_time"],
+        module = "sand::component",
+        kind = "method",
+        summary = "Sets the Minecraft without fixed time property on this typed dimension type definition and returns the updated builder.",
+        context = "Sets the Minecraft without fixed time property on this typed dimension type definition and returns the updated builder. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        returns = "Sets the Minecraft without fixed time property on this typed dimension type definition and returns the updated builder.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(dimension_type_value: sand::component::DimensionType)  {\n    let updated_dimension_type = dimension_type_value.without_fixed_time();\n}",
+    )]
     pub fn without_fixed_time(mut self) -> Self {
         self.fixed_time = None;
         self
     }
 
     /// Sets the Minecraft has skylight property on this typed dimension type definition and returns the updated builder.
-    #[doc = "**API Contract:** Run `sand api show sand::component::DimensionType::has_skylight` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::DimensionType::has_skylight",
+        aliases = ["sand::prelude::DimensionType::has_skylight"],
+        module = "sand::component",
+        kind = "method",
+        summary = "Sets the Minecraft has skylight property on this typed dimension type definition and returns the updated builder.",
+        context = "Sets the Minecraft has skylight property on this typed dimension type definition and returns the updated builder. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(value = "`value` provides the value being applied or compared used to set the Minecraft has skylight property on this typed dimension type definition and returns the updated builder."),
+        returns = "Sets the Minecraft has skylight property on this typed dimension type definition and returns the updated builder.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(dimension_type_value: sand::component::DimensionType, value: bool)  {\n    let updated_dimension_type = dimension_type_value.has_skylight(value);\n}",
+    )]
     pub fn has_skylight(mut self, value: bool) -> Self {
         self.has_skylight = value;
         self
     }
 
     /// Sets the Minecraft has ceiling property on this typed dimension type definition and returns the updated builder.
-    #[doc = "**API Contract:** Run `sand api show sand::component::DimensionType::has_ceiling` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::DimensionType::has_ceiling",
+        aliases = ["sand::prelude::DimensionType::has_ceiling"],
+        module = "sand::component",
+        kind = "method",
+        summary = "Sets the Minecraft has ceiling property on this typed dimension type definition and returns the updated builder.",
+        context = "Sets the Minecraft has ceiling property on this typed dimension type definition and returns the updated builder. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(value = "`value` provides the value being applied or compared used to set the Minecraft has ceiling property on this typed dimension type definition and returns the updated builder."),
+        returns = "Sets the Minecraft has ceiling property on this typed dimension type definition and returns the updated builder.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(dimension_type_value: sand::component::DimensionType, value: bool)  {\n    let updated_dimension_type = dimension_type_value.has_ceiling(value);\n}",
+    )]
     pub fn has_ceiling(mut self, value: bool) -> Self {
         self.has_ceiling = value;
         self
     }
 
     /// Sets the Minecraft ultrawarm property on this typed dimension type definition and returns the updated builder.
-    #[doc = "**API Contract:** Run `sand api show sand::component::DimensionType::ultrawarm` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::DimensionType::ultrawarm",
+        aliases = ["sand::prelude::DimensionType::ultrawarm"],
+        module = "sand::component",
+        kind = "method",
+        summary = "Sets the Minecraft ultrawarm property on this typed dimension type definition and returns the updated builder.",
+        context = "Sets the Minecraft ultrawarm property on this typed dimension type definition and returns the updated builder. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(value = "`value` provides the value being applied or compared used to set the Minecraft ultrawarm property on this typed dimension type definition and returns the updated builder."),
+        returns = "Sets the Minecraft ultrawarm property on this typed dimension type definition and returns the updated builder.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(dimension_type_value: sand::component::DimensionType, value: bool)  {\n    let updated_dimension_type = dimension_type_value.ultrawarm(value);\n}",
+    )]
     pub fn ultrawarm(mut self, value: bool) -> Self {
         self.ultrawarm = value;
         self
     }
 
     /// Sets the Minecraft natural property on this typed dimension type definition and returns the updated builder.
-    #[doc = "**API Contract:** Run `sand api show sand::component::DimensionType::natural` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::DimensionType::natural",
+        aliases = ["sand::prelude::DimensionType::natural"],
+        module = "sand::component",
+        kind = "method",
+        summary = "Sets the Minecraft natural property on this typed dimension type definition and returns the updated builder.",
+        context = "Sets the Minecraft natural property on this typed dimension type definition and returns the updated builder. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(value = "`value` provides the value being applied or compared used to set the Minecraft natural property on this typed dimension type definition and returns the updated builder."),
+        returns = "Sets the Minecraft natural property on this typed dimension type definition and returns the updated builder.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(dimension_type_value: sand::component::DimensionType, value: bool)  {\n    let updated_dimension_type = dimension_type_value.natural(value);\n}",
+    )]
     pub fn natural(mut self, value: bool) -> Self {
         self.natural = value;
         self
     }
 
     /// Sets the Minecraft coordinate scale property on this typed dimension type definition and returns the updated builder.
-    #[doc = "**API Contract:** Run `sand api show sand::component::DimensionType::coordinate_scale` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::DimensionType::coordinate_scale",
+        aliases = ["sand::prelude::DimensionType::coordinate_scale"],
+        module = "sand::component",
+        kind = "method",
+        summary = "Sets the Minecraft coordinate scale property on this typed dimension type definition and returns the updated builder.",
+        context = "Sets the Minecraft coordinate scale property on this typed dimension type definition and returns the updated builder. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(value = "`value` provides the value being applied or compared used to set the Minecraft coordinate scale property on this typed dimension type definition and returns the updated builder."),
+        returns = "Sets the Minecraft coordinate scale property on this typed dimension type definition and returns the updated builder.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(dimension_type_value: sand::component::DimensionType, value: f64)  {\n    let updated_dimension_type = dimension_type_value.coordinate_scale(value);\n}",
+    )]
     pub fn coordinate_scale(mut self, value: f64) -> Self {
         self.coordinate_scale = value;
         self
     }
 
     /// Sets the Minecraft bed works property on this typed dimension type definition and returns the updated builder.
-    #[doc = "**API Contract:** Run `sand api show sand::component::DimensionType::bed_works` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::DimensionType::bed_works",
+        aliases = ["sand::prelude::DimensionType::bed_works"],
+        module = "sand::component",
+        kind = "method",
+        summary = "Sets the Minecraft bed works property on this typed dimension type definition and returns the updated builder.",
+        context = "Sets the Minecraft bed works property on this typed dimension type definition and returns the updated builder. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(value = "`value` provides the value being applied or compared used to set the Minecraft bed works property on this typed dimension type definition and returns the updated builder."),
+        returns = "Sets the Minecraft bed works property on this typed dimension type definition and returns the updated builder.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(dimension_type_value: sand::component::DimensionType, value: bool)  {\n    let updated_dimension_type = dimension_type_value.bed_works(value);\n}",
+    )]
     pub fn bed_works(mut self, value: bool) -> Self {
         self.bed_works = value;
         self
     }
 
     /// Sets the Minecraft respawn anchor works property on this typed dimension type definition and returns the updated builder.
-    #[doc = "**API Contract:** Run `sand api show sand::component::DimensionType::respawn_anchor_works` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::DimensionType::respawn_anchor_works",
+        aliases = ["sand::prelude::DimensionType::respawn_anchor_works"],
+        module = "sand::component",
+        kind = "method",
+        summary = "Sets the Minecraft respawn anchor works property on this typed dimension type definition and returns the updated builder.",
+        context = "Sets the Minecraft respawn anchor works property on this typed dimension type definition and returns the updated builder. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(value = "`value` provides the value being applied or compared used to set the Minecraft respawn anchor works property on this typed dimension type definition and returns the updated builder."),
+        returns = "Sets the Minecraft respawn anchor works property on this typed dimension type definition and returns the updated builder.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(dimension_type_value: sand::component::DimensionType, value: bool)  {\n    let updated_dimension_type = dimension_type_value.respawn_anchor_works(value);\n}",
+    )]
     pub fn respawn_anchor_works(mut self, value: bool) -> Self {
         self.respawn_anchor_works = value;
         self
     }
 
     /// Sets the Minecraft min y property on this typed dimension type definition and returns the updated builder.
-    #[doc = "**API Contract:** Run `sand api show sand::component::DimensionType::min_y` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::DimensionType::min_y",
+        aliases = ["sand::prelude::DimensionType::min_y"],
+        module = "sand::component",
+        kind = "method",
+        summary = "Sets the Minecraft min y property on this typed dimension type definition and returns the updated builder.",
+        context = "Sets the Minecraft min y property on this typed dimension type definition and returns the updated builder. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(value = "`value` provides the value being applied or compared used to set the Minecraft min y property on this typed dimension type definition and returns the updated builder."),
+        returns = "Sets the Minecraft min y property on this typed dimension type definition and returns the updated builder.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(dimension_type_value: sand::component::DimensionType, value: i32)  {\n    let updated_dimension_type = dimension_type_value.min_y(value);\n}",
+    )]
     pub fn min_y(mut self, value: i32) -> Self {
         self.min_y = value;
         self
     }
 
     /// Sets the Minecraft height property on this typed dimension type definition and returns the updated builder.
-    #[doc = "**API Contract:** Run `sand api show sand::component::DimensionType::height` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::DimensionType::height",
+        aliases = ["sand::prelude::DimensionType::height"],
+        module = "sand::component",
+        kind = "method",
+        summary = "Sets the Minecraft height property on this typed dimension type definition and returns the updated builder.",
+        context = "Sets the Minecraft height property on this typed dimension type definition and returns the updated builder. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(value = "`value` provides the value being applied or compared used to set the Minecraft height property on this typed dimension type definition and returns the updated builder."),
+        returns = "Sets the Minecraft height property on this typed dimension type definition and returns the updated builder.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(dimension_type_value: sand::component::DimensionType, value: u32)  {\n    let updated_dimension_type = dimension_type_value.height(value);\n}",
+    )]
     pub fn height(mut self, value: u32) -> Self {
         self.height = value;
         self
     }
 
     /// Sets the Minecraft logical height property on this typed dimension type definition and returns the updated builder.
-    #[doc = "**API Contract:** Run `sand api show sand::component::DimensionType::logical_height` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::DimensionType::logical_height",
+        aliases = ["sand::prelude::DimensionType::logical_height"],
+        module = "sand::component",
+        kind = "method",
+        summary = "Sets the Minecraft logical height property on this typed dimension type definition and returns the updated builder.",
+        context = "Sets the Minecraft logical height property on this typed dimension type definition and returns the updated builder. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(value = "`value` provides the value being applied or compared used to set the Minecraft logical height property on this typed dimension type definition and returns the updated builder."),
+        returns = "Sets the Minecraft logical height property on this typed dimension type definition and returns the updated builder.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(dimension_type_value: sand::component::DimensionType, value: u32)  {\n    let updated_dimension_type = dimension_type_value.logical_height(value);\n}",
+    )]
     pub fn logical_height(mut self, value: u32) -> Self {
         self.logical_height = value;
         self
     }
 
     /// Sets the Minecraft infiniburn property on this typed dimension type definition and returns the updated builder.
-    #[doc = "**API Contract:** Run `sand api show sand::component::DimensionType::infiniburn` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::DimensionType::infiniburn",
+        aliases = ["sand::prelude::DimensionType::infiniburn"],
+        module = "sand::component",
+        kind = "method",
+        summary = "Sets the Minecraft infiniburn property on this typed dimension type definition and returns the updated builder.",
+        context = "Sets the Minecraft infiniburn property on this typed dimension type definition and returns the updated builder. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(value = "`value` provides the value being applied or compared used to set the Minecraft infiniburn property on this typed dimension type definition and returns the updated builder."),
+        returns = "Sets the Minecraft infiniburn property on this typed dimension type definition and returns the updated builder.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(dimension_type_value: sand::component::DimensionType, value: sand::component::TagId < sand::registry::BlockId >)  {\n    let updated_dimension_type = dimension_type_value.infiniburn(value);\n}",
+    )]
     pub fn infiniburn(mut self, value: TagId<BlockId>) -> Self {
         self.infiniburn = value;
         self
     }
 
     /// Sets the Minecraft effects property on this typed dimension type definition and returns the updated builder.
-    #[doc = "**API Contract:** Run `sand api show sand::component::DimensionType::effects` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::DimensionType::effects",
+        aliases = ["sand::prelude::DimensionType::effects"],
+        module = "sand::component",
+        kind = "method",
+        summary = "Sets the Minecraft effects property on this typed dimension type definition and returns the updated builder.",
+        context = "Sets the Minecraft effects property on this typed dimension type definition and returns the updated builder. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(value = "`value` provides the value being applied or compared used to set the Minecraft effects property on this typed dimension type definition and returns the updated builder."),
+        returns = "Sets the Minecraft effects property on this typed dimension type definition and returns the updated builder.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(dimension_type_value: sand::component::DimensionType, value: sand::ResourceLocation)  {\n    let updated_dimension_type = dimension_type_value.effects(value);\n}",
+    )]
     pub fn effects(mut self, value: ResourceLocation) -> Self {
         self.effects = value;
         self
     }
 
     /// Sets the Minecraft ambient light property on this typed dimension type definition and returns the updated builder.
-    #[doc = "**API Contract:** Run `sand api show sand::component::DimensionType::ambient_light` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::DimensionType::ambient_light",
+        aliases = ["sand::prelude::DimensionType::ambient_light"],
+        module = "sand::component",
+        kind = "method",
+        summary = "Sets the Minecraft ambient light property on this typed dimension type definition and returns the updated builder.",
+        context = "Sets the Minecraft ambient light property on this typed dimension type definition and returns the updated builder. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(value = "`value` provides the value being applied or compared used to set the Minecraft ambient light property on this typed dimension type definition and returns the updated builder."),
+        returns = "Sets the Minecraft ambient light property on this typed dimension type definition and returns the updated builder.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(dimension_type_value: sand::component::DimensionType, value: f32)  {\n    let updated_dimension_type = dimension_type_value.ambient_light(value);\n}",
+    )]
     pub fn ambient_light(mut self, value: f32) -> Self {
         self.ambient_light = value;
         self
     }
 
     /// Sets the Minecraft piglin safe property on this typed dimension type definition and returns the updated builder.
-    #[doc = "**API Contract:** Run `sand api show sand::component::DimensionType::piglin_safe` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::DimensionType::piglin_safe",
+        aliases = ["sand::prelude::DimensionType::piglin_safe"],
+        module = "sand::component",
+        kind = "method",
+        summary = "Sets the Minecraft piglin safe property on this typed dimension type definition and returns the updated builder.",
+        context = "Sets the Minecraft piglin safe property on this typed dimension type definition and returns the updated builder. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(value = "`value` provides the value being applied or compared used to set the Minecraft piglin safe property on this typed dimension type definition and returns the updated builder."),
+        returns = "Sets the Minecraft piglin safe property on this typed dimension type definition and returns the updated builder.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(dimension_type_value: sand::component::DimensionType, value: bool)  {\n    let updated_dimension_type = dimension_type_value.piglin_safe(value);\n}",
+    )]
     pub fn piglin_safe(mut self, value: bool) -> Self {
         self.piglin_safe = value;
         self
     }
 
     /// Sets the Minecraft has raids property on this typed dimension type definition and returns the updated builder.
-    #[doc = "**API Contract:** Run `sand api show sand::component::DimensionType::has_raids` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::DimensionType::has_raids",
+        aliases = ["sand::prelude::DimensionType::has_raids"],
+        module = "sand::component",
+        kind = "method",
+        summary = "Sets the Minecraft has raids property on this typed dimension type definition and returns the updated builder.",
+        context = "Sets the Minecraft has raids property on this typed dimension type definition and returns the updated builder. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(value = "`value` provides the value being applied or compared used to set the Minecraft has raids property on this typed dimension type definition and returns the updated builder."),
+        returns = "Sets the Minecraft has raids property on this typed dimension type definition and returns the updated builder.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(dimension_type_value: sand::component::DimensionType, value: bool)  {\n    let updated_dimension_type = dimension_type_value.has_raids(value);\n}",
+    )]
     pub fn has_raids(mut self, value: bool) -> Self {
         self.has_raids = value;
         self
     }
 
     /// Sets the Minecraft monster spawn light level property on this typed dimension type definition and returns the updated builder.
-    #[doc = "**API Contract:** Run `sand api show sand::component::DimensionType::monster_spawn_light_level` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::DimensionType::monster_spawn_light_level",
+        aliases = ["sand::prelude::DimensionType::monster_spawn_light_level"],
+        module = "sand::component",
+        kind = "method",
+        summary = "Sets the Minecraft monster spawn light level property on this typed dimension type definition and returns the updated builder.",
+        context = "Sets the Minecraft monster spawn light level property on this typed dimension type definition and returns the updated builder. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(value = "`value` provides the value being applied or compared used to set the Minecraft monster spawn light level property on this typed dimension type definition and returns the updated builder."),
+        returns = "Sets the Minecraft monster spawn light level property on this typed dimension type definition and returns the updated builder.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(dimension_type_value: sand::component::DimensionType, value: sand::component::MonsterSpawnLightLevel)  {\n    let updated_dimension_type = dimension_type_value.monster_spawn_light_level(value);\n}",
+    )]
     pub fn monster_spawn_light_level(mut self, value: MonsterSpawnLightLevel) -> Self {
         self.monster_spawn_light_level = value;
         self
     }
 
     /// Sets the Minecraft monster spawn block light limit property on this typed dimension type definition and returns the updated builder.
-    #[doc = "**API Contract:** Run `sand api show sand::component::DimensionType::monster_spawn_block_light_limit` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::DimensionType::monster_spawn_block_light_limit",
+        aliases = ["sand::prelude::DimensionType::monster_spawn_block_light_limit"],
+        module = "sand::component",
+        kind = "method",
+        summary = "Sets the Minecraft monster spawn block light limit property on this typed dimension type definition and returns the updated builder.",
+        context = "Sets the Minecraft monster spawn block light limit property on this typed dimension type definition and returns the updated builder. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(value = "`value` provides the value being applied or compared used to set the Minecraft monster spawn block light limit property on this typed dimension type definition and returns the updated builder."),
+        returns = "Sets the Minecraft monster spawn block light limit property on this typed dimension type definition and returns the updated builder.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(dimension_type_value: sand::component::DimensionType, value: u8)  {\n    let updated_dimension_type = dimension_type_value.monster_spawn_block_light_limit(value);\n}",
+    )]
     pub fn monster_spawn_block_light_limit(mut self, value: u8) -> Self {
         self.monster_spawn_block_light_limit = value;
         self
@@ -320,7 +629,21 @@ impl DimensionType {
     /// Add a modded or version-specific field not represented by the typed API.
     ///
     /// Typed field names cannot be overridden through this escape hatch.
-    #[doc = "**API Contract:** Run `sand api show sand::component::DimensionType::raw_field` for the canonical contract."]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::component::DimensionType::raw_field",
+        aliases = ["sand::prelude::DimensionType::raw_field"],
+        module = "sand::component",
+        kind = "method",
+        summary = "Add a modded or version-specific field not represented by the typed API.",
+        context = "Add a modded or version-specific field not represented by the typed API. Typed field names cannot be overridden through this escape hatch.",
+        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
+        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
+        params(key = "`key` provides the key that identifies the setting or entry used to add a modded or version-specific field not represented by the typed API.", value = "`value` provides the value being applied or compared used to add a modded or version-specific field not represented by the typed API."),
+        returns = "The `DimensionType` value with the documented change applied to add a modded or version-specific field not represented by the typed API.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(dimension_type_value: sand::component::DimensionType, key: impl Into < String >, value: sand::component::RawJson)  {\n    let updated_dimension_type = dimension_type_value.raw_field(key, value);\n}",
+    )]
     pub fn raw_field(mut self, key: impl Into<String>, value: RawJson) -> Self {
         self.raw_fields.insert(key.into(), value);
         self

@@ -371,7 +371,7 @@ impl DialogTag {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        returns = "A newly constructed `DialogTag` configured to tag dialogs shown in the pause screen additions menu.",
+        returns = "A `DialogTag` identifying dialogs shown in the pause screen additions menu.",
         example = "use sand::prelude::*;\n\nfn demonstrate()  {\n    let dialog_tag = sand::component::DialogTag::pause_screen_additions();\n}",
     )]
     pub fn pause_screen_additions() -> Self {
@@ -390,7 +390,7 @@ impl DialogTag {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        returns = "A newly constructed `DialogTag` configured to tag dialogs shown by the Quick Actions key.",
+        returns = "A `DialogTag` identifying dialogs shown by the Quick Actions key.",
         example = "use sand::prelude::*;\n\nfn demonstrate()  {\n    let dialog_tag = sand::component::DialogTag::quick_actions();\n}",
     )]
     pub fn quick_actions() -> Self {
@@ -418,7 +418,7 @@ impl DialogTag {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(dialog = "`dialog` supplies the dialog value used to add a dialog entry to this tag."),
+        params(dialog = "`dialog` provides the dialog added when building a dialog entry to this tag."),
         returns = "The `DialogTag` value with the documented change applied to add a dialog entry to this tag.",
         example = "use sand::prelude::*;\n\nfn demonstrate(dialog_tag_value: sand::component::DialogTag, dialog: impl sand::component::IntoDialogRef)  {\n    let updated_dialog_tag = dialog_tag_value.dialog(dialog);\n}",
     )]
@@ -439,7 +439,7 @@ impl DialogTag {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(dialogs = "`dialogs` supplies the dialogs value used to add multiple dialog entries to this tag."),
+        params(dialogs = "`dialogs` provides the dialogs added when building multiple dialog entries to this tag."),
         returns = "The `DialogTag` value with the documented change applied to add multiple dialog entries to this tag.",
         example = "use sand::prelude::*;\n\nfn demonstrate<I: 'static, D: 'static>(dialog_tag_value: sand::component::DialogTag, dialogs: I) where I : IntoIterator < Item = D > , D : sand::component::IntoDialogRef {\n    let updated_dialog_tag = dialog_tag_value.dialogs::<I, D>(dialogs);\n}",
     )]
@@ -583,8 +583,8 @@ impl DialogBody {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(content = "`content` provides the player-visible text value used to use plain text body."),
-        returns = "A newly constructed `DialogBody` configured to use plain text body.",
+        params(content = "`content` sets the player-visible text for plain text body."),
+        returns = "A `DialogBody` configured for plain text body.",
         example = "use sand::prelude::*;\n\nfn demonstrate(content: impl Into < sand::component::DialogText >)  {\n    let dialog_body = sand::component::DialogBody::text(content);\n}",
     )]
     pub fn text(content: impl Into<DialogText>) -> Self {
@@ -610,8 +610,8 @@ impl DialogBody {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(content = "`content` provides the player-visible text value used to use plain text body with explicit width. `width` must be non-zero — a `0` width is rejected by [`Dialog::validate`]. There is no vanilla-documented upper bound, so large values are accepted (raw escape-hatch semantics).", width = "`width` must be non-zero — a `0` width is rejected by [`Dialog::validate`]. There is no vanilla-documented upper bound, so large values are accepted (raw escape-hatch semantics)."),
-        returns = "A newly constructed `DialogBody` configured to use plain text body with explicit width. `width` must be non-zero — a `0` width is rejected by [`Dialog::validate`]. There is no vanilla-documented upper bound, so large values are accepted (raw escape-hatch semantics).",
+        params(content = "`content` sets the player-visible text for plain text body with explicit width. `width` must be non-zero — a `0` width is rejected by [`Dialog::validate`]. There is no vanilla-documented upper bound, so large values are accepted (raw escape-hatch semantics).", width = "`width` must be non-zero — a `0` width is rejected by [`Dialog::validate`]. There is no vanilla-documented upper bound, so large values are accepted (raw escape-hatch semantics)."),
+        returns = "A `DialogBody` configured for plain text body with explicit width. `width` must be non-zero — a `0` width is rejected by [`Dialog::validate`]. There is no vanilla-documented upper bound, so large values are accepted (raw escape-hatch semantics).",
         example = "use sand::prelude::*;\n\nfn demonstrate(content: impl Into < sand::component::DialogText >, width: u32)  {\n    let dialog_body = sand::component::DialogBody::text_with_width(content, width);\n}",
     )]
     pub fn text_with_width(content: impl Into<DialogText>, width: u32) -> Self {
@@ -638,7 +638,7 @@ impl DialogBody {
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
         params(item = "`item` provides the item value or item predicate used to item display body. Accepts a raw item ID string, a [`ResourceLocation`], or a typed [`sand::registry::ItemId`]. The reference is validated (as a well-formed resource location) by [`Dialog::validate`]."),
-        returns = "A newly constructed `DialogBody` configured to item display body. Accepts a raw item ID string, a [`ResourceLocation`], or a typed [`sand::registry::ItemId`]. The reference is validated (as a well-formed resource location) by [`Dialog::validate`].",
+        returns = "A `DialogBody` displaying an item. Accepts a raw item ID string, a [`ResourceLocation`], or a typed [`sand::registry::ItemId`]. The reference is validated (as a well-formed resource location) by [`Dialog::validate`].",
         example = "use sand::prelude::*;\n\nfn demonstrate(item: impl Into < sand::component::DialogItemRef >)  {\n    let dialog_body = sand::component::DialogBody::item(item);\n}",
     )]
     pub fn item(item: impl Into<DialogItemRef>) -> Self {
@@ -666,7 +666,7 @@ impl DialogBody {
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
         params(item = "`item` provides the item value or item predicate used to item display body with explicit dimensions. `width`/`height` must be non-zero — a `0` dimension is rejected by [`Dialog::validate`]. There is no vanilla-documented upper bound, so large values are accepted (raw escape-hatch semantics).", width = "`width`/`height` must be non-zero — a `0` dimension is rejected by [`Dialog::validate`]. There is no vanilla-documented upper bound, so large values are accepted (raw escape-hatch semantics).", height = "`width`/`height` must be non-zero — a `0` dimension is rejected by [`Dialog::validate`]. There is no vanilla-documented upper bound, so large values are accepted (raw escape-hatch semantics)."),
-        returns = "A newly constructed `DialogBody` configured to item display body with explicit dimensions. `width`/`height` must be non-zero — a `0` dimension is rejected by [`Dialog::validate`]. There is no vanilla-documented upper bound, so large values are accepted (raw escape-hatch semantics).",
+        returns = "A `DialogBody` displaying an item with explicit dimensions. `width`/`height` must be non-zero — a `0` dimension is rejected by [`Dialog::validate`]. There is no vanilla-documented upper bound, so large values are accepted (raw escape-hatch semantics).",
         example = "use sand::prelude::*;\n\nfn demonstrate(item: impl Into < sand::component::DialogItemRef >, width: u32, height: u32)  {\n    let dialog_body = sand::component::DialogBody::item_sized(item, width, height);\n}",
     )]
     pub fn item_sized(item: impl Into<DialogItemRef>, width: u32, height: u32) -> Self {
@@ -772,7 +772,7 @@ impl DialogAction {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(cmd = "`cmd` supplies the cmd value used to set the Minecraft run command property on this typed dialog action definition and returns the updated builder."),
+        params(cmd = "`cmd` provides the cmd applied when setting the Minecraft run command property on this typed dialog action definition and returns the updated builder."),
         returns = "Sets the Minecraft run command property on this typed dialog action definition and returns the updated builder.",
         example = "use sand::prelude::*;\n\nfn demonstrate(cmd: impl Into < String >)  {\n    let dialog_action = sand::component::DialogAction::run_command(cmd);\n}",
     )]
@@ -806,7 +806,7 @@ impl DialogAction {
         use_when = ["Prefer this over [`run_command`](DialogAction::run_command) for datapack functions. It accepts registered function pointers and typed external resource locations."],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
         params(id = "`id` provides the typed resource identifier or location used to run a datapack function when the button is pressed."),
-        returns = "A newly constructed `DialogAction` configured to run a datapack function when the button is pressed.",
+        returns = "A `DialogAction` that runs a datapack function when the button is pressed.",
         example = "use sand::component::DialogAction;\nuse sand::ResourceLocation;\nlet action = DialogAction::run_function(\nResourceLocation::new(\"example\", \"start\").unwrap()\n);",
     )]
     pub fn run_function(id: impl IntoDialogFunctionRef) -> Self {
@@ -844,7 +844,7 @@ impl DialogAction {
         use_when = ["Use this instead of [`run_function`](DialogAction::run_function) for player-facing dialog buttons. `/trigger` is available to all players in survival mode without requiring operator permissions."],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
         params(id = "`id` provides the typed resource identifier or location used to survival-friendly callback — runs a datapack function via a scoreboard trigger."),
-        returns = "A newly constructed `DialogAction` configured to survival-friendly callback — runs a datapack function via a scoreboard trigger.",
+        returns = "A `DialogAction` for a survival-friendly callback — runs a datapack function via a scoreboard trigger.",
         example = "DialogButton::new(Text::new(\"Enhanced Cells\"))\n.tooltip(Text::new(\"Gain an extra row of hearts\"))\n.action(DialogAction::callback(grant_enhanced_cells))",
     )]
     pub fn callback(id: impl IntoDialogFunctionRef) -> Self {
@@ -863,7 +863,7 @@ impl DialogAction {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(cmd = "`cmd` supplies the cmd value used to set the Minecraft suggest command property on this typed dialog action definition and returns the updated builder."),
+        params(cmd = "`cmd` provides the cmd applied when setting the Minecraft suggest command property on this typed dialog action definition and returns the updated builder."),
         returns = "Sets the Minecraft suggest command property on this typed dialog action definition and returns the updated builder.",
         example = "use sand::prelude::*;\n\nfn demonstrate(cmd: impl Into < String >)  {\n    let dialog_action = sand::component::DialogAction::suggest_command(cmd);\n}",
     )]
@@ -882,7 +882,7 @@ impl DialogAction {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(url = "`url` supplies the url value used to set the Minecraft open url property on this typed dialog action definition and returns the updated builder."),
+        params(url = "`url` provides the url applied when setting the Minecraft open url property on this typed dialog action definition and returns the updated builder."),
         returns = "Sets the Minecraft open url property on this typed dialog action definition and returns the updated builder.",
         example = "use sand::prelude::*;\n\nfn demonstrate(url: impl Into < String >)  {\n    let dialog_action = sand::component::DialogAction::open_url(url);\n}",
     )]
@@ -901,7 +901,7 @@ impl DialogAction {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(dialog = "`dialog` supplies the dialog value used to set the Minecraft open dialog property on this typed dialog action definition and returns the updated builder."),
+        params(dialog = "`dialog` provides the dialog applied when setting the Minecraft open dialog property on this typed dialog action definition and returns the updated builder."),
         returns = "Sets the Minecraft open dialog property on this typed dialog action definition and returns the updated builder.",
         example = "use sand::prelude::*;\n\nfn demonstrate(dialog: impl sand::component::IntoDialogRef)  {\n    let dialog_action = sand::component::DialogAction::open_dialog(dialog);\n}",
     )]
@@ -1012,8 +1012,8 @@ impl DialogButton {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(label = "`label` provides the player-visible text value used to create a button with the given label text."),
-        returns = "A newly constructed `DialogButton` configured to create a button with the given label text.",
+        params(label = "`label` is used when creating a button with the given label text."),
+        returns = "A `DialogButton` representing a button with the given label text.",
         example = "use sand::prelude::*;\n\nfn demonstrate(label: impl Into < sand::component::DialogText >)  {\n    let dialog_button = sand::component::DialogButton::new(label);\n}",
     )]
     pub fn new(label: impl Into<DialogText>) -> Self {
@@ -1037,7 +1037,7 @@ impl DialogButton {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(action = "`action` supplies the action value used to attach an action to this button."),
+        params(action = "`action` is used to attach an action to this button."),
         returns = "The `DialogButton` value with the documented change applied to attach an action to this button.",
         example = "use sand::prelude::*;\n\nfn demonstrate(dialog_button_value: sand::component::DialogButton, action: sand::component::DialogAction)  {\n    let updated_dialog_button = dialog_button_value.action(action);\n}",
     )]
@@ -1058,7 +1058,7 @@ impl DialogButton {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(tip = "`tip` provides the player-visible text value used to attach a tooltip shown when hovering over the button."),
+        params(tip = "`tip` is used to attach a tooltip shown when hovering over the button."),
         returns = "The `DialogButton` value with the documented change applied to attach a tooltip shown when hovering over the button.",
         example = "use sand::prelude::*;\n\nfn demonstrate(dialog_button_value: sand::component::DialogButton, tip: impl Into < sand::component::DialogText >)  {\n    let updated_dialog_button = dialog_button_value.tooltip(tip);\n}",
     )]
@@ -1079,7 +1079,7 @@ impl DialogButton {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(w = "`w` supplies the w value used to set the button width in pixels."),
+        params(w = "`w` provides the w applied when setting the button width in pixels."),
         returns = "The `DialogButton` value with the documented change applied to set the button width in pixels.",
         example = "use sand::prelude::*;\n\nfn demonstrate(dialog_button_value: sand::component::DialogButton, w: u32)  {\n    let updated_dialog_button = dialog_button_value.width(w);\n}",
     )]
@@ -1210,7 +1210,7 @@ impl Dialog {
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
         params(id = "`id` provides the typed resource identifier or location used to create a notice dialog — informational, dismissible."),
-        returns = "A newly constructed `Dialog` configured to create a notice dialog — informational, dismissible.",
+        returns = "A `Dialog` representing a notice dialog — informational, dismissible.",
         example = "use sand::prelude::*;\n\nfn demonstrate(id: sand::resource_ref::DialogId)  {\n    let dialog = sand::component::Dialog::notice(id);\n}",
     )]
     pub fn notice(id: DialogId) -> Self {
@@ -1230,7 +1230,7 @@ impl Dialog {
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
         params(path = "`path` provides the typed resource identifier or location used to create a local notice dialog whose namespace is resolved during export."),
-        returns = "A newly constructed `Dialog` configured to create a local notice dialog whose namespace is resolved during export.",
+        returns = "A `Dialog` representing a local notice dialog whose namespace is resolved during export.",
         example = "use sand::prelude::*;\n\nfn demonstrate(path: impl AsRef < str >)  {\n    let dialog = sand::component::Dialog::notice_local(path);\n}",
     )]
     pub fn notice_local(path: impl AsRef<str>) -> Self {
@@ -1250,7 +1250,7 @@ impl Dialog {
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
         params(id = "`id` provides the typed resource identifier or location used to create a confirmation dialog — confirm / cancel."),
-        returns = "A newly constructed `Dialog` configured to create a confirmation dialog — confirm / cancel.",
+        returns = "A `Dialog` representing a confirmation dialog — confirm / cancel.",
         example = "use sand::prelude::*;\n\nfn demonstrate(id: sand::resource_ref::DialogId)  {\n    let dialog = sand::component::Dialog::confirmation(id);\n}",
     )]
     pub fn confirmation(id: DialogId) -> Self {
@@ -1270,7 +1270,7 @@ impl Dialog {
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
         params(path = "`path` provides the typed resource identifier or location used to create a local confirmation dialog whose namespace is resolved during export."),
-        returns = "A newly constructed `Dialog` configured to create a local confirmation dialog whose namespace is resolved during export.",
+        returns = "A `Dialog` representing a local confirmation dialog whose namespace is resolved during export.",
         example = "use sand::prelude::*;\n\nfn demonstrate(path: impl AsRef < str >)  {\n    let dialog = sand::component::Dialog::confirmation_local(path);\n}",
     )]
     pub fn confirmation_local(path: impl AsRef<str>) -> Self {
@@ -1290,7 +1290,7 @@ impl Dialog {
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
         params(id = "`id` provides the typed resource identifier or location used to create a multi-action dialog — multiple custom buttons."),
-        returns = "A newly constructed `Dialog` configured to create a multi-action dialog — multiple custom buttons.",
+        returns = "A `Dialog` representing a multi-action dialog — multiple custom buttons.",
         example = "use sand::prelude::*;\n\nfn demonstrate(id: sand::resource_ref::DialogId)  {\n    let dialog = sand::component::Dialog::multi_action(id);\n}",
     )]
     pub fn multi_action(id: DialogId) -> Self {
@@ -1310,7 +1310,7 @@ impl Dialog {
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
         params(path = "`path` provides the typed resource identifier or location used to create a local multi-action dialog whose namespace is resolved during export."),
-        returns = "A newly constructed `Dialog` configured to create a local multi-action dialog whose namespace is resolved during export.",
+        returns = "A `Dialog` representing a local multi-action dialog whose namespace is resolved during export.",
         example = "use sand::prelude::*;\n\nfn demonstrate(path: impl AsRef < str >)  {\n    let dialog = sand::component::Dialog::multi_action_local(path);\n}",
     )]
     pub fn multi_action_local(path: impl AsRef<str>) -> Self {
@@ -1342,7 +1342,7 @@ impl Dialog {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(text = "`text` provides the author-visible text value used to set the dialog title."),
+        params(text = "`text` provides the author-visible text applied when setting the dialog title."),
         returns = "The `Dialog` value with the documented change applied to set the dialog title.",
         example = "use sand::prelude::*;\n\nfn demonstrate(dialog_value: sand::component::Dialog, text: impl Into < sand::component::DialogText >)  {\n    let updated_dialog = dialog_value.title(text);\n}",
     )]
@@ -1363,7 +1363,7 @@ impl Dialog {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(body = "`body` supplies the body value used to append a body element."),
+        params(body = "`body` provides the body appended when building a body element."),
         returns = "The `Dialog` value with the documented change applied to append a body element.",
         example = "use sand::prelude::*;\n\nfn demonstrate(dialog_value: sand::component::Dialog, body: sand::component::DialogBody)  {\n    let updated_dialog = dialog_value.body(body);\n}",
     )]
@@ -1384,7 +1384,7 @@ impl Dialog {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(btn = "`btn` supplies the btn value used to append a button."),
+        params(btn = "`btn` provides the btn appended when building a button."),
         returns = "The `Dialog` value with the documented change applied to append a button.",
         example = "use sand::prelude::*;\n\nfn demonstrate(dialog_value: sand::component::Dialog, btn: sand::component::DialogButton)  {\n    let updated_dialog = dialog_value.button(btn);\n}",
     )]

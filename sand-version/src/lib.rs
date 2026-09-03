@@ -97,8 +97,8 @@ impl CommandProfile {
         minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        params(requested_version = "`requested_version` supplies the requested version value used to construct a command profile for a resolved Minecraft target.", is_fallback = "`is_fallback` provides the switch that enables or disables the behavior used to construct a command profile for a resolved Minecraft target."),
-        returns = "A newly constructed `CommandProfile` configured to construct a command profile for a resolved Minecraft target.",
+        params(requested_version = "`requested_version` is used when constructing a command profile for a resolved Minecraft target.", is_fallback = "`is_fallback` provides the switch that enables or disables the behavior used to construct a command profile for a resolved Minecraft target."),
+        returns = "A `CommandProfile` representing a command profile for a resolved Minecraft target.",
         example = "use sand::prelude::*;\n\nfn demonstrate(requested_version: impl Into < String >, is_fallback: bool)  {\n    let command_profile = sand::command::CommandProfile::new(requested_version, is_fallback);\n}",
     )]
     pub fn new(requested_version: impl Into<String>, is_fallback: bool) -> Self {
@@ -121,7 +121,7 @@ impl CommandProfile {
         minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        returns = "A newly constructed `CommandProfile` configured to use compatibility profile used by direct command rendering without project configuration. Exporters should pass the project's resolved profile.",
+        returns = "A `CommandProfile` configured for compatibility profile used by direct command rendering without project configuration. Exporters should pass the project's resolved profile.",
         example = "use sand::prelude::*;\n\nfn demonstrate()  {\n    let command_profile = sand::command::CommandProfile::unprofiled();\n}",
     )]
     pub fn unprofiled() -> Self {
@@ -180,7 +180,7 @@ impl CommandProfile {
         minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        params(major = "`major` supplies the major value used to determine whether this resolved command target is at least the given Java release.", minor = "`minor` supplies the minor value used to determine whether this resolved command target is at least the given Java release.", patch = "`patch` supplies the patch value used to determine whether this resolved command target is at least the given Java release."),
+        params(major = "`major` is the major considered when determining whether this resolved command target is at least the given Java release.", minor = "`minor` is the minor considered when determining whether this resolved command target is at least the given Java release.", patch = "`patch` is the patch considered when determining whether this resolved command target is at least the given Java release."),
         returns = "`true` when the documented condition holds to determine whether this resolved command target is at least the given Java release; otherwise `false`.",
         example = "use sand::prelude::*;\n\nfn demonstrate(command_profile_value: &sand::command::CommandProfile, major: u32, minor: u32, patch: u32)  {\n    let is_is_at_least = command_profile_value.is_at_least(major, minor, patch);\n}",
     )]
@@ -361,7 +361,7 @@ impl VersionCaps {
         minecraft = "Used by the compatibility (unprofiled) export path so existing callers retain their prior behavior.",
         use_when = ["Adapting authored resources or integrations to an explicitly selected Minecraft target"],
         avoid_when = ["Ordinary datapack code can rely on the target selected in sand.toml"],
-        returns = "A newly constructed `VersionCaps` configured to create a `VersionCaps` where all features are enabled.",
+        returns = "A `VersionCaps` with every modeled feature enabled.",
         example = "let caps = sand::version::VersionCaps::all_enabled();",
     )]
     pub fn all_enabled() -> Self {
@@ -391,7 +391,7 @@ impl VersionCaps {
         minecraft = "Capability checks describe the data-driven features accepted by the selected Minecraft Java Edition target before pack output is written.",
         use_when = ["Adapting authored resources or integrations to an explicitly selected Minecraft target"],
         avoid_when = ["Ordinary datapack code can rely on the target selected in sand.toml"],
-        returns = "A newly constructed `VersionCaps` configured to create a `VersionCaps` where all features are disabled (fallback policy).",
+        returns = "A `VersionCaps` with every modeled feature disabled for fallback behavior.",
         example = "use sand::prelude::*;\n\nfn demonstrate()  {\n    let version_caps = sand::version::VersionCaps::all_disabled();\n}",
     )]
     pub fn all_disabled() -> Self {
@@ -472,7 +472,7 @@ impl VersionCaps {
         minecraft = "Capability checks describe the data-driven features accepted by the selected Minecraft Java Edition target before pack output is written.",
         use_when = ["Adapting authored resources or integrations to an explicitly selected Minecraft target"],
         avoid_when = ["Ordinary datapack code can rely on the target selected in sand.toml"],
-        params(feature = "`feature` supplies the feature value used to check whether a specific feature is supported by this capability set."),
+        params(feature = "`feature` is the feature checked to determine whether a specific feature is supported by this capability set."),
         returns = "`true` when the documented condition holds to check whether a specific feature is supported by this capability set; otherwise `false`.",
         example = "use sand::prelude::*;\n\nfn demonstrate(version_caps_value: &sand::version::VersionCaps, feature: sand::version::ComponentFeature)  {\n    let is_supports = version_caps_value.supports(feature);\n}",
     )]
@@ -506,7 +506,7 @@ impl VersionCaps {
         use_when = ["Adapting authored resources or integrations to an explicitly selected Minecraft target"],
         avoid_when = ["Ordinary datapack code can rely on the target selected in sand.toml"],
         params(supports_dialogs = "`supports_dialogs` provides the switch that enables or disables the behavior used to create an unprofiled `VersionCaps` from individual feature flags.", supports_jukebox_songs = "`supports_jukebox_songs` provides the switch that enables or disables the behavior used to create an unprofiled `VersionCaps` from individual feature flags.", supports_damage_types = "`supports_damage_types` provides the switch that enables or disables the behavior used to create an unprofiled `VersionCaps` from individual feature flags.", supports_chat_types = "`supports_chat_types` provides the switch that enables or disables the behavior used to create an unprofiled `VersionCaps` from individual feature flags.", supports_enchantments = "`supports_enchantments` provides the switch that enables or disables the behavior used to create an unprofiled `VersionCaps` from individual feature flags.", supports_trim_assets = "`supports_trim_assets` provides the switch that enables or disables the behavior used to create an unprofiled `VersionCaps` from individual feature flags.", supports_item_components = "`supports_item_components` provides the switch that enables or disables the behavior used to create an unprofiled `VersionCaps` from individual feature flags."),
-        returns = "A newly constructed `VersionCaps` configured to create an unprofiled `VersionCaps` from individual feature flags.",
+        returns = "A `VersionCaps` representing an unprofiled `VersionCaps` from individual feature flags.",
         example = "use sand::prelude::*;\n\nfn demonstrate(supports_dialogs: bool, supports_jukebox_songs: bool, supports_damage_types: bool, supports_chat_types: bool, supports_enchantments: bool, supports_trim_assets: bool, supports_item_components: bool)  {\n    let version_caps = sand::version::VersionCaps::from_flags(supports_dialogs, supports_jukebox_songs, supports_damage_types, supports_chat_types, supports_enchantments, supports_trim_assets, supports_item_components);\n}",
     )]
     #[allow(clippy::too_many_arguments)]
@@ -546,8 +546,8 @@ impl VersionCaps {
         minecraft = "Capability checks describe the data-driven features accepted by the selected Minecraft Java Edition target before pack output is written.",
         use_when = ["Adapting authored resources or integrations to an explicitly selected Minecraft target"],
         avoid_when = ["Ordinary datapack code can rely on the target selected in sand.toml"],
-        params(requested_version = "`requested_version` supplies the requested version value used to create a `VersionCaps` for a concrete resolved target profile.", is_fallback = "`is_fallback` provides the switch that enables or disables the behavior used to create a `VersionCaps` for a concrete resolved target profile.", supports_dialogs = "`supports_dialogs` provides the switch that enables or disables the behavior used to create a `VersionCaps` for a concrete resolved target profile.", supports_jukebox_songs = "`supports_jukebox_songs` provides the switch that enables or disables the behavior used to create a `VersionCaps` for a concrete resolved target profile.", supports_damage_types = "`supports_damage_types` provides the switch that enables or disables the behavior used to create a `VersionCaps` for a concrete resolved target profile.", supports_chat_types = "`supports_chat_types` provides the switch that enables or disables the behavior used to create a `VersionCaps` for a concrete resolved target profile.", supports_enchantments = "`supports_enchantments` provides the switch that enables or disables the behavior used to create a `VersionCaps` for a concrete resolved target profile.", supports_trim_assets = "`supports_trim_assets` provides the switch that enables or disables the behavior used to create a `VersionCaps` for a concrete resolved target profile.", supports_item_components = "`supports_item_components` provides the switch that enables or disables the behavior used to create a `VersionCaps` for a concrete resolved target profile."),
-        returns = "A newly constructed `VersionCaps` configured to create a `VersionCaps` for a concrete resolved target profile.",
+        params(requested_version = "`requested_version` is used when creating a `VersionCaps` for a concrete resolved target profile.", is_fallback = "`is_fallback` provides the switch that enables or disables the behavior used to create a `VersionCaps` for a concrete resolved target profile.", supports_dialogs = "`supports_dialogs` provides the switch that enables or disables the behavior used to create a `VersionCaps` for a concrete resolved target profile.", supports_jukebox_songs = "`supports_jukebox_songs` provides the switch that enables or disables the behavior used to create a `VersionCaps` for a concrete resolved target profile.", supports_damage_types = "`supports_damage_types` provides the switch that enables or disables the behavior used to create a `VersionCaps` for a concrete resolved target profile.", supports_chat_types = "`supports_chat_types` provides the switch that enables or disables the behavior used to create a `VersionCaps` for a concrete resolved target profile.", supports_enchantments = "`supports_enchantments` provides the switch that enables or disables the behavior used to create a `VersionCaps` for a concrete resolved target profile.", supports_trim_assets = "`supports_trim_assets` provides the switch that enables or disables the behavior used to create a `VersionCaps` for a concrete resolved target profile.", supports_item_components = "`supports_item_components` provides the switch that enables or disables the behavior used to create a `VersionCaps` for a concrete resolved target profile."),
+        returns = "A `VersionCaps` for the concrete resolved target profile.",
         example = "use sand::prelude::*;\n\nfn demonstrate(requested_version: impl Into < String >, is_fallback: bool, supports_dialogs: bool, supports_jukebox_songs: bool, supports_damage_types: bool, supports_chat_types: bool, supports_enchantments: bool, supports_trim_assets: bool, supports_item_components: bool)  {\n    let version_caps = sand::version::VersionCaps::from_profile_flags(requested_version, is_fallback, supports_dialogs, supports_jukebox_songs, supports_damage_types, supports_chat_types, supports_enchantments, supports_trim_assets, supports_item_components);\n}",
     )]
     #[allow(clippy::too_many_arguments)]
@@ -630,7 +630,7 @@ impl VersionCaps {
         minecraft = "Capability checks describe the data-driven features accepted by the selected Minecraft Java Edition target before pack output is written.",
         use_when = ["Adapting authored resources or integrations to an explicitly selected Minecraft target"],
         avoid_when = ["Ordinary datapack code can rely on the target selected in sand.toml"],
-        params(major = "`major` supplies the major value used to compare the requested target with a concrete Minecraft release.", minor = "`minor` supplies the minor value used to compare the requested target with a concrete Minecraft release.", patch = "`patch` supplies the patch value used to compare the requested target with a concrete Minecraft release."),
+        params(major = "`major` is the major used when comparing the requested target with a concrete Minecraft release.", minor = "`minor` is the minor used when comparing the requested target with a concrete Minecraft release.", patch = "`patch` is the patch used when comparing the requested target with a concrete Minecraft release."),
         returns = "`true` when the documented condition holds to compare the requested target with a concrete Minecraft release; otherwise `false`.",
         example = "use sand::prelude::*;\n\nfn demonstrate(version_caps_value: &sand::version::VersionCaps, major: u32, minor: u32, patch: u32)  {\n    let is_is_at_least = version_caps_value.is_at_least(major, minor, patch);\n}",
     )]

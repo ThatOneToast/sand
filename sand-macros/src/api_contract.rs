@@ -3,7 +3,9 @@ use quote::{ToTokens, quote};
 use sand_api_contract::syntax::{
     ContractArgs, ContractTarget, Description, parse_contract_args, validate_contract,
 };
-use sand_api_contract::{ApiEntry, ApiKind, ApiParameter, render_rustdoc};
+use sand_api_contract::{
+    ApiEntry, ApiKind, ApiParameter, RustdocExampleMode, render_rustdoc_with_example_mode,
+};
 use syn::{
     ImplItemConst, ImplItemFn, ImplItemType, Item, LitStr, TraitItemConst, TraitItemFn,
     TraitItemType, parse2,
@@ -805,7 +807,16 @@ fn rustdoc(
             .map(LitStr::value)
             .collect(),
     };
-    let lines = render_rustdoc(&entry);
+    // Implementation crates cannot depend back on the `sand` facade used by
+    // author-facing examples without creating a Cargo dependency cycle. Their
+    // examples are compiled in downstream integration fixtures instead. Items
+    // defined directly by the facade use checked `no_run` doctests.
+    let example_mode = if args.registry.is_some() {
+        RustdocExampleMode::Ignore
+    } else {
+        RustdocExampleMode::NoRun
+    };
+    let lines = render_rustdoc_with_example_mode(&entry, example_mode);
     let docs = lines.iter().map(|line| quote!(#[doc = #line]));
     quote!(#(#docs)*)
 }
@@ -876,6 +887,30 @@ mod tests {
             assert!(output.contains(expected), "missing {expected:?}: {output}");
         }
         assert!(!output.contains("sand api show"));
+        assert!(output.contains("rust,ignore"));
+
+        let facade_output = expand(
+            quote!(
+                path = "sand::demo::facade_build",
+                module = "sand::demo",
+                summary = "Builds one facade value.",
+                context = "This fixture is defined directly by the facade.",
+                minecraft = "Emits no Minecraft data.",
+                use_when = ["Testing facade Rustdoc"],
+                avoid_when = ["Testing an implementation crate"],
+                params(name = "The demonstrated name."),
+                returns = "The demonstrated string.",
+                example = "let value = facade_build(\"demo\");",
+            ),
+            quote!(
+                pub fn facade_build(name: &str) -> String {
+                    name.to_owned()
+                }
+            ),
+        )
+        .unwrap()
+        .to_string();
+        assert!(facade_output.contains("rust,no_run"));
     }
 
     #[test]

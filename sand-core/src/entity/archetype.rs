@@ -133,7 +133,7 @@ impl Adoption {
         minecraft = "Sand validates this definition and lowers it to entity-scoped selectors, scoreboards, NBT operations, and generated lifecycle functions as required.",
         use_when = ["Defining or using typed entity behavior in a Sand datapack"],
         avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
-        returns = "A newly constructed `Adoption` configured to adopt natural and external entities once per tick.",
+        returns = "An `Adoption` that adopts natural and external entities once per tick.",
         example = "use sand::prelude::*;\n\nfn demonstrate()  {\n    let adoption = sand::entity::Adoption::natural_and_external();\n}",
     )]
     #[must_use]
@@ -161,7 +161,7 @@ impl Adoption {
         minecraft = "Sand validates this definition and lowers it to entity-scoped selectors, scoreboards, NBT operations, and generated lifecycle functions as required.",
         use_when = ["Defining or using typed entity behavior in a Sand datapack"],
         avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
-        returns = "A newly constructed `Adoption` configured to restrict adoption to the natural-spawn policy.",
+        returns = "An `Adoption` that restricts adoption to the natural-spawn policy.",
         example = "use sand::prelude::*;\n\nfn demonstrate()  {\n    let adoption = sand::entity::Adoption::natural();\n}",
     )]
     #[must_use]
@@ -184,7 +184,7 @@ impl Adoption {
         minecraft = "Sand validates this definition and lowers it to entity-scoped selectors, scoreboards, NBT operations, and generated lifecycle functions as required.",
         use_when = ["Defining or using typed entity behavior in a Sand datapack"],
         avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
-        returns = "A newly constructed `Adoption` configured to restrict adoption to externally summoned entities.",
+        returns = "An `Adoption` that restricts adoption to externally summoned entities.",
         example = "use sand::prelude::*;\n\nfn demonstrate()  {\n    let adoption = sand::entity::Adoption::external();\n}",
     )]
     #[must_use]
@@ -234,7 +234,7 @@ impl Adoption {
         minecraft = "Sand validates this definition and lowers it to entity-scoped selectors, scoreboards, NBT operations, and generated lifecycle functions as required.",
         use_when = ["Defining or using typed entity behavior in a Sand datapack"],
         avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
-        params(blocks = "`blocks` supplies the blocks value used to limit adoption to a radius around each scan executor."),
+        params(blocks = "`blocks` is used to limit adoption to a radius around each scan executor."),
         returns = "The `Adoption` value with the documented change applied to limit adoption to a radius around each scan executor.",
         example = "use sand::prelude::*;\n\nfn demonstrate(adoption_value: sand::entity::Adoption, blocks: f64)  {\n    let updated_adoption = adoption_value.within_blocks(blocks);\n}",
     )]
@@ -256,7 +256,7 @@ impl Adoption {
         minecraft = "Sand validates this definition and lowers it to entity-scoped selectors, scoreboards, NBT operations, and generated lifecycle functions as required.",
         use_when = ["Choose how named/tamed/owned entities are treated."],
         avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
-        params(policy = "`policy` supplies the policy value used to choose how named/tamed/owned entities are treated."),
+        params(policy = "`policy` is used to choose how named/tamed/owned entities are treated."),
         returns = "The `Adoption` value with the documented change applied to choose how named/tamed/owned entities are treated.",
         example = "use sand::prelude::*;\n\nfn demonstrate(adoption_value: sand::entity::Adoption, policy: sand::entity::SpecialEntityPolicy)  {\n    let updated_adoption = adoption_value.special_entities(policy);\n}",
     )]
@@ -278,7 +278,7 @@ impl Adoption {
         minecraft = "Sand validates this definition and lowers it to entity-scoped selectors, scoreboards, NBT operations, and generated lifecycle functions as required.",
         use_when = ["Defining or using typed entity behavior in a Sand datapack"],
         avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
-        params(tag = "`tag` supplies the tag value used to require a validated entity tag in addition to the typed entity kind."),
+        params(tag = "`tag` is used to require a validated entity tag in addition to the typed entity kind."),
         returns = "The `Adoption` value with the documented change applied to require a validated entity tag in addition to the typed entity kind.",
         example = "use sand::prelude::*;\n\nfn demonstrate(adoption_value: sand::entity::Adoption, tag: sand::entity::EntityTag)  {\n    let updated_adoption = adoption_value.requiring_tag(tag);\n}",
     )]
@@ -300,7 +300,7 @@ impl Adoption {
         minecraft = "Sand validates this definition and lowers it to entity-scoped selectors, scoreboards, NBT operations, and generated lifecycle functions as required.",
         use_when = ["Defining or using typed entity behavior in a Sand datapack"],
         avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
-        params(tag = "`tag` supplies the tag value used to exclude a validated entity tag from adoption."),
+        params(tag = "`tag` is used to exclude a validated entity tag from adoption."),
         returns = "The `Adoption` value with the documented change applied to exclude a validated entity tag from adoption.",
         example = "use sand::prelude::*;\n\nfn demonstrate(adoption_value: sand::entity::Adoption, tag: sand::entity::EntityTag)  {\n    let updated_adoption = adoption_value.excluding_tag(tag);\n}",
     )]
@@ -403,8 +403,8 @@ impl Migration {
         minecraft = "Sand validates this definition and lowers it to entity-scoped selectors, scoreboards, NBT operations, and generated lifecycle functions as required.",
         use_when = ["Defining or using typed entity behavior in a Sand datapack"],
         avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
-        params(from = "`from` supplies the from value used to construct a migration step.", to = "`to` supplies the to value used to construct a migration step.", action = "`action` provides the typed Minecraft resource identifier used to construct a migration step."),
-        returns = "A newly constructed `Migration` configured to construct a migration step.",
+        params(from = "`from` is used when constructing a migration step.", to = "`to` is used when constructing a migration step.", action = "`action` provides the typed Minecraft resource identifier used to construct a migration step."),
+        returns = "A `Migration` representing a migration step.",
         example = "use sand::prelude::*;\n\nfn demonstrate(from: u32, to: u32, action: sand::resource_ref::FunctionId)  {\n    let migration = sand::entity::Migration::new(from, to, action);\n}",
     )]
     #[must_use]
@@ -547,7 +547,7 @@ where
         minecraft = "Sand validates this definition and lowers it to entity-scoped selectors, scoreboards, NBT operations, and generated lifecycle functions as required.",
         use_when = ["Defining or using typed entity behavior in a Sand datapack"],
         avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
-        params(version = "`version` supplies the version value used to override the archetype version independently of the schema version."),
+        params(version = "`version` is used to override the archetype version independently of the schema version."),
         returns = "The `EntityArchetype` value with the documented change applied to override the archetype version independently of the schema version.",
         example = "use sand::prelude::*;\n\nfn demonstrate<K: 'static, S: 'static>(entity_archetype_value: sand::entity::EntityArchetype < K , S >, version: u32) where K : sand::entity::KnownEntityKind , S : sand::entity::EntityState {\n    let updated_entity_archetype = entity_archetype_value.version(version);\n}",
     )]
@@ -569,7 +569,7 @@ where
         minecraft = "Sand validates this definition and lowers it to entity-scoped selectors, scoreboards, NBT operations, and generated lifecycle functions as required.",
         use_when = ["Defining or using typed entity behavior in a Sand datapack"],
         avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
-        params(adoption = "`adoption` supplies the adoption value used to discover and initialize existing loaded entities."),
+        params(adoption = "`adoption` is used to discover and initialize existing loaded entities."),
         returns = "The `EntityArchetype` value with the documented change applied to discover and initialize existing loaded entities.",
         example = "use sand::prelude::*;\n\nfn demonstrate<K: 'static, S: 'static>(entity_archetype_value: sand::entity::EntityArchetype < K , S >, adoption: sand::entity::Adoption) where K : sand::entity::KnownEntityKind , S : sand::entity::EntityState {\n    let updated_entity_archetype = entity_archetype_value.adopt(adoption);\n}",
     )]
@@ -591,7 +591,7 @@ where
         minecraft = "Sand validates this definition and lowers it to entity-scoped selectors, scoreboards, NBT operations, and generated lifecycle functions as required.",
         use_when = ["Choose automatic reconciliation behavior."],
         avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
-        params(policy = "`policy` supplies the policy value used to choose automatic reconciliation behavior."),
+        params(policy = "`policy` is used to choose automatic reconciliation behavior."),
         returns = "The `EntityArchetype` value with the documented change applied to choose automatic reconciliation behavior.",
         example = "use sand::prelude::*;\n\nfn demonstrate<K: 'static, S: 'static>(entity_archetype_value: sand::entity::EntityArchetype < K , S >, policy: sand::entity::ReconcilePolicy) where K : sand::entity::KnownEntityKind , S : sand::entity::EntityState {\n    let updated_entity_archetype = entity_archetype_value.reconcile(policy);\n}",
     )]
@@ -661,7 +661,7 @@ where
         minecraft = "Sand validates this definition and lowers it to entity-scoped selectors, scoreboards, NBT operations, and generated lifecycle functions as required.",
         use_when = ["Defining or using typed entity behavior in a Sand datapack"],
         avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
-        params(migration = "`migration` supplies the migration value used to add one ordered migration."),
+        params(migration = "`migration` provides the migration added when building one ordered migration."),
         returns = "The `EntityArchetype` value with the documented change applied to add one ordered migration.",
         example = "use sand::prelude::*;\n\nfn demonstrate<K: 'static, S: 'static>(entity_archetype_value: sand::entity::EntityArchetype < K , S >, migration: sand::entity::Migration) where K : sand::entity::KnownEntityKind , S : sand::entity::EntityState {\n    let updated_entity_archetype = entity_archetype_value.migration(migration);\n}",
     )]
@@ -752,7 +752,7 @@ where
         minecraft = "Sand validates this definition and lowers it to entity-scoped selectors, scoreboards, NBT operations, and generated lifecycle functions as required.",
         use_when = ["Defining or using typed entity behavior in a Sand datapack"],
         avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
-        params(transition = "`transition` supplies the transition value used to run a typed action when entity-bound state crosses a declared boundary.", action = "`action` supplies the action value used to run a typed action when entity-bound state crosses a declared boundary."),
+        params(transition = "`transition` provides the transition used when running a typed action when entity-bound state crosses a declared boundary.", action = "`action` provides the action used when running a typed action when entity-bound state crosses a declared boundary."),
         returns = "The `EntityArchetype` value with the documented change applied to run a typed action when entity-bound state crosses a declared boundary.",
         example = "use sand::prelude::*;\n\nfn demonstrate<K: 'static, S: 'static>(entity_archetype_value: sand::entity::EntityArchetype < K , S >, transition: sand::entity::EntityTransition, action: sand::entity::EntityAction) where K : sand::entity::KnownEntityKind , S : sand::entity::EntityState {\n    let updated_entity_archetype = entity_archetype_value.on(transition, action);\n}",
     )]
@@ -775,7 +775,7 @@ where
         minecraft = "Sand validates this definition and lowers it to entity-scoped selectors, scoreboards, NBT operations, and generated lifecycle functions as required.",
         use_when = ["Defining or using typed entity behavior in a Sand datapack"],
         avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
-        params(binding = "`binding` supplies the binding value used to add an archetype-owned tag while preserving unrelated tags."),
+        params(binding = "`binding` provides the binding added when building an archetype-owned tag while preserving unrelated tags."),
         returns = "The `EntityArchetype` value with the documented change applied to add an archetype-owned tag while preserving unrelated tags.",
         example = "use sand::prelude::*;\n\nfn demonstrate<K: 'static, S: 'static>(entity_archetype_value: sand::entity::EntityArchetype < K , S >, binding: sand::entity::TagBinding) where K : sand::entity::KnownEntityKind , S : sand::entity::EntityState {\n    let updated_entity_archetype = entity_archetype_value.tag(binding);\n}",
     )]
@@ -797,7 +797,7 @@ where
         minecraft = "Sand validates this definition and lowers it to entity-scoped selectors, scoreboards, NBT operations, and generated lifecycle functions as required.",
         use_when = ["Defining or using typed entity behavior in a Sand datapack"],
         avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
-        params(flag = "`flag` supplies the flag value used to add/remove an owned tag when a typed flag changes.", binding = "`binding` supplies the binding value used to add/remove an owned tag when a typed flag changes."),
+        params(flag = "`flag` is used to add/remove an owned tag when a typed flag changes.", binding = "`binding` is used to add/remove an owned tag when a typed flag changes."),
         returns = "The `EntityArchetype` value with the documented change applied to add/remove an owned tag when a typed flag changes.",
         example = "use sand::prelude::*;\n\nfn demonstrate<K: 'static, S: 'static>(entity_archetype_value: sand::entity::EntityArchetype < K , S >, flag: sand::entity::EntityFlag, binding: sand::entity::TagBinding) where K : sand::entity::KnownEntityKind , S : sand::entity::EntityState {\n    let updated_entity_archetype = entity_archetype_value.tag_when(flag, binding);\n}",
     )]
@@ -821,7 +821,7 @@ where
         minecraft = "Sand validates this definition and lowers it to entity-scoped selectors, scoreboards, NBT operations, and generated lifecycle functions as required.",
         use_when = ["Defining or using typed entity behavior in a Sand datapack"],
         avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
-        params(binding = "`binding` supplies the binding value used to add typed team membership while leaving team configuration external."),
+        params(binding = "`binding` provides the binding added when building typed team membership while leaving team configuration external."),
         returns = "The `EntityArchetype` value with the documented change applied to add typed team membership while leaving team configuration external.",
         example = "use sand::prelude::*;\n\nfn demonstrate<K: 'static, S: 'static>(entity_archetype_value: sand::entity::EntityArchetype < K , S >, binding: sand::entity::TeamBinding) where K : sand::entity::KnownEntityKind , S : sand::entity::EntityState {\n    let updated_entity_archetype = entity_archetype_value.team(binding);\n}",
     )]
@@ -843,7 +843,7 @@ where
         minecraft = "Sand validates this definition and lowers it to entity-scoped selectors, scoreboards, NBT operations, and generated lifecycle functions as required.",
         use_when = ["Defining or using typed entity behavior in a Sand datapack"],
         avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
-        params(flag = "`flag` supplies the flag value used to join/leave an owned team when a typed flag changes.", binding = "`binding` supplies the binding value used to join/leave an owned team when a typed flag changes."),
+        params(flag = "`flag` is used to join/leave an owned team when a typed flag changes.", binding = "`binding` is used to join/leave an owned team when a typed flag changes."),
         returns = "The `EntityArchetype` value with the documented change applied to join/leave an owned team when a typed flag changes.",
         example = "use sand::prelude::*;\n\nfn demonstrate<K: 'static, S: 'static>(entity_archetype_value: sand::entity::EntityArchetype < K , S >, flag: sand::entity::EntityFlag, binding: sand::entity::TeamBinding) where K : sand::entity::KnownEntityKind , S : sand::entity::EntityState {\n    let updated_entity_archetype = entity_archetype_value.team_when(flag, binding);\n}",
     )]
@@ -1025,7 +1025,7 @@ where
         minecraft = "Sand validates this definition and lowers it to entity-scoped selectors, scoreboards, NBT operations, and generated lifecycle functions as required.",
         use_when = ["Defining or using typed entity behavior in a Sand datapack"],
         avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
-        params(binding = "`binding` supplies the binding value used to bind a state-aware custom name and visibility."),
+        params(binding = "`binding` provides the binding used when binding a state-aware custom name and visibility."),
         returns = "The `EntityArchetype` value with the documented change applied to bind a state-aware custom name and visibility.",
         example = "use sand::prelude::*;\n\nfn demonstrate<K: 'static, S: 'static>(entity_archetype_value: sand::entity::EntityArchetype < K , S >, binding: sand::entity::NameBinding) where K : sand::entity::KnownEntityKind + sand::entity::SafeEntityDataWriteKind , S : sand::entity::EntityState {\n    let updated_entity_archetype = entity_archetype_value.name(binding);\n}",
     )]
@@ -1047,7 +1047,7 @@ where
         minecraft = "Sand validates this definition and lowers it to entity-scoped selectors, scoreboards, NBT operations, and generated lifecycle functions as required.",
         use_when = ["Defining or using typed entity behavior in a Sand datapack"],
         avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
-        params(binding = "`binding` supplies the binding value used to bind a stable typed native-NBT field."),
+        params(binding = "`binding` provides the binding used when binding a stable typed native-NBT field."),
         returns = "The `EntityArchetype` value with the documented change applied to bind a stable typed native-NBT field.",
         example = "use sand::prelude::*;\n\nfn demonstrate<K: 'static, S: 'static>(entity_archetype_value: sand::entity::EntityArchetype < K , S >, binding: sand::entity::EntityNbtBinding) where K : sand::entity::KnownEntityKind + sand::entity::SafeEntityDataWriteKind , S : sand::entity::EntityState {\n    let updated_entity_archetype = entity_archetype_value.native_data(binding);\n}",
     )]
@@ -1075,7 +1075,7 @@ where
         minecraft = "Sand validates this definition and lowers it to entity-scoped selectors, scoreboards, NBT operations, and generated lifecycle functions as required.",
         use_when = ["Defining or using typed entity behavior in a Sand datapack"],
         avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
-        params(binding = "`binding` supplies the binding value used to synchronize current/max health according to an explicit resize policy."),
+        params(binding = "`binding` is used to synchronize current/max health according to an explicit resize policy."),
         returns = "The `EntityArchetype` value with the documented change applied to synchronize current/max health according to an explicit resize policy.",
         example = "use sand::prelude::*;\n\nfn demonstrate<K: 'static, S: 'static>(entity_archetype_value: sand::entity::EntityArchetype < K , S >, binding: sand::entity::HealthBinding) where K : sand::entity::KnownEntityKind + sand::entity::MutableLivingEntityKind , S : sand::entity::EntityState {\n    let updated_entity_archetype = entity_archetype_value.health(binding);\n}",
     )]
@@ -1097,7 +1097,7 @@ where
         minecraft = "Sand validates this definition and lowers it to entity-scoped selectors, scoreboards, NBT operations, and generated lifecycle functions as required.",
         use_when = ["Defining or using typed entity behavior in a Sand datapack"],
         avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
-        params(binding = "`binding` supplies the binding value used to bind an attribute base value."),
+        params(binding = "`binding` provides the binding used when binding an attribute base value."),
         returns = "The `EntityArchetype` value with the documented change applied to bind an attribute base value.",
         example = "use sand::prelude::*;\n\nfn demonstrate<K: 'static, S: 'static>(entity_archetype_value: sand::entity::EntityArchetype < K , S >, binding: sand::entity::AttributeBinding) where K : sand::entity::KnownEntityKind + sand::entity::MutableLivingEntityKind , S : sand::entity::EntityState {\n    let updated_entity_archetype = entity_archetype_value.attribute(binding);\n}",
     )]
@@ -1119,7 +1119,7 @@ where
         minecraft = "Sand validates this definition and lowers it to entity-scoped selectors, scoreboards, NBT operations, and generated lifecycle functions as required.",
         use_when = ["Defining or using typed entity behavior in a Sand datapack"],
         avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
-        params(binding = "`binding` supplies the binding value used to bind one idempotent namespaced attribute modifier."),
+        params(binding = "`binding` provides the binding used when binding one idempotent namespaced attribute modifier."),
         returns = "The `EntityArchetype` value with the documented change applied to bind one idempotent namespaced attribute modifier.",
         example = "use sand::prelude::*;\n\nfn demonstrate<K: 'static, S: 'static>(entity_archetype_value: sand::entity::EntityArchetype < K , S >, binding: sand::entity::AttributeModifierBinding) where K : sand::entity::KnownEntityKind + sand::entity::MutableLivingEntityKind , S : sand::entity::EntityState {\n    let updated_entity_archetype = entity_archetype_value.attribute_modifier(binding);\n}",
     )]
@@ -1142,7 +1142,7 @@ where
         minecraft = "Sand validates this definition and lowers it to entity-scoped selectors, scoreboards, NBT operations, and generated lifecycle functions as required.",
         use_when = ["Defining or using typed entity behavior in a Sand datapack"],
         avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
-        params(binding = "`binding` supplies the binding value used to apply an archetype-owned status effect on refresh."),
+        params(binding = "`binding` provides the binding applied when an archetype-owned status effect on refresh."),
         returns = "The `EntityArchetype` value with the documented change applied to apply an archetype-owned status effect on refresh.",
         example = "use sand::prelude::*;\n\nfn demonstrate<K: 'static, S: 'static>(entity_archetype_value: sand::entity::EntityArchetype < K , S >, binding: sand::entity::EffectBinding) where K : sand::entity::KnownEntityKind + sand::entity::MutableLivingEntityKind , S : sand::entity::EntityState {\n    let updated_entity_archetype = entity_archetype_value.effect(binding);\n}",
     )]
@@ -1164,7 +1164,7 @@ where
         minecraft = "Sand validates this definition and lowers it to entity-scoped selectors, scoreboards, NBT operations, and generated lifecycle functions as required.",
         use_when = ["Defining or using typed entity behavior in a Sand datapack"],
         avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
-        params(flag = "Apply/remove an effect only when `flag` is enabled/disabled.", binding = "`binding` supplies the binding value used to apply/remove an effect only when `flag` is enabled/disabled."),
+        params(flag = "Apply/remove an effect only when `flag` is enabled/disabled.", binding = "`binding` is used to apply/remove an effect only when `flag` is enabled/disabled."),
         returns = "The `EntityArchetype` value with the documented change applied to apply/remove an effect only when `flag` is enabled/disabled.",
         example = "use sand::prelude::*;\n\nfn demonstrate<K: 'static, S: 'static>(entity_archetype_value: sand::entity::EntityArchetype < K , S >, flag: sand::entity::EntityFlag, binding: sand::entity::EffectBinding) where K : sand::entity::KnownEntityKind + sand::entity::MutableLivingEntityKind , S : sand::entity::EntityState {\n    let updated_entity_archetype = entity_archetype_value.effect_when(flag, binding);\n}",
     )]
@@ -1187,7 +1187,7 @@ where
         minecraft = "Sand validates this definition and lowers it to entity-scoped selectors, scoreboards, NBT operations, and generated lifecycle functions as required.",
         use_when = ["Defining or using typed entity behavior in a Sand datapack"],
         avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
-        params(binding = "`binding` supplies the binding value used to own one typed equipment slot using Sand's canonical item stack model."),
+        params(binding = "`binding` is used to own one typed equipment slot using Sand's canonical item stack model."),
         returns = "The `EntityArchetype` value with the documented change applied to own one typed equipment slot using Sand's canonical item stack model.",
         example = "use sand::prelude::*;\n\nfn demonstrate<K: 'static, S: 'static>(entity_archetype_value: sand::entity::EntityArchetype < K , S >, binding: sand::entity::EquipmentBinding) where K : sand::entity::KnownEntityKind + sand::entity::MutableLivingEntityKind , S : sand::entity::EntityState {\n    let updated_entity_archetype = entity_archetype_value.equipment(binding);\n}",
     )]
@@ -1210,7 +1210,7 @@ where
         minecraft = "Sand validates this definition and lowers it to entity-scoped selectors, scoreboards, NBT operations, and generated lifecycle functions as required.",
         use_when = ["Defining or using typed entity behavior in a Sand datapack"],
         avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
-        params(flag = "`flag` supplies the flag value used to equip/clear one owned slot when a typed flag changes.", binding = "`binding` supplies the binding value used to equip/clear one owned slot when a typed flag changes."),
+        params(flag = "`flag` is used to equip/clear one owned slot when a typed flag changes.", binding = "`binding` is used to equip/clear one owned slot when a typed flag changes."),
         returns = "The `EntityArchetype` value with the documented change applied to equip/clear one owned slot when a typed flag changes.",
         example = "use sand::prelude::*;\n\nfn demonstrate<K: 'static, S: 'static>(entity_archetype_value: sand::entity::EntityArchetype < K , S >, flag: sand::entity::EntityFlag, binding: sand::entity::EquipmentBinding) where K : sand::entity::KnownEntityKind + sand::entity::MutableLivingEntityKind , S : sand::entity::EntityState {\n    let updated_entity_archetype = entity_archetype_value.equipment_when(flag, binding);\n}",
     )]
@@ -1513,8 +1513,8 @@ impl EntityTransition {
         minecraft = "Sand validates this definition and lowers it to entity-scoped selectors, scoreboards, NBT operations, and generated lifecycle functions as required.",
         use_when = ["Defining or using typed entity behavior in a Sand datapack"],
         avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
-        params(field = "`field` supplies the field value used to observe any change to a typed field."),
-        returns = "A newly constructed `EntityTransition` configured to observe any change to a typed field.",
+        params(field = "`field` provides the field observed when tracking any change to a typed field."),
+        returns = "An `EntityTransition` observing any change to a typed field.",
         example = "use sand::prelude::*;\n\nfn demonstrate<F : sand::entity::EntityStateField + 'static>(field: F)  {\n    let entity_transition = sand::entity::EntityTransition::changed::<F>(field);\n}",
     )]
     #[must_use]
@@ -1534,8 +1534,8 @@ impl EntityTransition {
         minecraft = "Sand validates this definition and lowers it to entity-scoped selectors, scoreboards, NBT operations, and generated lifecycle functions as required.",
         use_when = ["Defining or using typed entity behavior in a Sand datapack"],
         avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
-        params(field = "`field` supplies the field value used to observe a flag becoming enabled."),
-        returns = "A newly constructed `EntityTransition` configured to observe a flag becoming enabled.",
+        params(field = "`field` provides the field observed when tracking a flag becoming enabled."),
+        returns = "An `EntityTransition` observing a flag becoming enabled.",
         example = "use sand::prelude::*;\n\nfn demonstrate(field: sand::entity::EntityFlag)  {\n    let entity_transition = sand::entity::EntityTransition::flag_enabled(field);\n}",
     )]
     #[must_use]
@@ -1555,8 +1555,8 @@ impl EntityTransition {
         minecraft = "Sand validates this definition and lowers it to entity-scoped selectors, scoreboards, NBT operations, and generated lifecycle functions as required.",
         use_when = ["Defining or using typed entity behavior in a Sand datapack"],
         avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
-        params(field = "`field` supplies the field value used to observe a flag becoming disabled."),
-        returns = "A newly constructed `EntityTransition` configured to observe a flag becoming disabled.",
+        params(field = "`field` provides the field observed when tracking a flag becoming disabled."),
+        returns = "An `EntityTransition` observing a flag becoming disabled.",
         example = "use sand::prelude::*;\n\nfn demonstrate(field: sand::entity::EntityFlag)  {\n    let entity_transition = sand::entity::EntityTransition::flag_disabled(field);\n}",
     )]
     #[must_use]
@@ -1576,8 +1576,8 @@ impl EntityTransition {
         minecraft = "Sand validates this definition and lowers it to entity-scoped selectors, scoreboards, NBT operations, and generated lifecycle functions as required.",
         use_when = ["Defining or using typed entity behavior in a Sand datapack"],
         avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
-        params(field = "`field` supplies the field value used to observe a typed enum becoming one variant.", value = "`value` provides the value being applied or compared used to observe a typed enum becoming one variant."),
-        returns = "A newly constructed `EntityTransition` configured to observe a typed enum becoming one variant.",
+        params(field = "`field` provides the field observed when tracking a typed enum becoming one variant.", value = "`value` provides the value being applied or compared used to observe a typed enum becoming one variant."),
+        returns = "An `EntityTransition` observing a typed enum becoming one variant.",
         example = "use sand::prelude::*;\n\nfn demonstrate<T : sand::entity::EntityEnumValue + 'static>(field: sand::entity::EntityEnum < T >, value: T)  {\n    let entity_transition = sand::entity::EntityTransition::enum_changed_to::<T>(field, value);\n}",
     )]
     #[must_use]
@@ -1603,8 +1603,8 @@ impl EntityTransition {
         minecraft = "Sand validates this definition and lowers it to entity-scoped selectors, scoreboards, NBT operations, and generated lifecycle functions as required.",
         use_when = ["Defining or using typed entity behavior in a Sand datapack"],
         avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
-        params(field = "`field` supplies the field value used to observe an inclusive threshold crossing.", value = "`value` provides the value being applied or compared used to observe an inclusive threshold crossing.", direction = "`direction` supplies the direction value used to observe an inclusive threshold crossing."),
-        returns = "A newly constructed `EntityTransition` configured to observe an inclusive threshold crossing.",
+        params(field = "`field` provides the field observed when tracking an inclusive threshold crossing.", value = "`value` provides the value being applied or compared used to observe an inclusive threshold crossing.", direction = "`direction` provides the direction observed when tracking an inclusive threshold crossing."),
+        returns = "An `EntityTransition` observing an inclusive threshold crossing.",
         example = "use sand::prelude::*;\n\nfn demonstrate(field: impl sand::entity::EntityStateField, value: i32, direction: sand::entity::ThresholdDirection)  {\n    let entity_transition = sand::entity::EntityTransition::threshold(field, value, direction);\n}",
     )]
     #[must_use]
@@ -1632,8 +1632,8 @@ impl EntityTransition {
         minecraft = "Sand validates this definition and lowers it to entity-scoped selectors, scoreboards, NBT operations, and generated lifecycle functions as required.",
         use_when = ["Defining or using typed entity behavior in a Sand datapack"],
         avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
-        params(current = "`current` supplies the current value used to observe a health-ratio crossing in basis points.", maximum = "`maximum` supplies the maximum value used to observe a health-ratio crossing in basis points.", basis_points = "`basis_points` supplies the basis points value used to observe a health-ratio crossing in basis points.", direction = "`direction` supplies the direction value used to observe a health-ratio crossing in basis points."),
-        returns = "A newly constructed `EntityTransition` configured to observe a health-ratio crossing in basis points.",
+        params(current = "`current` provides the current observed when tracking a health-ratio crossing in basis points.", maximum = "`maximum` provides the maximum observed when tracking a health-ratio crossing in basis points.", basis_points = "`basis_points` provides the basis points observed when tracking a health-ratio crossing in basis points.", direction = "`direction` provides the direction observed when tracking a health-ratio crossing in basis points."),
+        returns = "An `EntityTransition` observing a health-ratio crossing in basis points.",
         example = "use sand::prelude::*;\n\nfn demonstrate(current: impl sand::entity::EntityStateField, maximum: impl sand::entity::EntityStateField, basis_points: u16, direction: sand::entity::ThresholdDirection)  {\n    let entity_transition = sand::entity::EntityTransition::health_percentage(current, maximum, basis_points, direction);\n}",
     )]
     #[must_use]
@@ -1663,8 +1663,8 @@ impl EntityTransition {
         minecraft = "Sand validates this definition and lowers it to entity-scoped selectors, scoreboards, NBT operations, and generated lifecycle functions as required.",
         use_when = ["Defining or using typed entity behavior in a Sand datapack"],
         avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
-        params(field = "`field` supplies the field value used to observe a timer reaching zero."),
-        returns = "A newly constructed `EntityTransition` configured to observe a timer reaching zero.",
+        params(field = "`field` provides the field observed when tracking a timer reaching zero."),
+        returns = "An `EntityTransition` observing a timer reaching zero.",
         example = "use sand::prelude::*;\n\nfn demonstrate(field: sand::entity::EntityTimer)  {\n    let entity_transition = sand::entity::EntityTransition::timer_elapsed(field);\n}",
     )]
     #[must_use]
@@ -1684,8 +1684,8 @@ impl EntityTransition {
         minecraft = "Sand validates this definition and lowers it to entity-scoped selectors, scoreboards, NBT operations, and generated lifecycle functions as required.",
         use_when = ["Defining or using typed entity behavior in a Sand datapack"],
         avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
-        params(field = "`field` supplies the field value used to observe a cooldown becoming ready."),
-        returns = "A newly constructed `EntityTransition` configured to observe a cooldown becoming ready.",
+        params(field = "`field` provides the field observed when tracking a cooldown becoming ready."),
+        returns = "An `EntityTransition` observing a cooldown becoming ready.",
         example = "use sand::prelude::*;\n\nfn demonstrate(field: sand::entity::EntityCooldown)  {\n    let entity_transition = sand::entity::EntityTransition::cooldown_ready(field);\n}",
     )]
     #[must_use]
@@ -1764,8 +1764,8 @@ impl EntityDerivation {
         minecraft = "Sand validates this definition and lowers it to entity-scoped selectors, scoreboards, NBT operations, and generated lifecycle functions as required.",
         use_when = ["Defining or using typed entity behavior in a Sand datapack"],
         avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
-        params(name = "`name` provides the author-visible text value used to create a derivation using Sand's default scale of 1000.", target = "`target` provides the entity, block, or command target used to create a derivation using Sand's default scale of 1000.", curve = "`curve` supplies the curve value used to create a derivation using Sand's default scale of 1000."),
-        returns = "A newly constructed `EntityDerivation` configured to create a derivation using Sand's default scale of 1000.",
+        params(name = "`name` is used when creating a derivation using Sand's default scale of 1000.", target = "`target` provides the entity, block, or command target used to create a derivation using Sand's default scale of 1000.", curve = "`curve` is used when creating a derivation using Sand's default scale of 1000."),
+        returns = "An `EntityDerivation` representing a derivation using Sand's default scale of 1000.",
         example = "use sand::prelude::*;\n\nfn demonstrate(name: impl Into < String >, target: sand::entity::EntityScore < i32 >, curve: sand::entity::StatCurve)  {\n    let entity_derivation = sand::entity::EntityDerivation::new(name, target, curve);\n}",
     )]
     #[must_use]

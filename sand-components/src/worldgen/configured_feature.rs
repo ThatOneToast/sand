@@ -107,7 +107,7 @@ impl OreTarget {
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
         params(target = "Place `state` wherever `target` matches.", state = "Place `state` wherever `target` matches."),
-        returns = "A newly constructed `OreTarget` configured to place `state` wherever `target` matches.",
+        returns = "An `OreTarget` that places `state` wherever `target` matches.",
         example = "use sand::prelude::*;\n\nfn demonstrate(target: sand::component::RuleTest, state: sand::component::BlockState)  {\n    let ore_target = sand::component::OreTarget::new(target, state);\n}",
     )]
     pub fn new(target: RuleTest, state: BlockState) -> Self {
@@ -155,8 +155,8 @@ impl OreConfig {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(size = "`size` supplies the size value used to create an ore config with the given vein size and replaceable targets.", targets = "`targets` provides the Minecraft target selection used to create an ore config with the given vein size and replaceable targets."),
-        returns = "A newly constructed `OreConfig` configured to create an ore config with the given vein size and replaceable targets.",
+        params(size = "`size` is used when creating an ore config with the given vein size and replaceable targets.", targets = "`targets` provides the Minecraft target selection used to create an ore config with the given vein size and replaceable targets."),
+        returns = "An `OreConfig` representing an ore config with the given vein size and replaceable targets.",
         example = "use sand::prelude::*;\n\nfn demonstrate(size: u32, targets: impl IntoIterator < Item = sand::component::OreTarget >)  {\n    let ore_config = sand::component::OreConfig::new(size, targets);\n}",
     )]
     pub fn new(size: u32, targets: impl IntoIterator<Item = OreTarget>) -> Self {
@@ -179,7 +179,7 @@ impl OreConfig {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(chance = "`chance` supplies the chance value used to probability (`0..=1`) that a vein block exposed to air is discarded."),
+        params(chance = "`chance` sets the probability (`0..=1`) that a vein block exposed to air is discarded."),
         returns = "The `OreConfig` value with the documented change applied to probability (`0..=1`) that a vein block exposed to air is discarded.",
         example = "use sand::prelude::*;\n\nfn demonstrate(ore_config_value: sand::component::OreConfig, chance: f32)  {\n    let updated_ore_config = ore_config_value.discard_chance_on_air_exposure(chance);\n}",
     )]
@@ -326,7 +326,7 @@ impl ConfiguredFeature {
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
         params(location = "`location` provides the typed resource identifier or location used to use a `minecraft:no_op` feature that generates nothing."),
-        returns = "A newly constructed `ConfiguredFeature` configured to use a `minecraft:no_op` feature that generates nothing.",
+        returns = "A `ConfiguredFeature` configured for a `minecraft:no_op` feature that generates nothing.",
         example = "use sand::prelude::*;\n\nfn demonstrate(location: sand::ResourceLocation)  {\n    let configured_feature = sand::component::ConfiguredFeature::no_op(location);\n}",
     )]
     pub fn no_op(location: ResourceLocation) -> Self {
@@ -348,8 +348,8 @@ impl ConfiguredFeature {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(location = "`location` provides the typed resource identifier or location used to use a `minecraft:simple_block` feature that places a single block state.", to_place = "`to_place` supplies the to place value used to use a `minecraft:simple_block` feature that places a single block state."),
-        returns = "A newly constructed `ConfiguredFeature` configured to use a `minecraft:simple_block` feature that places a single block state.",
+        params(location = "`location` provides the typed resource identifier or location used to use a `minecraft:simple_block` feature that places a single block state.", to_place = "`to_place` sets the to place for a `minecraft:simple_block` feature that places a single block state."),
+        returns = "A `ConfiguredFeature` configured for a `minecraft:simple_block` feature that places a single block state.",
         example = "use sand::prelude::*;\n\nfn demonstrate(location: sand::ResourceLocation, to_place: sand::component::BlockStateProvider)  {\n    let configured_feature = sand::component::ConfiguredFeature::simple_block(location, to_place);\n}",
     )]
     pub fn simple_block(location: ResourceLocation, to_place: BlockStateProvider) -> Self {
@@ -371,8 +371,8 @@ impl ConfiguredFeature {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(location = "`location` provides the typed resource identifier or location used to use a `minecraft:fill_layer` feature that fills one world layer with a state.", state = "`state` supplies the state value used to use a `minecraft:fill_layer` feature that fills one world layer with a state.", height = "`height` supplies the height value used to use a `minecraft:fill_layer` feature that fills one world layer with a state."),
-        returns = "A newly constructed `ConfiguredFeature` configured to use a `minecraft:fill_layer` feature that fills one world layer with a state.",
+        params(location = "`location` provides the typed resource identifier or location used to use a `minecraft:fill_layer` feature that fills one world layer with a state.", state = "`state` sets the state for a `minecraft:fill_layer` feature that fills one world layer with a state.", height = "`height` sets the height for a `minecraft:fill_layer` feature that fills one world layer with a state."),
+        returns = "A `ConfiguredFeature` configured for a `minecraft:fill_layer` feature that fills one world layer with a state.",
         example = "use sand::prelude::*;\n\nfn demonstrate(location: sand::ResourceLocation, state: sand::component::BlockState, height: u32)  {\n    let configured_feature = sand::component::ConfiguredFeature::fill_layer(location, state, height);\n}",
     )]
     pub fn fill_layer(location: ResourceLocation, state: BlockState, height: u32) -> Self {
@@ -394,8 +394,8 @@ impl ConfiguredFeature {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(location = "`location` provides the typed resource identifier or location used to use a `minecraft:ore` feature that replaces matching blocks with ore veins.", config = "`config` supplies the config value used to use a `minecraft:ore` feature that replaces matching blocks with ore veins."),
-        returns = "A newly constructed `ConfiguredFeature` configured to use a `minecraft:ore` feature that replaces matching blocks with ore veins.",
+        params(location = "`location` provides the typed resource identifier or location used to use a `minecraft:ore` feature that replaces matching blocks with ore veins.", config = "`config` sets the config for a `minecraft:ore` feature that replaces matching blocks with ore veins."),
+        returns = "A `ConfiguredFeature` configured for a `minecraft:ore` feature that replaces matching blocks with ore veins.",
         example = "use sand::prelude::*;\n\nfn demonstrate(location: sand::ResourceLocation, config: sand::component::OreConfig)  {\n    let configured_feature = sand::component::ConfiguredFeature::ore(location, config);\n}",
     )]
     pub fn ore(location: ResourceLocation, config: OreConfig) -> Self {
@@ -423,8 +423,8 @@ impl ConfiguredFeature {
         minecraft = "Prefer the typed constructors. This escape hatch exists for modded feature types and for vanilla configs outside the typed slice (trees, selectors, decorated shapes, and other version-sensitive schemas). The config must still be a JSON object.",
         use_when = ["Prefer the typed constructors. This escape hatch exists for modded feature types and for vanilla configs outside the typed slice (trees, selectors, decorated shapes, and other version-sensitive schemas). The config must still be a JSON object."],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(location = "`location` provides the typed resource identifier or location used to use author a configured feature from an explicitly raw feature type and config object.", feature_type = "`feature_type` provides the typed Minecraft resource identifier used to use author a configured feature from an explicitly raw feature type and config object.", config = "`config` supplies the config value used to use author a configured feature from an explicitly raw feature type and config object."),
-        returns = "A newly constructed `ConfiguredFeature` configured to use author a configured feature from an explicitly raw feature type and config object.",
+        params(location = "`location` provides the typed resource identifier or location used to use author a configured feature from an explicitly raw feature type and config object.", feature_type = "`feature_type` provides the typed Minecraft resource identifier used to use author a configured feature from an explicitly raw feature type and config object.", config = "`config` sets the config for author a configured feature from an explicitly raw feature type and config object."),
+        returns = "A `ConfiguredFeature` configured for author a configured feature from an explicitly raw feature type and config object.",
         example = "use sand::prelude::*;\n\nfn demonstrate(location: sand::ResourceLocation, feature_type: sand::ResourceLocation, config: sand::component::RawJson)  {\n    let configured_feature = sand::component::ConfiguredFeature::raw(location, feature_type, config);\n}",
     )]
     pub fn raw(

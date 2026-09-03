@@ -284,7 +284,7 @@ impl PersistentEventCondition {
         use_when = ["Prefer typed [`Condition`](sand::condition::Condition) constructors. A [`Condition::raw`](sand::condition::Condition::raw) value remains an explicit compatibility escape hatch whose target-version semantics are user-owned when Sand cannot validate the fragment."],
         avoid_when = ["Inspecting generated advancement or event-graph implementation state"],
         params(condition = "`condition` provides the condition that gates the operation used to define a condition that is safe to evaluate as the inherited player."),
-        returns = "A newly constructed `PersistentEventCondition` configured to define a condition that is safe to evaluate as the inherited player.",
+        returns = "A `PersistentEventCondition` defining a condition that is safe to evaluate as the inherited player.",
         example = "use sand::prelude::*;\n\nfn demonstrate(condition: impl Into < sand::condition::Condition >)  {\n    let persistent_event_condition = sand::events::PersistentEventCondition::players(condition);\n}",
     )]
     pub fn players(condition: impl Into<crate::condition::Condition>) -> Self {
@@ -940,7 +940,7 @@ impl EventSetup {
         minecraft = "It emits no load or detector setup resources.",
         use_when = ["Defining, composing, or handling a typed Sand event"],
         avoid_when = ["Inspecting generated advancement or event-graph implementation state"],
-        returns = "A newly constructed `EventSetup` configured to use an empty setup — no objectives or lifecycle commands.",
+        returns = "An `EventSetup` configured for an empty setup — no objectives or lifecycle commands.",
         example = "use sand::prelude::*;\n\nfn demonstrate()  {\n    let event_setup = sand::events::EventSetup::none();\n}",
     )]
     pub fn none() -> Self {
@@ -1708,8 +1708,8 @@ impl SandEventDispatch {
         minecraft = "Sand generates an advancement JSON file and wires the handler function as its reward. The advancement is revoked after firing by default so it can trigger again.",
         use_when = ["Defining, composing, or handling a typed Sand event"],
         avoid_when = ["Inspecting generated advancement or event-graph implementation state"],
-        params(trigger = "`trigger` supplies the trigger value used to dispatch from one typed advancement trigger. Sand generates an advancement JSON file and wires the handler function as its reward. The advancement is revoked after firing by default so it can trigger again."),
-        returns = "A newly constructed `SandEventDispatch` configured to dispatch from one typed advancement trigger. Sand generates an advancement JSON file and wires the handler function as its reward. The advancement is revoked after firing by default so it can trigger again.",
+        params(trigger = "`trigger` is used to dispatch from one typed advancement trigger. Sand generates an advancement JSON file and wires the handler function as its reward. The advancement is revoked after firing by default so it can trigger again."),
+        returns = "A `SandEventDispatch` that dispatches from one typed advancement trigger. Sand generates an advancement JSON file and wires the handler function as its reward. The advancement is revoked after firing by default so it can trigger again.",
         example = "use sand::prelude::*;\n\nfn demonstrate(trigger: sand::component::AdvancementTrigger)  {\n    let sand_event_dispatch = sand::events::SandEventDispatch::AdvancementTrigger(trigger);\n}",
     )]
     pub fn AdvancementTrigger(trigger: crate::AdvancementTrigger) -> Self {
@@ -1734,7 +1734,7 @@ impl SandEventDispatch {
         use_when = ["Prefer [`SandEventDispatch::tick`] for typed conditions and lifecycle resources. This compatibility constructor preserves the raw-condition escape hatch without exposing Sand's dispatch representation."],
         avoid_when = ["Inspecting generated advancement or event-graph implementation state"],
         params(condition = "`condition` provides the condition that gates the operation used to dispatch by polling one explicit `execute if` condition for each player."),
-        returns = "A newly constructed `SandEventDispatch` configured to dispatch by polling one explicit `execute if` condition for each player.",
+        returns = "A `SandEventDispatch` that dispatches by polling one explicit `execute if` condition for each player.",
         example = "use sand::prelude::*;\n\nfn demonstrate(condition: String)  {\n    let sand_event_dispatch = sand::events::SandEventDispatch::TickCondition(condition);\n}",
     )]
     pub fn TickCondition(condition: String) -> Self {
@@ -1754,8 +1754,8 @@ impl SandEventDispatch {
         minecraft = "Sand emits the builder's typed conditions as per-player execute checks.",
         use_when = ["Defining, composing, or handling a typed Sand event"],
         avoid_when = ["Inspecting generated advancement or event-graph implementation state"],
-        params(tick = "`tick` supplies the tick value used to wrap a structured typed tick-poll dispatch."),
-        returns = "A newly constructed `SandEventDispatch` configured to wrap a structured typed tick-poll dispatch.",
+        params(tick = "`tick` provides the tick wrapped when creating a structured typed tick-poll dispatch."),
+        returns = "A `SandEventDispatch` wrapping a structured typed tick-poll dispatch.",
         example = "use sand::prelude::*;\n\nfn demonstrate(tick: sand::events::TickEventDispatch)  {\n    let sand_event_dispatch = sand::events::SandEventDispatch::Tick(tick);\n}",
     )]
     pub fn Tick(tick: TickEventDispatch) -> Self {
@@ -1775,8 +1775,8 @@ impl SandEventDispatch {
         minecraft = "Sand lowers parent occurrences and inherited subjects into generated composition functions.",
         use_when = ["Defining, composing, or handling a typed Sand event"],
         avoid_when = ["Inspecting generated advancement or event-graph implementation state"],
-        params(chain = "`chain` supplies the chain value used to wrap a structured event-composition dispatch."),
-        returns = "A newly constructed `SandEventDispatch` configured to wrap a structured event-composition dispatch.",
+        params(chain = "`chain` provides the chain wrapped when creating a structured event-composition dispatch."),
+        returns = "A `SandEventDispatch` wrapping a structured event-composition dispatch.",
         example = "use sand::prelude::*;\n\nfn demonstrate(chain: sand::events::ChainEventDispatch)  {\n    let sand_event_dispatch = sand::events::SandEventDispatch::Chain(chain);\n}",
     )]
     pub fn Chain(chain: ChainEventDispatch) -> Self {
@@ -2179,7 +2179,7 @@ pub trait SandEventParticipants: SandEvent + Sized + 'static {
         minecraft = "The value is available only when the event plan captured that role.",
         use_when = ["Defining, composing, or handling a typed Sand event"],
         avoid_when = ["Inspecting generated advancement or event-graph implementation state"],
-        params(role = "`role` supplies the role value used to acces a declared entity participant by role. See [`sand::event::Event::entity`] for the identical infallible contract this mirrors."),
+        params(role = "`role` identifies the declared entity participant by role. See [`sand::event::Event::entity`] for the identical infallible contract this mirrors."),
         returns = "The `sand :: participant :: EntityParticipant` value produced to acces a declared entity participant by role. See [`sand::event::Event::entity`] for the identical infallible contract this mirrors.",
         example = "use sand::prelude::*;\n\nfn demonstrate<T: sand::events::SandEventParticipants>(sand_event_participants_value: &T, role: sand::participant::EntityParticipantRole)  {\n    let entity = sand_event_participants_value.entity(role);\n}",
     )]
@@ -2201,7 +2201,7 @@ pub trait SandEventParticipants: SandEvent + Sized + 'static {
         minecraft = "Sand captures its NBT at dispatch time rather than depending on a live slot.",
         use_when = ["Defining, composing, or handling a typed Sand event"],
         avoid_when = ["Inspecting generated advancement or event-graph implementation state"],
-        params(role = "`role` supplies the role value used to acces a declared item participant by role. See [`Self::entity`]."),
+        params(role = "`role` identifies the declared item participant by role. See [`Self::entity`]."),
         returns = "The `sand :: item :: ItemSnapshot` value produced to acces a declared item participant by role. See [`Self::entity`].",
         example = "use sand::prelude::*;\n\nfn demonstrate<T: sand::events::SandEventParticipants>(sand_event_participants_value: &T, role: sand::participant::ItemParticipantRole)  {\n    let item = sand_event_participants_value.item(role);\n}",
     )]
@@ -2314,7 +2314,7 @@ pub trait SandEventParticipants: SandEvent + Sized + 'static {
         minecraft = "The snapshot expires according to the composed event's TickWindow.",
         use_when = ["Defining, composing, or handling a typed Sand event"],
         avoid_when = ["Inspecting generated advancement or event-graph implementation state"],
-        params(role = "`role` supplies the role value used to acces a declared bounded item participant by role (#272) — the `.within(...)`-crossing counterpart to [`Self::item`]. Backed by [`sand::participant::EventParticipantPlan::inherit_item_within`] instead of a same-cycle capture; see that method's doc for the full replacement/expiry/absence contract."),
+        params(role = "`role` identifies the declared bounded item participant by role (#272) — the `.within(...)`-crossing counterpart to [`Self::item`]. Backed by [`sand::participant::EventParticipantPlan::inherit_item_within`] instead of a same-cycle capture; see that method's doc for the full replacement/expiry/absence contract."),
         returns = "The `sand :: participant :: BoundedItemSnapshot` value produced to acces a declared bounded item participant by role (#272) — the `.within(...)`-crossing counterpart to [`Self::item`]. Backed by [`sand::participant::EventParticipantPlan::inherit_item_within`] instead of a same-cycle capture; see that method's doc for the full replacement/expiry/absence contract.",
         example = "use sand::prelude::*;\n\nfn demonstrate<T: sand::events::SandEventParticipants>(sand_event_participants_value: &T, role: sand::participant::ItemParticipantRole)  {\n    let bounded_item = sand_event_participants_value.bounded_item(role);\n}",
     )]

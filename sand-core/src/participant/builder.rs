@@ -272,7 +272,7 @@ impl ParticipantBuilder {
         minecraft = "Entity relationships use the matching execute relation, while item snapshots are copied into Sand-owned command storage and cleaned up at the end of their declared lifetime.",
         use_when = ["Declaring or reading a typed participant whose lifecycle is guaranteed by the event plan"],
         avoid_when = ["Assuming an entity or item remains live beyond its declared invocation, event-cycle, or bounded correlation lifetime"],
-        returns = "A newly constructed `ParticipantBuilder` configured to start building an empty plan.",
+        returns = "A `ParticipantBuilder` initialized to building an empty plan.",
         example = "use sand::prelude::*;\n\nfn demonstrate()  {\n    let participant_builder = sand::participant::ParticipantBuilder::new();\n}",
     )]
     pub fn new() -> Self {
@@ -440,7 +440,7 @@ impl ParticipantBuilder {
         minecraft = "Entity relationships use the matching execute relation, while item snapshots are copied into Sand-owned command storage and cleaned up at the end of their declared lifetime.",
         use_when = ["Declaring or reading a typed participant whose lifecycle is guaranteed by the event plan"],
         avoid_when = ["Assuming an entity or item remains live beyond its declared invocation, event-cycle, or bounded correlation lifetime"],
-        params(role = "`role` supplies the role value used to use the item-snapshot counterpart to [`Self::inherit_entity`]. `hand` must match the hand `Source`'s own declaration captured from — this builder does not look `Source`'s declaration up for you.", hand = "The item-snapshot counterpart to [`Self::inherit_entity`]. `hand` must match the hand `Source`'s own declaration captured from — this builder does not look `Source`'s declaration up for you."),
+        params(role = "`role` sets the role for the item-snapshot counterpart to [`Self::inherit_entity`]. `hand` must match the hand `Source`'s own declaration captured from — this builder does not look `Source`'s declaration up for you.", hand = "The item-snapshot counterpart to [`Self::inherit_entity`]. `hand` must match the hand `Source`'s own declaration captured from — this builder does not look `Source`'s declaration up for you."),
         returns = "The `ParticipantBuilder` value with the documented change applied to use the item-snapshot counterpart to [`Self::inherit_entity`]. `hand` must match the hand `Source`'s own declaration captured from — this builder does not look `Source`'s declaration up for you.",
         example = "use sand::prelude::*;\n\nfn demonstrate<Source : sand::events::SandEvent + 'static>(participant_builder_value: sand::participant::ParticipantBuilder, role: sand::participant::ItemParticipantRole, hand: sand::participant::ParticipantHand)  {\n    let updated_participant_builder = participant_builder_value.inherit_item::<Source>(role, hand);\n}",
     )]

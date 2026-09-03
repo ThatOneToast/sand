@@ -84,8 +84,8 @@ impl Color {
         minecraft = "The resourcepack exporter writes version-appropriate assets, bitmap-font providers, and pack metadata for the selected Minecraft profile.",
         use_when = ["Building HUD bars, HUD elements, textures, or resource-pack output alongside a Sand datapack"],
         avoid_when = ["The project is datapack-only or needs unrelated resource-pack functionality not modeled by Sand"],
-        params(r = "`r` supplies the r value used to create a color from individual RGBA components. All channels are `0–255`. Alpha `255` is fully opaque; `0` is transparent.", g = "`g` supplies the g value used to create a color from individual RGBA components. All channels are `0–255`. Alpha `255` is fully opaque; `0` is transparent.", b = "`b` supplies the b value used to create a color from individual RGBA components. All channels are `0–255`. Alpha `255` is fully opaque; `0` is transparent.", a = "`a` supplies the a value used to create a color from individual RGBA components. All channels are `0–255`. Alpha `255` is fully opaque; `0` is transparent."),
-        returns = "A newly constructed `Color` configured to create a color from individual RGBA components. All channels are `0–255`. Alpha `255` is fully opaque; `0` is transparent.",
+        params(r = "`r` is used when creating a color from individual RGBA components. All channels are `0–255`. Alpha `255` is fully opaque; `0` is transparent.", g = "`g` is used when creating a color from individual RGBA components. All channels are `0–255`. Alpha `255` is fully opaque; `0` is transparent.", b = "`b` is used when creating a color from individual RGBA components. All channels are `0–255`. Alpha `255` is fully opaque; `0` is transparent.", a = "`a` is used when creating a color from individual RGBA components. All channels are `0–255`. Alpha `255` is fully opaque; `0` is transparent."),
+        returns = "A `Color` representing a color from individual RGBA components. All channels are `0–255`. Alpha `255` is fully opaque; `0` is transparent.",
         example = "use sand::prelude::*;\n\nfn demonstrate(r: u8, g: u8, b: u8, a: u8)  {\n    let color = sand::resourcepack::Color::rgba(r, g, b, a);\n}",
         availability = ["Cargo feature: resourcepack"],
     )]
@@ -114,8 +114,8 @@ impl Color {
         minecraft = "The resourcepack exporter writes version-appropriate assets, bitmap-font providers, and pack metadata for the selected Minecraft profile.",
         use_when = ["Building HUD bars, HUD elements, textures, or resource-pack output alongside a Sand datapack"],
         avoid_when = ["The project is datapack-only or needs unrelated resource-pack functionality not modeled by Sand"],
-        params(packed = "`packed` supplies the packed value used to create a color from a packed `0xRRGGBBAA` `u32` literal."),
-        returns = "A newly constructed `Color` configured to create a color from a packed `0xRRGGBBAA` `u32` literal.",
+        params(packed = "`packed` is used when creating a color from a packed `0xRRGGBBAA` `u32` literal."),
+        returns = "A `Color` representing a color from a packed `0xRRGGBBAA` `u32` literal.",
         example = "use sand::resourcepack::Color;\nlet red = Color::from_u32(0xFF0000FF);\nassert_eq!((red.r, red.g, red.b, red.a), (255, 0, 0, 255));",
         availability = ["Cargo feature: resourcepack"],
     )]

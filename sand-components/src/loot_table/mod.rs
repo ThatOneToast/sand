@@ -548,83 +548,83 @@ impl Serialize for LootText {
     use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
     avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
     example = "use sand::component::LootFunction;",
-    variants(CopyComponents = "Selects the copy components form in this typed Minecraft component schema.", Custom = "Custom function — explicit raw escape hatch for modded loot functions.", EnchantRandomly = "Selects the enchant randomly form in this typed Minecraft component schema.", EnchantWithLevels = "Selects the enchant with levels form in this typed Minecraft component schema.", ExplosionDecay = "Selects the explosion decay form in this typed Minecraft component schema.", FillPlayerHead = "Selects the fill player head form in this typed Minecraft component schema.", FurnaceSmelt = "Selects the furnace smelt form in this typed Minecraft component schema.", LootingEnchant = "Selects the looting enchant form in this typed Minecraft component schema.", Reference = "Selects the reference form in this typed Minecraft component schema.", SetCount = "Selects the set count form in this typed Minecraft component schema.", SetDamage = "Selects the set damage form in this typed Minecraft component schema.", SetLore = "Selects the set lore form in this typed Minecraft component schema.", SetName = "Selects the set name form in this typed Minecraft component schema."),
-    variant_fields(CopyComponents(exclude = "`exclude` provides the exclude when the variant selects the copy components form in this typed Minecraft component schema.", include = "`include` provides the include when the variant selects the copy components form in this typed Minecraft component schema.", source = "`source` provides the source when the variant selects the copy components form in this typed Minecraft component schema."), Custom(data = "Additional function data as raw JSON.", function = "Function type identifier (e.g. `\"mymod:custom_function\"`)."), EnchantRandomly(only_compatible = "`only_compatible` provides the only compatible when the variant selects the enchant randomly form in this typed Minecraft component schema.", options = "`options` optionally provides the options when the variant selects the enchant randomly form in this typed Minecraft component schema."), EnchantWithLevels(levels = "`levels` provides the level range identifier when the variant selects the enchant with levels form in this typed Minecraft component schema.", options = "`options` optionally provides the options when the variant selects the enchant with levels form in this typed Minecraft component schema."), FillPlayerHead(entity = "`entity` provides the entity when the variant selects the fill player head form in this typed Minecraft component schema."), LootingEnchant(count = "`count` provides the count identifier when the variant selects the looting enchant form in this typed Minecraft component schema.", limit = "`limit` optionally provides the limit when the variant selects the looting enchant form in this typed Minecraft component schema."), Reference(name = "`name` provides the name when the variant selects the reference form in this typed Minecraft component schema."), SetCount(add = "`add` provides the add when the variant selects the set count form in this typed Minecraft component schema.", count = "`count` provides the count identifier when the variant selects the set count form in this typed Minecraft component schema."), SetDamage(add = "`add` provides the add when the variant selects the set damage form in this typed Minecraft component schema.", damage = "`damage` provides the damage identifier when the variant selects the set damage form in this typed Minecraft component schema."), SetLore(entity = "`entity` optionally narrows the entity matched when the variant selects the set lore form in this typed Minecraft component schema.", lore = "`lore` provides the lore when the variant selects the set lore form in this typed Minecraft component schema."), SetName(entity = "`entity` optionally narrows the entity matched when the variant selects the set name form in this typed Minecraft component schema.", name = "`name` provides the name when the variant selects the set name form in this typed Minecraft component schema.")),
+    variants(CopyComponents = "Applies Minecraft's copy components loot function.", Custom = "Custom function — explicit raw escape hatch for modded loot functions.", EnchantRandomly = "Applies Minecraft's enchant randomly loot function.", EnchantWithLevels = "Applies Minecraft's enchant with levels loot function.", ExplosionDecay = "Applies Minecraft's explosion decay loot function.", FillPlayerHead = "Applies Minecraft's fill player head loot function.", FurnaceSmelt = "Applies Minecraft's furnace smelt loot function.", LootingEnchant = "Applies Minecraft's looting enchant loot function.", Reference = "Applies Minecraft's reference loot function.", SetCount = "Applies Minecraft's set count loot function.", SetDamage = "Applies Minecraft's set damage loot function.", SetLore = "Applies Minecraft's set lore loot function.", SetName = "Applies Minecraft's set name loot function."),
+    variant_fields(CopyComponents(exclude = "`exclude` provides the exclude for the copy components loot-table form.", include = "`include` provides the include for the copy components loot-table form.", source = "`source` provides the source for the copy components loot-table form."), Custom(data = "Additional function data as raw JSON.", function = "Function type identifier (e.g. `\"mymod:custom_function\"`)."), EnchantRandomly(only_compatible = "`only_compatible` provides the only compatible for the enchant randomly loot-table form.", options = "`options` optionally provides the options for the enchant randomly loot-table form."), EnchantWithLevels(levels = "`levels` provides the level range identifier for the enchant with levels loot-table form.", options = "`options` optionally provides the options for the enchant with levels loot-table form."), FillPlayerHead(entity = "`entity` provides the entity for the fill player head loot-table form."), LootingEnchant(count = "`count` provides the count identifier for the looting enchant loot-table form.", limit = "`limit` optionally provides the limit for the looting enchant loot-table form."), Reference(name = "`name` provides the name for the reference loot-table form."), SetCount(add = "`add` provides the add for the set count loot-table form.", count = "`count` provides the count identifier for the set count loot-table form."), SetDamage(add = "`add` provides the add for the set damage loot-table form.", damage = "`damage` provides the damage identifier for the set damage loot-table form."), SetLore(entity = "`entity` optionally narrows the entity matched for the set lore loot-table form.", lore = "`lore` provides the lore for the set lore loot-table form."), SetName(entity = "`entity` optionally narrows the entity matched for the set name loot-table form.", name = "`name` provides the name for the set name loot-table form.")),
 )]
 /// Modifies loot entries after they are selected (enchanting, naming, damage, etc.).
 ///
 /// Functions transform items with effects like SetCount, SetName, EnchantWithLevels, or custom operations.
 pub enum LootFunction {
-    #[doc = "Selects the set count form in this typed Minecraft component schema."]
+    #[doc = "Applies Minecraft's set count loot function."]
     SetCount {
-        /// `count` provides the count identifier when the variant selects the set count form in this typed Minecraft component schema.
+        /// `count` provides the count identifier for the set count loot-table form.
         count: NumberProvider,
-        /// `add` provides the add when the variant selects the set count form in this typed Minecraft component schema.
+        /// `add` provides the add for the set count loot-table form.
         add: bool,
     },
-    #[doc = "Selects the set damage form in this typed Minecraft component schema."]
+    #[doc = "Applies Minecraft's set damage loot function."]
     SetDamage {
-        /// `damage` provides the damage identifier when the variant selects the set damage form in this typed Minecraft component schema.
+        /// `damage` provides the damage identifier for the set damage loot-table form.
         damage: NumberProvider,
-        /// `add` provides the add when the variant selects the set damage form in this typed Minecraft component schema.
+        /// `add` provides the add for the set damage loot-table form.
         add: bool,
     },
-    #[doc = "Selects the enchant with levels form in this typed Minecraft component schema."]
+    #[doc = "Applies Minecraft's enchant with levels loot function."]
     EnchantWithLevels {
-        /// `levels` provides the level range identifier when the variant selects the enchant with levels form in this typed Minecraft component schema.
+        /// `levels` provides the level range identifier for the enchant with levels loot-table form.
         levels: NumberProvider,
-        /// `options` optionally provides the options when the variant selects the enchant with levels form in this typed Minecraft component schema.
+        /// `options` optionally provides the options for the enchant with levels loot-table form.
         options: Option<EnchantmentSelector>,
     },
-    #[doc = "Selects the enchant randomly form in this typed Minecraft component schema."]
+    #[doc = "Applies Minecraft's enchant randomly loot function."]
     EnchantRandomly {
-        /// `options` optionally provides the options when the variant selects the enchant randomly form in this typed Minecraft component schema.
+        /// `options` optionally provides the options for the enchant randomly loot-table form.
         options: Option<Vec<EnchantmentSelector>>,
-        /// `only_compatible` provides the only compatible when the variant selects the enchant randomly form in this typed Minecraft component schema.
+        /// `only_compatible` provides the only compatible for the enchant randomly loot-table form.
         only_compatible: bool,
     },
-    #[doc = "Selects the set name form in this typed Minecraft component schema."]
+    #[doc = "Applies Minecraft's set name loot function."]
     SetName {
-        /// `name` provides the name when the variant selects the set name form in this typed Minecraft component schema.
+        /// `name` provides the name for the set name loot-table form.
         name: LootText,
-        /// `entity` optionally narrows the entity matched when the variant selects the set name form in this typed Minecraft component schema.
+        /// `entity` optionally narrows the entity matched for the set name loot-table form.
         entity: Option<String>,
     },
-    #[doc = "Selects the set lore form in this typed Minecraft component schema."]
+    #[doc = "Applies Minecraft's set lore loot function."]
     SetLore {
-        /// `lore` provides the lore when the variant selects the set lore form in this typed Minecraft component schema.
+        /// `lore` provides the lore for the set lore loot-table form.
         lore: Vec<LootText>,
-        /// `entity` optionally narrows the entity matched when the variant selects the set lore form in this typed Minecraft component schema.
+        /// `entity` optionally narrows the entity matched for the set lore loot-table form.
         entity: Option<String>,
     },
-    #[doc = "Selects the looting enchant form in this typed Minecraft component schema."]
+    #[doc = "Applies Minecraft's looting enchant loot function."]
     LootingEnchant {
-        /// `count` provides the count identifier when the variant selects the looting enchant form in this typed Minecraft component schema.
+        /// `count` provides the count identifier for the looting enchant loot-table form.
         count: NumberProvider,
-        /// `limit` optionally provides the limit when the variant selects the looting enchant form in this typed Minecraft component schema.
+        /// `limit` optionally provides the limit for the looting enchant loot-table form.
         limit: Option<i32>,
     },
-    #[doc = "Selects the explosion decay form in this typed Minecraft component schema."]
+    #[doc = "Applies Minecraft's explosion decay loot function."]
     ExplosionDecay,
-    #[doc = "Selects the furnace smelt form in this typed Minecraft component schema."]
+    #[doc = "Applies Minecraft's furnace smelt loot function."]
     FurnaceSmelt,
-    #[doc = "Selects the fill player head form in this typed Minecraft component schema."]
+    #[doc = "Applies Minecraft's fill player head loot function."]
     FillPlayerHead {
-        /// `entity` provides the entity when the variant selects the fill player head form in this typed Minecraft component schema.
+        /// `entity` provides the entity for the fill player head loot-table form.
         entity: String,
     },
-    #[doc = "Selects the copy components form in this typed Minecraft component schema."]
+    #[doc = "Applies Minecraft's copy components loot function."]
     CopyComponents {
-        /// `source` provides the source when the variant selects the copy components form in this typed Minecraft component schema.
+        /// `source` provides the source for the copy components loot-table form.
         source: String,
-        /// `include` provides the include when the variant selects the copy components form in this typed Minecraft component schema.
+        /// `include` provides the include for the copy components loot-table form.
         include: Vec<String>,
-        /// `exclude` provides the exclude when the variant selects the copy components form in this typed Minecraft component schema.
+        /// `exclude` provides the exclude for the copy components loot-table form.
         exclude: Vec<String>,
     },
-    #[doc = "Selects the reference form in this typed Minecraft component schema."]
+    #[doc = "Applies Minecraft's reference loot function."]
     Reference {
-        /// `name` provides the name when the variant selects the reference form in this typed Minecraft component schema.
+        /// `name` provides the name for the reference loot-table form.
         name: String,
     },
     /// Custom function — explicit raw escape hatch for modded loot functions.
@@ -660,8 +660,8 @@ impl LootFunction {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(name = "`name` provides the author-visible text value used to create a `set_name` function from a typed or raw [`LootText`] value."),
-        returns = "A newly constructed `LootFunction` configured to create a `set_name` function from a typed or raw [`LootText`] value.",
+        params(name = "`name` is used when creating a `set_name` function from a typed or raw [`LootText`] value."),
+        returns = "A `LootFunction` representing a `set_name` function from a typed or raw [`LootText`] value.",
         example = "use sand::text::Text;\nuse sand::component::LootFunction;\nlet function = LootFunction::set_name(Text::new(\"Legendary Sword\").gold());",
     )]
     pub fn set_name(name: impl Into<LootText>) -> Self {
@@ -683,8 +683,8 @@ impl LootFunction {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(lore = "`lore` provides the player-visible text value used to create a `set_lore` function from typed or raw [`LootText`] lines."),
-        returns = "A newly constructed `LootFunction` configured to create a `set_lore` function from typed or raw [`LootText`] lines.",
+        params(lore = "`lore` is used when creating a `set_lore` function from typed or raw [`LootText`] lines."),
+        returns = "A `LootFunction` representing a `set_lore` function from typed or raw [`LootText`] lines.",
         example = "use sand::prelude::*;\n\nfn demonstrate(lore: impl IntoIterator < Item = impl Into < sand::component::LootText > >)  {\n    let loot_function = sand::component::LootFunction::set_lore(lore);\n}",
     )]
     pub fn set_lore(lore: impl IntoIterator<Item = impl Into<LootText>>) -> Self {
@@ -825,86 +825,86 @@ impl Serialize for LootFunction {
     use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
     avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
     example = "use sand::component::LootEntry;",
-    variants(Alternatives = "Selects the alternatives form in this typed Minecraft component schema.", Dynamic = "Selects the dynamic form in this typed Minecraft component schema.", Empty = "Selects the empty form in this typed Minecraft component schema.", Group = "Selects the group form in this typed Minecraft component schema.", Item = "Selects the item form in this typed Minecraft component schema.", LootTable = "Selects the loot table form in this typed Minecraft component schema.", Sequence = "Selects the sequence form in this typed Minecraft component schema.", Tag = "Selects the tag form in this typed Minecraft component schema."),
-    variant_fields(Alternatives(children = "`children` provides the children when the variant selects the alternatives form in this typed Minecraft component schema.", conditions = "`conditions` provides the conditions when the variant selects the alternatives form in this typed Minecraft component schema."), Dynamic(conditions = "`conditions` provides the conditions when the variant selects the dynamic form in this typed Minecraft component schema.", name = "`name` provides the name when the variant selects the dynamic form in this typed Minecraft component schema."), Empty(conditions = "`conditions` provides the conditions when the variant selects the empty form in this typed Minecraft component schema.", quality = "`quality` optionally provides the quality when the variant selects the empty form in this typed Minecraft component schema.", weight = "`weight` optionally provides the weight when the variant selects the empty form in this typed Minecraft component schema."), Group(children = "`children` provides the children when the variant selects the group form in this typed Minecraft component schema.", conditions = "`conditions` provides the conditions when the variant selects the group form in this typed Minecraft component schema."), Item(conditions = "`conditions` provides the conditions when the variant selects the item form in this typed Minecraft component schema.", functions = "`functions` provides the functions when the variant selects the item form in this typed Minecraft component schema.", name = "`name` provides the name when the variant selects the item form in this typed Minecraft component schema.", quality = "`quality` optionally provides the quality when the variant selects the item form in this typed Minecraft component schema.", weight = "`weight` optionally provides the weight when the variant selects the item form in this typed Minecraft component schema."), LootTable(conditions = "`conditions` provides the conditions when the variant selects the loot table form in this typed Minecraft component schema.", quality = "`quality` optionally provides the quality when the variant selects the loot table form in this typed Minecraft component schema.", value = "`value` provides the value when the variant selects the loot table form in this typed Minecraft component schema.", weight = "`weight` optionally provides the weight when the variant selects the loot table form in this typed Minecraft component schema."), Sequence(children = "`children` provides the children when the variant selects the sequence form in this typed Minecraft component schema.", conditions = "`conditions` provides the conditions when the variant selects the sequence form in this typed Minecraft component schema."), Tag(conditions = "`conditions` provides the conditions when the variant selects the tag form in this typed Minecraft component schema.", expand = "`expand` optionally provides the expand when the variant selects the tag form in this typed Minecraft component schema.", name = "`name` provides the name when the variant selects the tag form in this typed Minecraft component schema.", quality = "`quality` optionally provides the quality when the variant selects the tag form in this typed Minecraft component schema.", weight = "`weight` optionally provides the weight when the variant selects the tag form in this typed Minecraft component schema.")),
+    variants(Alternatives = "Creates a Minecraft alternatives loot-pool entry.", Dynamic = "Creates a Minecraft dynamic loot-pool entry.", Empty = "Creates a Minecraft empty loot-pool entry.", Group = "Creates a Minecraft group loot-pool entry.", Item = "Creates a Minecraft item loot-pool entry.", LootTable = "Creates a Minecraft loot table loot-pool entry.", Sequence = "Creates a Minecraft sequence loot-pool entry.", Tag = "Creates a Minecraft tag loot-pool entry."),
+    variant_fields(Alternatives(children = "`children` provides the children for the alternatives loot-table form.", conditions = "`conditions` provides the conditions for the alternatives loot-table form."), Dynamic(conditions = "`conditions` provides the conditions for the dynamic loot-table form.", name = "`name` provides the name for the dynamic loot-table form."), Empty(conditions = "`conditions` provides the conditions for the empty loot-table form.", quality = "`quality` optionally provides the quality for the empty loot-table form.", weight = "`weight` optionally provides the weight for the empty loot-table form."), Group(children = "`children` provides the children for the group loot-table form.", conditions = "`conditions` provides the conditions for the group loot-table form."), Item(conditions = "`conditions` provides the conditions for the item loot-table form.", functions = "`functions` provides the functions for the item loot-table form.", name = "`name` provides the name for the item loot-table form.", quality = "`quality` optionally provides the quality for the item loot-table form.", weight = "`weight` optionally provides the weight for the item loot-table form."), LootTable(conditions = "`conditions` provides the conditions for the loot table loot-table form.", quality = "`quality` optionally provides the quality for the loot table loot-table form.", value = "`value` provides the value for the loot table loot-table form.", weight = "`weight` optionally provides the weight for the loot table loot-table form."), Sequence(children = "`children` provides the children for the sequence loot-table form.", conditions = "`conditions` provides the conditions for the sequence loot-table form."), Tag(conditions = "`conditions` provides the conditions for the tag loot-table form.", expand = "`expand` optionally provides the expand for the tag loot-table form.", name = "`name` provides the name for the tag loot-table form.", quality = "`quality` optionally provides the quality for the tag loot-table form.", weight = "`weight` optionally provides the weight for the tag loot-table form.")),
 )]
 /// A single entry in a loot pool, representing items, tags, nested tables, or structural groups.
 ///
 /// Variants include direct item drops, item tag selections, nested loot table references,
 /// and composition types (Group, Alternatives, Sequence) for organizing multiple entries.
 pub enum LootEntry {
-    #[doc = "Selects the item form in this typed Minecraft component schema."]
+    #[doc = "Creates a Minecraft item loot-pool entry."]
     Item {
-        /// `name` provides the name when the variant selects the item form in this typed Minecraft component schema.
+        /// `name` provides the name for the item loot-table form.
         name: String,
-        /// `weight` optionally provides the weight when the variant selects the item form in this typed Minecraft component schema.
+        /// `weight` optionally provides the weight for the item loot-table form.
         weight: Option<i32>,
-        /// `quality` optionally provides the quality when the variant selects the item form in this typed Minecraft component schema.
+        /// `quality` optionally provides the quality for the item loot-table form.
         quality: Option<i32>,
-        /// `functions` provides the functions when the variant selects the item form in this typed Minecraft component schema.
+        /// `functions` provides the functions for the item loot-table form.
         functions: Vec<LootFunction>,
-        /// `conditions` provides the conditions when the variant selects the item form in this typed Minecraft component schema.
+        /// `conditions` provides the conditions for the item loot-table form.
         conditions: Vec<LootCondition>,
     },
-    #[doc = "Selects the tag form in this typed Minecraft component schema."]
+    #[doc = "Creates a Minecraft tag loot-pool entry."]
     Tag {
-        /// `name` provides the name when the variant selects the tag form in this typed Minecraft component schema.
+        /// `name` provides the name for the tag loot-table form.
         name: String,
-        /// `expand` optionally provides the expand when the variant selects the tag form in this typed Minecraft component schema.
+        /// `expand` optionally provides the expand for the tag loot-table form.
         expand: Option<bool>,
-        /// `weight` optionally provides the weight when the variant selects the tag form in this typed Minecraft component schema.
+        /// `weight` optionally provides the weight for the tag loot-table form.
         weight: Option<i32>,
-        /// `quality` optionally provides the quality when the variant selects the tag form in this typed Minecraft component schema.
+        /// `quality` optionally provides the quality for the tag loot-table form.
         quality: Option<i32>,
-        /// `conditions` provides the conditions when the variant selects the tag form in this typed Minecraft component schema.
+        /// `conditions` provides the conditions for the tag loot-table form.
         conditions: Vec<LootCondition>,
     },
-    #[doc = "Selects the loot table form in this typed Minecraft component schema."]
+    #[doc = "Creates a Minecraft loot table loot-pool entry."]
     LootTable {
-        /// `value` provides the value when the variant selects the loot table form in this typed Minecraft component schema.
+        /// `value` provides the value for the loot table loot-table form.
         value: String,
-        /// `weight` optionally provides the weight when the variant selects the loot table form in this typed Minecraft component schema.
+        /// `weight` optionally provides the weight for the loot table loot-table form.
         weight: Option<i32>,
-        /// `quality` optionally provides the quality when the variant selects the loot table form in this typed Minecraft component schema.
+        /// `quality` optionally provides the quality for the loot table loot-table form.
         quality: Option<i32>,
-        /// `conditions` provides the conditions when the variant selects the loot table form in this typed Minecraft component schema.
+        /// `conditions` provides the conditions for the loot table loot-table form.
         conditions: Vec<LootCondition>,
     },
-    #[doc = "Selects the group form in this typed Minecraft component schema."]
+    #[doc = "Creates a Minecraft group loot-pool entry."]
     Group {
-        /// `children` provides the children when the variant selects the group form in this typed Minecraft component schema.
+        /// `children` provides the children for the group loot-table form.
         children: Vec<LootEntry>,
-        /// `conditions` provides the conditions when the variant selects the group form in this typed Minecraft component schema.
+        /// `conditions` provides the conditions for the group loot-table form.
         conditions: Vec<LootCondition>,
     },
-    #[doc = "Selects the alternatives form in this typed Minecraft component schema."]
+    #[doc = "Creates a Minecraft alternatives loot-pool entry."]
     Alternatives {
-        /// `children` provides the children when the variant selects the alternatives form in this typed Minecraft component schema.
+        /// `children` provides the children for the alternatives loot-table form.
         children: Vec<LootEntry>,
-        /// `conditions` provides the conditions when the variant selects the alternatives form in this typed Minecraft component schema.
+        /// `conditions` provides the conditions for the alternatives loot-table form.
         conditions: Vec<LootCondition>,
     },
-    #[doc = "Selects the sequence form in this typed Minecraft component schema."]
+    #[doc = "Creates a Minecraft sequence loot-pool entry."]
     Sequence {
-        /// `children` provides the children when the variant selects the sequence form in this typed Minecraft component schema.
+        /// `children` provides the children for the sequence loot-table form.
         children: Vec<LootEntry>,
-        /// `conditions` provides the conditions when the variant selects the sequence form in this typed Minecraft component schema.
+        /// `conditions` provides the conditions for the sequence loot-table form.
         conditions: Vec<LootCondition>,
     },
-    #[doc = "Selects the dynamic form in this typed Minecraft component schema."]
+    #[doc = "Creates a Minecraft dynamic loot-pool entry."]
     Dynamic {
-        /// `name` provides the name when the variant selects the dynamic form in this typed Minecraft component schema.
+        /// `name` provides the name for the dynamic loot-table form.
         name: String,
-        /// `conditions` provides the conditions when the variant selects the dynamic form in this typed Minecraft component schema.
+        /// `conditions` provides the conditions for the dynamic loot-table form.
         conditions: Vec<LootCondition>,
     },
-    #[doc = "Selects the empty form in this typed Minecraft component schema."]
+    #[doc = "Creates a Minecraft empty loot-pool entry."]
     Empty {
-        /// `weight` optionally provides the weight when the variant selects the empty form in this typed Minecraft component schema.
+        /// `weight` optionally provides the weight for the empty loot-table form.
         weight: Option<i32>,
-        /// `quality` optionally provides the quality when the variant selects the empty form in this typed Minecraft component schema.
+        /// `quality` optionally provides the quality for the empty loot-table form.
         quality: Option<i32>,
-        /// `conditions` provides the conditions when the variant selects the empty form in this typed Minecraft component schema.
+        /// `conditions` provides the conditions for the empty loot-table form.
         conditions: Vec<LootCondition>,
     },
 }
@@ -929,7 +929,7 @@ impl LootEntry {
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
         params(id = "`id` provides the typed resource identifier or location used to create a direct item entry from a typed [`ItemId`] (preferred path)."),
-        returns = "A newly constructed `LootEntry` configured to create a direct item entry from a typed [`ItemId`] (preferred path).",
+        returns = "A `LootEntry` representing a direct item entry from a typed [`ItemId`] (preferred path).",
         example = "use {sand::registry::ItemId, sand::component::LootEntry};\nlet entry = LootEntry::item(ItemId::minecraft(\"diamond\").unwrap());",
     )]
     pub fn item(id: ItemId) -> Self {
@@ -957,8 +957,8 @@ impl LootEntry {
         minecraft = "Use this for modded/unsupported item IDs that cannot be expressed as [`ItemId`]. Malformed values are still caught by export validation.",
         use_when = ["Use this for modded/unsupported item IDs that cannot be expressed as [`ItemId`]. Malformed values are still caught by export validation."],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(name = "`name` provides the author-visible text value used to create a direct item entry through the explicit raw compatibility path."),
-        returns = "A newly constructed `LootEntry` configured to create a direct item entry through the explicit raw compatibility path.",
+        params(name = "`name` is used when creating a direct item entry through the explicit raw compatibility path."),
+        returns = "A `LootEntry` representing a direct item entry through the explicit raw compatibility path.",
         example = "use sand::prelude::*;\n\nfn demonstrate(name: impl std::fmt::Display)  {\n    let loot_entry = sand::component::LootEntry::item_raw(name);\n}",
     )]
     pub fn item_raw(name: impl Display) -> Self {
@@ -1000,8 +1000,8 @@ impl LootEntry {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(tag = "`tag` supplies the tag value used to create an item tag entry from a typed [`TagId<ItemId>`] (preferred path)."),
-        returns = "A newly constructed `LootEntry` configured to create an item tag entry from a typed [`TagId<ItemId>`] (preferred path).",
+        params(tag = "`tag` is used when creating an item tag entry from a typed [`TagId<ItemId>`] (preferred path)."),
+        returns = "A `LootEntry` representing an item tag entry from a typed [`TagId<ItemId>`] (preferred path).",
         example = "use {sand::registry::ItemId, sand::component::LootEntry, sand::component::TagId};\nlet item_tag: TagId<ItemId> = TagId::minecraft(\"logs\").unwrap();\nlet _entry = LootEntry::tag(item_tag);",
     )]
     pub fn tag(tag: TagId<ItemId>) -> Self {
@@ -1026,8 +1026,8 @@ impl LootEntry {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(name = "`name` provides the author-visible text value used to create an item tag entry through the explicit raw compatibility path."),
-        returns = "A newly constructed `LootEntry` configured to create an item tag entry through the explicit raw compatibility path.",
+        params(name = "`name` is used when creating an item tag entry through the explicit raw compatibility path."),
+        returns = "A `LootEntry` representing an item tag entry through the explicit raw compatibility path.",
         example = "use sand::prelude::*;\n\nfn demonstrate(name: impl std::fmt::Display)  {\n    let loot_entry = sand::component::LootEntry::tag_raw(name);\n}",
     )]
     pub fn tag_raw(name: impl Display) -> Self {
@@ -1054,7 +1054,7 @@ impl LootEntry {
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
         params(id = "`id` provides the typed resource identifier or location used to create a nested loot table reference entry from a typed [`LootTableId`] (preferred path)."),
-        returns = "A newly constructed `LootEntry` configured to create a nested loot table reference entry from a typed [`LootTableId`] (preferred path).",
+        returns = "A `LootEntry` representing a nested loot table reference entry from a typed [`LootTableId`] (preferred path).",
         example = "use sand::prelude::*;\n\nfn demonstrate(id: sand::resource_ref::LootTableId)  {\n    let loot_entry = sand::component::LootEntry::loot_table(id);\n}",
     )]
     pub fn loot_table(id: LootTableId) -> Self {
@@ -1080,7 +1080,7 @@ impl LootEntry {
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
         params(value = "`value` provides the value being applied or compared used to create a nested loot table reference entry through the explicit raw compatibility path."),
-        returns = "A newly constructed `LootEntry` configured to create a nested loot table reference entry through the explicit raw compatibility path.",
+        returns = "A `LootEntry` representing a nested loot table reference entry through the explicit raw compatibility path.",
         example = "use sand::prelude::*;\n\nfn demonstrate(value: impl std::fmt::Display)  {\n    let loot_entry = sand::component::LootEntry::loot_table_raw(value);\n}",
     )]
     pub fn loot_table_raw(value: impl Display) -> Self {
@@ -1104,8 +1104,8 @@ impl LootEntry {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(children = "`children` supplies the children value used to create a group entry that processes all children in sequence."),
-        returns = "A newly constructed `LootEntry` configured to create a group entry that processes all children in sequence.",
+        params(children = "`children` is used when creating a group entry that processes all children in sequence."),
+        returns = "A `LootEntry` representing a group entry that processes all children in sequence.",
         example = "use sand::prelude::*;\n\nfn demonstrate(children: Vec < sand::component::LootEntry >)  {\n    let loot_entry = sand::component::LootEntry::group(children);\n}",
     )]
     pub fn group(children: Vec<LootEntry>) -> Self {
@@ -1127,8 +1127,8 @@ impl LootEntry {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(children = "`children` supplies the children value used to create an alternatives entry that selects the first child whose conditions pass."),
-        returns = "A newly constructed `LootEntry` configured to create an alternatives entry that selects the first child whose conditions pass.",
+        params(children = "`children` is used when creating an alternatives entry that selects the first child whose conditions pass."),
+        returns = "A `LootEntry` representing an alternatives entry that selects the first child whose conditions pass.",
         example = "use sand::prelude::*;\n\nfn demonstrate(children: Vec < sand::component::LootEntry >)  {\n    let loot_entry = sand::component::LootEntry::alternatives(children);\n}",
     )]
     pub fn alternatives(children: Vec<LootEntry>) -> Self {
@@ -1150,8 +1150,8 @@ impl LootEntry {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(children = "`children` supplies the children value used to create a sequence entry that processes children in order and stops at the first success."),
-        returns = "A newly constructed `LootEntry` configured to create a sequence entry that processes children in order and stops at the first success.",
+        params(children = "`children` is used when creating a sequence entry that processes children in order and stops at the first success."),
+        returns = "A `LootEntry` representing a sequence entry that processes children in order and stops at the first success.",
         example = "use sand::prelude::*;\n\nfn demonstrate(children: Vec < sand::component::LootEntry >)  {\n    let loot_entry = sand::component::LootEntry::sequence(children);\n}",
     )]
     pub fn sequence(children: Vec<LootEntry>) -> Self {
@@ -1173,8 +1173,8 @@ impl LootEntry {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(name = "`name` provides the author-visible text value used to create a dynamic entry that references a dynamic loot table."),
-        returns = "A newly constructed `LootEntry` configured to create a dynamic entry that references a dynamic loot table.",
+        params(name = "`name` is used when creating a dynamic entry that references a dynamic loot table."),
+        returns = "A `LootEntry` representing a dynamic entry that references a dynamic loot table.",
         example = "use sand::prelude::*;\n\nfn demonstrate(name: impl std::fmt::Display)  {\n    let loot_entry = sand::component::LootEntry::dynamic(name);\n}",
     )]
     pub fn dynamic(name: impl Display) -> Self {
@@ -1196,7 +1196,7 @@ impl LootEntry {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        returns = "A newly constructed `LootEntry` configured to create an empty entry that produces no items.",
+        returns = "A `LootEntry` representing an empty entry that produces no items.",
         example = "use sand::prelude::*;\n\nfn demonstrate()  {\n    let loot_entry = sand::component::LootEntry::empty();\n}",
     )]
     pub fn empty() -> Self {
@@ -1389,7 +1389,7 @@ impl LootPool {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        returns = "A newly constructed `LootPool` configured to create a new loot pool with default settings (1 roll, no bonus rolls).",
+        returns = "A `LootPool` representing a new loot pool with default settings (1 roll, no bonus rolls).",
         example = "use sand::prelude::*;\n\nfn demonstrate()  {\n    let loot_pool = sand::component::LootPool::new();\n}",
     )]
     pub fn new() -> Self {
@@ -1414,7 +1414,7 @@ impl LootPool {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(n = "`n` supplies the n value used to set the number of times entries are selected from this pool."),
+        params(n = "`n` provides the n applied when setting the number of times entries are selected from this pool."),
         returns = "The `LootPool` value with the documented change applied to set the number of times entries are selected from this pool.",
         example = "use sand::prelude::*;\n\nfn demonstrate(loot_pool_value: sand::component::LootPool, n: impl Into < sand::component::NumberProvider >)  {\n    let updated_loot_pool = loot_pool_value.rolls(n);\n}",
     )]
@@ -1435,7 +1435,7 @@ impl LootPool {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(n = "`n` supplies the n value used to set additional bonus rolls based on conditions like looting enchantment levels."),
+        params(n = "`n` provides the n applied when setting additional bonus rolls based on conditions like looting enchantment levels."),
         returns = "The `LootPool` value with the documented change applied to set additional bonus rolls based on conditions like looting enchantment levels.",
         example = "use sand::prelude::*;\n\nfn demonstrate(loot_pool_value: sand::component::LootPool, n: impl Into < sand::component::NumberProvider >)  {\n    let updated_loot_pool = loot_pool_value.bonus_rolls(n);\n}",
     )]
@@ -1456,7 +1456,7 @@ impl LootPool {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(entry = "`entry` supplies the entry value used to add an entry to this pool's selection options."),
+        params(entry = "`entry` provides the entry added when building an entry to this pool's selection options."),
         returns = "The `LootPool` value with the documented change applied to add an entry to this pool's selection options.",
         example = "use sand::prelude::*;\n\nfn demonstrate(loot_pool_value: sand::component::LootPool, entry: sand::component::LootEntry)  {\n    let updated_loot_pool = loot_pool_value.entry(entry);\n}",
     )]
@@ -1578,7 +1578,7 @@ impl LootTable {
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
         params(location = "`location` provides the typed resource identifier or location used to create a new loot table at the given resource location."),
-        returns = "A newly constructed `LootTable` configured to create a new loot table at the given resource location.",
+        returns = "A `LootTable` representing a new loot table at the given resource location.",
         example = "use sand::prelude::*;\n\nfn demonstrate(location: sand::ResourceLocation)  {\n    let loot_table = sand::component::LootTable::new(location);\n}",
     )]
     pub fn new(location: ResourceLocation) -> Self {
@@ -1604,7 +1604,7 @@ impl LootTable {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(loot_type = "`loot_type` supplies the loot type value used to set the type of this loot table (block, entity, chest, etc.)."),
+        params(loot_type = "`loot_type` provides the loot type applied when setting the type of this loot table (block, entity, chest, etc.)."),
         returns = "The `LootTable` value with the documented change applied to set the type of this loot table (block, entity, chest, etc.).",
         example = "use sand::prelude::*;\n\nfn demonstrate(loot_table_value: sand::component::LootTable, loot_type: sand::component::LootTableType)  {\n    let updated_loot_table = loot_table_value.loot_type(loot_type);\n}",
     )]
@@ -1647,7 +1647,7 @@ impl LootTable {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(seq = "`seq` supplies the seq value used to set the random sequence seed through the explicit raw compatibility path."),
+        params(seq = "`seq` provides the seq applied when setting the random sequence seed through the explicit raw compatibility path."),
         returns = "The `LootTable` value with the documented change applied to set the random sequence seed through the explicit raw compatibility path.",
         example = "use sand::prelude::*;\n\nfn demonstrate(loot_table_value: sand::component::LootTable, seq: impl Into < String >)  {\n    let updated_loot_table = loot_table_value.random_sequence_raw(seq);\n}",
     )]
@@ -1668,7 +1668,7 @@ impl LootTable {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(pool = "`pool` supplies the pool value used to add a loot pool to this table."),
+        params(pool = "`pool` provides the pool added when building a loot pool to this table."),
         returns = "The `LootTable` value with the documented change applied to add a loot pool to this table.",
         example = "use sand::prelude::*;\n\nfn demonstrate(loot_table_value: sand::component::LootTable, pool: sand::component::LootPool)  {\n    let updated_loot_table = loot_table_value.pool(pool);\n}",
     )]
@@ -1741,7 +1741,7 @@ impl LootTable {
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
         params(location = "`location` provides the typed resource identifier or location used to use a block loot table that drops exactly `count` of `item`.", item = "A block loot table that drops exactly `count` of `item`.", count = "A block loot table that drops exactly `count` of `item`."),
-        returns = "A newly constructed `LootTable` configured to use a block loot table that drops exactly `count` of `item`.",
+        returns = "A `LootTable` configured for a block loot table that drops exactly `count` of `item`.",
         example = "LootTable::simple_block_drop(loc, \"minecraft:oak_log\", 1)",
     )]
     pub fn simple_block_drop(location: ResourceLocation, item: impl Display, count: i32) -> Self {
@@ -1798,8 +1798,8 @@ impl LootTable {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(location = "`location` provides the typed resource identifier or location used to use a block loot table with fortune-sensitive drop counts.", item = "`item` provides the item value or item predicate used to use a block loot table with fortune-sensitive drop counts.", enchantment = "`enchantment` supplies the enchantment value used to use a block loot table with fortune-sensitive drop counts.", chances = "`chances` is a slice of probabilities indexed by fortune level (0 = no fortune, 1 = Fortune I, 2 = Fortune II, ...)."),
-        returns = "A newly constructed `LootTable` configured to use a block loot table with fortune-sensitive drop counts.",
+        params(location = "`location` provides the typed resource identifier or location used to use a block loot table with fortune-sensitive drop counts.", item = "`item` provides the item value or item predicate used to use a block loot table with fortune-sensitive drop counts.", enchantment = "`enchantment` sets the enchantment for a block loot table with fortune-sensitive drop counts.", chances = "`chances` is a slice of probabilities indexed by fortune level (0 = no fortune, 1 = Fortune I, 2 = Fortune II, ...)."),
+        returns = "A `LootTable` configured for a block loot table with fortune-sensitive drop counts.",
         example = "// Probability of the entry passing at each Fortune level.\nLootTable::fortune_drop(loc, \"minecraft:coal\", \"minecraft:fortune\", &[0.25, 0.5, 0.75, 1.0])",
     )]
     pub fn fortune_drop(
@@ -1862,8 +1862,8 @@ impl LootTable {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(location = "`location` provides the typed resource identifier or location used to use an entity loot table that drops `item` only when killed by a player, with an optional looting-enchant bonus.", item = "An entity loot table that drops `item` only when killed by a player, with an optional looting-enchant bonus.", min_count = "`min_count` supplies the min count value used to use an entity loot table that drops `item` only when killed by a player, with an optional looting-enchant bonus.", max_count = "`max_count` supplies the max count value used to use an entity loot table that drops `item` only when killed by a player, with an optional looting-enchant bonus.", looting_bonus = "`looting_bonus` supplies the looting bonus value used to use an entity loot table that drops `item` only when killed by a player, with an optional looting-enchant bonus."),
-        returns = "A newly constructed `LootTable` configured to use an entity loot table that drops `item` only when killed by a player, with an optional looting-enchant bonus.",
+        params(location = "`location` provides the typed resource identifier or location used to use an entity loot table that drops `item` only when killed by a player, with an optional looting-enchant bonus.", item = "An entity loot table that drops `item` only when killed by a player, with an optional looting-enchant bonus.", min_count = "`min_count` sets the min count for an entity loot table that drops `item` only when killed by a player, with an optional looting-enchant bonus.", max_count = "`max_count` sets the max count for an entity loot table that drops `item` only when killed by a player, with an optional looting-enchant bonus.", looting_bonus = "`looting_bonus` sets the looting bonus for an entity loot table that drops `item` only when killed by a player, with an optional looting-enchant bonus."),
+        returns = "A `LootTable` configured for an entity loot table that drops `item` only when killed by a player, with an optional looting-enchant bonus.",
         example = "LootTable::entity_drop(loc, \"minecraft:leather\", 0..=2, Some(1))",
     )]
     pub fn entity_drop(
@@ -1946,7 +1946,7 @@ impl LootTable {
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
         params(location = "`location` provides the typed resource identifier or location used to create a chest loot table with multiple weighted item entries.", items = "`items` is an iterator of `(item_id, weight, min_count, max_count)`."),
-        returns = "A newly constructed `LootTable` configured to create a chest loot table with multiple weighted item entries.",
+        returns = "A `LootTable` representing a chest loot table with multiple weighted item entries.",
         example = "LootTable::chest_loot(loc, vec![\n(\"minecraft:diamond\", 5, 1, 3),\n(\"minecraft:gold_ingot\", 20, 2, 5),\n])",
     )]
     pub fn chest_loot<S: Display>(

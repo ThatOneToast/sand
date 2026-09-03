@@ -64,7 +64,7 @@ impl TickTrigger {
         minecraft = "The resulting criterion matches each player tick.",
         use_when = ["Defining, composing, or handling a typed Sand event"],
         avoid_when = ["Inspecting generated advancement or event-graph implementation state"],
-        returns = "A newly constructed `TickTrigger` configured to start an unconstrained tick trigger builder.",
+        returns = "A `TickTrigger` initialized to an unconstrained tick trigger builder.",
         example = "use sand::prelude::*;\n\nfn demonstrate()  {\n    let tick_trigger = sand::event::trigger::TickTrigger::new();\n}",
     )]
     pub fn new() -> Self {
@@ -128,7 +128,7 @@ impl ImpossibleTrigger {
         minecraft = "It has no matching vanilla action.",
         use_when = ["Defining, composing, or handling a typed Sand event"],
         avoid_when = ["Inspecting generated advancement or event-graph implementation state"],
-        returns = "A newly constructed `ImpossibleTrigger` configured to start a never-matching trigger builder.",
+        returns = "An `ImpossibleTrigger` initialized to a never-matching trigger builder.",
         example = "use sand::prelude::*;\n\nfn demonstrate()  {\n    let impossible_trigger = sand::event::trigger::ImpossibleTrigger::new();\n}",
     )]
     pub fn new() -> Self {
@@ -194,7 +194,7 @@ impl ConsumeItemTrigger {
         minecraft = "Matches any item consumption until narrowed with item.",
         use_when = ["Defining, composing, or handling a typed Sand event"],
         avoid_when = ["Inspecting generated advancement or event-graph implementation state"],
-        returns = "A newly constructed `ConsumeItemTrigger` configured to start an unconstrained consume-item criterion.",
+        returns = "A `ConsumeItemTrigger` initialized to an unconstrained consume-item criterion.",
         example = "use sand::prelude::*;\n\nfn demonstrate()  {\n    let consume_item_trigger = sand::event::trigger::ConsumeItemTrigger::new();\n}",
     )]
     pub fn new() -> Self {
@@ -282,7 +282,7 @@ impl PlayerKilledEntityTrigger {
         minecraft = "Matches any entity killed by the triggering player.",
         use_when = ["Defining, composing, or handling a typed Sand event"],
         avoid_when = ["Inspecting generated advancement or event-graph implementation state"],
-        returns = "A newly constructed `PlayerKilledEntityTrigger` configured to start an unconstrained player-killed-entity criterion.",
+        returns = "A `PlayerKilledEntityTrigger` initialized to an unconstrained player-killed-entity criterion.",
         example = "use sand::prelude::*;\n\nfn demonstrate()  {\n    let player_killed_entity_trigger = sand::event::trigger::PlayerKilledEntityTrigger::new();\n}",
     )]
     pub fn new() -> Self {
@@ -397,7 +397,7 @@ impl EntityKilledPlayerTrigger {
         minecraft = "Matches any death of the triggering player caused by an entity.",
         use_when = ["Defining, composing, or handling a typed Sand event"],
         avoid_when = ["Inspecting generated advancement or event-graph implementation state"],
-        returns = "A newly constructed `EntityKilledPlayerTrigger` configured to start an unconstrained entity-killed-player criterion.",
+        returns = "An `EntityKilledPlayerTrigger` initialized to an unconstrained entity-killed-player criterion.",
         example = "use sand::prelude::*;\n\nfn demonstrate()  {\n    let entity_killed_player_trigger = sand::event::trigger::EntityKilledPlayerTrigger::new();\n}",
     )]
     pub fn new() -> Self {
@@ -514,8 +514,8 @@ impl RecipeUnlockedTrigger {
         minecraft = "The recipe identifier is written into the vanilla advancement condition.",
         use_when = ["Prefer [`Self::from_id`] for new code so malformed IDs fail before a trigger value is constructed."],
         avoid_when = ["Inspecting generated advancement or event-graph implementation state"],
-        params(recipe = "`recipe` supplies the recipe value used to use legacy string compatibility constructor. Prefer [`Self::from_id`] for new code so malformed IDs fail before a trigger value is constructed."),
-        returns = "A newly constructed `RecipeUnlockedTrigger` configured to use legacy string compatibility constructor. Prefer [`Self::from_id`] for new code so malformed IDs fail before a trigger value is constructed.",
+        params(recipe = "`recipe` sets the recipe for legacy string compatibility constructor. Prefer [`Self::from_id`] for new code so malformed IDs fail before a trigger value is constructed."),
+        returns = "A `RecipeUnlockedTrigger` configured for legacy string compatibility constructor. Prefer [`Self::from_id`] for new code so malformed IDs fail before a trigger value is constructed.",
         example = "use sand::prelude::*;\n\nfn demonstrate(recipe: impl Into < String >)  {\n    let recipe_unlocked_trigger = sand::event::trigger::RecipeUnlockedTrigger::new(recipe);\n}",
     )]
     pub fn new(recipe: impl Into<String>) -> Self {
@@ -537,7 +537,7 @@ impl RecipeUnlockedTrigger {
         use_when = ["Defining, composing, or handling a typed Sand event"],
         avoid_when = ["Inspecting generated advancement or event-graph implementation state"],
         params(recipe = "`recipe` provides the typed Minecraft resource identifier used to create a recipe-unlocked trigger builder from a validated recipe ID."),
-        returns = "A newly constructed `RecipeUnlockedTrigger` configured to create a recipe-unlocked trigger builder from a validated recipe ID.",
+        returns = "A `RecipeUnlockedTrigger` representing a recipe-unlocked trigger builder from a validated recipe ID.",
         example = "use sand::prelude::*;\n\nfn demonstrate(recipe: sand::ResourceLocation)  {\n    let recipe_unlocked_trigger = sand::event::trigger::RecipeUnlockedTrigger::from_id(recipe);\n}",
     )]
     pub fn from_id(recipe: crate::ResourceLocation) -> Self {
@@ -610,7 +610,7 @@ impl InventoryChangedTrigger {
         minecraft = "Matches inventory changes until predicates narrow it.",
         use_when = ["Defining, composing, or handling a typed Sand event"],
         avoid_when = ["Inspecting generated advancement or event-graph implementation state"],
-        returns = "A newly constructed `InventoryChangedTrigger` configured to start an unconstrained inventory-change criterion.",
+        returns = "An `InventoryChangedTrigger` initialized to an unconstrained inventory-change criterion.",
         example = "use sand::prelude::*;\n\nfn demonstrate()  {\n    let inventory_changed_trigger = sand::event::trigger::InventoryChangedTrigger::new();\n}",
     )]
     pub fn new() -> Self {
@@ -727,7 +727,7 @@ impl ItemObtainedTrigger {
         minecraft = "Matches inventory observations until narrowed with item.",
         use_when = ["Defining, composing, or handling a typed Sand event"],
         avoid_when = ["Inspecting generated advancement or event-graph implementation state"],
-        returns = "A newly constructed `ItemObtainedTrigger` configured to start an unconstrained item-obtained criterion.",
+        returns = "An `ItemObtainedTrigger` initialized to an unconstrained item-obtained criterion.",
         example = "use sand::prelude::*;\n\nfn demonstrate()  {\n    let item_obtained_trigger = sand::event::trigger::ItemObtainedTrigger::new();\n}",
     )]
     pub fn new() -> Self {
@@ -818,7 +818,7 @@ impl ItemEnchantTrigger {
         minecraft = "Matches any successful enchantment until predicates narrow it.",
         use_when = ["Defining, composing, or handling a typed Sand event"],
         avoid_when = ["Inspecting generated advancement or event-graph implementation state"],
-        returns = "A newly constructed `ItemEnchantTrigger` configured to start an unconstrained item-enchantment criterion.",
+        returns = "An `ItemEnchantTrigger` initialized to an unconstrained item-enchantment criterion.",
         example = "use sand::prelude::*;\n\nfn demonstrate()  {\n    let item_enchant_trigger = sand::event::trigger::ItemEnchantTrigger::new();\n}",
     )]
     pub fn new() -> Self {
@@ -932,7 +932,7 @@ impl UsingItemTrigger {
         minecraft = "Matches item-use observations until narrowed with item.",
         use_when = ["Defining, composing, or handling a typed Sand event"],
         avoid_when = ["Inspecting generated advancement or event-graph implementation state"],
-        returns = "A newly constructed `UsingItemTrigger` configured to start an unconstrained using-item criterion.",
+        returns = "An `UsingItemTrigger` initialized to an unconstrained using-item criterion.",
         example = "use sand::prelude::*;\n\nfn demonstrate()  {\n    let using_item_trigger = sand::event::trigger::UsingItemTrigger::new();\n}",
     )]
     pub fn new() -> Self {
@@ -1020,7 +1020,7 @@ impl MultiKillTrigger {
         minecraft = "Matches vanilla kill progress until its range or victim predicate is set.",
         use_when = ["Defining, composing, or handling a typed Sand event"],
         avoid_when = ["Inspecting generated advancement or event-graph implementation state"],
-        returns = "A newly constructed `MultiKillTrigger` configured to start an unconstrained multi-kill criterion.",
+        returns = "A `MultiKillTrigger` initialized to an unconstrained multi-kill criterion.",
         example = "use sand::prelude::*;\n\nfn demonstrate()  {\n    let multi_kill_trigger = sand::event::trigger::MultiKillTrigger::new();\n}",
     )]
     pub fn new() -> Self {
@@ -1140,7 +1140,7 @@ impl PlayerInteractedWithEntityTrigger {
         minecraft = "Matches any interaction with an entity until narrowed.",
         use_when = ["Defining, composing, or handling a typed Sand event"],
         avoid_when = ["Inspecting generated advancement or event-graph implementation state"],
-        returns = "A newly constructed `PlayerInteractedWithEntityTrigger` configured to start an unconstrained player-interaction criterion.",
+        returns = "A `PlayerInteractedWithEntityTrigger` initialized to an unconstrained player-interaction criterion.",
         example = "use sand::prelude::*;\n\nfn demonstrate()  {\n    let player_interacted_with_entity_trigger = sand::event::trigger::PlayerInteractedWithEntityTrigger::new();\n}",
     )]
     pub fn new() -> Self {
@@ -1251,7 +1251,7 @@ impl SummonedEntityTrigger {
         minecraft = "Matches a player's entity summons until narrowed.",
         use_when = ["Defining, composing, or handling a typed Sand event"],
         avoid_when = ["Inspecting generated advancement or event-graph implementation state"],
-        returns = "A newly constructed `SummonedEntityTrigger` configured to start an unconstrained summoned-entity criterion.",
+        returns = "A `SummonedEntityTrigger` initialized to an unconstrained summoned-entity criterion.",
         example = "use sand::prelude::*;\n\nfn demonstrate()  {\n    let summoned_entity_trigger = sand::event::trigger::SummonedEntityTrigger::new();\n}",
     )]
     pub fn new() -> Self {

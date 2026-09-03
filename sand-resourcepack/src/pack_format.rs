@@ -18,7 +18,7 @@ use sand_core::version::{LATEST_KNOWN, MinecraftVersion, VersionProfile};
     minecraft = "Reference: <https://minecraft.wiki/w/Pack_format>",
     use_when = ["Building HUD bars, HUD elements, textures, or resource-pack output alongside a Sand datapack"],
     avoid_when = ["The project is datapack-only or needs unrelated resource-pack functionality not modeled by Sand"],
-    params(mc_version = "`mc_version` supplies the mc version value used to return the resource pack format number for a given Minecraft version string."),
+    params(mc_version = "`mc_version` is used to return the resource pack format number for a given Minecraft version string."),
     returns = "Returns the resource pack format number for a given Minecraft version string.",
     example = "use sand::prelude::*;\n\nfn demonstrate(mc_version: & str)  {\n    let resource_pack_format_for = sand::resourcepack::resource_pack_format_for(mc_version);\n}",
     availability = ["Cargo feature: resourcepack"],

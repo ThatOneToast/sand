@@ -74,7 +74,7 @@ impl<E> EventHandle<E> {
         minecraft = "The scoreboard objective name is derived from the Rust type name of `E` the first time any method on this handle is called — no string required.",
         use_when = ["Defining, composing, or handling a typed Sand event"],
         avoid_when = ["Inspecting generated advancement or event-graph implementation state"],
-        returns = "A newly constructed `EventHandle` configured to create a typed event handle bound to event type `E`.",
+        returns = "An `EventHandle` representing a typed event handle bound to event type `E`.",
         example = "use sand::prelude::*;\n\nfn demonstrate<E: 'static>()  {\n    let event_handle = sand::event::handle::EventHandle ::< E >::new();\n}",
     )]
     pub const fn new() -> Self {

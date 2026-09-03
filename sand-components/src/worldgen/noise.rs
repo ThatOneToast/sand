@@ -81,8 +81,8 @@ impl Noise {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(location = "`location` provides the typed resource identifier or location used to create a noise-parameter definition from its first octave and amplitudes.", first_octave = "`first_octave` supplies the first octave value used to create a noise-parameter definition from its first octave and amplitudes.", amplitudes = "`amplitudes` supplies the amplitudes value used to create a noise-parameter definition from its first octave and amplitudes."),
-        returns = "A newly constructed `Noise` configured to create a noise-parameter definition from its first octave and amplitudes.",
+        params(location = "`location` provides the typed resource identifier or location used to create a noise-parameter definition from its first octave and amplitudes.", first_octave = "`first_octave` is used when creating a noise-parameter definition from its first octave and amplitudes.", amplitudes = "`amplitudes` is used when creating a noise-parameter definition from its first octave and amplitudes."),
+        returns = "A `Noise` representing a noise-parameter definition from its first octave and amplitudes.",
         example = "use sand::prelude::*;\n\nfn demonstrate(location: sand::ResourceLocation, first_octave: i32, amplitudes: impl IntoIterator < Item = f64 >)  {\n    let noise = sand::component::Noise::new(location, first_octave, amplitudes);\n}",
     )]
     pub fn new(
@@ -141,7 +141,7 @@ impl Noise {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(first_octave = "`first_octave` supplies the first octave value used to set the first (lowest) octave."),
+        params(first_octave = "`first_octave` provides the first octave applied when setting the first (lowest) octave."),
         returns = "The `Noise` value with the documented change applied to set the first (lowest) octave.",
         example = "use sand::prelude::*;\n\nfn demonstrate(noise_value: sand::component::Noise, first_octave: i32)  {\n    let updated_noise = noise_value.first_octave(first_octave);\n}",
     )]
@@ -162,7 +162,7 @@ impl Noise {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(amplitudes = "`amplitudes` supplies the amplitudes value used to replace the octave amplitudes."),
+        params(amplitudes = "`amplitudes` provides the replacement amplitudes when the octave amplitudes."),
         returns = "The `Noise` value with the documented change applied to replace the octave amplitudes.",
         example = "use sand::prelude::*;\n\nfn demonstrate(noise_value: sand::component::Noise, amplitudes: impl IntoIterator < Item = f64 >)  {\n    let updated_noise = noise_value.amplitudes(amplitudes);\n}",
     )]
@@ -183,7 +183,7 @@ impl Noise {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(amplitude = "`amplitude` supplies the amplitude value used to append a single octave amplitude."),
+        params(amplitude = "`amplitude` provides the amplitude appended when building a single octave amplitude."),
         returns = "The `Noise` value with the documented change applied to append a single octave amplitude.",
         example = "use sand::prelude::*;\n\nfn demonstrate(noise_value: sand::component::Noise, amplitude: f64)  {\n    let updated_noise = noise_value.amplitude(amplitude);\n}",
     )]

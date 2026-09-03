@@ -68,7 +68,7 @@ impl PlacedFeature {
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
         params(location = "`location` provides the typed resource identifier or location used to create a new placed feature referencing a typed configured feature.", feature = "`feature` provides the typed Minecraft resource identifier used to create a new placed feature referencing a typed configured feature."),
-        returns = "A newly constructed `PlacedFeature` configured to create a new placed feature referencing a typed configured feature.",
+        returns = "A `PlacedFeature` representing a new placed feature referencing a typed configured feature.",
         example = "use sand::prelude::*;\n\nfn demonstrate(location: sand::ResourceLocation, feature: sand::registry::ConfiguredFeatureId)  {\n    let placed_feature = sand::component::PlacedFeature::new(location, feature);\n}",
     )]
     pub fn new(location: ResourceLocation, feature: ConfiguredFeatureId) -> Self {
@@ -95,8 +95,8 @@ impl PlacedFeature {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Prefer [`PlacedFeature::new`] with a [`ConfiguredFeatureId`]. This escape hatch exists for modded or version-specific reference syntax."],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(location = "`location` provides the typed resource identifier or location used to create a placed feature with an explicitly raw configured-feature reference.", feature = "`feature` supplies the feature value used to create a placed feature with an explicitly raw configured-feature reference."),
-        returns = "A newly constructed `PlacedFeature` configured to create a placed feature with an explicitly raw configured-feature reference.",
+        params(location = "`location` provides the typed resource identifier or location used to create a placed feature with an explicitly raw configured-feature reference.", feature = "`feature` is used when creating a placed feature with an explicitly raw configured-feature reference."),
+        returns = "A `PlacedFeature` representing a placed feature with an explicitly raw configured-feature reference.",
         example = "use sand::prelude::*;\n\nfn demonstrate(location: sand::ResourceLocation, feature: impl Into < String >)  {\n    let placed_feature = sand::component::PlacedFeature::new_raw_feature(location, feature);\n}",
     )]
     pub fn new_raw_feature(location: ResourceLocation, feature: impl Into<String>) -> Self {
@@ -141,7 +141,7 @@ impl PlacedFeature {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(feature = "`feature` supplies the feature value used to update the referenced configured feature through the explicit raw compatibility path."),
+        params(feature = "`feature` is used to update the referenced configured feature through the explicit raw compatibility path."),
         returns = "The `PlacedFeature` value with the documented change applied to update the referenced configured feature through the explicit raw compatibility path.",
         example = "use sand::prelude::*;\n\nfn demonstrate(placed_feature_value: sand::component::PlacedFeature, feature: impl Into < String >)  {\n    let updated_placed_feature = placed_feature_value.raw_feature(feature);\n}",
     )]
@@ -169,7 +169,7 @@ impl PlacedFeature {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(modifier = "`modifier` supplies the modifier value used to add a placement modifier through the explicit raw JSON escape hatch."),
+        params(modifier = "`modifier` provides the modifier added when building a placement modifier through the explicit raw JSON escape hatch."),
         returns = "The `PlacedFeature` value with the documented change applied to add a placement modifier through the explicit raw JSON escape hatch.",
         example = "use sand::component::RawJson;\nuse serde_json::json;\nfeature.placement_modifier(RawJson::new(json!({ \"type\": \"minecraft:count\", \"count\": 5 })));",
     )]
@@ -190,7 +190,7 @@ impl PlacedFeature {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(modifiers = "`modifiers` supplies the modifiers value used to set all placement modifiers from explicit raw JSON escape-hatch values."),
+        params(modifiers = "`modifiers` provides the modifiers applied when setting all placement modifiers from explicit raw JSON escape-hatch values."),
         returns = "The `PlacedFeature` value with the documented change applied to set all placement modifiers from explicit raw JSON escape-hatch values.",
         example = "use sand::prelude::*;\n\nfn demonstrate(placed_feature_value: sand::component::PlacedFeature, modifiers: impl IntoIterator < Item = sand::component::RawJson >)  {\n    let updated_placed_feature = placed_feature_value.placement(modifiers);\n}",
     )]

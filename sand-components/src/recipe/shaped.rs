@@ -50,7 +50,7 @@ impl ShapedRecipe {
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
         params(location = "`location` provides the typed resource identifier or location used to create a new shaped recipe with the given resource location."),
-        returns = "A newly constructed `ShapedRecipe` configured to create a new shaped recipe with the given resource location.",
+        returns = "A `ShapedRecipe` representing a new shaped recipe with the given resource location.",
         example = "use sand::prelude::*;\n\nfn demonstrate(location: sand::ResourceLocation)  {\n    let shaped_recipe = sand::component::ShapedRecipe::new(location);\n}",
     )]
     pub fn new(location: ResourceLocation) -> Self {
@@ -77,7 +77,7 @@ impl ShapedRecipe {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(rows = "`rows` supplies the rows value used to set the crafting pattern rows (e.g., 3x3 grid layout)."),
+        params(rows = "`rows` provides the rows applied when setting the crafting pattern rows (e.g., 3x3 grid layout)."),
         returns = "The `ShapedRecipe` value with the documented change applied to set the crafting pattern rows (e.g., 3x3 grid layout).",
         example = "use sand::prelude::*;\n\nfn demonstrate(shaped_recipe_value: sand::component::ShapedRecipe, rows: impl IntoIterator < Item = impl Into < String > >)  {\n    let updated_shaped_recipe = shaped_recipe_value.pattern(rows);\n}",
     )]
@@ -98,7 +98,7 @@ impl ShapedRecipe {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(ch = "`ch` supplies the ch value used to map a character to an ingredient in the recipe pattern.", ingredient = "`ingredient` supplies the ingredient value used to map a character to an ingredient in the recipe pattern."),
+        params(ch = "`ch` is used to map a character to an ingredient in the recipe pattern.", ingredient = "`ingredient` is used to map a character to an ingredient in the recipe pattern."),
         returns = "The `ShapedRecipe` value with the documented change applied to map a character to an ingredient in the recipe pattern.",
         example = "use sand::prelude::*;\n\nfn demonstrate(shaped_recipe_value: sand::component::ShapedRecipe, ch: char, ingredient: sand::component::Ingredient)  {\n    let updated_shaped_recipe = shaped_recipe_value.key(ch, ingredient);\n}",
     )]
@@ -119,7 +119,7 @@ impl ShapedRecipe {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(result = "`result` supplies the result value used to set the result item and quantity produced by this recipe."),
+        params(result = "`result` provides the result applied when setting the result item and quantity produced by this recipe."),
         returns = "The `ShapedRecipe` value with the documented change applied to set the result item and quantity produced by this recipe.",
         example = "use sand::prelude::*;\n\nfn demonstrate(shaped_recipe_value: sand::component::ShapedRecipe, result: sand::component::RecipeResult)  {\n    let updated_shaped_recipe = shaped_recipe_value.result(result);\n}",
     )]
@@ -140,7 +140,7 @@ impl ShapedRecipe {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(cat = "`cat` supplies the cat value used to set the recipe category for organization."),
+        params(cat = "`cat` provides the cat applied when setting the recipe category for organization."),
         returns = "The `ShapedRecipe` value with the documented change applied to set the recipe category for organization.",
         example = "use sand::prelude::*;\n\nfn demonstrate(shaped_recipe_value: sand::component::ShapedRecipe, cat: impl Into < String >)  {\n    let updated_shaped_recipe = shaped_recipe_value.category(cat);\n}",
     )]

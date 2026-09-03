@@ -57,8 +57,8 @@ impl SpawnCondition {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(biome_id = "`biome_id` supplies the biome id value used to use a biome-scoped spawn condition for a single biome ID or tag reference (e.g. `\"minecraft:snowy_taiga\"` or `\"#minecraft:is_snowy\"`).", priority = "`priority` supplies the priority value used to use a biome-scoped spawn condition for a single biome ID or tag reference (e.g. `\"minecraft:snowy_taiga\"` or `\"#minecraft:is_snowy\"`)."),
-        returns = "A newly constructed `SpawnCondition` configured to use a biome-scoped spawn condition for a single biome ID or tag reference (e.g. `\"minecraft:snowy_taiga\"` or `\"#minecraft:is_snowy\"`).",
+        params(biome_id = "`biome_id` sets the biome id for a biome-scoped spawn condition for a single biome ID or tag reference (e.g. `\"minecraft:snowy_taiga\"` or `\"#minecraft:is_snowy\"`).", priority = "`priority` sets the priority for a biome-scoped spawn condition for a single biome ID or tag reference (e.g. `\"minecraft:snowy_taiga\"` or `\"#minecraft:is_snowy\"`)."),
+        returns = "A `SpawnCondition` configured for a biome-scoped spawn condition for a single biome ID or tag reference (e.g. `\"minecraft:snowy_taiga\"` or `\"#minecraft:is_snowy\"`).",
         example = "use sand::prelude::*;\n\nfn demonstrate(biome_id: impl Into < String >, priority: i32)  {\n    let spawn_condition = sand::component::SpawnCondition::biome(biome_id, priority);\n}",
     )]
     pub fn biome(biome_id: impl Into<String>, priority: i32) -> Self {
@@ -80,8 +80,8 @@ impl SpawnCondition {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(biome_ids = "`biome_ids` supplies the biome ids value used to use a biome-scoped spawn condition matching any of several biome IDs / tag references.", priority = "`priority` supplies the priority value used to use a biome-scoped spawn condition matching any of several biome IDs / tag references."),
-        returns = "A newly constructed `SpawnCondition` configured to use a biome-scoped spawn condition matching any of several biome IDs / tag references.",
+        params(biome_ids = "`biome_ids` sets the biome ids for a biome-scoped spawn condition matching any of several biome IDs / tag references.", priority = "`priority` sets the priority for a biome-scoped spawn condition matching any of several biome IDs / tag references."),
+        returns = "A `SpawnCondition` configured for a biome-scoped spawn condition matching any of several biome IDs / tag references.",
         example = "use sand::prelude::*;\n\nfn demonstrate(biome_ids: impl IntoIterator < Item = impl Into < String > >, priority: i32)  {\n    let spawn_condition = sand::component::SpawnCondition::biomes(biome_ids, priority);\n}",
     )]
     pub fn biomes(biome_ids: impl IntoIterator<Item = impl Into<String>>, priority: i32) -> Self {
@@ -111,8 +111,8 @@ impl SpawnCondition {
         minecraft = "Explicit escape hatch: the value still passes through the same biome-selector validation as [`SpawnCondition::biome`] / [`SpawnCondition::biomes`] at export time.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(biomes = "Build a biome condition from a raw JSON `biomes` shape.", priority = "`priority` supplies the priority value used to build a biome condition from a raw JSON `biomes` shape."),
-        returns = "A newly constructed `SpawnCondition` configured to build a biome condition from a raw JSON `biomes` shape.",
+        params(biomes = "Build a biome condition from a raw JSON `biomes` shape.", priority = "`priority` provides the priority used to build a biome condition from a raw JSON `biomes` shape."),
+        returns = "A `SpawnCondition` that builds a biome condition from a raw JSON `biomes` shape.",
         example = "use sand::prelude::*;\n\nfn demonstrate(biomes: sand::component::RawJson, priority: i32)  {\n    let spawn_condition = sand::component::SpawnCondition::biomes_raw(biomes, priority);\n}",
     )]
     pub fn biomes_raw(biomes: RawJson, priority: i32) -> Self {

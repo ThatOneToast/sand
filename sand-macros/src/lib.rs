@@ -185,6 +185,12 @@ fn expected_public_function(function: &ItemFn) -> Option<String> {
 /// values and public fields or variants must also be described. Existing `///`
 /// documentation is preserved after the generated contract sections.
 ///
+/// Examples on facade-defined APIs are emitted as compile-checked `no_run`
+/// doctests. Sand's implementation crates retain facade-shaped examples for
+/// users, but mark those copies ignored because depending back on `sand` would
+/// create a Cargo cycle; downstream facade fixtures compile representative
+/// examples instead.
+///
 /// The emitted registration powers `sand api search`, `sand api show`, export,
 /// and drift enforcement. Use `registry = sand_api_contract` in Sand's
 /// implementation crates; downstream users normally use the facade default.

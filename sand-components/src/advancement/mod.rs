@@ -43,17 +43,17 @@ fn json_value<T: Serialize, E: serde::ser::Error>(value: &T) -> Result<Value, E>
     use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
     avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
     example = "use sand::component::AdvancementFrame;",
-    variants(Challenge = "Selects the challenge form in this typed Minecraft component schema.", Goal = "Selects the goal form in this typed Minecraft component schema.", Task = "Selects the task form in this typed Minecraft component schema."),
+    variants(Challenge = "Uses Minecraft's challenge advancement frame style.", Goal = "Uses Minecraft's goal advancement frame style.", Task = "Uses Minecraft's task advancement frame style."),
 )]
 /// The visual frame style for an advancement in the advancement screen.
 ///
 /// Determines how the advancement appears to the player when completed.
 pub enum AdvancementFrame {
-    #[doc = "Selects the task form in this typed Minecraft component schema."]
+    #[doc = "Uses Minecraft's task advancement frame style."]
     Task,
-    #[doc = "Selects the goal form in this typed Minecraft component schema."]
+    #[doc = "Uses Minecraft's goal advancement frame style."]
     Goal,
-    #[doc = "Selects the challenge form in this typed Minecraft component schema."]
+    #[doc = "Uses Minecraft's challenge advancement frame style."]
     Challenge,
 }
 
@@ -111,7 +111,7 @@ impl AdvancementIcon {
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
         params(id = "`id` provides the typed resource identifier or location used to create a new advancement icon through the typed item-ID path."),
-        returns = "A newly constructed `AdvancementIcon` configured to create a new advancement icon through the typed item-ID path.",
+        returns = "An `AdvancementIcon` representing a new advancement icon through the typed item-ID path.",
         example = "use sand::prelude::*;\n\nfn demonstrate(id: sand::registry::ItemId)  {\n    let advancement_icon = sand::component::AdvancementIcon::new(id);\n}",
     )]
     pub fn new(id: ItemId) -> Self {
@@ -134,7 +134,7 @@ impl AdvancementIcon {
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
         params(id = "`id` provides the typed resource identifier or location used to create an advancement icon through the explicit raw compatibility path."),
-        returns = "A newly constructed `AdvancementIcon` configured to create an advancement icon through the explicit raw compatibility path.",
+        returns = "An `AdvancementIcon` representing an advancement icon through the explicit raw compatibility path.",
         example = "use sand::prelude::*;\n\nfn demonstrate(id: impl Into < String >)  {\n    let advancement_icon = sand::component::AdvancementIcon::raw(id);\n}",
     )]
     pub fn raw(id: impl Into<String>) -> Self {
@@ -159,7 +159,7 @@ impl AdvancementIcon {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Use this for icon component overrides (e.g. enchantments, custom model data) that are not yet modelled by the typed item component API."],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(components = "`components` supplies the components value used to set the item components for this icon using an explicit [`RawJson`] escape hatch."),
+        params(components = "`components` provides the components applied when setting the item components for this icon using an explicit [`RawJson`] escape hatch."),
         returns = "The `AdvancementIcon` value with the documented change applied to set the item components for this icon using an explicit [`RawJson`] escape hatch.",
         example = "use sand::prelude::*;\n\nfn demonstrate(advancement_icon_value: sand::component::AdvancementIcon, components: sand::component::RawJson)  {\n    let updated_advancement_icon = advancement_icon_value.components(components);\n}",
     )]
@@ -268,8 +268,8 @@ impl AdvancementDisplay {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(icon = "`icon` supplies the icon value used to create a display using typed Minecraft text components.", title = "`title` provides the player-visible text value used to create a display using typed Minecraft text components.", description = "`description` provides the player-visible text value used to create a display using typed Minecraft text components."),
-        returns = "A newly constructed `AdvancementDisplay` configured to create a display using typed Minecraft text components.",
+        params(icon = "`icon` is used when creating a display using typed Minecraft text components.", title = "`title` is used when creating a display using typed Minecraft text components.", description = "`description` is used when creating a display using typed Minecraft text components."),
+        returns = "An `AdvancementDisplay` representing a display using typed Minecraft text components.",
         example = "use sand::text::Text;\nuse {sand::component::AdvancementDisplay, sand::component::AdvancementIcon, sand::registry::ItemId};\nlet display = AdvancementDisplay::new(\nAdvancementIcon::new(ItemId::minecraft(\"diamond\").unwrap()),\nText::new(\"Diamond Collector\").aqua().bold(true),\nText::new(\"Find a diamond\"),\n);",
     )]
     pub fn new(icon: AdvancementIcon, title: TextComponent, description: TextComponent) -> Self {
@@ -297,8 +297,8 @@ impl AdvancementDisplay {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(icon = "`icon` supplies the icon value used to create a display with explicitly raw Minecraft text JSON.", title = "`title` supplies the title value used to create a display with explicitly raw Minecraft text JSON.", description = "`description` supplies the description value used to create a display with explicitly raw Minecraft text JSON."),
-        returns = "A newly constructed `AdvancementDisplay` configured to create a display with explicitly raw Minecraft text JSON.",
+        params(icon = "`icon` is used when creating a display with explicitly raw Minecraft text JSON.", title = "`title` is used when creating a display with explicitly raw Minecraft text JSON.", description = "`description` is used when creating a display with explicitly raw Minecraft text JSON."),
+        returns = "An `AdvancementDisplay` representing a display with explicitly raw Minecraft text JSON.",
         example = "use sand::prelude::*;\n\nfn demonstrate(icon: sand::component::AdvancementIcon, title: sand::component::RawJson, description: sand::component::RawJson)  {\n    let advancement_display = sand::component::AdvancementDisplay::raw_text(icon, title, description);\n}",
     )]
     pub fn raw_text(icon: AdvancementIcon, title: RawJson, description: RawJson) -> Self {
@@ -326,7 +326,7 @@ impl AdvancementDisplay {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(title = "`title` supplies the title value used to replace the title through the explicit raw text escape hatch."),
+        params(title = "`title` provides the replacement title when the title through the explicit raw text escape hatch."),
         returns = "The `AdvancementDisplay` value with the documented change applied to replace the title through the explicit raw text escape hatch.",
         example = "use sand::prelude::*;\n\nfn demonstrate(advancement_display_value: sand::component::AdvancementDisplay, title: sand::component::RawJson)  {\n    let updated_advancement_display = advancement_display_value.raw_title(title);\n}",
     )]
@@ -392,7 +392,7 @@ impl AdvancementDisplay {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(bg = "`bg` supplies the bg value used to set the background through the explicit raw compatibility path."),
+        params(bg = "`bg` provides the bg applied when setting the background through the explicit raw compatibility path."),
         returns = "The `AdvancementDisplay` value with the documented change applied to set the background through the explicit raw compatibility path.",
         example = "use sand::prelude::*;\n\nfn demonstrate(advancement_display_value: sand::component::AdvancementDisplay, bg: impl Into < String >)  {\n    let updated_advancement_display = advancement_display_value.raw_background(bg);\n}",
     )]
@@ -413,7 +413,7 @@ impl AdvancementDisplay {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(frame = "`frame` supplies the frame value used to set the frame style for this advancement display."),
+        params(frame = "`frame` provides the frame applied when setting the frame style for this advancement display."),
         returns = "The `AdvancementDisplay` value with the documented change applied to set the frame style for this advancement display.",
         example = "use sand::prelude::*;\n\nfn demonstrate(advancement_display_value: sand::component::AdvancementDisplay, frame: sand::component::AdvancementFrame)  {\n    let updated_advancement_display = advancement_display_value.frame(frame);\n}",
     )]
@@ -537,8 +537,8 @@ impl Serialize for AdvancementDisplay {
     use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
     avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
     example = "use sand::component::AdvancementTrigger;",
-    variants(AllayDropItemOnBlock = "Player causes an allay to drop an item on a block (1.19+).", AvoidVibration = "Player avoids triggering a sculk sensor vibration (1.19+).", BeeNestDestroyed = "Player destroys a bee nest or beehive.", BredAnimals = "Selects the bred animals form in this typed Minecraft component schema.", BrewedPotion = "Player brews a potion.", ChangedDimension = "Selects the changed dimension form in this typed Minecraft component schema.", ChanneledLightning = "A lightning bolt hits an entity the player summoned with a trident.", ConstructBeacon = "Selects the construct beacon form in this typed Minecraft component schema.", ConsumeItem = "Selects the consume item form in this typed Minecraft component schema.", CraftedItem = "Player crafts an item.", CuredZombieVillager = "Selects the cured zombie villager form in this typed Minecraft component schema.", Custom = "Any trigger not covered by the typed variants. Use this to target triggers that were added to or removed from Minecraft after a given version, or for modded triggers.", EffectsChanged = "Selects the effects changed form in this typed Minecraft component schema.", EmptiedBucket = "Player empties a bucket.", EnchantedItem = "Player enchants an item.", EnterBlock = "Selects the enter block form in this typed Minecraft component schema.", EntityHurtPlayer = "Entity deals damage to the player.", EntityKilledPlayer = "Selects the entity killed player form in this typed Minecraft component schema.", FallFromHeight = "Selects the fall from height form in this typed Minecraft component schema.", FilledBucket = "Player fills a bucket.", FishingRodHooked = "Player uses a fishing rod and it hooks something.", HeroOfTheVillage = "Selects the hero of the village form in this typed Minecraft component schema.", Impossible = "Selects the impossible form in this typed Minecraft component schema.", InventoryChanged = "Selects the inventory changed form in this typed Minecraft component schema.", ItemDurabilityChanged = "An item in the player's inventory loses durability.", ItemUsedOnBlock = "Player right-clicks on a block while holding an item (1.19.4+).", KillMobNearSculkCatalyst = "Player kills a mob near a sculk catalyst (1.19+).", KilledByArrow = "Player kills one or more entities with a projectile weapon.", KilledByCrossbow = "Player kills an entity using a crossbow.", LeveledUp = "Selects the leveled up form in this typed Minecraft component schema.", LightningStrike = "A lightning bolt strikes near the player.", Location = "Selects the location form in this typed Minecraft component schema.", NetherTravel = "Selects the nether travel form in this typed Minecraft component schema.", PlacedBlock = "Selects the placed block form in this typed Minecraft component schema.", PlayerGeneratesContainerLoot = "Selects the player generates container loot form in this typed Minecraft component schema.", PlayerHurtEntity = "Player deals damage to an entity.", PlayerInteractedWithEntity = "Selects the player interacted with entity form in this typed Minecraft component schema.", PlayerKilledEntity = "Selects the player killed entity form in this typed Minecraft component schema.", RecipeCrafted = "Player completes a recipe. Vanilla exposes recipe and ingredient predicates, not the crafted result item.", RecipeUnlocked = "Selects the recipe unlocked form in this typed Minecraft component schema.", RideEntityInLava = "Player rides an entity in lava (1.16+).", ShotCrossbow = "Player shoots a crossbow.", SleptInBed = "Selects the slept in bed form in this typed Minecraft component schema.", SlideDownBlock = "Selects the slide down block form in this typed Minecraft component schema.", StartedRiding = "Selects the started riding form in this typed Minecraft component schema.", SummonedEntity = "Selects the summoned entity form in this typed Minecraft component schema.", TamedAnimal = "Selects the tamed animal form in this typed Minecraft component schema.", TamedAnimalInteracted = "Selects the tamed animal interacted form in this typed Minecraft component schema.", TargetHit = "Selects the target hit form in this typed Minecraft component schema.", ThrownItemPickedUp = "A thrown item is picked up by an entity.", ThrownItemPickedUpByEntity = "A thrown item is picked up by a non-player entity.", ThrownItemPickedUpByPlayer = "A thrown item is picked up by the player.", Tick = "Selects the tick form in this typed Minecraft component schema.", UsedEnderEye = "Selects the used ender eye form in this typed Minecraft component schema.", UsedItem = "Selects the used item form in this typed Minecraft component schema.", UsedTotem = "Player activates a totem of undying.", UsingItem = "Selects the using item form in this typed Minecraft component schema.", VillagerTrade = "Selects the villager trade form in this typed Minecraft component schema."),
-    variant_fields(AllayDropItemOnBlock(item = "`item` optionally restricts the dropped item that satisfies this trigger.", location = "`location` optionally narrows the location predicate matched when a player causes an allay to drop an item on a block."), BeeNestDestroyed(block = "`block` optionally narrows the block matched when a player destroys a bee nest or beehive.", item = "`item` optionally narrows the item predicate matched when a player destroys a bee nest or beehive.", num_bees_inside = "`num_bees_inside` optionally provides the num bees inside when a player destroys a bee nest or beehive."), BredAnimals(child = "`child` optionally narrows the child predicate matched when the variant selects the bred animals form in this typed Minecraft component schema.", parent = "`parent` optionally narrows the parent predicate matched when the variant selects the bred animals form in this typed Minecraft component schema.", partner = "`partner` optionally narrows the partner predicate matched when the variant selects the bred animals form in this typed Minecraft component schema."), BrewedPotion(potion = "`potion` optionally provides the potion when a player brews a potion."), ChangedDimension(from = "`from` optionally narrows the source value matched when the variant selects the changed dimension form in this typed Minecraft component schema.", to = "`to` optionally narrows the destination value matched when the variant selects the changed dimension form in this typed Minecraft component schema."), ChanneledLightning(victims = "`victims` optionally narrows the victims predicate matched when a lightning bolt hits an entity the player summoned with a trident."), ConstructBeacon(level = "`level` optionally narrows the level range matched when the variant selects the construct beacon form in this typed Minecraft component schema."), ConsumeItem(item = "`item` optionally narrows the item predicate matched when the variant selects the consume item form in this typed Minecraft component schema."), CraftedItem(item = "`item` optionally narrows the item predicate matched when a player crafts an item."), CuredZombieVillager(villager = "`villager` optionally narrows the villager predicate matched when the variant selects the cured zombie villager form in this typed Minecraft component schema.", zombie = "`zombie` optionally narrows the zombie predicate matched when the variant selects the cured zombie villager form in this typed Minecraft component schema."), Custom(conditions = "Raw JSON conditions block.  Use [`RawJson`] to signal intentional opt-out of the typed predicate API.", trigger = "`trigger` provides the trigger when any trigger not covered by the typed variants. Use this to target triggers that were added to or removed from Minecraft after a given version, or for modded triggers."), EffectsChanged(effects = "`effects` optionally narrows the effects predicate matched when the variant selects the effects changed form in this typed Minecraft component schema.", source = "`source` optionally narrows the source predicate matched when the variant selects the effects changed form in this typed Minecraft component schema."), EmptiedBucket(item = "`item` optionally narrows the item predicate matched when a player empties a bucket.", location = "`location` optionally narrows the location predicate matched when a player empties a bucket."), EnchantedItem(item = "`item` optionally narrows the item predicate matched when a player enchants an item.", levels = "`levels` optionally narrows the level range matched when a player enchants an item."), EnterBlock(block = "`block` optionally narrows the block matched when the variant selects the enter block form in this typed Minecraft component schema.", state = "`state` optionally provides the state when the variant selects the enter block form in this typed Minecraft component schema."), EntityHurtPlayer(damage = "`damage` optionally narrows the damage predicate matched when entity deals damage to the player.", entity = "`entity` optionally narrows the entity predicate matched when entity deals damage to the player."), EntityKilledPlayer(entity = "`entity` optionally narrows the entity predicate matched when the variant selects the entity killed player form in this typed Minecraft component schema.", killing_blow = "`killing_blow` optionally narrows the killing blow predicate matched when the variant selects the entity killed player form in this typed Minecraft component schema."), FallFromHeight(distance = "`distance` optionally narrows the distance predicate matched when the variant selects the fall from height form in this typed Minecraft component schema.", start_position = "`start_position` optionally narrows the start position predicate matched when the variant selects the fall from height form in this typed Minecraft component schema."), FilledBucket(item = "`item` optionally narrows the item predicate matched when a player fills a bucket."), FishingRodHooked(entity = "`entity` optionally narrows the entity predicate matched when a player uses a fishing rod and it hooks something.", item = "`item` optionally narrows the item predicate matched when a player uses a fishing rod and it hooks something.", rod = "`rod` optionally narrows the rod predicate matched when a player uses a fishing rod and it hooks something."), HeroOfTheVillage(location = "`location` optionally narrows the location predicate matched when the variant selects the hero of the village form in this typed Minecraft component schema."), InventoryChanged(items = "`items` provides the items predicate when the variant selects the inventory changed form in this typed Minecraft component schema.", slots = "`slots` optionally narrows the slots predicate matched when the variant selects the inventory changed form in this typed Minecraft component schema."), ItemDurabilityChanged(delta = "`delta` optionally provides the delta when an item in the player's inventory loses durability.", durability = "`durability` optionally provides the durability when an item in the player's inventory loses durability.", item = "`item` optionally narrows the item predicate matched when an item in the player's inventory loses durability."), ItemUsedOnBlock(item = "`item` optionally narrows the item predicate matched when a player right-clicks on a block while holding an item.", location = "`location` optionally narrows the location predicate matched when a player right-clicks on a block while holding an item."), KillMobNearSculkCatalyst(entity = "`entity` optionally narrows the entity predicate matched when a player kills a mob near a sculk catalyst.", killing_blow = "`killing_blow` optionally narrows the killing blow predicate matched when a player kills a mob near a sculk catalyst."), KilledByArrow(fired_from_weapon = "`fired_from_weapon` optionally narrows the fired from weapon predicate matched when a player kills one or more entities with a projectile weapon.", unique_entity_types = "`unique_entity_types` optionally provides the unique entity types when a player kills one or more entities with a projectile weapon.", victims = "`victims` optionally narrows the victims predicate matched when a player kills one or more entities with a projectile weapon."), KilledByCrossbow(unique_entity_types = "`unique_entity_types` optionally provides the unique entity types when a player kills an entity using a crossbow.", victims = "`victims` optionally narrows the victims predicate matched when a player kills an entity using a crossbow."), LeveledUp(level = "`level` optionally narrows the level range matched when the variant selects the leveled up form in this typed Minecraft component schema."), LightningStrike(bystander = "`bystander` optionally narrows the bystander predicate matched when a lightning bolt strikes near the player.", lightning = "`lightning` optionally narrows the lightning predicate matched when a lightning bolt strikes near the player."), Location(location = "`location` optionally narrows the location predicate matched when the variant selects the location form in this typed Minecraft component schema."), NetherTravel(distance = "`distance` optionally narrows the distance predicate matched when the variant selects the nether travel form in this typed Minecraft component schema.", entered = "`entered` optionally narrows the entered predicate matched when the variant selects the nether travel form in this typed Minecraft component schema.", exited = "`exited` optionally narrows the exited predicate matched when the variant selects the nether travel form in this typed Minecraft component schema."), PlacedBlock(block = "`block` optionally narrows the block matched when the variant selects the placed block form in this typed Minecraft component schema.", item = "`item` optionally narrows the item predicate matched when the variant selects the placed block form in this typed Minecraft component schema.", location = "`location` optionally narrows the location predicate matched when the variant selects the placed block form in this typed Minecraft component schema.", state = "`state` optionally provides the state when the variant selects the placed block form in this typed Minecraft component schema."), PlayerGeneratesContainerLoot(loot_table = "`loot_table` optionally provides the loot table when the variant selects the player generates container loot form in this typed Minecraft component schema."), PlayerHurtEntity(damage = "`damage` optionally narrows the damage predicate matched when a player deals damage to an entity.", entity = "`entity` optionally narrows the entity predicate matched when a player deals damage to an entity."), PlayerInteractedWithEntity(entity = "`entity` optionally narrows the entity predicate matched when the variant selects the player interacted with entity form in this typed Minecraft component schema.", item = "`item` optionally narrows the item predicate matched when the variant selects the player interacted with entity form in this typed Minecraft component schema."), PlayerKilledEntity(entity = "`entity` optionally narrows the entity predicate matched when the variant selects the player killed entity form in this typed Minecraft component schema.", killing_blow = "`killing_blow` optionally narrows the killing blow predicate matched when the variant selects the player killed entity form in this typed Minecraft component schema."), RecipeCrafted(ingredients = "`ingredients` provides the ingredients predicate when a player completes a recipe. Vanilla exposes recipe and ingredient predicates, not the crafted result item.", recipe_id = "`recipe_id` provides the recipe id when a player completes a recipe. Vanilla exposes recipe and ingredient predicates, not the crafted result item."), RecipeUnlocked(recipe = "`recipe` provides the recipe when the variant selects the recipe unlocked form in this typed Minecraft component schema."), RideEntityInLava(distance = "`distance` optionally narrows the distance predicate matched when a player rides an entity in lava.", start_position = "`start_position` optionally narrows the start position predicate matched when a player rides an entity in lava."), ShotCrossbow(item = "`item` optionally narrows the item predicate matched when a player shoots a crossbow."), SleptInBed(location = "`location` optionally narrows the location predicate matched when the variant selects the slept in bed form in this typed Minecraft component schema."), SlideDownBlock(block = "`block` optionally narrows the block matched when the variant selects the slide down block form in this typed Minecraft component schema."), SummonedEntity(entity = "`entity` optionally narrows the entity predicate matched when the variant selects the summoned entity form in this typed Minecraft component schema."), TamedAnimal(entity = "`entity` optionally narrows the entity predicate matched when the variant selects the tamed animal form in this typed Minecraft component schema."), TamedAnimalInteracted(entity = "`entity` optionally narrows the entity predicate matched when the variant selects the tamed animal interacted form in this typed Minecraft component schema.", item = "`item` optionally narrows the item predicate matched when the variant selects the tamed animal interacted form in this typed Minecraft component schema."), TargetHit(projectile = "`projectile` optionally narrows the projectile predicate matched when the variant selects the target hit form in this typed Minecraft component schema.", signal_strength = "`signal_strength` optionally provides the signal strength when the variant selects the target hit form in this typed Minecraft component schema."), ThrownItemPickedUp(entity = "`entity` optionally narrows the entity predicate matched when a thrown item is picked up by an entity.", item = "`item` optionally narrows the item predicate matched when a thrown item is picked up by an entity."), ThrownItemPickedUpByEntity(entity = "`entity` optionally narrows the entity predicate matched when a thrown item is picked up by a non-player entity.", item = "`item` optionally narrows the item predicate matched when a thrown item is picked up by a non-player entity."), ThrownItemPickedUpByPlayer(entity = "`entity` optionally narrows the entity predicate matched when a thrown item is picked up by the player.", item = "`item` optionally narrows the item predicate matched when a thrown item is picked up by the player."), UsedEnderEye(distance = "`distance` optionally narrows the distance matched when the variant selects the used ender eye form in this typed Minecraft component schema."), UsedItem(item = "`item` optionally narrows the item predicate matched when the variant selects the used item form in this typed Minecraft component schema."), UsedTotem(item = "`item` optionally narrows the item predicate matched when a player activates a totem of undying."), UsingItem(item = "`item` optionally narrows the item predicate matched when the variant selects the using item form in this typed Minecraft component schema."), VillagerTrade(item = "`item` optionally narrows the item predicate matched when the variant selects the villager trade form in this typed Minecraft component schema.", villager = "`villager` optionally narrows the villager predicate matched when the variant selects the villager trade form in this typed Minecraft component schema.")),
+    variants(AllayDropItemOnBlock = "Player causes an allay to drop an item on a block (1.19+).", AvoidVibration = "Player avoids triggering a sculk sensor vibration (1.19+).", BeeNestDestroyed = "Player destroys a bee nest or beehive.", BredAnimals = "Matches Minecraft's bred animals advancement trigger.", BrewedPotion = "Player brews a potion.", ChangedDimension = "Matches Minecraft's changed dimension advancement trigger.", ChanneledLightning = "A lightning bolt hits an entity the player summoned with a trident.", ConstructBeacon = "Matches Minecraft's construct beacon advancement trigger.", ConsumeItem = "Matches Minecraft's consume item advancement trigger.", CraftedItem = "Player crafts an item.", CuredZombieVillager = "Matches Minecraft's cured zombie villager advancement trigger.", Custom = "Any trigger not covered by the typed variants. Use this to target triggers that were added to or removed from Minecraft after a given version, or for modded triggers.", EffectsChanged = "Matches Minecraft's effects changed advancement trigger.", EmptiedBucket = "Player empties a bucket.", EnchantedItem = "Player enchants an item.", EnterBlock = "Matches Minecraft's enter block advancement trigger.", EntityHurtPlayer = "Entity deals damage to the player.", EntityKilledPlayer = "Matches Minecraft's entity killed player advancement trigger.", FallFromHeight = "Matches Minecraft's fall from height advancement trigger.", FilledBucket = "Player fills a bucket.", FishingRodHooked = "Player uses a fishing rod and it hooks something.", HeroOfTheVillage = "Matches Minecraft's hero of the village advancement trigger.", Impossible = "Matches Minecraft's impossible advancement trigger.", InventoryChanged = "Matches Minecraft's inventory changed advancement trigger.", ItemDurabilityChanged = "An item in the player's inventory loses durability.", ItemUsedOnBlock = "Player right-clicks on a block while holding an item (1.19.4+).", KillMobNearSculkCatalyst = "Player kills a mob near a sculk catalyst (1.19+).", KilledByArrow = "Player kills one or more entities with a projectile weapon.", KilledByCrossbow = "Player kills an entity using a crossbow.", LeveledUp = "Matches Minecraft's leveled up advancement trigger.", LightningStrike = "A lightning bolt strikes near the player.", Location = "Matches Minecraft's location advancement trigger.", NetherTravel = "Matches Minecraft's nether travel advancement trigger.", PlacedBlock = "Matches Minecraft's placed block advancement trigger.", PlayerGeneratesContainerLoot = "Matches Minecraft's player generates container loot advancement trigger.", PlayerHurtEntity = "Player deals damage to an entity.", PlayerInteractedWithEntity = "Matches Minecraft's player interacted with entity advancement trigger.", PlayerKilledEntity = "Matches Minecraft's player killed entity advancement trigger.", RecipeCrafted = "Player completes a recipe. Vanilla exposes recipe and ingredient predicates, not the crafted result item.", RecipeUnlocked = "Matches Minecraft's recipe unlocked advancement trigger.", RideEntityInLava = "Player rides an entity in lava (1.16+).", ShotCrossbow = "Player shoots a crossbow.", SleptInBed = "Matches Minecraft's slept in bed advancement trigger.", SlideDownBlock = "Matches Minecraft's slide down block advancement trigger.", StartedRiding = "Matches Minecraft's started riding advancement trigger.", SummonedEntity = "Matches Minecraft's summoned entity advancement trigger.", TamedAnimal = "Matches Minecraft's tamed animal advancement trigger.", TamedAnimalInteracted = "Matches Minecraft's tamed animal interacted advancement trigger.", TargetHit = "Matches Minecraft's target hit advancement trigger.", ThrownItemPickedUp = "A thrown item is picked up by an entity.", ThrownItemPickedUpByEntity = "A thrown item is picked up by a non-player entity.", ThrownItemPickedUpByPlayer = "A thrown item is picked up by the player.", Tick = "Matches Minecraft's tick advancement trigger.", UsedEnderEye = "Matches Minecraft's used ender eye advancement trigger.", UsedItem = "Matches Minecraft's used item advancement trigger.", UsedTotem = "Player activates a totem of undying.", UsingItem = "Matches Minecraft's using item advancement trigger.", VillagerTrade = "Matches Minecraft's villager trade advancement trigger."),
+    variant_fields(AllayDropItemOnBlock(item = "`item` optionally restricts the dropped item that satisfies this trigger.", location = "`location` optionally narrows the location predicate matched when a player causes an allay to drop an item on a block."), BeeNestDestroyed(block = "`block` optionally narrows the block matched when a player destroys a bee nest or beehive.", item = "`item` optionally narrows the item predicate matched when a player destroys a bee nest or beehive.", num_bees_inside = "`num_bees_inside` optionally provides the num bees inside when a player destroys a bee nest or beehive."), BredAnimals(child = "`child` optionally narrows the child predicate matched for Minecraft's bred animals advancement trigger.", parent = "`parent` optionally narrows the parent predicate matched for Minecraft's bred animals advancement trigger.", partner = "`partner` optionally narrows the partner predicate matched for Minecraft's bred animals advancement trigger."), BrewedPotion(potion = "`potion` optionally provides the potion when a player brews a potion."), ChangedDimension(from = "`from` optionally narrows the source value matched for Minecraft's changed dimension advancement trigger.", to = "`to` optionally narrows the destination value matched for Minecraft's changed dimension advancement trigger."), ChanneledLightning(victims = "`victims` optionally narrows the victims predicate matched when a lightning bolt hits an entity the player summoned with a trident."), ConstructBeacon(level = "`level` optionally narrows the level range matched for Minecraft's construct beacon advancement trigger."), ConsumeItem(item = "`item` optionally narrows the item predicate matched for Minecraft's consume item advancement trigger."), CraftedItem(item = "`item` optionally narrows the item predicate matched when a player crafts an item."), CuredZombieVillager(villager = "`villager` optionally narrows the villager predicate matched for Minecraft's cured zombie villager advancement trigger.", zombie = "`zombie` optionally narrows the zombie predicate matched for Minecraft's cured zombie villager advancement trigger."), Custom(conditions = "Raw JSON conditions block.  Use [`RawJson`] to signal intentional opt-out of the typed predicate API.", trigger = "`trigger` provides the trigger when any trigger not covered by the typed variants. Use this to target triggers that were added to or removed from Minecraft after a given version, or for modded triggers."), EffectsChanged(effects = "`effects` optionally narrows the effects predicate matched for Minecraft's effects changed advancement trigger.", source = "`source` optionally narrows the source predicate matched for Minecraft's effects changed advancement trigger."), EmptiedBucket(item = "`item` optionally narrows the item predicate matched when a player empties a bucket.", location = "`location` optionally narrows the location predicate matched when a player empties a bucket."), EnchantedItem(item = "`item` optionally narrows the item predicate matched when a player enchants an item.", levels = "`levels` optionally narrows the level range matched when a player enchants an item."), EnterBlock(block = "`block` optionally narrows the block matched for Minecraft's enter block advancement trigger.", state = "`state` optionally provides the state for Minecraft's enter block advancement trigger."), EntityHurtPlayer(damage = "`damage` optionally narrows the damage predicate matched when entity deals damage to the player.", entity = "`entity` optionally narrows the entity predicate matched when entity deals damage to the player."), EntityKilledPlayer(entity = "`entity` optionally narrows the entity predicate matched for Minecraft's entity killed player advancement trigger.", killing_blow = "`killing_blow` optionally narrows the killing blow predicate matched for Minecraft's entity killed player advancement trigger."), FallFromHeight(distance = "`distance` optionally narrows the distance predicate matched for Minecraft's fall from height advancement trigger.", start_position = "`start_position` optionally narrows the start position predicate matched for Minecraft's fall from height advancement trigger."), FilledBucket(item = "`item` optionally narrows the item predicate matched when a player fills a bucket."), FishingRodHooked(entity = "`entity` optionally narrows the entity predicate matched when a player uses a fishing rod and it hooks something.", item = "`item` optionally narrows the item predicate matched when a player uses a fishing rod and it hooks something.", rod = "`rod` optionally narrows the rod predicate matched when a player uses a fishing rod and it hooks something."), HeroOfTheVillage(location = "`location` optionally narrows the location predicate matched for Minecraft's hero of the village advancement trigger."), InventoryChanged(items = "`items` provides the items predicate for Minecraft's inventory changed advancement trigger.", slots = "`slots` optionally narrows the slots predicate matched for Minecraft's inventory changed advancement trigger."), ItemDurabilityChanged(delta = "`delta` optionally provides the delta when an item in the player's inventory loses durability.", durability = "`durability` optionally provides the durability when an item in the player's inventory loses durability.", item = "`item` optionally narrows the item predicate matched when an item in the player's inventory loses durability."), ItemUsedOnBlock(item = "`item` optionally narrows the item predicate matched when a player right-clicks on a block while holding an item.", location = "`location` optionally narrows the location predicate matched when a player right-clicks on a block while holding an item."), KillMobNearSculkCatalyst(entity = "`entity` optionally narrows the entity predicate matched when a player kills a mob near a sculk catalyst.", killing_blow = "`killing_blow` optionally narrows the killing blow predicate matched when a player kills a mob near a sculk catalyst."), KilledByArrow(fired_from_weapon = "`fired_from_weapon` optionally narrows the fired from weapon predicate matched when a player kills one or more entities with a projectile weapon.", unique_entity_types = "`unique_entity_types` optionally provides the unique entity types when a player kills one or more entities with a projectile weapon.", victims = "`victims` optionally narrows the victims predicate matched when a player kills one or more entities with a projectile weapon."), KilledByCrossbow(unique_entity_types = "`unique_entity_types` optionally provides the unique entity types when a player kills an entity using a crossbow.", victims = "`victims` optionally narrows the victims predicate matched when a player kills an entity using a crossbow."), LeveledUp(level = "`level` optionally narrows the level range matched for Minecraft's leveled up advancement trigger."), LightningStrike(bystander = "`bystander` optionally narrows the bystander predicate matched when a lightning bolt strikes near the player.", lightning = "`lightning` optionally narrows the lightning predicate matched when a lightning bolt strikes near the player."), Location(location = "`location` optionally narrows the location predicate matched for Minecraft's location advancement trigger."), NetherTravel(distance = "`distance` optionally narrows the distance predicate matched for Minecraft's nether travel advancement trigger.", entered = "`entered` optionally narrows the entered predicate matched for Minecraft's nether travel advancement trigger.", exited = "`exited` optionally narrows the exited predicate matched for Minecraft's nether travel advancement trigger."), PlacedBlock(block = "`block` optionally narrows the block matched for Minecraft's placed block advancement trigger.", item = "`item` optionally narrows the item predicate matched for Minecraft's placed block advancement trigger.", location = "`location` optionally narrows the location predicate matched for Minecraft's placed block advancement trigger.", state = "`state` optionally provides the state for Minecraft's placed block advancement trigger."), PlayerGeneratesContainerLoot(loot_table = "`loot_table` optionally provides the loot table for Minecraft's player generates container loot advancement trigger."), PlayerHurtEntity(damage = "`damage` optionally narrows the damage predicate matched when a player deals damage to an entity.", entity = "`entity` optionally narrows the entity predicate matched when a player deals damage to an entity."), PlayerInteractedWithEntity(entity = "`entity` optionally narrows the entity predicate matched for Minecraft's player interacted with entity advancement trigger.", item = "`item` optionally narrows the item predicate matched for Minecraft's player interacted with entity advancement trigger."), PlayerKilledEntity(entity = "`entity` optionally narrows the entity predicate matched for Minecraft's player killed entity advancement trigger.", killing_blow = "`killing_blow` optionally narrows the killing blow predicate matched for Minecraft's player killed entity advancement trigger."), RecipeCrafted(ingredients = "`ingredients` provides the ingredients predicate when a player completes a recipe. Vanilla exposes recipe and ingredient predicates, not the crafted result item.", recipe_id = "`recipe_id` provides the recipe id when a player completes a recipe. Vanilla exposes recipe and ingredient predicates, not the crafted result item."), RecipeUnlocked(recipe = "`recipe` provides the recipe for Minecraft's recipe unlocked advancement trigger."), RideEntityInLava(distance = "`distance` optionally narrows the distance predicate matched when a player rides an entity in lava.", start_position = "`start_position` optionally narrows the start position predicate matched when a player rides an entity in lava."), ShotCrossbow(item = "`item` optionally narrows the item predicate matched when a player shoots a crossbow."), SleptInBed(location = "`location` optionally narrows the location predicate matched for Minecraft's slept in bed advancement trigger."), SlideDownBlock(block = "`block` optionally narrows the block matched for Minecraft's slide down block advancement trigger."), SummonedEntity(entity = "`entity` optionally narrows the entity predicate matched for Minecraft's summoned entity advancement trigger."), TamedAnimal(entity = "`entity` optionally narrows the entity predicate matched for Minecraft's tamed animal advancement trigger."), TamedAnimalInteracted(entity = "`entity` optionally narrows the entity predicate matched for Minecraft's tamed animal interacted advancement trigger.", item = "`item` optionally narrows the item predicate matched for Minecraft's tamed animal interacted advancement trigger."), TargetHit(projectile = "`projectile` optionally narrows the projectile predicate matched for Minecraft's target hit advancement trigger.", signal_strength = "`signal_strength` optionally provides the signal strength for Minecraft's target hit advancement trigger."), ThrownItemPickedUp(entity = "`entity` optionally narrows the entity predicate matched when a thrown item is picked up by an entity.", item = "`item` optionally narrows the item predicate matched when a thrown item is picked up by an entity."), ThrownItemPickedUpByEntity(entity = "`entity` optionally narrows the entity predicate matched when a thrown item is picked up by a non-player entity.", item = "`item` optionally narrows the item predicate matched when a thrown item is picked up by a non-player entity."), ThrownItemPickedUpByPlayer(entity = "`entity` optionally narrows the entity predicate matched when a thrown item is picked up by the player.", item = "`item` optionally narrows the item predicate matched when a thrown item is picked up by the player."), UsedEnderEye(distance = "`distance` optionally narrows the distance matched for Minecraft's used ender eye advancement trigger."), UsedItem(item = "`item` optionally narrows the item predicate matched for Minecraft's used item advancement trigger."), UsedTotem(item = "`item` optionally narrows the item predicate matched when a player activates a totem of undying."), UsingItem(item = "`item` optionally narrows the item predicate matched for Minecraft's using item advancement trigger."), VillagerTrade(item = "`item` optionally narrows the item predicate matched for Minecraft's villager trade advancement trigger.", villager = "`villager` optionally narrows the villager predicate matched for Minecraft's villager trade advancement trigger.")),
 )]
 /// Represents a trigger condition for an advancement criterion.
 ///
@@ -562,24 +562,24 @@ impl Serialize for AdvancementDisplay {
 /// ```
 #[allow(clippy::large_enum_variant)]
 pub enum AdvancementTrigger {
-    #[doc = "Selects the tick form in this typed Minecraft component schema."]
+    #[doc = "Matches Minecraft's tick advancement trigger."]
     Tick,
-    #[doc = "Selects the impossible form in this typed Minecraft component schema."]
+    #[doc = "Matches Minecraft's impossible advancement trigger."]
     Impossible,
 
     // ── Kill / combat ─────────────────────────────────────────────────────────
-    #[doc = "Selects the player killed entity form in this typed Minecraft component schema."]
+    #[doc = "Matches Minecraft's player killed entity advancement trigger."]
     PlayerKilledEntity {
-        /// `entity` optionally narrows the entity predicate matched when the variant selects the player killed entity form in this typed Minecraft component schema.
+        /// `entity` optionally narrows the entity predicate matched for Minecraft's player killed entity advancement trigger.
         entity: Option<EntityPredicate>,
-        /// `killing_blow` optionally narrows the killing blow predicate matched when the variant selects the player killed entity form in this typed Minecraft component schema.
+        /// `killing_blow` optionally narrows the killing blow predicate matched for Minecraft's player killed entity advancement trigger.
         killing_blow: Option<DamagePredicate>,
     },
-    #[doc = "Selects the entity killed player form in this typed Minecraft component schema."]
+    #[doc = "Matches Minecraft's entity killed player advancement trigger."]
     EntityKilledPlayer {
-        /// `entity` optionally narrows the entity predicate matched when the variant selects the entity killed player form in this typed Minecraft component schema.
+        /// `entity` optionally narrows the entity predicate matched for Minecraft's entity killed player advancement trigger.
         entity: Option<EntityPredicate>,
-        /// `killing_blow` optionally narrows the killing blow predicate matched when the variant selects the entity killed player form in this typed Minecraft component schema.
+        /// `killing_blow` optionally narrows the killing blow predicate matched for Minecraft's entity killed player advancement trigger.
         killing_blow: Option<DamagePredicate>,
     },
     /// Player deals damage to an entity.
@@ -626,31 +626,31 @@ pub enum AdvancementTrigger {
     },
 
     // ── Inventory / items ─────────────────────────────────────────────────────
-    #[doc = "Selects the inventory changed form in this typed Minecraft component schema."]
+    #[doc = "Matches Minecraft's inventory changed advancement trigger."]
     InventoryChanged {
-        /// `slots` optionally narrows the slots predicate matched when the variant selects the inventory changed form in this typed Minecraft component schema.
+        /// `slots` optionally narrows the slots predicate matched for Minecraft's inventory changed advancement trigger.
         slots: Option<InventorySlotsPredicate>,
-        /// `items` provides the items predicate when the variant selects the inventory changed form in this typed Minecraft component schema.
+        /// `items` provides the items predicate for Minecraft's inventory changed advancement trigger.
         items: Vec<ItemPredicate>,
     },
-    #[doc = "Selects the recipe unlocked form in this typed Minecraft component schema."]
+    #[doc = "Matches Minecraft's recipe unlocked advancement trigger."]
     RecipeUnlocked {
-        /// `recipe` provides the recipe when the variant selects the recipe unlocked form in this typed Minecraft component schema.
+        /// `recipe` provides the recipe for Minecraft's recipe unlocked advancement trigger.
         recipe: String,
     },
-    #[doc = "Selects the used item form in this typed Minecraft component schema."]
+    #[doc = "Matches Minecraft's used item advancement trigger."]
     UsedItem {
-        /// `item` optionally narrows the item predicate matched when the variant selects the used item form in this typed Minecraft component schema.
+        /// `item` optionally narrows the item predicate matched for Minecraft's used item advancement trigger.
         item: Option<ItemPredicate>,
     },
-    #[doc = "Selects the consume item form in this typed Minecraft component schema."]
+    #[doc = "Matches Minecraft's consume item advancement trigger."]
     ConsumeItem {
-        /// `item` optionally narrows the item predicate matched when the variant selects the consume item form in this typed Minecraft component schema.
+        /// `item` optionally narrows the item predicate matched for Minecraft's consume item advancement trigger.
         item: Option<ItemPredicate>,
     },
-    #[doc = "Selects the using item form in this typed Minecraft component schema."]
+    #[doc = "Matches Minecraft's using item advancement trigger."]
     UsingItem {
-        /// `item` optionally narrows the item predicate matched when the variant selects the using item form in this typed Minecraft component schema.
+        /// `item` optionally narrows the item predicate matched for Minecraft's using item advancement trigger.
         item: Option<ItemPredicate>,
     },
     /// Player crafts an item.
@@ -742,30 +742,30 @@ pub enum AdvancementTrigger {
     },
 
     // ── Entities / interactions ───────────────────────────────────────────────
-    #[doc = "Selects the bred animals form in this typed Minecraft component schema."]
+    #[doc = "Matches Minecraft's bred animals advancement trigger."]
     BredAnimals {
-        /// `parent` optionally narrows the parent predicate matched when the variant selects the bred animals form in this typed Minecraft component schema.
+        /// `parent` optionally narrows the parent predicate matched for Minecraft's bred animals advancement trigger.
         parent: Option<EntityPredicate>,
-        /// `partner` optionally narrows the partner predicate matched when the variant selects the bred animals form in this typed Minecraft component schema.
+        /// `partner` optionally narrows the partner predicate matched for Minecraft's bred animals advancement trigger.
         partner: Option<EntityPredicate>,
-        /// `child` optionally narrows the child predicate matched when the variant selects the bred animals form in this typed Minecraft component schema.
+        /// `child` optionally narrows the child predicate matched for Minecraft's bred animals advancement trigger.
         child: Option<EntityPredicate>,
     },
-    #[doc = "Selects the tamed animal form in this typed Minecraft component schema."]
+    #[doc = "Matches Minecraft's tamed animal advancement trigger."]
     TamedAnimal {
-        /// `entity` optionally narrows the entity predicate matched when the variant selects the tamed animal form in this typed Minecraft component schema.
+        /// `entity` optionally narrows the entity predicate matched for Minecraft's tamed animal advancement trigger.
         entity: Option<EntityPredicate>,
     },
-    #[doc = "Selects the summoned entity form in this typed Minecraft component schema."]
+    #[doc = "Matches Minecraft's summoned entity advancement trigger."]
     SummonedEntity {
-        /// `entity` optionally narrows the entity predicate matched when the variant selects the summoned entity form in this typed Minecraft component schema.
+        /// `entity` optionally narrows the entity predicate matched for Minecraft's summoned entity advancement trigger.
         entity: Option<EntityPredicate>,
     },
-    #[doc = "Selects the player interacted with entity form in this typed Minecraft component schema."]
+    #[doc = "Matches Minecraft's player interacted with entity advancement trigger."]
     PlayerInteractedWithEntity {
-        /// `item` optionally narrows the item predicate matched when the variant selects the player interacted with entity form in this typed Minecraft component schema.
+        /// `item` optionally narrows the item predicate matched for Minecraft's player interacted with entity advancement trigger.
         item: Option<ItemPredicate>,
-        /// `entity` optionally narrows the entity predicate matched when the variant selects the player interacted with entity form in this typed Minecraft component schema.
+        /// `entity` optionally narrows the entity predicate matched for Minecraft's player interacted with entity advancement trigger.
         entity: Option<EntityPredicate>,
     },
     /// Player uses a fishing rod and it hooks something.
@@ -777,126 +777,126 @@ pub enum AdvancementTrigger {
         /// `item` optionally narrows the item predicate matched when a player uses a fishing rod and it hooks something.
         item: Option<ItemPredicate>,
     },
-    #[doc = "Selects the tamed animal interacted form in this typed Minecraft component schema."]
+    #[doc = "Matches Minecraft's tamed animal interacted advancement trigger."]
     TamedAnimalInteracted {
-        /// `entity` optionally narrows the entity predicate matched when the variant selects the tamed animal interacted form in this typed Minecraft component schema.
+        /// `entity` optionally narrows the entity predicate matched for Minecraft's tamed animal interacted advancement trigger.
         entity: Option<EntityPredicate>,
-        /// `item` optionally narrows the item predicate matched when the variant selects the tamed animal interacted form in this typed Minecraft component schema.
+        /// `item` optionally narrows the item predicate matched for Minecraft's tamed animal interacted advancement trigger.
         item: Option<ItemPredicate>,
     },
-    #[doc = "Selects the villager trade form in this typed Minecraft component schema."]
+    #[doc = "Matches Minecraft's villager trade advancement trigger."]
     VillagerTrade {
-        /// `item` optionally narrows the item predicate matched when the variant selects the villager trade form in this typed Minecraft component schema.
+        /// `item` optionally narrows the item predicate matched for Minecraft's villager trade advancement trigger.
         item: Option<ItemPredicate>,
-        /// `villager` optionally narrows the villager predicate matched when the variant selects the villager trade form in this typed Minecraft component schema.
+        /// `villager` optionally narrows the villager predicate matched for Minecraft's villager trade advancement trigger.
         villager: Option<EntityPredicate>,
     },
-    #[doc = "Selects the cured zombie villager form in this typed Minecraft component schema."]
+    #[doc = "Matches Minecraft's cured zombie villager advancement trigger."]
     CuredZombieVillager {
-        /// `villager` optionally narrows the villager predicate matched when the variant selects the cured zombie villager form in this typed Minecraft component schema.
+        /// `villager` optionally narrows the villager predicate matched for Minecraft's cured zombie villager advancement trigger.
         villager: Option<EntityPredicate>,
-        /// `zombie` optionally narrows the zombie predicate matched when the variant selects the cured zombie villager form in this typed Minecraft component schema.
+        /// `zombie` optionally narrows the zombie predicate matched for Minecraft's cured zombie villager advancement trigger.
         zombie: Option<EntityPredicate>,
     },
 
     // ── Location / world ──────────────────────────────────────────────────────
-    #[doc = "Selects the placed block form in this typed Minecraft component schema."]
+    #[doc = "Matches Minecraft's placed block advancement trigger."]
     PlacedBlock {
-        /// `block` optionally narrows the block matched when the variant selects the placed block form in this typed Minecraft component schema.
+        /// `block` optionally narrows the block matched for Minecraft's placed block advancement trigger.
         block: Option<String>,
-        /// `item` optionally narrows the item predicate matched when the variant selects the placed block form in this typed Minecraft component schema.
+        /// `item` optionally narrows the item predicate matched for Minecraft's placed block advancement trigger.
         item: Option<ItemPredicate>,
-        /// `location` optionally narrows the location predicate matched when the variant selects the placed block form in this typed Minecraft component schema.
+        /// `location` optionally narrows the location predicate matched for Minecraft's placed block advancement trigger.
         location: Option<LocationPredicate>,
-        /// `state` optionally provides the state when the variant selects the placed block form in this typed Minecraft component schema.
+        /// `state` optionally provides the state for Minecraft's placed block advancement trigger.
         state: Option<HashMap<String, String>>,
     },
-    #[doc = "Selects the enter block form in this typed Minecraft component schema."]
+    #[doc = "Matches Minecraft's enter block advancement trigger."]
     EnterBlock {
-        /// `block` optionally narrows the block matched when the variant selects the enter block form in this typed Minecraft component schema.
+        /// `block` optionally narrows the block matched for Minecraft's enter block advancement trigger.
         block: Option<String>,
-        /// `state` optionally provides the state when the variant selects the enter block form in this typed Minecraft component schema.
+        /// `state` optionally provides the state for Minecraft's enter block advancement trigger.
         state: Option<HashMap<String, String>>,
     },
-    #[doc = "Selects the location form in this typed Minecraft component schema."]
+    #[doc = "Matches Minecraft's location advancement trigger."]
     Location {
-        /// `location` optionally narrows the location predicate matched when the variant selects the location form in this typed Minecraft component schema.
+        /// `location` optionally narrows the location predicate matched for Minecraft's location advancement trigger.
         location: Option<LocationPredicate>,
     },
-    #[doc = "Selects the nether travel form in this typed Minecraft component schema."]
+    #[doc = "Matches Minecraft's nether travel advancement trigger."]
     NetherTravel {
-        /// `entered` optionally narrows the entered predicate matched when the variant selects the nether travel form in this typed Minecraft component schema.
+        /// `entered` optionally narrows the entered predicate matched for Minecraft's nether travel advancement trigger.
         entered: Option<LocationPredicate>,
-        /// `exited` optionally narrows the exited predicate matched when the variant selects the nether travel form in this typed Minecraft component schema.
+        /// `exited` optionally narrows the exited predicate matched for Minecraft's nether travel advancement trigger.
         exited: Option<LocationPredicate>,
-        /// `distance` optionally narrows the distance predicate matched when the variant selects the nether travel form in this typed Minecraft component schema.
+        /// `distance` optionally narrows the distance predicate matched for Minecraft's nether travel advancement trigger.
         distance: Option<DistancePredicate>,
     },
-    #[doc = "Selects the changed dimension form in this typed Minecraft component schema."]
+    #[doc = "Matches Minecraft's changed dimension advancement trigger."]
     ChangedDimension {
-        /// `from` optionally narrows the source value matched when the variant selects the changed dimension form in this typed Minecraft component schema.
+        /// `from` optionally narrows the source value matched for Minecraft's changed dimension advancement trigger.
         from: Option<String>,
-        /// `to` optionally narrows the destination value matched when the variant selects the changed dimension form in this typed Minecraft component schema.
+        /// `to` optionally narrows the destination value matched for Minecraft's changed dimension advancement trigger.
         to: Option<String>,
     },
-    #[doc = "Selects the slept in bed form in this typed Minecraft component schema."]
+    #[doc = "Matches Minecraft's slept in bed advancement trigger."]
     SleptInBed {
-        /// `location` optionally narrows the location predicate matched when the variant selects the slept in bed form in this typed Minecraft component schema.
+        /// `location` optionally narrows the location predicate matched for Minecraft's slept in bed advancement trigger.
         location: Option<LocationPredicate>,
     },
-    #[doc = "Selects the fall from height form in this typed Minecraft component schema."]
+    #[doc = "Matches Minecraft's fall from height advancement trigger."]
     FallFromHeight {
-        /// `distance` optionally narrows the distance predicate matched when the variant selects the fall from height form in this typed Minecraft component schema.
+        /// `distance` optionally narrows the distance predicate matched for Minecraft's fall from height advancement trigger.
         distance: Option<DistancePredicate>,
-        /// `start_position` optionally narrows the start position predicate matched when the variant selects the fall from height form in this typed Minecraft component schema.
+        /// `start_position` optionally narrows the start position predicate matched for Minecraft's fall from height advancement trigger.
         start_position: Option<LocationPredicate>,
     },
-    #[doc = "Selects the slide down block form in this typed Minecraft component schema."]
+    #[doc = "Matches Minecraft's slide down block advancement trigger."]
     SlideDownBlock {
-        /// `block` optionally narrows the block matched when the variant selects the slide down block form in this typed Minecraft component schema.
+        /// `block` optionally narrows the block matched for Minecraft's slide down block advancement trigger.
         block: Option<String>,
     },
-    #[doc = "Selects the target hit form in this typed Minecraft component schema."]
+    #[doc = "Matches Minecraft's target hit advancement trigger."]
     TargetHit {
-        /// `signal_strength` optionally provides the signal strength when the variant selects the target hit form in this typed Minecraft component schema.
+        /// `signal_strength` optionally provides the signal strength for Minecraft's target hit advancement trigger.
         signal_strength: Option<IntRange>,
-        /// `projectile` optionally narrows the projectile predicate matched when the variant selects the target hit form in this typed Minecraft component schema.
+        /// `projectile` optionally narrows the projectile predicate matched for Minecraft's target hit advancement trigger.
         projectile: Option<EntityPredicate>,
     },
-    #[doc = "Selects the hero of the village form in this typed Minecraft component schema."]
+    #[doc = "Matches Minecraft's hero of the village advancement trigger."]
     HeroOfTheVillage {
-        /// `location` optionally narrows the location predicate matched when the variant selects the hero of the village form in this typed Minecraft component schema.
+        /// `location` optionally narrows the location predicate matched for Minecraft's hero of the village advancement trigger.
         location: Option<LocationPredicate>,
     },
-    #[doc = "Selects the player generates container loot form in this typed Minecraft component schema."]
+    #[doc = "Matches Minecraft's player generates container loot advancement trigger."]
     PlayerGeneratesContainerLoot {
-        /// `loot_table` optionally provides the loot table when the variant selects the player generates container loot form in this typed Minecraft component schema.
+        /// `loot_table` optionally provides the loot table for Minecraft's player generates container loot advancement trigger.
         loot_table: Option<String>,
     },
 
     // ── Player state ──────────────────────────────────────────────────────────
-    #[doc = "Selects the leveled up form in this typed Minecraft component schema."]
+    #[doc = "Matches Minecraft's leveled up advancement trigger."]
     LeveledUp {
-        /// `level` optionally narrows the level range matched when the variant selects the leveled up form in this typed Minecraft component schema.
+        /// `level` optionally narrows the level range matched for Minecraft's leveled up advancement trigger.
         level: Option<IntRange>,
     },
-    #[doc = "Selects the effects changed form in this typed Minecraft component schema."]
+    #[doc = "Matches Minecraft's effects changed advancement trigger."]
     EffectsChanged {
-        /// `effects` optionally narrows the effects predicate matched when the variant selects the effects changed form in this typed Minecraft component schema.
+        /// `effects` optionally narrows the effects predicate matched for Minecraft's effects changed advancement trigger.
         effects: Option<HashMap<String, EffectPredicate>>,
-        /// `source` optionally narrows the source predicate matched when the variant selects the effects changed form in this typed Minecraft component schema.
+        /// `source` optionally narrows the source predicate matched for Minecraft's effects changed advancement trigger.
         source: Option<EntityPredicate>,
     },
-    #[doc = "Selects the started riding form in this typed Minecraft component schema."]
+    #[doc = "Matches Minecraft's started riding advancement trigger."]
     StartedRiding,
-    #[doc = "Selects the construct beacon form in this typed Minecraft component schema."]
+    #[doc = "Matches Minecraft's construct beacon advancement trigger."]
     ConstructBeacon {
-        /// `level` optionally narrows the level range matched when the variant selects the construct beacon form in this typed Minecraft component schema.
+        /// `level` optionally narrows the level range matched for Minecraft's construct beacon advancement trigger.
         level: Option<IntRange>,
     },
-    #[doc = "Selects the used ender eye form in this typed Minecraft component schema."]
+    #[doc = "Matches Minecraft's used ender eye advancement trigger."]
     UsedEnderEye {
-        /// `distance` optionally narrows the distance matched when the variant selects the used ender eye form in this typed Minecraft component schema.
+        /// `distance` optionally narrows the distance matched for Minecraft's used ender eye advancement trigger.
         distance: Option<FloatRange>,
     },
 
@@ -1021,7 +1021,7 @@ impl InventorySlotsPredicate {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        returns = "A newly constructed `InventorySlotsPredicate` configured to create a slot-count predicate with no occupied, full, or empty limit.",
+        returns = "An `InventorySlotsPredicate` representing a slot-count predicate with no occupied, full, or empty limit.",
         example = "use sand::prelude::*;\n\nfn demonstrate()  {\n    let inventory_slots_predicate = sand::component::InventorySlotsPredicate::new();\n}",
     )]
     pub fn new() -> Self {
@@ -1121,7 +1121,7 @@ impl AdvancementTrigger {
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
         params(recipe = "`recipe` provides the typed Minecraft resource identifier used to create a recipe-unlocked trigger from a validated recipe reference."),
-        returns = "A newly constructed `AdvancementTrigger` configured to create a recipe-unlocked trigger from a validated recipe reference.",
+        returns = "An `AdvancementTrigger` representing a recipe-unlocked trigger from a validated recipe reference.",
         example = "use sand::prelude::*;\n\nfn demonstrate(recipe: sand::ResourceLocation)  {\n    let advancement_trigger = sand::component::AdvancementTrigger::recipe_unlocked(recipe);\n}",
     )]
     pub fn recipe_unlocked(recipe: ResourceLocation) -> Self {
@@ -1142,8 +1142,8 @@ impl AdvancementTrigger {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(potion = "`potion` supplies the potion value used to create a brewed-potion trigger using the shared potion registry ID."),
-        returns = "A newly constructed `AdvancementTrigger` configured to create a brewed-potion trigger using the shared potion registry ID.",
+        params(potion = "`potion` is used when creating a brewed-potion trigger using the shared potion registry ID."),
+        returns = "An `AdvancementTrigger` representing a brewed-potion trigger using the shared potion registry ID.",
         example = "use sand::prelude::*;\n\nfn demonstrate(potion: impl Into < sand::registry::PotionRegistryId >)  {\n    let advancement_trigger = sand::component::AdvancementTrigger::brewed_potion(potion);\n}",
     )]
     pub fn brewed_potion(potion: impl Into<PotionRegistryId>) -> Self {
@@ -1164,7 +1164,7 @@ impl AdvancementTrigger {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        returns = "A newly constructed `AdvancementTrigger` configured to create an unfiltered brewed-potion trigger.",
+        returns = "An `AdvancementTrigger` representing an unfiltered brewed-potion trigger.",
         example = "use sand::prelude::*;\n\nfn demonstrate()  {\n    let advancement_trigger = sand::component::AdvancementTrigger::brewed_any_potion();\n}",
     )]
     pub fn brewed_any_potion() -> Self {
@@ -1184,7 +1184,7 @@ impl AdvancementTrigger {
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
         params(block = "`block` provides the block value or block predicate used to create a bee-nest-destroyed trigger with typed block identity.", item = "`item` provides the item value or item predicate used to create a bee-nest-destroyed trigger with typed block identity.", num_bees_inside = "`num_bees_inside` provides the accepted numeric range used to create a bee-nest-destroyed trigger with typed block identity."),
-        returns = "A newly constructed `AdvancementTrigger` configured to create a bee-nest-destroyed trigger with typed block identity.",
+        returns = "An `AdvancementTrigger` representing a bee-nest-destroyed trigger with typed block identity.",
         example = "use sand::prelude::*;\n\nfn demonstrate(block: Option < sand::registry::BlockId >, item: Option < sand::predicate::ItemPredicate >, num_bees_inside: Option < sand::predicate::IntRange >)  {\n    let advancement_trigger = sand::component::AdvancementTrigger::bee_nest_destroyed(block, item, num_bees_inside);\n}",
     )]
     pub fn bee_nest_destroyed(
@@ -1211,8 +1211,8 @@ impl AdvancementTrigger {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(block = "`block` provides the block value or block predicate used to create a placed-block trigger with typed block identity.", item = "`item` provides the item value or item predicate used to create a placed-block trigger with typed block identity.", location = "`location` provides the typed resource identifier or location used to create a placed-block trigger with typed block identity.", state = "`state` supplies the state value used to create a placed-block trigger with typed block identity."),
-        returns = "A newly constructed `AdvancementTrigger` configured to create a placed-block trigger with typed block identity.",
+        params(block = "`block` provides the block value or block predicate used to create a placed-block trigger with typed block identity.", item = "`item` provides the item value or item predicate used to create a placed-block trigger with typed block identity.", location = "`location` provides the typed resource identifier or location used to create a placed-block trigger with typed block identity.", state = "`state` is used when creating a placed-block trigger with typed block identity."),
+        returns = "An `AdvancementTrigger` representing a placed-block trigger with typed block identity.",
         example = "use sand::prelude::*;\n\nfn demonstrate(block: Option < sand::registry::BlockId >, item: Option < sand::predicate::ItemPredicate >, location: Option < sand::predicate::LocationPredicate >, state: Option < std::collections::HashMap < String , String > >)  {\n    let advancement_trigger = sand::component::AdvancementTrigger::placed_block(block, item, location, state);\n}",
     )]
     pub fn placed_block(
@@ -1241,8 +1241,8 @@ impl AdvancementTrigger {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(block = "`block` provides the block value or block predicate used to create an enter-block trigger with typed block identity.", state = "`state` supplies the state value used to create an enter-block trigger with typed block identity."),
-        returns = "A newly constructed `AdvancementTrigger` configured to create an enter-block trigger with typed block identity.",
+        params(block = "`block` provides the block value or block predicate used to create an enter-block trigger with typed block identity.", state = "`state` is used when creating an enter-block trigger with typed block identity."),
+        returns = "An `AdvancementTrigger` representing an enter-block trigger with typed block identity.",
         example = "use sand::prelude::*;\n\nfn demonstrate(block: Option < sand::registry::BlockId >, state: Option < std::collections::HashMap < String , String > >)  {\n    let advancement_trigger = sand::component::AdvancementTrigger::enter_block(block, state);\n}",
     )]
     pub fn enter_block(block: Option<BlockId>, state: Option<HashMap<String, String>>) -> Self {
@@ -1264,8 +1264,8 @@ impl AdvancementTrigger {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(from = "`from` supplies the from value used to create a dimension-change trigger with typed dimension identities.", to = "`to` supplies the to value used to create a dimension-change trigger with typed dimension identities."),
-        returns = "A newly constructed `AdvancementTrigger` configured to create a dimension-change trigger with typed dimension identities.",
+        params(from = "`from` is used when creating a dimension-change trigger with typed dimension identities.", to = "`to` is used when creating a dimension-change trigger with typed dimension identities."),
+        returns = "An `AdvancementTrigger` representing a dimension-change trigger with typed dimension identities.",
         example = "use sand::prelude::*;\n\nfn demonstrate(from: Option < sand::registry::DimensionId >, to: Option < sand::registry::DimensionId >)  {\n    let advancement_trigger = sand::component::AdvancementTrigger::changed_dimension(from, to);\n}",
     )]
     pub fn changed_dimension(from: Option<DimensionId>, to: Option<DimensionId>) -> Self {
@@ -1288,7 +1288,7 @@ impl AdvancementTrigger {
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
         params(block = "`block` provides the block value or block predicate used to create a slide-down-block trigger with typed block identity."),
-        returns = "A newly constructed `AdvancementTrigger` configured to create a slide-down-block trigger with typed block identity.",
+        returns = "An `AdvancementTrigger` representing a slide-down-block trigger with typed block identity.",
         example = "use sand::prelude::*;\n\nfn demonstrate(block: Option < sand::registry::BlockId >)  {\n    let advancement_trigger = sand::component::AdvancementTrigger::slide_down_block(block);\n}",
     )]
     pub fn slide_down_block(block: Option<BlockId>) -> Self {
@@ -1310,7 +1310,7 @@ impl AdvancementTrigger {
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
         params(loot_table = "`loot_table` provides the typed Minecraft resource identifier used to create a container-loot trigger from a validated loot-table reference."),
-        returns = "A newly constructed `AdvancementTrigger` configured to create a container-loot trigger from a validated loot-table reference.",
+        returns = "An `AdvancementTrigger` representing a container-loot trigger from a validated loot-table reference.",
         example = "use sand::prelude::*;\n\nfn demonstrate(loot_table: Option < sand::ResourceLocation >)  {\n    let advancement_trigger = sand::component::AdvancementTrigger::player_generates_container_loot(loot_table);\n}",
     )]
     pub fn player_generates_container_loot(loot_table: Option<ResourceLocation>) -> Self {
@@ -1331,8 +1331,8 @@ impl AdvancementTrigger {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(effects = "`effects` supplies the effects value used to create an effects-changed trigger with typed status-effect map keys.", source = "`source` provides the typed predicate that must match used to create an effects-changed trigger with typed status-effect map keys."),
-        returns = "A newly constructed `AdvancementTrigger` configured to create an effects-changed trigger with typed status-effect map keys.",
+        params(effects = "`effects` is used when creating an effects-changed trigger with typed status-effect map keys.", source = "`source` provides the typed predicate that must match used to create an effects-changed trigger with typed status-effect map keys."),
+        returns = "An `AdvancementTrigger` representing an effects-changed trigger with typed status-effect map keys.",
         example = "use sand::prelude::*;\n\nfn demonstrate<I: 'static, E: 'static>(effects: I, source: Option < sand::predicate::EntityPredicate >) where I : IntoIterator < Item = (E , sand::predicate::EffectPredicate) > , E : Into < sand::registry::StatusEffectId > {\n    let advancement_trigger = sand::component::AdvancementTrigger::effects_changed::<I, E>(effects, source);\n}",
     )]
     pub fn effects_changed<I, E>(effects: I, source: Option<EntityPredicate>) -> Self
@@ -1363,7 +1363,7 @@ impl AdvancementTrigger {
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
         params(source = "`source` provides the typed predicate that must match used to create an unfiltered effects-changed trigger."),
-        returns = "A newly constructed `AdvancementTrigger` configured to create an unfiltered effects-changed trigger.",
+        returns = "An `AdvancementTrigger` representing an unfiltered effects-changed trigger.",
         example = "use sand::prelude::*;\n\nfn demonstrate(source: Option < sand::predicate::EntityPredicate >)  {\n    let advancement_trigger = sand::component::AdvancementTrigger::effects_changed_any(source);\n}",
     )]
     pub fn effects_changed_any(source: Option<EntityPredicate>) -> Self {
@@ -1387,8 +1387,8 @@ impl AdvancementTrigger {
         minecraft = "The conditions remain an explicit opaque [`RawJson`] escape hatch.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(trigger = "`trigger` provides the typed Minecraft resource identifier used to create a custom/modded trigger with a validated trigger ID.", conditions = "`conditions` supplies the conditions value used to create a custom/modded trigger with a validated trigger ID."),
-        returns = "A newly constructed `AdvancementTrigger` configured to create a custom/modded trigger with a validated trigger ID.",
+        params(trigger = "`trigger` provides the typed Minecraft resource identifier used to create a custom/modded trigger with a validated trigger ID.", conditions = "`conditions` is used when creating a custom/modded trigger with a validated trigger ID."),
+        returns = "An `AdvancementTrigger` representing a custom/modded trigger with a validated trigger ID.",
         example = "use sand::prelude::*;\n\nfn demonstrate(trigger: sand::ResourceLocation, conditions: Option < sand::component::RawJson >)  {\n    let advancement_trigger = sand::component::AdvancementTrigger::custom_trigger(trigger, conditions);\n}",
     )]
     pub fn custom_trigger(trigger: ResourceLocation, conditions: Option<RawJson>) -> Self {
@@ -1851,7 +1851,7 @@ impl AdvancementTrigger {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(caps = "`caps` supplies the caps value used to validate this typed trigger's ID and version range for a resolved target. Raw [`AdvancementTrigger::Custom`] values bypass Sand-owned compatibility claims and remain user-owned."),
+        params(caps = "`caps` is the caps checked when validating this typed trigger's ID and version range for a resolved target. Raw [`AdvancementTrigger::Custom`] values bypass Sand-owned compatibility claims and remain user-owned."),
         returns = "On success, the value produced to validate this typed trigger's ID and version range for a resolved target. Raw [`AdvancementTrigger::Custom`] values bypass Sand-owned compatibility claims and remain user-owned; otherwise, the documented validation or export diagnostic.",
         example = "use sand::prelude::*;\n\nfn demonstrate(advancement_trigger_value: &sand::component::AdvancementTrigger, caps: Option < & sand::version::VersionCaps >)  {\n    let validate_for_caps = advancement_trigger_value.validate_for_caps(caps);\n}",
     )]
@@ -1941,8 +1941,8 @@ impl AdvancementTrigger {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(items = "`items` supplies the items value used to build an `InventoryChanged` trigger matching any of the given item IDs."),
-        returns = "A newly constructed `AdvancementTrigger` configured to build an `InventoryChanged` trigger matching any of the given item IDs.",
+        params(items = "`items` provides the items used to build an `InventoryChanged` trigger matching any of the given item IDs."),
+        returns = "An `AdvancementTrigger` that builds an `InventoryChanged` trigger matching any of the given item IDs.",
         example = "use sand::prelude::*;\n\nfn demonstrate(items: Vec < impl Into < sand::registry::ItemId > >)  {\n    let advancement_trigger = sand::component::AdvancementTrigger::inventory_changed(items);\n}",
     )]
     pub fn inventory_changed(items: Vec<impl Into<ItemId>>) -> Self {
@@ -2672,7 +2672,7 @@ impl AdvancementTrigger {
         minecraft = "Every typed trigger is validated and lowered through the selected [`AdvancementSchemaFamily`]. Variants that consume item, entity, location, or damage predicates use consumer-aware conversion so nested schemas follow the target profile too. In particular, [`AdvancementTrigger::PlacedBlock`] and [`AdvancementTrigger::ItemUsedOnBlock`] render differently across the legacy and modern families. Minecraft's modern (1.20.5+ item-component era) schema expresses that filter as a `conditions.location` array of `minecraft:location_check` / `minecraft:match_tool` loot conditions, not the direct `block`/`item` fields this crate used to emit. Emitting the direct fields makes the generated advancement fire unconditionally in-game — see #231/#233.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(caps = "`caps` supplies the caps value used to render this trigger's `{\"trigger\": ..., \"conditions\": ...}` JSON for a specific Minecraft version's predicate schema."),
+        params(caps = "`caps` provides the caps rendered when this trigger's `{\"trigger\": ..., \"conditions\": ...}` JSON for a specific Minecraft version's predicate schema."),
         returns = "The `sand :: component :: Result < Value >` value produced to render this trigger's `{\"trigger\": ..., \"conditions\": ...}` JSON for a specific Minecraft version's predicate schema.",
         example = "use sand::prelude::*;\n\nfn demonstrate(advancement_trigger_value: &sand::component::AdvancementTrigger, caps: Option < & sand::version::VersionCaps >)  {\n    let render_for = advancement_trigger_value.render_for(caps);\n}",
     )]
@@ -3386,8 +3386,8 @@ impl Criterion {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(trigger = "`trigger` supplies the trigger value used to create a new criterion with the specified trigger."),
-        returns = "A newly constructed `Criterion` configured to create a new criterion with the specified trigger.",
+        params(trigger = "`trigger` is used when creating a new criterion with the specified trigger."),
+        returns = "A `Criterion` representing a new criterion with the specified trigger.",
         example = "use sand::prelude::*;\n\nfn demonstrate(trigger: sand::component::AdvancementTrigger)  {\n    let criterion = sand::component::Criterion::new(trigger);\n}",
     )]
     pub fn new(trigger: AdvancementTrigger) -> Self {
@@ -3436,7 +3436,7 @@ impl AdvancementRewards {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        returns = "A newly constructed `AdvancementRewards` configured to create a new advancement rewards container with no rewards set.",
+        returns = "An `AdvancementRewards` representing a new advancement rewards container with no rewards set.",
         example = "use sand::prelude::*;\n\nfn demonstrate()  {\n    let advancement_rewards = sand::component::AdvancementRewards::new();\n}",
     )]
     pub fn new() -> Self {
@@ -3484,7 +3484,7 @@ impl AdvancementRewards {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(recipe = "`recipe` supplies the recipe value used to add a recipe reward through the explicit raw compatibility path."),
+        params(recipe = "`recipe` provides the recipe added when building a recipe reward through the explicit raw compatibility path."),
         returns = "The `AdvancementRewards` value with the documented change applied to add a recipe reward through the explicit raw compatibility path.",
         example = "use sand::prelude::*;\n\nfn demonstrate(advancement_rewards_value: sand::component::AdvancementRewards, recipe: impl Into < String >)  {\n    let updated_advancement_rewards = advancement_rewards_value.raw_recipe(recipe);\n}",
     )]
@@ -3526,7 +3526,7 @@ impl AdvancementRewards {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(loot = "`loot` supplies the loot value used to add a loot-table reward through the explicit raw compatibility path."),
+        params(loot = "`loot` provides the loot added when building a loot-table reward through the explicit raw compatibility path."),
         returns = "The `AdvancementRewards` value with the documented change applied to add a loot-table reward through the explicit raw compatibility path.",
         example = "use sand::prelude::*;\n\nfn demonstrate(advancement_rewards_value: sand::component::AdvancementRewards, loot: impl Into < String >)  {\n    let updated_advancement_rewards = advancement_rewards_value.raw_loot(loot);\n}",
     )]
@@ -3547,7 +3547,7 @@ impl AdvancementRewards {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(xp = "`xp` supplies the xp value used to set the experience points awarded."),
+        params(xp = "`xp` provides the xp applied when setting the experience points awarded."),
         returns = "The `AdvancementRewards` value with the documented change applied to set the experience points awarded.",
         example = "use sand::prelude::*;\n\nfn demonstrate(advancement_rewards_value: sand::component::AdvancementRewards, xp: i32)  {\n    let updated_advancement_rewards = advancement_rewards_value.experience(xp);\n}",
     )]
@@ -3589,7 +3589,7 @@ impl AdvancementRewards {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(func = "`func` supplies the func value used to set a reward function through the explicit raw compatibility path."),
+        params(func = "`func` provides the func applied when setting a reward function through the explicit raw compatibility path."),
         returns = "The `AdvancementRewards` value with the documented change applied to set a reward function through the explicit raw compatibility path.",
         example = "use sand::prelude::*;\n\nfn demonstrate(advancement_rewards_value: sand::component::AdvancementRewards, func: impl Into < String >)  {\n    let updated_advancement_rewards = advancement_rewards_value.raw_function(func);\n}",
     )]
@@ -3691,7 +3691,7 @@ impl Advancement {
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
         params(location = "`location` provides the typed resource identifier or location used to create a new advancement with the specified resource location."),
-        returns = "A newly constructed `Advancement` configured to create a new advancement with the specified resource location.",
+        returns = "An `Advancement` representing a new advancement with the specified resource location.",
         example = "use sand::prelude::*;\n\nfn demonstrate(location: sand::ResourceLocation)  {\n    let advancement = sand::component::Advancement::new(location);\n}",
     )]
     pub fn new(location: ResourceLocation) -> Self {
@@ -3746,7 +3746,7 @@ impl Advancement {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(parent = "`parent` supplies the parent value used to set the parent through the explicit raw compatibility path."),
+        params(parent = "`parent` provides the parent applied when setting the parent through the explicit raw compatibility path."),
         returns = "The `Advancement` value with the documented change applied to set the parent through the explicit raw compatibility path.",
         example = "use sand::prelude::*;\n\nfn demonstrate(advancement_value: sand::component::Advancement, parent: impl Into < String >)  {\n    let updated_advancement = advancement_value.raw_parent(parent);\n}",
     )]
@@ -3767,7 +3767,7 @@ impl Advancement {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(display = "`display` supplies the display value used to set the display information for this advancement."),
+        params(display = "`display` provides the display applied when setting the display information for this advancement."),
         returns = "The `Advancement` value with the documented change applied to set the display information for this advancement.",
         example = "use sand::prelude::*;\n\nfn demonstrate(advancement_value: sand::component::Advancement, display: sand::component::AdvancementDisplay)  {\n    let updated_advancement = advancement_value.display(display);\n}",
     )]
@@ -3788,7 +3788,7 @@ impl Advancement {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(name = "`name` provides the author-visible text value used to add a criterion with the specified name.", criterion = "`criterion` supplies the criterion value used to add a criterion with the specified name."),
+        params(name = "`name` provides the author-visible text added when building a criterion with the specified name.", criterion = "`criterion` provides the criterion added when building a criterion with the specified name."),
         returns = "The `Advancement` value with the documented change applied to add a criterion with the specified name.",
         example = "use sand::prelude::*;\n\nfn demonstrate(advancement_value: sand::component::Advancement, name: impl Into < String >, criterion: sand::component::Criterion)  {\n    let updated_advancement = advancement_value.criterion(name, criterion);\n}",
     )]
@@ -3809,7 +3809,7 @@ impl Advancement {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(requirements = "`requirements` supplies the requirements value used to set the requirements specifying how criteria must be completed."),
+        params(requirements = "`requirements` provides the requirements applied when setting the requirements specifying how criteria must be completed."),
         returns = "The `Advancement` value with the documented change applied to set the requirements specifying how criteria must be completed.",
         example = "use sand::prelude::*;\n\nfn demonstrate(advancement_value: sand::component::Advancement, requirements: Vec < Vec < String > >)  {\n    let updated_advancement = advancement_value.requirements(requirements);\n}",
     )]
@@ -3830,7 +3830,7 @@ impl Advancement {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(rewards = "`rewards` supplies the rewards value used to set the rewards given when this advancement is completed."),
+        params(rewards = "`rewards` provides the rewards applied when setting the rewards given when this advancement is completed."),
         returns = "The `Advancement` value with the documented change applied to set the rewards given when this advancement is completed.",
         example = "use sand::prelude::*;\n\nfn demonstrate(advancement_value: sand::component::Advancement, rewards: sand::component::AdvancementRewards)  {\n    let updated_advancement = advancement_value.rewards(rewards);\n}",
     )]

@@ -156,7 +156,7 @@ impl Storage {
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
         params(id = "`id` provides the typed resource identifier or location used to construct a global storage namespace at compile time."),
-        returns = "A newly constructed `Storage` configured to construct a global storage namespace at compile time.",
+        returns = "A `Storage` representing a global storage namespace at compile time.",
         example = "static WORLD: Storage = Storage::global(\"my_pack:world\");",
     )]
     pub const fn global(id: &'static str) -> Self {
@@ -183,7 +183,7 @@ impl Storage {
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
         params(id = "`id` provides the typed resource identifier or location used to construct a per-player storage namespace at compile time."),
-        returns = "A newly constructed `Storage` configured to construct a per-player storage namespace at compile time.",
+        returns = "A `Storage` representing a per-player storage namespace at compile time.",
         example = "static PLAYERS: Storage = Storage::per_player(\"my_pack:players\");",
     )]
     pub const fn per_player(id: &'static str) -> Self {
@@ -205,8 +205,8 @@ impl Storage {
         minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        params(id = "`id` provides the typed resource identifier or location used to dynamic constructor for runtime-determined IDs.", kind = "`kind` supplies the kind value used to dynamic constructor for runtime-determined IDs."),
-        returns = "A newly constructed `Storage` configured to dynamic constructor for runtime-determined IDs.",
+        params(id = "`id` supplies the runtime-determined resource identifier.", kind = "`kind` identifies whether the runtime target is a block, entity, or storage value."),
+        returns = "A `Storage` for runtime-determined IDs.",
         example = "use sand::prelude::*;\n\nfn demonstrate(id: impl Into < String >, kind: sand::command::StorageKind)  {\n    let storage = sand::command::Storage::new(id, kind);\n}",
     )]
     pub fn new(id: impl Into<String>, kind: StorageKind) -> Self {
@@ -547,7 +547,7 @@ impl Storage {
         minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        params(key = "`key` provides the key that identifies the setting or entry used to use validated counterpart to [`Storage::get_or_insert`].", default = "`default` supplies the default value used to use validated counterpart to [`Storage::get_or_insert`]."),
+        params(key = "`key` provides the key that identifies the setting or entry used to use validated counterpart to [`Storage::get_or_insert`].", default = "`default` sets the default for validated counterpart to [`Storage::get_or_insert`]."),
         returns = "On success, the value produced to use validated counterpart to [`Storage::get_or_insert`]; otherwise, the documented validation or export diagnostic.",
         example = "use sand::prelude::*;\n\nfn demonstrate(storage_value: &sand::command::Storage, key: impl Into < String >, default: impl Into < sand::data::NbtValue >)  {\n    let try_get_or_insert = storage_value.try_get_or_insert(key, default);\n}",
     )]
@@ -674,7 +674,7 @@ impl Storage {
         minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        params(key = "`key` provides the key that identifies the setting or entry used to copy a value from entity NBT into this storage.", entity = "`entity` provides the entity participant or predicate used to copy a value from entity NBT into this storage.", src_path = "`src_path` supplies the src path value used to copy a value from entity NBT into this storage."),
+        params(key = "`key` provides the key that identifies the setting or entry used to copy a value from entity NBT into this storage.", entity = "`entity` provides the entity participant or predicate used to copy a value from entity NBT into this storage.", src_path = "`src_path` is used to copy a value from entity NBT into this storage."),
         returns = "The string value produced to copy a value from entity NBT into this storage.",
         example = "use sand::prelude::*;\n\nfn demonstrate(storage_value: &sand::command::Storage, key: impl Into < String >, entity: sand::command::Selector, src_path: impl Into < String >)  {\n    let copy_from_entity = storage_value.copy_from_entity(key, entity, src_path);\n}",
     )]
@@ -700,7 +700,7 @@ impl Storage {
         minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        params(key = "`key` provides the key that identifies the setting or entry used to copy a value from another storage namespace.", src_id = "`src_id` supplies the src id value used to copy a value from another storage namespace.", src_path = "`src_path` supplies the src path value used to copy a value from another storage namespace."),
+        params(key = "`key` provides the key that identifies the setting or entry used to copy a value from another storage namespace.", src_id = "`src_id` is used to copy a value from another storage namespace.", src_path = "`src_path` is used to copy a value from another storage namespace."),
         returns = "The string value produced to copy a value from another storage namespace.",
         example = "use sand::prelude::*;\n\nfn demonstrate(storage_value: &sand::command::Storage, key: impl Into < String >, src_id: impl Into < String >, src_path: impl Into < String >)  {\n    let copy_from_storage = storage_value.copy_from_storage(key, src_id, src_path);\n}",
     )]

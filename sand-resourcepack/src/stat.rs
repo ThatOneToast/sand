@@ -138,8 +138,8 @@ impl BarStat {
         minecraft = "The generated `update` commands read `Health` NBT and the `max_health` generic attribute, then scale the result into `0..handle.steps`.",
         use_when = ["Building HUD bars, HUD elements, textures, or resource-pack output alongside a Sand datapack"],
         avoid_when = ["The project is datapack-only or needs unrelated resource-pack functionality not modeled by Sand"],
-        params(handle = "`handle` supplies the handle value used to create a `BarStat` that tracks player health. The generated `update` commands read `Health` NBT and the `max_health` generic attribute, then scale the result into `0..handle.steps`."),
-        returns = "A newly constructed `BarStat` configured to create a `BarStat` that tracks player health. The generated `update` commands read `Health` NBT and the `max_health` generic attribute, then scale the result into `0..handle.steps`.",
+        params(handle = "`handle` is used when creating a `BarStat` that tracks player health. The generated `update` commands read `Health` NBT and the `max_health` generic attribute, then scale the result into `0..handle.steps`."),
+        returns = "A `BarStat` that tracks player health. The generated `update` commands read `Health` NBT and the `max_health` generic attribute, then scale the result into `0..handle.steps`.",
         example = "use sand::prelude::*;\n\nfn demonstrate(handle: sand::resourcepack::BarHandle)  {\n    let bar_stat = sand::resourcepack::BarStat::health(handle);\n}",
         availability = ["Cargo feature: resourcepack"],
     )]
@@ -175,8 +175,8 @@ impl BarStat {
         minecraft = "(The source objective is not created automatically — it is assumed to already exist and be populated by your own commands.)",
         use_when = ["Building HUD bars, HUD elements, textures, or resource-pack output alongside a Sand datapack"],
         avoid_when = ["The project is datapack-only or needs unrelated resource-pack functionality not modeled by Sand"],
-        params(handle = "`handle` supplies the handle value used to create a `BarStat` that tracks an arbitrary scoreboard objective.", source_objective = "The value of `source_objective` is mapped linearly from `0..=max_val` to `0..=steps-1`. Values outside `[0, max_val]` are clamped.", max_val = "`max_val` supplies the max val value used to create a `BarStat` that tracks an arbitrary scoreboard objective."),
-        returns = "A newly constructed `BarStat` configured to create a `BarStat` that tracks an arbitrary scoreboard objective.",
+        params(handle = "`handle` is used when creating a `BarStat` that tracks an arbitrary scoreboard objective.", source_objective = "The value of `source_objective` is mapped linearly from `0..=max_val` to `0..=steps-1`. Values outside `[0, max_val]` are clamped.", max_val = "`max_val` is used when creating a `BarStat` that tracks an arbitrary scoreboard objective."),
+        returns = "A `BarStat` that tracks an arbitrary scoreboard objective.",
         example = "use sand::prelude::*;\n\nfn demonstrate(handle: sand::resourcepack::BarHandle, source_objective: impl Into < String >, max_val: i32)  {\n    let bar_stat = sand::resourcepack::BarStat::score(handle, source_objective, max_val);\n}",
         availability = ["Cargo feature: resourcepack"],
     )]

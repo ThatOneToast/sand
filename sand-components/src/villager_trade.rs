@@ -122,7 +122,7 @@ impl TradeItem {
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
         params(id = "Create a trade cost accepting one of `id`, with a default count of `1`."),
-        returns = "A newly constructed `TradeItem` configured to create a trade cost accepting one of `id`, with a default count of `1`.",
+        returns = "A `TradeItem` representing a trade cost accepting one of `id`, with a default count of `1`.",
         example = "use sand::prelude::*;\n\nfn demonstrate(id: impl Into < sand::registry::ItemId >)  {\n    let trade_item = sand::component::TradeItem::new(id);\n}",
     )]
     pub fn new(id: impl Into<ItemId>) -> Self {
@@ -263,7 +263,7 @@ impl VillagerTrade {
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
         params(location = "Create a new trade blueprint at `location`."),
-        returns = "A newly constructed `VillagerTrade` configured to create a new trade blueprint at `location`.",
+        returns = "A `VillagerTrade` representing a new trade blueprint at `location`.",
         example = "use sand::prelude::*;\n\nfn demonstrate(location: sand::ResourceLocation)  {\n    let villager_trade = sand::component::VillagerTrade::new(location);\n}",
     )]
     pub fn new(location: ResourceLocation) -> Self {
@@ -339,7 +339,7 @@ impl VillagerTrade {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(stack = "`stack` supplies the stack value used to set the resulting item stack (`gives`). Reuses the shared component-bearing [`ItemStack`] model, so custom data, names, lore, enchantments, and other result components survive."),
+        params(stack = "`stack` provides the stack applied when setting the resulting item stack (`gives`). Reuses the shared component-bearing [`ItemStack`] model, so custom data, names, lore, enchantments, and other result components survive."),
         returns = "The `VillagerTrade` value with the documented change applied to set the resulting item stack (`gives`). Reuses the shared component-bearing [`ItemStack`] model, so custom data, names, lore, enchantments, and other result components survive.",
         example = "use sand::prelude::*;\n\nfn demonstrate(villager_trade_value: sand::component::VillagerTrade, stack: impl Into < sand::component::ItemStack >)  {\n    let updated_villager_trade = villager_trade_value.gives(stack);\n}",
     )]
@@ -366,7 +366,7 @@ impl VillagerTrade {
         minecraft = "Raw escape hatch: 26.1/26.2 only accept inline modifier shapes in this field (no `ItemModifierRef`); this method does not validate that constraint beyond \"must be a JSON object\" pending the typed loot item-modifier reference work (#185).",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(modifier = "`modifier` supplies the modifier value used to append a raw item-modifier/loot-function JSON object applied to `gives` when an offer is generated (`given_item_modifiers`)."),
+        params(modifier = "`modifier` provides the modifier appended when building a raw item-modifier/loot-function JSON object applied to `gives` when an offer is generated (`given_item_modifiers`)."),
         returns = "The `VillagerTrade` value with the documented change applied to append a raw item-modifier/loot-function JSON object applied to `gives` when an offer is generated (`given_item_modifiers`).",
         example = "use sand::prelude::*;\n\nfn demonstrate(villager_trade_value: sand::component::VillagerTrade, modifier: sand::component::RawJson)  {\n    let updated_villager_trade = villager_trade_value.modify_given_item_raw(modifier);\n}",
     )]
@@ -388,7 +388,7 @@ impl VillagerTrade {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(max_uses = "`max_uses` supplies the max uses value used to set the maximum number of times this trade can be used (constant or dynamic number provider; default constant `4`)."),
+        params(max_uses = "`max_uses` provides the max uses applied when setting the maximum number of times this trade can be used (constant or dynamic number provider; default constant `4`)."),
         returns = "The `VillagerTrade` value with the documented change applied to set the maximum number of times this trade can be used (constant or dynamic number provider; default constant `4`).",
         example = "use sand::prelude::*;\n\nfn demonstrate(villager_trade_value: sand::component::VillagerTrade, max_uses: impl Into < sand::component::NumberProvider >)  {\n    let updated_villager_trade = villager_trade_value.max_uses(max_uses);\n}",
     )]
@@ -410,7 +410,7 @@ impl VillagerTrade {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(discount = "`discount` supplies the discount value used to set how much reputation/demand/discounts affect the first cost (constant or dynamic number provider; default constant `0.0`)."),
+        params(discount = "`discount` provides the discount applied when setting how much reputation/demand/discounts affect the first cost (constant or dynamic number provider; default constant `0.0`)."),
         returns = "The `VillagerTrade` value with the documented change applied to set how much reputation/demand/discounts affect the first cost (constant or dynamic number provider; default constant `0.0`).",
         example = "use sand::prelude::*;\n\nfn demonstrate(villager_trade_value: sand::component::VillagerTrade, discount: impl Into < sand::component::NumberProvider >)  {\n    let updated_villager_trade = villager_trade_value.reputation_discount(discount);\n}",
     )]
@@ -432,7 +432,7 @@ impl VillagerTrade {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(xp = "`xp` supplies the xp value used to set the merchant XP awarded when this trade completes (constant or dynamic number provider; default constant `1`)."),
+        params(xp = "`xp` provides the xp applied when setting the merchant XP awarded when this trade completes (constant or dynamic number provider; default constant `1`)."),
         returns = "The `VillagerTrade` value with the documented change applied to set the merchant XP awarded when this trade completes (constant or dynamic number provider; default constant `1`).",
         example = "use sand::prelude::*;\n\nfn demonstrate(villager_trade_value: sand::component::VillagerTrade, xp: impl Into < sand::component::NumberProvider >)  {\n    let updated_villager_trade = villager_trade_value.merchant_xp(xp);\n}",
     )]
@@ -481,7 +481,7 @@ impl VillagerTrade {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(selection = "`selection` supplies the selection value used to set the enchantment selection that doubles the additional trade cost when present in the generated result's stored enchantments."),
+        params(selection = "`selection` provides the selection applied when setting the enchantment selection that doubles the additional trade cost when present in the generated result's stored enchantments."),
         returns = "The `VillagerTrade` value with the documented change applied to set the enchantment selection that doubles the additional trade cost when present in the generated result's stored enchantments.",
         example = "use sand::prelude::*;\n\nfn demonstrate(villager_trade_value: sand::component::VillagerTrade, selection: sand::component::EnchantmentSelection)  {\n    let updated_villager_trade = villager_trade_value.double_trade_price_enchantments(selection);\n}",
     )]
@@ -841,7 +841,7 @@ impl TradeSet {
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
         params(location = "Create a fresh custom trade set at `location`."),
-        returns = "A newly constructed `TradeSet` configured to create a fresh custom trade set at `location`. Defining a `TradeSet` never attaches it to a Villager profession/level or the Wandering Trader by itself — use [`TradeSet::replace_target`] to explicitly replace a known vanilla pool, or [`VillagerTradePoolPatch`] to additively extend one.",
+        returns = "A `TradeSet` representing a fresh custom trade set at `location`. Defining a `TradeSet` never attaches it to a Villager profession/level or the Wandering Trader by itself — use [`TradeSet::replace_target`] to explicitly replace a known vanilla pool, or [`VillagerTradePoolPatch`] to additively extend one.",
         example = "use sand::prelude::*;\n\nfn demonstrate(location: sand::ResourceLocation)  {\n    let trade_set = sand::component::TradeSet::new(location);\n}",
     )]
     pub fn new(location: ResourceLocation) -> Self {
@@ -873,8 +873,8 @@ impl TradeSet {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(pool = "`pool` supplies the pool value used to explicitly replace a known vanilla trade set (a profession/level, Common Smith level, or Wandering Trader pool)."),
-        returns = "A newly constructed `TradeSet` configured to explicitly replace a known vanilla trade set (a profession/level, Common Smith level, or Wandering Trader pool).",
+        params(pool = "`pool` is used to explicitly replace a known vanilla trade set (a profession/level, Common Smith level, or Wandering Trader pool)."),
+        returns = "A `TradeSet` that explicitly replaces a known vanilla trade set (a profession/level, Common Smith level, or Wandering Trader pool).",
         example = "use sand::prelude::*;\n\nfn demonstrate(pool: sand::component::VillagerTradePool)  {\n    let trade_set = sand::component::TradeSet::replace_target(pool);\n}",
     )]
     pub fn replace_target(pool: VillagerTradePool) -> Self {
@@ -933,7 +933,7 @@ impl TradeSet {
         minecraft = "The referenced trade should also be exported on its own (typically as a standalone `#[datapack_component] fn ... -> VillagerTrade`) — pass the value returned by calling that function directly, e.g. `.include(enchanted_pickaxe_trade())`.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(trade = "`trade` supplies the trade value used to reference an already-built standalone [`VillagerTrade`] value by its own resource location, without re-exporting it as a nested resource."),
+        params(trade = "`trade` is used to reference an already-built standalone [`VillagerTrade`] value by its own resource location, without re-exporting it as a nested resource."),
         returns = "The `TradeSet` value with the documented change applied to reference an already-built standalone [`VillagerTrade`] value by its own resource location, without re-exporting it as a nested resource.",
         example = "use sand::prelude::*;\n\nfn demonstrate(trade_set_value: sand::component::TradeSet, trade: sand::component::VillagerTrade)  {\n    let updated_trade_set = trade_set_value.include(trade);\n}",
     )]
@@ -955,7 +955,7 @@ impl TradeSet {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(reference = "`reference` supplies the reference value used to reference a trade by typed ID (e.g. an external-pack reference via [`VillagerTradeRef::external`])."),
+        params(reference = "`reference` is used to reference a trade by typed ID (e.g. an external-pack reference via [`VillagerTradeRef::external`])."),
         returns = "The `TradeSet` value with the documented change applied to reference a trade by typed ID (e.g. an external-pack reference via [`VillagerTradeRef::external`]).",
         example = "use sand::prelude::*;\n\nfn demonstrate(trade_set_value: sand::component::TradeSet, reference: sand::component::VillagerTradeRef)  {\n    let updated_trade_set = trade_set_value.include_ref(reference);\n}",
     )]
@@ -978,7 +978,7 @@ impl TradeSet {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(tag = "`tag` supplies the tag value used to select the trade source from a Villager Trade tag instead of inline entries/explicit references. Mutually exclusive with [`TradeSet::entry`]/[`TradeSet::include`]/[`TradeSet::include_ref`]."),
+        params(tag = "`tag` provides the tag used when selecting the trade source from a Villager Trade tag instead of inline entries/explicit references. Mutually exclusive with [`TradeSet::entry`]/[`TradeSet::include`]/[`TradeSet::include_ref`]."),
         returns = "The `TradeSet` value with the documented change applied to select the trade source from a Villager Trade tag instead of inline entries/explicit references. Mutually exclusive with [`TradeSet::entry`]/[`TradeSet::include`]/[`TradeSet::include_ref`].",
         example = "use sand::prelude::*;\n\nfn demonstrate(trade_set_value: sand::component::TradeSet, tag: sand::component::TagId < sand::registry::VillagerTradeId >)  {\n    let updated_trade_set = trade_set_value.source_tag(tag);\n}",
     )]
@@ -1205,36 +1205,36 @@ impl DatapackComponent for TradeSet {
     use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
     avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
     example = "use sand::component::VillagerProfession;",
-    variants(Armorer = "Selects the armorer form in this typed Minecraft component schema.", Butcher = "Selects the butcher form in this typed Minecraft component schema.", Cartographer = "Selects the cartographer form in this typed Minecraft component schema.", Cleric = "Selects the cleric form in this typed Minecraft component schema.", Farmer = "Selects the farmer form in this typed Minecraft component schema.", Fisherman = "Selects the fisherman form in this typed Minecraft component schema.", Fletcher = "Selects the fletcher form in this typed Minecraft component schema.", Leatherworker = "Selects the leatherworker form in this typed Minecraft component schema.", Librarian = "Selects the librarian form in this typed Minecraft component schema.", Mason = "Selects the mason form in this typed Minecraft component schema.", Shepherd = "Selects the shepherd form in this typed Minecraft component schema.", Toolsmith = "Selects the toolsmith form in this typed Minecraft component schema.", Weaponsmith = "Selects the weaponsmith form in this typed Minecraft component schema."),
+    variants(Armorer = "Uses the vanilla armorer profession's trade table.", Butcher = "Uses the vanilla butcher profession's trade table.", Cartographer = "Uses the vanilla cartographer profession's trade table.", Cleric = "Uses the vanilla cleric profession's trade table.", Farmer = "Uses the vanilla farmer profession's trade table.", Fisherman = "Uses the vanilla fisherman profession's trade table.", Fletcher = "Uses the vanilla fletcher profession's trade table.", Leatherworker = "Uses the vanilla leatherworker profession's trade table.", Librarian = "Uses the vanilla librarian profession's trade table.", Mason = "Uses the vanilla mason profession's trade table.", Shepherd = "Uses the vanilla shepherd profession's trade table.", Toolsmith = "Uses the vanilla toolsmith profession's trade table.", Weaponsmith = "Uses the vanilla weaponsmith profession's trade table."),
 )]
 /// A villager profession with a vanilla trade table.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum VillagerProfession {
-    #[doc = "Selects the armorer form in this typed Minecraft component schema."]
+    #[doc = "Uses the vanilla armorer profession's trade table."]
     Armorer,
-    #[doc = "Selects the butcher form in this typed Minecraft component schema."]
+    #[doc = "Uses the vanilla butcher profession's trade table."]
     Butcher,
-    #[doc = "Selects the cartographer form in this typed Minecraft component schema."]
+    #[doc = "Uses the vanilla cartographer profession's trade table."]
     Cartographer,
-    #[doc = "Selects the cleric form in this typed Minecraft component schema."]
+    #[doc = "Uses the vanilla cleric profession's trade table."]
     Cleric,
-    #[doc = "Selects the farmer form in this typed Minecraft component schema."]
+    #[doc = "Uses the vanilla farmer profession's trade table."]
     Farmer,
-    #[doc = "Selects the fisherman form in this typed Minecraft component schema."]
+    #[doc = "Uses the vanilla fisherman profession's trade table."]
     Fisherman,
-    #[doc = "Selects the fletcher form in this typed Minecraft component schema."]
+    #[doc = "Uses the vanilla fletcher profession's trade table."]
     Fletcher,
-    #[doc = "Selects the leatherworker form in this typed Minecraft component schema."]
+    #[doc = "Uses the vanilla leatherworker profession's trade table."]
     Leatherworker,
-    #[doc = "Selects the librarian form in this typed Minecraft component schema."]
+    #[doc = "Uses the vanilla librarian profession's trade table."]
     Librarian,
-    #[doc = "Selects the mason form in this typed Minecraft component schema."]
+    #[doc = "Uses the vanilla mason profession's trade table."]
     Mason,
-    #[doc = "Selects the shepherd form in this typed Minecraft component schema."]
+    #[doc = "Uses the vanilla shepherd profession's trade table."]
     Shepherd,
-    #[doc = "Selects the toolsmith form in this typed Minecraft component schema."]
+    #[doc = "Uses the vanilla toolsmith profession's trade table."]
     Toolsmith,
-    #[doc = "Selects the weaponsmith form in this typed Minecraft component schema."]
+    #[doc = "Uses the vanilla weaponsmith profession's trade table."]
     Weaponsmith,
 }
 
@@ -1284,20 +1284,20 @@ impl VillagerProfession {
     use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
     avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
     example = "use sand::component::VillagerLevel;",
-    variants(Apprentice = "Selects the apprentice form in this typed Minecraft component schema.", Expert = "Selects the expert form in this typed Minecraft component schema.", Journeyman = "Selects the journeyman form in this typed Minecraft component schema.", Master = "Selects the master form in this typed Minecraft component schema.", Novice = "Selects the novice form in this typed Minecraft component schema."),
+    variants(Apprentice = "Selects apprentice trades at villager level 2.", Expert = "Selects expert trades at villager level 4.", Journeyman = "Selects journeyman trades at villager level 3.", Master = "Selects master trades at villager level 5.", Novice = "Selects novice trades at villager level 1."),
 )]
 /// A villager trade level, `1` (Novice) through `5` (Master).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum VillagerLevel {
-    #[doc = "Selects the novice form in this typed Minecraft component schema."]
+    #[doc = "Selects novice trades at villager level 1."]
     Novice,
-    #[doc = "Selects the apprentice form in this typed Minecraft component schema."]
+    #[doc = "Selects apprentice trades at villager level 2."]
     Apprentice,
-    #[doc = "Selects the journeyman form in this typed Minecraft component schema."]
+    #[doc = "Selects journeyman trades at villager level 3."]
     Journeyman,
-    #[doc = "Selects the expert form in this typed Minecraft component schema."]
+    #[doc = "Selects expert trades at villager level 4."]
     Expert,
-    #[doc = "Selects the master form in this typed Minecraft component schema."]
+    #[doc = "Selects master trades at villager level 5."]
     Master,
 }
 
@@ -1358,16 +1358,16 @@ impl VillagerLevel {
     use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
     avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
     example = "use sand::component::WanderingTraderPool;",
-    variants(Buying = "Selects the buying form in this typed Minecraft component schema.", Common = "Selects the common form in this typed Minecraft component schema.", Special = "Selects the special form in this typed Minecraft component schema."),
+    variants(Buying = "Selects the wandering trader pool that buys items from players.", Common = "Selects the wandering trader's common-offer pool.", Special = "Selects the wandering trader's special-offer pool."),
 )]
 /// A Wandering Trader trade pool.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum WanderingTraderPool {
-    #[doc = "Selects the buying form in this typed Minecraft component schema."]
+    #[doc = "Selects the wandering trader pool that buys items from players."]
     Buying,
-    #[doc = "Selects the special form in this typed Minecraft component schema."]
+    #[doc = "Selects the wandering trader's special-offer pool."]
     Special,
-    #[doc = "Selects the common form in this typed Minecraft component schema."]
+    #[doc = "Selects the wandering trader's common-offer pool."]
     Common,
 }
 
@@ -1407,8 +1407,8 @@ impl WanderingTraderPool {
     use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
     avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
     example = "use sand::component::VillagerTradePool;",
-    variants(CommonSmith = "Selects the common smith form in this typed Minecraft component schema.", Custom = "Selects the custom form in this typed Minecraft component schema.", Profession = "Selects the profession form in this typed Minecraft component schema.", WanderingTrader = "Selects the wandering trader form in this typed Minecraft component schema."),
-    variant_fields(CommonSmith(level = "`level` provides the level range when the variant selects the common smith form in this typed Minecraft component schema."), Custom = ["Selects the custom form in this typed Minecraft component schema."], Profession(level = "`level` provides the level range when the variant selects the profession form in this typed Minecraft component schema.", profession = "`profession` provides the profession when the variant selects the profession form in this typed Minecraft component schema."), WanderingTrader = ["Selects the wandering trader form in this typed Minecraft component schema."]),
+    variants(CommonSmith = "Selects the shared smith trade table for the requested level range.", Custom = "Selects a custom villager-trade tag.", Profession = "Selects a vanilla profession trade table and level range.", WanderingTrader = "Selects one of the wandering trader's built-in pools."),
+    variant_fields(CommonSmith(level = "`level` provides the level range for the common smith villager-trade value."), Custom = ["Selects a custom villager-trade tag."], Profession(level = "`level` provides the level range for the profession villager-trade value.", profession = "`profession` provides the profession for the profession villager-trade value."), WanderingTrader = ["Selects one of the wandering trader's built-in pools."]),
 )]
 /// A known Villager Trade pool target — a profession/level, Common Smith
 /// level, Wandering Trader pool, or a custom Villager Trade tag.
@@ -1417,28 +1417,24 @@ impl WanderingTraderPool {
 /// [`VillagerTradePoolPatch`] (additive extension).
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum VillagerTradePool {
-    #[doc = "Selects the profession form in this typed Minecraft component schema."]
+    #[doc = "Selects a vanilla profession trade table and level range."]
     Profession {
-        /// `profession` provides the profession when the variant selects the profession form in this typed Minecraft component schema.
+        /// `profession` provides the profession for the profession villager-trade value.
         profession: VillagerProfession,
-        /// `level` provides the level range when the variant selects the profession form in this typed Minecraft component schema.
+        /// `level` provides the level range for the profession villager-trade value.
         level: VillagerLevel,
     },
-    #[doc = "Selects the common smith form in this typed Minecraft component schema."]
+    #[doc = "Selects the shared smith trade table for the requested level range."]
     CommonSmith {
-        /// `level` provides the level range when the variant selects the common smith form in this typed Minecraft component schema.
+        /// `level` provides the level range for the common smith villager-trade value.
         level: VillagerLevel,
     },
-    #[doc = "Selects the wandering trader form in this typed Minecraft component schema."]
+    #[doc = "Selects one of the wandering trader's built-in pools."]
     WanderingTrader(
-        #[doc = "Selects the wandering trader form in this typed Minecraft component schema."]
-        WanderingTraderPool,
+        #[doc = "Selects one of the wandering trader's built-in pools."] WanderingTraderPool,
     ),
-    #[doc = "Selects the custom form in this typed Minecraft component schema."]
-    Custom(
-        #[doc = "Selects the custom form in this typed Minecraft component schema."]
-        TagId<VillagerTradeId>,
-    ),
+    #[doc = "Selects a custom villager-trade tag."]
+    Custom(#[doc = "Selects a custom villager-trade tag."] TagId<VillagerTradeId>),
 }
 
 impl VillagerTradePool {
@@ -1454,8 +1450,8 @@ impl VillagerTradePool {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(profession = "`profession` supplies the profession value used to use a profession/level pool, e.g. `armorer/level_1`.", level = "`level` supplies the level value used to use a profession/level pool, e.g. `armorer/level_1`."),
-        returns = "A newly constructed `VillagerTradePool` configured to use a profession/level pool, e.g. `armorer/level_1`.",
+        params(profession = "`profession` sets the profession for a profession/level pool, e.g. `armorer/level_1`.", level = "`level` sets the level for a profession/level pool, e.g. `armorer/level_1`."),
+        returns = "A `VillagerTradePool` configured for a profession/level pool, e.g. `armorer/level_1`.",
         example = "use sand::prelude::*;\n\nfn demonstrate(profession: sand::component::VillagerProfession, level: sand::component::VillagerLevel)  {\n    let villager_trade_pool = sand::component::VillagerTradePool::profession(profession, level);\n}",
     )]
     pub fn profession(profession: VillagerProfession, level: VillagerLevel) -> Self {
@@ -1474,8 +1470,8 @@ impl VillagerTradePool {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(level = "`level` supplies the level value used to use the Common Smith pool shared by Armorer/Toolsmith/Weaponsmith at a level."),
-        returns = "A newly constructed `VillagerTradePool` configured to use the Common Smith pool shared by Armorer/Toolsmith/Weaponsmith at a level.",
+        params(level = "`level` sets the level for the Common Smith pool shared by Armorer/Toolsmith/Weaponsmith at a level."),
+        returns = "A `VillagerTradePool` configured for the Common Smith pool shared by Armorer/Toolsmith/Weaponsmith at a level.",
         example = "use sand::prelude::*;\n\nfn demonstrate(level: sand::component::VillagerLevel)  {\n    let villager_trade_pool = sand::component::VillagerTradePool::common_smith(level);\n}",
     )]
     pub fn common_smith(level: VillagerLevel) -> Self {
@@ -1494,8 +1490,8 @@ impl VillagerTradePool {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(pool = "`pool` supplies the pool value used to use a Wandering Trader pool."),
-        returns = "A newly constructed `VillagerTradePool` configured to use a Wandering Trader pool.",
+        params(pool = "`pool` sets the pool for a Wandering Trader pool."),
+        returns = "A `VillagerTradePool` configured for a Wandering Trader pool.",
         example = "use sand::prelude::*;\n\nfn demonstrate(pool: sand::component::WanderingTraderPool)  {\n    let villager_trade_pool = sand::component::VillagerTradePool::wandering_trader(pool);\n}",
     )]
     pub fn wandering_trader(pool: WanderingTraderPool) -> Self {
@@ -1514,8 +1510,8 @@ impl VillagerTradePool {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(tag = "`tag` supplies the tag value used to use a custom Villager Trade tag target."),
-        returns = "A newly constructed `VillagerTradePool` configured to use a custom Villager Trade tag target.",
+        params(tag = "`tag` sets the tag for a custom Villager Trade tag target."),
+        returns = "A `VillagerTradePool` configured for a custom Villager Trade tag target.",
         example = "use sand::prelude::*;\n\nfn demonstrate(tag: sand::component::TagId < sand::registry::VillagerTradeId >)  {\n    let villager_trade_pool = sand::component::VillagerTradePool::custom(tag);\n}",
     )]
     pub fn custom(tag: TagId<VillagerTradeId>) -> Self {
@@ -1642,8 +1638,8 @@ impl VillagerTradePoolPatch {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(namespace = "`namespace` supplies the namespace value used to target a profession/level pool.", profession = "`profession` supplies the profession value used to target a profession/level pool.", level = "`level` supplies the level value used to target a profession/level pool."),
-        returns = "A newly constructed `VillagerTradePoolPatch` configured to target a profession/level pool.",
+        params(namespace = "`namespace` is used to target a profession/level pool.", profession = "`profession` is used to target a profession/level pool.", level = "`level` is used to target a profession/level pool."),
+        returns = "A `VillagerTradePoolPatch` targeting a profession/level pool.",
         example = "use sand::prelude::*;\n\nfn demonstrate(namespace: sand::PackNamespace, profession: sand::component::VillagerProfession, level: sand::component::VillagerLevel)  {\n    let villager_trade_pool_patch = sand::component::VillagerTradePoolPatch::profession(namespace, profession, level);\n}",
     )]
     pub fn profession(
@@ -1666,8 +1662,8 @@ impl VillagerTradePoolPatch {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(namespace = "`namespace` supplies the namespace value used to target the Common Smith pool at a level.", level = "`level` supplies the level value used to target the Common Smith pool at a level."),
-        returns = "A newly constructed `VillagerTradePoolPatch` configured to target the Common Smith pool at a level.",
+        params(namespace = "`namespace` is used to target the Common Smith pool at a level.", level = "`level` is used to target the Common Smith pool at a level."),
+        returns = "A `VillagerTradePoolPatch` targeting the Common Smith pool at a level.",
         example = "use sand::prelude::*;\n\nfn demonstrate(namespace: sand::PackNamespace, level: sand::component::VillagerLevel)  {\n    let villager_trade_pool_patch = sand::component::VillagerTradePoolPatch::common_smith(namespace, level);\n}",
     )]
     pub fn common_smith(namespace: PackNamespace, level: VillagerLevel) -> Self {
@@ -1686,8 +1682,8 @@ impl VillagerTradePoolPatch {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(namespace = "`namespace` supplies the namespace value used to target a Wandering Trader pool.", pool = "`pool` supplies the pool value used to target a Wandering Trader pool."),
-        returns = "A newly constructed `VillagerTradePoolPatch` configured to target a Wandering Trader pool.",
+        params(namespace = "`namespace` is used to target a Wandering Trader pool.", pool = "`pool` is used to target a Wandering Trader pool."),
+        returns = "A `VillagerTradePoolPatch` targeting a Wandering Trader pool.",
         example = "use sand::prelude::*;\n\nfn demonstrate(namespace: sand::PackNamespace, pool: sand::component::WanderingTraderPool)  {\n    let villager_trade_pool_patch = sand::component::VillagerTradePoolPatch::wandering_trader(namespace, pool);\n}",
     )]
     pub fn wandering_trader(namespace: PackNamespace, pool: WanderingTraderPool) -> Self {
@@ -1706,8 +1702,8 @@ impl VillagerTradePoolPatch {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(namespace = "`namespace` supplies the namespace value used to target a custom Villager Trade tag.", tag = "`tag` supplies the tag value used to target a custom Villager Trade tag."),
-        returns = "A newly constructed `VillagerTradePoolPatch` configured to target a custom Villager Trade tag.",
+        params(namespace = "`namespace` is used to target a custom Villager Trade tag.", tag = "`tag` is used to target a custom Villager Trade tag."),
+        returns = "A `VillagerTradePoolPatch` targeting a custom Villager Trade tag.",
         example = "use sand::prelude::*;\n\nfn demonstrate(namespace: sand::PackNamespace, tag: sand::component::TagId < sand::registry::VillagerTradeId >)  {\n    let villager_trade_pool_patch = sand::component::VillagerTradePoolPatch::custom(namespace, tag);\n}",
     )]
     pub fn custom(namespace: PackNamespace, tag: TagId<VillagerTradeId>) -> Self {
@@ -1738,7 +1734,7 @@ impl VillagerTradePoolPatch {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(key = "Append an inline trade entry under key `key`, hoisted into a generated `villager_trade` resource under this patch's namespace and target pool path.", build = "`build` supplies the build value used to append an inline trade entry under key `key`, hoisted into a generated `villager_trade` resource under this patch's namespace and target pool path."),
+        params(key = "Append an inline trade entry under key `key`, hoisted into a generated `villager_trade` resource under this patch's namespace and target pool path.", build = "`build` provides the build appended when building an inline trade entry under key `key`, hoisted into a generated `villager_trade` resource under this patch's namespace and target pool path."),
         returns = "The `VillagerTradePoolPatch` value with the documented change applied to append an inline trade entry under key `key`, hoisted into a generated `villager_trade` resource under this patch's namespace and target pool path.",
         example = "use sand::prelude::*;\n\nfn demonstrate(villager_trade_pool_patch_value: sand::component::VillagerTradePoolPatch, key: impl Into < String >, build: impl FnOnce (sand::component::VillagerTrade) -> sand::component::VillagerTrade)  {\n    let updated_villager_trade_pool_patch = villager_trade_pool_patch_value.append(key, build);\n}",
     )]
@@ -1771,7 +1767,7 @@ impl VillagerTradePoolPatch {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(trade = "`trade` supplies the trade value used to reference an already-built standalone [`VillagerTrade`] value, without re-exporting it — see [`TradeSet::include`] for the same pattern."),
+        params(trade = "`trade` is used to reference an already-built standalone [`VillagerTrade`] value, without re-exporting it — see [`TradeSet::include`] for the same pattern."),
         returns = "The `VillagerTradePoolPatch` value with the documented change applied to reference an already-built standalone [`VillagerTrade`] value, without re-exporting it — see [`TradeSet::include`] for the same pattern.",
         example = "use sand::prelude::*;\n\nfn demonstrate(villager_trade_pool_patch_value: sand::component::VillagerTradePoolPatch, trade: sand::component::VillagerTrade)  {\n    let updated_villager_trade_pool_patch = villager_trade_pool_patch_value.include(trade);\n}",
     )]

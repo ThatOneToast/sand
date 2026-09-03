@@ -43,7 +43,7 @@ impl StructureTemplate {
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
         params(location = "`location` provides the typed resource identifier or location used to create a copy-backed structure template. `source_path` is relative to the project root containing `sand.toml`. The build pipeline validates that it is a safe relative `.nbt` path.", source_path = "`source_path` is relative to the project root containing `sand.toml`. The build pipeline validates that it is a safe relative `.nbt` path."),
-        returns = "A newly constructed `StructureTemplate` configured to create a copy-backed structure template. `source_path` is relative to the project root containing `sand.toml`. The build pipeline validates that it is a safe relative `.nbt` path.",
+        returns = "A `StructureTemplate` representing a copy-backed structure template. `source_path` is relative to the project root containing `sand.toml`. The build pipeline validates that it is a safe relative `.nbt` path.",
         example = "use sand::prelude::*;\n\nfn demonstrate(location: sand::ResourceLocation, source_path: impl Into < String >)  {\n    let structure_template = sand::component::StructureTemplate::new(location, source_path);\n}",
     )]
     pub fn new(location: ResourceLocation, source_path: impl Into<String>) -> Self {

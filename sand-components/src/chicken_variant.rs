@@ -64,7 +64,7 @@ impl ChickenVariant {
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
         params(location = "`location` provides the typed resource identifier or location used to create a new chicken variant with the given resource location."),
-        returns = "A newly constructed `ChickenVariant` configured to create a new chicken variant with the given resource location.",
+        returns = "A `ChickenVariant` representing a new chicken variant with the given resource location.",
         example = "use sand::prelude::*;\n\nfn demonstrate(location: sand::ResourceLocation)  {\n    let chicken_variant = sand::component::ChickenVariant::new(location);\n}",
     )]
     pub fn new(location: ResourceLocation) -> Self {
@@ -127,7 +127,7 @@ impl ChickenVariant {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(conditions = "`conditions` supplies the conditions value used to replace the full ordered list of biome spawn conditions."),
+        params(conditions = "`conditions` provides the replacement conditions when the full ordered list of biome spawn conditions."),
         returns = "The `ChickenVariant` value with the documented change applied to replace the full ordered list of biome spawn conditions.",
         example = "use sand::prelude::*;\n\nfn demonstrate(chicken_variant_value: sand::component::ChickenVariant, conditions: impl IntoIterator < Item = sand::component::SpawnCondition >)  {\n    let updated_chicken_variant = chicken_variant_value.spawn_conditions(conditions);\n}",
     )]

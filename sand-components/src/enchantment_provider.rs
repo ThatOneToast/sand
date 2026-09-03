@@ -62,7 +62,7 @@ impl EnchantmentProviderInt {
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
         params(value = "`value` provides the value being applied or compared used to create a fixed integer provider."),
-        returns = "A newly constructed `EnchantmentProviderInt` configured to create a fixed integer provider.",
+        returns = "An `EnchantmentProviderInt` representing a fixed integer provider.",
         example = "use sand::prelude::*;\n\nfn demonstrate(value: i32)  {\n    let enchantment_provider_int = sand::component::EnchantmentProviderInt::constant(value);\n}",
     )]
     pub fn constant(value: i32) -> Self {
@@ -81,8 +81,8 @@ impl EnchantmentProviderInt {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(min_inclusive = "`min_inclusive` supplies the min inclusive value used to create a uniformly sampled inclusive integer provider.", max_inclusive = "`max_inclusive` supplies the max inclusive value used to create a uniformly sampled inclusive integer provider."),
-        returns = "A newly constructed `EnchantmentProviderInt` configured to create a uniformly sampled inclusive integer provider.",
+        params(min_inclusive = "`min_inclusive` is used when creating a uniformly sampled inclusive integer provider.", max_inclusive = "`max_inclusive` is used when creating a uniformly sampled inclusive integer provider."),
+        returns = "An `EnchantmentProviderInt` representing a uniformly sampled inclusive integer provider.",
         example = "use sand::prelude::*;\n\nfn demonstrate(min_inclusive: i32, max_inclusive: i32)  {\n    let enchantment_provider_int = sand::component::EnchantmentProviderInt::uniform(min_inclusive, max_inclusive);\n}",
     )]
     pub fn uniform(min_inclusive: i32, max_inclusive: i32) -> Self {
@@ -179,7 +179,7 @@ impl EnchantmentSelection {
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
         params(enchantment = "`enchantment` provides the typed Minecraft resource identifier used to select one concrete enchantment."),
-        returns = "A newly constructed `EnchantmentSelection` configured to select one concrete enchantment.",
+        returns = "An `EnchantmentSelection` selecting one concrete enchantment.",
         example = "use sand::prelude::*;\n\nfn demonstrate(enchantment: sand::registry::EnchantmentId)  {\n    let enchantment_selection = sand::component::EnchantmentSelection::one(enchantment);\n}",
     )]
     pub fn one(enchantment: EnchantmentId) -> Self {
@@ -200,8 +200,8 @@ impl EnchantmentSelection {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(enchantments = "`enchantments` supplies the enchantments value used to select multiple concrete enchantments. Empty collections are rejected during component validation."),
-        returns = "A newly constructed `EnchantmentSelection` configured to select multiple concrete enchantments. Empty collections are rejected during component validation.",
+        params(enchantments = "`enchantments` provides the enchantments used when selecting multiple concrete enchantments. Empty collections are rejected during component validation."),
+        returns = "An `EnchantmentSelection` selecting multiple concrete enchantments. Empty collections are rejected during component validation.",
         example = "use sand::prelude::*;\n\nfn demonstrate(enchantments: impl IntoIterator < Item = sand::registry::EnchantmentId >)  {\n    let enchantment_selection = sand::component::EnchantmentSelection::many(enchantments);\n}",
     )]
     pub fn many(enchantments: impl IntoIterator<Item = EnchantmentId>) -> Self {
@@ -220,8 +220,8 @@ impl EnchantmentSelection {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(tag = "`tag` supplies the tag value used to select all enchantments in a tag."),
-        returns = "A newly constructed `EnchantmentSelection` configured to select all enchantments in a tag.",
+        params(tag = "`tag` provides the tag used when selecting all enchantments in a tag."),
+        returns = "An `EnchantmentSelection` selecting all enchantments in a tag.",
         example = "use sand::prelude::*;\n\nfn demonstrate(tag: sand::component::TagId < sand::registry::EnchantmentId >)  {\n    let enchantment_selection = sand::component::EnchantmentSelection::tag(tag);\n}",
     )]
     pub fn tag(tag: TagId<EnchantmentId>) -> Self {
@@ -337,8 +337,8 @@ impl EnchantmentProvider {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(location = "`location` provides the typed resource identifier or location used to use always provide one enchantment at a fixed or randomized positive level.", enchantment = "`enchantment` provides the typed Minecraft resource identifier used to use always provide one enchantment at a fixed or randomized positive level.", level = "`level` supplies the level value used to use always provide one enchantment at a fixed or randomized positive level."),
-        returns = "A newly constructed `EnchantmentProvider` configured to use always provide one enchantment at a fixed or randomized positive level.",
+        params(location = "`location` provides the typed resource identifier or location used to use always provide one enchantment at a fixed or randomized positive level.", enchantment = "`enchantment` provides the typed Minecraft resource identifier used to use always provide one enchantment at a fixed or randomized positive level.", level = "`level` sets the level for always provide one enchantment at a fixed or randomized positive level."),
+        returns = "An `EnchantmentProvider` configured for always provide one enchantment at a fixed or randomized positive level.",
         example = "use sand::prelude::*;\n\nfn demonstrate(location: sand::ResourceLocation, enchantment: sand::registry::EnchantmentId, level: impl Into < sand::component::EnchantmentProviderInt >)  {\n    let enchantment_provider = sand::component::EnchantmentProvider::single(location, enchantment, level);\n}",
     )]
     pub fn single(
@@ -367,8 +367,8 @@ impl EnchantmentProvider {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Choose compatible enchantments from a typed set using an enchanting cost."],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(location = "`location` provides the typed resource identifier or location used to choose compatible enchantments from a typed set using an enchanting cost.", enchantments = "`enchantments` supplies the enchantments value used to choose compatible enchantments from a typed set using an enchanting cost.", cost = "`cost` supplies the cost value used to choose compatible enchantments from a typed set using an enchanting cost."),
-        returns = "A newly constructed `EnchantmentProvider` configured to choose compatible enchantments from a typed set using an enchanting cost.",
+        params(location = "`location` provides the typed resource identifier or location used to choose compatible enchantments from a typed set using an enchanting cost.", enchantments = "`enchantments` is used to choose compatible enchantments from a typed set using an enchanting cost.", cost = "`cost` is used to choose compatible enchantments from a typed set using an enchanting cost."),
+        returns = "An `EnchantmentProvider` that chooses compatible enchantments from a typed set using an enchanting cost.",
         example = "use sand::prelude::*;\n\nfn demonstrate(location: sand::ResourceLocation, enchantments: impl Into < sand::component::EnchantmentSelection >, cost: impl Into < sand::component::EnchantmentProviderInt >)  {\n    let enchantment_provider = sand::component::EnchantmentProvider::by_cost(location, enchantments, cost);\n}",
     )]
     pub fn by_cost(
@@ -397,8 +397,8 @@ impl EnchantmentProvider {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Choose enchantments using a cost influenced by local difficulty."],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(location = "`location` provides the typed resource identifier or location used to choose enchantments using a cost influenced by local difficulty.", enchantments = "`enchantments` supplies the enchantments value used to choose enchantments using a cost influenced by local difficulty.", min_cost = "`min_cost` supplies the min cost value used to choose enchantments using a cost influenced by local difficulty.", max_cost_span = "`max_cost_span` supplies the max cost span value used to choose enchantments using a cost influenced by local difficulty."),
-        returns = "A newly constructed `EnchantmentProvider` configured to choose enchantments using a cost influenced by local difficulty.",
+        params(location = "`location` provides the typed resource identifier or location used to choose enchantments using a cost influenced by local difficulty.", enchantments = "`enchantments` is used to choose enchantments using a cost influenced by local difficulty.", min_cost = "`min_cost` is used to choose enchantments using a cost influenced by local difficulty.", max_cost_span = "`max_cost_span` is used to choose enchantments using a cost influenced by local difficulty."),
+        returns = "An `EnchantmentProvider` that chooses enchantments using a cost influenced by local difficulty.",
         example = "use sand::prelude::*;\n\nfn demonstrate(location: sand::ResourceLocation, enchantments: impl Into < sand::component::EnchantmentSelection >, min_cost: u32, max_cost_span: u32)  {\n    let enchantment_provider = sand::component::EnchantmentProvider::by_cost_with_difficulty(location, enchantments, min_cost, max_cost_span);\n}",
     )]
     pub fn by_cost_with_difficulty(
@@ -432,8 +432,8 @@ impl EnchantmentProvider {
         minecraft = "The export boundary still requires an object with a valid namespaced `type` string. Nested fields remain intentionally opaque.",
         use_when = ["Use an explicit raw provider object for unsupported or modded shapes."],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(location = "`location` provides the typed resource identifier or location used to use an explicit raw provider object for unsupported or modded shapes.", provider = "`provider` supplies the provider value used to use an explicit raw provider object for unsupported or modded shapes."),
-        returns = "A newly constructed `EnchantmentProvider` configured to use an explicit raw provider object for unsupported or modded shapes.",
+        params(location = "`location` provides the typed resource identifier or location used to use an explicit raw provider object for unsupported or modded shapes.", provider = "`provider` sets the provider for an explicit raw provider object for unsupported or modded shapes."),
+        returns = "An `EnchantmentProvider` configured for an explicit raw provider object for unsupported or modded shapes.",
         example = "use sand::prelude::*;\n\nfn demonstrate(location: sand::ResourceLocation, provider: sand::component::RawJson)  {\n    let enchantment_provider = sand::component::EnchantmentProvider::raw(location, provider);\n}",
     )]
     pub fn raw(location: ResourceLocation, provider: RawJson) -> Self {

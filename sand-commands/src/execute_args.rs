@@ -82,7 +82,7 @@ impl Swizzle {
         minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        returns = "A newly constructed `Swizzle` configured to emit the documented `x` — floor the X coordinate only form.",
+        returns = "A `Swizzle` that emits the documented `x` — floor the X coordinate only form.",
         example = "use sand::prelude::*;\n\nfn demonstrate()  {\n    let swizzle = sand::command::Swizzle::x();\n}",
     )]
     pub fn x() -> Self {
@@ -100,7 +100,7 @@ impl Swizzle {
         minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        returns = "A newly constructed `Swizzle` configured to emit the documented `y` — floor the Y coordinate only form.",
+        returns = "A `Swizzle` that emits the documented `y` — floor the Y coordinate only form.",
         example = "use sand::prelude::*;\n\nfn demonstrate()  {\n    let swizzle = sand::command::Swizzle::y();\n}",
     )]
     pub fn y() -> Self {
@@ -118,7 +118,7 @@ impl Swizzle {
         minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        returns = "A newly constructed `Swizzle` configured to emit the documented `z` — floor the Z coordinate only form.",
+        returns = "A `Swizzle` that emits the documented `z` — floor the Z coordinate only form.",
         example = "use sand::prelude::*;\n\nfn demonstrate()  {\n    let swizzle = sand::command::Swizzle::z();\n}",
     )]
     pub fn z() -> Self {
@@ -136,7 +136,7 @@ impl Swizzle {
         minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        returns = "A newly constructed `Swizzle` configured to emit the documented `xy` — floor both X and Y coordinates form.",
+        returns = "A `Swizzle` that emits the documented `xy` — floor both X and Y coordinates form.",
         example = "use sand::prelude::*;\n\nfn demonstrate()  {\n    let swizzle = sand::command::Swizzle::xy();\n}",
     )]
     pub fn xy() -> Self {
@@ -154,7 +154,7 @@ impl Swizzle {
         minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        returns = "A newly constructed `Swizzle` configured to emit the documented `xz` — floor both X and Z coordinates form.",
+        returns = "A `Swizzle` that emits the documented `xz` — floor both X and Z coordinates form.",
         example = "use sand::prelude::*;\n\nfn demonstrate()  {\n    let swizzle = sand::command::Swizzle::xz();\n}",
     )]
     pub fn xz() -> Self {
@@ -172,7 +172,7 @@ impl Swizzle {
         minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        returns = "A newly constructed `Swizzle` configured to emit the documented `yz` — floor both Y and Z coordinates form.",
+        returns = "A `Swizzle` that emits the documented `yz` — floor both Y and Z coordinates form.",
         example = "use sand::prelude::*;\n\nfn demonstrate()  {\n    let swizzle = sand::command::Swizzle::yz();\n}",
     )]
     pub fn yz() -> Self {
@@ -190,7 +190,7 @@ impl Swizzle {
         minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        returns = "A newly constructed `Swizzle` configured to emit the documented `xyz` — floor all three coordinates form.",
+        returns = "A `Swizzle` that emits the documented `xyz` — floor all three coordinates form.",
         example = "use sand::prelude::*;\n\nfn demonstrate()  {\n    let swizzle = sand::command::Swizzle::xyz();\n}",
     )]
     pub fn xyz() -> Self {
@@ -374,7 +374,7 @@ impl ItemSlot {
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
         params(value = "`value` provides the value being applied or compared used to use explicit raw slot syntax for modded or future slot families."),
-        returns = "A newly constructed `ItemSlot` configured to use explicit raw slot syntax for modded or future slot families.",
+        returns = "An `ItemSlot` configured for explicit raw slot syntax for modded or future slot families.",
         example = "use sand::prelude::*;\n\nfn demonstrate(value: impl Into < String >)  {\n    let item_slot = sand::command::ItemSlot::raw(value);\n}",
     )]
     pub fn raw(value: impl Into<String>) -> Self {

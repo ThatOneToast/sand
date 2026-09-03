@@ -78,7 +78,7 @@ impl<K: EntityKind> EntityContext<K> {
         minecraft = "The returned accessor emits commands against `@s`; it is not a storable entity reference and must remain inside the generated execution chain that supplied this context.",
         use_when = ["Defining or using typed entity behavior in a Sand datapack"],
         avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
-        params(field = "`field` supplies the field value used to bind a typed entity-state field to the current executor (`@s`)."),
+        params(field = "`field` provides the field used when binding a typed entity-state field to the current executor (`@s`)."),
         returns = "The `F :: Accessor` value produced to bind a typed entity-state field to the current executor (`@s`).",
         example = "use sand::prelude::*;\n\nfn demonstrate<K : sand::entity::EntityKind + 'static, F : sand::entity::EntityStateField + 'static>(entity_context_value: &sand::entity::EntityContext < K >, field: F)  {\n    let state = entity_context_value.state::<F>(field);\n}",
     )]
@@ -98,7 +98,7 @@ impl<K: EntityKind> EntityContext<K> {
         minecraft = "Sand validates this definition and lowers it to entity-scoped selectors, scoreboards, NBT operations, and generated lifecycle functions as required.",
         use_when = ["Defining or using typed entity behavior in a Sand datapack"],
         avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
-        params(tag = "`tag` supplies the tag value used to emit the documented `tag @s add <tag>` form."),
+        params(tag = "`tag` supplies the documented `tag @s add <tag>` form."),
         returns = "The string value produced to emit the documented `tag @s add <tag>` form.",
         example = "use sand::prelude::*;\n\nfn demonstrate<K : sand::entity::EntityKind + 'static>(entity_context_value: &sand::entity::EntityContext < K >, tag: impl Into < String >)  {\n    let add_tag = entity_context_value.add_tag(tag);\n}",
     )]
@@ -118,7 +118,7 @@ impl<K: EntityKind> EntityContext<K> {
         minecraft = "Sand validates this definition and lowers it to entity-scoped selectors, scoreboards, NBT operations, and generated lifecycle functions as required.",
         use_when = ["Defining or using typed entity behavior in a Sand datapack"],
         avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
-        params(tag = "`tag` supplies the tag value used to emit the documented `tag @s remove <tag>` form."),
+        params(tag = "`tag` supplies the documented `tag @s remove <tag>` form."),
         returns = "The string value produced to emit the documented `tag @s remove <tag>` form.",
         example = "use sand::prelude::*;\n\nfn demonstrate<K : sand::entity::EntityKind + 'static>(entity_context_value: &sand::entity::EntityContext < K >, tag: impl Into < String >)  {\n    let remove_tag = entity_context_value.remove_tag(tag);\n}",
     )]
@@ -331,7 +331,7 @@ impl<K: EntityKind> ScopedEntityRef<K> {
         minecraft = "Sand validates this definition and lowers it to entity-scoped selectors, scoreboards, NBT operations, and generated lifecycle functions as required.",
         use_when = ["Defining or using typed entity behavior in a Sand datapack"],
         avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
-        params(tag = "`tag` supplies the tag value used to emit the documented `tag @e[tag=<scope>,limit=1] add <tag>` — tag the bound entity, not `@s` form."),
+        params(tag = "`tag` supplies the documented `tag @e[tag=<scope>,limit=1] add <tag>` — tag the bound entity, not `@s` form."),
         returns = "The string value produced to emit the documented `tag @e[tag=<scope>,limit=1] add <tag>` — tag the bound entity, not `@s` form.",
         example = "use sand::prelude::*;\n\nfn demonstrate<K : sand::entity::EntityKind + 'static>(scoped_entity_ref_value: &sand::entity::ScopedEntityRef < K >, tag: impl Into < String >)  {\n    let add_tag = scoped_entity_ref_value.add_tag(tag);\n}",
     )]
@@ -351,7 +351,7 @@ impl<K: EntityKind> ScopedEntityRef<K> {
         minecraft = "Sand validates this definition and lowers it to entity-scoped selectors, scoreboards, NBT operations, and generated lifecycle functions as required.",
         use_when = ["Defining or using typed entity behavior in a Sand datapack"],
         avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
-        params(tag = "`tag` supplies the tag value used to emit the documented `tag @e[tag=<scope>,limit=1] remove <tag>` — untag the bound entity form."),
+        params(tag = "`tag` supplies the documented `tag @e[tag=<scope>,limit=1] remove <tag>` — untag the bound entity form."),
         returns = "The string value produced to emit the documented `tag @e[tag=<scope>,limit=1] remove <tag>` — untag the bound entity form.",
         example = "use sand::prelude::*;\n\nfn demonstrate<K : sand::entity::EntityKind + 'static>(scoped_entity_ref_value: &sand::entity::ScopedEntityRef < K >, tag: impl Into < String >)  {\n    let remove_tag = scoped_entity_ref_value.remove_tag(tag);\n}",
     )]
@@ -562,7 +562,7 @@ impl EntityScope {
         minecraft = "Sand validates this definition and lowers it to entity-scoped selectors, scoreboards, NBT operations, and generated lifecycle functions as required.",
         use_when = ["Defining or using typed entity behavior in a Sand datapack"],
         avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
-        params(_ctx = "`ctx` provides the player-visible text value used to tag the entity currently bound to `@s` with a unique, collision-safe temporary tag, run `body` with a [`ScopedEntityRef`] that can reach that entity again by tag (even after `@s` has changed via relation traversal inside `body`), then remove the tag.", body = "Tag the entity currently bound to `@s` with a unique, collision-safe temporary tag, run `body` with a [`ScopedEntityRef`] that can reach that entity again by tag (even after `@s` has changed via relation traversal inside `body`), then remove the tag."),
+        params(_ctx = "`ctx` is used to tag the entity currently bound to `@s` with a unique, collision-safe temporary tag, run `body` with a [`ScopedEntityRef`] that can reach that entity again by tag (even after `@s` has changed via relation traversal inside `body`), then remove the tag.", body = "Tag the entity currently bound to `@s` with a unique, collision-safe temporary tag, run `body` with a [`ScopedEntityRef`] that can reach that entity again by tag (even after `@s` has changed via relation traversal inside `body`), then remove the tag."),
         returns = "The ordered values produced to tag the entity currently bound to `@s` with a unique, collision-safe temporary tag, run `body` with a [`ScopedEntityRef`] that can reach that entity again by tag (even after `@s` has changed via relation traversal inside `body`), then remove the tag.",
         example = "use {sand::entity::EntityContext, sand::entity::EntityScope, sand::entity::AnyEntity};\nuse {sand::version::MinecraftVersion, sand::version::VersionProfile};\nlet profile = VersionProfile::resolve(&MinecraftVersion::parse(\"latest\").unwrap()).unwrap();\nlet ctx: EntityContext<AnyEntity> = EntityContext::default();\nlet cmds = EntityScope::bind(&ctx, |arrow_ref| {\narrow_ref\n.owner()\n.if_player(&profile, |owner| vec![owner.add_tag(\"shot_by_owner\")])\n.unwrap()\n});\nassert!(cmds[0].starts_with(\"tag @s add __sand_scope_\"));\nassert!(cmds.last().unwrap().starts_with(\"tag @e[tag=__sand_scope_\"));",
     )]

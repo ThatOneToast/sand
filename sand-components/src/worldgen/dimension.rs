@@ -64,8 +64,8 @@ impl Dimension {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(location = "`location` provides the typed resource identifier or location used to create a new dimension referencing the given type and raw generator JSON.", dimension_type = "`dimension_type` provides the typed Minecraft resource identifier used to create a new dimension referencing the given type and raw generator JSON.", generator = "`generator` supplies the generator value used to create a new dimension referencing the given type and raw generator JSON."),
-        returns = "A newly constructed `Dimension` configured to create a new dimension referencing the given type and raw generator JSON.",
+        params(location = "`location` provides the typed resource identifier or location used to create a new dimension referencing the given type and raw generator JSON.", dimension_type = "`dimension_type` provides the typed Minecraft resource identifier used to create a new dimension referencing the given type and raw generator JSON.", generator = "`generator` is used when creating a new dimension referencing the given type and raw generator JSON."),
+        returns = "A `Dimension` representing a new dimension referencing the given type and raw generator JSON.",
         example = "use sand::prelude::*;\n\nfn demonstrate(location: sand::ResourceLocation, dimension_type: sand::registry::DimensionTypeId, generator: sand::component::RawJson)  {\n    let dimension = sand::component::Dimension::new(location, dimension_type, generator);\n}",
     )]
     pub fn new(
@@ -95,8 +95,8 @@ impl Dimension {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Prefer [`Dimension::new`] with [`DimensionTypeId`]. This escape hatch exists for version-specific or otherwise unsupported reference syntax."],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(location = "`location` provides the typed resource identifier or location used to create a dimension with an explicitly raw dimension-type reference.", dimension_type = "`dimension_type` supplies the dimension type value used to create a dimension with an explicitly raw dimension-type reference.", generator = "`generator` supplies the generator value used to create a dimension with an explicitly raw dimension-type reference."),
-        returns = "A newly constructed `Dimension` configured to create a dimension with an explicitly raw dimension-type reference.",
+        params(location = "`location` provides the typed resource identifier or location used to create a dimension with an explicitly raw dimension-type reference.", dimension_type = "`dimension_type` is used when creating a dimension with an explicitly raw dimension-type reference.", generator = "`generator` is used when creating a dimension with an explicitly raw dimension-type reference."),
+        returns = "A `Dimension` representing a dimension with an explicitly raw dimension-type reference.",
         example = "use sand::prelude::*;\n\nfn demonstrate(location: sand::ResourceLocation, dimension_type: impl Into < String >, generator: sand::component::RawJson)  {\n    let dimension = sand::component::Dimension::new_raw_dimension_type(location, dimension_type, generator);\n}",
     )]
     pub fn new_raw_dimension_type(
@@ -128,8 +128,8 @@ impl Dimension {
         minecraft = "`biome_source` should wrap a raw JSON biome source object, e.g.:",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(location = "`location` provides the typed resource identifier or location used to convenience create with a noise-based generator pointing to a noise_settings ID.", dimension_type = "`dimension_type` provides the typed Minecraft resource identifier used to convenience create with a noise-based generator pointing to a noise_settings ID.", noise_settings = "`noise_settings` supplies the noise settings value used to convenience create with a noise-based generator pointing to a noise_settings ID.", biome_source = "`biome_source` should wrap a raw JSON biome source object, e.g.:"),
-        returns = "A newly constructed `Dimension` configured to convenience create with a noise-based generator pointing to a noise_settings ID.",
+        params(location = "`location` names the generated dimension resource.", dimension_type = "`dimension_type` selects the dimension-type resource.", noise_settings = "`noise_settings` selects the noise settings used by the generator.", biome_source = "`biome_source` should wrap a raw JSON biome source object, e.g.:"),
+        returns = "A `Dimension` describing a noise-based generator pointing to a noise_settings ID.",
         example = "use sand::prelude::*;\n\nfn demonstrate(location: sand::ResourceLocation, dimension_type: sand::registry::DimensionTypeId, noise_settings: impl Into < String >, biome_source: sand::component::RawJson)  {\n    let dimension = sand::component::Dimension::noise_generator(location, dimension_type, noise_settings, biome_source);\n}",
     )]
     pub fn noise_generator(
@@ -161,7 +161,7 @@ impl Dimension {
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
         params(location = "`location` provides the typed resource identifier or location used to convenience create with a flat (superflat) generator.", dimension_type = "`dimension_type` provides the typed Minecraft resource identifier used to convenience create with a flat (superflat) generator.", flat_settings = "`flat_settings` wraps the raw JSON settings for `minecraft:flat`."),
-        returns = "A newly constructed `Dimension` configured to convenience create with a flat (superflat) generator.",
+        returns = "A `Dimension` describing a flat (superflat) generator.",
         example = "use sand::prelude::*;\n\nfn demonstrate(location: sand::ResourceLocation, dimension_type: sand::registry::DimensionTypeId, flat_settings: sand::component::RawJson)  {\n    let dimension = sand::component::Dimension::flat_generator(location, dimension_type, flat_settings);\n}",
     )]
     pub fn flat_generator(
@@ -209,7 +209,7 @@ impl Dimension {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(dt = "`dt` supplies the dt value used to update the dimension type through the explicit raw compatibility path."),
+        params(dt = "`dt` is used to update the dimension type through the explicit raw compatibility path."),
         returns = "The `Dimension` value with the documented change applied to update the dimension type through the explicit raw compatibility path.",
         example = "use sand::prelude::*;\n\nfn demonstrate(dimension_value: sand::component::Dimension, dt: impl Into < String >)  {\n    let updated_dimension = dimension_value.raw_dimension_type(dt);\n}",
     )]
@@ -230,7 +230,7 @@ impl Dimension {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(generator = "`generator` supplies the generator value used to replace the generator with a raw JSON value."),
+        params(generator = "`generator` provides the replacement generator when the generator with a raw JSON value."),
         returns = "The `Dimension` value with the documented change applied to replace the generator with a raw JSON value.",
         example = "use sand::prelude::*;\n\nfn demonstrate(dimension_value: sand::component::Dimension, generator: sand::component::RawJson)  {\n    let updated_dimension = dimension_value.generator_raw(generator);\n}",
     )]

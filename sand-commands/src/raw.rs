@@ -52,8 +52,8 @@ impl RawCommand {
         minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        params(command = "`command` supplies the command value used to wrap an intentionally unchecked Minecraft command string."),
-        returns = "A newly constructed `RawCommand` configured to wrap an intentionally unchecked Minecraft command string.",
+        params(command = "`command` provides the command wrapped when creating an intentionally unchecked Minecraft command string."),
+        returns = "A `RawCommand` wrapping an intentionally unchecked Minecraft command string.",
         example = "use sand::prelude::*;\n\nfn demonstrate(command: impl Into < String >)  {\n    let raw_command = sand::command::RawCommand::new(command);\n}",
     )]
     pub fn new(command: impl Into<String>) -> Self {

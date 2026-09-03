@@ -169,7 +169,7 @@ impl EntityQuery<Many> {
         minecraft = "Sand validates this definition and lowers it to entity-scoped selectors, scoreboards, NBT operations, and generated lifecycle functions as required.",
         use_when = ["Defining or using typed entity behavior in a Sand datapack"],
         avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
-        returns = "A newly constructed `EntityQuery` configured to emit the documented `@e` — all entities form.",
+        returns = "An `EntityQuery` that emits the documented `@e` — all entities form.",
         example = "use sand::prelude::*;\n\nfn demonstrate()  {\n    let entity_query = sand::entity::EntityQuery ::< sand::command::Many >::entities();\n}",
     )]
     pub fn entities() -> Self {
@@ -191,7 +191,7 @@ impl EntityQuery<Many> {
         use_when = ["Defining or using typed entity behavior in a Sand datapack"],
         avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
         params(radius = "`@e[distance=..<radius>]` — all entities within `radius` blocks of the executor."),
-        returns = "A newly constructed `EntityQuery` configured to emit the documented `@e[distance=..<radius>]` — all entities within `radius` blocks of the executor form.",
+        returns = "An `EntityQuery` that emits the documented `@e[distance=..<radius>]` — all entities within `radius` blocks of the executor form.",
         example = "use sand::prelude::*;\n\nfn demonstrate(radius: f64)  {\n    let entity_query = sand::entity::EntityQuery ::< sand::command::Many >::nearby(radius);\n}",
     )]
     pub fn nearby(radius: f64) -> Self {
@@ -212,7 +212,7 @@ impl EntityQuery<Many> {
         minecraft = "Sand validates this definition and lowers it to entity-scoped selectors, scoreboards, NBT operations, and generated lifecycle functions as required.",
         use_when = ["Defining or using typed entity behavior in a Sand datapack"],
         avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
-        params(ty = "`ty` supplies the ty value used to emit the documented `type=<ty>` — restrict to entities of the given type form."),
+        params(ty = "`ty` supplies the documented `type=<ty>` — restrict to entities of the given type form."),
         returns = "The `EntityQuery` value with the documented change applied to emit the documented `type=<ty>` — restrict to entities of the given type form.",
         example = "use sand::prelude::*;\n\nfn demonstrate(entity_query_value: sand::entity::EntityQuery < sand::command::Many >, ty: impl sand::command::IntoEntityType)  {\n    let updated_entity_query = entity_query_value.entity_type(ty);\n}",
     )]
@@ -233,7 +233,7 @@ impl EntityQuery<Many> {
         minecraft = "Sand validates this definition and lowers it to entity-scoped selectors, scoreboards, NBT operations, and generated lifecycle functions as required.",
         use_when = ["Defining or using typed entity behavior in a Sand datapack"],
         avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
-        params(ty = "`ty` supplies the ty value used to emit the documented `type=!<ty>` — exclude entities of the given type form."),
+        params(ty = "`ty` supplies the documented `type=!<ty>` — exclude entities of the given type form."),
         returns = "The `EntityQuery` value with the documented change applied to emit the documented `type=!<ty>` — exclude entities of the given type form.",
         example = "use sand::prelude::*;\n\nfn demonstrate(entity_query_value: sand::entity::EntityQuery < sand::command::Many >, ty: impl sand::command::IntoEntityType)  {\n    let updated_entity_query = entity_query_value.not_entity_type(ty);\n}",
     )]
@@ -305,7 +305,7 @@ impl EntityQuery<Many> {
         minecraft = "Sand validates this definition and lowers it to entity-scoped selectors, scoreboards, NBT operations, and generated lifecycle functions as required.",
         use_when = ["Defining or using typed entity behavior in a Sand datapack"],
         avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
-        params(tag = "`tag` supplies the tag value used to emit the documented `tag=<tag>` — restrict to entities with the given tag form."),
+        params(tag = "`tag` supplies the documented `tag=<tag>` — restrict to entities with the given tag form."),
         returns = "The `EntityQuery` value with the documented change applied to emit the documented `tag=<tag>` — restrict to entities with the given tag form.",
         example = "use sand::prelude::*;\n\nfn demonstrate(entity_query_value: sand::entity::EntityQuery < sand::command::Many >, tag: impl Into < String >)  {\n    let updated_entity_query = entity_query_value.tag(tag);\n}",
     )]
@@ -326,7 +326,7 @@ impl EntityQuery<Many> {
         minecraft = "Sand validates this definition and lowers it to entity-scoped selectors, scoreboards, NBT operations, and generated lifecycle functions as required.",
         use_when = ["Defining or using typed entity behavior in a Sand datapack"],
         avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
-        params(tag = "`tag` supplies the tag value used to emit the documented `tag=!<tag>` — exclude entities with the given tag form."),
+        params(tag = "`tag` supplies the documented `tag=!<tag>` — exclude entities with the given tag form."),
         returns = "The `EntityQuery` value with the documented change applied to emit the documented `tag=!<tag>` — exclude entities with the given tag form.",
         example = "use sand::prelude::*;\n\nfn demonstrate(entity_query_value: sand::entity::EntityQuery < sand::command::Many >, tag: impl Into < String >)  {\n    let updated_entity_query = entity_query_value.without_tag(tag);\n}",
     )]
@@ -411,7 +411,7 @@ impl EntityQuery<Many> {
         minecraft = "Sand validates this definition and lowers it to entity-scoped selectors, scoreboards, NBT operations, and generated lifecycle functions as required.",
         use_when = ["Defining or using typed entity behavior in a Sand datapack"],
         avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
-        params(order = "`order` supplies the order value used to sort results (`sort=nearest|furthest|random|arbitrary`). Only affects order — does not by itself narrow cardinality; pair with [`EntityQuery::limit`] to guarantee at most one result."),
+        params(order = "`order` is used to sort results (`sort=nearest|furthest|random|arbitrary`). Only affects order — does not by itself narrow cardinality; pair with [`EntityQuery::limit`] to guarantee at most one result."),
         returns = "The `EntityQuery` value with the documented change applied to sort results (`sort=nearest|furthest|random|arbitrary`). Only affects order — does not by itself narrow cardinality; pair with [`EntityQuery::limit`] to guarantee at most one result.",
         example = "use sand::prelude::*;\n\nfn demonstrate(entity_query_value: sand::entity::EntityQuery < sand::command::Many >, order: sand::command::SortOrder)  {\n    let updated_entity_query = entity_query_value.sort(order);\n}",
     )]
@@ -534,7 +534,7 @@ impl EntityQuery<One> {
         minecraft = "Sand validates this definition and lowers it to entity-scoped selectors, scoreboards, NBT operations, and generated lifecycle functions as required.",
         use_when = ["Defining or using typed entity behavior in a Sand datapack"],
         avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
-        params(body = "`body` provides the player-visible text value used to use alias for [`EntityQuery::<One>::each`] that reads naturally at single-cardinality call sites."),
+        params(body = "`body` sets the player-visible text for alias for [`EntityQuery::<One>::each`] that reads naturally at single-cardinality call sites."),
         returns = "The ordered values produced to use alias for [`EntityQuery::<One>::each`] that reads naturally at single-cardinality call sites.",
         example = "use sand::prelude::*;\n\nfn demonstrate(entity_query_value: sand::entity::EntityQuery < sand::command::One >, body: impl FnOnce (& sand::entity::EntityContext < sand::entity::AnyEntity >) -> Vec < String >)  {\n    let values = entity_query_value.get(body);\n}",
     )]
@@ -570,7 +570,7 @@ impl PlayerQuery<Many> {
         minecraft = "Sand validates this definition and lowers it to entity-scoped selectors, scoreboards, NBT operations, and generated lifecycle functions as required.",
         use_when = ["Defining or using typed entity behavior in a Sand datapack"],
         avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
-        returns = "A newly constructed `PlayerQuery` configured to emit the documented `@a` — all players form.",
+        returns = "A `PlayerQuery` that emits the documented `@a` — all players form.",
         example = "use sand::prelude::*;\n\nfn demonstrate()  {\n    let player_query = sand::entity::PlayerQuery ::< sand::command::Many >::players();\n}",
     )]
     pub fn players() -> Self {
@@ -619,7 +619,7 @@ impl PlayerQuery<Many> {
         minecraft = "Sand validates this definition and lowers it to entity-scoped selectors, scoreboards, NBT operations, and generated lifecycle functions as required.",
         use_when = ["Defining or using typed entity behavior in a Sand datapack"],
         avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
-        params(tag = "`tag` supplies the tag value used to emit the documented `tag=<tag>` — restrict to players with the given tag form."),
+        params(tag = "`tag` supplies the documented `tag=<tag>` — restrict to players with the given tag form."),
         returns = "The `PlayerQuery` value with the documented change applied to emit the documented `tag=<tag>` — restrict to players with the given tag form.",
         example = "use sand::prelude::*;\n\nfn demonstrate(player_query_value: sand::entity::PlayerQuery < sand::command::Many >, tag: impl Into < String >)  {\n    let updated_player_query = player_query_value.tag(tag);\n}",
     )]
@@ -640,7 +640,7 @@ impl PlayerQuery<Many> {
         minecraft = "Sand validates this definition and lowers it to entity-scoped selectors, scoreboards, NBT operations, and generated lifecycle functions as required.",
         use_when = ["Defining or using typed entity behavior in a Sand datapack"],
         avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
-        params(tag = "`tag` supplies the tag value used to emit the documented `tag=!<tag>` — exclude players with the given tag form."),
+        params(tag = "`tag` supplies the documented `tag=!<tag>` — exclude players with the given tag form."),
         returns = "The `PlayerQuery` value with the documented change applied to emit the documented `tag=!<tag>` — exclude players with the given tag form.",
         example = "use sand::prelude::*;\n\nfn demonstrate(player_query_value: sand::entity::PlayerQuery < sand::command::Many >, tag: impl Into < String >)  {\n    let updated_player_query = player_query_value.without_tag(tag);\n}",
     )]
@@ -703,7 +703,7 @@ impl PlayerQuery<Many> {
         minecraft = "Sand validates this definition and lowers it to entity-scoped selectors, scoreboards, NBT operations, and generated lifecycle functions as required.",
         use_when = ["Defining or using typed entity behavior in a Sand datapack"],
         avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
-        params(order = "`order` supplies the order value used to sort results. See [`EntityQuery::sort`]."),
+        params(order = "`order` is used to sort results. See [`EntityQuery::sort`]."),
         returns = "The `PlayerQuery` value with the documented change applied to sort results. See [`EntityQuery::sort`].",
         example = "use sand::prelude::*;\n\nfn demonstrate(player_query_value: sand::entity::PlayerQuery < sand::command::Many >, order: sand::command::SortOrder)  {\n    let updated_player_query = player_query_value.sort(order);\n}",
     )]
@@ -819,7 +819,7 @@ impl PlayerQuery<One> {
         minecraft = "Sand validates this definition and lowers it to entity-scoped selectors, scoreboards, NBT operations, and generated lifecycle functions as required.",
         use_when = ["Defining or using typed entity behavior in a Sand datapack"],
         avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
-        params(body = "`body` provides the player-visible text value used to use alias for [`PlayerQuery::<One>::each`]."),
+        params(body = "`body` sets the player-visible text for alias for [`PlayerQuery::<One>::each`]."),
         returns = "The ordered values produced to use alias for [`PlayerQuery::<One>::each`].",
         example = "use sand::prelude::*;\n\nfn demonstrate(player_query_value: sand::entity::PlayerQuery < sand::command::One >, body: impl FnOnce (& sand::entity::EntityContext < sand::entity::PlayerKind >) -> Vec < String >)  {\n    let values = player_query_value.get(body);\n}",
     )]

@@ -52,8 +52,8 @@ impl Coord {
         minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        params(v = "`v` supplies the v value used to use absolute coordinate."),
-        returns = "A newly constructed `Coord` configured to use absolute coordinate.",
+        params(v = "`v` sets the v for absolute coordinate."),
+        returns = "A `Coord` configured for absolute coordinate.",
         example = "use sand::prelude::*;\n\nfn demonstrate(v: impl Into < f64 >)  {\n    let coord = sand::command::Coord::abs(v);\n}",
     )]
     pub fn abs(v: impl Into<f64>) -> Self {
@@ -71,7 +71,7 @@ impl Coord {
         minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        returns = "A newly constructed `Coord` configured to use relative coordinate at the executor's position (`~`).",
+        returns = "A `Coord` configured for relative coordinate at the executor's position (`~`).",
         example = "use sand::prelude::*;\n\nfn demonstrate()  {\n    let coord = sand::command::Coord::rel();\n}",
     )]
     pub fn rel() -> Self {
@@ -89,8 +89,8 @@ impl Coord {
         minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        params(v = "`v` supplies the v value used to use relative coordinate with an offset (`~N`)."),
-        returns = "A newly constructed `Coord` configured to use relative coordinate with an offset (`~N`).",
+        params(v = "`v` sets the v for relative coordinate with an offset (`~N`)."),
+        returns = "A `Coord` configured for relative coordinate with an offset (`~N`).",
         example = "use sand::prelude::*;\n\nfn demonstrate(v: impl Into < f64 >)  {\n    let coord = sand::command::Coord::rel_n(v);\n}",
     )]
     pub fn rel_n(v: impl Into<f64>) -> Self {
@@ -108,7 +108,7 @@ impl Coord {
         minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        returns = "A newly constructed `Coord` configured to local coordinate (along executor's facing direction, `^`).",
+        returns = "A `Coord` representing a local coordinate (along executor's facing direction, `^`).",
         example = "use sand::prelude::*;\n\nfn demonstrate()  {\n    let coord = sand::command::Coord::local();\n}",
     )]
     pub fn local() -> Self {
@@ -126,8 +126,8 @@ impl Coord {
         minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        params(v = "`v` supplies the v value used to local coordinate with an offset (`^N`)."),
-        returns = "A newly constructed `Coord` configured to local coordinate with an offset (`^N`).",
+        params(v = "`v` sets the offset of the local coordinate (`^N`)."),
+        returns = "A `Coord` representing a local coordinate with an offset (`^N`).",
         example = "use sand::prelude::*;\n\nfn demonstrate(v: impl Into < f64 >)  {\n    let coord = sand::command::Coord::local_n(v);\n}",
     )]
     pub fn local_n(v: impl Into<f64>) -> Self {
@@ -267,7 +267,7 @@ impl BlockPos {
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
         params(x = "`x` provides the x-coordinate used to create a block position from three coordinates.", y = "`y` provides the y-coordinate used to create a block position from three coordinates.", z = "`z` provides the z-coordinate used to create a block position from three coordinates."),
-        returns = "A newly constructed `BlockPos` configured to create a block position from three coordinates.",
+        returns = "A `BlockPos` representing a block position from three coordinates.",
         example = "use sand::prelude::*;\n\nfn demonstrate(x: impl Into < sand::command::Coord >, y: impl Into < sand::command::Coord >, z: impl Into < sand::command::Coord >)  {\n    let block_pos = sand::command::BlockPos::new(x, y, z);\n}",
     )]
     pub fn new(x: impl Into<Coord>, y: impl Into<Coord>, z: impl Into<Coord>) -> Self {
@@ -289,7 +289,7 @@ impl BlockPos {
         minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        returns = "A newly constructed `BlockPos` configured to current position (`~ ~ ~`).",
+        returns = "A `BlockPos` representing the current position (`~ ~ ~`).",
         example = "use sand::prelude::*;\n\nfn demonstrate()  {\n    let block_pos = sand::command::BlockPos::here();\n}",
     )]
     pub fn here() -> Self {
@@ -308,7 +308,7 @@ impl BlockPos {
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
         params(x = "`x` provides the x-coordinate used to use exact block coordinates (`X Y Z`).", y = "`y` provides the y-coordinate used to use exact block coordinates (`X Y Z`).", z = "`z` provides the z-coordinate used to use exact block coordinates (`X Y Z`)."),
-        returns = "A newly constructed `BlockPos` configured to use exact block coordinates (`X Y Z`).",
+        returns = "A `BlockPos` configured for exact block coordinates (`X Y Z`).",
         example = "use sand::prelude::*;\n\nfn demonstrate(x: i32, y: i32, z: i32)  {\n    let block_pos = sand::command::BlockPos::absolute(x, y, z);\n}",
     )]
     pub fn absolute(x: i32, y: i32, z: i32) -> Self {
@@ -326,8 +326,8 @@ impl BlockPos {
         minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        params(n = "`n` supplies the n value used to position N blocks above current (`~ ~N ~`)."),
-        returns = "A newly constructed `BlockPos` configured to position N blocks above current (`~ ~N ~`).",
+        params(n = "`n` is used to position N blocks above current (`~ ~N ~`)."),
+        returns = "A `BlockPos` representing a position N blocks above current (`~ ~N ~`).",
         example = "use sand::prelude::*;\n\nfn demonstrate(n: i32)  {\n    let block_pos = sand::command::BlockPos::above(n);\n}",
     )]
     pub fn above(n: i32) -> Self {
@@ -345,8 +345,8 @@ impl BlockPos {
         minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        params(n = "`n` supplies the n value used to position N blocks below current (`~ ~-N ~`)."),
-        returns = "A newly constructed `BlockPos` configured to position N blocks below current (`~ ~-N ~`).",
+        params(n = "`n` is used to position N blocks below current (`~ ~-N ~`)."),
+        returns = "A `BlockPos` representing a position N blocks below current (`~ ~-N ~`).",
         example = "use sand::prelude::*;\n\nfn demonstrate(n: i32)  {\n    let block_pos = sand::command::BlockPos::below(n);\n}",
     )]
     pub fn below(n: i32) -> Self {
@@ -432,7 +432,7 @@ impl Vec3 {
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
         params(x = "`x` provides the x-coordinate used to create a 3D position from three coordinates.", y = "`y` provides the y-coordinate used to create a 3D position from three coordinates.", z = "`z` provides the z-coordinate used to create a 3D position from three coordinates."),
-        returns = "A newly constructed `Vec3` configured to create a 3D position from three coordinates.",
+        returns = "A `Vec3` representing a 3D position from three coordinates.",
         example = "use sand::prelude::*;\n\nfn demonstrate(x: impl Into < sand::command::Coord >, y: impl Into < sand::command::Coord >, z: impl Into < sand::command::Coord >)  {\n    let vec3 = sand::command::Vec3::new(x, y, z);\n}",
     )]
     pub fn new(x: impl Into<Coord>, y: impl Into<Coord>, z: impl Into<Coord>) -> Self {
@@ -454,7 +454,7 @@ impl Vec3 {
         minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        returns = "A newly constructed `Vec3` configured to current position (`~ ~ ~`).",
+        returns = "A `Vec3` representing the current position (`~ ~ ~`).",
         example = "use sand::prelude::*;\n\nfn demonstrate()  {\n    let vec3 = sand::command::Vec3::here();\n}",
     )]
     pub fn here() -> Self {
@@ -473,7 +473,7 @@ impl Vec3 {
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
         params(x = "`x` provides the x-coordinate used to use exact world coordinates (`X Y Z`).", y = "`y` provides the y-coordinate used to use exact world coordinates (`X Y Z`).", z = "`z` provides the z-coordinate used to use exact world coordinates (`X Y Z`)."),
-        returns = "A newly constructed `Vec3` configured to use exact world coordinates (`X Y Z`).",
+        returns = "A `Vec3` configured for exact world coordinates (`X Y Z`).",
         example = "use sand::prelude::*;\n\nfn demonstrate(x: f64, y: f64, z: f64)  {\n    let vec3 = sand::command::Vec3::absolute(x, y, z);\n}",
     )]
     pub fn absolute(x: f64, y: f64, z: f64) -> Self {
@@ -538,7 +538,7 @@ impl Vec2 {
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
         params(x = "`x` provides the x-coordinate used to create a 2D position (column) from X and Z coordinates.", z = "`z` provides the z-coordinate used to create a 2D position (column) from X and Z coordinates."),
-        returns = "A newly constructed `Vec2` configured to create a 2D position (column) from X and Z coordinates.",
+        returns = "A `Vec2` representing a 2D position (column) from X and Z coordinates.",
         example = "use sand::prelude::*;\n\nfn demonstrate(x: impl Into < sand::command::Coord >, z: impl Into < sand::command::Coord >)  {\n    let vec2 = sand::command::Vec2::new(x, z);\n}",
     )]
     pub fn new(x: impl Into<Coord>, z: impl Into<Coord>) -> Self {
@@ -618,8 +618,8 @@ impl Rotation {
         minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        params(yaw = "`yaw` supplies the yaw value used to create a rotation from yaw and pitch coordinates.", pitch = "`pitch` supplies the pitch value used to create a rotation from yaw and pitch coordinates."),
-        returns = "A newly constructed `Rotation` configured to create a rotation from yaw and pitch coordinates.",
+        params(yaw = "`yaw` is used when creating a rotation from yaw and pitch coordinates.", pitch = "`pitch` is used when creating a rotation from yaw and pitch coordinates."),
+        returns = "A `Rotation` representing a rotation from yaw and pitch coordinates.",
         example = "use sand::prelude::*;\n\nfn demonstrate(yaw: impl Into < sand::command::Coord >, pitch: impl Into < sand::command::Coord >)  {\n    let rotation = sand::command::Rotation::new(yaw, pitch);\n}",
     )]
     pub fn new(yaw: impl Into<Coord>, pitch: impl Into<Coord>) -> Self {
@@ -640,7 +640,7 @@ impl Rotation {
         minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        returns = "A newly constructed `Rotation` configured to current rotation (`~ ~`).",
+        returns = "A `Rotation` representing the current rotation (`~ ~`).",
         example = "use sand::prelude::*;\n\nfn demonstrate()  {\n    let rotation = sand::command::Rotation::here();\n}",
     )]
     pub fn here() -> Self {
@@ -658,8 +658,8 @@ impl Rotation {
         minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        params(yaw = "`yaw` supplies the yaw value used to use absolute yaw and pitch angles.", pitch = "`pitch` supplies the pitch value used to use absolute yaw and pitch angles."),
-        returns = "A newly constructed `Rotation` configured to use absolute yaw and pitch angles.",
+        params(yaw = "`yaw` sets the yaw for absolute yaw and pitch angles.", pitch = "`pitch` sets the pitch for absolute yaw and pitch angles."),
+        returns = "A `Rotation` configured for absolute yaw and pitch angles.",
         example = "use sand::prelude::*;\n\nfn demonstrate(yaw: f64, pitch: f64)  {\n    let rotation = sand::command::Rotation::absolute(yaw, pitch);\n}",
     )]
     pub fn absolute(yaw: f64, pitch: f64) -> Self {

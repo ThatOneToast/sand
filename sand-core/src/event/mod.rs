@@ -409,7 +409,7 @@ impl<E> Event<E> {
         minecraft = "The context reads the execution player and participant observations stored around the generated reward function.",
         use_when = ["Defining, composing, or handling a typed Sand event"],
         avoid_when = ["Inspecting generated advancement or event-graph implementation state"],
-        returns = "A newly constructed `Event` configured to construct the handler context value. Called by `#[on_event]`-generated code. Not normally called directly.",
+        returns = "An `Event` representing the handler context value. Called by `#[on_event]`-generated code. Not normally called directly.",
         example = "use sand::prelude::*;\n\nfn demonstrate<E: 'static>()  {\n    let event = sand::event::Event ::< E >::context();\n}",
     )]
     pub fn context() -> Self {
@@ -523,7 +523,7 @@ impl<E: AdvancementEvent> Event<E> {
         minecraft = "The value is backed by Sand's event-cycle observation storage and is only available when the event declared that role.",
         use_when = ["Defining, composing, or handling a typed Sand event"],
         avoid_when = ["Inspecting generated advancement or event-graph implementation state"],
-        params(role = "`role` supplies the role value used to acces a declared entity participant by role (#230, infallible per #273)."),
+        params(role = "`role` identifies the declared entity participant by role (#230, infallible per #273)."),
         returns = "Backed by whatever [`AdvancementEvent::participants`] declared for this event type. Returns the typed participant directly — not wrapped in `Result`/`Option`/[`sand::participant::ParticipantAvailability`] — since a role this event does not declare is a build-time authoring mistake (`sand build`'s mandatory graph validation is expected to catch it before output is written), not a value for ordinary handler code to branch on. See `EventParticipantPlan::require_entity` (crate-private) for the exact reconstruction and panic contract.",
         example = "fn on_hit(event: Event<EntityDamagePlayerEvent>) {\nlet attacker = event.entity(EntityParticipantRole::Attacker);\n// build commands against attacker.selector()\n}",
     )]
@@ -547,7 +547,7 @@ impl<E: AdvancementEvent> Event<E> {
         minecraft = "Sand captures matching item NBT at trigger time so later commands do not depend on a live inventory slot.",
         use_when = ["Defining, composing, or handling a typed Sand event"],
         avoid_when = ["Inspecting generated advancement or event-graph implementation state"],
-        params(role = "`role` supplies the role value used to acces a declared item participant by role (#230, infallible per #273). See [`Self::entity`] for the contract this mirrors."),
+        params(role = "`role` identifies the declared item participant by role (#230, infallible per #273). See [`Self::entity`] for the contract this mirrors."),
         returns = "The `sand :: item :: ItemSnapshot` value produced to acces a declared item participant by role (#230, infallible per #273). See [`Self::entity`] for the contract this mirrors.",
         example = "use sand::prelude::*;\n\nfn demonstrate<E : sand::event::AdvancementEvent + 'static>(event_value: &sand::event::Event < E >, role: sand::participant::ItemParticipantRole)  {\n    let item = event_value.item(role);\n}",
     )]
@@ -670,7 +670,7 @@ impl<E: AdvancementEvent> Event<E> {
         minecraft = "The snapshot is available only while the event graph's configured tick window has not expired.",
         use_when = ["Defining, composing, or handling a typed Sand event"],
         avoid_when = ["Inspecting generated advancement or event-graph implementation state"],
-        params(role = "`role` supplies the role value used to acces a declared bounded item participant by role (#272, infallible per #273) — the `.within(...)`-crossing counterpart to [`Self::item`]. See [`sand::participant::EventParticipantPlan::inherit_item_within`] for the full contract."),
+        params(role = "`role` identifies the declared bounded item participant by role (#272, infallible per #273) — the `.within(...)`-crossing counterpart to [`Self::item`]. See [`sand::participant::EventParticipantPlan::inherit_item_within`] for the full contract."),
         returns = "The `sand :: participant :: BoundedItemSnapshot` value produced to acces a declared bounded item participant by role (#272, infallible per #273) — the `.within(...)`-crossing counterpart to [`Self::item`]. See [`sand::participant::EventParticipantPlan::inherit_item_within`] for the full contract.",
         example = "use sand::prelude::*;\n\nfn demonstrate<E : sand::event::AdvancementEvent + 'static>(event_value: &sand::event::Event < E >, role: sand::participant::ItemParticipantRole)  {\n    let bounded_item = event_value.bounded_item(role);\n}",
     )]
@@ -745,7 +745,7 @@ impl<E: DamageAdvancementEvent> DamageEvent<E> {
         minecraft = "The value resolves its subject and damage view in the generated reward function.",
         use_when = ["Defining, composing, or handling a typed Sand event"],
         avoid_when = ["Inspecting generated advancement or event-graph implementation state"],
-        returns = "A newly constructed `DamageEvent` configured to construct the handler context value. Called by `#[on_event]`-generated code. Not normally called directly.",
+        returns = "A `DamageEvent` representing the handler context value. Called by `#[on_event]`-generated code. Not normally called directly.",
         example = "use sand::prelude::*;\n\nfn demonstrate<E : sand::event::DamageAdvancementEvent + 'static>()  {\n    let damage_event = sand::event::DamageEvent ::< E >::context();\n}",
     )]
     pub fn context() -> Self {

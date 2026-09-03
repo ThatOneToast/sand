@@ -56,8 +56,8 @@ impl CommandError {
         minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        params(helper = "`helper` supplies the helper value used to construct a validation error for one command helper input.", field = "`field` supplies the field value used to construct a validation error for one command helper input.", message = "`message` provides the author-visible text value used to construct a validation error for one command helper input."),
-        returns = "A newly constructed `CommandError` configured to construct a validation error for one command helper input.",
+        params(helper = "`helper` is used when constructing a validation error for one command helper input.", field = "`field` is used when constructing a validation error for one command helper input.", message = "`message` is used when constructing a validation error for one command helper input."),
+        returns = "A `CommandError` representing a validation error for one command helper input.",
         example = "use sand::prelude::*;\n\nfn demonstrate(helper: & 'static str, field: impl Into < String >, message: impl Into < String >)  {\n    let command_error = sand::command::CommandError::new(helper, field, message);\n}",
     )]
     pub fn new(helper: &'static str, field: impl Into<String>, message: impl Into<String>) -> Self {
@@ -87,7 +87,7 @@ impl CommandError {
         minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        params(code = "`code` supplies the code value used to override the stable diagnostic category."),
+        params(code = "`code` is used to override the stable diagnostic category."),
         returns = "The `CommandError` value with the documented change applied to override the stable diagnostic category.",
         example = "use sand::prelude::*;\n\nfn demonstrate(command_error_value: sand::command::CommandError, code: impl Into < String >)  {\n    let updated_command_error = command_error_value.with_code(code);\n}",
     )]
@@ -108,7 +108,7 @@ impl CommandError {
         minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        params(context = "`context` supplies the context value used to add command/function context without discarding the original field error."),
+        params(context = "`context` provides the context added when building command/function context without discarding the original field error."),
         returns = "The `CommandError` value with the documented change applied to add command/function context without discarding the original field error.",
         example = "use sand::prelude::*;\n\nfn demonstrate(command_error_value: sand::command::CommandError, context: impl AsRef < str >)  {\n    let updated_command_error = command_error_value.with_context(context);\n}",
     )]

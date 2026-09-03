@@ -183,7 +183,7 @@ impl ChatStyle {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        returns = "A newly constructed `ChatStyle` configured to create an empty style with no overrides set.",
+        returns = "A `ChatStyle` representing an empty style with no overrides set.",
         example = "use sand::prelude::*;\n\nfn demonstrate()  {\n    let chat_style = sand::component::ChatStyle::new();\n}",
     )]
     pub fn new() -> Self {
@@ -202,7 +202,7 @@ impl ChatStyle {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(color = "`color` provides the player-visible text value used to set a named vanilla text color."),
+        params(color = "`color` provides the player-visible text applied when setting a named vanilla text color."),
         returns = "The `ChatStyle` value with the documented change applied to set a named vanilla text color.",
         example = "use sand::prelude::*;\n\nfn demonstrate(chat_style_value: sand::component::ChatStyle, color: sand::text::ChatColor)  {\n    let updated_chat_style = chat_style_value.color(color);\n}",
     )]
@@ -223,7 +223,7 @@ impl ChatStyle {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(hex = "`hex` supplies the hex value used to set a raw `#RRGGBB` hex color (validated before export)."),
+        params(hex = "`hex` provides the hex applied when setting a raw `#RRGGBB` hex color (validated before export)."),
         returns = "The `ChatStyle` value with the documented change applied to set a raw `#RRGGBB` hex color (validated before export).",
         example = "use sand::prelude::*;\n\nfn demonstrate(chat_style_value: sand::component::ChatStyle, hex: impl Into < String >)  {\n    let updated_chat_style = chat_style_value.color_hex(hex);\n}",
     )]
@@ -349,7 +349,7 @@ impl ChatStyle {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(text = "`text` provides the author-visible text value used to set the shift-click chat insertion text."),
+        params(text = "`text` provides the author-visible text applied when setting the shift-click chat insertion text."),
         returns = "The `ChatStyle` value with the documented change applied to set the shift-click chat insertion text.",
         example = "use sand::prelude::*;\n\nfn demonstrate(chat_style_value: sand::component::ChatStyle, text: impl Into < String >)  {\n    let updated_chat_style = chat_style_value.insertion(text);\n}",
     )]
@@ -460,8 +460,8 @@ impl ChatDecoration {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(translation_key = "`translation_key` supplies the translation key value used to create a new decoration with the given translation key."),
-        returns = "A newly constructed `ChatDecoration` configured to create a new decoration with the given translation key.",
+        params(translation_key = "`translation_key` is used when creating a new decoration with the given translation key."),
+        returns = "A `ChatDecoration` representing a new decoration with the given translation key.",
         example = "use sand::prelude::*;\n\nfn demonstrate(translation_key: impl Into < String >)  {\n    let chat_decoration = sand::component::ChatDecoration::new(translation_key);\n}",
     )]
     pub fn new(translation_key: impl Into<String>) -> Self {
@@ -489,7 +489,7 @@ impl ChatDecoration {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(param = "`param` supplies the param value used to add a parameter to the decoration."),
+        params(param = "`param` provides the param added when building a parameter to the decoration."),
         returns = "The `ChatDecoration` value with the documented change applied to add a parameter to the decoration.",
         example = "use {sand::component::ChatDecoration, sand::component::ChatDecorationParameter};\nlet deco = ChatDecoration::new(\"chat.type.text\").parameter(ChatDecorationParameter::Sender);",
     )]
@@ -510,7 +510,7 @@ impl ChatDecoration {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(params = "`params` supplies the params value used to set multiple parameters at once."),
+        params(params = "`params` provides the params applied when setting multiple parameters at once."),
         returns = "The `ChatDecoration` value with the documented change applied to set multiple parameters at once.",
         example = "use sand::prelude::*;\n\nfn demonstrate(chat_decoration_value: sand::component::ChatDecoration, params: impl IntoIterator < Item = impl Into < sand::component::ChatDecorationParameter > >)  {\n    let updated_chat_decoration = chat_decoration_value.parameters(params);\n}",
     )]
@@ -542,7 +542,7 @@ impl ChatDecoration {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(style = "`style` supplies the style value used to set typed style overrides (color, bold, italic, ...)."),
+        params(style = "`style` provides the style applied when setting typed style overrides (color, bold, italic, ...)."),
         returns = "The `ChatDecoration` value with the documented change applied to set typed style overrides (color, bold, italic, ...).",
         example = "use {sand::component::ChatDecoration, sand::component::ChatStyle};\nuse sand::text::ChatColor;\nlet deco = ChatDecoration::new(\"chat.type.text\")\n.style(ChatStyle::new().color(ChatColor::Yellow).bold(true));",
     )]
@@ -566,7 +566,7 @@ impl ChatDecoration {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(style = "`style` supplies the style value used to set a raw JSON style object (e.g. `{\"color\":\"yellow\",\"bold\":true}`)."),
+        params(style = "`style` provides the style applied when setting a raw JSON style object (e.g. `{\"color\":\"yellow\",\"bold\":true}`)."),
         returns = "The `ChatDecoration` value with the documented change applied to set a raw JSON style object (e.g. `{\"color\":\"yellow\",\"bold\":true}`).",
         example = "use sand::prelude::*;\n\nfn demonstrate(chat_decoration_value: sand::component::ChatDecoration, style: sand::component::RawJson)  {\n    let updated_chat_decoration = chat_decoration_value.style_raw(style);\n}",
     )]
@@ -701,8 +701,8 @@ impl ChatType {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(location = "`location` provides the typed resource identifier or location used to create a new chat type with the given resource location and chat decoration.", chat = "`chat` supplies the chat value used to create a new chat type with the given resource location and chat decoration."),
-        returns = "A newly constructed `ChatType` configured to create a new chat type with the given resource location and chat decoration.",
+        params(location = "`location` provides the typed resource identifier or location used to create a new chat type with the given resource location and chat decoration.", chat = "`chat` is used when creating a new chat type with the given resource location and chat decoration."),
+        returns = "A `ChatType` representing a new chat type with the given resource location and chat decoration.",
         example = "use sand::prelude::*;\n\nfn demonstrate(location: sand::ResourceLocation, chat: sand::component::ChatDecoration)  {\n    let chat_type = sand::component::ChatType::new(location, chat);\n}",
     )]
     pub fn new(location: ResourceLocation, chat: ChatDecoration) -> Self {
@@ -725,7 +725,7 @@ impl ChatType {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(narration = "`narration` supplies the narration value used to set the narration decoration (used by the narrator / screen readers)."),
+        params(narration = "`narration` provides the narration applied when setting the narration decoration (used by the narrator / screen readers)."),
         returns = "The `ChatType` value with the documented change applied to set the narration decoration (used by the narrator / screen readers).",
         example = "use sand::prelude::*;\n\nfn demonstrate(chat_type_value: sand::component::ChatType, narration: sand::component::ChatDecoration)  {\n    let updated_chat_type = chat_type_value.narration(narration);\n}",
     )]

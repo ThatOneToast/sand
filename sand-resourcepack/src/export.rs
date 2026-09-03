@@ -32,7 +32,7 @@ use crate::descriptor::ResourcePackDescriptor;
     minecraft = "Called by the generated `sand_resource_export` binary inside the user's project.",
     use_when = ["Building HUD bars, HUD elements, textures, or resource-pack output alongside a Sand datapack"],
     avoid_when = ["The project is datapack-only or needs unrelated resource-pack functionality not modeled by Sand"],
-    params(namespace = "`namespace` supplies the namespace value used to collect all inventory-registered resource pack components, merge font providers that share the same output file, and return the result as a JSON string for consumption by `sand build --resourcepack`."),
+    params(namespace = "`namespace` is used to collect all inventory-registered resource pack components, merge font providers that share the same output file, and return the result as a JSON string for consumption by `sand build --resourcepack`."),
     returns = "The string value produced to collect all inventory-registered resource pack components, merge font providers that share the same output file, and return the result as a JSON string for consumption by `sand build --resourcepack`.",
     example = "use sand::prelude::*;\n\nfn demonstrate(namespace: & str)  {\n    let export_resourcepack_json = sand::resourcepack::export_resourcepack_json(namespace);\n}",
     availability = ["Cargo feature: resourcepack"],

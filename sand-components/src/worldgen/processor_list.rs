@@ -59,8 +59,8 @@ impl ProcessorRule {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(input_predicate = "`input_predicate` must be a JSON object matching vanilla's block predicate grammar (e.g. `{\"predicate_type\": \"minecraft:block_match\", \"block\": \"minecraft:stone\"}`).", output_state = "`output_state` supplies the output state value used to emit the documented `input_predicate` must be a JSON object matching vanilla's block predicate grammar (e.g. `{\"predicate_type\": \"minecraft:block_match\", \"block\": \"minecraft:stone\"}`) form."),
-        returns = "A newly constructed `ProcessorRule` configured to emit the documented `input_predicate` must be a JSON object matching vanilla's block predicate grammar (e.g. `{\"predicate_type\": \"minecraft:block_match\", \"block\": \"minecraft:stone\"}`) form.",
+        params(input_predicate = "`input_predicate` must be a JSON object matching vanilla's block predicate grammar (e.g. `{\"predicate_type\": \"minecraft:block_match\", \"block\": \"minecraft:stone\"}`).", output_state = "`output_state` supplies the documented `input_predicate` must be a JSON object matching vanilla's block predicate grammar (e.g. `{\"predicate_type\": \"minecraft:block_match\", \"block\": \"minecraft:stone\"}`) form."),
+        returns = "A `ProcessorRule` that emits the documented `input_predicate` must be a JSON object matching vanilla's block predicate grammar (e.g. `{\"predicate_type\": \"minecraft:block_match\", \"block\": \"minecraft:stone\"}`) form.",
         example = "use sand::prelude::*;\n\nfn demonstrate(input_predicate: sand::component::RawJson, output_state: sand::component::BlockState)  {\n    let processor_rule = sand::component::ProcessorRule::new(input_predicate, output_state);\n}",
     )]
     pub fn new(input_predicate: RawJson, output_state: BlockState) -> Self {
@@ -375,8 +375,8 @@ impl ProcessorList {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(location = "`location` provides the typed resource identifier or location used to create a processor list from an ordered sequence of processors.", processors = "`processors` supplies the processors value used to create a processor list from an ordered sequence of processors."),
-        returns = "A newly constructed `ProcessorList` configured to create a processor list from an ordered sequence of processors.",
+        params(location = "`location` provides the typed resource identifier or location used to create a processor list from an ordered sequence of processors.", processors = "`processors` is used when creating a processor list from an ordered sequence of processors."),
+        returns = "A `ProcessorList` representing a processor list from an ordered sequence of processors.",
         example = "use sand::prelude::*;\n\nfn demonstrate(location: sand::ResourceLocation, processors: impl IntoIterator < Item = sand::component::Processor >)  {\n    let processor_list = sand::component::ProcessorList::new(location, processors);\n}",
     )]
     pub fn new(
@@ -402,7 +402,7 @@ impl ProcessorList {
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
         params(location = "`location` provides the typed resource identifier or location used to emit the documented `minecraft:empty` — the vanilla no-op processor list shape (empty list) form."),
-        returns = "A newly constructed `ProcessorList` configured to emit the documented `minecraft:empty` — the vanilla no-op processor list shape (empty list) form.",
+        returns = "A `ProcessorList` that emits the documented `minecraft:empty` — the vanilla no-op processor list shape (empty list) form.",
         example = "use sand::prelude::*;\n\nfn demonstrate(location: sand::ResourceLocation)  {\n    let processor_list = sand::component::ProcessorList::empty(location);\n}",
     )]
     pub fn empty(location: ResourceLocation) -> Self {
@@ -421,7 +421,7 @@ impl ProcessorList {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(processor = "`processor` supplies the processor value used to set the Minecraft processor property on this typed processor list definition and returns the updated builder."),
+        params(processor = "`processor` provides the processor applied when setting the Minecraft processor property on this typed processor list definition and returns the updated builder."),
         returns = "Sets the Minecraft processor property on this typed processor list definition and returns the updated builder.",
         example = "use sand::prelude::*;\n\nfn demonstrate(processor_list_value: sand::component::ProcessorList, processor: sand::component::Processor)  {\n    let updated_processor_list = processor_list_value.processor(processor);\n}",
     )]
@@ -442,7 +442,7 @@ impl ProcessorList {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(processors = "`processors` supplies the processors value used to set the Minecraft processors property on this typed processor list definition and returns the updated builder."),
+        params(processors = "`processors` provides the processors applied when setting the Minecraft processors property on this typed processor list definition and returns the updated builder."),
         returns = "Sets the Minecraft processors property on this typed processor list definition and returns the updated builder.",
         example = "use sand::prelude::*;\n\nfn demonstrate(processor_list_value: sand::component::ProcessorList, processors: impl IntoIterator < Item = sand::component::Processor >)  {\n    let updated_processor_list = processor_list_value.processors(processors);\n}",
     )]

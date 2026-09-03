@@ -46,7 +46,7 @@ impl ItemModifier {
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
         params(location = "`location` provides the typed resource identifier or location used to create a new item modifier with the given resource location."),
-        returns = "A newly constructed `ItemModifier` configured to create a new item modifier with the given resource location.",
+        returns = "An `ItemModifier` representing a new item modifier with the given resource location.",
         example = "use sand::prelude::*;\n\nfn demonstrate(location: sand::ResourceLocation)  {\n    let item_modifier = sand::component::ItemModifier::new(location);\n}",
     )]
     pub fn new(location: ResourceLocation) -> Self {
@@ -68,7 +68,7 @@ impl ItemModifier {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(f = "`f` supplies the f value used to add a loot function to this item modifier."),
+        params(f = "`f` provides the f added when building a loot function to this item modifier."),
         returns = "The `ItemModifier` value with the documented change applied to add a loot function to this item modifier.",
         example = "use sand::prelude::*;\n\nfn demonstrate(item_modifier_value: sand::component::ItemModifier, f: sand::component::LootFunction)  {\n    let updated_item_modifier = item_modifier_value.function(f);\n}",
     )]

@@ -47,7 +47,7 @@ impl StorageLocation {
         use_when = ["Reading or mutating structured Minecraft NBT through typed paths and values"],
         avoid_when = ["A scoreboard-backed state field is simpler, or the input is untrusted raw SNBT"],
         params(id = "`id` provides the typed resource identifier or location used to create a command-storage location from a validated resource identifier."),
-        returns = "A newly constructed `StorageLocation` configured to create a command-storage location from a validated resource identifier.",
+        returns = "A `StorageLocation` representing a command-storage location from a validated resource identifier.",
         example = "use sand::prelude::*;\n\nfn demonstrate(id: sand::ResourceLocation)  {\n    let storage_location = sand::data::StorageLocation::new(id);\n}",
     )]
     pub fn new(id: ResourceLocation) -> Self {
@@ -138,7 +138,7 @@ impl EntityNbt {
         use_when = ["Reading or mutating structured Minecraft NBT through typed paths and values"],
         avoid_when = ["A scoreboard-backed state field is simpler, or the input is untrusted raw SNBT"],
         params(target = "`target` provides the entity, block, or command target used to create an entity NBT root bound to the supplied selector."),
-        returns = "A newly constructed `EntityNbt` configured to create an entity NBT root bound to the supplied selector.",
+        returns = "An `EntityNbt` representing an entity NBT root bound to the supplied selector.",
         example = "use sand::prelude::*;\n\nfn demonstrate(target: sand::command::Selector)  {\n    let entity_nbt = sand::data::EntityNbt::target(target);\n}",
     )]
     pub fn target(target: Selector) -> Self {
@@ -197,8 +197,8 @@ impl BlockNbt {
         minecraft = "Operations render vanilla data commands against entity, block, or namespaced command-storage targets and validate writable target cardinality.",
         use_when = ["Reading or mutating structured Minecraft NBT through typed paths and values"],
         avoid_when = ["A scoreboard-backed state field is simpler, or the input is untrusted raw SNBT"],
-        params(pos = "`pos` supplies the pos value used to create a block NBT root bound to the supplied coordinates."),
-        returns = "A newly constructed `BlockNbt` configured to create a block NBT root bound to the supplied coordinates.",
+        params(pos = "`pos` is used when creating a block NBT root bound to the supplied coordinates."),
+        returns = "A `BlockNbt` representing a block NBT root bound to the supplied coordinates.",
         example = "use sand::prelude::*;\n\nfn demonstrate(pos: sand::command::BlockPos)  {\n    let block_nbt = sand::data::BlockNbt::pos(pos);\n}",
     )]
     pub fn pos(pos: BlockPos) -> Self {
@@ -284,8 +284,8 @@ impl<T> StorageSchema<T> {
         minecraft = "Operations render vanilla data commands against entity, block, or namespaced command-storage targets and validate writable target cardinality.",
         use_when = ["Reading or mutating structured Minecraft NBT through typed paths and values"],
         avoid_when = ["A scoreboard-backed state field is simpler, or the input is untrusted raw SNBT"],
-        params(storage = "`storage` supplies the storage value used to define a typed schema at a command-storage resource and root NBT path.", root = "`root` supplies the root value used to define a typed schema at a command-storage resource and root NBT path."),
-        returns = "A newly constructed `StorageSchema` configured to define a typed schema at a command-storage resource and root NBT path.",
+        params(storage = "`storage` provides the storage used when defining a typed schema at a command-storage resource and root NBT path.", root = "`root` provides the root used when defining a typed schema at a command-storage resource and root NBT path."),
+        returns = "A `StorageSchema` defining a typed schema at a command-storage resource and root NBT path.",
         example = "use sand::prelude::*;\n\nfn demonstrate<T: 'static>(storage: & 'static str, root: & 'static str)  {\n    let storage_schema = sand::data::StorageSchema ::< T >::new(storage, root);\n}",
     )]
     pub const fn new(storage: &'static str, root: &'static str) -> Self {
@@ -346,7 +346,7 @@ impl<T> StorageSchema<T> {
         minecraft = "Operations render vanilla data commands against entity, block, or namespaced command-storage targets and validate writable target cardinality.",
         use_when = ["Reading or mutating structured Minecraft NBT through typed paths and values"],
         avoid_when = ["A scoreboard-backed state field is simpler, or the input is untrusted raw SNBT"],
-        params(field = "`field` supplies the field value used to extend this typed NBT reference with the supplied field selector."),
+        params(field = "`field` is used to extend this typed NBT reference with the supplied field selector."),
         returns = "The `StorageField < T , U >` value produced to extend this typed NBT reference with the supplied field selector.",
         example = "use sand::prelude::*;\n\nfn demonstrate<T: 'static, U: 'static>(storage_schema_value: &sand::data::StorageSchema < T >, field: & 'static str)  {\n    let field = storage_schema_value.field::<U>(field);\n}",
     )]
@@ -450,7 +450,7 @@ impl<T> StorageSchema<T> {
         minecraft = "Operations render vanilla data commands against entity, block, or namespaced command-storage targets and validate writable target cardinality.",
         use_when = ["Reading or mutating structured Minecraft NBT through typed paths and values"],
         avoid_when = ["A scoreboard-backed state field is simpler, or the input is untrusted raw SNBT"],
-        params(raw = "`raw` supplies the raw value used to provide the explicit raw SNBT escape hatch after the caller accepts validation responsibility."),
+        params(raw = "`raw` is used to provide the explicit raw SNBT escape hatch after the caller accepts validation responsibility."),
         returns = "The string value produced to provide the explicit raw SNBT escape hatch after the caller accepts validation responsibility.",
         example = "use sand::prelude::*;\n\nfn demonstrate<T: 'static>(storage_schema_value: &sand::data::StorageSchema < T >, raw: sand::component::RawSnbt)  {\n    let set_raw_snbt = storage_schema_value.set_raw_snbt(raw);\n}",
     )]
@@ -560,8 +560,8 @@ impl<Schema, T> StorageField<Schema, T> {
         minecraft = "Operations render vanilla data commands against entity, block, or namespaced command-storage targets and validate writable target cardinality.",
         use_when = ["Reading or mutating structured Minecraft NBT through typed paths and values"],
         avoid_when = ["A scoreboard-backed state field is simpler, or the input is untrusted raw SNBT"],
-        params(schema = "`schema` supplies the schema value used to create a typed field belonging to the supplied storage schema.", field = "`field` supplies the field value used to create a typed field belonging to the supplied storage schema."),
-        returns = "A newly constructed `StorageField` configured to create a typed field belonging to the supplied storage schema.",
+        params(schema = "`schema` is used when creating a typed field belonging to the supplied storage schema.", field = "`field` is used when creating a typed field belonging to the supplied storage schema."),
+        returns = "A `StorageField` representing a typed field belonging to the supplied storage schema.",
         example = "use sand::prelude::*;\n\nfn demonstrate<Schema: 'static, T: 'static>(schema: & sand::data::StorageSchema < Schema >, field: & 'static str)  {\n    let storage_field = sand::data::StorageField ::< Schema , T >::new(schema, field);\n}",
     )]
     pub const fn new(schema: &StorageSchema<Schema>, field: &'static str) -> Self {
@@ -745,7 +745,7 @@ impl<Schema, T> StorageField<Schema, T> {
         minecraft = "Operations render vanilla data commands against entity, block, or namespaced command-storage targets and validate writable target cardinality.",
         use_when = ["Reading or mutating structured Minecraft NBT through typed paths and values"],
         avoid_when = ["A scoreboard-backed state field is simpler, or the input is untrusted raw SNBT"],
-        params(scale = "`scale` supplies the scale value used to build the typed Minecraft data query for get scaled."),
+        params(scale = "`scale` provides the scale used to build the typed Minecraft data query for get scaled."),
         returns = "The string value produced to build the typed Minecraft data query for get scaled.",
         example = "use sand::prelude::*;\n\nfn demonstrate<Schema: 'static, T: 'static>(storage_field_value: &sand::data::StorageField < Schema , T >, scale: f64)  {\n    let get_scaled = storage_field_value.get_scaled(scale);\n}",
     )]
@@ -805,7 +805,7 @@ impl<Schema, T> StorageField<Schema, T> {
         minecraft = "Operations render vanilla data commands against entity, block, or namespaced command-storage targets and validate writable target cardinality.",
         use_when = ["Reading or mutating structured Minecraft NBT through typed paths and values"],
         avoid_when = ["A scoreboard-backed state field is simpler, or the input is untrusted raw SNBT"],
-        params(raw = "`raw` supplies the raw value used to provide the explicit raw SNBT escape hatch after the caller accepts validation responsibility."),
+        params(raw = "`raw` is used to provide the explicit raw SNBT escape hatch after the caller accepts validation responsibility."),
         returns = "The string value produced to provide the explicit raw SNBT escape hatch after the caller accepts validation responsibility.",
         example = "use sand::prelude::*;\n\nfn demonstrate<Schema: 'static, T: 'static>(storage_field_value: &sand::data::StorageField < Schema , T >, raw: sand::component::RawSnbt)  {\n    let set_raw_snbt = storage_field_value.set_raw_snbt(raw);\n}",
     )]
@@ -866,7 +866,7 @@ impl<Schema, T> StorageField<Schema, T> {
         minecraft = "Operations render vanilla data commands against entity, block, or namespaced command-storage targets and validate writable target cardinality.",
         use_when = ["Reading or mutating structured Minecraft NBT through typed paths and values"],
         avoid_when = ["A scoreboard-backed state field is simpler, or the input is untrusted raw SNBT"],
-        params(source = "`source` supplies the source value used to build the typed Minecraft data modification for copy from."),
+        params(source = "`source` provides the source used to build the typed Minecraft data modification for copy from."),
         returns = "The string value produced to build the typed Minecraft data modification for copy from.",
         example = "use sand::prelude::*;\n\nfn demonstrate<Schema: 'static, T: 'static, OtherSchema: 'static, U: 'static>(storage_field_value: &sand::data::StorageField < Schema , T >, source: sand::data::StorageField < OtherSchema , U >)  {\n    let copy_from = storage_field_value.copy_from::<OtherSchema, U>(source);\n}",
     )]
@@ -892,7 +892,7 @@ impl<Schema, T> StorageField<Schema, T> {
         minecraft = "Copy a value from entity NBT into this field. Takes a typed [`Selector`] — never build this by stringifying a participant handle yourself; pass [`Selector::self_()`] from inside an [`sand::participant::EntityParticipant::execute_at`] callback (or any other typed selector) instead.",
         use_when = ["Reading or mutating structured Minecraft NBT through typed paths and values"],
         avoid_when = ["A scoreboard-backed state field is simpler, or the input is untrusted raw SNBT"],
-        params(entity = "`entity` provides the entity participant or predicate used to emit the documented `data modify storage <s> <path> set from entity <entity> <src_path>` form.", src_path = "`src_path` supplies the src path value used to emit the documented `data modify storage <s> <path> set from entity <entity> <src_path>` form."),
+        params(entity = "`entity` provides the entity participant or predicate used to emit the documented `data modify storage <s> <path> set from entity <entity> <src_path>` form.", src_path = "`src_path` supplies the documented `data modify storage <s> <path> set from entity <entity> <src_path>` form."),
         returns = "The string value produced to emit the documented `data modify storage <s> <path> set from entity <entity> <src_path>` form.",
         example = "use sand::prelude::*;\n\nfn demonstrate<Schema: 'static, T: 'static>(storage_field_value: &sand::data::StorageField < Schema , T >, entity: sand::command::Selector, src_path: impl Into < String >)  {\n    let copy_from_entity = storage_field_value.copy_from_entity(entity, src_path);\n}",
     )]
@@ -913,7 +913,7 @@ impl<Schema, T> StorageField<Schema, T> {
         minecraft = "Operations render vanilla data commands against entity, block, or namespaced command-storage targets and validate writable target cardinality.",
         use_when = ["Reading or mutating structured Minecraft NBT through typed paths and values"],
         avoid_when = ["A scoreboard-backed state field is simpler, or the input is untrusted raw SNBT"],
-        params(source_storage = "`source_storage` supplies the source storage value used to build the typed Minecraft data modification for copy from path.", source_path = "`source_path` supplies the source path value used to build the typed Minecraft data modification for copy from path."),
+        params(source_storage = "`source_storage` provides the source storage used to build the typed Minecraft data modification for copy from path.", source_path = "`source_path` provides the source path used to build the typed Minecraft data modification for copy from path."),
         returns = "The string value produced to build the typed Minecraft data modification for copy from path.",
         example = "use sand::prelude::*;\n\nfn demonstrate<Schema: 'static, T: 'static>(storage_field_value: &sand::data::StorageField < Schema , T >, source_storage: sand::data::StorageLocation, source_path: sand::data::NbtPath)  {\n    let copy_from_path = storage_field_value.copy_from_path(source_storage, source_path);\n}",
     )]
@@ -1017,8 +1017,8 @@ impl<T> StorageVar<T> {
         minecraft = "Operations render vanilla data commands against entity, block, or namespaced command-storage targets and validate writable target cardinality.",
         use_when = ["Reading or mutating structured Minecraft NBT through typed paths and values"],
         avoid_when = ["A scoreboard-backed state field is simpler, or the input is untrusted raw SNBT"],
-        params(storage = "`storage` supplies the storage value used to create a new `StorageVar` pointing at `<storage> <path>`.", path = "`path` provides the typed resource identifier or location used to create a new `StorageVar` pointing at `<storage> <path>`."),
-        returns = "A newly constructed `StorageVar` configured to create a new `StorageVar` pointing at `<storage> <path>`.",
+        params(storage = "`storage` is used when creating a new `StorageVar` pointing at `<storage> <path>`.", path = "`path` provides the typed resource identifier or location used to create a new `StorageVar` pointing at `<storage> <path>`."),
+        returns = "A `StorageVar` representing a new `StorageVar` pointing at `<storage> <path>`.",
         example = "use sand::prelude::*;\n\nfn demonstrate<T: 'static>(storage: & 'static str, path: & 'static str)  {\n    let storage_var = sand::data::StorageVar ::< T >::new(storage, path);\n}",
     )]
     pub const fn new(storage: &'static str, path: &'static str) -> Self {
@@ -1119,7 +1119,7 @@ impl<T> StorageVar<T> {
         minecraft = "Operations render vanilla data commands against entity, block, or namespaced command-storage targets and validate writable target cardinality.",
         use_when = ["Reading or mutating structured Minecraft NBT through typed paths and values"],
         avoid_when = ["A scoreboard-backed state field is simpler, or the input is untrusted raw SNBT"],
-        params(scale = "`scale` supplies the scale value used to emit the documented `data get storage <storage> <path> <scale>` — read a numeric value with scale form."),
+        params(scale = "`scale` supplies the documented `data get storage <storage> <path> <scale>` — read a numeric value with scale form."),
         returns = "The string value produced to emit the documented `data get storage <storage> <path> <scale>` — read a numeric value with scale form.",
         example = "use sand::prelude::*;\n\nfn demonstrate<T: 'static>(storage_var_value: &sand::data::StorageVar < T >, scale: f64)  {\n    let get_scaled = storage_var_value.get_scaled(scale);\n}",
     )]
@@ -1161,7 +1161,7 @@ impl<T> StorageVar<T> {
         minecraft = "Operations render vanilla data commands against entity, block, or namespaced command-storage targets and validate writable target cardinality.",
         use_when = ["Reading or mutating structured Minecraft NBT through typed paths and values"],
         avoid_when = ["A scoreboard-backed state field is simpler, or the input is untrusted raw SNBT"],
-        params(snbt = "`snbt` supplies the snbt value used to emit the documented `data modify storage <storage> <path> set value <snbt>` — raw SNBT escape hatch form."),
+        params(snbt = "`snbt` supplies the documented `data modify storage <storage> <path> set value <snbt>` — raw SNBT escape hatch form."),
         returns = "The string value produced to emit the documented `data modify storage <storage> <path> set value <snbt>` — raw SNBT escape hatch form.",
         example = "use sand::prelude::*;\n\nfn demonstrate<T: 'static>(storage_var_value: &sand::data::StorageVar < T >, snbt: sand::component::RawSnbt)  {\n    let set_raw_snbt = storage_var_value.set_raw_snbt(snbt);\n}",
     )]
@@ -1181,7 +1181,7 @@ impl<T> StorageVar<T> {
         minecraft = "Operations render vanilla data commands against entity, block, or namespaced command-storage targets and validate writable target cardinality.",
         use_when = ["Reading or mutating structured Minecraft NBT through typed paths and values"],
         avoid_when = ["A scoreboard-backed state field is simpler, or the input is untrusted raw SNBT"],
-        params(v = "`v` supplies the v value used to set an integer value."),
+        params(v = "`v` provides the v applied when setting an integer value."),
         returns = "The string value produced to set an integer value.",
         example = "use sand::prelude::*;\n\nfn demonstrate<T: 'static>(storage_var_value: &sand::data::StorageVar < T >, v: i32)  {\n    let set_int = storage_var_value.set_int(v);\n}",
     )]
@@ -1201,7 +1201,7 @@ impl<T> StorageVar<T> {
         minecraft = "Operations render vanilla data commands against entity, block, or namespaced command-storage targets and validate writable target cardinality.",
         use_when = ["Reading or mutating structured Minecraft NBT through typed paths and values"],
         avoid_when = ["A scoreboard-backed state field is simpler, or the input is untrusted raw SNBT"],
-        params(v = "`v` supplies the v value used to set a long value (`<v>L` SNBT)."),
+        params(v = "`v` provides the v applied when setting a long value (`<v>L` SNBT)."),
         returns = "The string value produced to set a long value (`<v>L` SNBT).",
         example = "use sand::prelude::*;\n\nfn demonstrate<T: 'static>(storage_var_value: &sand::data::StorageVar < T >, v: i64)  {\n    let set_long = storage_var_value.set_long(v);\n}",
     )]
@@ -1221,7 +1221,7 @@ impl<T> StorageVar<T> {
         minecraft = "Operations render vanilla data commands against entity, block, or namespaced command-storage targets and validate writable target cardinality.",
         use_when = ["Reading or mutating structured Minecraft NBT through typed paths and values"],
         avoid_when = ["A scoreboard-backed state field is simpler, or the input is untrusted raw SNBT"],
-        params(v = "`v` supplies the v value used to set a float value (`<v>f` SNBT)."),
+        params(v = "`v` provides the v applied when setting a float value (`<v>f` SNBT)."),
         returns = "The string value produced to set a float value (`<v>f` SNBT).",
         example = "use sand::prelude::*;\n\nfn demonstrate<T: 'static>(storage_var_value: &sand::data::StorageVar < T >, v: f32)  {\n    let set_float = storage_var_value.set_float(v);\n}",
     )]
@@ -1241,7 +1241,7 @@ impl<T> StorageVar<T> {
         minecraft = "Operations render vanilla data commands against entity, block, or namespaced command-storage targets and validate writable target cardinality.",
         use_when = ["Reading or mutating structured Minecraft NBT through typed paths and values"],
         avoid_when = ["A scoreboard-backed state field is simpler, or the input is untrusted raw SNBT"],
-        params(v = "`v` supplies the v value used to set a double value (`<v>d` SNBT)."),
+        params(v = "`v` provides the v applied when setting a double value (`<v>d` SNBT)."),
         returns = "The string value produced to set a double value (`<v>d` SNBT).",
         example = "use sand::prelude::*;\n\nfn demonstrate<T: 'static>(storage_var_value: &sand::data::StorageVar < T >, v: f64)  {\n    let set_double = storage_var_value.set_double(v);\n}",
     )]
@@ -1261,7 +1261,7 @@ impl<T> StorageVar<T> {
         minecraft = "Operations render vanilla data commands against entity, block, or namespaced command-storage targets and validate writable target cardinality.",
         use_when = ["Reading or mutating structured Minecraft NBT through typed paths and values"],
         avoid_when = ["A scoreboard-backed state field is simpler, or the input is untrusted raw SNBT"],
-        params(v = "`v` supplies the v value used to set a string value (auto-quoted, backslash-escaping inner quotes)."),
+        params(v = "`v` provides the v applied when setting a string value (auto-quoted, backslash-escaping inner quotes)."),
         returns = "The string value produced to set a string value (auto-quoted, backslash-escaping inner quotes).",
         example = "use sand::prelude::*;\n\nfn demonstrate<T: 'static>(storage_var_value: &sand::data::StorageVar < T >, v: & str)  {\n    let set_string = storage_var_value.set_string(v);\n}",
     )]
@@ -1301,7 +1301,7 @@ impl<T> StorageVar<T> {
         minecraft = "Operations render vanilla data commands against entity, block, or namespaced command-storage targets and validate writable target cardinality.",
         use_when = ["Reading or mutating structured Minecraft NBT through typed paths and values"],
         avoid_when = ["A scoreboard-backed state field is simpler, or the input is untrusted raw SNBT"],
-        params(src_storage = "`src_storage` supplies the src storage value used to emit the documented `data modify storage <storage> <path> set from storage <src> <src_path>` — copy form.", src_path = "`src_path` supplies the src path value used to emit the documented `data modify storage <storage> <path> set from storage <src> <src_path>` — copy form."),
+        params(src_storage = "`src_storage` supplies the documented `data modify storage <storage> <path> set from storage <src> <src_path>` — copy form.", src_path = "`src_path` supplies the documented `data modify storage <storage> <path> set from storage <src> <src_path>` — copy form."),
         returns = "The string value produced to emit the documented `data modify storage <storage> <path> set from storage <src> <src_path>` — copy form.",
         example = "use sand::prelude::*;\n\nfn demonstrate<T: 'static>(storage_var_value: &sand::data::StorageVar < T >, src_storage: & str, src_path: & str)  {\n    let copy_from = storage_var_value.copy_from(src_storage, src_path);\n}",
     )]

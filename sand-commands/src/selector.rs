@@ -341,7 +341,7 @@ impl<A> EntityTarget<A> {
         minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        params(tag = "`tag` supplies the tag value used to emit the documented `tag=<tag>` — select only entities that have the given tag form."),
+        params(tag = "`tag` supplies the documented `tag=<tag>` — select only entities that have the given tag form."),
         returns = "The `EntityTarget` value with the documented change applied to emit the documented `tag=<tag>` — select only entities that have the given tag form.",
         example = "use sand::prelude::*;\n\nfn demonstrate<A: 'static>(entity_target_value: sand::command::EntityTarget < A >, tag: impl Into < String >)  {\n    let updated_entity_target = entity_target_value.tag(tag);\n}",
     )]
@@ -362,7 +362,7 @@ impl<A> EntityTarget<A> {
         minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        params(tag = "`tag` supplies the tag value used to emit the documented `tag=!<tag>` — select only entities that do NOT have the given tag form."),
+        params(tag = "`tag` supplies the documented `tag=!<tag>` — select only entities that do NOT have the given tag form."),
         returns = "The `EntityTarget` value with the documented change applied to emit the documented `tag=!<tag>` — select only entities that do NOT have the given tag form.",
         example = "use sand::prelude::*;\n\nfn demonstrate<A: 'static>(entity_target_value: sand::command::EntityTarget < A >, tag: impl Into < String >)  {\n    let updated_entity_target = entity_target_value.not_tag(tag);\n}",
     )]
@@ -383,7 +383,7 @@ impl<A> EntityTarget<A> {
         minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        params(ty = "`ty` supplies the ty value used to emit the documented `type=<entity_type>` — select only entities of the given type form."),
+        params(ty = "`ty` supplies the documented `type=<entity_type>` — select only entities of the given type form."),
         returns = "The `EntityTarget` value with the documented change applied to emit the documented `type=<entity_type>` — select only entities of the given type form.",
         example = "use sand::prelude::*;\n\nfn demonstrate<A: 'static>(entity_target_value: sand::command::EntityTarget < A >, ty: impl sand::command::IntoEntityType)  {\n    let updated_entity_target = entity_target_value.entity_type(ty);\n}",
     )]
@@ -404,7 +404,7 @@ impl<A> EntityTarget<A> {
         minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        params(ty = "`ty` supplies the ty value used to emit the documented `type=!<entity_type>` — select only entities NOT of the given type form."),
+        params(ty = "`ty` supplies the documented `type=!<entity_type>` — select only entities NOT of the given type form."),
         returns = "The `EntityTarget` value with the documented change applied to emit the documented `type=!<entity_type>` — select only entities NOT of the given type form.",
         example = "use sand::prelude::*;\n\nfn demonstrate<A: 'static>(entity_target_value: sand::command::EntityTarget < A >, ty: impl sand::command::IntoEntityType)  {\n    let updated_entity_target = entity_target_value.not_type(ty);\n}",
     )]
@@ -454,7 +454,7 @@ impl<A> EntityTarget<A> {
         minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        params(objective = "`objective` supplies the objective value used to add one typed scoreboard filter without formatting a selector score map.", range = "`range` provides the accepted numeric range used to add one typed scoreboard filter without formatting a selector score map."),
+        params(objective = "`objective` provides the objective added when building one typed scoreboard filter without formatting a selector score map.", range = "`range` provides the accepted numeric range used to add one typed scoreboard filter without formatting a selector score map."),
         returns = "On success, the value produced to add one typed scoreboard filter without formatting a selector score map; otherwise, the documented validation or export diagnostic.",
         example = "use sand::command::ObjectiveName;\nuse {sand::command::EntityTargets, sand::command::ScoreRange};\nlet targets = EntityTargets::all()\n.score(ObjectiveName::new(\"threat\"), ScoreRange::at_least(5))\n.unwrap();\nassert_eq!(targets.to_string(), \"@e[scores={threat=5..}]\");",
     )]
@@ -520,7 +520,7 @@ impl<A> EntityTarget<A> {
         minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        params(range = "`range` supplies the range value used to emit the documented `distance=<range>` — select only entities within a distance range form."),
+        params(range = "`range` supplies the documented `distance=<range>` — select only entities within a distance range form."),
         returns = "The `EntityTarget` value with the documented change applied to emit the documented `distance=<range>` — select only entities within a distance range form.",
         example = "use sand::prelude::*;\n\nfn demonstrate<A: 'static>(entity_target_value: sand::command::EntityTarget < A >, range: impl Into < String >)  {\n    let updated_entity_target = entity_target_value.distance(range);\n}",
     )]
@@ -613,7 +613,7 @@ impl<A> EntityTarget<A> {
         minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        params(tag = "`tag` supplies the tag value used to emit the documented `tag=<tag>` — select only entities with the given tag, using a typed [`EntityTag`] instead of a raw string form."),
+        params(tag = "`tag` supplies the documented `tag=<tag>` — select only entities with the given tag, using a typed [`EntityTag`] instead of a raw string form."),
         returns = "The `EntityTarget` value with the documented change applied to emit the documented `tag=<tag>` — select only entities with the given tag, using a typed [`EntityTag`] instead of a raw string form.",
         example = "use sand::prelude::*;\n\nfn demonstrate<A: 'static>(entity_target_value: sand::command::EntityTarget < A >, tag: sand::command::EntityTag)  {\n    let updated_entity_target = entity_target_value.tag_typed(tag);\n}",
     )]
@@ -634,7 +634,7 @@ impl<A> EntityTarget<A> {
         minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        params(team = "`team` supplies the team value used to emit the documented `team=<team>` — select only entities on the given team form."),
+        params(team = "`team` supplies the documented `team=<team>` — select only entities on the given team form."),
         returns = "The `EntityTarget` value with the documented change applied to emit the documented `team=<team>` — select only entities on the given team form.",
         example = "use sand::prelude::*;\n\nfn demonstrate<A: 'static>(entity_target_value: sand::command::EntityTarget < A >, team: impl Into < String >)  {\n    let updated_entity_target = entity_target_value.team(team);\n}",
     )]
@@ -655,7 +655,7 @@ impl<A> EntityTarget<A> {
         minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        params(team = "`team` supplies the team value used to emit the documented `team=!<team>` — select only entities NOT on the given team form."),
+        params(team = "`team` supplies the documented `team=!<team>` — select only entities NOT on the given team form."),
         returns = "The `EntityTarget` value with the documented change applied to emit the documented `team=!<team>` — select only entities NOT on the given team form.",
         example = "use sand::prelude::*;\n\nfn demonstrate<A: 'static>(entity_target_value: sand::command::EntityTarget < A >, team: impl Into < String >)  {\n    let updated_entity_target = entity_target_value.not_team(team);\n}",
     )]
@@ -677,7 +677,7 @@ impl<A> EntityTarget<A> {
         minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        params(team = "`team` supplies the team value used to emit the documented `team=<team>` — select only entities on the given team, using a typed [`TeamName`] instead of a raw string form."),
+        params(team = "`team` supplies the documented `team=<team>` — select only entities on the given team, using a typed [`TeamName`] instead of a raw string form."),
         returns = "The `EntityTarget` value with the documented change applied to emit the documented `team=<team>` — select only entities on the given team, using a typed [`TeamName`] instead of a raw string form.",
         example = "use sand::prelude::*;\n\nfn demonstrate<A: 'static>(entity_target_value: sand::command::EntityTarget < A >, team: sand::command::TeamName)  {\n    let updated_entity_target = entity_target_value.team_typed(team);\n}",
     )]
@@ -698,7 +698,7 @@ impl<A> EntityTarget<A> {
         minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        params(name = "`name` provides the author-visible text value used to emit the documented `name=<name>` — select only entities with the exact display name form."),
+        params(name = "`name` supplies the documented `name=<name>` — select only entities with the exact display name form."),
         returns = "The `EntityTarget` value with the documented change applied to emit the documented `name=<name>` — select only entities with the exact display name form.",
         example = "use sand::prelude::*;\n\nfn demonstrate<A: 'static>(entity_target_value: sand::command::EntityTarget < A >, name: impl Into < String >)  {\n    let updated_entity_target = entity_target_value.name(name);\n}",
     )]
@@ -719,7 +719,7 @@ impl<A> EntityTarget<A> {
         minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        params(name = "`name` provides the author-visible text value used to emit the documented `name=!<name>` — select only entities WITHOUT the given display name form."),
+        params(name = "`name` supplies the documented `name=!<name>` — select only entities WITHOUT the given display name form."),
         returns = "The `EntityTarget` value with the documented change applied to emit the documented `name=!<name>` — select only entities WITHOUT the given display name form.",
         example = "use sand::prelude::*;\n\nfn demonstrate<A: 'static>(entity_target_value: sand::command::EntityTarget < A >, name: impl Into < String >)  {\n    let updated_entity_target = entity_target_value.not_name(name);\n}",
     )]
@@ -851,7 +851,7 @@ impl<A> EntityTarget<A> {
         minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        params(scores = "`scores` supplies the scores value used to use explicit raw escape hatch for `scores=...` syntax."),
+        params(scores = "`scores` sets the scores for explicit raw escape hatch for `scores=...` syntax."),
         returns = "The `EntityTarget` value with the documented change applied to use explicit raw escape hatch for `scores=...` syntax.",
         example = "use sand::prelude::*;\n\nfn demonstrate<A: 'static>(entity_target_value: sand::command::EntityTarget < A >, scores: impl Into < String >)  {\n    let updated_entity_target = entity_target_value.scores_raw(scores);\n}",
     )]
@@ -939,7 +939,7 @@ impl EntityTargets {
         minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        returns = "A newly constructed `EntityTarget` configured to emit the documented `@e` — all entities form.",
+        returns = "An `EntityTarget` that emits the documented `@e` — all entities form.",
         example = "use sand::prelude::*;\n\nfn demonstrate()  {\n    let entity_target = sand::command::EntityTargets::all();\n}",
     )]
     pub fn all() -> Self {
@@ -958,8 +958,8 @@ impl EntityTargets {
         minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        params(radius = "`radius` supplies the radius value used to emit the documented `@e[distance=..<radius>]` — all entities within a radius of the executor form."),
-        returns = "A newly constructed `EntityTarget` configured to emit the documented `@e[distance=..<radius>]` — all entities within a radius of the executor form.",
+        params(radius = "`radius` supplies the documented `@e[distance=..<radius>]` — all entities within a radius of the executor form."),
+        returns = "An `EntityTarget` that emits the documented `@e[distance=..<radius>]` — all entities within a radius of the executor form.",
         example = "use sand::prelude::*;\n\nfn demonstrate(radius: f64)  {\n    let entity_target = sand::command::EntityTargets::nearby(radius);\n}",
     )]
     pub fn nearby(radius: f64) -> Self {
@@ -978,7 +978,7 @@ impl EntityTargets {
         minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        params(n = "`n` supplies the n value used to add `limit=1` and convert to a single-entity target."),
+        params(n = "`n` provides the n added when building `limit=1` and convert to a single-entity target."),
         returns = "On success, the value produced to add `limit=1` and convert to a single-entity target; otherwise, the documented validation or export diagnostic.",
         example = "use sand::prelude::*;\n\nfn demonstrate(entity_target_value: sand::command::EntityTargets, n: i32)  {\n    let limit = entity_target_value.limit(n);\n}",
     )]
@@ -1028,7 +1028,7 @@ impl SingleEntity {
         minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        returns = "A newly constructed `EntityTarget` configured to emit the documented `@s` — the current executor as a single entity form.",
+        returns = "An `EntityTarget` that emits the documented `@s` — the current executor as a single entity form.",
         example = "use sand::prelude::*;\n\nfn demonstrate()  {\n    let entity_target = sand::command::SingleEntity::self_();\n}",
     )]
     pub fn self_() -> Self {
@@ -1051,7 +1051,7 @@ impl SingleEntity {
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
         params(selector = "`selector` provides the Minecraft target selection used to use explicit unchecked single-entity selector syntax."),
-        returns = "A newly constructed `EntityTarget` configured to use explicit unchecked single-entity selector syntax.",
+        returns = "An `EntityTarget` configured for explicit unchecked single-entity selector syntax.",
         example = "use sand::prelude::*;\n\nfn demonstrate(selector: impl Into < String >)  {\n    let entity_target = sand::command::SingleEntity::raw(selector);\n}",
     )]
     pub fn raw(selector: impl Into<String>) -> Self {
@@ -1110,7 +1110,7 @@ impl<A> PlayerTarget<A> {
         minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        params(tag = "`tag` supplies the tag value used to emit the documented `tag=<tag>` — select only players that have the given tag form."),
+        params(tag = "`tag` supplies the documented `tag=<tag>` — select only players that have the given tag form."),
         returns = "The `PlayerTarget` value with the documented change applied to emit the documented `tag=<tag>` — select only players that have the given tag form.",
         example = "use sand::prelude::*;\n\nfn demonstrate<A: 'static>(player_target_value: sand::command::PlayerTarget < A >, tag: impl Into < String >)  {\n    let updated_player_target = player_target_value.tag(tag);\n}",
     )]
@@ -1131,7 +1131,7 @@ impl<A> PlayerTarget<A> {
         minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        params(tag = "`tag` supplies the tag value used to emit the documented `tag=!<tag>` — select only players that do NOT have the given tag form."),
+        params(tag = "`tag` supplies the documented `tag=!<tag>` — select only players that do NOT have the given tag form."),
         returns = "The `PlayerTarget` value with the documented change applied to emit the documented `tag=!<tag>` — select only players that do NOT have the given tag form.",
         example = "use sand::prelude::*;\n\nfn demonstrate<A: 'static>(player_target_value: sand::command::PlayerTarget < A >, tag: impl Into < String >)  {\n    let updated_player_target = player_target_value.not_tag(tag);\n}",
     )]
@@ -1215,7 +1215,7 @@ impl<A> PlayerTarget<A> {
         minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        params(range = "`range` supplies the range value used to emit the documented `distance=<range>` — select only players within a distance range form."),
+        params(range = "`range` supplies the documented `distance=<range>` — select only players within a distance range form."),
         returns = "The `PlayerTarget` value with the documented change applied to emit the documented `distance=<range>` — select only players within a distance range form.",
         example = "use sand::prelude::*;\n\nfn demonstrate<A: 'static>(player_target_value: sand::command::PlayerTarget < A >, range: impl Into < String >)  {\n    let updated_player_target = player_target_value.distance(range);\n}",
     )]
@@ -1286,7 +1286,7 @@ impl<A> PlayerTarget<A> {
         minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        params(tag = "`tag` supplies the tag value used to emit the documented `tag=<tag>` — select only players with the given tag, using a typed [`EntityTag`] instead of a raw string form."),
+        params(tag = "`tag` supplies the documented `tag=<tag>` — select only players with the given tag, using a typed [`EntityTag`] instead of a raw string form."),
         returns = "The `PlayerTarget` value with the documented change applied to emit the documented `tag=<tag>` — select only players with the given tag, using a typed [`EntityTag`] instead of a raw string form.",
         example = "use sand::prelude::*;\n\nfn demonstrate<A: 'static>(player_target_value: sand::command::PlayerTarget < A >, tag: sand::command::EntityTag)  {\n    let updated_player_target = player_target_value.tag_typed(tag);\n}",
     )]
@@ -1307,7 +1307,7 @@ impl<A> PlayerTarget<A> {
         minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        params(team = "`team` supplies the team value used to emit the documented `team=<team>` — select only players on the given team form."),
+        params(team = "`team` supplies the documented `team=<team>` — select only players on the given team form."),
         returns = "The `PlayerTarget` value with the documented change applied to emit the documented `team=<team>` — select only players on the given team form.",
         example = "use sand::prelude::*;\n\nfn demonstrate<A: 'static>(player_target_value: sand::command::PlayerTarget < A >, team: impl Into < String >)  {\n    let updated_player_target = player_target_value.team(team);\n}",
     )]
@@ -1328,7 +1328,7 @@ impl<A> PlayerTarget<A> {
         minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        params(team = "`team` supplies the team value used to emit the documented `team=!<team>` — select only players NOT on the given team form."),
+        params(team = "`team` supplies the documented `team=!<team>` — select only players NOT on the given team form."),
         returns = "The `PlayerTarget` value with the documented change applied to emit the documented `team=!<team>` — select only players NOT on the given team form.",
         example = "use sand::prelude::*;\n\nfn demonstrate<A: 'static>(player_target_value: sand::command::PlayerTarget < A >, team: impl Into < String >)  {\n    let updated_player_target = player_target_value.not_team(team);\n}",
     )]
@@ -1350,7 +1350,7 @@ impl<A> PlayerTarget<A> {
         minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        params(team = "`team` supplies the team value used to emit the documented `team=<team>` — select only players on the given team, using a typed [`TeamName`] instead of a raw string form."),
+        params(team = "`team` supplies the documented `team=<team>` — select only players on the given team, using a typed [`TeamName`] instead of a raw string form."),
         returns = "The `PlayerTarget` value with the documented change applied to emit the documented `team=<team>` — select only players on the given team, using a typed [`TeamName`] instead of a raw string form.",
         example = "use sand::prelude::*;\n\nfn demonstrate<A: 'static>(player_target_value: sand::command::PlayerTarget < A >, team: sand::command::TeamName)  {\n    let updated_player_target = player_target_value.team_typed(team);\n}",
     )]
@@ -1371,7 +1371,7 @@ impl<A> PlayerTarget<A> {
         minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        params(name = "`name` provides the author-visible text value used to emit the documented `name=<name>` — select only players with the exact display name form."),
+        params(name = "`name` supplies the documented `name=<name>` — select only players with the exact display name form."),
         returns = "The `PlayerTarget` value with the documented change applied to emit the documented `name=<name>` — select only players with the exact display name form.",
         example = "use sand::prelude::*;\n\nfn demonstrate<A: 'static>(player_target_value: sand::command::PlayerTarget < A >, name: impl Into < String >)  {\n    let updated_player_target = player_target_value.name(name);\n}",
     )]
@@ -1392,7 +1392,7 @@ impl<A> PlayerTarget<A> {
         minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        params(name = "`name` provides the author-visible text value used to emit the documented `name=!<name>` — select only players WITHOUT the given display name form."),
+        params(name = "`name` supplies the documented `name=!<name>` — select only players WITHOUT the given display name form."),
         returns = "The `PlayerTarget` value with the documented change applied to emit the documented `name=!<name>` — select only players WITHOUT the given display name form.",
         example = "use sand::prelude::*;\n\nfn demonstrate<A: 'static>(player_target_value: sand::command::PlayerTarget < A >, name: impl Into < String >)  {\n    let updated_player_target = player_target_value.not_name(name);\n}",
     )]
@@ -1423,7 +1423,7 @@ impl<A> PlayerTarget<A> {
         minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        params(objective = "`objective` supplies the objective value used to add one typed scoreboard filter without formatting a selector score map.", range = "`range` provides the accepted numeric range used to add one typed scoreboard filter without formatting a selector score map."),
+        params(objective = "`objective` provides the objective added when building one typed scoreboard filter without formatting a selector score map.", range = "`range` provides the accepted numeric range used to add one typed scoreboard filter without formatting a selector score map."),
         returns = "On success, the value produced to add one typed scoreboard filter without formatting a selector score map; otherwise, the documented validation or export diagnostic.",
         example = "use sand::command::ObjectiveName;\nuse {sand::command::PlayerTargets, sand::command::ScoreRange};\nlet targets = PlayerTargets::all()\n.score(ObjectiveName::new(\"kills\"), ScoreRange::at_least(1))\n.unwrap();\nassert_eq!(targets.to_string(), \"@a[scores={kills=1..}]\");",
     )]
@@ -1597,7 +1597,7 @@ impl<A> PlayerTarget<A> {
         minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        params(mode = "`mode` supplies the mode value used to emit the documented `gamemode=<mode>` — select only players in the given gamemode, using the canonical typed [`GameMode`] enum instead of a validated string form."),
+        params(mode = "`mode` supplies the documented `gamemode=<mode>` — select only players in the given gamemode, using the canonical typed [`GameMode`] enum instead of a validated string form."),
         returns = "The `PlayerTarget` value with the documented change applied to emit the documented `gamemode=<mode>` — select only players in the given gamemode, using the canonical typed [`GameMode`] enum instead of a validated string form.",
         example = "use {sand::command::GameMode, sand::command::PlayerTargets};\nlet targets = PlayerTargets::all().gamemode_typed(GameMode::Adventure);\nassert_eq!(targets.to_string(), \"@a[gamemode=adventure]\");",
     )]
@@ -1618,7 +1618,7 @@ impl<A> PlayerTarget<A> {
         minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        params(mode = "`mode` supplies the mode value used to emit the documented `gamemode=!<mode>` — exclude players in the given gamemode form."),
+        params(mode = "`mode` supplies the documented `gamemode=!<mode>` — exclude players in the given gamemode form."),
         returns = "The `PlayerTarget` value with the documented change applied to emit the documented `gamemode=!<mode>` — exclude players in the given gamemode form.",
         example = "use sand::prelude::*;\n\nfn demonstrate<A: 'static>(player_target_value: sand::command::PlayerTarget < A >, mode: sand::command::GameMode)  {\n    let updated_player_target = player_target_value.not_gamemode_typed(mode);\n}",
     )]
@@ -1687,7 +1687,7 @@ impl<A> PlayerTarget<A> {
         minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        params(scores = "`scores` supplies the scores value used to use explicit raw escape hatch for `scores=...` syntax."),
+        params(scores = "`scores` sets the scores for explicit raw escape hatch for `scores=...` syntax."),
         returns = "The `PlayerTarget` value with the documented change applied to use explicit raw escape hatch for `scores=...` syntax.",
         example = "use sand::prelude::*;\n\nfn demonstrate<A: 'static>(player_target_value: sand::command::PlayerTarget < A >, scores: impl Into < String >)  {\n    let updated_player_target = player_target_value.scores_raw(scores);\n}",
     )]
@@ -1774,7 +1774,7 @@ impl PlayerTargets {
         minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        returns = "A newly constructed `PlayerTarget` configured to emit the documented `@a` — all players form.",
+        returns = "A `PlayerTarget` that emits the documented `@a` — all players form.",
         example = "use sand::prelude::*;\n\nfn demonstrate()  {\n    let player_target = sand::command::PlayerTargets::all();\n}",
     )]
     pub fn all() -> Self {
@@ -1793,7 +1793,7 @@ impl PlayerTargets {
         minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        params(n = "`n` supplies the n value used to add `limit=1` and convert to a single-player target."),
+        params(n = "`n` provides the n added when building `limit=1` and convert to a single-player target."),
         returns = "On success, the value produced to add `limit=1` and convert to a single-player target; otherwise, the documented validation or export diagnostic.",
         example = "use sand::prelude::*;\n\nfn demonstrate(player_target_value: sand::command::PlayerTargets, n: i32)  {\n    let limit = player_target_value.limit(n);\n}",
     )]
@@ -1829,7 +1829,7 @@ impl SinglePlayer {
         minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        returns = "A newly constructed `PlayerTarget` configured to emit the documented `@s` — the current executor as a single player form.",
+        returns = "A `PlayerTarget` that emits the documented `@s` — the current executor as a single player form.",
         example = "use sand::prelude::*;\n\nfn demonstrate()  {\n    let player_target = sand::command::SinglePlayer::self_();\n}",
     )]
     pub fn self_() -> Self {
@@ -1848,7 +1848,7 @@ impl SinglePlayer {
         minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        returns = "A newly constructed `PlayerTarget` configured to emit the documented `@p` — the nearest player form.",
+        returns = "A `PlayerTarget` that emits the documented `@p` — the nearest player form.",
         example = "use sand::prelude::*;\n\nfn demonstrate()  {\n    let player_target = sand::command::SinglePlayer::nearest();\n}",
     )]
     pub fn nearest() -> Self {
@@ -1868,7 +1868,7 @@ impl SinglePlayer {
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
         params(selector = "`selector` provides the Minecraft target selection used to use explicit unchecked single-player selector syntax."),
-        returns = "A newly constructed `PlayerTarget` configured to use explicit unchecked single-player selector syntax.",
+        returns = "A `PlayerTarget` configured for explicit unchecked single-player selector syntax.",
         example = "use sand::prelude::*;\n\nfn demonstrate(selector: impl Into < String >)  {\n    let player_target = sand::command::SinglePlayer::raw(selector);\n}",
     )]
     pub fn raw(selector: impl Into<String>) -> Self {
@@ -2084,7 +2084,7 @@ impl Selector {
         minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        returns = "A newly constructed `Selector` configured to emit the documented `@a` — all players currently connected to the server form.",
+        returns = "A `Selector` that emits the documented `@a` — all players currently connected to the server form.",
         example = "use sand::prelude::*;\n\nfn demonstrate()  {\n    let selector = sand::command::Selector::all_players();\n}",
     )]
     pub fn all_players() -> Self {
@@ -2106,7 +2106,7 @@ impl Selector {
         minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        returns = "A newly constructed `Selector` configured to emit the documented `@e` — all entities in the world form.",
+        returns = "A `Selector` that emits the documented `@e` — all entities in the world form.",
         example = "use sand::prelude::*;\n\nfn demonstrate()  {\n    let selector = sand::command::Selector::all_entities();\n}",
     )]
     pub fn all_entities() -> Self {
@@ -2128,7 +2128,7 @@ impl Selector {
         minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        returns = "A newly constructed `Selector` configured to emit the documented `@p` — the nearest player to the command executor form.",
+        returns = "A `Selector` that emits the documented `@p` — the nearest player to the command executor form.",
         example = "use sand::prelude::*;\n\nfn demonstrate()  {\n    let selector = sand::command::Selector::nearest_player();\n}",
     )]
     pub fn nearest_player() -> Self {
@@ -2150,7 +2150,7 @@ impl Selector {
         minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        returns = "A newly constructed `Selector` configured to emit the documented `@s` — the entity currently executing the command form.",
+        returns = "A `Selector` that emits the documented `@s` — the entity currently executing the command form.",
         example = "use sand::prelude::*;\n\nfn demonstrate()  {\n    let selector = sand::command::Selector::self_();\n}",
     )]
     pub fn self_() -> Self {
@@ -2172,7 +2172,7 @@ impl Selector {
         minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        returns = "A newly constructed `Selector` configured to emit the documented `@r` — a random player from the current players form.",
+        returns = "A `Selector` that emits the documented `@r` — a random player from the current players form.",
         example = "use sand::prelude::*;\n\nfn demonstrate()  {\n    let selector = sand::command::Selector::random_player();\n}",
     )]
     pub fn random_player() -> Self {
@@ -2194,8 +2194,8 @@ impl Selector {
         minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        params(name = "`name` provides the author-visible text value used to use a specific player by exact name."),
-        returns = "A newly constructed `Selector` configured to use a specific player by exact name.",
+        params(name = "`name` sets the author-visible text for a specific player by exact name."),
+        returns = "A `Selector` configured for a specific player by exact name.",
         example = "use sand::prelude::*;\n\nfn demonstrate(name: impl Into < String >)  {\n    let selector = sand::command::Selector::player(name);\n}",
     )]
     pub fn player(name: impl Into<String>) -> Self {
@@ -2222,7 +2222,7 @@ impl Selector {
         use_when = ["Prefer the typed builder methods for normal selectors. Raw selectors are preserved verbatim and should be limited to syntax Sand cannot yet model."],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
         params(selector = "`selector` provides the Minecraft target selection used to wrap advanced selector syntax without typed validation."),
-        returns = "A newly constructed `Selector` configured to wrap advanced selector syntax without typed validation.",
+        returns = "A `Selector` wrapping advanced selector syntax without typed validation.",
         example = "use sand::prelude::*;\n\nfn demonstrate(selector: impl Into < String >)  {\n    let selector = sand::command::Selector::raw(selector);\n}",
     )]
     pub fn raw(selector: impl Into<String>) -> Self {
@@ -2248,7 +2248,7 @@ impl Selector {
         minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        params(tag = "`tag` supplies the tag value used to emit the documented `tag=<tag>` — select only entities that have the given tag form."),
+        params(tag = "`tag` supplies the documented `tag=<tag>` — select only entities that have the given tag form."),
         returns = "The `Selector` value with the documented change applied to emit the documented `tag=<tag>` — select only entities that have the given tag form.",
         example = "use sand::prelude::*;\n\nfn demonstrate(selector_value: sand::command::Selector, tag: impl Into < String >)  {\n    let updated_selector = selector_value.tag(tag);\n}",
     )]
@@ -2269,7 +2269,7 @@ impl Selector {
         minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        params(tag = "`tag` supplies the tag value used to emit the documented `tag=!<tag>` — select only entities that do NOT have the given tag form."),
+        params(tag = "`tag` supplies the documented `tag=!<tag>` — select only entities that do NOT have the given tag form."),
         returns = "The `Selector` value with the documented change applied to emit the documented `tag=!<tag>` — select only entities that do NOT have the given tag form.",
         example = "use sand::prelude::*;\n\nfn demonstrate(selector_value: sand::command::Selector, tag: impl Into < String >)  {\n    let updated_selector = selector_value.not_tag(tag);\n}",
     )]
@@ -2290,7 +2290,7 @@ impl Selector {
         minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        params(team = "`team` supplies the team value used to emit the documented `team=<team>` — select only entities on the given team form."),
+        params(team = "`team` supplies the documented `team=<team>` — select only entities on the given team form."),
         returns = "The `Selector` value with the documented change applied to emit the documented `team=<team>` — select only entities on the given team form.",
         example = "use sand::prelude::*;\n\nfn demonstrate(selector_value: sand::command::Selector, team: impl Into < String >)  {\n    let updated_selector = selector_value.team(team);\n}",
     )]
@@ -2311,7 +2311,7 @@ impl Selector {
         minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        params(team = "`team` supplies the team value used to emit the documented `team=!<team>` — select only entities NOT on the given team form."),
+        params(team = "`team` supplies the documented `team=!<team>` — select only entities NOT on the given team form."),
         returns = "The `Selector` value with the documented change applied to emit the documented `team=!<team>` — select only entities NOT on the given team form.",
         example = "use sand::prelude::*;\n\nfn demonstrate(selector_value: sand::command::Selector, team: impl Into < String >)  {\n    let updated_selector = selector_value.not_team(team);\n}",
     )]
@@ -2332,7 +2332,7 @@ impl Selector {
         minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        params(name = "`name` provides the author-visible text value used to emit the documented `name=<name>` — select only entities with the exact display name form."),
+        params(name = "`name` supplies the documented `name=<name>` — select only entities with the exact display name form."),
         returns = "The `Selector` value with the documented change applied to emit the documented `name=<name>` — select only entities with the exact display name form.",
         example = "use sand::prelude::*;\n\nfn demonstrate(selector_value: sand::command::Selector, name: impl Into < String >)  {\n    let updated_selector = selector_value.name(name);\n}",
     )]
@@ -2353,7 +2353,7 @@ impl Selector {
         minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        params(name = "`name` provides the author-visible text value used to emit the documented `name=!<name>` — select only entities WITHOUT the given display name form."),
+        params(name = "`name` supplies the documented `name=!<name>` — select only entities WITHOUT the given display name form."),
         returns = "The `Selector` value with the documented change applied to emit the documented `name=!<name>` — select only entities WITHOUT the given display name form.",
         example = "use sand::prelude::*;\n\nfn demonstrate(selector_value: sand::command::Selector, name: impl Into < String >)  {\n    let updated_selector = selector_value.not_name(name);\n}",
     )]
@@ -2374,7 +2374,7 @@ impl Selector {
         minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        params(ty = "`ty` supplies the ty value used to emit the documented `type=<entity_type>` — select only entities of the given type form."),
+        params(ty = "`ty` supplies the documented `type=<entity_type>` — select only entities of the given type form."),
         returns = "The `Selector` value with the documented change applied to emit the documented `type=<entity_type>` — select only entities of the given type form.",
         example = "use sand::prelude::*;\n\nfn demonstrate(selector_value: sand::command::Selector, ty: impl sand::command::IntoEntityType)  {\n    let updated_selector = selector_value.entity_type(ty);\n}",
     )]
@@ -2395,7 +2395,7 @@ impl Selector {
         minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        params(ty = "`ty` supplies the ty value used to emit the documented `type=!<entity_type>` — select only entities NOT of the given type form."),
+        params(ty = "`ty` supplies the documented `type=!<entity_type>` — select only entities NOT of the given type form."),
         returns = "The `Selector` value with the documented change applied to emit the documented `type=!<entity_type>` — select only entities NOT of the given type form.",
         example = "use sand::prelude::*;\n\nfn demonstrate(selector_value: sand::command::Selector, ty: impl sand::command::IntoEntityType)  {\n    let updated_selector = selector_value.not_type(ty);\n}",
     )]
@@ -2437,7 +2437,7 @@ impl Selector {
         minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        params(order = "`order` supplies the order value used to emit the documented `sort=<order>` — set the sort order before applying limit form."),
+        params(order = "`order` supplies the documented `sort=<order>` — set the sort order before applying limit form."),
         returns = "The `Selector` value with the documented change applied to emit the documented `sort=<order>` — set the sort order before applying limit form.",
         example = "use sand::prelude::*;\n\nfn demonstrate(selector_value: sand::command::Selector, order: sand::command::SortOrder)  {\n    let updated_selector = selector_value.sort(order);\n}",
     )]
@@ -2458,7 +2458,7 @@ impl Selector {
         minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        params(range = "`range` supplies the range value used to emit the documented `distance=<range>` — select only entities within a distance range form."),
+        params(range = "`range` supplies the documented `distance=<range>` — select only entities within a distance range form."),
         returns = "The `Selector` value with the documented change applied to emit the documented `distance=<range>` — select only entities within a distance range form.",
         example = "use sand::prelude::*;\n\nfn demonstrate(selector_value: sand::command::Selector, range: impl Into < String >)  {\n    let updated_selector = selector_value.distance(range);\n}",
     )]
@@ -2564,7 +2564,7 @@ impl Selector {
         minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        params(range = "`range` supplies the range value used to emit the documented `level=<range>` — select only players within the given XP level range form."),
+        params(range = "`range` supplies the documented `level=<range>` — select only players within the given XP level range form."),
         returns = "The `Selector` value with the documented change applied to emit the documented `level=<range>` — select only players within the given XP level range form.",
         example = "use sand::prelude::*;\n\nfn demonstrate(selector_value: sand::command::Selector, range: impl Into < String >)  {\n    let updated_selector = selector_value.level(range);\n}",
     )]
@@ -2612,7 +2612,7 @@ impl Selector {
         minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        params(mode = "`mode` supplies the mode value used to emit the documented `gamemode=<mode>` — select only players in the given gamemode, using the canonical typed [`GameMode`] enum instead of a validated string form."),
+        params(mode = "`mode` supplies the documented `gamemode=<mode>` — select only players in the given gamemode, using the canonical typed [`GameMode`] enum instead of a validated string form."),
         returns = "The `Selector` value with the documented change applied to emit the documented `gamemode=<mode>` — select only players in the given gamemode, using the canonical typed [`GameMode`] enum instead of a validated string form.",
         example = "use sand::prelude::*;\n\nfn demonstrate(selector_value: sand::command::Selector, mode: sand::command::GameMode)  {\n    let updated_selector = selector_value.gamemode_typed(mode);\n}",
     )]
@@ -2633,7 +2633,7 @@ impl Selector {
         minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        params(mode = "`mode` supplies the mode value used to emit the documented `gamemode=!<mode>` — exclude players in the given gamemode form."),
+        params(mode = "`mode` supplies the documented `gamemode=!<mode>` — exclude players in the given gamemode form."),
         returns = "The `Selector` value with the documented change applied to emit the documented `gamemode=!<mode>` — exclude players in the given gamemode form.",
         example = "use sand::prelude::*;\n\nfn demonstrate(selector_value: sand::command::Selector, mode: sand::command::GameMode)  {\n    let updated_selector = selector_value.not_gamemode_typed(mode);\n}",
     )]
@@ -2684,7 +2684,7 @@ impl Selector {
         minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        params(scores = "`scores` supplies the scores value used to use explicit raw escape hatch for `scores=...` syntax, e.g. hand-formatted fragments this crate has no typed representation for yet. Equivalent to [`Selector::scores`] — use whichever name best documents intent at the call site."),
+        params(scores = "`scores` sets the scores for explicit raw escape hatch for `scores=...` syntax, e.g. hand-formatted fragments this crate has no typed representation for yet. Equivalent to [`Selector::scores`] — use whichever name best documents intent at the call site."),
         returns = "The `Selector` value with the documented change applied to use explicit raw escape hatch for `scores=...` syntax, e.g. hand-formatted fragments this crate has no typed representation for yet. Equivalent to [`Selector::scores`] — use whichever name best documents intent at the call site.",
         example = "use sand::prelude::*;\n\nfn demonstrate(selector_value: sand::command::Selector, scores: impl Into < String >)  {\n    let updated_selector = selector_value.scores_raw(scores);\n}",
     )]
@@ -2742,7 +2742,7 @@ impl Selector {
         minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        params(objective = "`objective` supplies the objective value used to add one typed scoreboard filter to the selector's score map.", range = "`range` provides the accepted numeric range used to add one typed scoreboard filter to the selector's score map."),
+        params(objective = "`objective` provides the objective added when building one typed scoreboard filter to the selector's score map.", range = "`range` provides the accepted numeric range used to add one typed scoreboard filter to the selector's score map."),
         returns = "On success, the value produced to add one typed scoreboard filter to the selector's score map; otherwise, the documented validation or export diagnostic.",
         example = "use sand::prelude::*;\n\nfn demonstrate(selector_value: sand::command::Selector, objective: sand::command::ObjectiveName, range: sand::command::ScoreRange)  {\n    let score_typed = selector_value.score_typed(objective, range);\n}",
     )]
@@ -2976,7 +2976,7 @@ impl Selector {
         minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        params(tag = "`tag` supplies the tag value used to emit the documented `tag=<tag>` — select only entities with the given tag, using a typed [`EntityTag`] instead of a raw string form."),
+        params(tag = "`tag` supplies the documented `tag=<tag>` — select only entities with the given tag, using a typed [`EntityTag`] instead of a raw string form."),
         returns = "The `Selector` value with the documented change applied to emit the documented `tag=<tag>` — select only entities with the given tag, using a typed [`EntityTag`] instead of a raw string form.",
         example = "use sand::prelude::*;\n\nfn demonstrate(selector_value: sand::command::Selector, tag: sand::command::EntityTag)  {\n    let updated_selector = selector_value.tag_typed(tag);\n}",
     )]
@@ -2998,7 +2998,7 @@ impl Selector {
         minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        params(team = "`team` supplies the team value used to emit the documented `team=<team>` — select only entities on the given team, using a typed [`TeamName`] instead of a raw string form."),
+        params(team = "`team` supplies the documented `team=<team>` — select only entities on the given team, using a typed [`TeamName`] instead of a raw string form."),
         returns = "The `Selector` value with the documented change applied to emit the documented `team=<team>` — select only entities on the given team, using a typed [`TeamName`] instead of a raw string form.",
         example = "use sand::prelude::*;\n\nfn demonstrate(selector_value: sand::command::Selector, team: sand::command::TeamName)  {\n    let updated_selector = selector_value.team_typed(team);\n}",
     )]
@@ -3611,7 +3611,7 @@ impl ScoreRange {
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
         params(n = "An exact value: `n..n`, rendered as `n`."),
-        returns = "A newly constructed `ScoreRange` configured to use an exact value: `n..n`, rendered as `n`.",
+        returns = "A `ScoreRange` configured for an exact value: `n..n`, rendered as `n`.",
         example = "use sand::prelude::*;\n\nfn demonstrate(n: i32)  {\n    let score_range = sand::command::ScoreRange::exact(n);\n}",
     )]
     pub fn exact(n: i32) -> Self {
@@ -3634,7 +3634,7 @@ impl ScoreRange {
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
         params(n = "`n..` — at least `n`."),
-        returns = "A newly constructed `ScoreRange` configured to emit the documented `n..` — at least `n` form.",
+        returns = "A `ScoreRange` that emits the documented `n..` — at least `n` form.",
         example = "use sand::prelude::*;\n\nfn demonstrate(n: i32)  {\n    let score_range = sand::command::ScoreRange::at_least(n);\n}",
     )]
     pub fn at_least(n: i32) -> Self {
@@ -3657,7 +3657,7 @@ impl ScoreRange {
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
         params(n = "`..n` — at most `n`."),
-        returns = "A newly constructed `ScoreRange` configured to emit the documented `..n` — at most `n` form.",
+        returns = "A `ScoreRange` that emits the documented `..n` — at most `n` form.",
         example = "use sand::prelude::*;\n\nfn demonstrate(n: i32)  {\n    let score_range = sand::command::ScoreRange::at_most(n);\n}",
     )]
     pub fn at_most(n: i32) -> Self {
@@ -3680,7 +3680,7 @@ impl ScoreRange {
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
         params(min = "`min` provides the inclusive lower bound used to emit the documented `min..max` — an inclusive range form.", max = "`max` provides the inclusive upper bound used to emit the documented `min..max` — an inclusive range form."),
-        returns = "A newly constructed `ScoreRange` configured to emit the documented `min..max` — an inclusive range form.",
+        returns = "A `ScoreRange` that emits the documented `min..max` — an inclusive range form.",
         example = "use sand::prelude::*;\n\nfn demonstrate(min: i32, max: i32)  {\n    let score_range = sand::command::ScoreRange::between(min, max);\n}",
     )]
     pub fn between(min: i32, max: i32) -> Self {
@@ -3825,8 +3825,8 @@ impl EntityTag {
         minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        params(tag = "`tag` supplies the tag value used to wrap a tag value."),
-        returns = "A newly constructed `EntityTag` configured to wrap a tag value.",
+        params(tag = "`tag` provides the tag wrapped when creating a tag value."),
+        returns = "An `EntityTag` wrapping a tag value.",
         example = "use sand::prelude::*;\n\nfn demonstrate(tag: impl Into < String >)  {\n    let entity_tag = sand::command::EntityTag::new(tag);\n}",
     )]
     pub fn new(tag: impl Into<String>) -> Self {
@@ -3874,8 +3874,8 @@ impl TeamName {
         minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        params(team = "`team` supplies the team value used to wrap a team name."),
-        returns = "A newly constructed `TeamName` configured to wrap a team name.",
+        params(team = "`team` provides the team wrapped when creating a team name."),
+        returns = "A `TeamName` wrapping a team name.",
         example = "use sand::prelude::*;\n\nfn demonstrate(team: impl Into < String >)  {\n    let team_name = sand::command::TeamName::new(team);\n}",
     )]
     pub fn new(team: impl Into<String>) -> Self {

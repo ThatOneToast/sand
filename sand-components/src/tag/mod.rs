@@ -44,7 +44,7 @@ impl Tag {
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
         params(location = "`location` provides the typed resource identifier or location used to create a new tag with the given resource location."),
-        returns = "A newly constructed `Tag` configured to create a new tag with the given resource location.",
+        returns = "A `Tag` representing a new tag with the given resource location.",
         example = "use sand::prelude::*;\n\nfn demonstrate(location: sand::ResourceLocation)  {\n    let tag = sand::component::Tag::new(location);\n}",
     )]
     pub fn new(location: ResourceLocation) -> Self {
@@ -88,7 +88,7 @@ impl Tag {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(tag = "`tag` supplies the tag value used to add a reference to another tag (prefixed with `#`)."),
+        params(tag = "`tag` provides the tag added when building a reference to another tag (prefixed with `#`)."),
         returns = "The `Tag` value with the documented change applied to add a reference to another tag (prefixed with `#`).",
         example = "use std::fmt;\nuse sand::prelude::*;\n\nfn demonstrate(tag_value: sand::component::Tag, tag: impl std::fmt::Display)  {\n    let updated_tag = tag_value.tag_ref(tag);\n}",
     )]
@@ -254,7 +254,7 @@ impl<T> TagEntry<T> {
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
         params(value = "`value` provides the value being applied or compared used to create a required registry value entry."),
-        returns = "A newly constructed `TagEntry` configured to create a required registry value entry.",
+        returns = "A `TagEntry` representing a required registry value entry.",
         example = "use sand::prelude::*;\n\nfn demonstrate<T: 'static>(value: T)  {\n    let tag_entry = sand::component::TagEntry ::< T >::value(value);\n}",
     )]
     pub fn value(value: T) -> Self {
@@ -277,7 +277,7 @@ impl<T> TagEntry<T> {
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
         params(value = "`value` provides the value being applied or compared used to create an optional registry value entry."),
-        returns = "A newly constructed `TagEntry` configured to create an optional registry value entry.",
+        returns = "A `TagEntry` representing an optional registry value entry.",
         example = "use sand::prelude::*;\n\nfn demonstrate<T: 'static>(value: T)  {\n    let tag_entry = sand::component::TagEntry ::< T >::optional_value(value);\n}",
     )]
     pub fn optional_value(value: T) -> Self {
@@ -299,8 +299,8 @@ impl<T> TagEntry<T> {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(tag = "`tag` supplies the tag value used to create a required reference to another tag in the same registry."),
-        returns = "A newly constructed `TagEntry` configured to create a required reference to another tag in the same registry.",
+        params(tag = "`tag` is used when creating a required reference to another tag in the same registry."),
+        returns = "A `TagEntry` representing a required reference to another tag in the same registry.",
         example = "use sand::prelude::*;\n\nfn demonstrate<T: 'static>(tag: sand::component::TagId < T >)  {\n    let tag_entry = sand::component::TagEntry ::< T >::tag(tag);\n}",
     )]
     pub fn tag(tag: TagId<T>) -> Self {
@@ -322,8 +322,8 @@ impl<T> TagEntry<T> {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(tag = "`tag` supplies the tag value used to create an optional reference to another tag in the same registry."),
-        returns = "A newly constructed `TagEntry` configured to create an optional reference to another tag in the same registry.",
+        params(tag = "`tag` is used when creating an optional reference to another tag in the same registry."),
+        returns = "A `TagEntry` representing an optional reference to another tag in the same registry.",
         example = "use sand::prelude::*;\n\nfn demonstrate<T: 'static>(tag: sand::component::TagId < T >)  {\n    let tag_entry = sand::component::TagEntry ::< T >::optional_tag(tag);\n}",
     )]
     pub fn optional_tag(tag: TagId<T>) -> Self {
@@ -460,7 +460,7 @@ impl<T: TagRegistry> TypedTag<T> {
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
         params(location = "`location` provides the typed resource identifier or location used to create an empty typed tag. Add values or explicitly call `allow_empty(true)`."),
-        returns = "A newly constructed `TypedTag` configured to create an empty typed tag. Add values or explicitly call `allow_empty(true)`.",
+        returns = "A `TypedTag` representing an empty typed tag. Add values or explicitly call `allow_empty(true)`.",
         example = "use sand::prelude::*;\n\nfn demonstrate<T : sand::component::TagRegistry + 'static>(location: sand::component::TagId < T >)  {\n    let typed_tag = sand::component::TypedTag ::< T >::new(location);\n}",
     )]
     pub fn new(location: TagId<T>) -> Self {
@@ -525,7 +525,7 @@ impl<T: TagRegistry> TypedTag<T> {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(tag = "`tag` supplies the tag value used to add a required reference to another tag in this registry."),
+        params(tag = "`tag` provides the tag added when building a required reference to another tag in this registry."),
         returns = "The `TypedTag` value with the documented change applied to add a required reference to another tag in this registry.",
         example = "use sand::prelude::*;\n\nfn demonstrate<T : sand::component::TagRegistry + 'static>(typed_tag_value: sand::component::TypedTag < T >, tag: sand::component::TagId < T >)  {\n    let updated_typed_tag = typed_tag_value.tag_ref(tag);\n}",
     )]
@@ -545,7 +545,7 @@ impl<T: TagRegistry> TypedTag<T> {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(tag = "`tag` supplies the tag value used to add an optional reference to another tag in this registry."),
+        params(tag = "`tag` provides the tag added when building an optional reference to another tag in this registry."),
         returns = "The `TypedTag` value with the documented change applied to add an optional reference to another tag in this registry.",
         example = "use sand::prelude::*;\n\nfn demonstrate<T : sand::component::TagRegistry + 'static>(typed_tag_value: sand::component::TypedTag < T >, tag: sand::component::TagId < T >)  {\n    let updated_typed_tag = typed_tag_value.optional_tag_ref(tag);\n}",
     )]
@@ -605,7 +605,7 @@ impl<T: TagRegistry> TypedTag<T> {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(entry = "`entry` supplies the entry value used to add an already constructed typed entry."),
+        params(entry = "`entry` provides the entry added when building an already constructed typed entry."),
         returns = "The `TypedTag` value with the documented change applied to add an already constructed typed entry.",
         example = "use sand::prelude::*;\n\nfn demonstrate<T : sand::component::TagRegistry + 'static>(typed_tag_value: sand::component::TypedTag < T >, entry: sand::component::TagEntry < T >)  {\n    let updated_typed_tag = typed_tag_value.with_entry(entry);\n}",
     )]

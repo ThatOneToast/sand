@@ -73,7 +73,7 @@ impl ItemStack {
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
         params(id = "`id` provides the typed resource identifier or location used to create a stack of `1` of the given item, with no components."),
-        returns = "A newly constructed `ItemStack` configured to create a stack of `1` of the given item, with no components.",
+        returns = "An `ItemStack` representing a stack of `1` of the given item, with no components.",
         example = "use sand::prelude::*;\n\nfn demonstrate(id: sand::registry::ItemId)  {\n    let item_stack = sand::component::ItemStack::new(id);\n}",
     )]
     pub fn new(id: ItemId) -> Self {
@@ -119,7 +119,7 @@ impl ItemStack {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(component = "`component` supplies the component value used to add or merge a typed item component. See [`ItemComponent`]."),
+        params(component = "`component` provides the component added when building or merge a typed item component. See [`ItemComponent`]."),
         returns = "The `ItemStack` value with the documented change applied to add or merge a typed item component. See [`ItemComponent`].",
         example = "use sand::prelude::*;\n\nfn demonstrate(item_stack_value: sand::component::ItemStack, component: sand::component::ItemComponent)  {\n    let updated_item_stack = item_stack_value.component(component);\n}",
     )]
@@ -141,7 +141,7 @@ impl ItemStack {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(component = "`component` supplies the component value used to add a raw item component escape hatch for components not covered by the typed [`ItemComponent`] API. See [`CustomItem::with_raw_component`]."),
+        params(component = "`component` provides the component added when building a raw item component escape hatch for components not covered by the typed [`ItemComponent`] API. See [`CustomItem::with_raw_component`]."),
         returns = "The `ItemStack` value with the documented change applied to add a raw item component escape hatch for components not covered by the typed [`ItemComponent`] API. See [`CustomItem::with_raw_component`].",
         example = "use sand::prelude::*;\n\nfn demonstrate(item_stack_value: sand::component::ItemStack, component: sand::component::RawComponent)  {\n    let updated_item_stack = item_stack_value.raw_component(component);\n}",
     )]

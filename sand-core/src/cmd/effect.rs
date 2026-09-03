@@ -36,8 +36,8 @@ impl EffectGive {
         minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        params(selector = "`selector` provides the Minecraft target selection used to create a typed effect give command builder from the supplied command inputs.", effect = "`effect` supplies the effect value used to create a typed effect give command builder from the supplied command inputs."),
-        returns = "A newly constructed `EffectGive` configured to create a typed effect give command builder from the supplied command inputs.",
+        params(selector = "`selector` provides the Minecraft target selection used to create a typed effect give command builder from the supplied command inputs.", effect = "`effect` is used when creating a typed effect give command builder from the supplied command inputs."),
+        returns = "An `EffectGive` representing a typed effect give command builder from the supplied command inputs.",
         example = "use sand::prelude::*;\n\nfn demonstrate(selector: sand::command::Selector, effect: impl Into < sand::registry::EffectId >)  {\n    let effect_give = sand::command::EffectGive::new(selector, effect);\n}",
     )]
     pub fn new(selector: Selector, effect: impl Into<EffectId>) -> Self {
@@ -79,7 +79,7 @@ impl EffectGive {
         minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        params(seconds = "`seconds` supplies the seconds value used to set command duration in seconds."),
+        params(seconds = "`seconds` provides the seconds applied when setting command duration in seconds."),
         returns = "The `EffectGive` value with the documented change applied to set command duration in seconds.",
         example = "use sand::prelude::*;\n\nfn demonstrate(effect_give_value: sand::command::EffectGive, seconds: u32)  {\n    let updated_effect_give = effect_give_value.seconds(seconds);\n}",
     )]
@@ -120,7 +120,7 @@ impl EffectGive {
         minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        params(amplifier = "`amplifier` supplies the amplifier value used to set the zero-based amplifier on this typed effect command."),
+        params(amplifier = "`amplifier` provides the amplifier applied when setting the zero-based amplifier on this typed effect command."),
         returns = "The `EffectGive` value with the documented change applied to set the zero-based amplifier on this typed effect command.",
         example = "use sand::prelude::*;\n\nfn demonstrate(effect_give_value: sand::command::EffectGive, amplifier: u8)  {\n    let updated_effect_give = effect_give_value.amplifier(amplifier);\n}",
     )]
@@ -214,7 +214,7 @@ impl From<EffectGive> for String {
     minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
     use_when = ["Constructing Minecraft commands through Sand's typed command model"],
     avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-    params(selector = "`selector` provides the Minecraft target selection used to emit the documented `effect give <selector> <effect>` with typed effect IDs form.", effect = "`effect` supplies the effect value used to emit the documented `effect give <selector> <effect>` with typed effect IDs form."),
+    params(selector = "`selector` provides the Minecraft target selection used to emit the documented `effect give <selector> <effect>` with typed effect IDs form.", effect = "`effect` supplies the documented `effect give <selector> <effect>` with typed effect IDs form."),
     returns = "The `EffectGive` value produced to emit the documented `effect give <selector> <effect>` with typed effect IDs form.",
     example = "use sand::prelude::*;\n\nfn demonstrate(selector: sand::command::Selector, effect: impl Into < sand::registry::EffectId >)  {\n    let effect_give = sand::command::effect_give(selector, effect);\n}",
 )]
@@ -252,7 +252,7 @@ pub fn effect_clear(selector: Selector) -> String {
     minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
     use_when = ["Constructing Minecraft commands through Sand's typed command model"],
     avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-    params(selector = "`selector` provides the Minecraft target selection used to emit the documented `effect clear <selector> <effect>` — clear one typed status effect form.", effect = "`effect` supplies the effect value used to emit the documented `effect clear <selector> <effect>` — clear one typed status effect form."),
+    params(selector = "`selector` provides the Minecraft target selection used to emit the documented `effect clear <selector> <effect>` — clear one typed status effect form.", effect = "`effect` supplies the documented `effect clear <selector> <effect>` — clear one typed status effect form."),
     returns = "The string value produced to emit the documented `effect clear <selector> <effect>` — clear one typed status effect form.",
     example = "use sand::prelude::*;\n\nfn demonstrate(selector: sand::command::Selector, effect: impl Into < sand::registry::EffectId >)  {\n    let effect_clear_effect = sand::command::effect_clear_effect(selector, effect);\n}",
 )]
@@ -271,7 +271,7 @@ pub fn effect_clear_effect(selector: Selector, effect: impl Into<EffectId>) -> S
     minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
     use_when = ["Constructing Minecraft commands through Sand's typed command model"],
     avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-    params(selector = "`selector` provides the Minecraft target selection used to use explicit raw escape hatch for unsupported effect command syntax.", effect = "`effect` supplies the effect value used to use explicit raw escape hatch for unsupported effect command syntax.", duration_seconds = "`duration_seconds` supplies the duration seconds value used to use explicit raw escape hatch for unsupported effect command syntax.", amplifier = "`amplifier` supplies the amplifier value used to use explicit raw escape hatch for unsupported effect command syntax.", hide_particles = "`hide_particles` provides the switch that enables or disables the behavior used to use explicit raw escape hatch for unsupported effect command syntax."),
+    params(selector = "`selector` provides the Minecraft target selection used to use explicit raw escape hatch for unsupported effect command syntax.", effect = "`effect` sets the effect for explicit raw escape hatch for unsupported effect command syntax.", duration_seconds = "`duration_seconds` sets the duration seconds for explicit raw escape hatch for unsupported effect command syntax.", amplifier = "`amplifier` sets the amplifier for explicit raw escape hatch for unsupported effect command syntax.", hide_particles = "`hide_particles` provides the switch that enables or disables the behavior used to use explicit raw escape hatch for unsupported effect command syntax."),
     returns = "The rendered Minecraft command text produced to use explicit raw escape hatch for unsupported effect command syntax.",
     example = "use std::fmt;\nuse sand::prelude::*;\n\nfn demonstrate(selector: sand::command::Selector, effect: impl fmt::Display, duration_seconds: u32, amplifier: u8, hide_particles: bool)  {\n    let command = sand::command::effect_give_raw(selector, effect, duration_seconds, amplifier, hide_particles);\n}",
 )]

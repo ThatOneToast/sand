@@ -499,7 +499,7 @@ pub trait Validate {
         minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        params(profile = "`profile` supplies the profile value used to reject invalid state before it can become command text."),
+        params(profile = "`profile` is used to reject invalid state before it can become command text."),
         returns = "On success, the value produced to reject invalid state before it can become command text; otherwise, the documented validation or export diagnostic.",
         example = "use sand::prelude::*;\n\nfn demonstrate<T: sand::command::Validate>(validate_value: &T, profile: & sand::command::CommandProfile)  {\n    let validate = validate_value.validate(profile);\n}",
     )]
@@ -535,7 +535,7 @@ pub trait RenderCommand: Validate {
         minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        params(profile = "`profile` supplies the profile value used to render without validation. Normal callers should use [`render`](Self::render)."),
+        params(profile = "`profile` provides the profile rendered when without validation. Normal callers should use [`render`](Self::render)."),
         returns = "The string value produced to render without validation. Normal callers should use [`render`](Self::render).",
         example = "use sand::prelude::*;\n\nfn demonstrate<T: sand::command::RenderCommand>(render_command_value: &T, profile: & sand::command::CommandProfile)  {\n    let render_unchecked = render_command_value.render_unchecked(profile);\n}",
     )]
@@ -552,7 +552,7 @@ pub trait RenderCommand: Validate {
         minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        params(profile = "`profile` supplies the profile value used to validate, then render with the active Minecraft profile."),
+        params(profile = "`profile` is used to validate, then render with the active Minecraft profile."),
         returns = "On success, the value produced to validate, then render with the active Minecraft profile; otherwise, the documented validation or export diagnostic.",
         example = "use sand::prelude::*;\n\nfn demonstrate<T: sand::command::RenderCommand>(render_command_value: &T, profile: & sand::command::CommandProfile)  {\n    let render = render_command_value.render(profile);\n}",
     )]

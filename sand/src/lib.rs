@@ -168,7 +168,7 @@ pub use sand_core::item;
     minecraft = "Renders vanilla item-command locations and execute-if-items targets for entities and block containers.",
     use_when = ["Mutating or matching a live inventory slot", "Addressing bounded player, entity, or container slots"],
     avoid_when = ["Reading an offline snapshot or arbitrary NBT path"],
-    example = "let slot = sand::inventory::EntityInventory::hotbar(0)?;"
+    example = "use sand::prelude::*;\nlet inventory = ItemLocation::entity(Selector::self_());\nlet slot = inventory.hotbar(0).unwrap();"
 )]
 pub mod inventory {
     pub use sand_core::item::{
@@ -264,7 +264,7 @@ pub mod state {
     minecraft = "Generates selector-driven commands, scoreboard and NBT state operations, and optional entity-archetype lifecycle functions.",
     use_when = ["Querying or mutating Minecraft entities through typed APIs", "Declaring entity-specific state or an archetype"],
     avoid_when = ["Addressing a one-off command token already covered by the command module", "Representing a durable entity identity outside an execution context"],
-    example = "let players = sand::entity::EntityQueries::players();"
+    example = "let entities = sand::entity::EntityQueries::entities();"
 )]
 pub mod entity {
     pub use sand_core::entity::{
@@ -373,7 +373,7 @@ pub mod component {
     minecraft = "Lowers condition trees into one or more execute-if or execute-unless clause plans, distributing nested alternatives when required.",
     use_when = ["Combining typed score, entity, predicate, NBT, or item checks", "Passing a reusable guard to execute or event APIs"],
     avoid_when = ["Choosing Rust generation-time control flow", "Hand-writing execute syntax that an existing typed condition represents"],
-    example = "let ready = Condition::entity(Selector::self_().tag(\"ready\"));"
+    example = "use sand::prelude::*;\nlet ready = Condition::entity(Selector::self_().tag(\"ready\"));"
 )]
 pub mod condition {
     pub use sand_core::condition::*;
@@ -392,7 +392,7 @@ pub mod condition {
     minecraft = "Emits execute-if or execute-unless commands and registers grouped arms as generated helper functions in the datapack.",
     use_when = ["Running commands under a typed Condition", "Expressing an if/else command branch"],
     avoid_when = ["A typed command builder already exposes the required conditional form", "Rust control flow is being used only to decide what code to generate"],
-    example = "when(READY.of(\"@s\").is_true()).then_one(\"say ready\");"
+    example = "use sand::prelude::*;\nlet ready = Condition::entity(Selector::self_().tag(\"ready\"));\nlet commands = when(ready).then_one(\"say ready\");"
 )]
 pub mod execute_when {
     pub use sand_core::execute_when::*;
@@ -407,7 +407,7 @@ pub mod execute_when {
     minecraft = "Each ID serializes as the validated namespace:path location Minecraft uses to find its corresponding datapack resource.",
     use_when = ["Connecting one Sand resource or command to another by identity", "Validating a datapack resource location before export"],
     avoid_when = ["Building the JSON payload of the resource itself", "Passing an unchecked namespace:path string to a typed API"],
-    example = "let dialog = resource_ref::DialogId::local(\"welcome\");"
+    example = "let dialog = sand::resource_ref::DialogId::local(\"welcome\");"
 )]
 pub mod resource_ref {
     pub use sand_core::resource_ref::{
@@ -429,7 +429,7 @@ pub mod resource_ref {
     minecraft = "Each wrapper serializes as the validated resource location used by its corresponding Minecraft registry.",
     use_when = ["Passing a custom or modded registry entry to a typed Sand API", "Naming a registry entry that has no generated vanilla enum variant"],
     avoid_when = ["A resource-file identity belongs in sand::resource_ref", "Passing an unchecked namespace:path string"],
-    example = "let item = sand::registry::ItemId::minecraft(\"diamond\")?;"
+    example = "let item = sand::registry::ItemId::minecraft(\"diamond\").unwrap();"
 )]
 pub mod registry {
     pub use sand_core::{
@@ -453,7 +453,7 @@ pub mod registry {
     minecraft = "Selects the pack metadata and data-driven features valid for the target Minecraft Java Edition release.",
     use_when = ["Checking whether authored content needs a Minecraft capability", "Inspecting the pack formats selected for a target release"],
     avoid_when = ["Driving Sand's generated export wiring directly", "Passing an unvalidated version string between APIs"],
-    example = "let version = sand::version::MinecraftVersion::parse(\"1.21.4\")?;"
+    example = "let version = sand::version::MinecraftVersion::parse(\"1.21.4\").unwrap();"
 )]
 pub mod version {
     pub use sand_core::component::{ComponentFeature, VersionCaps};

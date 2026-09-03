@@ -45,7 +45,7 @@ const TYPED_FIELDS: &[&str] = &[
     use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
     avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
     example = "use sand::component::GenerationStep;",
-    variants(FluidSprings = "Selects the fluid springs form in this typed Minecraft component schema.", Lakes = "Selects the lakes form in this typed Minecraft component schema.", LocalModifications = "Selects the local modifications form in this typed Minecraft component schema.", RawGeneration = "Selects the raw generation form in this typed Minecraft component schema.", Strongholds = "Selects the strongholds form in this typed Minecraft component schema.", SurfaceStructures = "Selects the surface structures form in this typed Minecraft component schema.", TopLayerModification = "Selects the top layer modification form in this typed Minecraft component schema.", UndergroundDecoration = "Selects the underground decoration form in this typed Minecraft component schema.", UndergroundOres = "Selects the underground ores form in this typed Minecraft component schema.", UndergroundStructures = "Selects the underground structures form in this typed Minecraft component schema.", VegetalDecoration = "Selects the vegetal decoration form in this typed Minecraft component schema."),
+    variants(FluidSprings = "Places content during Minecraft's fluid springs generation step.", Lakes = "Places content during Minecraft's lakes generation step.", LocalModifications = "Places content during Minecraft's local modifications generation step.", RawGeneration = "Places content during Minecraft's raw generation generation step.", Strongholds = "Places content during Minecraft's strongholds generation step.", SurfaceStructures = "Places content during Minecraft's surface structures generation step.", TopLayerModification = "Places content during Minecraft's top layer modification generation step.", UndergroundDecoration = "Places content during Minecraft's underground decoration generation step.", UndergroundOres = "Places content during Minecraft's underground ores generation step.", UndergroundStructures = "Places content during Minecraft's underground structures generation step.", VegetalDecoration = "Places content during Minecraft's vegetal decoration generation step."),
 )]
 /// The world-generation step a structure starts in.
 ///
@@ -53,27 +53,27 @@ const TYPED_FIELDS: &[&str] = &[
 /// ordered steps also bucket a biome's per-step `features` list-of-lists.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum GenerationStep {
-    #[doc = "Selects the raw generation form in this typed Minecraft component schema."]
+    #[doc = "Places content during Minecraft's raw generation generation step."]
     RawGeneration,
-    #[doc = "Selects the lakes form in this typed Minecraft component schema."]
+    #[doc = "Places content during Minecraft's lakes generation step."]
     Lakes,
-    #[doc = "Selects the local modifications form in this typed Minecraft component schema."]
+    #[doc = "Places content during Minecraft's local modifications generation step."]
     LocalModifications,
-    #[doc = "Selects the underground structures form in this typed Minecraft component schema."]
+    #[doc = "Places content during Minecraft's underground structures generation step."]
     UndergroundStructures,
-    #[doc = "Selects the surface structures form in this typed Minecraft component schema."]
+    #[doc = "Places content during Minecraft's surface structures generation step."]
     SurfaceStructures,
-    #[doc = "Selects the strongholds form in this typed Minecraft component schema."]
+    #[doc = "Places content during Minecraft's strongholds generation step."]
     Strongholds,
-    #[doc = "Selects the underground ores form in this typed Minecraft component schema."]
+    #[doc = "Places content during Minecraft's underground ores generation step."]
     UndergroundOres,
-    #[doc = "Selects the underground decoration form in this typed Minecraft component schema."]
+    #[doc = "Places content during Minecraft's underground decoration generation step."]
     UndergroundDecoration,
-    #[doc = "Selects the fluid springs form in this typed Minecraft component schema."]
+    #[doc = "Places content during Minecraft's fluid springs generation step."]
     FluidSprings,
-    #[doc = "Selects the vegetal decoration form in this typed Minecraft component schema."]
+    #[doc = "Places content during Minecraft's vegetal decoration generation step."]
     VegetalDecoration,
-    #[doc = "Selects the top layer modification form in this typed Minecraft component schema."]
+    #[doc = "Places content during Minecraft's top layer modification generation step."]
     TopLayerModification,
 }
 
@@ -139,20 +139,20 @@ impl GenerationStep {
     use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
     avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
     example = "use sand::component::TerrainAdaptation;",
-    variants(BeardBox = "Selects the beard box form in this typed Minecraft component schema.", BeardThin = "Selects the beard thin form in this typed Minecraft component schema.", Bury = "Selects the bury form in this typed Minecraft component schema.", Encapsulate = "Selects the encapsulate form in this typed Minecraft component schema.", None = "Selects the none form in this typed Minecraft component schema."),
+    variants(BeardBox = "Applies Minecraft's beard box terrain adaptation.", BeardThin = "Applies Minecraft's beard thin terrain adaptation.", Bury = "Applies Minecraft's bury terrain adaptation.", Encapsulate = "Applies Minecraft's encapsulate terrain adaptation.", None = "Applies Minecraft's none terrain adaptation."),
 )]
 /// How terrain is modified around a generated structure.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum TerrainAdaptation {
-    #[doc = "Selects the none form in this typed Minecraft component schema."]
+    #[doc = "Applies Minecraft's none terrain adaptation."]
     None,
-    #[doc = "Selects the beard thin form in this typed Minecraft component schema."]
+    #[doc = "Applies Minecraft's beard thin terrain adaptation."]
     BeardThin,
-    #[doc = "Selects the beard box form in this typed Minecraft component schema."]
+    #[doc = "Applies Minecraft's beard box terrain adaptation."]
     BeardBox,
-    #[doc = "Selects the bury form in this typed Minecraft component schema."]
+    #[doc = "Applies Minecraft's bury terrain adaptation."]
     Bury,
-    #[doc = "Selects the encapsulate form in this typed Minecraft component schema."]
+    #[doc = "Applies Minecraft's encapsulate terrain adaptation."]
     Encapsulate,
 }
 
@@ -194,26 +194,26 @@ impl TerrainAdaptation {
     use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
     avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
     example = "use sand::component::MobCategory;",
-    variants(Ambient = "Selects the ambient form in this typed Minecraft component schema.", Axolotls = "Selects the axolotls form in this typed Minecraft component schema.", Creature = "Selects the creature form in this typed Minecraft component schema.", Misc = "Selects the misc form in this typed Minecraft component schema.", Monster = "Selects the monster form in this typed Minecraft component schema.", UndergroundWaterCreature = "Selects the underground water creature form in this typed Minecraft component schema.", WaterAmbient = "Selects the water ambient form in this typed Minecraft component schema.", WaterCreature = "Selects the water creature form in this typed Minecraft component schema."),
+    variants(Ambient = "Targets Minecraft's ambient mob category.", Axolotls = "Targets Minecraft's axolotls mob category.", Creature = "Targets Minecraft's creature mob category.", Misc = "Targets Minecraft's misc mob category.", Monster = "Targets Minecraft's monster mob category.", UndergroundWaterCreature = "Targets Minecraft's underground water creature mob category.", WaterAmbient = "Targets Minecraft's water ambient mob category.", WaterCreature = "Targets Minecraft's water creature mob category."),
 )]
 /// A vanilla mob category used as a spawn-override key.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub enum MobCategory {
-    #[doc = "Selects the monster form in this typed Minecraft component schema."]
+    #[doc = "Targets Minecraft's monster mob category."]
     Monster,
-    #[doc = "Selects the creature form in this typed Minecraft component schema."]
+    #[doc = "Targets Minecraft's creature mob category."]
     Creature,
-    #[doc = "Selects the ambient form in this typed Minecraft component schema."]
+    #[doc = "Targets Minecraft's ambient mob category."]
     Ambient,
-    #[doc = "Selects the axolotls form in this typed Minecraft component schema."]
+    #[doc = "Targets Minecraft's axolotls mob category."]
     Axolotls,
-    #[doc = "Selects the underground water creature form in this typed Minecraft component schema."]
+    #[doc = "Targets Minecraft's underground water creature mob category."]
     UndergroundWaterCreature,
-    #[doc = "Selects the water creature form in this typed Minecraft component schema."]
+    #[doc = "Targets Minecraft's water creature mob category."]
     WaterCreature,
-    #[doc = "Selects the water ambient form in this typed Minecraft component schema."]
+    #[doc = "Targets Minecraft's water ambient mob category."]
     WaterAmbient,
-    #[doc = "Selects the misc form in this typed Minecraft component schema."]
+    #[doc = "Targets Minecraft's misc mob category."]
     Misc,
 }
 
@@ -329,7 +329,7 @@ impl SpawnEntry {
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
         params(entity_type = "`entity_type` provides the typed Minecraft resource identifier used to create a spawn entry. `weight` and `min_count` must be at least 1 and `max_count` must be at least `min_count`; both are checked on export.", weight = "Create a spawn entry. `weight` and `min_count` must be at least 1 and `max_count` must be at least `min_count`; both are checked on export.", min_count = "Create a spawn entry. `weight` and `min_count` must be at least 1 and `max_count` must be at least `min_count`; both are checked on export.", max_count = "Create a spawn entry. `weight` and `min_count` must be at least 1 and `max_count` must be at least `min_count`; both are checked on export."),
-        returns = "A newly constructed `SpawnEntry` configured to create a spawn entry. `weight` and `min_count` must be at least 1 and `max_count` must be at least `min_count`; both are checked on export.",
+        returns = "A `SpawnEntry` representing a spawn entry. `weight` and `min_count` must be at least 1 and `max_count` must be at least `min_count`; both are checked on export.",
         example = "use sand::prelude::*;\n\nfn demonstrate(entity_type: sand::registry::EntityTypeId, weight: u32, min_count: u32, max_count: u32)  {\n    let spawn_entry = sand::component::SpawnEntry::new(entity_type, weight, min_count, max_count);\n}",
     )]
     pub fn new(entity_type: EntityTypeId, weight: u32, min_count: u32, max_count: u32) -> Self {
@@ -420,8 +420,8 @@ impl SpawnOverride {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(bounding_box = "`bounding_box` supplies the bounding box value used to use an override that suppresses all spawns of its category."),
-        returns = "A newly constructed `SpawnOverride` configured to use an override that suppresses all spawns of its category.",
+        params(bounding_box = "`bounding_box` sets the bounding box for an override that suppresses all spawns of its category."),
+        returns = "A `SpawnOverride` configured for an override that suppresses all spawns of its category.",
         example = "use sand::prelude::*;\n\nfn demonstrate(bounding_box: sand::component::SpawnBoundingBox)  {\n    let spawn_override = sand::component::SpawnOverride::none(bounding_box);\n}",
     )]
     pub fn none(bounding_box: SpawnBoundingBox) -> Self {
@@ -443,8 +443,8 @@ impl SpawnOverride {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(bounding_box = "`bounding_box` supplies the bounding box value used to use an override with an explicit spawn list.", spawns = "`spawns` supplies the spawns value used to use an override with an explicit spawn list."),
-        returns = "A newly constructed `SpawnOverride` configured to use an override with an explicit spawn list.",
+        params(bounding_box = "`bounding_box` sets the bounding box for an override with an explicit spawn list.", spawns = "`spawns` sets the spawns for an override with an explicit spawn list."),
+        returns = "A `SpawnOverride` configured for an override with an explicit spawn list.",
         example = "use sand::prelude::*;\n\nfn demonstrate(bounding_box: sand::component::SpawnBoundingBox, spawns: impl IntoIterator < Item = sand::component::SpawnEntry >)  {\n    let spawn_override = sand::component::SpawnOverride::new(bounding_box, spawns);\n}",
     )]
     pub fn new(
@@ -469,7 +469,7 @@ impl SpawnOverride {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(entry = "`entry` supplies the entry value used to append a spawn entry."),
+        params(entry = "`entry` provides the entry appended when building a spawn entry."),
         returns = "The `SpawnOverride` value with the documented change applied to append a spawn entry.",
         example = "use sand::prelude::*;\n\nfn demonstrate(spawn_override_value: sand::component::SpawnOverride, entry: sand::component::SpawnEntry)  {\n    let updated_spawn_override = spawn_override_value.spawn(entry);\n}",
     )]
@@ -591,7 +591,7 @@ impl JigsawConfig {
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
         params(start_pool = "`start_pool` provides the typed Minecraft resource identifier used to use a jigsaw config with vanilla village-like defaults."),
-        returns = "A newly constructed `JigsawConfig` configured to use a jigsaw config with vanilla village-like defaults.",
+        returns = "A `JigsawConfig` configured for a jigsaw config with vanilla village-like defaults.",
         example = "use sand::prelude::*;\n\nfn demonstrate(start_pool: sand::registry::TemplatePoolId)  {\n    let jigsaw_config = sand::component::JigsawConfig::new(start_pool);\n}",
     )]
     pub fn new(start_pool: TemplatePoolId) -> Self {
@@ -618,7 +618,7 @@ impl JigsawConfig {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(size = "`size` supplies the size value used to jigsaw expansion depth (`0..=20`)."),
+        params(size = "`size` sets the jigsaw expansion depth (`0..=20`)."),
         returns = "The `JigsawConfig` value with the documented change applied to jigsaw expansion depth (`0..=20`).",
         example = "use sand::prelude::*;\n\nfn demonstrate(jigsaw_config_value: sand::component::JigsawConfig, size: u32)  {\n    let updated_jigsaw_config = jigsaw_config_value.size(size);\n}",
     )]
@@ -639,7 +639,7 @@ impl JigsawConfig {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(start_height = "`start_height` supplies the start height value used to set the Minecraft start height property on this typed jigsaw config definition and returns the updated builder."),
+        params(start_height = "`start_height` provides the start height applied when setting the Minecraft start height property on this typed jigsaw config definition and returns the updated builder."),
         returns = "Sets the Minecraft start height property on this typed jigsaw config definition and returns the updated builder.",
         example = "use sand::prelude::*;\n\nfn demonstrate(jigsaw_config_value: sand::component::JigsawConfig, start_height: sand::component::HeightProvider)  {\n    let updated_jigsaw_config = jigsaw_config_value.start_height(start_height);\n}",
     )]
@@ -660,7 +660,7 @@ impl JigsawConfig {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(name = "`name` provides the author-visible text value used to set the Minecraft start jigsaw name property on this typed jigsaw config definition and returns the updated builder."),
+        params(name = "`name` provides the author-visible text applied when setting the Minecraft start jigsaw name property on this typed jigsaw config definition and returns the updated builder."),
         returns = "Sets the Minecraft start jigsaw name property on this typed jigsaw config definition and returns the updated builder.",
         example = "use sand::prelude::*;\n\nfn demonstrate(jigsaw_config_value: sand::component::JigsawConfig, name: impl Into < String >)  {\n    let updated_jigsaw_config = jigsaw_config_value.start_jigsaw_name(name);\n}",
     )]
@@ -681,7 +681,7 @@ impl JigsawConfig {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(heightmap = "`heightmap` supplies the heightmap value used to set the Minecraft project start to heightmap property on this typed jigsaw config definition and returns the updated builder."),
+        params(heightmap = "`heightmap` provides the heightmap applied when setting the Minecraft project start to heightmap property on this typed jigsaw config definition and returns the updated builder."),
         returns = "Sets the Minecraft project start to heightmap property on this typed jigsaw config definition and returns the updated builder.",
         example = "use sand::prelude::*;\n\nfn demonstrate(jigsaw_config_value: sand::component::JigsawConfig, heightmap: sand::component::Heightmap)  {\n    let updated_jigsaw_config = jigsaw_config_value.project_start_to_heightmap(heightmap);\n}",
     )]
@@ -702,7 +702,7 @@ impl JigsawConfig {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(blocks = "`blocks` supplies the blocks value used to maximum horizontal distance pieces may extend from the start (`1..=128`)."),
+        params(blocks = "`blocks` sets the maximum horizontal distance pieces may extend from the start (`1..=128`)."),
         returns = "The `JigsawConfig` value with the documented change applied to maximum horizontal distance pieces may extend from the start (`1..=128`).",
         example = "use sand::prelude::*;\n\nfn demonstrate(jigsaw_config_value: sand::component::JigsawConfig, blocks: u32)  {\n    let updated_jigsaw_config = jigsaw_config_value.max_distance_from_center(blocks);\n}",
     )]
@@ -836,7 +836,7 @@ impl Structure {
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
         params(location = "`location` provides the typed resource identifier or location used to create a structure of an arbitrary typed structure type.", structure_type = "`structure_type` provides the typed Minecraft resource identifier used to create a structure of an arbitrary typed structure type.", biomes = "`biomes` provides the Minecraft target selection used to create a structure of an arbitrary typed structure type."),
-        returns = "A newly constructed `Structure` configured to create a structure of an arbitrary typed structure type.",
+        returns = "A `Structure` representing a structure of an arbitrary typed structure type.",
         example = "use sand::prelude::*;\n\nfn demonstrate(location: sand::ResourceLocation, structure_type: sand::registry::StructureTypeId, biomes: sand::component::BiomeSelector)  {\n    let structure = sand::component::Structure::new(location, structure_type, biomes);\n}",
     )]
     pub fn new(
@@ -869,7 +869,7 @@ impl Structure {
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
         params(location = "`location` provides the typed resource identifier or location used to create a complete `minecraft:jigsaw` structure with vanilla-like defaults.", start_pool = "`start_pool` provides the typed Minecraft resource identifier used to create a complete `minecraft:jigsaw` structure with vanilla-like defaults.", biomes = "`biomes` provides the Minecraft target selection used to create a complete `minecraft:jigsaw` structure with vanilla-like defaults."),
-        returns = "A newly constructed `Structure` configured to create a complete `minecraft:jigsaw` structure with vanilla-like defaults.",
+        returns = "A `Structure` representing a complete `minecraft:jigsaw` structure with vanilla-like defaults.",
         example = "use sand::prelude::*;\n\nfn demonstrate(location: sand::ResourceLocation, start_pool: sand::registry::TemplatePoolId, biomes: sand::component::BiomeSelector)  {\n    let structure = sand::component::Structure::jigsaw(location, start_pool, biomes);\n}",
     )]
     pub fn jigsaw(
@@ -935,7 +935,7 @@ impl Structure {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(step = "`step` supplies the step value used to set the Minecraft step property on this typed structure definition and returns the updated builder."),
+        params(step = "`step` provides the step applied when setting the Minecraft step property on this typed structure definition and returns the updated builder."),
         returns = "Sets the Minecraft step property on this typed structure definition and returns the updated builder.",
         example = "use sand::prelude::*;\n\nfn demonstrate(structure_value: sand::component::Structure, step: sand::component::GenerationStep)  {\n    let updated_structure = structure_value.step(step);\n}",
     )]
@@ -956,7 +956,7 @@ impl Structure {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(adaptation = "`adaptation` supplies the adaptation value used to set the Minecraft terrain adaptation property on this typed structure definition and returns the updated builder."),
+        params(adaptation = "`adaptation` provides the adaptation applied when setting the Minecraft terrain adaptation property on this typed structure definition and returns the updated builder."),
         returns = "Sets the Minecraft terrain adaptation property on this typed structure definition and returns the updated builder.",
         example = "use sand::prelude::*;\n\nfn demonstrate(structure_value: sand::component::Structure, adaptation: sand::component::TerrainAdaptation)  {\n    let updated_structure = structure_value.terrain_adaptation(adaptation);\n}",
     )]
@@ -977,7 +977,7 @@ impl Structure {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(config = "`config` supplies the config value used to replace the jigsaw configuration."),
+        params(config = "`config` provides the replacement config when the jigsaw configuration."),
         returns = "The `Structure` value with the documented change applied to replace the jigsaw configuration.",
         example = "use sand::prelude::*;\n\nfn demonstrate(structure_value: sand::component::Structure, config: sand::component::JigsawConfig)  {\n    let updated_structure = structure_value.jigsaw_config(config);\n}",
     )]
@@ -998,7 +998,7 @@ impl Structure {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(f = "`f` supplies the f value used to modify the jigsaw configuration in place, if one is present."),
+        params(f = "`f` is used to modify the jigsaw configuration in place, if one is present."),
         returns = "The `Structure` value with the documented change applied to modify the jigsaw configuration in place, if one is present.",
         example = "use sand::prelude::*;\n\nfn demonstrate(structure_value: sand::component::Structure, f: impl FnOnce (sand::component::JigsawConfig) -> sand::component::JigsawConfig)  {\n    let updated_structure = structure_value.map_jigsaw_config(f);\n}",
     )]
@@ -1019,7 +1019,7 @@ impl Structure {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(category = "`category` supplies the category value used to add or replace a spawn override for one mob category.", spawns = "`spawns` supplies the spawns value used to add or replace a spawn override for one mob category."),
+        params(category = "`category` provides the category added when building or replace a spawn override for one mob category.", spawns = "`spawns` provides the spawns added when building or replace a spawn override for one mob category."),
         returns = "The `Structure` value with the documented change applied to add or replace a spawn override for one mob category.",
         example = "use sand::prelude::*;\n\nfn demonstrate(structure_value: sand::component::Structure, category: sand::component::MobCategory, spawns: sand::component::SpawnOverride)  {\n    let updated_structure = structure_value.spawn_override(category, spawns);\n}",
     )]

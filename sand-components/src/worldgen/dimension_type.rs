@@ -172,7 +172,7 @@ impl DimensionType {
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
         params(location = "`location` provides the typed resource identifier or location used to create a complete dimension type with vanilla overworld-like defaults."),
-        returns = "A newly constructed `DimensionType` configured to create a complete dimension type with vanilla overworld-like defaults.",
+        returns = "A `DimensionType` representing a complete dimension type with vanilla overworld-like defaults.",
         example = "use sand::prelude::*;\n\nfn demonstrate(location: sand::ResourceLocation)  {\n    let dimension_type = sand::component::DimensionType::new(location);\n}",
     )]
     pub fn new(location: ResourceLocation) -> Self {
@@ -221,7 +221,7 @@ impl DimensionType {
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
         params(location = "`location` provides the typed resource identifier or location used to create a complete dimension type with vanilla overworld-like defaults."),
-        returns = "A newly constructed `DimensionType` configured to create a complete dimension type with vanilla overworld-like defaults.",
+        returns = "A `DimensionType` representing a complete dimension type with vanilla overworld-like defaults.",
         example = "use sand::prelude::*;\n\nfn demonstrate(location: sand::ResourceLocation)  {\n    let dimension_type = sand::component::DimensionType::overworld_like(location);\n}",
     )]
     pub fn overworld_like(location: ResourceLocation) -> Self {
@@ -240,7 +240,7 @@ impl DimensionType {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(time = "`time` supplies the time value used to set the Minecraft fixed time property on this typed dimension type definition and returns the updated builder."),
+        params(time = "`time` provides the time applied when setting the Minecraft fixed time property on this typed dimension type definition and returns the updated builder."),
         returns = "Sets the Minecraft fixed time property on this typed dimension type definition and returns the updated builder.",
         example = "use sand::prelude::*;\n\nfn demonstrate(dimension_type_value: sand::component::DimensionType, time: i64)  {\n    let updated_dimension_type = dimension_type_value.fixed_time(time);\n}",
     )]

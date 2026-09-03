@@ -121,7 +121,7 @@ impl PlayerParticipant {
         minecraft = "Entity relationships use the matching execute relation, while item snapshots are copied into Sand-owned command storage and cleaned up at the end of their declared lifetime.",
         use_when = ["Declaring or reading a typed participant whose lifecycle is guaranteed by the event plan"],
         avoid_when = ["Assuming an entity or item remains live beyond its declared invocation, event-cycle, or bounded correlation lifetime"],
-        returns = "A newly constructed `PlayerParticipant` configured to use the event's own player subject, rendered as `@s`. Always [`ParticipantReliability::Exact`] with [`ParticipantLifetime::Invocation`] — a caller needing a wider lifetime must justify it via graph propagation (see `super::capabilities`), not by constructing this directly with a different lifetime.",
+        returns = "A `PlayerParticipant` configured for the event's own player subject, rendered as `@s`. Always [`ParticipantReliability::Exact`] with [`ParticipantLifetime::Invocation`] — a caller needing a wider lifetime must justify it via graph propagation (see `super::capabilities`), not by constructing this directly with a different lifetime.",
         example = "use sand::prelude::*;\n\nfn demonstrate()  {\n    let player_participant = sand::participant::PlayerParticipant::subject();\n}",
     )]
     pub fn subject() -> Self {
@@ -312,7 +312,7 @@ impl EntityParticipant {
         minecraft = "Entity relationships use the matching execute relation, while item snapshots are copied into Sand-owned command storage and cleaned up at the end of their declared lifetime.",
         use_when = ["Declaring or reading a typed participant whose lifecycle is guaranteed by the event plan"],
         avoid_when = ["Assuming an entity or item remains live beyond its declared invocation, event-cycle, or bounded correlation lifetime"],
-        returns = "A newly constructed `EntityParticipant` configured to use the event's own subject, treated as a generic entity rather than specifically a player (for events whose subject need not be a player). Always [`ParticipantReliability::Exact`].",
+        returns = "An `EntityParticipant` configured for the event's own subject, treated as a generic entity rather than specifically a player (for events whose subject need not be a player). Always [`ParticipantReliability::Exact`].",
         example = "use sand::prelude::*;\n\nfn demonstrate()  {\n    let entity_participant = sand::participant::EntityParticipant::subject();\n}",
     )]
     pub fn subject() -> Self {
@@ -346,8 +346,8 @@ impl EntityParticipant {
         minecraft = "Entity relationships use the matching execute relation, while item snapshots are copied into Sand-owned command storage and cleaned up at the end of their declared lifetime.",
         use_when = ["Declaring or reading a typed participant whose lifecycle is guaranteed by the event plan"],
         avoid_when = ["Assuming an entity or item remains live beyond its declared invocation, event-cycle, or bounded correlation lifetime"],
-        params(selector = "There is no exact-entity constructor beyond [`EntityParticipant::subject`]/[`PlayerParticipant::subject`] in Phase 8: \"exact non-subject entity\" requires a stable generated binding mechanism (e.g. the tag-then-target pattern `EntityScope::bind` already uses for live traversal) applied at an authoritative event boundary, which is Phase 9 observation-backend work, not a type-system concern. Correlated/inferred references remain honestly weaker than `Exact` by construction — there is no API path to mark a `selector` exact without going through [`subject`](Self::subject).", role = "`role` supplies the role value used to construct a correlated entity participant reference.", lifetime = "`lifetime` supplies the lifetime value used to construct a correlated entity participant reference."),
-        returns = "A newly constructed `EntityParticipant` configured to construct a correlated entity participant reference.",
+        params(selector = "There is no exact-entity constructor beyond [`EntityParticipant::subject`]/[`PlayerParticipant::subject`] in Phase 8: \"exact non-subject entity\" requires a stable generated binding mechanism (e.g. the tag-then-target pattern `EntityScope::bind` already uses for live traversal) applied at an authoritative event boundary, which is Phase 9 observation-backend work, not a type-system concern. Correlated/inferred references remain honestly weaker than `Exact` by construction — there is no API path to mark a `selector` exact without going through [`subject`](Self::subject).", role = "`role` is used when constructing a correlated entity participant reference.", lifetime = "`lifetime` is used when constructing a correlated entity participant reference."),
+        returns = "An `EntityParticipant` representing a correlated entity participant reference.",
         example = "use sand::prelude::*;\n\nfn demonstrate(selector: sand::command::SingleEntity, role: sand::participant::EntityParticipantRole, lifetime: sand::participant::ParticipantLifetime)  {\n    let entity_participant = sand::participant::EntityParticipant::correlated(selector, role, lifetime);\n}",
     )]
     pub fn correlated(
@@ -375,8 +375,8 @@ impl EntityParticipant {
         minecraft = "Entity relationships use the matching execute relation, while item snapshots are copied into Sand-owned command storage and cleaned up at the end of their declared lifetime.",
         use_when = ["Declaring or reading a typed participant whose lifecycle is guaranteed by the event plan"],
         avoid_when = ["Assuming an entity or item remains live beyond its declared invocation, event-cycle, or bounded correlation lifetime"],
-        params(selector = "`selector` provides the Minecraft target selection used to construct an inferred entity participant reference (a heuristic query result that may be ambiguous). See [`correlated`](Self::correlated).", role = "`role` supplies the role value used to construct an inferred entity participant reference (a heuristic query result that may be ambiguous). See [`correlated`](Self::correlated).", lifetime = "`lifetime` supplies the lifetime value used to construct an inferred entity participant reference (a heuristic query result that may be ambiguous). See [`correlated`](Self::correlated)."),
-        returns = "A newly constructed `EntityParticipant` configured to construct an inferred entity participant reference (a heuristic query result that may be ambiguous). See [`correlated`](Self::correlated).",
+        params(selector = "`selector` provides the Minecraft target selection used to construct an inferred entity participant reference (a heuristic query result that may be ambiguous). See [`correlated`](Self::correlated).", role = "`role` is used when constructing an inferred entity participant reference (a heuristic query result that may be ambiguous). See [`correlated`](Self::correlated).", lifetime = "`lifetime` is used when constructing an inferred entity participant reference (a heuristic query result that may be ambiguous). See [`correlated`](Self::correlated)."),
+        returns = "An `EntityParticipant` representing an inferred entity participant reference (a heuristic query result that may be ambiguous). See [`correlated`](Self::correlated).",
         example = "use sand::prelude::*;\n\nfn demonstrate(selector: sand::command::SingleEntity, role: sand::participant::EntityParticipantRole, lifetime: sand::participant::ParticipantLifetime)  {\n    let entity_participant = sand::participant::EntityParticipant::inferred(selector, role, lifetime);\n}",
     )]
     pub fn inferred(
@@ -475,7 +475,7 @@ impl EntityParticipant {
         minecraft = "Entity relationships use the matching execute relation, while item snapshots are copied into Sand-owned command storage and cleaned up at the end of their declared lifetime.",
         use_when = ["Declaring or reading a typed participant whose lifecycle is guaranteed by the event plan"],
         avoid_when = ["Assuming an entity or item remains live beyond its declared invocation, event-cycle, or bounded correlation lifetime"],
-        params(required = "`required` supplies the required value used to check that the participant evidence meets the requested reliability."),
+        params(required = "`required` is the required checked to determine that the participant evidence meets the requested reliability."),
         returns = "On success, the value produced to check that the participant evidence meets the requested reliability; otherwise, the documented validation or export diagnostic.",
         example = "use sand::prelude::*;\n\nfn demonstrate(entity_participant_value: &sand::participant::EntityParticipant, required: sand::participant::ParticipantReliability)  {\n    let require = entity_participant_value.require(required);\n}",
     )]

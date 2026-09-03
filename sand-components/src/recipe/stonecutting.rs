@@ -20,11 +20,11 @@ use sand_version::ComponentFeature;
     use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
     avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
     example = "use sand::component::StonecuttingRecipe;",
-    fields(location = "`location` provides the location identifier when the variant represents a stonecutter recipe for cutting stone blocks into other shapes."),
+    fields(location = "`location` is used when cutting stone blocks into other shapes."),
 )]
 /// Represents a stonecutter recipe for cutting stone blocks into other shapes.
 pub struct StonecuttingRecipe {
-    /// `location` provides the location identifier when the variant represents a stonecutter recipe for cutting stone blocks into other shapes.
+    /// `location` is used when cutting stone blocks into other shapes.
     pub location: ResourceLocation,
     group: Option<String>,
     ingredient: Ingredient,
@@ -46,7 +46,7 @@ impl StonecuttingRecipe {
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
         params(location = "`location` provides the typed resource identifier or location used to create a new stonecutter recipe with the given resource location."),
-        returns = "A newly constructed `StonecuttingRecipe` configured to create a new stonecutter recipe with the given resource location.",
+        returns = "A `StonecuttingRecipe` representing a new stonecutter recipe with the given resource location.",
         example = "use sand::prelude::*;\n\nfn demonstrate(location: sand::ResourceLocation)  {\n    let stonecutting_recipe = sand::component::StonecuttingRecipe::new(location);\n}",
     )]
     pub fn new(location: ResourceLocation) -> Self {
@@ -71,7 +71,7 @@ impl StonecuttingRecipe {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(ingredient = "`ingredient` supplies the ingredient value used to set the ingredient to be cut by the stonecutter."),
+        params(ingredient = "`ingredient` provides the ingredient applied when setting the ingredient to be cut by the stonecutter."),
         returns = "The `StonecuttingRecipe` value with the documented change applied to set the ingredient to be cut by the stonecutter.",
         example = "use sand::prelude::*;\n\nfn demonstrate(stonecutting_recipe_value: sand::component::StonecuttingRecipe, ingredient: sand::component::Ingredient)  {\n    let updated_stonecutting_recipe = stonecutting_recipe_value.ingredient(ingredient);\n}",
     )]
@@ -92,7 +92,7 @@ impl StonecuttingRecipe {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(result = "`result` supplies the result value used to set the result item and quantity produced by this recipe."),
+        params(result = "`result` provides the result applied when setting the result item and quantity produced by this recipe."),
         returns = "The `StonecuttingRecipe` value with the documented change applied to set the result item and quantity produced by this recipe.",
         example = "use sand::prelude::*;\n\nfn demonstrate(stonecutting_recipe_value: sand::component::StonecuttingRecipe, result: sand::component::RecipeResult)  {\n    let updated_stonecutting_recipe = stonecutting_recipe_value.result(result);\n}",
     )]

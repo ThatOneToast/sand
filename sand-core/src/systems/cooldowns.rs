@@ -39,7 +39,7 @@ static REGISTERED: Mutex<Vec<String>> = Mutex::new(Vec::new());
     minecraft = "The exact commands, resources, and lifecycle behavior are described by the defining item's source documentation for the selected feature and Minecraft profile.",
     use_when = ["Opting into the documented higher-level gameplay behavior instead of assembling its commands manually"],
     avoid_when = ["Using the API outside its documented system scope or feature configuration"],
-    params(cd = "`cd` supplies the cd value used to register a cooldown for automatic ticking by the export pipeline."),
+    params(cd = "`cd` is used to register a cooldown for automatic ticking by the export pipeline."),
     example = "use sand::prelude::*;\n\nfn demonstrate(cd: & sand::state::Cooldown)  {\n    let register_cooldown = sand::systems::cooldowns::register_cooldown(cd);\n}",
     availability = ["Cargo feature: systems-cooldowns"],
 )]

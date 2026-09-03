@@ -92,7 +92,7 @@ impl FunctionMacroArg {
         minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        params(name = "`name` provides the author-visible text value used to parse a function-macro argument name."),
+        params(name = "`name` is used to parse a function-macro argument name."),
         returns = "On success, the value produced to parse a function-macro argument name; otherwise, the documented validation or export diagnostic.",
         example = "use sand::prelude::*;\n\nfn demonstrate(name: impl Into < String >)  {\n    let function_macro_arg_result = sand::command::FunctionMacroArg::new(name);\n}",
     )]
@@ -210,7 +210,7 @@ impl FunctionMacroArgs {
         minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        params(names = "`names` supplies the names value used to build a validated declaration from argument names."),
+        params(names = "`names` provides the names used to build a validated declaration from argument names."),
         returns = "On success, the value produced to build a validated declaration from argument names; otherwise, the documented validation or export diagnostic.",
         example = "use sand::prelude::*;\n\nfn demonstrate<I: 'static, S: 'static>(names: I) where I : IntoIterator < Item = S > , S : Into < String > {\n    let function_macro_args_result = sand::command::FunctionMacroArgs::new::<I, S>(names);\n}",
     )]
@@ -264,7 +264,7 @@ impl FunctionMacroArgs {
         minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        params(name = "`name` provides the author-visible text value used to render a declared argument as `$(name)`."),
+        params(name = "`name` provides the author-visible text rendered when a declared argument as `$(name)`."),
         returns = "On success, the value produced to render a declared argument as `$(name)`; otherwise, the documented validation or export diagnostic.",
         example = "use sand::prelude::*;\n\nfn demonstrate(function_macro_args_value: &sand::command::FunctionMacroArgs, name: & str)  {\n    let variable = function_macro_args_value.variable(name);\n}",
     )]
@@ -291,7 +291,7 @@ impl FunctionMacroArgs {
         minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        params(command = "`command` supplies the command value used to mark a command as a macro line after validating every `$(name)`."),
+        params(command = "`command` is used to mark a command as a macro line after validating every `$(name)`."),
         returns = "On success, the value produced to mark a command as a macro line after validating every `$(name)`; otherwise, the documented validation or export diagnostic.",
         example = "use std::fmt;\nuse sand::prelude::*;\n\nfn demonstrate(function_macro_args_value: &sand::command::FunctionMacroArgs, command: impl fmt::Display)  {\n    let line = function_macro_args_value.line(command);\n}",
     )]
@@ -321,7 +321,7 @@ impl FunctionMacroArgs {
         minecraft = "The declaration is retained at the definition side for placeholder validation; Minecraft validates the runtime compound's actual keys.",
         use_when = ["Call a registered/typed function using a typed NBT compound reference."],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        params(function = "`function` provides the callback invoked by this operation used to call a registered/typed function using a typed NBT compound reference.", arguments = "`arguments` supplies the arguments value used to call a registered/typed function using a typed NBT compound reference."),
+        params(function = "`function` provides the callback invoked by this operation used to call a registered/typed function using a typed NBT compound reference.", arguments = "`arguments` is used to call a registered/typed function using a typed NBT compound reference."),
         returns = "On success, the value produced to call a registered/typed function using a typed NBT compound reference; otherwise, the documented validation or export diagnostic.",
         example = "use sand::prelude::*;\n\nfn demonstrate<T: 'static>(function_macro_args_value: &sand::command::FunctionMacroArgs, function: impl sand::command::IntoFunctionRef, arguments: & sand::data::NbtRef < T >)  {\n    let call_with = function_macro_args_value.call_with::<T>(function, arguments);\n}",
     )]
@@ -459,7 +459,7 @@ fn validate_placeholders(
     minecraft = "Embed the result anywhere in a command string that will be wrapped in [`macro_line`]. Minecraft replaces `$(name)` at runtime with the matching key from the variables compound passed to the function call.",
     use_when = ["Constructing Minecraft commands through Sand's typed command model"],
     avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-    params(name = "`name` provides the author-visible text value used to return a `$(name)` placeholder string for use inside a macro function line."),
+    params(name = "`name` is used to return a `$(name)` placeholder string for use inside a macro function line."),
     returns = "Returns a `$(name)` placeholder string for use inside a macro function line.",
     example = "use sand::prelude::*;\n\nfn demonstrate(name: & str)  {\n    let macro_var = sand::command::macro_var(name);\n}",
 )]
@@ -478,7 +478,7 @@ pub fn macro_var(name: &str) -> String {
     minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
     use_when = ["Constructing Minecraft commands through Sand's typed command model"],
     avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-    params(name = "`name` provides the author-visible text value used to use validated counterpart to [`macro_var`]."),
+    params(name = "`name` sets the author-visible text for validated counterpart to [`macro_var`]."),
     returns = "On success, the value produced to use validated counterpart to [`macro_var`]; otherwise, the documented validation or export diagnostic.",
     example = "use sand::prelude::*;\n\nfn demonstrate(name: impl Into < String >)  {\n    let try_macro_var = sand::command::try_macro_var(name);\n}",
 )]
@@ -519,7 +519,7 @@ pub fn try_macro_var(name: impl Into<String>) -> CommandResult<String> {
     minecraft = "Lines starting with `$` in a `.mcfunction` file are macro lines: Minecraft processes all `$(name)` placeholders before executing the command. Regular (non-macro) lines are never substituted even if they contain `$(...)`.",
     use_when = ["Constructing Minecraft commands through Sand's typed command model"],
     avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-    params(cmd = "`cmd` supplies the cmd value used to mark a command string as a macro line by prepending `$`."),
+    params(cmd = "`cmd` is used to mark a command string as a macro line by prepending `$`."),
     returns = "The rendered Minecraft command text produced to mark a command string as a macro line by prepending `$`.",
     example = "use std::fmt;\nuse sand::prelude::*;\n\nfn demonstrate(cmd: impl std::fmt::Display)  {\n    let command = sand::command::macro_line(cmd);\n}",
 )]
@@ -563,7 +563,7 @@ pub fn macro_line(cmd: impl std::fmt::Display) -> String {
     minecraft = "This command invokes the named function in macro mode, substituting all `$(key)` placeholders from the NBT compound found at `source` / `path`.",
     use_when = ["Constructing Minecraft commands through Sand's typed command model"],
     avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-    params(name = "`name` provides the author-visible text value used to generate `function <name> with <source> <path>` — call a macro function.", source = "This command invokes the named function in macro mode, substituting all `$(key)` placeholders from the NBT compound found at `source` / `path`.", path = "This command invokes the named function in macro mode, substituting all `$(key)` placeholders from the NBT compound found at `source` / `path`."),
+    params(name = "`name` is used to generate `function <name> with <source> <path>` — call a macro function.", source = "This command invokes the named function in macro mode, substituting all `$(key)` placeholders from the NBT compound found at `source` / `path`.", path = "This command invokes the named function in macro mode, substituting all `$(key)` placeholders from the NBT compound found at `source` / `path`."),
     returns = "The string value produced to generate `function <name> with <source> <path>` — call a macro function.",
     example = "use std::fmt;\nuse sand::prelude::*;\n\nfn demonstrate(name: impl std::fmt::Display, source: sand::data::DataTarget, path: impl Into < String >)  {\n    let function_with = sand::command::function_with(name, source, path);\n}",
 )]
@@ -638,7 +638,7 @@ pub fn try_function_with(
     minecraft = "This is the function-reference-integrated normal path. It resolves local `#[function]` pointers through [`IntoFunctionRef`](sand::command::IntoFunctionRef) and validates the NBT location and path before rendering. Use [`function_with`] only when intentionally supplying unchecked strings.",
     use_when = ["Call a registered or typed function with a typed NBT compound reference."],
     avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-    params(function = "`function` provides the callback invoked by this operation used to call a registered or typed function with a typed NBT compound reference.", arguments = "`arguments` supplies the arguments value used to call a registered or typed function with a typed NBT compound reference."),
+    params(function = "`function` provides the callback invoked by this operation used to call a registered or typed function with a typed NBT compound reference.", arguments = "`arguments` is used to call a registered or typed function with a typed NBT compound reference."),
     returns = "On success, the value produced to call a registered or typed function with a typed NBT compound reference; otherwise, the documented validation or export diagnostic.",
     example = "use sand::prelude::*;\n\nfn demonstrate<T: 'static>(function: impl sand::command::IntoFunctionRef, arguments: & sand::data::NbtRef < T >)  {\n    let try_call_with = sand::command::try_call_with::<T>(function, arguments);\n}",
 )]
@@ -682,7 +682,7 @@ pub fn try_call_with<T>(
     minecraft = "This is convenient when the function and NBT reference were already validated by construction. It panics with the validation diagnostic if a raw `IntoFunctionRef` or `NbtPath` escape hatch is malformed.",
     use_when = ["Constructing Minecraft commands through Sand's typed command model"],
     avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-    params(function = "`function` provides the callback invoked by this operation used to infallible typed-reference spelling for [`try_call_with`].", arguments = "`arguments` supplies the arguments value used to infallible typed-reference spelling for [`try_call_with`]."),
+    params(function = "`function` selects the typed function resource invoked by the command.", arguments = "`arguments` supplies the function arguments; unlike [`try_call_with`], this spelling assumes they are valid."),
     returns = "The string value produced to infallible typed-reference spelling for [`try_call_with`].",
     example = "use sand::prelude::*;\n\nfn demonstrate<T: 'static>(function: impl sand::command::IntoFunctionRef, arguments: & sand::data::NbtRef < T >)  {\n    let call_with = sand::command::call_with::<T>(function, arguments);\n}",
 )]

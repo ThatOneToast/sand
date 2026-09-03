@@ -342,7 +342,7 @@ pub fn try_function_id(
     minecraft = "Dialogs are available in Minecraft Java 1.21.6+ / pack format 80+. The command emitted is `dialog show <targets> <dialog>`.",
     use_when = ["Constructing Minecraft commands through Sand's typed command model"],
     avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-    params(selector = "`selector` provides the Minecraft target selection used to show a typed datapack dialog to one or more players.", dialog = "`dialog` supplies the dialog value used to show a typed datapack dialog to one or more players."),
+    params(selector = "`selector` provides the Minecraft target selection used to show a typed datapack dialog to one or more players.", dialog = "`dialog` is used to show a typed datapack dialog to one or more players."),
     returns = "The string value produced to show a typed datapack dialog to one or more players.",
     example = "use sand::prelude::*;\ncmd::show_dialog(Selector::self_(), DialogId::local(\"welcome\"));\ncmd::show_dialog(\nSelector::all_players(),\nDialogId::custom(\"other_pack:settings\".parse().unwrap()),\n);",
 )]
@@ -389,7 +389,7 @@ pub fn try_show_dialog(
     minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
     use_when = ["Constructing Minecraft commands through Sand's typed command model"],
     avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-    params(target = "`target` provides the entity, block, or command target used to emit the documented `tellraw <target> <json>` — send a rich JSON text component to a target form.", text = "`text` provides the author-visible text value used to emit the documented `tellraw <target> <json>` — send a rich JSON text component to a target form."),
+    params(target = "`target` provides the entity, block, or command target used to emit the documented `tellraw <target> <json>` — send a rich JSON text component to a target form.", text = "`text` supplies the documented `tellraw <target> <json>` — send a rich JSON text component to a target form."),
     returns = "The string value produced to emit the documented `tellraw <target> <json>` — send a rich JSON text component to a target form.",
     example = "use sand::prelude::*;\n\nfn demonstrate(target: sand::command::Selector, text: sand::text::TextComponent)  {\n    let tellraw = sand::command::tellraw(target, text);\n}",
 )]
@@ -686,7 +686,7 @@ pub fn return_cmd(value: i32) -> String {
     minecraft = "Prefer typed builders for normal datapack code. Use this for interop with other datapacks, modded commands, snapshot-only syntax, future features not modeled by Sand yet, or focused debugging.",
     use_when = ["Prefer typed builders for normal datapack code. Use this for interop with other datapacks, modded commands, snapshot-only syntax, future features not modeled by Sand yet, or focused debugging."],
     avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-    params(command = "`command` supplies the command value used to use explicit escape hatch for raw Minecraft command syntax."),
+    params(command = "`command` sets the command for explicit escape hatch for raw Minecraft command syntax."),
     returns = "The `sand :: command :: RawCommand` value produced to use explicit escape hatch for raw Minecraft command syntax.",
     example = "use sand::prelude::*;\n\nfn demonstrate(command: impl Into < String >)  {\n    let raw = sand::command::raw(command);\n}",
 )]

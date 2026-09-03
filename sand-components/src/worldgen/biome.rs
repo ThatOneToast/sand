@@ -164,8 +164,8 @@ impl BiomeEffects {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(fog_color = "`fog_color` supplies the fog color value used to create effects with the minimum required colors.", water_color = "`water_color` supplies the water color value used to create effects with the minimum required colors.", water_fog_color = "`water_fog_color` supplies the water fog color value used to create effects with the minimum required colors.", sky_color = "`sky_color` supplies the sky color value used to create effects with the minimum required colors."),
-        returns = "A newly constructed `BiomeEffects` configured to create effects with the minimum required colors.",
+        params(fog_color = "`fog_color` is used when creating effects with the minimum required colors.", water_color = "`water_color` is used when creating effects with the minimum required colors.", water_fog_color = "`water_fog_color` is used when creating effects with the minimum required colors.", sky_color = "`sky_color` is used when creating effects with the minimum required colors."),
+        returns = "A `BiomeEffects` representing effects with the minimum required colors.",
         example = "use sand::prelude::*;\n\nfn demonstrate(fog_color: u32, water_color: u32, water_fog_color: u32, sky_color: u32)  {\n    let biome_effects = sand::component::BiomeEffects::new(fog_color, water_color, water_fog_color, sky_color);\n}",
     )]
     pub fn new(fog_color: u32, water_color: u32, water_fog_color: u32, sky_color: u32) -> Self {
@@ -195,7 +195,7 @@ impl BiomeEffects {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(color = "`color` supplies the color value used to override the grass color."),
+        params(color = "`color` is used to override the grass color."),
         returns = "The `BiomeEffects` value with the documented change applied to override the grass color.",
         example = "use sand::prelude::*;\n\nfn demonstrate(biome_effects_value: sand::component::BiomeEffects, color: u32)  {\n    let updated_biome_effects = biome_effects_value.grass_color(color);\n}",
     )]
@@ -215,7 +215,7 @@ impl BiomeEffects {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(color = "`color` supplies the color value used to override the foliage color."),
+        params(color = "`color` is used to override the foliage color."),
         returns = "The `BiomeEffects` value with the documented change applied to override the foliage color.",
         example = "use sand::prelude::*;\n\nfn demonstrate(biome_effects_value: sand::component::BiomeEffects, color: u32)  {\n    let updated_biome_effects = biome_effects_value.foliage_color(color);\n}",
     )]
@@ -235,7 +235,7 @@ impl BiomeEffects {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(particle = "`particle` supplies the particle value used to set the ambient particle effect through the explicit raw JSON escape hatch."),
+        params(particle = "`particle` provides the particle applied when setting the ambient particle effect through the explicit raw JSON escape hatch."),
         returns = "The `BiomeEffects` value with the documented change applied to set the ambient particle effect through the explicit raw JSON escape hatch.",
         example = "use sand::prelude::*;\n\nfn demonstrate(biome_effects_value: sand::component::BiomeEffects, particle: sand::component::RawJson)  {\n    let updated_biome_effects = biome_effects_value.particle(particle);\n}",
     )]
@@ -279,7 +279,7 @@ impl BiomeEffects {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Prefer [`BiomeEffects::ambient_sound`] with a [`SoundEventId`]. This escape hatch exists for modded or version-specific sound references."],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(sound = "`sound` supplies the sound value used to set the ambient loop sound through the explicit raw compatibility path."),
+        params(sound = "`sound` provides the sound applied when setting the ambient loop sound through the explicit raw compatibility path."),
         returns = "The `BiomeEffects` value with the documented change applied to set the ambient loop sound through the explicit raw compatibility path.",
         example = "use sand::prelude::*;\n\nfn demonstrate(biome_effects_value: sand::component::BiomeEffects, sound: impl Into < String >)  {\n    let updated_biome_effects = biome_effects_value.raw_ambient_sound(sound);\n}",
     )]
@@ -299,7 +299,7 @@ impl BiomeEffects {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(sound = "`sound` supplies the sound value used to set the mood sound through the explicit raw JSON escape hatch."),
+        params(sound = "`sound` provides the sound applied when setting the mood sound through the explicit raw JSON escape hatch."),
         returns = "The `BiomeEffects` value with the documented change applied to set the mood sound through the explicit raw JSON escape hatch.",
         example = "use sand::prelude::*;\n\nfn demonstrate(biome_effects_value: sand::component::BiomeEffects, sound: sand::component::RawJson)  {\n    let updated_biome_effects = biome_effects_value.mood_sound(sound);\n}",
     )]
@@ -319,7 +319,7 @@ impl BiomeEffects {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(sound = "`sound` supplies the sound value used to set the additions sound through the explicit raw JSON escape hatch."),
+        params(sound = "`sound` provides the sound applied when setting the additions sound through the explicit raw JSON escape hatch."),
         returns = "The `BiomeEffects` value with the documented change applied to set the additions sound through the explicit raw JSON escape hatch.",
         example = "use sand::prelude::*;\n\nfn demonstrate(biome_effects_value: sand::component::BiomeEffects, sound: sand::component::RawJson)  {\n    let updated_biome_effects = biome_effects_value.additions_sound(sound);\n}",
     )]
@@ -339,7 +339,7 @@ impl BiomeEffects {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(music = "`music` supplies the music value used to set the background music through the explicit raw JSON escape hatch."),
+        params(music = "`music` provides the music applied when setting the background music through the explicit raw JSON escape hatch."),
         returns = "The `BiomeEffects` value with the documented change applied to set the background music through the explicit raw JSON escape hatch.",
         example = "use sand::prelude::*;\n\nfn demonstrate(biome_effects_value: sand::component::BiomeEffects, music: sand::component::RawJson)  {\n    let updated_biome_effects = biome_effects_value.music(music);\n}",
     )]
@@ -557,8 +557,8 @@ impl Biome {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(location = "`location` provides the typed resource identifier or location used to create a new biome with required base fields.", effects = "`effects` supplies the effects value used to create a new biome with required base fields."),
-        returns = "A newly constructed `Biome` configured to create a new biome with required base fields.",
+        params(location = "`location` provides the typed resource identifier or location used to create a new biome with required base fields.", effects = "`effects` is used when creating a new biome with required base fields."),
+        returns = "A `Biome` representing a new biome with required base fields.",
         example = "use sand::prelude::*;\n\nfn demonstrate(location: sand::ResourceLocation, effects: sand::component::BiomeEffects)  {\n    let biome = sand::component::Biome::new(location, effects);\n}",
     )]
     pub fn new(location: ResourceLocation, effects: BiomeEffects) -> Self {
@@ -608,7 +608,7 @@ impl Biome {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(temp = "`temp` supplies the temp value used to set the biome temperature."),
+        params(temp = "`temp` provides the temp applied when setting the biome temperature."),
         returns = "The `Biome` value with the documented change applied to set the biome temperature.",
         example = "use sand::prelude::*;\n\nfn demonstrate(biome_value: sand::component::Biome, temp: f32)  {\n    let updated_biome = biome_value.temperature(temp);\n}",
     )]
@@ -628,7 +628,7 @@ impl Biome {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(modifier = "`modifier` supplies the modifier value used to set the temperature modifier to a typed [`TemperatureModifier`]."),
+        params(modifier = "`modifier` provides the modifier applied when setting the temperature modifier to a typed [`TemperatureModifier`]."),
         returns = "The `Biome` value with the documented change applied to set the temperature modifier to a typed [`TemperatureModifier`].",
         example = "use sand::prelude::*;\n\nfn demonstrate(biome_value: sand::component::Biome, modifier: sand::component::TemperatureModifier)  {\n    let updated_biome = biome_value.temperature_modifier(modifier);\n}",
     )]
@@ -655,7 +655,7 @@ impl Biome {
         minecraft = "Prefer [`Biome::temperature_modifier`] with a [`TemperatureModifier`]. Vanilla currently only accepts `\"none\"` and `\"frozen\"`; this escape hatch is retained in case a future Minecraft version adds more accepted values before Sand's typed enum is updated, but export-time validation still rejects anything else today.",
         use_when = ["Prefer [`Biome::temperature_modifier`] with a [`TemperatureModifier`]. Vanilla currently only accepts `\"none\"` and `\"frozen\"`; this escape hatch is retained in case a future Minecraft version adds more accepted values before Sand's typed enum is updated, but export-time validation still rejects anything else today."],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(modifier = "`modifier` supplies the modifier value used to set the temperature modifier through the explicit raw compatibility path."),
+        params(modifier = "`modifier` provides the modifier applied when setting the temperature modifier through the explicit raw compatibility path."),
         returns = "The `Biome` value with the documented change applied to set the temperature modifier through the explicit raw compatibility path.",
         example = "use sand::prelude::*;\n\nfn demonstrate(biome_value: sand::component::Biome, modifier: impl Into < String >)  {\n    let updated_biome = biome_value.raw_temperature_modifier(modifier);\n}",
     )]
@@ -675,7 +675,7 @@ impl Biome {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(downfall = "`downfall` supplies the downfall value used to set the downfall value (0.0–1.0)."),
+        params(downfall = "`downfall` provides the downfall applied when setting the downfall value (0.0–1.0)."),
         returns = "The `Biome` value with the documented change applied to set the downfall value (0.0–1.0).",
         example = "use sand::prelude::*;\n\nfn demonstrate(biome_value: sand::component::Biome, downfall: f32)  {\n    let updated_biome = biome_value.downfall(downfall);\n}",
     )]
@@ -702,7 +702,7 @@ impl Biome {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Prefer [`Biome::carver_step`] with a typed [`ConfiguredCarverId`] (obtained from [`sand::component::ConfiguredCarver::id`]) on the normal path. This escape hatch exists for modded carver references or shapes outside the typed carving-step map. Mutually exclusive with [`Biome::carver_step`]."],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(carvers = "`carvers` supplies the carvers value used to set the carvers list through the explicit raw JSON escape hatch."),
+        params(carvers = "`carvers` provides the carvers applied when setting the carvers list through the explicit raw JSON escape hatch."),
         returns = "The `Biome` value with the documented change applied to set the carvers list through the explicit raw JSON escape hatch.",
         example = "use sand::prelude::*;\n\nfn demonstrate(biome_value: sand::component::Biome, carvers: sand::component::RawJson)  {\n    let updated_biome = biome_value.raw_carvers(carvers);\n}",
     )]
@@ -729,7 +729,7 @@ impl Biome {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(step = "`step` supplies the step value used to reference a configured carver by typed ID under the given carving step (`air` or `liquid`), preserving vanilla's step-grouped map/array shape (`{\"air\": [...], \"liquid\": [...]}`).", carver = "`carver` provides the typed Minecraft resource identifier used to reference a configured carver by typed ID under the given carving step (`air` or `liquid`), preserving vanilla's step-grouped map/array shape (`{\"air\": [...], \"liquid\": [...]}`)."),
+        params(step = "`step` is used to reference a configured carver by typed ID under the given carving step (`air` or `liquid`), preserving vanilla's step-grouped map/array shape (`{\"air\": [...], \"liquid\": [...]}`).", carver = "`carver` provides the typed Minecraft resource identifier used to reference a configured carver by typed ID under the given carving step (`air` or `liquid`), preserving vanilla's step-grouped map/array shape (`{\"air\": [...], \"liquid\": [...]}`)."),
         returns = "The `Biome` value with the documented change applied to reference a configured carver by typed ID under the given carving step (`air` or `liquid`), preserving vanilla's step-grouped map/array shape (`{\"air\": [...], \"liquid\": [...]}`).",
         example = "use sand::prelude::*;\n\nfn demonstrate(biome_value: sand::component::Biome, step: sand::component::CarvingStep, carver: sand::registry::ConfiguredCarverId)  {\n    let updated_biome = biome_value.carver_step(step, carver);\n}",
     )]
@@ -754,7 +754,7 @@ impl Biome {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(step = "`step` supplies the step value used to add a typed configured-feature reference to the given [`GenerationStep`]'s bucket of the `features` list-of-lists.", feature = "`feature` provides the typed Minecraft resource identifier used to add a typed configured-feature reference to the given [`GenerationStep`]'s bucket of the `features` list-of-lists."),
+        params(step = "`step` provides the step added when building a typed configured-feature reference to the given [`GenerationStep`]'s bucket of the `features` list-of-lists.", feature = "`feature` provides the typed Minecraft resource identifier used to add a typed configured-feature reference to the given [`GenerationStep`]'s bucket of the `features` list-of-lists."),
         returns = "The `Biome` value with the documented change applied to add a typed configured-feature reference to the given [`GenerationStep`]'s bucket of the `features` list-of-lists.",
         example = "use sand::prelude::*;\n\nfn demonstrate(biome_value: sand::component::Biome, step: sand::component::GenerationStep, feature: sand::registry::ConfiguredFeatureId)  {\n    let updated_biome = biome_value.feature(step, feature);\n}",
     )]
@@ -784,7 +784,7 @@ impl Biome {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Prefer [`Biome::feature`] with a [`GenerationStep`] and [`ConfiguredFeatureId`]. This escape hatch exists for modded or version-specific feature shapes."],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(features = "`features` supplies the features value used to set the features list-of-lists through the explicit raw compatibility path."),
+        params(features = "`features` provides the features applied when setting the features list-of-lists through the explicit raw compatibility path."),
         returns = "The `Biome` value with the documented change applied to set the features list-of-lists through the explicit raw compatibility path.",
         example = "use sand::prelude::*;\n\nfn demonstrate(biome_value: sand::component::Biome, features: sand::component::RawJson)  {\n    let updated_biome = biome_value.raw_features(features);\n}",
     )]
@@ -804,7 +804,7 @@ impl Biome {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(spawners = "`spawners` supplies the spawners value used to set the spawners object through the explicit raw JSON escape hatch."),
+        params(spawners = "`spawners` provides the spawners applied when setting the spawners object through the explicit raw JSON escape hatch."),
         returns = "The `Biome` value with the documented change applied to set the spawners object through the explicit raw JSON escape hatch.",
         example = "use sand::prelude::*;\n\nfn demonstrate(biome_value: sand::component::Biome, spawners: sand::component::RawJson)  {\n    let updated_biome = biome_value.spawners(spawners);\n}",
     )]
@@ -824,7 +824,7 @@ impl Biome {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(costs = "`costs` supplies the costs value used to set the spawn costs object through the explicit raw JSON escape hatch."),
+        params(costs = "`costs` provides the costs applied when setting the spawn costs object through the explicit raw JSON escape hatch."),
         returns = "The `Biome` value with the documented change applied to set the spawn costs object through the explicit raw JSON escape hatch.",
         example = "use sand::prelude::*;\n\nfn demonstrate(biome_value: sand::component::Biome, costs: sand::component::RawJson)  {\n    let updated_biome = biome_value.spawn_costs(costs);\n}",
     )]

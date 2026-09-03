@@ -128,7 +128,7 @@ impl Execute {
         minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        returns = "A newly constructed `Execute` configured to create a new `Execute` builder with no sub-commands.",
+        returns = "An `Execute` representing a new `Execute` builder with no sub-commands.",
         example = "use sand::prelude::*;\n\nfn demonstrate()  {\n    let execute = sand::command::Execute::new();\n}",
     )]
     pub fn new() -> Self {
@@ -258,7 +258,7 @@ impl Execute {
         minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        params(pos = "`pos` supplies the pos value used to emit the documented `positioned <pos>` — change execution position to the given coordinates form."),
+        params(pos = "`pos` supplies the documented `positioned <pos>` — change execution position to the given coordinates form."),
         returns = "The `Execute` value with the documented change applied to emit the documented `positioned <pos>` — change execution position to the given coordinates form.",
         example = "use sand::prelude::*;\n\nfn demonstrate(execute_value: sand::command::Execute, pos: sand::command::Vec3)  {\n    let updated_execute = execute_value.positioned(pos);\n}",
     )]
@@ -302,7 +302,7 @@ impl Execute {
         minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        params(rotation = "`rotation` supplies the rotation value used to emit the documented `rotated <rotation>` — change execution rotation form."),
+        params(rotation = "`rotation` supplies the documented `rotated <rotation>` — change execution rotation form."),
         returns = "The `Execute` value with the documented change applied to emit the documented `rotated <rotation>` — change execution rotation form.",
         example = "use sand::prelude::*;\n\nfn demonstrate(execute_value: sand::command::Execute, rotation: sand::command::Rotation)  {\n    let updated_execute = execute_value.rotated(rotation);\n}",
     )]
@@ -350,7 +350,7 @@ impl Execute {
         minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        params(pos = "`pos` supplies the pos value used to emit the documented `facing <pos>` — rotate execution to face a position in the world form."),
+        params(pos = "`pos` supplies the documented `facing <pos>` — rotate execution to face a position in the world form."),
         returns = "The `Execute` value with the documented change applied to emit the documented `facing <pos>` — rotate execution to face a position in the world form.",
         example = "use sand::prelude::*;\n\nfn demonstrate(execute_value: sand::command::Execute, pos: sand::command::Vec3)  {\n    let updated_execute = execute_value.facing(pos);\n}",
     )]
@@ -372,7 +372,7 @@ impl Execute {
         minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        params(selector = "`selector` provides the Minecraft target selection used to emit the documented `facing entity <selector> <anchor>` — rotate execution to face an entity's anchor point form.", anchor = "`anchor` supplies the anchor value used to emit the documented `facing entity <selector> <anchor>` — rotate execution to face an entity's anchor point form."),
+        params(selector = "`selector` provides the Minecraft target selection used to emit the documented `facing entity <selector> <anchor>` — rotate execution to face an entity's anchor point form.", anchor = "`anchor` supplies the documented `facing entity <selector> <anchor>` — rotate execution to face an entity's anchor point form."),
         returns = "The `Execute` value with the documented change applied to emit the documented `facing entity <selector> <anchor>` — rotate execution to face an entity's anchor point form.",
         example = "use sand::prelude::*;\n\nfn demonstrate(execute_value: sand::command::Execute, selector: sand::command::Selector, anchor: sand::command::Anchor)  {\n    let updated_execute = execute_value.facing_entity(selector, anchor);\n}",
     )]
@@ -397,7 +397,7 @@ impl Execute {
         minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        params(dimension = "`dimension` supplies the dimension value used to emit the documented `in <dimension>` — change dimension for subsequent commands form."),
+        params(dimension = "`dimension` supplies the documented `in <dimension>` — change dimension for subsequent commands form."),
         returns = "The `Execute` value with the documented change applied to emit the documented `in <dimension>` — change dimension for subsequent commands form.",
         example = "use sand::prelude::*;\n\nfn demonstrate(execute_value: sand::command::Execute, dimension: impl Into < String >)  {\n    let updated_execute = execute_value.in_(dimension);\n}",
     )]
@@ -420,7 +420,7 @@ impl Execute {
         minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        params(axes = "`axes` supplies the axes value used to emit the documented `align <axes>` — snap coordinates to the block grid along specified axes form."),
+        params(axes = "`axes` supplies the documented `align <axes>` — snap coordinates to the block grid along specified axes form."),
         returns = "The `Execute` value with the documented change applied to emit the documented `align <axes>` — snap coordinates to the block grid along specified axes form.",
         example = "use sand::prelude::*;\n\nfn demonstrate(execute_value: sand::command::Execute, axes: sand::command::Swizzle)  {\n    let updated_execute = execute_value.align(axes);\n}",
     )]
@@ -441,7 +441,7 @@ impl Execute {
         minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        params(heightmap = "`heightmap` supplies the heightmap value used to emit the documented `positioned over <heightmap>` — snap y-coordinate to the top of the given heightmap (1.19.4+) form."),
+        params(heightmap = "`heightmap` supplies the documented `positioned over <heightmap>` — snap y-coordinate to the top of the given heightmap (1.19.4+) form."),
         returns = "The `Execute` value with the documented change applied to emit the documented `positioned over <heightmap>` — snap y-coordinate to the top of the given heightmap (1.19.4+) form.",
         example = "use sand::prelude::*;\n\nfn demonstrate(execute_value: sand::command::Execute, heightmap: impl Into < String >)  {\n    let updated_execute = execute_value.positioned_over(heightmap);\n}",
     )]
@@ -463,7 +463,7 @@ impl Execute {
         minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        params(anchor = "`anchor` supplies the anchor value used to emit the documented `anchored <anchor>` — change the anchor point for position calculations form."),
+        params(anchor = "`anchor` supplies the documented `anchored <anchor>` — change the anchor point for position calculations form."),
         returns = "The `Execute` value with the documented change applied to emit the documented `anchored <anchor>` — change the anchor point for position calculations form.",
         example = "use sand::prelude::*;\n\nfn demonstrate(execute_value: sand::command::Execute, anchor: sand::command::Anchor)  {\n    let updated_execute = execute_value.anchored(anchor);\n}",
     )]
@@ -484,7 +484,7 @@ impl Execute {
         minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        params(relation = "`relation` supplies the relation value used to emit the documented `on <relation>` — follow an entity relationship chain form."),
+        params(relation = "`relation` supplies the documented `on <relation>` — follow an entity relationship chain form."),
         returns = "The `Execute` value with the documented change applied to emit the documented `on <relation>` — follow an entity relationship chain form.",
         example = "use sand::prelude::*;\n\nfn demonstrate(execute_value: sand::command::Execute, relation: impl Into < String >)  {\n    let updated_execute = execute_value.on(relation);\n}",
     )]
@@ -505,7 +505,7 @@ impl Execute {
         minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        params(entity_type = "`entity_type` supplies the entity type value used to emit the documented `summon <entity_type>` — summon an entity and execute as it immediately form."),
+        params(entity_type = "`entity_type` supplies the documented `summon <entity_type>` — summon an entity and execute as it immediately form."),
         returns = "The `Execute` value with the documented change applied to emit the documented `summon <entity_type>` — summon an entity and execute as it immediately form.",
         example = "use sand::prelude::*;\n\nfn demonstrate(execute_value: sand::command::Execute, entity_type: impl sand::command::IntoEntityType)  {\n    let updated_execute = execute_value.summon(entity_type);\n}",
     )]
@@ -576,7 +576,7 @@ impl Execute {
         minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        params(team = "`team` supplies the team value used to emit the documented `if entity @s[team=<team>]` — continue only if the current entity is on the given team form."),
+        params(team = "`team` supplies the documented `if entity @s[team=<team>]` — continue only if the current entity is on the given team form."),
         returns = "The `Execute` value with the documented change applied to emit the documented `if entity @s[team=<team>]` — continue only if the current entity is on the given team form.",
         example = "use sand::prelude::*;\n\nfn demonstrate(execute_value: sand::command::Execute, team: impl Into < String >)  {\n    let updated_execute = execute_value.if_on_team(team);\n}",
     )]
@@ -598,7 +598,7 @@ impl Execute {
         minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        params(team = "`team` supplies the team value used to emit the documented `unless entity @s[team=<team>]` — skip if the current entity is on the given team form."),
+        params(team = "`team` supplies the documented `unless entity @s[team=<team>]` — skip if the current entity is on the given team form."),
         returns = "The `Execute` value with the documented change applied to emit the documented `unless entity @s[team=<team>]` — skip if the current entity is on the given team form.",
         example = "use sand::prelude::*;\n\nfn demonstrate(execute_value: sand::command::Execute, team: impl Into < String >)  {\n    let updated_execute = execute_value.unless_on_team(team);\n}",
     )]
@@ -620,7 +620,7 @@ impl Execute {
         minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        params(a = "`a` provides the Minecraft target selection used to emit the documented `if score <a> <a_obj> = <b> <b_obj>` — continue only if the two scores are equal form.", a_obj = "`a_obj` supplies the a obj value used to emit the documented `if score <a> <a_obj> = <b> <b_obj>` — continue only if the two scores are equal form.", b = "`b` provides the Minecraft target selection used to emit the documented `if score <a> <a_obj> = <b> <b_obj>` — continue only if the two scores are equal form.", b_obj = "`b_obj` supplies the b obj value used to emit the documented `if score <a> <a_obj> = <b> <b_obj>` — continue only if the two scores are equal form."),
+        params(a = "`a` provides the Minecraft target selection used to emit the documented `if score <a> <a_obj> = <b> <b_obj>` — continue only if the two scores are equal form.", a_obj = "`a_obj` supplies the documented `if score <a> <a_obj> = <b> <b_obj>` — continue only if the two scores are equal form.", b = "`b` provides the Minecraft target selection used to emit the documented `if score <a> <a_obj> = <b> <b_obj>` — continue only if the two scores are equal form.", b_obj = "`b_obj` supplies the documented `if score <a> <a_obj> = <b> <b_obj>` — continue only if the two scores are equal form."),
         returns = "The `Execute` value with the documented change applied to emit the documented `if score <a> <a_obj> = <b> <b_obj>` — continue only if the two scores are equal form.",
         example = "use sand::prelude::*;\n\nfn demonstrate(execute_value: sand::command::Execute, a: sand::command::Selector, a_obj: impl Into < String >, b: sand::command::Selector, b_obj: impl Into < String >)  {\n    let updated_execute = execute_value.if_score(a, a_obj, b, b_obj);\n}",
     )]
@@ -670,7 +670,7 @@ impl Execute {
         minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        params(primary_selector = "`primary_selector` provides the Minecraft target selection used to emit the documented `unless score <a> <a_obj> = <b> <b_obj>` — skip if two scores are equal form.", primary = "`primary` supplies the primary value used to emit the documented `unless score <a> <a_obj> = <b> <b_obj>` — skip if two scores are equal form.", secondary_selector = "`secondary_selector` provides the Minecraft target selection used to emit the documented `unless score <a> <a_obj> = <b> <b_obj>` — skip if two scores are equal form.", secondary = "`secondary` supplies the secondary value used to emit the documented `unless score <a> <a_obj> = <b> <b_obj>` — skip if two scores are equal form."),
+        params(primary_selector = "`primary_selector` provides the Minecraft target selection used to emit the documented `unless score <a> <a_obj> = <b> <b_obj>` — skip if two scores are equal form.", primary = "`primary` supplies the documented `unless score <a> <a_obj> = <b> <b_obj>` — skip if two scores are equal form.", secondary_selector = "`secondary_selector` provides the Minecraft target selection used to emit the documented `unless score <a> <a_obj> = <b> <b_obj>` — skip if two scores are equal form.", secondary = "`secondary` supplies the documented `unless score <a> <a_obj> = <b> <b_obj>` — skip if two scores are equal form."),
         returns = "The `Execute` value with the documented change applied to emit the documented `unless score <a> <a_obj> = <b> <b_obj>` — skip if two scores are equal form.",
         example = "use sand::prelude::*;\n\nfn demonstrate(execute_value: sand::command::Execute, primary_selector: sand::command::Selector, primary: impl Into < String >, secondary_selector: sand::command::Selector, secondary: impl Into < String >)  {\n    let updated_execute = execute_value.unless_score(primary_selector, primary, secondary_selector, secondary);\n}",
     )]
@@ -772,7 +772,7 @@ impl Execute {
         minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        params(holder = "`holder` supplies the holder value used to emit the documented `if score <holder> <obj> matches <range>` — execute if a score falls within the range form.", objective = "`objective` supplies the objective value used to emit the documented `if score <holder> <obj> matches <range>` — execute if a score falls within the range form.", range = "`range` supplies the range value used to emit the documented `if score <holder> <obj> matches <range>` — execute if a score falls within the range form."),
+        params(holder = "`holder` supplies the documented `if score <holder> <obj> matches <range>` — execute if a score falls within the range form.", objective = "`objective` supplies the documented `if score <holder> <obj> matches <range>` — execute if a score falls within the range form.", range = "`range` supplies the documented `if score <holder> <obj> matches <range>` — execute if a score falls within the range form."),
         returns = "The `Execute` value with the documented change applied to emit the documented `if score <holder> <obj> matches <range>` — execute if a score falls within the range form.",
         example = "use sand::prelude::*;\n\nfn demonstrate(execute_value: sand::command::Execute, holder: impl Into < String >, objective: impl Into < String >, range: impl Into < String >)  {\n    let updated_execute = execute_value.if_score_matches(holder, objective, range);\n}",
     )]
@@ -812,7 +812,7 @@ impl Execute {
         minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        params(holder = "`holder` supplies the holder value used to emit the documented `unless score <holder> <obj> matches <range>` — execute if a score falls OUTSIDE the range form.", objective = "`objective` supplies the objective value used to emit the documented `unless score <holder> <obj> matches <range>` — execute if a score falls OUTSIDE the range form.", range = "`range` supplies the range value used to emit the documented `unless score <holder> <obj> matches <range>` — execute if a score falls OUTSIDE the range form."),
+        params(holder = "`holder` supplies the documented `unless score <holder> <obj> matches <range>` — execute if a score falls OUTSIDE the range form.", objective = "`objective` supplies the documented `unless score <holder> <obj> matches <range>` — execute if a score falls OUTSIDE the range form.", range = "`range` supplies the documented `unless score <holder> <obj> matches <range>` — execute if a score falls OUTSIDE the range form."),
         returns = "The `Execute` value with the documented change applied to emit the documented `unless score <holder> <obj> matches <range>` — execute if a score falls OUTSIDE the range form.",
         example = "use sand::prelude::*;\n\nfn demonstrate(execute_value: sand::command::Execute, holder: impl Into < String >, objective: impl Into < String >, range: impl Into < String >)  {\n    let updated_execute = execute_value.unless_score_matches(holder, objective, range);\n}",
     )]
@@ -852,7 +852,7 @@ impl Execute {
         minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        params(a = "`a` supplies the a value used to emit the documented `if score <a> <a_obj> <cmp> <b> <b_obj>` — compare two scores form.", a_obj = "`a_obj` supplies the a obj value used to emit the documented `if score <a> <a_obj> <cmp> <b> <b_obj>` — compare two scores form.", cmp = "`cmp` supplies the cmp value used to emit the documented `if score <a> <a_obj> <cmp> <b> <b_obj>` — compare two scores form.", b = "`b` supplies the b value used to emit the documented `if score <a> <a_obj> <cmp> <b> <b_obj>` — compare two scores form.", b_obj = "`b_obj` supplies the b obj value used to emit the documented `if score <a> <a_obj> <cmp> <b> <b_obj>` — compare two scores form."),
+        params(a = "`a` supplies the documented `if score <a> <a_obj> <cmp> <b> <b_obj>` — compare two scores form.", a_obj = "`a_obj` supplies the documented `if score <a> <a_obj> <cmp> <b> <b_obj>` — compare two scores form.", cmp = "`cmp` supplies the documented `if score <a> <a_obj> <cmp> <b> <b_obj>` — compare two scores form.", b = "`b` supplies the documented `if score <a> <a_obj> <cmp> <b> <b_obj>` — compare two scores form.", b_obj = "`b_obj` supplies the documented `if score <a> <a_obj> <cmp> <b> <b_obj>` — compare two scores form."),
         returns = "The `Execute` value with the documented change applied to emit the documented `if score <a> <a_obj> <cmp> <b> <b_obj>` — compare two scores form.",
         example = "use sand::prelude::*;\n\nfn demonstrate(execute_value: sand::command::Execute, a: impl Into < String >, a_obj: impl Into < String >, cmp: sand::command::ScoreCmp, b: impl Into < String >, b_obj: impl Into < String >)  {\n    let updated_execute = execute_value.if_score_compare(a, a_obj, cmp, b, b_obj);\n}",
     )]
@@ -893,7 +893,7 @@ impl Execute {
         minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        params(a = "`a` supplies the a value used to emit the documented `unless score <a> <a_obj> <cmp> <b> <b_obj>` — skip if the comparison is true form.", a_obj = "`a_obj` supplies the a obj value used to emit the documented `unless score <a> <a_obj> <cmp> <b> <b_obj>` — skip if the comparison is true form.", cmp = "`cmp` supplies the cmp value used to emit the documented `unless score <a> <a_obj> <cmp> <b> <b_obj>` — skip if the comparison is true form.", b = "`b` supplies the b value used to emit the documented `unless score <a> <a_obj> <cmp> <b> <b_obj>` — skip if the comparison is true form.", b_obj = "`b_obj` supplies the b obj value used to emit the documented `unless score <a> <a_obj> <cmp> <b> <b_obj>` — skip if the comparison is true form."),
+        params(a = "`a` supplies the documented `unless score <a> <a_obj> <cmp> <b> <b_obj>` — skip if the comparison is true form.", a_obj = "`a_obj` supplies the documented `unless score <a> <a_obj> <cmp> <b> <b_obj>` — skip if the comparison is true form.", cmp = "`cmp` supplies the documented `unless score <a> <a_obj> <cmp> <b> <b_obj>` — skip if the comparison is true form.", b = "`b` supplies the documented `unless score <a> <a_obj> <cmp> <b> <b_obj>` — skip if the comparison is true form.", b_obj = "`b_obj` supplies the documented `unless score <a> <a_obj> <cmp> <b> <b_obj>` — skip if the comparison is true form."),
         returns = "The `Execute` value with the documented change applied to emit the documented `unless score <a> <a_obj> <cmp> <b> <b_obj>` — skip if the comparison is true form.",
         example = "use sand::prelude::*;\n\nfn demonstrate(execute_value: sand::command::Execute, a: impl Into < String >, a_obj: impl Into < String >, cmp: sand::command::ScoreCmp, b: impl Into < String >, b_obj: impl Into < String >)  {\n    let updated_execute = execute_value.unless_score_compare(a, a_obj, cmp, b, b_obj);\n}",
     )]
@@ -936,7 +936,7 @@ impl Execute {
         minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        params(a = "`a` supplies the a value used to emit the documented `if score <a> <a_obj> = <b> <b_obj>` — continue if scores are equal form.", a_obj = "`a_obj` supplies the a obj value used to emit the documented `if score <a> <a_obj> = <b> <b_obj>` — continue if scores are equal form.", b = "`b` supplies the b value used to emit the documented `if score <a> <a_obj> = <b> <b_obj>` — continue if scores are equal form.", b_obj = "`b_obj` supplies the b obj value used to emit the documented `if score <a> <a_obj> = <b> <b_obj>` — continue if scores are equal form."),
+        params(a = "`a` supplies the documented `if score <a> <a_obj> = <b> <b_obj>` — continue if scores are equal form.", a_obj = "`a_obj` supplies the documented `if score <a> <a_obj> = <b> <b_obj>` — continue if scores are equal form.", b = "`b` supplies the documented `if score <a> <a_obj> = <b> <b_obj>` — continue if scores are equal form.", b_obj = "`b_obj` supplies the documented `if score <a> <a_obj> = <b> <b_obj>` — continue if scores are equal form."),
         returns = "The `Execute` value with the documented change applied to emit the documented `if score <a> <a_obj> = <b> <b_obj>` — continue if scores are equal form.",
         example = "use sand::prelude::*;\n\nfn demonstrate(execute_value: sand::command::Execute, a: impl Into < String >, a_obj: impl Into < String >, b: impl Into < String >, b_obj: impl Into < String >)  {\n    let updated_execute = execute_value.if_score_eq(a, a_obj, b, b_obj);\n}",
     )]
@@ -962,7 +962,7 @@ impl Execute {
         minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        params(a = "`a` supplies the a value used to emit the documented `unless score <a> <a_obj> = <b> <b_obj>` — skip if scores are equal form.", a_obj = "`a_obj` supplies the a obj value used to emit the documented `unless score <a> <a_obj> = <b> <b_obj>` — skip if scores are equal form.", b = "`b` supplies the b value used to emit the documented `unless score <a> <a_obj> = <b> <b_obj>` — skip if scores are equal form.", b_obj = "`b_obj` supplies the b obj value used to emit the documented `unless score <a> <a_obj> = <b> <b_obj>` — skip if scores are equal form."),
+        params(a = "`a` supplies the documented `unless score <a> <a_obj> = <b> <b_obj>` — skip if scores are equal form.", a_obj = "`a_obj` supplies the documented `unless score <a> <a_obj> = <b> <b_obj>` — skip if scores are equal form.", b = "`b` supplies the documented `unless score <a> <a_obj> = <b> <b_obj>` — skip if scores are equal form.", b_obj = "`b_obj` supplies the documented `unless score <a> <a_obj> = <b> <b_obj>` — skip if scores are equal form."),
         returns = "The `Execute` value with the documented change applied to emit the documented `unless score <a> <a_obj> = <b> <b_obj>` — skip if scores are equal form.",
         example = "use sand::prelude::*;\n\nfn demonstrate(execute_value: sand::command::Execute, a: impl Into < String >, a_obj: impl Into < String >, b: impl Into < String >, b_obj: impl Into < String >)  {\n    let updated_execute = execute_value.unless_score_eq(a, a_obj, b, b_obj);\n}",
     )]
@@ -988,7 +988,7 @@ impl Execute {
         minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        params(a = "`if score ... < ...` — continue if `a` is strictly less than `b`.", a_obj = "`a_obj` supplies the a obj value used to emit the documented `if score ... < ...` — continue if `a` is strictly less than `b` form.", b = "`if score ... < ...` — continue if `a` is strictly less than `b`.", b_obj = "`b_obj` supplies the b obj value used to emit the documented `if score ... < ...` — continue if `a` is strictly less than `b` form."),
+        params(a = "`if score ... < ...` — continue if `a` is strictly less than `b`.", a_obj = "`a_obj` supplies the documented `if score ... < ...` — continue if `a` is strictly less than `b` form.", b = "`if score ... < ...` — continue if `a` is strictly less than `b`.", b_obj = "`b_obj` supplies the documented `if score ... < ...` — continue if `a` is strictly less than `b` form."),
         returns = "The `Execute` value with the documented change applied to emit the documented `if score ... < ...` — continue if `a` is strictly less than `b` form.",
         example = "use sand::prelude::*;\n\nfn demonstrate(execute_value: sand::command::Execute, a: impl Into < String >, a_obj: impl Into < String >, b: impl Into < String >, b_obj: impl Into < String >)  {\n    let updated_execute = execute_value.if_score_lt(a, a_obj, b, b_obj);\n}",
     )]
@@ -1014,7 +1014,7 @@ impl Execute {
         minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        params(a = "`unless score ... < ...` — skip if `a` is strictly less than `b`.", a_obj = "`a_obj` supplies the a obj value used to emit the documented `unless score ... < ...` — skip if `a` is strictly less than `b` form.", b = "`unless score ... < ...` — skip if `a` is strictly less than `b`.", b_obj = "`b_obj` supplies the b obj value used to emit the documented `unless score ... < ...` — skip if `a` is strictly less than `b` form."),
+        params(a = "`unless score ... < ...` — skip if `a` is strictly less than `b`.", a_obj = "`a_obj` supplies the documented `unless score ... < ...` — skip if `a` is strictly less than `b` form.", b = "`unless score ... < ...` — skip if `a` is strictly less than `b`.", b_obj = "`b_obj` supplies the documented `unless score ... < ...` — skip if `a` is strictly less than `b` form."),
         returns = "The `Execute` value with the documented change applied to emit the documented `unless score ... < ...` — skip if `a` is strictly less than `b` form.",
         example = "use sand::prelude::*;\n\nfn demonstrate(execute_value: sand::command::Execute, a: impl Into < String >, a_obj: impl Into < String >, b: impl Into < String >, b_obj: impl Into < String >)  {\n    let updated_execute = execute_value.unless_score_lt(a, a_obj, b, b_obj);\n}",
     )]
@@ -1040,7 +1040,7 @@ impl Execute {
         minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        params(a = "`if score ... <= ...` — continue if `a` is less than or equal to `b`.", a_obj = "`a_obj` supplies the a obj value used to emit the documented `if score ... <= ...` — continue if `a` is less than or equal to `b` form.", b = "`if score ... <= ...` — continue if `a` is less than or equal to `b`.", b_obj = "`b_obj` supplies the b obj value used to emit the documented `if score ... <= ...` — continue if `a` is less than or equal to `b` form."),
+        params(a = "`if score ... <= ...` — continue if `a` is less than or equal to `b`.", a_obj = "`a_obj` supplies the documented `if score ... <= ...` — continue if `a` is less than or equal to `b` form.", b = "`if score ... <= ...` — continue if `a` is less than or equal to `b`.", b_obj = "`b_obj` supplies the documented `if score ... <= ...` — continue if `a` is less than or equal to `b` form."),
         returns = "The `Execute` value with the documented change applied to emit the documented `if score ... <= ...` — continue if `a` is less than or equal to `b` form.",
         example = "use sand::prelude::*;\n\nfn demonstrate(execute_value: sand::command::Execute, a: impl Into < String >, a_obj: impl Into < String >, b: impl Into < String >, b_obj: impl Into < String >)  {\n    let updated_execute = execute_value.if_score_lte(a, a_obj, b, b_obj);\n}",
     )]
@@ -1066,7 +1066,7 @@ impl Execute {
         minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        params(a = "`unless score ... <= ...` — skip if `a` is less than or equal to `b`.", a_obj = "`a_obj` supplies the a obj value used to emit the documented `unless score ... <= ...` — skip if `a` is less than or equal to `b` form.", b = "`unless score ... <= ...` — skip if `a` is less than or equal to `b`.", b_obj = "`b_obj` supplies the b obj value used to emit the documented `unless score ... <= ...` — skip if `a` is less than or equal to `b` form."),
+        params(a = "`unless score ... <= ...` — skip if `a` is less than or equal to `b`.", a_obj = "`a_obj` supplies the documented `unless score ... <= ...` — skip if `a` is less than or equal to `b` form.", b = "`unless score ... <= ...` — skip if `a` is less than or equal to `b`.", b_obj = "`b_obj` supplies the documented `unless score ... <= ...` — skip if `a` is less than or equal to `b` form."),
         returns = "The `Execute` value with the documented change applied to emit the documented `unless score ... <= ...` — skip if `a` is less than or equal to `b` form.",
         example = "use sand::prelude::*;\n\nfn demonstrate(execute_value: sand::command::Execute, a: impl Into < String >, a_obj: impl Into < String >, b: impl Into < String >, b_obj: impl Into < String >)  {\n    let updated_execute = execute_value.unless_score_lte(a, a_obj, b, b_obj);\n}",
     )]
@@ -1092,7 +1092,7 @@ impl Execute {
         minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        params(a = "`if score ... > ...` — continue if `a` is strictly greater than `b`.", a_obj = "`a_obj` supplies the a obj value used to emit the documented `if score ... > ...` — continue if `a` is strictly greater than `b` form.", b = "`if score ... > ...` — continue if `a` is strictly greater than `b`.", b_obj = "`b_obj` supplies the b obj value used to emit the documented `if score ... > ...` — continue if `a` is strictly greater than `b` form."),
+        params(a = "`if score ... > ...` — continue if `a` is strictly greater than `b`.", a_obj = "`a_obj` supplies the documented `if score ... > ...` — continue if `a` is strictly greater than `b` form.", b = "`if score ... > ...` — continue if `a` is strictly greater than `b`.", b_obj = "`b_obj` supplies the documented `if score ... > ...` — continue if `a` is strictly greater than `b` form."),
         returns = "The `Execute` value with the documented change applied to emit the documented `if score ... > ...` — continue if `a` is strictly greater than `b` form.",
         example = "use sand::prelude::*;\n\nfn demonstrate(execute_value: sand::command::Execute, a: impl Into < String >, a_obj: impl Into < String >, b: impl Into < String >, b_obj: impl Into < String >)  {\n    let updated_execute = execute_value.if_score_gt(a, a_obj, b, b_obj);\n}",
     )]
@@ -1118,7 +1118,7 @@ impl Execute {
         minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        params(a = "`unless score ... > ...` — skip if `a` is strictly greater than `b`.", a_obj = "`a_obj` supplies the a obj value used to emit the documented `unless score ... > ...` — skip if `a` is strictly greater than `b` form.", b = "`unless score ... > ...` — skip if `a` is strictly greater than `b`.", b_obj = "`b_obj` supplies the b obj value used to emit the documented `unless score ... > ...` — skip if `a` is strictly greater than `b` form."),
+        params(a = "`unless score ... > ...` — skip if `a` is strictly greater than `b`.", a_obj = "`a_obj` supplies the documented `unless score ... > ...` — skip if `a` is strictly greater than `b` form.", b = "`unless score ... > ...` — skip if `a` is strictly greater than `b`.", b_obj = "`b_obj` supplies the documented `unless score ... > ...` — skip if `a` is strictly greater than `b` form."),
         returns = "The `Execute` value with the documented change applied to emit the documented `unless score ... > ...` — skip if `a` is strictly greater than `b` form.",
         example = "use sand::prelude::*;\n\nfn demonstrate(execute_value: sand::command::Execute, a: impl Into < String >, a_obj: impl Into < String >, b: impl Into < String >, b_obj: impl Into < String >)  {\n    let updated_execute = execute_value.unless_score_gt(a, a_obj, b, b_obj);\n}",
     )]
@@ -1144,7 +1144,7 @@ impl Execute {
         minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        params(a = "`if score ... >= ...` — continue if `a` is greater than or equal to `b`.", a_obj = "`a_obj` supplies the a obj value used to emit the documented `if score ... >= ...` — continue if `a` is greater than or equal to `b` form.", b = "`if score ... >= ...` — continue if `a` is greater than or equal to `b`.", b_obj = "`b_obj` supplies the b obj value used to emit the documented `if score ... >= ...` — continue if `a` is greater than or equal to `b` form."),
+        params(a = "`if score ... >= ...` — continue if `a` is greater than or equal to `b`.", a_obj = "`a_obj` supplies the documented `if score ... >= ...` — continue if `a` is greater than or equal to `b` form.", b = "`if score ... >= ...` — continue if `a` is greater than or equal to `b`.", b_obj = "`b_obj` supplies the documented `if score ... >= ...` — continue if `a` is greater than or equal to `b` form."),
         returns = "The `Execute` value with the documented change applied to emit the documented `if score ... >= ...` — continue if `a` is greater than or equal to `b` form.",
         example = "use sand::prelude::*;\n\nfn demonstrate(execute_value: sand::command::Execute, a: impl Into < String >, a_obj: impl Into < String >, b: impl Into < String >, b_obj: impl Into < String >)  {\n    let updated_execute = execute_value.if_score_gte(a, a_obj, b, b_obj);\n}",
     )]
@@ -1170,7 +1170,7 @@ impl Execute {
         minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        params(a = "`unless score ... >= ...` — skip if `a` is greater than or equal to `b`.", a_obj = "`a_obj` supplies the a obj value used to emit the documented `unless score ... >= ...` — skip if `a` is greater than or equal to `b` form.", b = "`unless score ... >= ...` — skip if `a` is greater than or equal to `b`.", b_obj = "`b_obj` supplies the b obj value used to emit the documented `unless score ... >= ...` — skip if `a` is greater than or equal to `b` form."),
+        params(a = "`unless score ... >= ...` — skip if `a` is greater than or equal to `b`.", a_obj = "`a_obj` supplies the documented `unless score ... >= ...` — skip if `a` is greater than or equal to `b` form.", b = "`unless score ... >= ...` — skip if `a` is greater than or equal to `b`.", b_obj = "`b_obj` supplies the documented `unless score ... >= ...` — skip if `a` is greater than or equal to `b` form."),
         returns = "The `Execute` value with the documented change applied to emit the documented `unless score ... >= ...` — skip if `a` is greater than or equal to `b` form.",
         example = "use sand::prelude::*;\n\nfn demonstrate(execute_value: sand::command::Execute, a: impl Into < String >, a_obj: impl Into < String >, b: impl Into < String >, b_obj: impl Into < String >)  {\n    let updated_execute = execute_value.unless_score_gte(a, a_obj, b, b_obj);\n}",
     )]
@@ -1248,7 +1248,7 @@ impl Execute {
         minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        params(pos = "`pos` supplies the pos value used to emit the documented `if data block <pos> <path>` — continue if block NBT has a value at `path` form.", path = "`if data block <pos> <path>` — continue if block NBT has a value at `path`."),
+        params(pos = "`pos` supplies the documented `if data block <pos> <path>` — continue if block NBT has a value at `path` form.", path = "`if data block <pos> <path>` — continue if block NBT has a value at `path`."),
         returns = "The `Execute` value with the documented change applied to emit the documented `if data block <pos> <path>` — continue if block NBT has a value at `path` form.",
         example = "use sand::prelude::*;\n\nfn demonstrate(execute_value: sand::command::Execute, pos: sand::command::BlockPos, path: impl Into < String >)  {\n    let updated_execute = execute_value.if_data_block(pos, path);\n}",
     )]
@@ -1273,7 +1273,7 @@ impl Execute {
         minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        params(pos = "`pos` supplies the pos value used to emit the documented `unless data block <pos> <path>` — skip if block NBT has a value at `path` form.", path = "`unless data block <pos> <path>` — skip if block NBT has a value at `path`."),
+        params(pos = "`pos` supplies the documented `unless data block <pos> <path>` — skip if block NBT has a value at `path` form.", path = "`unless data block <pos> <path>` — skip if block NBT has a value at `path`."),
         returns = "The `Execute` value with the documented change applied to emit the documented `unless data block <pos> <path>` — skip if block NBT has a value at `path` form.",
         example = "use sand::prelude::*;\n\nfn demonstrate(execute_value: sand::command::Execute, pos: sand::command::BlockPos, path: impl Into < String >)  {\n    let updated_execute = execute_value.unless_data_block(pos, path);\n}",
     )]
@@ -1298,7 +1298,7 @@ impl Execute {
         minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        params(source = "`source` supplies the source value used to emit the documented `if data storage <source> <path>` — continue if storage has a value at `path` form.", path = "`if data storage <source> <path>` — continue if storage has a value at `path`."),
+        params(source = "`source` supplies the documented `if data storage <source> <path>` — continue if storage has a value at `path` form.", path = "`if data storage <source> <path>` — continue if storage has a value at `path`."),
         returns = "The `Execute` value with the documented change applied to emit the documented `if data storage <source> <path>` — continue if storage has a value at `path` form.",
         example = "use sand::prelude::*;\n\nfn demonstrate(execute_value: sand::command::Execute, source: impl Into < String >, path: impl Into < String >)  {\n    let updated_execute = execute_value.if_data_storage(source, path);\n}",
     )]
@@ -1324,7 +1324,7 @@ impl Execute {
         minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        params(source = "`source` supplies the source value used to emit the documented `unless data storage <source> <path>` — skip if storage has a value at `path` form.", path = "`unless data storage <source> <path>` — skip if storage has a value at `path`."),
+        params(source = "`source` supplies the documented `unless data storage <source> <path>` — skip if storage has a value at `path` form.", path = "`unless data storage <source> <path>` — skip if storage has a value at `path`."),
         returns = "The `Execute` value with the documented change applied to emit the documented `unless data storage <source> <path>` — skip if storage has a value at `path` form.",
         example = "use sand::prelude::*;\n\nfn demonstrate(execute_value: sand::command::Execute, source: impl Into < String >, path: impl Into < String >)  {\n    let updated_execute = execute_value.unless_data_storage(source, path);\n}",
     )]
@@ -1356,7 +1356,7 @@ impl Execute {
         minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        params(pos = "`if biome <pos> <biome>` — continue if the biome at `pos` matches (1.19.4+).", biome = "`biome` supplies the biome value used to emit the documented `if biome <pos> <biome>` — continue if the biome at `pos` matches (1.19.4+) form."),
+        params(pos = "`if biome <pos> <biome>` — continue if the biome at `pos` matches (1.19.4+).", biome = "`biome` supplies the documented `if biome <pos> <biome>` — continue if the biome at `pos` matches (1.19.4+) form."),
         returns = "The `Execute` value with the documented change applied to emit the documented `if biome <pos> <biome>` — continue if the biome at `pos` matches (1.19.4+) form.",
         example = "use sand::prelude::*;\n\nfn demonstrate(execute_value: sand::command::Execute, pos: sand::command::BlockPos, biome: impl Into < String >)  {\n    let updated_execute = execute_value.if_biome(pos, biome);\n}",
     )]
@@ -1383,7 +1383,7 @@ impl Execute {
         minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        params(pos = "`unless biome <pos> <biome>` — skip if the biome at `pos` matches.", biome = "`biome` supplies the biome value used to emit the documented `unless biome <pos> <biome>` — skip if the biome at `pos` matches form."),
+        params(pos = "`unless biome <pos> <biome>` — skip if the biome at `pos` matches.", biome = "`biome` supplies the documented `unless biome <pos> <biome>` — skip if the biome at `pos` matches form."),
         returns = "The `Execute` value with the documented change applied to emit the documented `unless biome <pos> <biome>` — skip if the biome at `pos` matches form.",
         example = "use sand::prelude::*;\n\nfn demonstrate(execute_value: sand::command::Execute, pos: sand::command::BlockPos, biome: impl Into < String >)  {\n    let updated_execute = execute_value.unless_biome(pos, biome);\n}",
     )]
@@ -1410,7 +1410,7 @@ impl Execute {
         minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        params(dimension = "`dimension` supplies the dimension value used to emit the documented `if dimension <dimension>` — continue if executing in the given dimension (1.21+) form."),
+        params(dimension = "`dimension` supplies the documented `if dimension <dimension>` — continue if executing in the given dimension (1.21+) form."),
         returns = "The `Execute` value with the documented change applied to emit the documented `if dimension <dimension>` — continue if executing in the given dimension (1.21+) form.",
         example = "use sand::prelude::*;\n\nfn demonstrate(execute_value: sand::command::Execute, dimension: impl Into < String >)  {\n    let updated_execute = execute_value.if_dimension(dimension);\n}",
     )]
@@ -1434,7 +1434,7 @@ impl Execute {
         minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        params(dimension = "`dimension` supplies the dimension value used to emit the documented `unless dimension <dimension>` — skip if executing in the given dimension (1.21+) form."),
+        params(dimension = "`dimension` supplies the documented `unless dimension <dimension>` — skip if executing in the given dimension (1.21+) form."),
         returns = "The `Execute` value with the documented change applied to emit the documented `unless dimension <dimension>` — skip if executing in the given dimension (1.21+) form.",
         example = "use sand::prelude::*;\n\nfn demonstrate(execute_value: sand::command::Execute, dimension: impl Into < String >)  {\n    let updated_execute = execute_value.unless_dimension(dimension);\n}",
     )]
@@ -1504,7 +1504,7 @@ impl Execute {
         minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        params(selector = "`selector` provides the Minecraft target selection used to emit the documented `if items entity <selector> <slot> <item>` — execute if an entity has a matching item form.", slot = "`slot` supplies the slot value used to emit the documented `if items entity <selector> <slot> <item>` — execute if an entity has a matching item form.", item = "`item` provides the item value or item predicate used to emit the documented `if items entity <selector> <slot> <item>` — execute if an entity has a matching item form."),
+        params(selector = "`selector` provides the Minecraft target selection used to emit the documented `if items entity <selector> <slot> <item>` — execute if an entity has a matching item form.", slot = "`slot` supplies the documented `if items entity <selector> <slot> <item>` — execute if an entity has a matching item form.", item = "`item` provides the item value or item predicate used to emit the documented `if items entity <selector> <slot> <item>` — execute if an entity has a matching item form."),
         returns = "The `Execute` value with the documented change applied to emit the documented `if items entity <selector> <slot> <item>` — execute if an entity has a matching item form.",
         example = "use sand::prelude::*;\n\nfn demonstrate(execute_value: sand::command::Execute, selector: sand::command::Selector, slot: sand::command::ItemSlot, item: impl Into < String >)  {\n    let updated_execute = execute_value.if_items_entity(selector, slot, item);\n}",
     )]
@@ -1541,7 +1541,7 @@ impl Execute {
         minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        params(selector = "`selector` provides the Minecraft target selection used to emit the documented `unless items entity <selector> <slot> <item>` — skip if the entity has the item form.", slot = "`slot` supplies the slot value used to emit the documented `unless items entity <selector> <slot> <item>` — skip if the entity has the item form.", item = "`item` provides the item value or item predicate used to emit the documented `unless items entity <selector> <slot> <item>` — skip if the entity has the item form."),
+        params(selector = "`selector` provides the Minecraft target selection used to emit the documented `unless items entity <selector> <slot> <item>` — skip if the entity has the item form.", slot = "`slot` supplies the documented `unless items entity <selector> <slot> <item>` — skip if the entity has the item form.", item = "`item` provides the item value or item predicate used to emit the documented `unless items entity <selector> <slot> <item>` — skip if the entity has the item form."),
         returns = "The `Execute` value with the documented change applied to emit the documented `unless items entity <selector> <slot> <item>` — skip if the entity has the item form.",
         example = "use sand::prelude::*;\n\nfn demonstrate(execute_value: sand::command::Execute, selector: sand::command::Selector, slot: sand::command::ItemSlot, item: impl Into < String >)  {\n    let updated_execute = execute_value.unless_items_entity(selector, slot, item);\n}",
     )]
@@ -1578,7 +1578,7 @@ impl Execute {
         minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        params(pos = "`pos` supplies the pos value used to emit the documented `if items block <pos> <slot> <item>` — execute if a block container has a matching item form.", slot = "`slot` supplies the slot value used to emit the documented `if items block <pos> <slot> <item>` — execute if a block container has a matching item form.", item = "`item` provides the item value or item predicate used to emit the documented `if items block <pos> <slot> <item>` — execute if a block container has a matching item form."),
+        params(pos = "`pos` supplies the documented `if items block <pos> <slot> <item>` — execute if a block container has a matching item form.", slot = "`slot` supplies the documented `if items block <pos> <slot> <item>` — execute if a block container has a matching item form.", item = "`item` provides the item value or item predicate used to emit the documented `if items block <pos> <slot> <item>` — execute if a block container has a matching item form."),
         returns = "The `Execute` value with the documented change applied to emit the documented `if items block <pos> <slot> <item>` — execute if a block container has a matching item form.",
         example = "use sand::prelude::*;\n\nfn demonstrate(execute_value: sand::command::Execute, pos: sand::command::BlockPos, slot: sand::command::ItemSlot, item: impl Into < String >)  {\n    let updated_execute = execute_value.if_items_block(pos, slot, item);\n}",
     )]
@@ -1614,7 +1614,7 @@ impl Execute {
         minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        params(pos = "`pos` supplies the pos value used to emit the documented `unless items block <pos> <slot> <item>` — skip if the block container has the item form.", slot = "`slot` supplies the slot value used to emit the documented `unless items block <pos> <slot> <item>` — skip if the block container has the item form.", item = "`item` provides the item value or item predicate used to emit the documented `unless items block <pos> <slot> <item>` — skip if the block container has the item form."),
+        params(pos = "`pos` supplies the documented `unless items block <pos> <slot> <item>` — skip if the block container has the item form.", slot = "`slot` supplies the documented `unless items block <pos> <slot> <item>` — skip if the block container has the item form.", item = "`item` provides the item value or item predicate used to emit the documented `unless items block <pos> <slot> <item>` — skip if the block container has the item form."),
         returns = "The `Execute` value with the documented change applied to emit the documented `unless items block <pos> <slot> <item>` — skip if the block container has the item form.",
         example = "use sand::prelude::*;\n\nfn demonstrate(execute_value: sand::command::Execute, pos: sand::command::BlockPos, slot: sand::command::ItemSlot, item: impl Into < String >)  {\n    let updated_execute = execute_value.unless_items_block(pos, slot, item);\n}",
     )]
@@ -1702,7 +1702,7 @@ impl Execute {
         minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        params(fragment = "`fragment` supplies the fragment value used to append an explicitly opaque execute subcommand. Raw operations are not parsed, optimized, rewritten, or version-checked."),
+        params(fragment = "`fragment` provides the fragment appended when building an explicitly opaque execute subcommand. Raw operations are not parsed, optimized, rewritten, or version-checked."),
         returns = "The `Execute` value with the documented change applied to append an explicitly opaque execute subcommand. Raw operations are not parsed, optimized, rewritten, or version-checked.",
         example = "use sand::prelude::*;\n\nfn demonstrate(execute_value: sand::command::Execute, fragment: impl Into < String >)  {\n    let updated_execute = execute_value.raw_operation(fragment);\n}",
     )]
@@ -1728,7 +1728,7 @@ impl Execute {
         minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        params(selector = "`selector` provides the Minecraft target selection used to emit the documented `if items entity <selector> <slot> <item>` — execute if the slot holds a matching item form.", slot = "`slot` supplies the slot value used to emit the documented `if items entity <selector> <slot> <item>` — execute if the slot holds a matching item form.", item = "`item` provides the item value or item predicate used to emit the documented `if items entity <selector> <slot> <item>` — execute if the slot holds a matching item form."),
+        params(selector = "`selector` provides the Minecraft target selection used to emit the documented `if items entity <selector> <slot> <item>` — execute if the slot holds a matching item form.", slot = "`slot` supplies the documented `if items entity <selector> <slot> <item>` — execute if the slot holds a matching item form.", item = "`item` provides the item value or item predicate used to emit the documented `if items entity <selector> <slot> <item>` — execute if the slot holds a matching item form."),
         returns = "The `Execute` value with the documented change applied to emit the documented `if items entity <selector> <slot> <item>` — execute if the slot holds a matching item form.",
         example = "use sand::prelude::*;\n\nfn demonstrate(execute_value: sand::command::Execute, selector: sand::command::Selector, slot: impl Into < sand::command::ItemSlot >, item: impl Into < String >)  {\n    let updated_execute = execute_value.if_items(selector, slot, item);\n}",
     )]
@@ -1766,7 +1766,7 @@ impl Execute {
         minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        params(selector = "`selector` provides the Minecraft target selection used to emit the documented `unless items entity <selector> <slot> <item>` — execute if the slot does NOT match form.", slot = "`slot` supplies the slot value used to emit the documented `unless items entity <selector> <slot> <item>` — execute if the slot does NOT match form.", item = "`item` provides the item value or item predicate used to emit the documented `unless items entity <selector> <slot> <item>` — execute if the slot does NOT match form."),
+        params(selector = "`selector` provides the Minecraft target selection used to emit the documented `unless items entity <selector> <slot> <item>` — execute if the slot does NOT match form.", slot = "`slot` supplies the documented `unless items entity <selector> <slot> <item>` — execute if the slot does NOT match form.", item = "`item` provides the item value or item predicate used to emit the documented `unless items entity <selector> <slot> <item>` — execute if the slot does NOT match form."),
         returns = "The `Execute` value with the documented change applied to emit the documented `unless items entity <selector> <slot> <item>` — execute if the slot does NOT match form.",
         example = "use sand::prelude::*;\n\nfn demonstrate(execute_value: sand::command::Execute, selector: sand::command::Selector, slot: impl Into < sand::command::ItemSlot >, item: impl Into < String >)  {\n    let updated_execute = execute_value.unless_items(selector, slot, item);\n}",
     )]
@@ -1806,7 +1806,7 @@ impl Execute {
         minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        params(holder = "`holder` supplies the holder value used to emit the documented `store result score <holder> <objective>` — capture the `run` result into a score form.", objective = "`objective` supplies the objective value used to emit the documented `store result score <holder> <objective>` — capture the `run` result into a score form."),
+        params(holder = "`holder` supplies the documented `store result score <holder> <objective>` — capture the `run` result into a score form.", objective = "`objective` supplies the documented `store result score <holder> <objective>` — capture the `run` result into a score form."),
         returns = "The `Execute` value with the documented change applied to emit the documented `store result score <holder> <objective>` — capture the `run` result into a score form.",
         example = "use sand::prelude::*;\n\nfn demonstrate(execute_value: sand::command::Execute, holder: sand::command::ScoreHolder, objective: impl Into < String >)  {\n    let updated_execute = execute_value.store_result_score(holder, objective);\n}",
     )]
@@ -1842,7 +1842,7 @@ impl Execute {
         minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        params(holder = "`holder` supplies the holder value used to emit the documented `store success score <holder> <objective>` — store 1 if `run` succeeds, 0 if it fails form.", objective = "`objective` supplies the objective value used to emit the documented `store success score <holder> <objective>` — store 1 if `run` succeeds, 0 if it fails form."),
+        params(holder = "`holder` supplies the documented `store success score <holder> <objective>` — store 1 if `run` succeeds, 0 if it fails form.", objective = "`objective` supplies the documented `store success score <holder> <objective>` — store 1 if `run` succeeds, 0 if it fails form."),
         returns = "The `Execute` value with the documented change applied to emit the documented `store success score <holder> <objective>` — store 1 if `run` succeeds, 0 if it fails form.",
         example = "use sand::prelude::*;\n\nfn demonstrate(execute_value: sand::command::Execute, holder: sand::command::ScoreHolder, objective: impl Into < String >)  {\n    let updated_execute = execute_value.store_success_score(holder, objective);\n}",
     )]
@@ -1882,7 +1882,7 @@ impl Execute {
         minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        params(target = "`target` provides the entity, block, or command target used to emit the documented `store result nbt <target> <path> <type> <scale>` — write the `run` result into NBT form.", path = "`path` provides the typed resource identifier or location used to emit the documented `store result nbt <target> <path> <type> <scale>` — write the `run` result into NBT form.", kind = "`kind` supplies the kind value used to emit the documented `store result nbt <target> <path> <type> <scale>` — write the `run` result into NBT form.", scale = "`scale` supplies the scale value used to emit the documented `store result nbt <target> <path> <type> <scale>` — write the `run` result into NBT form."),
+        params(target = "`target` provides the entity, block, or command target used to emit the documented `store result nbt <target> <path> <type> <scale>` — write the `run` result into NBT form.", path = "`path` provides the typed resource identifier or location used to emit the documented `store result nbt <target> <path> <type> <scale>` — write the `run` result into NBT form.", kind = "`kind` supplies the documented `store result nbt <target> <path> <type> <scale>` — write the `run` result into NBT form.", scale = "`scale` supplies the documented `store result nbt <target> <path> <type> <scale>` — write the `run` result into NBT form."),
         returns = "The `Execute` value with the documented change applied to emit the documented `store result nbt <target> <path> <type> <scale>` — write the `run` result into NBT form.",
         example = "use sand::prelude::*;\n\nfn demonstrate(execute_value: sand::command::Execute, target: sand::data::DataTarget, path: impl Into < String >, kind: sand::command::NbtStoreKind, scale: f64)  {\n    let updated_execute = execute_value.store_result_nbt(target, path, kind, scale);\n}",
     )]
@@ -1921,7 +1921,7 @@ impl Execute {
         minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        params(target = "`target` provides the entity, block, or command target used to emit the documented `store success nbt <target> <path> <type> <scale>` — write 1/0 (success/fail) into NBT form.", path = "`path` provides the typed resource identifier or location used to emit the documented `store success nbt <target> <path> <type> <scale>` — write 1/0 (success/fail) into NBT form.", kind = "`kind` supplies the kind value used to emit the documented `store success nbt <target> <path> <type> <scale>` — write 1/0 (success/fail) into NBT form.", scale = "`scale` supplies the scale value used to emit the documented `store success nbt <target> <path> <type> <scale>` — write 1/0 (success/fail) into NBT form."),
+        params(target = "`target` provides the entity, block, or command target used to emit the documented `store success nbt <target> <path> <type> <scale>` — write 1/0 (success/fail) into NBT form.", path = "`path` provides the typed resource identifier or location used to emit the documented `store success nbt <target> <path> <type> <scale>` — write 1/0 (success/fail) into NBT form.", kind = "`kind` supplies the documented `store success nbt <target> <path> <type> <scale>` — write 1/0 (success/fail) into NBT form.", scale = "`scale` supplies the documented `store success nbt <target> <path> <type> <scale>` — write 1/0 (success/fail) into NBT form."),
         returns = "The `Execute` value with the documented change applied to emit the documented `store success nbt <target> <path> <type> <scale>` — write 1/0 (success/fail) into NBT form.",
         example = "use sand::prelude::*;\n\nfn demonstrate(execute_value: sand::command::Execute, target: sand::data::DataTarget, path: impl Into < String >, kind: sand::command::NbtStoreKind, scale: f64)  {\n    let updated_execute = execute_value.store_success_nbt(target, path, kind, scale);\n}",
     )]
@@ -1960,7 +1960,7 @@ impl Execute {
         minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        params(id = "`id` provides the typed resource identifier or location used to emit the documented `store result bossbar <id> value` — write the `run` result into a bossbar's current value form.", attribute = "`attribute` supplies the attribute value used to emit the documented `store result bossbar <id> value` — write the `run` result into a bossbar's current value form."),
+        params(id = "`id` provides the typed resource identifier or location used to emit the documented `store result bossbar <id> value` — write the `run` result into a bossbar's current value form.", attribute = "`attribute` supplies the documented `store result bossbar <id> value` — write the `run` result into a bossbar's current value form."),
         returns = "The `Execute` value with the documented change applied to emit the documented `store result bossbar <id> value` — write the `run` result into a bossbar's current value form.",
         example = "use sand::prelude::*;\n\nfn demonstrate(execute_value: sand::command::Execute, id: impl Into < String >, attribute: impl Into < String >)  {\n    let updated_execute = execute_value.store_result_bossbar(id, attribute);\n}",
     )]
@@ -1989,7 +1989,7 @@ impl Execute {
         minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        params(id = "`id` provides the typed resource identifier or location used to emit the documented `store success bossbar <id> <attribute>` — write success/failure into a bossbar attribute form.", attribute = "`attribute` supplies the attribute value used to emit the documented `store success bossbar <id> <attribute>` — write success/failure into a bossbar attribute form."),
+        params(id = "`id` provides the typed resource identifier or location used to emit the documented `store success bossbar <id> <attribute>` — write success/failure into a bossbar attribute form.", attribute = "`attribute` supplies the documented `store success bossbar <id> <attribute>` — write success/failure into a bossbar attribute form."),
         returns = "The `Execute` value with the documented change applied to emit the documented `store success bossbar <id> <attribute>` — write success/failure into a bossbar attribute form.",
         example = "use sand::prelude::*;\n\nfn demonstrate(execute_value: sand::command::Execute, id: impl Into < String >, attribute: impl Into < String >)  {\n    let updated_execute = execute_value.store_success_bossbar(id, attribute);\n}",
     )]
@@ -2024,7 +2024,7 @@ impl Execute {
         minecraft = "This retains the historical infallible string API. Prefer [`try_run`](Self::try_run) for typed terminal commands; exported compatibility output is validated again with function context before files are accepted.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        params(cmd = "`cmd` supplies the cmd value used to use compatibility renderer for `run <command>`. This retains the historical infallible string API. Prefer [`try_run`](Self::try_run) for typed terminal commands; exported compatibility output is validated again with function context before files are accepted."),
+        params(cmd = "`cmd` sets the cmd for compatibility renderer for `run <command>`. This retains the historical infallible string API. Prefer [`try_run`](Self::try_run) for typed terminal commands; exported compatibility output is validated again with function context before files are accepted."),
         returns = "The rendered Minecraft command text produced to use compatibility renderer for `run <command>`. This retains the historical infallible string API. Prefer [`try_run`](Self::try_run) for typed terminal commands; exported compatibility output is validated again with function context before files are accepted.",
         example = "use std::fmt;\nuse sand::prelude::*;\n\nfn demonstrate(execute_value: sand::command::Execute, cmd: impl fmt::Display)  {\n    let command = execute_value.run(cmd);\n}",
     )]
@@ -2045,7 +2045,7 @@ impl Execute {
         minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        params(cmd = "`cmd` supplies the cmd value used to validate the whole execute chain and a typed terminal command before rendering. Errors identify the failing execute subcommand."),
+        params(cmd = "`cmd` is the cmd checked when validating the whole execute chain and a typed terminal command before rendering. Errors identify the failing execute subcommand."),
         returns = "On success, the value produced to validate the whole execute chain and a typed terminal command before rendering. Errors identify the failing execute subcommand; otherwise, the documented validation or export diagnostic.",
         example = "use sand::prelude::*;\n\nfn demonstrate(execute_value: sand::command::Execute, cmd: & impl sand::command::RenderCommand)  {\n    let try_run = execute_value.try_run(cmd);\n}",
     )]
@@ -2072,7 +2072,7 @@ impl Execute {
         minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        params(cmd = "`cmd` supplies the cmd value used to use like [`run`](Execute::run) but more explicit about accepting raw strings."),
+        params(cmd = "`cmd` sets the cmd for like [`run`](Execute::run) but more explicit about accepting raw strings."),
         returns = "The string value produced to use like [`run`](Execute::run) but more explicit about accepting raw strings.",
         example = "use std::fmt;\nuse sand::prelude::*;\n\nfn demonstrate(execute_value: sand::command::Execute, cmd: impl fmt::Display)  {\n    let run_raw = execute_value.run_raw(cmd);\n}",
     )]
@@ -2094,7 +2094,7 @@ impl Execute {
         minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        params(cmd = "`cmd` supplies the cmd value used to validate the typed execute chain, then append an explicitly raw terminal command. The raw text bypasses typed grammar modeling but must remain one `.mcfunction`-safe line without a leading slash."),
+        params(cmd = "`cmd` is the cmd checked when validating the typed execute chain, then append an explicitly raw terminal command. The raw text bypasses typed grammar modeling but must remain one `.mcfunction`-safe line without a leading slash."),
         returns = "On success, the value produced to validate the typed execute chain, then append an explicitly raw terminal command. The raw text bypasses typed grammar modeling but must remain one `.mcfunction`-safe line without a leading slash; otherwise, the documented validation or export diagnostic.",
         example = "use sand::prelude::*;\n\nfn demonstrate(execute_value: sand::command::Execute, cmd: sand::command::RawCommand)  {\n    let try_run_raw = execute_value.try_run_raw(cmd);\n}",
     )]

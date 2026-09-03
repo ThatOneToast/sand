@@ -46,7 +46,7 @@ impl Title {
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
         params(selector = "`selector` provides the Minecraft target selection used to create a payload-oriented title builder."),
-        returns = "A newly constructed `Title` configured to create a payload-oriented title builder.",
+        returns = "A `Title` representing a payload-oriented title builder.",
         example = "use sand::prelude::*;\n\nfn demonstrate(selector: sand::command::Selector)  {\n    let title = sand::command::Title::of(selector);\n}",
     )]
     pub fn of(selector: Selector) -> Self {
@@ -73,7 +73,7 @@ impl Title {
         minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        params(text = "`text` provides the author-visible text value used to set the title text emitted by this title-command builder."),
+        params(text = "`text` provides the author-visible text applied when setting the title text emitted by this title-command builder."),
         returns = "The `Title` value with the documented change applied to set the title text emitted by this title-command builder.",
         example = "use sand::prelude::*;\n\nfn demonstrate(title_value: sand::command::Title, text: sand::text::TextComponent)  {\n    let updated_title = title_value.title(text);\n}",
     )]
@@ -94,7 +94,7 @@ impl Title {
         minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        params(text = "`text` provides the author-visible text value used to set the subtitle text emitted by this title-command builder."),
+        params(text = "`text` provides the author-visible text applied when setting the subtitle text emitted by this title-command builder."),
         returns = "The `Title` value with the documented change applied to set the subtitle text emitted by this title-command builder.",
         example = "use sand::prelude::*;\n\nfn demonstrate(title_value: sand::command::Title, text: sand::text::TextComponent)  {\n    let updated_title = title_value.subtitle(text);\n}",
     )]
@@ -115,7 +115,7 @@ impl Title {
         minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        params(text = "`text` provides the author-visible text value used to set the actionbar text emitted by this title-command builder."),
+        params(text = "`text` provides the author-visible text applied when setting the actionbar text emitted by this title-command builder."),
         returns = "The `Title` value with the documented change applied to set the actionbar text emitted by this title-command builder.",
         example = "use sand::prelude::*;\n\nfn demonstrate(title_value: sand::command::Title, text: sand::text::TextComponent)  {\n    let updated_title = title_value.actionbar(text);\n}",
     )]
@@ -136,7 +136,7 @@ impl Title {
         minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        params(fade_in = "`fade_in` supplies the fade in value used to set the fade-in, display, and fade-out timings for this title sequence.", stay = "`stay` supplies the stay value used to set the fade-in, display, and fade-out timings for this title sequence.", fade_out = "`fade_out` supplies the fade out value used to set the fade-in, display, and fade-out timings for this title sequence."),
+        params(fade_in = "`fade_in` provides the fade in applied when setting the fade-in, display, and fade-out timings for this title sequence.", stay = "`stay` provides the stay applied when setting the fade-in, display, and fade-out timings for this title sequence.", fade_out = "`fade_out` provides the fade out applied when setting the fade-in, display, and fade-out timings for this title sequence."),
         returns = "The `Title` value with the documented change applied to set the fade-in, display, and fade-out timings for this title sequence.",
         example = "use sand::prelude::*;\n\nfn demonstrate(title_value: sand::command::Title, fade_in: u32, stay: u32, fade_out: u32)  {\n    let updated_title = title_value.times(fade_in, stay, fade_out);\n}",
     )]
@@ -310,8 +310,8 @@ impl TitleTimes {
         minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        params(selector = "`selector` provides the Minecraft target selection used to create a typed title times command builder from the supplied command inputs.", fade_in = "`fade_in` supplies the fade in value used to create a typed title times command builder from the supplied command inputs.", stay = "`stay` supplies the stay value used to create a typed title times command builder from the supplied command inputs.", fade_out = "`fade_out` supplies the fade out value used to create a typed title times command builder from the supplied command inputs."),
-        returns = "A newly constructed `TitleTimes` configured to create a typed title times command builder from the supplied command inputs.",
+        params(selector = "`selector` provides the Minecraft target selection used to create a typed title times command builder from the supplied command inputs.", fade_in = "`fade_in` is used when creating a typed title times command builder from the supplied command inputs.", stay = "`stay` is used when creating a typed title times command builder from the supplied command inputs.", fade_out = "`fade_out` is used when creating a typed title times command builder from the supplied command inputs."),
+        returns = "A `TitleTimes` representing a typed title times command builder from the supplied command inputs.",
         example = "use sand::prelude::*;\n\nfn demonstrate(selector: sand::command::Selector, fade_in: u32, stay: u32, fade_out: u32)  {\n    let title_times = sand::command::TitleTimes::new(selector, fade_in, stay, fade_out);\n}",
     )]
     pub fn new(selector: Selector, fade_in: u32, stay: u32, fade_out: u32) -> Self {
@@ -638,7 +638,7 @@ impl BossbarId {
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
         params(value = "`value` provides the value being applied or compared used to create an unchecked bossbar identifier for advanced command interop."),
-        returns = "A newly constructed `BossbarId` configured to create an unchecked bossbar identifier for advanced command interop.",
+        returns = "A `BossbarId` representing an unchecked bossbar identifier for advanced command interop.",
         example = "use sand::prelude::*;\n\nfn demonstrate(value: impl Into < String >)  {\n    let bossbar_id = sand::command::BossbarId::raw(value);\n}",
     )]
     pub fn raw(value: impl Into<String>) -> Self {
@@ -735,79 +735,79 @@ impl IntoBossbarId for &str {
     avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
     example = "use sand::command::BossbarCommand;",
     variants(Add = "Selects the add form of the bossbar command Minecraft command value.", Get = "Selects the get form of the bossbar command Minecraft command value.", List = "Selects the list form of the bossbar command Minecraft command value.", Remove = "Selects the remove form of the bossbar command Minecraft command value.", SetColor = "Selects the set color form of the bossbar command Minecraft command value.", SetMax = "Selects the set max form of the bossbar command Minecraft command value.", SetName = "Selects the set name form of the bossbar command Minecraft command value.", SetPlayers = "Selects the set players form of the bossbar command Minecraft command value.", SetStyle = "Selects the set style form of the bossbar command Minecraft command value.", SetValue = "Selects the set value form of the bossbar command Minecraft command value.", SetVisible = "Selects the set visible form of the bossbar command Minecraft command value."),
-    variant_fields(Add(id = "`id` provides the identifier when the variant selects the add form of the bossbar command Minecraft command value.", name = "`name` provides the name when the variant selects the add form of the bossbar command Minecraft command value."), Get(field = "`field` provides the field when the variant selects the get form of the bossbar command Minecraft command value.", id = "`id` provides the identifier when the variant selects the get form of the bossbar command Minecraft command value."), Remove(id = "`id` provides the identifier when the variant selects the remove form of the bossbar command Minecraft command value."), SetColor(color = "`color` provides the color when the variant selects the set color form of the bossbar command Minecraft command value.", id = "`id` provides the identifier when the variant selects the set color form of the bossbar command Minecraft command value."), SetMax(id = "`id` provides the identifier when the variant selects the set max form of the bossbar command Minecraft command value.", max = "`max` provides the maximum value when the variant selects the set max form of the bossbar command Minecraft command value."), SetName(id = "`id` provides the identifier when the variant selects the set name form of the bossbar command Minecraft command value.", name = "`name` provides the name when the variant selects the set name form of the bossbar command Minecraft command value."), SetPlayers(id = "`id` provides the identifier when the variant selects the set players form of the bossbar command Minecraft command value.", players = "`players` provides the players when the variant selects the set players form of the bossbar command Minecraft command value."), SetStyle(id = "`id` provides the identifier when the variant selects the set style form of the bossbar command Minecraft command value.", style = "`style` provides the style when the variant selects the set style form of the bossbar command Minecraft command value."), SetValue(id = "`id` provides the identifier when the variant selects the set value form of the bossbar command Minecraft command value.", value = "`value` provides the value when the variant selects the set value form of the bossbar command Minecraft command value."), SetVisible(id = "`id` provides the identifier when the variant selects the set visible form of the bossbar command Minecraft command value.", visible = "`visible` provides the visible when the variant selects the set visible form of the bossbar command Minecraft command value.")),
+    variant_fields(Add(id = "`id` supplies the identifier for the `bossbar add` command.", name = "`name` supplies the name for the `bossbar add` command."), Get(field = "`field` supplies the field for the `bossbar get` command.", id = "`id` supplies the identifier for the `bossbar get` command."), Remove(id = "`id` supplies the identifier for the `bossbar remove` command."), SetColor(color = "`color` supplies the color for the `bossbar set color` command.", id = "`id` supplies the identifier for the `bossbar set color` command."), SetMax(id = "`id` supplies the identifier for the `bossbar set max` command.", max = "`max` supplies the maximum value for the `bossbar set max` command."), SetName(id = "`id` supplies the identifier for the `bossbar set name` command.", name = "`name` supplies the name for the `bossbar set name` command."), SetPlayers(id = "`id` supplies the identifier for the `bossbar set players` command.", players = "`players` supplies the players for the `bossbar set players` command."), SetStyle(id = "`id` supplies the identifier for the `bossbar set style` command.", style = "`style` supplies the style for the `bossbar set style` command."), SetValue(id = "`id` supplies the identifier for the `bossbar set value` command.", value = "`value` supplies the value for the `bossbar set value` command."), SetVisible(id = "`id` supplies the identifier for the `bossbar set visible` command.", visible = "`visible` supplies the visible for the `bossbar set visible` command.")),
 )]
 /// Typed bossbar terminal command.
 #[derive(Debug, Clone)]
 pub enum BossbarCommand {
     #[doc = "Selects the add form of the bossbar command Minecraft command value."]
     Add {
-        #[doc = "`id` provides the identifier when the variant selects the add form of the bossbar command Minecraft command value."]
+        #[doc = "`id` supplies the identifier for the `bossbar add` command."]
         id: BossbarId,
-        #[doc = "`name` provides the name when the variant selects the add form of the bossbar command Minecraft command value."]
+        #[doc = "`name` supplies the name for the `bossbar add` command."]
         name: TextComponent,
     },
     #[doc = "Selects the remove form of the bossbar command Minecraft command value."]
     Remove {
-        #[doc = "`id` provides the identifier when the variant selects the remove form of the bossbar command Minecraft command value."]
+        #[doc = "`id` supplies the identifier for the `bossbar remove` command."]
         id: BossbarId,
     },
     #[doc = "Selects the list form of the bossbar command Minecraft command value."]
     List,
     #[doc = "Selects the set name form of the bossbar command Minecraft command value."]
     SetName {
-        #[doc = "`id` provides the identifier when the variant selects the set name form of the bossbar command Minecraft command value."]
+        #[doc = "`id` supplies the identifier for the `bossbar set name` command."]
         id: BossbarId,
-        #[doc = "`name` provides the name when the variant selects the set name form of the bossbar command Minecraft command value."]
+        #[doc = "`name` supplies the name for the `bossbar set name` command."]
         name: TextComponent,
     },
     #[doc = "Selects the set color form of the bossbar command Minecraft command value."]
     SetColor {
-        #[doc = "`id` provides the identifier when the variant selects the set color form of the bossbar command Minecraft command value."]
+        #[doc = "`id` supplies the identifier for the `bossbar set color` command."]
         id: BossbarId,
-        #[doc = "`color` provides the color when the variant selects the set color form of the bossbar command Minecraft command value."]
+        #[doc = "`color` supplies the color for the `bossbar set color` command."]
         color: BossbarColor,
     },
     #[doc = "Selects the set style form of the bossbar command Minecraft command value."]
     SetStyle {
-        #[doc = "`id` provides the identifier when the variant selects the set style form of the bossbar command Minecraft command value."]
+        #[doc = "`id` supplies the identifier for the `bossbar set style` command."]
         id: BossbarId,
-        #[doc = "`style` provides the style when the variant selects the set style form of the bossbar command Minecraft command value."]
+        #[doc = "`style` supplies the style for the `bossbar set style` command."]
         style: BossbarStyle,
     },
     #[doc = "Selects the set value form of the bossbar command Minecraft command value."]
     SetValue {
-        #[doc = "`id` provides the identifier when the variant selects the set value form of the bossbar command Minecraft command value."]
+        #[doc = "`id` supplies the identifier for the `bossbar set value` command."]
         id: BossbarId,
-        #[doc = "`value` provides the value when the variant selects the set value form of the bossbar command Minecraft command value."]
+        #[doc = "`value` supplies the value for the `bossbar set value` command."]
         value: u32,
     },
     #[doc = "Selects the set max form of the bossbar command Minecraft command value."]
     SetMax {
-        #[doc = "`id` provides the identifier when the variant selects the set max form of the bossbar command Minecraft command value."]
+        #[doc = "`id` supplies the identifier for the `bossbar set max` command."]
         id: BossbarId,
-        #[doc = "`max` provides the maximum value when the variant selects the set max form of the bossbar command Minecraft command value."]
+        #[doc = "`max` supplies the maximum value for the `bossbar set max` command."]
         max: u32,
     },
     #[doc = "Selects the set visible form of the bossbar command Minecraft command value."]
     SetVisible {
-        #[doc = "`id` provides the identifier when the variant selects the set visible form of the bossbar command Minecraft command value."]
+        #[doc = "`id` supplies the identifier for the `bossbar set visible` command."]
         id: BossbarId,
-        #[doc = "`visible` provides the visible when the variant selects the set visible form of the bossbar command Minecraft command value."]
+        #[doc = "`visible` supplies the visible for the `bossbar set visible` command."]
         visible: bool,
     },
     #[doc = "Selects the set players form of the bossbar command Minecraft command value."]
     SetPlayers {
-        #[doc = "`id` provides the identifier when the variant selects the set players form of the bossbar command Minecraft command value."]
+        #[doc = "`id` supplies the identifier for the `bossbar set players` command."]
         id: BossbarId,
-        #[doc = "`players` provides the players when the variant selects the set players form of the bossbar command Minecraft command value."]
+        #[doc = "`players` supplies the players for the `bossbar set players` command."]
         players: Selector,
     },
     #[doc = "Selects the get form of the bossbar command Minecraft command value."]
     Get {
-        #[doc = "`id` provides the identifier when the variant selects the get form of the bossbar command Minecraft command value."]
+        #[doc = "`id` supplies the identifier for the `bossbar get` command."]
         id: BossbarId,
-        #[doc = "`field` provides the field when the variant selects the get form of the bossbar command Minecraft command value."]
+        #[doc = "`field` supplies the field for the `bossbar get` command."]
         field: &'static str,
     },
 }
@@ -910,7 +910,7 @@ impl Bossbar {
         minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        params(id = "`id` provides the typed resource identifier or location used to render the Minecraft add command for the selected bossbar.", name = "`name` provides the author-visible text value used to render the Minecraft add command for the selected bossbar."),
+        params(id = "`id` provides the typed resource identifier or location used to render the Minecraft add command for the selected bossbar.", name = "`name` provides the author-visible text rendered when the Minecraft add command for the selected bossbar."),
         returns = "The rendered Minecraft command text produced to render the Minecraft add command for the selected bossbar.",
         example = "use sand::prelude::*;\n\nfn demonstrate(id: impl sand::command::IntoBossbarId, name: sand::text::TextComponent)  {\n    let command = sand::command::Bossbar::add(id, name);\n}",
     )]
@@ -1042,7 +1042,7 @@ impl Bossbar {
         minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        params(id = "`id` provides the typed resource identifier or location used to render the Minecraft command that sets color for the selected bossbar.", color = "`color` supplies the color value used to render the Minecraft command that sets color for the selected bossbar."),
+        params(id = "`id` provides the typed resource identifier or location used to render the Minecraft command that sets color for the selected bossbar.", color = "`color` provides the color rendered when the Minecraft command that sets color for the selected bossbar."),
         returns = "The rendered Minecraft command text produced to render the Minecraft command that sets color for the selected bossbar.",
         example = "use sand::prelude::*;\n\nfn demonstrate(id: impl sand::command::IntoBossbarId, color: sand::command::BossbarColor)  {\n    let command = sand::command::Bossbar::set_color(id, color);\n}",
     )]
@@ -1065,7 +1065,7 @@ impl Bossbar {
         minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        params(id = "`id` provides the typed resource identifier or location used to render the Minecraft command that sets style for the selected bossbar.", style = "`style` supplies the style value used to render the Minecraft command that sets style for the selected bossbar."),
+        params(id = "`id` provides the typed resource identifier or location used to render the Minecraft command that sets style for the selected bossbar.", style = "`style` provides the style rendered when the Minecraft command that sets style for the selected bossbar."),
         returns = "The rendered Minecraft command text produced to render the Minecraft command that sets style for the selected bossbar.",
         example = "use sand::prelude::*;\n\nfn demonstrate(id: impl sand::command::IntoBossbarId, style: sand::command::BossbarStyle)  {\n    let command = sand::command::Bossbar::set_style(id, style);\n}",
     )]
@@ -1088,7 +1088,7 @@ impl Bossbar {
         minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        params(id = "`id` provides the typed resource identifier or location used to render the Minecraft command that sets name for the selected bossbar.", name = "`name` provides the author-visible text value used to render the Minecraft command that sets name for the selected bossbar."),
+        params(id = "`id` provides the typed resource identifier or location used to render the Minecraft command that sets name for the selected bossbar.", name = "`name` provides the author-visible text rendered when the Minecraft command that sets name for the selected bossbar."),
         returns = "The rendered Minecraft command text produced to render the Minecraft command that sets name for the selected bossbar.",
         example = "use sand::prelude::*;\n\nfn demonstrate(id: impl sand::command::IntoBossbarId, name: sand::text::TextComponent)  {\n    let command = sand::command::Bossbar::set_name(id, name);\n}",
     )]

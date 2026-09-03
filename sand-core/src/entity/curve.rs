@@ -101,7 +101,7 @@ impl FixedPoint {
         minecraft = "A scale of `1000` stores three decimal places. A zero or negative scale returns an [`EntityDiagnostic::InvalidRange`] before export.",
         use_when = ["Defining or using typed entity behavior in a Sand datapack"],
         avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
-        params(scale = "`scale` supplies the scale value used to create settings with a positive scale. A scale of `1000` stores three decimal places. A zero or negative scale returns an [`EntityDiagnostic::InvalidRange`] before export.", rounding = "`rounding` supplies the rounding value used to create settings with a positive scale. A scale of `1000` stores three decimal places. A zero or negative scale returns an [`EntityDiagnostic::InvalidRange`] before export.", overflow = "`overflow` supplies the overflow value used to create settings with a positive scale. A scale of `1000` stores three decimal places. A zero or negative scale returns an [`EntityDiagnostic::InvalidRange`] before export."),
+        params(scale = "`scale` is used when creating settings with a positive scale. A scale of `1000` stores three decimal places. A zero or negative scale returns an [`EntityDiagnostic::InvalidRange`] before export.", rounding = "`rounding` is used when creating settings with a positive scale. A scale of `1000` stores three decimal places. A zero or negative scale returns an [`EntityDiagnostic::InvalidRange`] before export.", overflow = "`overflow` is used when creating settings with a positive scale. A scale of `1000` stores three decimal places. A zero or negative scale returns an [`EntityDiagnostic::InvalidRange`] before export."),
         returns = "A scale of `1000` stores three decimal places. A zero or negative scale returns an [`EntityDiagnostic::InvalidRange`] before export.",
         example = "use sand::prelude::*;\n\nfn demonstrate(scale: i64, rounding: sand::entity::RoundingPolicy, overflow: sand::entity::OverflowPolicy)  {\n    let fixed_point_result = sand::entity::FixedPoint::new(scale, rounding, overflow);\n}",
     )]
@@ -380,8 +380,8 @@ impl FixedValue {
         minecraft = "Sand validates this definition and lowers it to entity-scoped selectors, scoreboards, NBT operations, and generated lifecycle functions as required.",
         use_when = ["Defining or using typed entity behavior in a Sand datapack"],
         avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
-        params(units = "`units` supplies the units value used to create a value from already-scaled integer units."),
-        returns = "A newly constructed `FixedValue` configured to create a value from already-scaled integer units.",
+        params(units = "`units` is used when creating a value from already-scaled integer units."),
+        returns = "A `FixedValue` representing a value from already-scaled integer units.",
         example = "use sand::prelude::*;\n\nfn demonstrate(units: i64)  {\n    let fixed_value = sand::entity::FixedValue::from_units(units);\n}",
     )]
     #[must_use]
@@ -464,7 +464,7 @@ impl CurveInputs {
         minecraft = "Sand validates this definition and lowers it to entity-scoped selectors, scoreboards, NBT operations, and generated lifecycle functions as required.",
         use_when = ["Defining or using typed entity behavior in a Sand datapack"],
         avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
-        returns = "A newly constructed `CurveInputs` configured to create an empty input set.",
+        returns = "A `CurveInputs` representing an empty input set.",
         example = "use sand::prelude::*;\n\nfn demonstrate()  {\n    let curve_inputs = sand::entity::CurveInputs::new();\n}",
     )]
     #[must_use]
@@ -486,7 +486,7 @@ impl CurveInputs {
         minecraft = "Sand validates this definition and lowers it to entity-scoped selectors, scoreboards, NBT operations, and generated lifecycle functions as required.",
         use_when = ["Defining or using typed entity behavior in a Sand datapack"],
         avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
-        params(name = "`name` provides the author-visible text value used to insert an already-scaled value, replacing a value with the same name.", value = "`value` provides the value being applied or compared used to insert an already-scaled value, replacing a value with the same name."),
+        params(name = "`name` is used to insert an already-scaled value, replacing a value with the same name.", value = "`value` provides the value being applied or compared used to insert an already-scaled value, replacing a value with the same name."),
         returns = "The matching value used to insert an already-scaled value, replacing a value with the same name, or `None` when that value is unavailable.",
         example = "use sand::prelude::*;\n\nfn demonstrate(curve_inputs_value: &mut sand::entity::CurveInputs, name: impl Into < String >, value: sand::entity::FixedValue)  {\n    let insert = curve_inputs_value.insert(name, value);\n}",
     )]
@@ -506,7 +506,7 @@ impl CurveInputs {
         minecraft = "Sand validates this definition and lowers it to entity-scoped selectors, scoreboards, NBT operations, and generated lifecycle functions as required.",
         use_when = ["Defining or using typed entity behavior in a Sand datapack"],
         avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
-        params(name = "`name` provides the author-visible text value used to insert a whole scoreboard value after applying `fixed`'s scale.", value = "`value` provides the value being applied or compared used to insert a whole scoreboard value after applying `fixed`'s scale.", fixed = "Inserts a whole scoreboard value after applying `fixed`'s scale.", archetype = "`archetype` provides the entity archetype supplying the property used to insert a whole scoreboard value after applying `fixed`'s scale.", derivation = "`derivation` provides the derived-stat selector used to insert a whole scoreboard value after applying `fixed`'s scale."),
+        params(name = "`name` is used to insert a whole scoreboard value after applying `fixed`'s scale.", value = "`value` provides the value being applied or compared used to insert a whole scoreboard value after applying `fixed`'s scale.", fixed = "Inserts a whole scoreboard value after applying `fixed`'s scale.", archetype = "`archetype` provides the entity archetype supplying the property used to insert a whole scoreboard value after applying `fixed`'s scale.", derivation = "`derivation` provides the derived-stat selector used to insert a whole scoreboard value after applying `fixed`'s scale."),
         returns = "On success, the value produced to insert a whole scoreboard value after applying `fixed`'s scale; otherwise, the documented validation or export diagnostic.",
         example = "use sand::prelude::*;\n\nfn demonstrate(curve_inputs_value: &mut sand::entity::CurveInputs, name: impl Into < String >, value: i64, fixed: sand::entity::FixedPoint, archetype: & str, derivation: & str)  {\n    let insert_score = curve_inputs_value.insert_score(name, value, fixed, archetype, derivation);\n}",
     )]
@@ -923,7 +923,7 @@ impl StatCurve {
         use_when = ["Defining or using typed entity behavior in a Sand datapack"],
         avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
         params(value = "`value` provides the value being applied or compared used to create a fixed derived value."),
-        returns = "A newly constructed `StatCurve` configured to create a fixed derived value.",
+        returns = "A `StatCurve` representing a fixed derived value.",
         example = "use sand::prelude::*;\n\nfn demonstrate(value: f64)  {\n    let stat_curve = sand::entity::StatCurve::constant(value);\n}",
     )]
     #[must_use]
@@ -945,8 +945,8 @@ impl StatCurve {
         minecraft = "Sand validates this definition and lowers it to entity-scoped selectors, scoreboards, NBT operations, and generated lifecycle functions as required.",
         use_when = ["Defining or using typed entity behavior in a Sand datapack"],
         avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
-        params(field = "`field` supplies the field value used to reference a typed entity-state input."),
-        returns = "A newly constructed `StatCurve` configured to reference a typed entity-state input.",
+        params(field = "`field` is used to reference a typed entity-state input."),
+        returns = "A `StatCurve` referencing a typed entity-state input.",
         example = "use sand::prelude::*;\n\nfn demonstrate(field: impl sand::entity::EntityStateField)  {\n    let stat_curve = sand::entity::StatCurve::state(field);\n}",
     )]
     #[must_use]
@@ -970,8 +970,8 @@ impl StatCurve {
         minecraft = "Sand validates this definition and lowers it to entity-scoped selectors, scoreboards, NBT operations, and generated lifecycle functions as required.",
         use_when = ["Prefer [`Self::state`] for schema fields."],
         avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
-        params(name = "`name` provides the author-visible text value used to reference an explicitly raw objective name. Prefer [`Self::state`] for schema fields."),
-        returns = "A newly constructed `StatCurve` configured to reference an explicitly raw objective name. Prefer [`Self::state`] for schema fields.",
+        params(name = "`name` is used to reference an explicitly raw objective name. Prefer [`Self::state`] for schema fields."),
+        returns = "A `StatCurve` referencing an explicitly raw objective name. Prefer [`Self::state`] for schema fields.",
         example = "use sand::prelude::*;\n\nfn demonstrate(name: & str)  {\n    let stat_curve = sand::entity::StatCurve::input_raw(name);\n}",
     )]
     #[must_use]
@@ -993,8 +993,8 @@ impl StatCurve {
         minecraft = "Sand validates this definition and lowers it to entity-scoped selectors, scoreboards, NBT operations, and generated lifecycle functions as required.",
         use_when = ["Defining or using typed entity behavior in a Sand datapack"],
         avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
-        params(input = "`input` supplies the input value used to create `input × slope + intercept`.", slope = "`slope` supplies the slope value used to create `input × slope + intercept`.", intercept = "`intercept` supplies the intercept value used to create `input × slope + intercept`."),
-        returns = "A newly constructed `StatCurve` configured to create `input × slope + intercept`.",
+        params(input = "`input` is used when creating `input × slope + intercept`.", slope = "`slope` is used when creating `input × slope + intercept`.", intercept = "`intercept` is used when creating `input × slope + intercept`."),
+        returns = "A `StatCurve` representing `input × slope + intercept`.",
         example = "use sand::prelude::*;\n\nfn demonstrate(input: sand::entity::StatCurve, slope: f64, intercept: f64)  {\n    let stat_curve = sand::entity::StatCurve::linear(input, slope, intercept);\n}",
     )]
     #[must_use]
@@ -1023,8 +1023,8 @@ impl StatCurve {
         minecraft = "Sand validates this definition and lowers it to entity-scoped selectors, scoreboards, NBT operations, and generated lifecycle functions as required.",
         use_when = ["Defining or using typed entity behavior in a Sand datapack"],
         avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
-        params(input = "`input` supplies the input value used to create an affine curve clamped to the inclusive `[minimum, maximum]`.", slope = "`slope` supplies the slope value used to create an affine curve clamped to the inclusive `[minimum, maximum]`.", intercept = "`intercept` supplies the intercept value used to create an affine curve clamped to the inclusive `[minimum, maximum]`.", minimum = "`minimum` supplies the minimum value used to create an affine curve clamped to the inclusive `[minimum, maximum]`.", maximum = "`maximum` supplies the maximum value used to create an affine curve clamped to the inclusive `[minimum, maximum]`."),
-        returns = "A newly constructed `StatCurve` configured to create an affine curve clamped to the inclusive `[minimum, maximum]`.",
+        params(input = "`input` is used when creating an affine curve clamped to the inclusive `[minimum, maximum]`.", slope = "`slope` is used when creating an affine curve clamped to the inclusive `[minimum, maximum]`.", intercept = "`intercept` is used when creating an affine curve clamped to the inclusive `[minimum, maximum]`.", minimum = "`minimum` is used when creating an affine curve clamped to the inclusive `[minimum, maximum]`.", maximum = "`maximum` is used when creating an affine curve clamped to the inclusive `[minimum, maximum]`."),
+        returns = "A `StatCurve` representing an affine curve clamped to the inclusive `[minimum, maximum]`.",
         example = "use sand::prelude::*;\n\nfn demonstrate(input: sand::entity::StatCurve, slope: f64, intercept: f64, minimum: f64, maximum: f64)  {\n    let stat_curve = sand::entity::StatCurve::clamped_linear(input, slope, intercept, minimum, maximum);\n}",
     )]
     #[must_use]
@@ -1057,8 +1057,8 @@ impl StatCurve {
         minecraft = "Sand validates this definition and lowers it to entity-scoped selectors, scoreboards, NBT operations, and generated lifecycle functions as required.",
         use_when = ["Defining or using typed entity behavior in a Sand datapack"],
         avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
-        params(terms = "`terms` supplies the terms value used to add all modifiers. An empty sum evaluates to zero."),
-        returns = "A newly constructed `StatCurve` configured to add all modifiers. An empty sum evaluates to zero.",
+        params(terms = "`terms` provides the terms added when building all modifiers. An empty sum evaluates to zero."),
+        returns = "A `StatCurve` with all modifiers. An empty sum evaluates to zero.",
         example = "use sand::prelude::*;\n\nfn demonstrate(terms: impl IntoIterator < Item = sand::entity::StatCurve >)  {\n    let stat_curve = sand::entity::StatCurve::add(terms);\n}",
     )]
     #[must_use]
@@ -1080,8 +1080,8 @@ impl StatCurve {
         minecraft = "Sand validates this definition and lowers it to entity-scoped selectors, scoreboards, NBT operations, and generated lifecycle functions as required.",
         use_when = ["Defining or using typed entity behavior in a Sand datapack"],
         avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
-        params(factors = "`factors` supplies the factors value used to multiplie fixed-point factors. An empty product evaluates to one."),
-        returns = "A newly constructed `StatCurve` configured to multiplie fixed-point factors. An empty product evaluates to one.",
+        params(factors = "`factors` lists the fixed-point values to multiply. An empty product evaluates to one."),
+        returns = "A `StatCurve` multiplying fixed-point factors. An empty product evaluates to one.",
         example = "use sand::prelude::*;\n\nfn demonstrate(factors: impl IntoIterator < Item = sand::entity::StatCurve >)  {\n    let stat_curve = sand::entity::StatCurve::multiply(factors);\n}",
     )]
     #[must_use]
@@ -1103,8 +1103,8 @@ impl StatCurve {
         minecraft = "Sand validates this definition and lowers it to entity-scoped selectors, scoreboards, NBT operations, and generated lifecycle functions as required.",
         use_when = ["Defining or using typed entity behavior in a Sand datapack"],
         avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
-        params(numerator = "`numerator` supplies the numerator value used to divide one fixed-point curve by another while preserving the scale.", denominator = "`denominator` supplies the denominator value used to divide one fixed-point curve by another while preserving the scale."),
-        returns = "A newly constructed `StatCurve` configured to divide one fixed-point curve by another while preserving the scale.",
+        params(numerator = "`numerator` is used to divide one fixed-point curve by another while preserving the scale.", denominator = "`denominator` is used to divide one fixed-point curve by another while preserving the scale."),
+        returns = "A `StatCurve` dividing one fixed-point curve by another while preserving the scale.",
         example = "use sand::prelude::*;\n\nfn demonstrate(numerator: sand::entity::StatCurve, denominator: sand::entity::StatCurve)  {\n    let stat_curve = sand::entity::StatCurve::ratio(numerator, denominator);\n}",
     )]
     #[must_use]
@@ -1133,8 +1133,8 @@ impl StatCurve {
         minecraft = "Sand validates this definition and lowers it to entity-scoped selectors, scoreboards, NBT operations, and generated lifecycle functions as required.",
         use_when = ["Defining or using typed entity behavior in a Sand datapack"],
         avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
-        params(input = "`input` supplies the input value used to create a level-band curve. Each pair is `(inclusive minimum input, output)` in strictly increasing order. [`Self::validate`] rejects duplicate or descending bounds. `below` is used before the first band.", bands = "`bands` supplies the bands value used to create a level-band curve. Each pair is `(inclusive minimum input, output)` in strictly increasing order. [`Self::validate`] rejects duplicate or descending bounds. `below` is used before the first band.", below = "Each pair is `(inclusive minimum input, output)` in strictly increasing order. [`Self::validate`] rejects duplicate or descending bounds. `below` is used before the first band."),
-        returns = "A newly constructed `StatCurve` configured to create a level-band curve. Each pair is `(inclusive minimum input, output)` in strictly increasing order. [`Self::validate`] rejects duplicate or descending bounds. `below` is used before the first band.",
+        params(input = "`input` is used when creating a level-band curve. Each pair is `(inclusive minimum input, output)` in strictly increasing order. [`Self::validate`] rejects duplicate or descending bounds. `below` is used before the first band.", bands = "`bands` is used when creating a level-band curve. Each pair is `(inclusive minimum input, output)` in strictly increasing order. [`Self::validate`] rejects duplicate or descending bounds. `below` is used before the first band.", below = "Each pair is `(inclusive minimum input, output)` in strictly increasing order. [`Self::validate`] rejects duplicate or descending bounds. `below` is used before the first band."),
+        returns = "A `StatCurve` representing a level-band curve. Each pair is `(inclusive minimum input, output)` in strictly increasing order. [`Self::validate`] rejects duplicate or descending bounds. `below` is used before the first band.",
         example = "use sand::prelude::*;\n\nfn demonstrate(input: sand::entity::StatCurve, bands: Vec < (f64 , f64) >, below: f64)  {\n    let stat_curve = sand::entity::StatCurve::stepped(input, bands, below);\n}",
     )]
     #[must_use]
@@ -1163,8 +1163,8 @@ impl StatCurve {
         minecraft = "Sand validates this definition and lowers it to entity-scoped selectors, scoreboards, NBT operations, and generated lifecycle functions as required.",
         use_when = ["Defining or using typed entity behavior in a Sand datapack"],
         avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
-        params(input = "`input` supplies the input value used to create a piecewise curve selected by inclusive upper bounds.", branches = "`branches` supplies the branches value used to create a piecewise curve selected by inclusive upper bounds.", fallback = "`fallback` supplies the fallback value used to create a piecewise curve selected by inclusive upper bounds."),
-        returns = "A newly constructed `StatCurve` configured to create a piecewise curve selected by inclusive upper bounds.",
+        params(input = "`input` is used when creating a piecewise curve selected by inclusive upper bounds.", branches = "`branches` is used when creating a piecewise curve selected by inclusive upper bounds.", fallback = "`fallback` is used when creating a piecewise curve selected by inclusive upper bounds."),
+        returns = "A `StatCurve` representing a piecewise curve selected by inclusive upper bounds.",
         example = "use sand::prelude::*;\n\nfn demonstrate(input: sand::entity::StatCurve, branches: Vec < (f64 , sand::entity::StatCurve) >, fallback: sand::entity::StatCurve)  {\n    let stat_curve = sand::entity::StatCurve::piecewise(input, branches, fallback);\n}",
     )]
     #[must_use]
@@ -1190,8 +1190,8 @@ impl StatCurve {
         minecraft = "Sand validates this definition and lowers it to entity-scoped selectors, scoreboards, NBT operations, and generated lifecycle functions as required.",
         use_when = ["Defining or using typed entity behavior in a Sand datapack"],
         avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
-        params(input = "`input` supplies the input value used to create a table keyed by whole scoreboard values.", entries = "`entries` supplies the entries value used to create a table keyed by whole scoreboard values.", fallback = "`fallback` supplies the fallback value used to create a table keyed by whole scoreboard values."),
-        returns = "A newly constructed `StatCurve` configured to create a table keyed by whole scoreboard values.",
+        params(input = "`input` is used when creating a table keyed by whole scoreboard values.", entries = "`entries` is used when creating a table keyed by whole scoreboard values.", fallback = "`fallback` is used when creating a table keyed by whole scoreboard values."),
+        returns = "A `StatCurve` representing a table keyed by whole scoreboard values.",
         example = "use sand::prelude::*;\n\nfn demonstrate(input: impl sand::entity::EntityStateField, entries: impl IntoIterator < Item = (i64 , f64) >, fallback: f64)  {\n    let stat_curve = sand::entity::StatCurve::lookup(input, entries, fallback);\n}",
     )]
     #[must_use]
@@ -1215,8 +1215,8 @@ impl StatCurve {
         minecraft = "Sand validates this definition and lowers it to entity-scoped selectors, scoreboards, NBT operations, and generated lifecycle functions as required.",
         use_when = ["Defining or using typed entity behavior in a Sand datapack"],
         avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
-        params(input = "`input` supplies the input value used to create a lookup table from an explicitly raw objective.", entries = "`entries` supplies the entries value used to create a lookup table from an explicitly raw objective.", fallback = "`fallback` supplies the fallback value used to create a lookup table from an explicitly raw objective."),
-        returns = "A newly constructed `StatCurve` configured to create a lookup table from an explicitly raw objective.",
+        params(input = "`input` is used when creating a lookup table from an explicitly raw objective.", entries = "`entries` is used when creating a lookup table from an explicitly raw objective.", fallback = "`fallback` is used when creating a lookup table from an explicitly raw objective."),
+        returns = "A `StatCurve` representing a lookup table from an explicitly raw objective.",
         example = "use sand::prelude::*;\n\nfn demonstrate(input: & str, entries: impl IntoIterator < Item = (i64 , f64) >, fallback: f64)  {\n    let stat_curve = sand::entity::StatCurve::lookup_raw(input, entries, fallback);\n}",
     )]
     #[must_use]
@@ -1248,8 +1248,8 @@ impl StatCurve {
         minecraft = "Sand validates this definition and lowers it to entity-scoped selectors, scoreboards, NBT operations, and generated lifecycle functions as required.",
         use_when = ["Defining or using typed entity behavior in a Sand datapack"],
         avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
-        params(input = "`input` supplies the input value used to map a stable [`sand::entity::EntityEnum`] integer encoding to a numeric value.", entries = "`entries` supplies the entries value used to map a stable [`sand::entity::EntityEnum`] integer encoding to a numeric value.", fallback = "`fallback` supplies the fallback value used to map a stable [`sand::entity::EntityEnum`] integer encoding to a numeric value."),
-        returns = "A newly constructed `StatCurve` configured to map a stable [`sand::entity::EntityEnum`] integer encoding to a numeric value.",
+        params(input = "`input` is used to map a stable [`sand::entity::EntityEnum`] integer encoding to a numeric value.", entries = "`entries` is used to map a stable [`sand::entity::EntityEnum`] integer encoding to a numeric value.", fallback = "`fallback` is used to map a stable [`sand::entity::EntityEnum`] integer encoding to a numeric value."),
+        returns = "A `StatCurve` mapping a stable [`sand::entity::EntityEnum`] integer encoding to a numeric value.",
         example = "use sand::prelude::*;\n\nfn demonstrate<T : sand::entity::EntityEnumValue + 'static>(input: sand::entity::EntityEnum < T >, entries: impl IntoIterator < Item = (T , f64) >, fallback: f64)  {\n    let stat_curve = sand::entity::StatCurve::enum_mapping::<T>(input, entries, fallback);\n}",
     )]
     #[must_use]
@@ -1279,8 +1279,8 @@ impl StatCurve {
         minecraft = "Sand validates this definition and lowers it to entity-scoped selectors, scoreboards, NBT operations, and generated lifecycle functions as required.",
         use_when = ["Defining or using typed entity behavior in a Sand datapack"],
         avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
-        params(input = "`input` supplies the input value used to map raw enum encodings from an explicitly raw objective.", entries = "`entries` supplies the entries value used to map raw enum encodings from an explicitly raw objective.", fallback = "`fallback` supplies the fallback value used to map raw enum encodings from an explicitly raw objective."),
-        returns = "A newly constructed `StatCurve` configured to map raw enum encodings from an explicitly raw objective.",
+        params(input = "`input` is used to map raw enum encodings from an explicitly raw objective.", entries = "`entries` is used to map raw enum encodings from an explicitly raw objective.", fallback = "`fallback` is used to map raw enum encodings from an explicitly raw objective."),
+        returns = "A `StatCurve` mapping raw enum encodings from an explicitly raw objective.",
         example = "use sand::prelude::*;\n\nfn demonstrate(input: & str, entries: impl IntoIterator < Item = (i32 , f64) >, fallback: f64)  {\n    let stat_curve = sand::entity::StatCurve::enum_mapping_raw(input, entries, fallback);\n}",
     )]
     #[must_use]
@@ -1312,8 +1312,8 @@ impl StatCurve {
         minecraft = "Sand validates this definition and lowers it to entity-scoped selectors, scoreboards, NBT operations, and generated lifecycle functions as required.",
         use_when = ["Defining or using typed entity behavior in a Sand datapack"],
         avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
-        params(input = "`input` supplies the input value used to map a zero/one [`sand::entity::EntityFlag`] input to numeric values.", disabled = "`disabled` supplies the disabled value used to map a zero/one [`sand::entity::EntityFlag`] input to numeric values.", enabled = "`enabled` supplies the enabled value used to map a zero/one [`sand::entity::EntityFlag`] input to numeric values."),
-        returns = "A newly constructed `StatCurve` configured to map a zero/one [`sand::entity::EntityFlag`] input to numeric values.",
+        params(input = "`input` is used to map a zero/one [`sand::entity::EntityFlag`] input to numeric values.", disabled = "`disabled` is used to map a zero/one [`sand::entity::EntityFlag`] input to numeric values.", enabled = "`enabled` is used to map a zero/one [`sand::entity::EntityFlag`] input to numeric values."),
+        returns = "A `StatCurve` mapping a zero/one [`sand::entity::EntityFlag`] input to numeric values.",
         example = "use sand::prelude::*;\n\nfn demonstrate(input: sand::entity::EntityFlag, disabled: f64, enabled: f64)  {\n    let stat_curve = sand::entity::StatCurve::flag_mapping(input, disabled, enabled);\n}",
     )]
     #[must_use]
@@ -1333,8 +1333,8 @@ impl StatCurve {
         minecraft = "Sand validates this definition and lowers it to entity-scoped selectors, scoreboards, NBT operations, and generated lifecycle functions as required.",
         use_when = ["Defining or using typed entity behavior in a Sand datapack"],
         avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
-        params(input = "`input` supplies the input value used to map a flag stored in an explicitly raw objective.", disabled = "`disabled` supplies the disabled value used to map a flag stored in an explicitly raw objective.", enabled = "`enabled` supplies the enabled value used to map a flag stored in an explicitly raw objective."),
-        returns = "A newly constructed `StatCurve` configured to map a flag stored in an explicitly raw objective.",
+        params(input = "`input` is used to map a flag stored in an explicitly raw objective.", disabled = "`disabled` is used to map a flag stored in an explicitly raw objective.", enabled = "`enabled` is used to map a flag stored in an explicitly raw objective."),
+        returns = "A `StatCurve` mapping a flag stored in an explicitly raw objective.",
         example = "use sand::prelude::*;\n\nfn demonstrate(input: & str, disabled: f64, enabled: f64)  {\n    let stat_curve = sand::entity::StatCurve::flag_mapping_raw(input, disabled, enabled);\n}",
     )]
     #[must_use]
@@ -1366,7 +1366,7 @@ impl StatCurve {
         use_when = ["Defining or using typed entity behavior in a Sand datapack"],
         avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
         params(function = "`function` provides the callback invoked by this operation used to create a typed custom evaluator with a stable registration identifier.", callback = "`callback` provides the callback invoked by this operation used to create a typed custom evaluator with a stable registration identifier."),
-        returns = "A newly constructed `StatCurve` configured to create a typed custom evaluator with a stable registration identifier.",
+        returns = "A `StatCurve` representing a typed custom evaluator with a stable registration identifier.",
         example = "use sand::prelude::*;\n\nfn demonstrate(function: sand::resource_ref::FunctionId, callback: impl Fn (& sand::entity::CurveInputs , sand::entity::FixedPoint) -> std::result::Result < sand::entity::FixedValue , sand::entity::CurveEvaluationError > + Send + Sync + 'static)  {\n    let stat_curve = sand::entity::StatCurve::custom(function, callback);\n}",
     )]
     #[must_use]
@@ -1397,7 +1397,7 @@ impl StatCurve {
         use_when = ["Defining or using typed entity behavior in a Sand datapack"],
         avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
         params(function = "`function` provides the callback invoked by this operation used to create a typed custom evaluator with explicit state dependencies.", inputs = "`inputs` provides the runtime score inputs used to create a typed custom evaluator with explicit state dependencies.", callback = "`callback` provides the callback invoked by this operation used to create a typed custom evaluator with explicit state dependencies."),
-        returns = "A newly constructed `StatCurve` configured to create a typed custom evaluator with explicit state dependencies.",
+        returns = "A `StatCurve` representing a typed custom evaluator with explicit state dependencies.",
         example = "use sand::prelude::*;\n\nfn demonstrate(function: sand::resource_ref::FunctionId, inputs: impl IntoIterator < Item = impl Into < String > >, callback: impl Fn (& sand::entity::CurveInputs , sand::entity::FixedPoint) -> std::result::Result < sand::entity::FixedValue , sand::entity::CurveEvaluationError > + Send + Sync + 'static)  {\n    let stat_curve = sand::entity::StatCurve::custom_with_raw_inputs(function, inputs, callback);\n}",
     )]
     #[must_use]

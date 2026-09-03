@@ -82,8 +82,8 @@ impl Cooldown {
         minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        params(objective = "`objective` supplies the objective value used to create a cooldown instance with duration in ticks.", ticks = "`ticks` provides the Minecraft tick duration used to create a cooldown instance with duration in ticks."),
-        returns = "A newly constructed `Cooldown` configured to create a cooldown instance with duration in ticks.",
+        params(objective = "`objective` is used when creating a cooldown instance with duration in ticks.", ticks = "`ticks` provides the Minecraft tick duration used to create a cooldown instance with duration in ticks."),
+        returns = "A `Cooldown` representing a cooldown instance with duration in ticks.",
         example = "static COOLDOWN_OBJ: Objective = Objective::new(\"spell_cd\");\nstatic SPELL_COOLDOWN: Cooldown = Cooldown::new(&COOLDOWN_OBJ, 60); // 3 seconds",
     )]
     pub const fn new(objective: &'static Objective, ticks: u32) -> Self {
@@ -131,7 +131,7 @@ impl Cooldown {
         minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        params(holder = "`holder` supplies the holder value used to guard clause: return early if the cooldown is active (score > 0)."),
+        params(holder = "`holder` is used to guard clause: return early if the cooldown is active (score > 0)."),
         returns = "Place this at the start of your ability function to prevent use while cooling. If score is > 0, the function returns 0 immediately. Otherwise execution continues. Produces: `execute if score <holder> <obj> matches 1.. run return 0`",
         example = "use sand::prelude::*;\n\nfn demonstrate(cooldown_value: &sand::command::Cooldown, holder: sand::command::ScoreHolder)  {\n    let guard = cooldown_value.guard(holder);\n}",
     )]
@@ -158,7 +158,7 @@ impl Cooldown {
         minecraft = "Call this after the ability executes to begin the countdown. Produces: `scoreboard players set <holder> <obj> <ticks>`",
         use_when = ["Call this after the ability executes to begin the countdown. Produces: `scoreboard players set <holder> <obj> <ticks>`"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        params(holder = "`holder` supplies the holder value used to start the cooldown by setting the score to the configured duration."),
+        params(holder = "`holder` is used to start the cooldown by setting the score to the configured duration."),
         returns = "The string value produced to start the cooldown by setting the score to the configured duration.",
         example = "use sand::prelude::*;\n\nfn demonstrate(cooldown_value: &sand::command::Cooldown, holder: sand::command::ScoreHolder)  {\n    let start = cooldown_value.start(holder);\n}",
     )]
@@ -178,7 +178,7 @@ impl Cooldown {
         minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        params(holder = "`holder` supplies the holder value used to reset the cooldown immediately to ready (score = 0)."),
+        params(holder = "`holder` is used to reset the cooldown immediately to ready (score = 0)."),
         returns = "The string value produced to reset the cooldown immediately to ready (score = 0).",
         example = "use sand::prelude::*;\n\nfn demonstrate(cooldown_value: &sand::command::Cooldown, holder: sand::command::ScoreHolder)  {\n    let reset = cooldown_value.reset(holder);\n}",
     )]
@@ -204,7 +204,7 @@ impl Cooldown {
         minecraft = "Place this in your data pack's tick function to countdown all active cooldowns. Safe to call repeatedly — only decrements if score is positive. Produces: `execute if score <holder> <obj> matches 1.. run scoreboard players remove <holder> <obj> 1`",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        params(holder = "`holder` supplies the holder value used to decrement the cooldown by 1 tick (only if score > 0)."),
+        params(holder = "`holder` is used to decrement the cooldown by 1 tick (only if score > 0)."),
         returns = "The string value produced to decrement the cooldown by 1 tick (only if score > 0).",
         example = "use sand::prelude::*;\n\nfn demonstrate(cooldown_value: &sand::command::Cooldown, holder: sand::command::ScoreHolder)  {\n    let tick = cooldown_value.tick(holder);\n}",
     )]
@@ -235,7 +235,7 @@ impl Cooldown {
         minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
         use_when = ["Use with `Execute::if_()` to conditionally execute code when cooldown is active. Produces: `if score <holder> <obj> matches 1..`"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        params(holder = "`holder` supplies the holder value used to return a condition fragment: true while the cooldown is active (score >= 1)."),
+        params(holder = "`holder` is used to return a condition fragment: true while the cooldown is active (score >= 1)."),
         returns = "Return a condition fragment: true while the cooldown is active (score >= 1).",
         example = "use sand::prelude::*;\n\nfn demonstrate(cooldown_value: &sand::command::Cooldown, holder: sand::command::ScoreHolder)  {\n    let is_active = cooldown_value.is_active(holder);\n}",
     )]
@@ -258,7 +258,7 @@ impl Cooldown {
         minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
         use_when = ["Use with `Execute::if_()` to conditionally execute code when ability is ready. Produces: `if score <holder> <obj> matches 0`"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        params(holder = "`holder` supplies the holder value used to return a condition fragment: true when the cooldown is ready (score = 0)."),
+        params(holder = "`holder` is used to return a condition fragment: true when the cooldown is ready (score = 0)."),
         returns = "Return a condition fragment: true when the cooldown is ready (score = 0).",
         example = "use sand::prelude::*;\n\nfn demonstrate(cooldown_value: &sand::command::Cooldown, holder: sand::command::ScoreHolder)  {\n    let is_ready = cooldown_value.is_ready(holder);\n}",
     )]

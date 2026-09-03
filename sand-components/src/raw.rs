@@ -88,8 +88,8 @@ impl RawJson {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(v = "`v` supplies the v value used to wrap an arbitrary JSON value as an explicit raw escape hatch."),
-        returns = "A newly constructed `RawJson` configured to wrap an arbitrary JSON value as an explicit raw escape hatch.",
+        params(v = "`v` provides the v wrapped when creating an arbitrary JSON value as an explicit raw escape hatch."),
+        returns = "A `RawJson` wrapping an arbitrary JSON value as an explicit raw escape hatch.",
         example = "use sand::component::RawJson;\nlet raw = RawJson::new(serde_json::json!({\"modded\": true}));\nassert_eq!(raw.as_value()[\"modded\"], true);",
     )]
     pub fn new(v: Value) -> Self {
@@ -201,8 +201,8 @@ impl RawSnbt {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(s = "`s` supplies the s value used to wrap a raw SNBT string as an explicit escape hatch."),
-        returns = "A newly constructed `RawSnbt` configured to wrap a raw SNBT string as an explicit escape hatch.",
+        params(s = "`s` provides the s wrapped when creating a raw SNBT string as an explicit escape hatch."),
+        returns = "A `RawSnbt` wrapping a raw SNBT string as an explicit escape hatch.",
         example = "use sand::prelude::*;\n\nfn demonstrate(s: impl Into < String >)  {\n    let raw_snbt = sand::component::RawSnbt::new(s);\n}",
     )]
     pub fn new(s: impl Into<String>) -> Self {
@@ -312,7 +312,7 @@ impl RawComponent {
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
         params(key = "Create a raw item component from a `key` and its SNBT `value`.", value = "Create a raw item component from a `key` and its SNBT `value`."),
-        returns = "A newly constructed `RawComponent` configured to create a raw item component from a `key` and its SNBT `value`.",
+        returns = "A `RawComponent` representing a raw item component from a `key` and its SNBT `value`.",
         example = "use sand::prelude::*;\n\nfn demonstrate(key: impl Into < String >, value: impl Into < String >)  {\n    let raw_component = sand::component::RawComponent::new(key, value);\n}",
     )]
     pub fn new(key: impl Into<String>, value: impl Into<String>) -> Self {

@@ -172,8 +172,8 @@ impl StateFieldDescriptor {
         minecraft = "Sand validates this definition and lowers it to entity-scoped selectors, scoreboards, NBT operations, and generated lifecycle functions as required.",
         use_when = ["Defining or using typed entity behavior in a Sand datapack"],
         avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
-        params(name = "`name` provides the author-visible text value used to construct field metadata.", kind = "`kind` supplies the kind value used to construct field metadata.", default = "`default` supplies the default value used to construct field metadata.", bounds = "`bounds` supplies the bounds value used to construct field metadata."),
-        returns = "A newly constructed `StateFieldDescriptor` configured to construct field metadata.",
+        params(name = "`name` is used when constructing field metadata.", kind = "`kind` is used when constructing field metadata.", default = "`default` is used when constructing field metadata.", bounds = "`bounds` is used when constructing field metadata."),
+        returns = "A `StateFieldDescriptor` representing field metadata.",
         example = "use sand::prelude::*;\n\nfn demonstrate(name: & 'static str, kind: sand::entity::StateFieldKind, default: i32, bounds: Option < (i32 , i32) >)  {\n    let state_field_descriptor = sand::entity::StateFieldDescriptor::new(name, kind, default, bounds);\n}",
     )]
     #[must_use]
@@ -466,7 +466,7 @@ pub trait StateComposition: 'static {
         minecraft = "Sand validates this definition and lowers it to entity-scoped selectors, scoreboards, NBT operations, and generated lifecycle functions as required.",
         use_when = ["Defining or using typed entity behavior in a Sand datapack"],
         avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
-        params(holder = "`holder` supplies the holder value used to lower idempotent canonical attachment for this component composition."),
+        params(holder = "`holder` is used to lower idempotent canonical attachment for this component composition."),
         returns = "The ordered values produced to lower idempotent canonical attachment for this component composition.",
         example = "use sand::prelude::*;\n\nfn demonstrate<T: sand::entity::StateComposition>(holder: & 'static str)  {\n    let values = <T as sand::entity::StateComposition>::composition_attach(holder);\n}",
     )]
@@ -483,7 +483,7 @@ pub trait StateComposition: 'static {
         minecraft = "Sand validates this definition and lowers it to entity-scoped selectors, scoreboards, NBT operations, and generated lifecycle functions as required.",
         use_when = ["Defining or using typed entity behavior in a Sand datapack"],
         avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
-        params(holder = "`holder` supplies the holder value used to lower ownership-safe canonical detachment in reverse composition order."),
+        params(holder = "`holder` is used to lower ownership-safe canonical detachment in reverse composition order."),
         returns = "The ordered values produced to lower ownership-safe canonical detachment in reverse composition order.",
         example = "use sand::prelude::*;\n\nfn demonstrate<T: sand::entity::StateComposition>(holder: & 'static str)  {\n    let values = <T as sand::entity::StateComposition>::composition_detach(holder);\n}",
     )]
@@ -921,7 +921,7 @@ pub trait EntityStateField: Copy + 'static {
         minecraft = "Sand validates this definition and lowers it to entity-scoped selectors, scoreboards, NBT operations, and generated lifecycle functions as required.",
         use_when = ["Defining or using typed entity behavior in a Sand datapack"],
         avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
-        params(holder = "`holder` supplies the holder value used to bind this field to an explicit typed score holder.", track_dirty = "`track_dirty` is enabled for entity/living state whose archetype reconciliation consumes the auxiliary objective. Player/global state passes `false` because its lifecycle owns only the primary objective."),
+        params(holder = "`holder` provides the holder used when binding this field to an explicit typed score holder.", track_dirty = "`track_dirty` is enabled for entity/living state whose archetype reconciliation consumes the auxiliary objective. Player/global state passes `false` because its lifecycle owns only the primary objective."),
         returns = "The `Self :: Accessor` value produced to bind this field to an explicit typed score holder.",
         example = "use sand::prelude::*;\n\nfn demonstrate<T: sand::entity::EntityStateField>(entity_state_field_value: T, holder: & 'static str, track_dirty: bool)  {\n    let bind_to = entity_state_field_value.bind_to(holder, track_dirty);\n}",
     )]
@@ -1453,8 +1453,8 @@ impl<T: 'static> EntityScore<T> {
         minecraft = "Sand validates this definition and lowers it to entity-scoped selectors, scoreboards, NBT operations, and generated lifecycle functions as required.",
         use_when = ["Defining or using typed entity behavior in a Sand datapack"],
         avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
-        params(namespace = "`namespace` supplies the namespace value used to construct a score field; normally generated by `State`.", schema = "`schema` supplies the schema value used to construct a score field; normally generated by `State`.", name = "`name` provides the author-visible text value used to construct a score field; normally generated by `State`.", default = "`default` supplies the default value used to construct a score field; normally generated by `State`.", bounds = "`bounds` supplies the bounds value used to construct a score field; normally generated by `State`."),
-        returns = "A newly constructed `EntityScore` configured to construct a score field; normally generated by `State`.",
+        params(namespace = "`namespace` is used when constructing a score field; normally generated by `State`.", schema = "`schema` is used when constructing a score field; normally generated by `State`.", name = "`name` is used when constructing a score field; normally generated by `State`.", default = "`default` is used when constructing a score field; normally generated by `State`.", bounds = "`bounds` is used when constructing a score field; normally generated by `State`."),
+        returns = "An `EntityScore` representing a score field; normally generated by `State`.",
         example = "use sand::prelude::*;\n\nfn demonstrate<T : 'static>(namespace: & 'static str, schema: & 'static str, name: & 'static str, default: i32, bounds: Option < (i32 , i32) >)  {\n    let entity_score = sand::entity::EntityScore ::< T >::new(namespace, schema, name, default, bounds);\n}",
     )]
     #[must_use]
@@ -1737,8 +1737,8 @@ impl EntityFlag {
         minecraft = "Sand validates this definition and lowers it to entity-scoped selectors, scoreboards, NBT operations, and generated lifecycle functions as required.",
         use_when = ["Defining or using typed entity behavior in a Sand datapack"],
         avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
-        params(namespace = "`namespace` supplies the namespace value used to construct a flag field; normally generated by `State`.", schema = "`schema` supplies the schema value used to construct a flag field; normally generated by `State`.", name = "`name` provides the author-visible text value used to construct a flag field; normally generated by `State`.", default = "`default` provides the switch that enables or disables the behavior used to construct a flag field; normally generated by `State`."),
-        returns = "A newly constructed `EntityFlag` configured to construct a flag field; normally generated by `State`.",
+        params(namespace = "`namespace` is used when constructing a flag field; normally generated by `State`.", schema = "`schema` is used when constructing a flag field; normally generated by `State`.", name = "`name` is used when constructing a flag field; normally generated by `State`.", default = "`default` provides the switch that enables or disables the behavior used to construct a flag field; normally generated by `State`."),
+        returns = "An `EntityFlag` representing a flag field; normally generated by `State`.",
         example = "use sand::prelude::*;\n\nfn demonstrate(namespace: & 'static str, schema: & 'static str, name: & 'static str, default: bool)  {\n    let entity_flag = sand::entity::EntityFlag::new(namespace, schema, name, default);\n}",
     )]
     #[must_use]
@@ -1990,8 +1990,8 @@ impl<T> Data<T> {
         minecraft = "Sand validates this definition and lowers it to entity-scoped selectors, scoreboards, NBT operations, and generated lifecycle functions as required.",
         use_when = ["Defining or using typed entity behavior in a Sand datapack"],
         avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
-        params(storage = "`storage` supplies the storage value used to construct a generated component-owned typed storage handle.", path = "`path` provides the typed resource identifier or location used to construct a generated component-owned typed storage handle."),
-        returns = "A newly constructed `Data` configured to construct a generated component-owned typed storage handle.",
+        params(storage = "`storage` is used when constructing a generated component-owned typed storage handle.", path = "`path` provides the typed resource identifier or location used to construct a generated component-owned typed storage handle."),
+        returns = "A `Data` representing a generated component-owned typed storage handle.",
         example = "use sand::prelude::*;\n\nfn demonstrate<T: 'static>(storage: & 'static str, path: & 'static str)  {\n    let data = sand::entity::Data ::< T >::new(storage, path);\n}",
     )]
     pub const fn new(storage: &'static str, path: &'static str) -> Self {
@@ -2144,8 +2144,8 @@ impl<T> KeyedData<T> {
         minecraft = "Sand validates this definition and lowers it to entity-scoped selectors, scoreboards, NBT operations, and generated lifecycle functions as required.",
         use_when = ["Defining or using typed entity behavior in a Sand datapack"],
         avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
-        params(storage = "`storage` supplies the storage value used to construct a generated UUID-keyed storage handle.", path = "`path` provides the typed resource identifier or location used to construct a generated UUID-keyed storage handle."),
-        returns = "A newly constructed `KeyedData` configured to construct a generated UUID-keyed storage handle.",
+        params(storage = "`storage` is used when constructing a generated UUID-keyed storage handle.", path = "`path` provides the typed resource identifier or location used to construct a generated UUID-keyed storage handle."),
+        returns = "A `KeyedData` representing a generated UUID-keyed storage handle.",
         example = "use sand::prelude::*;\n\nfn demonstrate<T: 'static>(storage: & 'static str, path: & 'static str)  {\n    let keyed_data = sand::entity::KeyedData ::< T >::new(storage, path);\n}",
     )]
     #[must_use]
@@ -2256,7 +2256,7 @@ impl<T> KeyedData<T> {
         minecraft = "This callback is evaluated by Minecraft at runtime. It deliberately is not a Rust `Option` or ordinary [`Condition`], because command-storage membership depends on the executing entity's UUID.",
         use_when = ["Defining or using typed entity behavior in a Sand datapack"],
         avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
-        params(body = "`body` supplies the body value used to run commands only when the current owner's value actually exists."),
+        params(body = "`body` provides the body used when running commands only when the current owner's value actually exists."),
         returns = "The ordered values produced to run commands only when the current owner's value actually exists.",
         example = "use sand::prelude::*;\n\nfn demonstrate<T: 'static>(keyed_data_value: sand::entity::KeyedData < T >, body: impl FnOnce () -> Vec < String >)  {\n    let values = keyed_data_value.if_present(body);\n}",
     )]
@@ -2368,8 +2368,8 @@ impl<T: EntityEnumValue> EntityEnum<T> {
         minecraft = "Sand validates this definition and lowers it to entity-scoped selectors, scoreboards, NBT operations, and generated lifecycle functions as required.",
         use_when = ["Defining or using typed entity behavior in a Sand datapack"],
         avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
-        params(namespace = "`namespace` supplies the namespace value used to construct an enum field from its default encoded score.", schema = "`schema` supplies the schema value used to construct an enum field from its default encoded score.", name = "`name` provides the author-visible text value used to construct an enum field from its default encoded score.", default_score = "`default_score` supplies the default score value used to construct an enum field from its default encoded score."),
-        returns = "A newly constructed `EntityEnum` configured to construct an enum field from its default encoded score.",
+        params(namespace = "`namespace` is used when constructing an enum field from its default encoded score.", schema = "`schema` is used when constructing an enum field from its default encoded score.", name = "`name` is used when constructing an enum field from its default encoded score.", default_score = "`default_score` is used when constructing an enum field from its default encoded score."),
+        returns = "An `EntityEnum` representing an enum field from its default encoded score.",
         example = "use sand::prelude::*;\n\nfn demonstrate<T : sand::entity::EntityEnumValue + 'static>(namespace: & 'static str, schema: & 'static str, name: & 'static str, default_score: i32)  {\n    let entity_enum = sand::entity::EntityEnum ::< T >::new(namespace, schema, name, default_score);\n}",
     )]
     #[must_use]
@@ -2547,8 +2547,8 @@ impl EntityTimer {
         minecraft = "Sand validates this definition and lowers it to entity-scoped selectors, scoreboards, NBT operations, and generated lifecycle functions as required.",
         use_when = ["Defining or using typed entity behavior in a Sand datapack"],
         avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
-        params(namespace = "`namespace` supplies the namespace value used to construct a non-negative timer field.", schema = "`schema` supplies the schema value used to construct a non-negative timer field.", name = "`name` provides the author-visible text value used to construct a non-negative timer field.", initial = "`initial` supplies the initial value used to construct a non-negative timer field."),
-        returns = "A newly constructed `EntityTimer` configured to construct a non-negative timer field.",
+        params(namespace = "`namespace` is used when constructing a non-negative timer field.", schema = "`schema` is used when constructing a non-negative timer field.", name = "`name` is used when constructing a non-negative timer field.", initial = "`initial` is used when constructing a non-negative timer field."),
+        returns = "An `EntityTimer` representing a non-negative timer field.",
         example = "use sand::prelude::*;\n\nfn demonstrate(namespace: & 'static str, schema: & 'static str, name: & 'static str, initial: i32)  {\n    let entity_timer = sand::entity::EntityTimer::new(namespace, schema, name, initial);\n}",
     )]
     #[must_use]
@@ -2756,8 +2756,8 @@ impl EntityCooldown {
         minecraft = "Sand validates this definition and lowers it to entity-scoped selectors, scoreboards, NBT operations, and generated lifecycle functions as required.",
         use_when = ["Defining or using typed entity behavior in a Sand datapack"],
         avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
-        params(namespace = "`namespace` supplies the namespace value used to construct a cooldown field.", schema = "`schema` supplies the schema value used to construct a cooldown field.", name = "`name` provides the author-visible text value used to construct a cooldown field."),
-        returns = "A newly constructed `EntityCooldown` configured to construct a cooldown field.",
+        params(namespace = "`namespace` is used when constructing a cooldown field.", schema = "`schema` is used when constructing a cooldown field.", name = "`name` is used when constructing a cooldown field."),
+        returns = "An `EntityCooldown` representing a cooldown field.",
         example = "use sand::prelude::*;\n\nfn demonstrate(namespace: & 'static str, schema: & 'static str, name: & 'static str)  {\n    let entity_cooldown = sand::entity::EntityCooldown::new(namespace, schema, name);\n}",
     )]
     #[must_use]

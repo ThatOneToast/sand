@@ -47,8 +47,8 @@ impl CookingRecipe {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(location = "`location` provides the typed resource identifier or location used to create a new cooking recipe with the given location and cooking type.", recipe_type = "`recipe_type` supplies the recipe type value used to create a new cooking recipe with the given location and cooking type."),
-        returns = "A newly constructed `CookingRecipe` configured to create a new cooking recipe with the given location and cooking type.",
+        params(location = "`location` provides the typed resource identifier or location used to create a new cooking recipe with the given location and cooking type.", recipe_type = "`recipe_type` is used when creating a new cooking recipe with the given location and cooking type."),
+        returns = "A `CookingRecipe` representing a new cooking recipe with the given location and cooking type.",
         example = "use sand::prelude::*;\n\nfn demonstrate(location: sand::ResourceLocation, recipe_type: sand::component::CookingType)  {\n    let cooking_recipe = sand::component::CookingRecipe::new(location, recipe_type);\n}",
     )]
     pub fn new(location: ResourceLocation, recipe_type: CookingType) -> Self {
@@ -75,7 +75,7 @@ impl CookingRecipe {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(ingredient = "`ingredient` supplies the ingredient value used to set the ingredient for this cooking recipe."),
+        params(ingredient = "`ingredient` provides the ingredient applied when setting the ingredient for this cooking recipe."),
         returns = "The `CookingRecipe` value with the documented change applied to set the ingredient for this cooking recipe.",
         example = "use sand::prelude::*;\n\nfn demonstrate(cooking_recipe_value: sand::component::CookingRecipe, ingredient: sand::component::Ingredient)  {\n    let updated_cooking_recipe = cooking_recipe_value.ingredient(ingredient);\n}",
     )]
@@ -95,7 +95,7 @@ impl CookingRecipe {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(result = "`result` supplies the result value used to set the result item and quantity produced by this recipe."),
+        params(result = "`result` provides the result applied when setting the result item and quantity produced by this recipe."),
         returns = "The `CookingRecipe` value with the documented change applied to set the result item and quantity produced by this recipe.",
         example = "use sand::prelude::*;\n\nfn demonstrate(cooking_recipe_value: sand::component::CookingRecipe, result: sand::component::RecipeResult)  {\n    let updated_cooking_recipe = cooking_recipe_value.result(result);\n}",
     )]
@@ -115,7 +115,7 @@ impl CookingRecipe {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(experience = "`experience` supplies the experience value used to set the amount of experience awarded for completing this recipe."),
+        params(experience = "`experience` is used when completing this recipe."),
         returns = "The `CookingRecipe` value with the documented change applied to set the amount of experience awarded for completing this recipe.",
         example = "use sand::prelude::*;\n\nfn demonstrate(cooking_recipe_value: sand::component::CookingRecipe, experience: f32)  {\n    let updated_cooking_recipe = cooking_recipe_value.experience(experience);\n}",
     )]
@@ -135,7 +135,7 @@ impl CookingRecipe {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(cooking_time = "`cooking_time` supplies the cooking time value used to set the cooking time in ticks required for this recipe."),
+        params(cooking_time = "`cooking_time` provides the cooking time applied when setting the cooking time in ticks required for this recipe."),
         returns = "The `CookingRecipe` value with the documented change applied to set the cooking time in ticks required for this recipe.",
         example = "use sand::prelude::*;\n\nfn demonstrate(cooking_recipe_value: sand::component::CookingRecipe, cooking_time: u32)  {\n    let updated_cooking_recipe = cooking_recipe_value.cooking_time(cooking_time);\n}",
     )]
@@ -155,7 +155,7 @@ impl CookingRecipe {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(cat = "`cat` supplies the cat value used to set the recipe category for organization."),
+        params(cat = "`cat` provides the cat applied when setting the recipe category for organization."),
         returns = "The `CookingRecipe` value with the documented change applied to set the recipe category for organization.",
         example = "use sand::prelude::*;\n\nfn demonstrate(cooking_recipe_value: sand::component::CookingRecipe, cat: impl Into < String >)  {\n    let updated_cooking_recipe = cooking_recipe_value.category(cat);\n}",
     )]

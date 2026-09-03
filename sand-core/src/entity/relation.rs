@@ -238,7 +238,7 @@ impl RelationQuery<One> {
         minecraft = "Sand validates this definition and lowers it to entity-scoped selectors, scoreboards, NBT operations, and generated lifecycle functions as required.",
         use_when = ["Defining or using typed entity behavior in a Sand datapack"],
         avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
-        params(profile = "`profile` supplies the profile value used to run `body` if the relation resolves to an entity, as a generic [`AnyEntity`] context. No-op (empty command list) if the relation is absent at runtime — vanilla `execute on <relation>` fails silently when there is no such entity.", body = "Run `body` if the relation resolves to an entity, as a generic [`AnyEntity`] context. No-op (empty command list) if the relation is absent at runtime — vanilla `execute on <relation>` fails silently when there is no such entity."),
+        params(profile = "`profile` provides the profile used when running `body` if the relation resolves to an entity, as a generic [`AnyEntity`] context. No-op (empty command list) if the relation is absent at runtime — vanilla `execute on <relation>` fails silently when there is no such entity.", body = "Run `body` if the relation resolves to an entity, as a generic [`AnyEntity`] context. No-op (empty command list) if the relation is absent at runtime — vanilla `execute on <relation>` fails silently when there is no such entity."),
         returns = "On success, the value produced to run `body` if the relation resolves to an entity, as a generic [`AnyEntity`] context. No-op (empty command list) if the relation is absent at runtime — vanilla `execute on <relation>` fails silently when there is no such entity; otherwise, the documented validation or export diagnostic.",
         example = "use sand::prelude::*;\n\nfn demonstrate(relation_query_value: &sand::entity::RelationQuery < sand::command::One >, profile: & sand::version::VersionProfile, body: impl FnOnce (& sand::entity::EntityContext < sand::entity::AnyEntity >) -> Vec < String >)  {\n    let if_present = relation_query_value.if_present(profile, body);\n}",
     )]
@@ -262,7 +262,7 @@ impl RelationQuery<One> {
         minecraft = "Sand validates this definition and lowers it to entity-scoped selectors, scoreboards, NBT operations, and generated lifecycle functions as required.",
         use_when = ["Defining or using typed entity behavior in a Sand datapack"],
         avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
-        params(profile = "`profile` supplies the profile value used to run `body` only if the relation resolves to a player.", body = "Run `body` only if the relation resolves to a player."),
+        params(profile = "`profile` provides the profile used when running `body` only if the relation resolves to a player.", body = "Run `body` only if the relation resolves to a player."),
         returns = "On success, the value produced to run `body` only if the relation resolves to a player; otherwise, the documented validation or export diagnostic.",
         example = "use sand::prelude::*;\n\nfn demonstrate(relation_query_value: &sand::entity::RelationQuery < sand::command::One >, profile: & sand::version::VersionProfile, body: impl FnOnce (& sand::entity::EntityContext < sand::entity::PlayerKind >) -> Vec < String >)  {\n    let if_player = relation_query_value.if_player(profile, body);\n}",
     )]
@@ -288,7 +288,7 @@ impl RelationQuery<Many> {
         minecraft = "Sand validates this definition and lowers it to entity-scoped selectors, scoreboards, NBT operations, and generated lifecycle functions as required.",
         use_when = ["Defining or using typed entity behavior in a Sand datapack"],
         avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
-        params(profile = "`profile` supplies the profile value used to run `body` once for each passenger, as a generic [`AnyEntity`] context.", body = "Run `body` once for each passenger, as a generic [`AnyEntity`] context."),
+        params(profile = "`profile` provides the profile used when running `body` once for each passenger, as a generic [`AnyEntity`] context.", body = "Run `body` once for each passenger, as a generic [`AnyEntity`] context."),
         returns = "On success, the value produced to run `body` once for each passenger, as a generic [`AnyEntity`] context; otherwise, the documented validation or export diagnostic.",
         example = "use sand::prelude::*;\n\nfn demonstrate(relation_query_value: &sand::entity::RelationQuery < sand::command::Many >, profile: & sand::version::VersionProfile, body: impl FnOnce (& sand::entity::EntityContext < sand::entity::AnyEntity >) -> Vec < String >)  {\n    let each = relation_query_value.each(profile, body);\n}",
     )]

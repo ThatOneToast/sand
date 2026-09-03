@@ -99,7 +99,7 @@ impl ConditionedExecute {
         minecraft = "Returns one command per expanded plan.  A simple score condition gives one string; `any![...]` gives N strings.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        params(cmd = "`cmd` supplies the cmd value used to finalize the execute chain. Returns one command per expanded plan. A simple score condition gives one string; `any![...]` gives N strings."),
+        params(cmd = "`cmd` is used to finalize the execute chain. Returns one command per expanded plan. A simple score condition gives one string; `any![...]` gives N strings."),
         returns = "Returns one command per expanded plan.  A simple score condition gives one string; `any![...]` gives N strings.",
         example = "use std::fmt;\nuse sand::prelude::*;\n\nfn demonstrate(conditioned_execute_value: sand::command::ConditionedExecute, cmd: impl fmt::Display)  {\n    let values = conditioned_execute_value.run(cmd);\n}",
     )]

@@ -462,8 +462,8 @@ impl TextComponent {
         minecraft = "The component serializes to the JSON text format consumed by tellraw, titles, books, dialogs, and other vanilla text fields.",
         use_when = ["Building player-visible text with typed styling or interactions"],
         avoid_when = ["Passing an unvalidated JSON string when a typed text component can express the same value"],
-        params(text = "`text` provides the author-visible text value used to emit the documented `{\"text\": \"...\"}` — render a plain string literal form."),
-        returns = "A newly constructed `TextComponent` configured to emit the documented `{\"text\": \"...\"}` — render a plain string literal form.",
+        params(text = "`text` supplies the documented `{\"text\": \"...\"}` — render a plain string literal form."),
+        returns = "A `TextComponent` that emits the documented `{\"text\": \"...\"}` — render a plain string literal form.",
         example = "use sand::prelude::*;\n\nfn demonstrate(text: impl Into < String >)  {\n    let text_component = sand::text::TextComponent::literal(text);\n}",
     )]
     pub fn literal(text: impl Into<String>) -> Self {
@@ -482,8 +482,8 @@ impl TextComponent {
         minecraft = "The component serializes to the JSON text format consumed by tellraw, titles, books, dialogs, and other vanilla text fields.",
         use_when = ["Building player-visible text with typed styling or interactions"],
         avoid_when = ["Passing an unvalidated JSON string when a typed text component can express the same value"],
-        params(name = "`name` provides the author-visible text value used to emit the documented `{\"score\": {\"name\": \"...\", \"objective\": \"...\"}}` — render a scoreboard value inline form.", objective = "`objective` supplies the objective value used to emit the documented `{\"score\": {\"name\": \"...\", \"objective\": \"...\"}}` — render a scoreboard value inline form."),
-        returns = "A newly constructed `TextComponent` configured to emit the documented `{\"score\": {\"name\": \"...\", \"objective\": \"...\"}}` — render a scoreboard value inline form.",
+        params(name = "`name` supplies the documented `{\"score\": {\"name\": \"...\", \"objective\": \"...\"}}` — render a scoreboard value inline form.", objective = "`objective` supplies the documented `{\"score\": {\"name\": \"...\", \"objective\": \"...\"}}` — render a scoreboard value inline form."),
+        returns = "A `TextComponent` that emits the documented `{\"score\": {\"name\": \"...\", \"objective\": \"...\"}}` — render a scoreboard value inline form.",
         example = "use sand::prelude::*;\n\nfn demonstrate(name: impl Into < String >, objective: impl Into < String >)  {\n    let text_component = sand::text::TextComponent::score(name, objective);\n}",
     )]
     pub fn score(name: impl Into<String>, objective: impl Into<String>) -> Self {
@@ -506,7 +506,7 @@ impl TextComponent {
         use_when = ["Building player-visible text with typed styling or interactions"],
         avoid_when = ["Passing an unvalidated JSON string when a typed text component can express the same value"],
         params(selector = "`selector` provides the Minecraft target selection used to emit the documented `{\"selector\": \"...\"}` — render the display name(s) of matched entities form."),
-        returns = "A newly constructed `TextComponent` configured to emit the documented `{\"selector\": \"...\"}` — render the display name(s) of matched entities form.",
+        returns = "A `TextComponent` that emits the documented `{\"selector\": \"...\"}` — render the display name(s) of matched entities form.",
         example = "use sand::prelude::*;\n\nfn demonstrate(selector: impl Into < String >)  {\n    let text_component = sand::text::TextComponent::selector(selector);\n}",
     )]
     pub fn selector(selector: impl Into<String>) -> Self {
@@ -529,7 +529,7 @@ impl TextComponent {
         use_when = ["Building player-visible text with typed styling or interactions"],
         avoid_when = ["Passing an unvalidated JSON string when a typed text component can express the same value"],
         params(selector = "`selector` provides the Minecraft target selection used to create selector text from Sand's canonical typed selector."),
-        returns = "A newly constructed `TextComponent` configured to create selector text from Sand's canonical typed selector.",
+        returns = "A `TextComponent` representing selector text from Sand's canonical typed selector.",
         example = "use sand::prelude::*;\n\nfn demonstrate(selector: sand::command::Selector)  {\n    let text_component = sand::text::TextComponent::selector_typed(selector);\n}",
     )]
     pub fn selector_typed(selector: Selector) -> Self {
@@ -551,7 +551,7 @@ impl TextComponent {
         use_when = ["Building player-visible text with typed styling or interactions"],
         avoid_when = ["Passing an unvalidated JSON string when a typed text component can express the same value"],
         params(selector = "`selector` provides the Minecraft target selection used to create intentionally opaque selector text. The value is rendered unchanged and selector compatibility is user-owned."),
-        returns = "A newly constructed `TextComponent` configured to create intentionally opaque selector text. The value is rendered unchanged and selector compatibility is user-owned.",
+        returns = "A `TextComponent` representing intentionally opaque selector text. The value is rendered unchanged and selector compatibility is user-owned.",
         example = "use sand::prelude::*;\n\nfn demonstrate(selector: impl Into < String >)  {\n    let text_component = sand::text::TextComponent::selector_raw(selector);\n}",
     )]
     pub fn selector_raw(selector: impl Into<String>) -> Self {
@@ -574,7 +574,7 @@ impl TextComponent {
         use_when = ["Building player-visible text with typed styling or interactions"],
         avoid_when = ["Passing an unvalidated JSON string when a typed text component can express the same value"],
         params(key = "`key` provides the key that identifies the setting or entry used to emit the documented `{\"translate\": \"...\"}` — a localization key from Minecraft's language files form."),
-        returns = "A newly constructed `TextComponent` configured to emit the documented `{\"translate\": \"...\"}` — a localization key from Minecraft's language files form.",
+        returns = "A `TextComponent` that emits the documented `{\"translate\": \"...\"}` — a localization key from Minecraft's language files form.",
         example = "use sand::prelude::*;\n\nfn demonstrate(key: impl Into < String >)  {\n    let text_component = sand::text::TextComponent::translate(key);\n}",
     )]
     pub fn translate(key: impl Into<String>) -> Self {
@@ -596,8 +596,8 @@ impl TextComponent {
         minecraft = "The component serializes to the JSON text format consumed by tellraw, titles, books, dialogs, and other vanilla text fields.",
         use_when = ["Building player-visible text with typed styling or interactions"],
         avoid_when = ["Passing an unvalidated JSON string when a typed text component can express the same value"],
-        params(key = "`key` provides the key that identifies the setting or entry used to emit the documented `{\"translate\": \"...\", \"with\": [...]}` — localization key with interpolation arguments form.", with = "`with` provides the player-visible text value used to emit the documented `{\"translate\": \"...\", \"with\": [...]}` — localization key with interpolation arguments form."),
-        returns = "A newly constructed `TextComponent` configured to emit the documented `{\"translate\": \"...\", \"with\": [...]}` — localization key with interpolation arguments form.",
+        params(key = "`key` provides the key that identifies the setting or entry used to emit the documented `{\"translate\": \"...\", \"with\": [...]}` — localization key with interpolation arguments form.", with = "`with` supplies the documented `{\"translate\": \"...\", \"with\": [...]}` — localization key with interpolation arguments form."),
+        returns = "A `TextComponent` that emits the documented `{\"translate\": \"...\", \"with\": [...]}` — localization key with interpolation arguments form.",
         example = "use sand::prelude::*;\n\nfn demonstrate(key: impl Into < String >, with: Vec < sand::text::TextComponent >)  {\n    let text_component = sand::text::TextComponent::translate_with(key, with);\n}",
     )]
     pub fn translate_with(key: impl Into<String>, with: Vec<TextComponent>) -> Self {
@@ -620,7 +620,7 @@ impl TextComponent {
         use_when = ["Building player-visible text with typed styling or interactions"],
         avoid_when = ["Passing an unvalidated JSON string when a typed text component can express the same value"],
         params(key = "`key` provides the key that identifies the setting or entry used to emit the documented `{\"keybind\": \"...\"}` — display the key currently bound to a Minecraft action form."),
-        returns = "A newly constructed `TextComponent` configured to emit the documented `{\"keybind\": \"...\"}` — display the key currently bound to a Minecraft action form.",
+        returns = "A `TextComponent` that emits the documented `{\"keybind\": \"...\"}` — display the key currently bound to a Minecraft action form.",
         example = "use sand::prelude::*;\n\nfn demonstrate(key: impl Into < String >)  {\n    let text_component = sand::text::TextComponent::keybind(key);\n}",
     )]
     pub fn keybind(key: impl Into<String>) -> Self {
@@ -658,7 +658,7 @@ impl TextComponent {
         minecraft = "The component serializes to the JSON text format consumed by tellraw, titles, books, dialogs, and other vanilla text fields.",
         use_when = ["Building player-visible text with typed styling or interactions"],
         avoid_when = ["Passing an unvalidated JSON string when a typed text component can express the same value"],
-        params(color = "`color` supplies the color value used to apply a standard Minecraft named color."),
+        params(color = "`color` provides the color applied when a standard Minecraft named color."),
         returns = "The `TextComponent` value with the documented change applied to apply a standard Minecraft named color.",
         example = "use sand::prelude::*;\n\nfn demonstrate(text_component_value: sand::text::TextComponent, color: sand::text::ChatColor)  {\n    let updated_text_component = text_component_value.color(color);\n}",
     )]
@@ -679,7 +679,7 @@ impl TextComponent {
         minecraft = "The component serializes to the JSON text format consumed by tellraw, titles, books, dialogs, and other vanilla text fields.",
         use_when = ["Building player-visible text with typed styling or interactions"],
         avoid_when = ["Passing an unvalidated JSON string when a typed text component can express the same value"],
-        params(hex = "`hex` supplies the hex value used to apply an arbitrary hex color code (Minecraft 1.16+), e.g. `\"#FF5733\"`."),
+        params(hex = "`hex` provides the hex applied when an arbitrary hex color code (Minecraft 1.16+), e.g. `\"#FF5733\"`."),
         returns = "The `TextComponent` value with the documented change applied to apply an arbitrary hex color code (Minecraft 1.16+), e.g. `\"#FF5733\"`.",
         example = "use sand::prelude::*;\n\nfn demonstrate(text_component_value: sand::text::TextComponent, hex: impl Into < String >)  {\n    let updated_text_component = text_component_value.color_hex(hex);\n}",
     )]
@@ -700,7 +700,7 @@ impl TextComponent {
         minecraft = "The component serializes to the JSON text format consumed by tellraw, titles, books, dialogs, and other vanilla text fields.",
         use_when = ["Building player-visible text with typed styling or interactions"],
         avoid_when = ["Passing an unvalidated JSON string when a typed text component can express the same value"],
-        params(font = "`font` supplies the font value used to set the font resource location used to render this component."),
+        params(font = "`font` provides the font applied when setting the font resource location used to render this component."),
         returns = "The `TextComponent` value with the documented change applied to set the font resource location used to render this component.",
         example = "use sand::prelude::*;\n\nfn demonstrate(text_component_value: sand::text::TextComponent, font: impl Into < String >)  {\n    let updated_text_component = text_component_value.font(font);\n}",
     )]
@@ -1119,7 +1119,7 @@ impl TextComponent {
         minecraft = "The component serializes to the JSON text format consumed by tellraw, titles, books, dialogs, and other vanilla text fields.",
         use_when = ["Building player-visible text with typed styling or interactions"],
         avoid_when = ["Passing an unvalidated JSON string when a typed text component can express the same value"],
-        params(text = "`text` provides the author-visible text value used to set the `insertion` string — shift-clicking inserts this into the chat bar."),
+        params(text = "`text` provides the author-visible text applied when setting the `insertion` string — shift-clicking inserts this into the chat bar."),
         returns = "The `TextComponent` value with the documented change applied to set the `insertion` string — shift-clicking inserts this into the chat bar.",
         example = "use sand::prelude::*;\n\nfn demonstrate(text_component_value: sand::text::TextComponent, text: impl Into < String >)  {\n    let updated_text_component = text_component_value.insertion(text);\n}",
     )]
@@ -1142,7 +1142,7 @@ impl TextComponent {
         minecraft = "The component serializes to the JSON text format consumed by tellraw, titles, books, dialogs, and other vanilla text fields.",
         use_when = ["Building player-visible text with typed styling or interactions"],
         avoid_when = ["Passing an unvalidated JSON string when a typed text component can express the same value"],
-        params(cmd = "`cmd` supplies the cmd value used to run a command when this text is clicked."),
+        params(cmd = "`cmd` provides the cmd used when running a command when this text is clicked."),
         returns = "The `TextComponent` value with the documented change applied to run a command when this text is clicked.",
         example = "use sand::prelude::*;\n\nfn demonstrate(text_component_value: sand::text::TextComponent, cmd: impl Into < String >)  {\n    let updated_text_component = text_component_value.click_run_command(cmd);\n}",
     )]
@@ -1163,7 +1163,7 @@ impl TextComponent {
         minecraft = "The component serializes to the JSON text format consumed by tellraw, titles, books, dialogs, and other vanilla text fields.",
         use_when = ["Building player-visible text with typed styling or interactions"],
         avoid_when = ["Passing an unvalidated JSON string when a typed text component can express the same value"],
-        params(cmd = "`cmd` supplies the cmd value used to fill the chat bar with a suggestion when clicked."),
+        params(cmd = "`cmd` is used to fill the chat bar with a suggestion when clicked."),
         returns = "The `TextComponent` value with the documented change applied to fill the chat bar with a suggestion when clicked.",
         example = "use sand::prelude::*;\n\nfn demonstrate(text_component_value: sand::text::TextComponent, cmd: impl Into < String >)  {\n    let updated_text_component = text_component_value.click_suggest_command(cmd);\n}",
     )]
@@ -1184,7 +1184,7 @@ impl TextComponent {
         minecraft = "The component serializes to the JSON text format consumed by tellraw, titles, books, dialogs, and other vanilla text fields.",
         use_when = ["Building player-visible text with typed styling or interactions"],
         avoid_when = ["Passing an unvalidated JSON string when a typed text component can express the same value"],
-        params(url = "`url` supplies the url value used to open a URL when clicked."),
+        params(url = "`url` is used to open a URL when clicked."),
         returns = "The `TextComponent` value with the documented change applied to open a URL when clicked.",
         example = "use sand::prelude::*;\n\nfn demonstrate(text_component_value: sand::text::TextComponent, url: impl Into < String >)  {\n    let updated_text_component = text_component_value.click_open_url(url);\n}",
     )]
@@ -1239,7 +1239,7 @@ impl TextComponent {
         minecraft = "Minecraft only applies this click action in book contexts and normally treats pages as one-indexed. The value is serialized unchanged, including `0`, to preserve the existing event model's compatibility behavior.",
         use_when = ["Building player-visible text with typed styling or interactions"],
         avoid_when = ["Passing an unvalidated JSON string when a typed text component can express the same value"],
-        params(page = "`page` supplies the page value used to emit a `change_page` click event for a page inside a written book."),
+        params(page = "`page` supplies a `change_page` click event for a page inside a written book."),
         returns = "The `TextComponent` value with the documented change applied to emit a `change_page` click event for a page inside a written book.",
         example = "use sand::text::Text;\nlet text = Text::new(\"Next\").click_change_page(2);\nassert!(text.to_string().contains(r#\"\"action\":\"change_page\"\"#));",
     )]
@@ -1262,7 +1262,7 @@ impl TextComponent {
         minecraft = "The component serializes to the JSON text format consumed by tellraw, titles, books, dialogs, and other vanilla text fields.",
         use_when = ["Building player-visible text with typed styling or interactions"],
         avoid_when = ["Passing an unvalidated JSON string when a typed text component can express the same value"],
-        params(text = "`text` provides the author-visible text value used to show another `TextComponent` as a tooltip on hover."),
+        params(text = "`text` is used to show another `TextComponent` as a tooltip on hover."),
         returns = "The `TextComponent` value with the documented change applied to show another `TextComponent` as a tooltip on hover.",
         example = "use sand::prelude::*;\n\nfn demonstrate(text_component_value: sand::text::TextComponent, text: sand::text::TextComponent)  {\n    let updated_text_component = text_component_value.hover_text(text);\n}",
     )]
@@ -1286,7 +1286,7 @@ impl TextComponent {
         minecraft = "The resulting `show_item` JSON omits `count`. The item registry string is retained verbatim for compatibility and is not validated by this builder.",
         use_when = ["Building player-visible text with typed styling or interactions"],
         avoid_when = ["Passing an unvalidated JSON string when a typed text component can express the same value"],
-        params(item_id = "`item_id` supplies the item id value used to show an item tooltip on hover using the existing raw item-ID path."),
+        params(item_id = "`item_id` is used to show an item tooltip on hover using the existing raw item-ID path."),
         returns = "The `TextComponent` value with the documented change applied to show an item tooltip on hover using the existing raw item-ID path.",
         example = "use sand::prelude::*;\n\nfn demonstrate(text_component_value: sand::text::TextComponent, item_id: impl Into < String >)  {\n    let updated_text_component = text_component_value.hover_item(item_id);\n}",
     )]
@@ -1315,7 +1315,7 @@ impl TextComponent {
         minecraft = "The component serializes to the JSON text format consumed by tellraw, titles, books, dialogs, and other vanilla text fields.",
         use_when = ["Building player-visible text with typed styling or interactions"],
         avoid_when = ["Passing an unvalidated JSON string when a typed text component can express the same value"],
-        params(item_id = "`item_id` supplies the item id value used to show an item tooltip with an explicit stack count on hover.", count = "`count` provides the requested numeric amount used to show an item tooltip with an explicit stack count on hover."),
+        params(item_id = "`item_id` is used to show an item tooltip with an explicit stack count on hover.", count = "`count` provides the requested numeric amount used to show an item tooltip with an explicit stack count on hover."),
         returns = "The `TextComponent` value with the documented change applied to show an item tooltip with an explicit stack count on hover.",
         example = "use sand::prelude::*;\n\nfn demonstrate(text_component_value: sand::text::TextComponent, item_id: impl Into < String >, count: u32)  {\n    let updated_text_component = text_component_value.hover_item_with_count(item_id, count);\n}",
     )]
@@ -1343,7 +1343,7 @@ impl TextComponent {
         minecraft = "The component serializes to the JSON text format consumed by tellraw, titles, books, dialogs, and other vanilla text fields.",
         use_when = ["Building player-visible text with typed styling or interactions"],
         avoid_when = ["Passing an unvalidated JSON string when a typed text component can express the same value"],
-        params(entity_type = "`entity_type` provides the player-visible text value used to show an entity tooltip without a UUID on hover. The entity type must be one of Sand's typed registry identifiers. The displayed name remains a full text component, so styling and translation data are preserved.", name = "`name` provides the author-visible text value used to show an entity tooltip without a UUID on hover. The entity type must be one of Sand's typed registry identifiers. The displayed name remains a full text component, so styling and translation data are preserved."),
+        params(entity_type = "`entity_type` is used to show an entity tooltip without a UUID on hover. The entity type must be one of Sand's typed registry identifiers. The displayed name remains a full text component, so styling and translation data are preserved.", name = "`name` is used to show an entity tooltip without a UUID on hover. The entity type must be one of Sand's typed registry identifiers. The displayed name remains a full text component, so styling and translation data are preserved."),
         returns = "The `TextComponent` value with the documented change applied to show an entity tooltip without a UUID on hover. The entity type must be one of Sand's typed registry identifiers. The displayed name remains a full text component, so styling and translation data are preserved.",
         example = "use sand::prelude::*;\n\nfn demonstrate(text_component_value: sand::text::TextComponent, entity_type: impl sand::text::IntoTextEntityType, name: sand::text::TextComponent)  {\n    let updated_text_component = text_component_value.hover_entity(entity_type, name);\n}",
     )]
@@ -1379,7 +1379,7 @@ impl TextComponent {
         minecraft = "`id` is the entity UUID shown in the hover payload, not a namespaced Minecraft resource identifier.",
         use_when = ["Building player-visible text with typed styling or interactions"],
         avoid_when = ["Passing an unvalidated JSON string when a typed text component can express the same value"],
-        params(entity_type = "`entity_type` provides the player-visible text value used to show an entity tooltip with a validated UUID on hover.", id = "`id` is the entity UUID shown in the hover payload, not a namespaced Minecraft resource identifier.", name = "Parse user-provided UUID text with [`EntityHoverId::parse`] first. The styled `name` is serialized as a complete text component."),
+        params(entity_type = "`entity_type` is used to show an entity tooltip with a validated UUID on hover.", id = "`id` is the entity UUID shown in the hover payload, not a namespaced Minecraft resource identifier.", name = "Parse user-provided UUID text with [`EntityHoverId::parse`] first. The styled `name` is serialized as a complete text component."),
         returns = "The `TextComponent` value with the documented change applied to show an entity tooltip with a validated UUID on hover.",
         example = "use sand::prelude::*;\n\nfn demonstrate(text_component_value: sand::text::TextComponent, entity_type: impl sand::text::IntoTextEntityType, id: sand::text::EntityHoverId, name: sand::text::TextComponent)  {\n    let updated_text_component = text_component_value.hover_entity_with_id(entity_type, id, name);\n}",
     )]
@@ -1415,7 +1415,7 @@ impl TextComponent {
         minecraft = "The component serializes to the JSON text format consumed by tellraw, titles, books, dialogs, and other vanilla text fields.",
         use_when = ["Prefer [`Self::hover_entity`] or [`Self::hover_entity_with_id`]. This is an explicit compatibility escape hatch for legacy or version-specific values Sand cannot model. Neither raw string is validated; the styled `name` is still serialized as a complete text component."],
         avoid_when = ["Passing an unvalidated JSON string when a typed text component can express the same value"],
-        params(entity_type = "`entity_type` supplies the entity type value used to show an entity tooltip using unchecked raw entity type and UUID strings.", id = "`id` provides the typed resource identifier or location used to show an entity tooltip using unchecked raw entity type and UUID strings.", name = "Prefer [`Self::hover_entity`] or [`Self::hover_entity_with_id`]. This is an explicit compatibility escape hatch for legacy or version-specific values Sand cannot model. Neither raw string is validated; the styled `name` is still serialized as a complete text component."),
+        params(entity_type = "`entity_type` is used to show an entity tooltip using unchecked raw entity type and UUID strings.", id = "`id` provides the typed resource identifier or location used to show an entity tooltip using unchecked raw entity type and UUID strings.", name = "Prefer [`Self::hover_entity`] or [`Self::hover_entity_with_id`]. This is an explicit compatibility escape hatch for legacy or version-specific values Sand cannot model. Neither raw string is validated; the styled `name` is still serialized as a complete text component."),
         returns = "The `TextComponent` value with the documented change applied to show an entity tooltip using unchecked raw entity type and UUID strings.",
         example = "use sand::prelude::*;\n\nfn demonstrate(text_component_value: sand::text::TextComponent, entity_type: impl Into < String >, id: Option < String >, name: sand::text::TextComponent)  {\n    let updated_text_component = text_component_value.hover_entity_raw(entity_type, id, name);\n}",
     )]
@@ -1470,7 +1470,7 @@ impl TextComponent {
         minecraft = "The component serializes to the JSON text format consumed by tellraw, titles, books, dialogs, and other vanilla text fields.",
         use_when = ["Building player-visible text with typed styling or interactions"],
         avoid_when = ["Passing an unvalidated JSON string when a typed text component can express the same value"],
-        params(next = "`next` provides the player-visible text value used to append a sibling component in the `\"extra\"` array."),
+        params(next = "`next` provides the player-visible text appended when building a sibling component in the `\"extra\"` array."),
         returns = "The `TextComponent` value with the documented change applied to append a sibling component in the `\"extra\"` array.",
         example = "use sand::prelude::*;\n\nfn demonstrate(text_component_value: sand::text::TextComponent, next: sand::text::TextComponent)  {\n    let updated_text_component = text_component_value.then(next);\n}",
     )]
@@ -1626,7 +1626,7 @@ impl TextComponent {
         minecraft = "The component serializes to the JSON text format consumed by tellraw, titles, books, dialogs, and other vanilla text fields.",
         use_when = ["Building player-visible text with typed styling or interactions"],
         avoid_when = ["Passing an unvalidated JSON string when a typed text component can express the same value"],
-        params(profile = "`profile` supplies the profile value used to validate recursively while retaining a consumer-provided field path.", path = "`path` provides the typed resource identifier or location used to validate recursively while retaining a consumer-provided field path."),
+        params(profile = "`profile` is the profile checked when validating recursively while retaining a consumer-provided field path.", path = "`path` provides the typed resource identifier or location used to validate recursively while retaining a consumer-provided field path."),
         returns = "On success, the value produced to validate recursively while retaining a consumer-provided field path; otherwise, the documented validation or export diagnostic.",
         example = "use sand::prelude::*;\n\nfn demonstrate(text_component_value: &sand::text::TextComponent, profile: & sand::command::CommandProfile, path: impl Into < String >)  {\n    let validate_at_path = text_component_value.validate_at_path(profile, path);\n}",
     )]
@@ -1781,8 +1781,8 @@ impl TextCommand {
         minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        params(target = "`target` provides the entity, block, or command target used to build a typed `tellraw` command for the selected entities and text component.", text = "`text` provides the author-visible text value used to build a typed `tellraw` command for the selected entities and text component."),
-        returns = "A newly constructed `TextCommand` configured to build a typed `tellraw` command for the selected entities and text component.",
+        params(target = "`target` provides the entity, block, or command target used to build a typed `tellraw` command for the selected entities and text component.", text = "`text` provides the author-visible text used to build a typed `tellraw` command for the selected entities and text component."),
+        returns = "A `TextCommand` that builds a typed `tellraw` command for the selected entities and text component.",
         example = "use sand::prelude::*;\n\nfn demonstrate(target: sand::command::Selector, text: sand::text::TextComponent)  {\n    let text_command = sand::command::TextCommand::tellraw(target, text);\n}",
     )]
     pub fn tellraw(target: Selector, text: TextComponent) -> Self {

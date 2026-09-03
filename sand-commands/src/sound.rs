@@ -167,8 +167,8 @@ impl Sound {
         minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        params(event = "`event` supplies the event value used to begin building a `playsound` command for the given sound event ID."),
-        returns = "A newly constructed `Sound` configured to begin building a `playsound` command for the given sound event ID.",
+        params(event = "`event` is used to begin building a `playsound` command for the given sound event ID."),
+        returns = "A `Sound` builder for a `playsound` command for the given sound event ID.",
         example = "use sand::prelude::*;\n\nfn demonstrate(event: impl sand::command::IntoSoundEvent)  {\n    let sound = sand::command::Sound::play(event);\n}",
     )]
     pub fn play(event: impl IntoSoundEvent) -> Self {
@@ -196,8 +196,8 @@ impl Sound {
         minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        params(event = "`event` supplies the event value used to begin building a sound command with an intentionally opaque event token."),
-        returns = "A newly constructed `Sound` configured to begin building a sound command with an intentionally opaque event token.",
+        params(event = "`event` is used to begin building a sound command with an intentionally opaque event token."),
+        returns = "A `Sound` builder for a sound command with an intentionally opaque event token.",
         example = "use sand::prelude::*;\n\nfn demonstrate(event: impl sand::command::IntoSoundEvent)  {\n    let sound = sand::command::Sound::play_raw(event);\n}",
     )]
     pub fn play_raw(event: impl IntoSoundEvent) -> Self {
@@ -240,7 +240,7 @@ impl Sound {
         minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        params(source = "`source` supplies the source value used to set the sound source/channel category (default: `master`)."),
+        params(source = "`source` provides the source applied when setting the sound source/channel category (default: `master`)."),
         returns = "The `Sound` value with the documented change applied to set the sound source/channel category (default: `master`).",
         example = "use sand::prelude::*;\n\nfn demonstrate(sound_value: sand::command::Sound, source: sand::command::SoundSource)  {\n    let updated_sound = sound_value.source(source);\n}",
     )]
@@ -261,7 +261,7 @@ impl Sound {
         minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        params(pos = "`pos` supplies the pos value used to set the position in the world where the sound originates (default: `~ ~ ~`)."),
+        params(pos = "`pos` provides the pos applied when setting the position in the world where the sound originates (default: `~ ~ ~`)."),
         returns = "The `Sound` value with the documented change applied to set the position in the world where the sound originates (default: `~ ~ ~`).",
         example = "use sand::prelude::*;\n\nfn demonstrate(sound_value: sand::command::Sound, pos: sand::command::Vec3)  {\n    let updated_sound = sound_value.at(pos);\n}",
     )]
@@ -282,7 +282,7 @@ impl Sound {
         minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        params(volume = "`volume` supplies the volume value used to set the volume multiplier (default: `1.0`)."),
+        params(volume = "`volume` provides the volume applied when setting the volume multiplier (default: `1.0`)."),
         returns = "The `Sound` value with the documented change applied to set the volume multiplier (default: `1.0`).",
         example = "use sand::prelude::*;\n\nfn demonstrate(sound_value: sand::command::Sound, volume: f64)  {\n    let updated_sound = sound_value.volume(volume);\n}",
     )]
@@ -303,7 +303,7 @@ impl Sound {
         minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        params(pitch = "`pitch` supplies the pitch value used to set the pitch multiplier (default: `1.0`)."),
+        params(pitch = "`pitch` provides the pitch applied when setting the pitch multiplier (default: `1.0`)."),
         returns = "The `Sound` value with the documented change applied to set the pitch multiplier (default: `1.0`).",
         example = "use sand::prelude::*;\n\nfn demonstrate(sound_value: sand::command::Sound, pitch: f64)  {\n    let updated_sound = sound_value.pitch(pitch);\n}",
     )]
@@ -367,7 +367,7 @@ impl Sound {
         minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        params(target = "`target` provides the entity, block, or command target used to emit the documented `stopsound <selector> <source>` — stop all sounds in a specific category form.", source = "`source` supplies the source value used to emit the documented `stopsound <selector> <source>` — stop all sounds in a specific category form."),
+        params(target = "`target` provides the entity, block, or command target used to emit the documented `stopsound <selector> <source>` — stop all sounds in a specific category form.", source = "`source` supplies the documented `stopsound <selector> <source>` — stop all sounds in a specific category form."),
         returns = "The string value produced to emit the documented `stopsound <selector> <source>` — stop all sounds in a specific category form.",
         example = "use sand::prelude::*;\n\nfn demonstrate(target: sand::command::Selector, source: sand::command::SoundSource)  {\n    let stop_source = sand::command::Sound::stop_source(target, source);\n}",
     )]
@@ -387,7 +387,7 @@ impl Sound {
         minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        params(target = "`target` provides the entity, block, or command target used to emit the documented `stopsound <selector> <source> <event>` — stop a specific sound for the target form.", source = "`source` supplies the source value used to emit the documented `stopsound <selector> <source> <event>` — stop a specific sound for the target form.", event = "`event` supplies the event value used to emit the documented `stopsound <selector> <source> <event>` — stop a specific sound for the target form."),
+        params(target = "`target` provides the entity, block, or command target used to emit the documented `stopsound <selector> <source> <event>` — stop a specific sound for the target form.", source = "`source` supplies the documented `stopsound <selector> <source> <event>` — stop a specific sound for the target form.", event = "`event` supplies the documented `stopsound <selector> <source> <event>` — stop a specific sound for the target form."),
         returns = "The string value produced to emit the documented `stopsound <selector> <source> <event>` — stop a specific sound for the target form.",
         example = "use sand::prelude::*;\n\nfn demonstrate(target: sand::command::Selector, source: sand::command::SoundSource, event: impl Into < String >)  {\n    let stop_event = sand::command::Sound::stop_event(target, source, event);\n}",
     )]
@@ -413,7 +413,7 @@ impl Sound {
         minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        params(target = "`target` provides the entity, block, or command target used to use compatibility alias for [`Sound::stop_event`].", source = "`source` supplies the source value used to use compatibility alias for [`Sound::stop_event`].", event = "`event` supplies the event value used to use compatibility alias for [`Sound::stop_event`]."),
+        params(target = "`target` provides the entity, block, or command target used to use compatibility alias for [`Sound::stop_event`].", source = "`source` sets the source for compatibility alias for [`Sound::stop_event`].", event = "`event` sets the event for compatibility alias for [`Sound::stop_event`]."),
         returns = "The string value produced to use compatibility alias for [`Sound::stop_event`].",
         example = "use sand::prelude::*;\n\nfn demonstrate(target: sand::command::Selector, source: sand::command::SoundSource, event: impl Into < String >)  {\n    let stop = sand::command::Sound::stop(target, source, event);\n}",
     )]
@@ -433,7 +433,7 @@ impl Sound {
         minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        params(target = "`target` provides the entity, block, or command target used to stop a sound with an intentionally opaque event token.", source = "`source` supplies the source value used to stop a sound with an intentionally opaque event token.", event = "`event` supplies the event value used to stop a sound with an intentionally opaque event token."),
+        params(target = "`target` provides the entity, block, or command target used to stop a sound with an intentionally opaque event token.", source = "`source` is used to stop a sound with an intentionally opaque event token.", event = "`event` is used to stop a sound with an intentionally opaque event token."),
         returns = "The string value produced to stop a sound with an intentionally opaque event token.",
         example = "use sand::prelude::*;\n\nfn demonstrate(target: sand::command::Selector, source: sand::command::SoundSource, event: impl Into < String >)  {\n    let stop_event_raw = sand::command::Sound::stop_event_raw(target, source, event);\n}",
     )]
@@ -530,32 +530,32 @@ impl RenderCommand for Sound {
     avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
     example = "use sand::command::StopSoundCommand;",
     variants(All = "Selects the all form of the stop sound command Minecraft command value.", Event = "Selects the event form of the stop sound command Minecraft command value.", Source = "Selects the source form of the stop sound command Minecraft command value."),
-    variant_fields(All(target = "`target` provides the command target when the variant selects the all form of the stop sound command Minecraft command value."), Event(event = "`event` provides the event when the variant selects the event form of the stop sound command Minecraft command value.", raw_event = "`raw_event` provides the raw event when the variant selects the event form of the stop sound command Minecraft command value.", source = "`source` provides the source when the variant selects the event form of the stop sound command Minecraft command value.", target = "`target` provides the command target when the variant selects the event form of the stop sound command Minecraft command value."), Source(source = "`source` provides the source when the variant selects the source form of the stop sound command Minecraft command value.", target = "`target` provides the command target when the variant selects the source form of the stop sound command Minecraft command value.")),
+    variant_fields(All(target = "`target` supplies the command target for the `stopsound all` form."), Event(event = "`event` supplies the event for the `stopsound event` form.", raw_event = "`raw_event` supplies the raw event for the `stopsound event` form.", source = "`source` supplies the source for the `stopsound event` form.", target = "`target` supplies the command target for the `stopsound event` form."), Source(source = "`source` supplies the source for the `stopsound source` form.", target = "`target` supplies the command target for the `stopsound source` form.")),
 )]
 /// Structured forms of `stopsound`.
 #[derive(Debug, Clone)]
 pub enum StopSoundCommand {
     #[doc = "Selects the all form of the stop sound command Minecraft command value."]
     All {
-        /// `target` provides the command target when the variant selects the all form of the stop sound command Minecraft command value.
+        /// `target` supplies the command target for the `stopsound all` form.
         target: Selector,
     },
     #[doc = "Selects the source form of the stop sound command Minecraft command value."]
     Source {
-        /// `target` provides the command target when the variant selects the source form of the stop sound command Minecraft command value.
+        /// `target` supplies the command target for the `stopsound source` form.
         target: Selector,
-        /// `source` provides the source when the variant selects the source form of the stop sound command Minecraft command value.
+        /// `source` supplies the source for the `stopsound source` form.
         source: SoundSource,
     },
     #[doc = "Selects the event form of the stop sound command Minecraft command value."]
     Event {
-        /// `target` provides the command target when the variant selects the event form of the stop sound command Minecraft command value.
+        /// `target` supplies the command target for the `stopsound event` form.
         target: Selector,
-        /// `source` provides the source when the variant selects the event form of the stop sound command Minecraft command value.
+        /// `source` supplies the source for the `stopsound event` form.
         source: SoundSource,
-        /// `event` provides the event when the variant selects the event form of the stop sound command Minecraft command value.
+        /// `event` supplies the event for the `stopsound event` form.
         event: String,
-        /// `raw_event` provides the raw event when the variant selects the event form of the stop sound command Minecraft command value.
+        /// `raw_event` supplies the raw event for the `stopsound event` form.
         raw_event: bool,
     },
 }

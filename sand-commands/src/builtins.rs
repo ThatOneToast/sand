@@ -823,7 +823,7 @@ impl DamageAmount {
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
         params(amount = "`amount` provides the requested numeric amount used to fixed hit-point damage. Raw/unchecked: accepts non-finite amounts (`NaN`/`±inf`), which [`Damage::run`] would format directly into command text. Prefer [`try_fixed`](Self::try_fixed) on the validated path, or [`Damage::try_run`] to validate at build time."),
-        returns = "A newly constructed `DamageAmount` configured to fixed hit-point damage. Raw/unchecked: accepts non-finite amounts (`NaN`/`±inf`), which [`Damage::run`] would format directly into command text. Prefer [`try_fixed`](Self::try_fixed) on the validated path, or [`Damage::try_run`] to validate at build time.",
+        returns = "A `DamageAmount` representing fixed hit-point damage. Raw/unchecked: accepts non-finite amounts (`NaN`/`±inf`), which [`Damage::run`] would format directly into command text. Prefer [`try_fixed`](Self::try_fixed) on the validated path, or [`Damage::try_run`] to validate at build time.",
         example = "use sand::prelude::*;\n\nfn demonstrate(amount: f64)  {\n    let damage_amount = sand::command::DamageAmount::fixed(amount);\n}",
     )]
     pub fn fixed(amount: f64) -> Self {
@@ -866,8 +866,8 @@ impl DamageAmount {
         minecraft = "This is the preferred user-facing constructor. The `damage` command takes HP (hit points), so `hearts(1.0)` emits `2.0` to the command.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        params(h = "`h` supplies the h value used to damage in hearts (1.0 = one heart = 2 HP). This is the preferred user-facing constructor. The `damage` command takes HP (hit points), so `hearts(1.0)` emits `2.0` to the command."),
-        returns = "A newly constructed `DamageAmount` configured to damage in hearts (1.0 = one heart = 2 HP). This is the preferred user-facing constructor. The `damage` command takes HP (hit points), so `hearts(1.0)` emits `2.0` to the command.",
+        params(h = "`h` sets damage in hearts (1.0 = one heart = 2 HP). This is the preferred user-facing constructor. The `damage` command takes HP (hit points), so `hearts(1.0)` emits `2.0` to the command."),
+        returns = "A `DamageAmount` representing damage in hearts (1.0 = one heart = 2 HP). This is the preferred user-facing constructor. The `damage` command takes HP (hit points), so `hearts(1.0)` emits `2.0` to the command.",
         example = "use sand::prelude::*;\n\nfn demonstrate(h: f32)  {\n    let damage_amount = sand::command::DamageAmount::hearts(h);\n}",
     )]
     pub fn hearts(h: f32) -> Self {
@@ -889,8 +889,8 @@ impl DamageAmount {
         minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        params(p = "`p` supplies the p value used to damage in vanilla hit points (1.0 HP = 0.5 hearts)."),
-        returns = "A newly constructed `DamageAmount` configured to damage in vanilla hit points (1.0 HP = 0.5 hearts).",
+        params(p = "`p` sets damage in vanilla hit points (1.0 HP = 0.5 hearts)."),
+        returns = "A `DamageAmount` representing damage in vanilla hit points (1.0 HP = 0.5 hearts).",
         example = "use sand::prelude::*;\n\nfn demonstrate(p: f32)  {\n    let damage_amount = sand::command::DamageAmount::points(p);\n}",
     )]
     pub fn points(p: f32) -> Self {
@@ -1024,7 +1024,7 @@ impl Damage {
         minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        returns = "A newly constructed `DamageBuilder` configured to create a damage builder with default generic fixed 1.0 damage to `@s`.",
+        returns = "A `DamageBuilder` representing a damage builder with default generic fixed 1.0 damage to `@s`.",
         example = "use sand::prelude::*;\n\nfn demonstrate()  {\n    let damage_builder = sand::command::DamageBuilder::new();\n}",
     )]
     pub fn new() -> Self {
@@ -1050,7 +1050,7 @@ impl Damage {
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
         params(source = "Start a reflected-damage builder centered on `source`."),
-        returns = "A newly constructed `DamageBuilder` configured to start a reflected-damage builder centered on `source`.",
+        returns = "A `DamageBuilder` initialized to a reflected-damage builder centered on `source`.",
         example = "use sand::prelude::*;\n\nfn demonstrate(source: impl Into < sand::command::SingleEntity >)  {\n    let damage_builder = sand::command::DamageBuilder::reflect_from(source);\n}",
     )]
     pub fn reflect_from(source: impl Into<SingleEntity>) -> Self {
@@ -1112,7 +1112,7 @@ impl Damage {
         minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        params(damage_type = "`damage_type` supplies the damage type value used to set damage type/resource ID."),
+        params(damage_type = "`damage_type` provides the damage type applied when setting damage type/resource ID."),
         returns = "The `DamageBuilder` value with the documented change applied to set damage type/resource ID.",
         example = "use sand::prelude::*;\n\nfn demonstrate(damage_builder_value: sand::command::DamageBuilder, damage_type: impl Into < String >)  {\n    let updated_damage_builder = damage_builder_value.damage_type(damage_type);\n}",
     )]
@@ -1153,7 +1153,7 @@ impl Damage {
         minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        params(source = "`source` supplies the source value used to attribute the damage source to a single entity."),
+        params(source = "`source` is used to attribute the damage source to a single entity."),
         returns = "The `DamageBuilder` value with the documented change applied to attribute the damage source to a single entity.",
         example = "use sand::prelude::*;\n\nfn demonstrate(damage_builder_value: sand::command::DamageBuilder, source: impl Into < sand::command::SingleEntity >)  {\n    let updated_damage_builder = damage_builder_value.source(source);\n}",
     )]
@@ -1194,7 +1194,7 @@ impl Damage {
         minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        params(center = "`center` supplies the center value used to run target selection at another single entity's position."),
+        params(center = "`center` provides the center used when running target selection at another single entity's position."),
         returns = "The `DamageBuilder` value with the documented change applied to run target selection at another single entity's position.",
         example = "use sand::prelude::*;\n\nfn demonstrate(damage_builder_value: sand::command::DamageBuilder, center: impl Into < sand::command::SingleEntity >)  {\n    let updated_damage_builder = damage_builder_value.centered_at(center);\n}",
     )]

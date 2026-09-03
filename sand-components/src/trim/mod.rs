@@ -217,7 +217,7 @@ impl TrimMaterial {
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
         params(location = "Starts a trim-material definition at `location`; required material fields are added with the builder methods."),
-        returns = "A newly constructed `TrimMaterial` configured to start a trim-material definition at `location`; required material fields are added with the builder methods.",
+        returns = "A `TrimMaterial` initialized to a trim-material definition at `location`; required material fields are added with the builder methods.",
         example = "use sand::prelude::*;\n\nfn demonstrate(location: sand::ResourceLocation)  {\n    let trim_material = sand::component::TrimMaterial::new(location);\n}",
     )]
     pub fn new(location: ResourceLocation) -> Self {
@@ -243,7 +243,7 @@ impl TrimMaterial {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(name = "`name` provides the author-visible text value used to set the Minecraft asset name property on this typed trim material definition and returns the updated builder."),
+        params(name = "`name` provides the author-visible text applied when setting the Minecraft asset name property on this typed trim material definition and returns the updated builder."),
         returns = "Sets the Minecraft asset name property on this typed trim material definition and returns the updated builder.",
         example = "use sand::prelude::*;\n\nfn demonstrate(trim_material_value: sand::component::TrimMaterial, name: sand::component::TrimAssetName)  {\n    let updated_trim_material = trim_material_value.asset_name(name);\n}",
     )]
@@ -285,7 +285,7 @@ impl TrimMaterial {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(index = "`index` supplies the index value used to set the Minecraft item model index property on this typed trim material definition and returns the updated builder."),
+        params(index = "`index` provides the index applied when setting the Minecraft item model index property on this typed trim material definition and returns the updated builder."),
         returns = "Sets the Minecraft item model index property on this typed trim material definition and returns the updated builder.",
         example = "use sand::prelude::*;\n\nfn demonstrate(trim_material_value: sand::component::TrimMaterial, index: f32)  {\n    let updated_trim_material = trim_material_value.item_model_index(index);\n}",
     )]
@@ -306,7 +306,7 @@ impl TrimMaterial {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(desc = "`desc` provides the player-visible text value used to set the Minecraft description property on this typed trim material definition and returns the updated builder."),
+        params(desc = "`desc` provides the player-visible text applied when setting the Minecraft description property on this typed trim material definition and returns the updated builder."),
         returns = "Sets the Minecraft description property on this typed trim material definition and returns the updated builder.",
         example = "use sand::prelude::*;\n\nfn demonstrate(trim_material_value: sand::component::TrimMaterial, desc: sand::text::TextComponent)  {\n    let updated_trim_material = trim_material_value.description(desc);\n}",
     )]
@@ -327,7 +327,7 @@ impl TrimMaterial {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Use a raw JSON text component when the typed text API cannot represent it."],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(desc = "`desc` supplies the desc value used to use a raw JSON text component when the typed text API cannot represent it."),
+        params(desc = "`desc` sets the desc for a raw JSON text component when the typed text API cannot represent it."),
         returns = "The `TrimMaterial` value with the documented change applied to use a raw JSON text component when the typed text API cannot represent it.",
         example = "use sand::prelude::*;\n\nfn demonstrate(trim_material_value: sand::component::TrimMaterial, desc: sand::component::RawJson)  {\n    let updated_trim_material = trim_material_value.raw_description(desc);\n}",
     )]
@@ -377,7 +377,7 @@ impl TrimMaterial {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Use a raw override object for unsupported or modded armor-material shapes."],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(overrides = "`overrides` supplies the overrides value used to use a raw override object for unsupported or modded armor-material shapes."),
+        params(overrides = "`overrides` sets the overrides for a raw override object for unsupported or modded armor-material shapes."),
         returns = "The `TrimMaterial` value with the documented change applied to use a raw override object for unsupported or modded armor-material shapes.",
         example = "use sand::prelude::*;\n\nfn demonstrate(trim_material_value: sand::component::TrimMaterial, overrides: sand::component::RawJson)  {\n    let updated_trim_material = trim_material_value.raw_override_armor_materials(overrides);\n}",
     )]
@@ -525,7 +525,7 @@ impl TrimPattern {
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
         params(location = "Starts a trim-pattern definition at `location`; required pattern fields are added with the builder methods."),
-        returns = "A newly constructed `TrimPattern` configured to start a trim-pattern definition at `location`; required pattern fields are added with the builder methods.",
+        returns = "A `TrimPattern` initialized to a trim-pattern definition at `location`; required pattern fields are added with the builder methods.",
         example = "use sand::prelude::*;\n\nfn demonstrate(location: sand::ResourceLocation)  {\n    let trim_pattern = sand::component::TrimPattern::new(location);\n}",
     )]
     pub fn new(location: ResourceLocation) -> Self {
@@ -592,7 +592,7 @@ impl TrimPattern {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(desc = "`desc` provides the player-visible text value used to set the Minecraft description property on this typed trim pattern definition and returns the updated builder."),
+        params(desc = "`desc` provides the player-visible text applied when setting the Minecraft description property on this typed trim pattern definition and returns the updated builder."),
         returns = "Sets the Minecraft description property on this typed trim pattern definition and returns the updated builder.",
         example = "use sand::prelude::*;\n\nfn demonstrate(trim_pattern_value: sand::component::TrimPattern, desc: sand::text::TextComponent)  {\n    let updated_trim_pattern = trim_pattern_value.description(desc);\n}",
     )]
@@ -613,7 +613,7 @@ impl TrimPattern {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Use a raw JSON text component when the typed text API cannot represent it."],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(desc = "`desc` supplies the desc value used to use a raw JSON text component when the typed text API cannot represent it."),
+        params(desc = "`desc` sets the desc for a raw JSON text component when the typed text API cannot represent it."),
         returns = "The `TrimPattern` value with the documented change applied to use a raw JSON text component when the typed text API cannot represent it.",
         example = "use sand::prelude::*;\n\nfn demonstrate(trim_pattern_value: sand::component::TrimPattern, desc: sand::component::RawJson)  {\n    let updated_trim_pattern = trim_pattern_value.raw_description(desc);\n}",
     )]

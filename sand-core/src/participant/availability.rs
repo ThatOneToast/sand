@@ -194,7 +194,7 @@ impl<T> ParticipantAvailability<T> {
         minecraft = "Entity relationships use the matching execute relation, while item snapshots are copied into Sand-owned command storage and cleaned up at the end of their declared lifetime.",
         use_when = ["Declaring or reading a typed participant whose lifecycle is guaranteed by the event plan"],
         avoid_when = ["Assuming an entity or item remains live beyond its declared invocation, event-cycle, or bounded correlation lifetime"],
-        params(f = "`f` supplies the f value used to transform an available participant while preserving its unavailable reason."),
+        params(f = "`f` is used to transform an available participant while preserving its unavailable reason."),
         returns = "The `ParticipantAvailability < U >` value produced to transform an available participant while preserving its unavailable reason.",
         example = "use sand::prelude::*;\n\nfn demonstrate<T: 'static, U: 'static>(participant_availability_value: sand::participant::ParticipantAvailability < T >, f: impl FnOnce (T) -> U)  {\n    let map = participant_availability_value.map::<U>(f);\n}",
     )]

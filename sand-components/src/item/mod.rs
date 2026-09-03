@@ -395,8 +395,8 @@ impl AttributeModifier {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(attribute = "`attribute` supplies the attribute value used to create a new attribute modifier for the given attribute."),
-        returns = "A newly constructed `AttributeModifier` configured to create a new attribute modifier for the given attribute.",
+        params(attribute = "`attribute` is used when creating a new attribute modifier for the given attribute."),
+        returns = "An `AttributeModifier` representing a new attribute modifier for the given attribute.",
         example = "use sand::prelude::*;\n\nfn demonstrate(attribute: sand::component::AttributeType)  {\n    let attribute_modifier = sand::component::AttributeModifier::new(attribute);\n}",
     )]
     pub fn new(attribute: AttributeType) -> Self {
@@ -421,8 +421,8 @@ impl AttributeModifier {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(attribute = "`attribute` supplies the attribute value used to create a fully specified attribute modifier in one call.", amount = "`amount` provides the requested numeric amount used to create a fully specified attribute modifier in one call.", operation = "`operation` supplies the operation value used to create a fully specified attribute modifier in one call.", slot = "`slot` supplies the slot value used to create a fully specified attribute modifier in one call."),
-        returns = "A newly constructed `AttributeModifier` configured to create a fully specified attribute modifier in one call.",
+        params(attribute = "`attribute` is used when creating a fully specified attribute modifier in one call.", amount = "`amount` provides the requested numeric amount used to create a fully specified attribute modifier in one call.", operation = "`operation` is used when creating a fully specified attribute modifier in one call.", slot = "`slot` is used when creating a fully specified attribute modifier in one call."),
+        returns = "An `AttributeModifier` representing a fully specified attribute modifier in one call.",
         example = "use sand::prelude::*;\n\nfn demonstrate(attribute: sand::component::AttributeType, amount: f64, operation: sand::component::AttributeOperation, slot: sand::component::EquipmentSlotGroup)  {\n    let attribute_modifier = sand::component::AttributeModifier::with_values(attribute, amount, operation, slot);\n}",
     )]
     pub fn with_values(
@@ -470,7 +470,7 @@ impl AttributeModifier {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(operation = "`operation` supplies the operation value used to set the modifier operation."),
+        params(operation = "`operation` provides the operation applied when setting the modifier operation."),
         returns = "The `AttributeModifier` value with the documented change applied to set the modifier operation.",
         example = "use sand::prelude::*;\n\nfn demonstrate(attribute_modifier_value: sand::component::AttributeModifier, operation: sand::component::AttributeOperation)  {\n    let updated_attribute_modifier = attribute_modifier_value.operation(operation);\n}",
     )]
@@ -491,7 +491,7 @@ impl AttributeModifier {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(slot = "`slot` supplies the slot value used to set the equipment slot group where this modifier applies."),
+        params(slot = "`slot` provides the slot applied when setting the equipment slot group where this modifier applies."),
         returns = "The `AttributeModifier` value with the documented change applied to set the equipment slot group where this modifier applies.",
         example = "use sand::prelude::*;\n\nfn demonstrate(attribute_modifier_value: sand::component::AttributeModifier, slot: sand::component::EquipmentSlotGroup)  {\n    let updated_attribute_modifier = attribute_modifier_value.slot(slot);\n}",
     )]
@@ -589,8 +589,8 @@ impl EnchantmentEntry {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(id = "`id` provides the typed resource identifier or location used to create a typed enchantment entry.", level = "`level` supplies the level value used to create a typed enchantment entry."),
-        returns = "A newly constructed `EnchantmentEntry` configured to create a typed enchantment entry.",
+        params(id = "`id` provides the typed resource identifier or location used to create a typed enchantment entry.", level = "`level` is used when creating a typed enchantment entry."),
+        returns = "An `EnchantmentEntry` representing a typed enchantment entry.",
         example = "use sand::prelude::*;\n\nfn demonstrate(id: sand::registry::EnchantmentId, level: u32)  {\n    let enchantment_entry = sand::component::EnchantmentEntry::new(id, level);\n}",
     )]
     pub fn new(id: EnchantmentId, level: u32) -> Self {
@@ -637,7 +637,7 @@ impl CustomData {
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
         params(key = "`key` provides the key that identifies the setting or entry used to create a marker custom data payload: `{key:1b}`."),
-        returns = "A newly constructed `CustomData` configured to create a marker custom data payload: `{key:1b}`.",
+        returns = "A `CustomData` representing a marker custom data payload: `{key:1b}`.",
         example = "use sand::prelude::*;\n\nfn demonstrate(key: impl Into < String >)  {\n    let custom_data = sand::component::CustomData::marker(key);\n}",
     )]
     pub fn marker(key: impl Into<String>) -> Self {
@@ -656,8 +656,8 @@ impl CustomData {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(snbt = "`snbt` supplies the snbt value used to wrap raw custom data SNBT explicitly."),
-        returns = "A newly constructed `CustomData` configured to wrap raw custom data SNBT explicitly.",
+        params(snbt = "`snbt` provides the snbt wrapped when creating raw custom data SNBT explicitly."),
+        returns = "A `CustomData` wrapping raw custom data SNBT explicitly.",
         example = "use sand::prelude::*;\n\nfn demonstrate(snbt: sand::component::RawSnbt)  {\n    let custom_data = sand::component::CustomData::raw(snbt);\n}",
     )]
     pub fn raw(snbt: RawSnbt) -> Self {
@@ -715,117 +715,103 @@ impl From<RawSnbt> for CustomData {
     use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
     avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
     example = "use sand::component::ItemComponent;",
-    variants(AttributeModifiers = "Selects the attribute modifiers form in this typed Minecraft component schema.", Consumable = "Selects the consumable form in this typed Minecraft component schema.", CustomData = "Selects the custom data form in this typed Minecraft component schema.", CustomModelData = "Selects the custom model data form in this typed Minecraft component schema.", CustomName = "Selects the custom name form in this typed Minecraft component schema.", Damage = "Selects the damage form in this typed Minecraft component schema.", DyedColor = "Selects the dyed color form in this typed Minecraft component schema.", EnchantmentGlintOverride = "Selects the enchantment glint override form in this typed Minecraft component schema.", Enchantments = "Selects the enchantments form in this typed Minecraft component schema.", Equippable = "Selects the equippable form in this typed Minecraft component schema.", FireResistant = "Selects the fire resistant form in this typed Minecraft component schema.", Food = "Selects the food form in this typed Minecraft component schema.", Glider = "Selects the glider form in this typed Minecraft component schema.", HideAdditionalTooltip = "Selects the hide additional tooltip form in this typed Minecraft component schema.", HideTooltip = "Selects the hide tooltip form in this typed Minecraft component schema.", ItemName = "Selects the item name form in this typed Minecraft component schema.", Lore = "Selects the lore form in this typed Minecraft component schema.", MaxDamage = "Selects the max damage form in this typed Minecraft component schema.", MaxStackSize = "Selects the max stack size form in this typed Minecraft component schema.", PotionContents = "Selects the potion contents form in this typed Minecraft component schema.", Rarity = "Selects the rarity form in this typed Minecraft component schema.", Raw = "Selects the raw form in this typed Minecraft component schema.", RepairCost = "Selects the repair cost form in this typed Minecraft component schema.", StoredEnchantments = "Selects the stored enchantments form in this typed Minecraft component schema.", SuspiciousStewEffects = "Selects the suspicious stew effects form in this typed Minecraft component schema.", Tool = "Selects the tool form in this typed Minecraft component schema.", Unbreakable = "Selects the unbreakable form in this typed Minecraft component schema.", UseCooldown = "Selects the use cooldown form in this typed Minecraft component schema."),
-    variant_fields(AttributeModifiers = ["Selects the attribute modifiers form in this typed Minecraft component schema."], Consumable = ["Selects the consumable form in this typed Minecraft component schema."], CustomData = ["Selects the custom data form in this typed Minecraft component schema."], CustomModelData = ["Selects the custom model data form in this typed Minecraft component schema."], CustomName = ["Selects the custom name form in this typed Minecraft component schema."], Damage = ["Selects the damage form in this typed Minecraft component schema."], DyedColor = ["Selects the dyed color form in this typed Minecraft component schema."], EnchantmentGlintOverride = ["Selects the enchantment glint override form in this typed Minecraft component schema."], Enchantments = ["Selects the enchantments form in this typed Minecraft component schema."], Equippable = ["Selects the equippable form in this typed Minecraft component schema."], Food = ["Selects the food form in this typed Minecraft component schema."], ItemName = ["Selects the item name form in this typed Minecraft component schema."], Lore = ["Selects the lore form in this typed Minecraft component schema."], MaxDamage = ["Selects the max damage form in this typed Minecraft component schema."], MaxStackSize = ["Selects the max stack size form in this typed Minecraft component schema."], PotionContents = ["Selects the potion contents form in this typed Minecraft component schema."], Rarity = ["Selects the rarity form in this typed Minecraft component schema."], Raw = ["Selects the raw form in this typed Minecraft component schema."], RepairCost = ["Selects the repair cost form in this typed Minecraft component schema."], StoredEnchantments = ["Selects the stored enchantments form in this typed Minecraft component schema."], SuspiciousStewEffects = ["Selects the suspicious stew effects form in this typed Minecraft component schema."], Tool = ["Selects the tool form in this typed Minecraft component schema."], Unbreakable(show_in_tooltip = "`show_in_tooltip` provides the show in tooltip when the variant selects the unbreakable form in this typed Minecraft component schema."), UseCooldown = ["Selects the use cooldown form in this typed Minecraft component schema."]),
+    variants(AttributeModifiers = "Represents the value of Minecraft's attribute modifiers item component.", Consumable = "Represents the value of Minecraft's consumable item component.", CustomData = "Represents the value of Minecraft's custom data item component.", CustomModelData = "Represents the value of Minecraft's custom model data item component.", CustomName = "Represents the value of Minecraft's custom name item component.", Damage = "Represents the value of Minecraft's damage item component.", DyedColor = "Represents the value of Minecraft's dyed color item component.", EnchantmentGlintOverride = "Represents the value of Minecraft's enchantment glint override item component.", Enchantments = "Represents the value of Minecraft's enchantments item component.", Equippable = "Represents the value of Minecraft's equippable item component.", FireResistant = "Represents the value of Minecraft's fire resistant item component.", Food = "Represents the value of Minecraft's food item component.", Glider = "Represents the value of Minecraft's glider item component.", HideAdditionalTooltip = "Represents the value of Minecraft's hide additional tooltip item component.", HideTooltip = "Represents the value of Minecraft's hide tooltip item component.", ItemName = "Represents the value of Minecraft's item name item component.", Lore = "Represents the value of Minecraft's lore item component.", MaxDamage = "Represents the value of Minecraft's max damage item component.", MaxStackSize = "Represents the value of Minecraft's max stack size item component.", PotionContents = "Represents the value of Minecraft's potion contents item component.", Rarity = "Represents the value of Minecraft's rarity item component.", Raw = "Represents the value of Minecraft's raw item component.", RepairCost = "Represents the value of Minecraft's repair cost item component.", StoredEnchantments = "Represents the value of Minecraft's stored enchantments item component.", SuspiciousStewEffects = "Represents the value of Minecraft's suspicious stew effects item component.", Tool = "Represents the value of Minecraft's tool item component.", Unbreakable = "Represents the value of Minecraft's unbreakable item component.", UseCooldown = "Represents the value of Minecraft's use cooldown item component."),
+    variant_fields(AttributeModifiers = ["Represents the value of Minecraft's attribute modifiers item component."], Consumable = ["Represents the value of Minecraft's consumable item component."], CustomData = ["Represents the value of Minecraft's custom data item component."], CustomModelData = ["Represents the value of Minecraft's custom model data item component."], CustomName = ["Represents the value of Minecraft's custom name item component."], Damage = ["Represents the value of Minecraft's damage item component."], DyedColor = ["Represents the value of Minecraft's dyed color item component."], EnchantmentGlintOverride = ["Represents the value of Minecraft's enchantment glint override item component."], Enchantments = ["Represents the value of Minecraft's enchantments item component."], Equippable = ["Represents the value of Minecraft's equippable item component."], Food = ["Represents the value of Minecraft's food item component."], ItemName = ["Represents the value of Minecraft's item name item component."], Lore = ["Represents the value of Minecraft's lore item component."], MaxDamage = ["Represents the value of Minecraft's max damage item component."], MaxStackSize = ["Represents the value of Minecraft's max stack size item component."], PotionContents = ["Represents the value of Minecraft's potion contents item component."], Rarity = ["Represents the value of Minecraft's rarity item component."], Raw = ["Represents the value of Minecraft's raw item component."], RepairCost = ["Represents the value of Minecraft's repair cost item component."], StoredEnchantments = ["Represents the value of Minecraft's stored enchantments item component."], SuspiciousStewEffects = ["Represents the value of Minecraft's suspicious stew effects item component."], Tool = ["Represents the value of Minecraft's tool item component."], Unbreakable(show_in_tooltip = "`show_in_tooltip` provides the show in tooltip for the unbreakable item component."), UseCooldown = ["Represents the value of Minecraft's use cooldown item component."]),
 )]
 /// Strongly typed Minecraft item component values used by [`CustomItem`].
 #[derive(Debug, Clone)]
 pub enum ItemComponent {
-    #[doc = "Selects the custom name form in this typed Minecraft component schema."]
+    #[doc = "Represents the value of Minecraft's custom name item component."]
     CustomName(
-        #[doc = "Selects the custom name form in this typed Minecraft component schema."]
-        TextComponent,
+        #[doc = "Represents the value of Minecraft's custom name item component."] TextComponent,
     ),
-    #[doc = "Selects the item name form in this typed Minecraft component schema."]
+    #[doc = "Represents the value of Minecraft's item name item component."]
     ItemName(
-        #[doc = "Selects the item name form in this typed Minecraft component schema."]
-        TextComponent,
+        #[doc = "Represents the value of Minecraft's item name item component."] TextComponent,
     ),
-    #[doc = "Selects the lore form in this typed Minecraft component schema."]
-    Lore(
-        #[doc = "Selects the lore form in this typed Minecraft component schema."]
-        Vec<TextComponent>,
-    ),
-    #[doc = "Selects the rarity form in this typed Minecraft component schema."]
-    Rarity(#[doc = "Selects the rarity form in this typed Minecraft component schema."] ItemRarity),
-    #[doc = "Selects the custom model data form in this typed Minecraft component schema."]
+    #[doc = "Represents the value of Minecraft's lore item component."]
+    Lore(#[doc = "Represents the value of Minecraft's lore item component."] Vec<TextComponent>),
+    #[doc = "Represents the value of Minecraft's rarity item component."]
+    Rarity(#[doc = "Represents the value of Minecraft's rarity item component."] ItemRarity),
+    #[doc = "Represents the value of Minecraft's custom model data item component."]
     CustomModelData(
-        #[doc = "Selects the custom model data form in this typed Minecraft component schema."] i32,
+        #[doc = "Represents the value of Minecraft's custom model data item component."] i32,
     ),
-    #[doc = "Selects the enchantments form in this typed Minecraft component schema."]
+    #[doc = "Represents the value of Minecraft's enchantments item component."]
     Enchantments(
-        #[doc = "Selects the enchantments form in this typed Minecraft component schema."]
+        #[doc = "Represents the value of Minecraft's enchantments item component."]
         Vec<EnchantmentEntry>,
     ),
-    #[doc = "Selects the stored enchantments form in this typed Minecraft component schema."]
+    #[doc = "Represents the value of Minecraft's stored enchantments item component."]
     StoredEnchantments(
-        #[doc = "Selects the stored enchantments form in this typed Minecraft component schema."]
+        #[doc = "Represents the value of Minecraft's stored enchantments item component."]
         Vec<EnchantmentEntry>,
     ),
-    #[doc = "Selects the attribute modifiers form in this typed Minecraft component schema."]
+    #[doc = "Represents the value of Minecraft's attribute modifiers item component."]
     AttributeModifiers(
-        #[doc = "Selects the attribute modifiers form in this typed Minecraft component schema."]
+        #[doc = "Represents the value of Minecraft's attribute modifiers item component."]
         Vec<AttributeModifier>,
     ),
-    #[doc = "Selects the food form in this typed Minecraft component schema."]
-    Food(#[doc = "Selects the food form in this typed Minecraft component schema."] FoodProperties),
-    #[doc = "Selects the consumable form in this typed Minecraft component schema."]
+    #[doc = "Represents the value of Minecraft's food item component."]
+    Food(#[doc = "Represents the value of Minecraft's food item component."] FoodProperties),
+    #[doc = "Represents the value of Minecraft's consumable item component."]
     Consumable(
-        #[doc = "Selects the consumable form in this typed Minecraft component schema."]
+        #[doc = "Represents the value of Minecraft's consumable item component."]
         ConsumableProperties,
     ),
-    #[doc = "Selects the equippable form in this typed Minecraft component schema."]
+    #[doc = "Represents the value of Minecraft's equippable item component."]
     Equippable(
-        #[doc = "Selects the equippable form in this typed Minecraft component schema."]
+        #[doc = "Represents the value of Minecraft's equippable item component."]
         EquippableProperties,
     ),
-    #[doc = "Selects the tool form in this typed Minecraft component schema."]
-    Tool(#[doc = "Selects the tool form in this typed Minecraft component schema."] ToolProperties),
-    #[doc = "Selects the potion contents form in this typed Minecraft component schema."]
+    #[doc = "Represents the value of Minecraft's tool item component."]
+    Tool(#[doc = "Represents the value of Minecraft's tool item component."] ToolProperties),
+    #[doc = "Represents the value of Minecraft's potion contents item component."]
     PotionContents(
-        #[doc = "Selects the potion contents form in this typed Minecraft component schema."]
+        #[doc = "Represents the value of Minecraft's potion contents item component."]
         PotionContents,
     ),
-    #[doc = "Selects the suspicious stew effects form in this typed Minecraft component schema."]
+    #[doc = "Represents the value of Minecraft's suspicious stew effects item component."]
     SuspiciousStewEffects(
-        #[doc = "Selects the suspicious stew effects form in this typed Minecraft component schema."]
-         Vec<SuspiciousStewEffect>,
+        #[doc = "Represents the value of Minecraft's suspicious stew effects item component."]
+        Vec<SuspiciousStewEffect>,
     ),
-    #[doc = "Selects the max stack size form in this typed Minecraft component schema."]
-    MaxStackSize(
-        #[doc = "Selects the max stack size form in this typed Minecraft component schema."] u32,
-    ),
-    #[doc = "Selects the max damage form in this typed Minecraft component schema."]
-    MaxDamage(#[doc = "Selects the max damage form in this typed Minecraft component schema."] i32),
-    #[doc = "Selects the damage form in this typed Minecraft component schema."]
-    Damage(#[doc = "Selects the damage form in this typed Minecraft component schema."] i32),
-    #[doc = "Selects the unbreakable form in this typed Minecraft component schema."]
+    #[doc = "Represents the value of Minecraft's max stack size item component."]
+    MaxStackSize(#[doc = "Represents the value of Minecraft's max stack size item component."] u32),
+    #[doc = "Represents the value of Minecraft's max damage item component."]
+    MaxDamage(#[doc = "Represents the value of Minecraft's max damage item component."] i32),
+    #[doc = "Represents the value of Minecraft's damage item component."]
+    Damage(#[doc = "Represents the value of Minecraft's damage item component."] i32),
+    #[doc = "Represents the value of Minecraft's unbreakable item component."]
     Unbreakable {
-        #[doc = "`show_in_tooltip` provides the show in tooltip when the variant selects the unbreakable form in this typed Minecraft component schema."]
+        #[doc = "`show_in_tooltip` provides the show in tooltip for the unbreakable item component."]
         show_in_tooltip: bool,
     },
-    #[doc = "Selects the custom data form in this typed Minecraft component schema."]
+    #[doc = "Represents the value of Minecraft's custom data item component."]
     CustomData(
-        #[doc = "Selects the custom data form in this typed Minecraft component schema."]
-        CustomData,
+        #[doc = "Represents the value of Minecraft's custom data item component."] CustomData,
     ),
-    #[doc = "Selects the enchantment glint override form in this typed Minecraft component schema."]
+    #[doc = "Represents the value of Minecraft's enchantment glint override item component."]
     EnchantmentGlintOverride(
-        #[doc = "Selects the enchantment glint override form in this typed Minecraft component schema."]
-         bool,
+        #[doc = "Represents the value of Minecraft's enchantment glint override item component."]
+        bool,
     ),
-    #[doc = "Selects the hide additional tooltip form in this typed Minecraft component schema."]
+    #[doc = "Represents the value of Minecraft's hide additional tooltip item component."]
     HideAdditionalTooltip,
-    #[doc = "Selects the hide tooltip form in this typed Minecraft component schema."]
+    #[doc = "Represents the value of Minecraft's hide tooltip item component."]
     HideTooltip,
-    #[doc = "Selects the repair cost form in this typed Minecraft component schema."]
-    RepairCost(
-        #[doc = "Selects the repair cost form in this typed Minecraft component schema."] i32,
-    ),
-    #[doc = "Selects the use cooldown form in this typed Minecraft component schema."]
-    UseCooldown(
-        #[doc = "Selects the use cooldown form in this typed Minecraft component schema."] f32,
-    ),
-    #[doc = "Selects the glider form in this typed Minecraft component schema."]
+    #[doc = "Represents the value of Minecraft's repair cost item component."]
+    RepairCost(#[doc = "Represents the value of Minecraft's repair cost item component."] i32),
+    #[doc = "Represents the value of Minecraft's use cooldown item component."]
+    UseCooldown(#[doc = "Represents the value of Minecraft's use cooldown item component."] f32),
+    #[doc = "Represents the value of Minecraft's glider item component."]
     Glider,
-    #[doc = "Selects the fire resistant form in this typed Minecraft component schema."]
+    #[doc = "Represents the value of Minecraft's fire resistant item component."]
     FireResistant,
-    #[doc = "Selects the dyed color form in this typed Minecraft component schema."]
-    DyedColor(
-        #[doc = "Selects the dyed color form in this typed Minecraft component schema."] DyedColor,
-    ),
-    #[doc = "Selects the raw form in this typed Minecraft component schema."]
-    Raw(#[doc = "Selects the raw form in this typed Minecraft component schema."] RawComponent),
+    #[doc = "Represents the value of Minecraft's dyed color item component."]
+    DyedColor(#[doc = "Represents the value of Minecraft's dyed color item component."] DyedColor),
+    #[doc = "Represents the value of Minecraft's raw item component."]
+    Raw(#[doc = "Represents the value of Minecraft's raw item component."] RawComponent),
 }
 
 impl ItemComponent {
@@ -841,7 +827,7 @@ impl ItemComponent {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(name = "`name` provides the author-visible text value used to set the Minecraft custom name property on this typed item component definition and returns the updated builder."),
+        params(name = "`name` provides the author-visible text applied when setting the Minecraft custom name property on this typed item component definition and returns the updated builder."),
         returns = "Sets the Minecraft custom name property on this typed item component definition and returns the updated builder.",
         example = "use sand::prelude::*;\n\nfn demonstrate(name: sand::text::TextComponent)  {\n    let item_component = sand::component::ItemComponent::custom_name(name);\n}",
     )]
@@ -861,7 +847,7 @@ impl ItemComponent {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(name = "`name` provides the author-visible text value used to set the Minecraft item name property on this typed item component definition and returns the updated builder."),
+        params(name = "`name` provides the author-visible text applied when setting the Minecraft item name property on this typed item component definition and returns the updated builder."),
         returns = "Sets the Minecraft item name property on this typed item component definition and returns the updated builder.",
         example = "use sand::prelude::*;\n\nfn demonstrate(name: sand::text::TextComponent)  {\n    let item_component = sand::component::ItemComponent::item_name(name);\n}",
     )]
@@ -881,7 +867,7 @@ impl ItemComponent {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(lines = "`lines` provides the player-visible text value used to set the Minecraft lore property on this typed item component definition and returns the updated builder."),
+        params(lines = "`lines` provides the player-visible text applied when setting the Minecraft lore property on this typed item component definition and returns the updated builder."),
         returns = "Sets the Minecraft lore property on this typed item component definition and returns the updated builder.",
         example = "use sand::prelude::*;\n\nfn demonstrate(lines: Vec < sand::text::TextComponent >)  {\n    let item_component = sand::component::ItemComponent::lore(lines);\n}",
     )]
@@ -901,7 +887,7 @@ impl ItemComponent {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(line = "`line` provides the player-visible text value used to set the Minecraft lore line property on this typed item component definition and returns the updated builder."),
+        params(line = "`line` provides the player-visible text applied when setting the Minecraft lore line property on this typed item component definition and returns the updated builder."),
         returns = "Sets the Minecraft lore line property on this typed item component definition and returns the updated builder.",
         example = "use sand::prelude::*;\n\nfn demonstrate(line: sand::text::TextComponent)  {\n    let item_component = sand::component::ItemComponent::lore_line(line);\n}",
     )]
@@ -921,7 +907,7 @@ impl ItemComponent {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(rarity = "`rarity` supplies the rarity value used to set the Minecraft rarity property on this typed item component definition and returns the updated builder."),
+        params(rarity = "`rarity` provides the rarity applied when setting the Minecraft rarity property on this typed item component definition and returns the updated builder."),
         returns = "Sets the Minecraft rarity property on this typed item component definition and returns the updated builder.",
         example = "use sand::prelude::*;\n\nfn demonstrate(rarity: sand::component::ItemRarity)  {\n    let item_component = sand::component::ItemComponent::rarity(rarity);\n}",
     )]
@@ -961,7 +947,7 @@ impl ItemComponent {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(id = "`id` provides the typed resource identifier or location used to set the Minecraft enchantment property on this typed item component definition and returns the updated builder.", level = "`level` supplies the level value used to set the Minecraft enchantment property on this typed item component definition and returns the updated builder."),
+        params(id = "`id` provides the typed resource identifier or location used to set the Minecraft enchantment property on this typed item component definition and returns the updated builder.", level = "`level` provides the level applied when setting the Minecraft enchantment property on this typed item component definition and returns the updated builder."),
         returns = "Sets the Minecraft enchantment property on this typed item component definition and returns the updated builder.",
         example = "use sand::prelude::*;\n\nfn demonstrate(id: sand::registry::EnchantmentId, level: u32)  {\n    let item_component = sand::component::ItemComponent::enchantment(id, level);\n}",
     )]
@@ -981,7 +967,7 @@ impl ItemComponent {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(entries = "`entries` supplies the entries value used to set the Minecraft enchantments property on this typed item component definition and returns the updated builder."),
+        params(entries = "`entries` provides the entries applied when setting the Minecraft enchantments property on this typed item component definition and returns the updated builder."),
         returns = "Sets the Minecraft enchantments property on this typed item component definition and returns the updated builder.",
         example = "use sand::prelude::*;\n\nfn demonstrate(entries: Vec < sand::component::EnchantmentEntry >)  {\n    let item_component = sand::component::ItemComponent::enchantments(entries);\n}",
     )]
@@ -1001,7 +987,7 @@ impl ItemComponent {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(id = "`id` provides the typed resource identifier or location used to set the Minecraft stored enchantment property on this typed item component definition and returns the updated builder.", level = "`level` supplies the level value used to set the Minecraft stored enchantment property on this typed item component definition and returns the updated builder."),
+        params(id = "`id` provides the typed resource identifier or location used to set the Minecraft stored enchantment property on this typed item component definition and returns the updated builder.", level = "`level` provides the level applied when setting the Minecraft stored enchantment property on this typed item component definition and returns the updated builder."),
         returns = "Sets the Minecraft stored enchantment property on this typed item component definition and returns the updated builder.",
         example = "use sand::prelude::*;\n\nfn demonstrate(id: sand::registry::EnchantmentId, level: u32)  {\n    let item_component = sand::component::ItemComponent::stored_enchantment(id, level);\n}",
     )]
@@ -1021,7 +1007,7 @@ impl ItemComponent {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(modifier = "`modifier` supplies the modifier value used to set the Minecraft attribute modifier property on this typed item component definition and returns the updated builder."),
+        params(modifier = "`modifier` provides the modifier applied when setting the Minecraft attribute modifier property on this typed item component definition and returns the updated builder."),
         returns = "Sets the Minecraft attribute modifier property on this typed item component definition and returns the updated builder.",
         example = "use sand::prelude::*;\n\nfn demonstrate(modifier: sand::component::AttributeModifier)  {\n    let item_component = sand::component::ItemComponent::attribute_modifier(modifier);\n}",
     )]
@@ -1041,7 +1027,7 @@ impl ItemComponent {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(modifiers = "`modifiers` supplies the modifiers value used to set the Minecraft attribute modifiers property on this typed item component definition and returns the updated builder."),
+        params(modifiers = "`modifiers` provides the modifiers applied when setting the Minecraft attribute modifiers property on this typed item component definition and returns the updated builder."),
         returns = "Sets the Minecraft attribute modifiers property on this typed item component definition and returns the updated builder.",
         example = "use sand::prelude::*;\n\nfn demonstrate(modifiers: Vec < sand::component::AttributeModifier >)  {\n    let item_component = sand::component::ItemComponent::attribute_modifiers(modifiers);\n}",
     )]
@@ -1061,7 +1047,7 @@ impl ItemComponent {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(food = "`food` supplies the food value used to set the Minecraft food property on this typed item component definition and returns the updated builder."),
+        params(food = "`food` provides the food applied when setting the Minecraft food property on this typed item component definition and returns the updated builder."),
         returns = "Sets the Minecraft food property on this typed item component definition and returns the updated builder.",
         example = "use sand::prelude::*;\n\nfn demonstrate(food: sand::component::FoodProperties)  {\n    let item_component = sand::component::ItemComponent::food(food);\n}",
     )]
@@ -1081,7 +1067,7 @@ impl ItemComponent {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(consumable = "`consumable` supplies the consumable value used to set the Minecraft consumable property on this typed item component definition and returns the updated builder."),
+        params(consumable = "`consumable` provides the consumable applied when setting the Minecraft consumable property on this typed item component definition and returns the updated builder."),
         returns = "Sets the Minecraft consumable property on this typed item component definition and returns the updated builder.",
         example = "use sand::prelude::*;\n\nfn demonstrate(consumable: sand::component::ConsumableProperties)  {\n    let item_component = sand::component::ItemComponent::consumable(consumable);\n}",
     )]
@@ -1101,7 +1087,7 @@ impl ItemComponent {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(equippable = "`equippable` supplies the equippable value used to set the Minecraft equippable property on this typed item component definition and returns the updated builder."),
+        params(equippable = "`equippable` provides the equippable applied when setting the Minecraft equippable property on this typed item component definition and returns the updated builder."),
         returns = "Sets the Minecraft equippable property on this typed item component definition and returns the updated builder.",
         example = "use sand::prelude::*;\n\nfn demonstrate(equippable: sand::component::EquippableProperties)  {\n    let item_component = sand::component::ItemComponent::equippable(equippable);\n}",
     )]
@@ -1121,7 +1107,7 @@ impl ItemComponent {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(tool = "`tool` supplies the tool value used to set the Minecraft tool property on this typed item component definition and returns the updated builder."),
+        params(tool = "`tool` provides the tool applied when setting the Minecraft tool property on this typed item component definition and returns the updated builder."),
         returns = "Sets the Minecraft tool property on this typed item component definition and returns the updated builder.",
         example = "use sand::prelude::*;\n\nfn demonstrate(tool: sand::component::ToolProperties)  {\n    let item_component = sand::component::ItemComponent::tool(tool);\n}",
     )]
@@ -1141,7 +1127,7 @@ impl ItemComponent {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(contents = "`contents` supplies the contents value used to set the Minecraft potion contents property on this typed item component definition and returns the updated builder."),
+        params(contents = "`contents` provides the contents applied when setting the Minecraft potion contents property on this typed item component definition and returns the updated builder."),
         returns = "Sets the Minecraft potion contents property on this typed item component definition and returns the updated builder.",
         example = "use sand::prelude::*;\n\nfn demonstrate(contents: sand::component::PotionContents)  {\n    let item_component = sand::component::ItemComponent::potion_contents(contents);\n}",
     )]
@@ -1161,7 +1147,7 @@ impl ItemComponent {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(effect = "`effect` supplies the effect value used to set the Minecraft suspicious stew effect property on this typed item component definition and returns the updated builder."),
+        params(effect = "`effect` provides the effect applied when setting the Minecraft suspicious stew effect property on this typed item component definition and returns the updated builder."),
         returns = "Sets the Minecraft suspicious stew effect property on this typed item component definition and returns the updated builder.",
         example = "use sand::prelude::*;\n\nfn demonstrate(effect: sand::component::SuspiciousStewEffect)  {\n    let item_component = sand::component::ItemComponent::suspicious_stew_effect(effect);\n}",
     )]
@@ -1181,7 +1167,7 @@ impl ItemComponent {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(effects = "`effects` supplies the effects value used to set the Minecraft suspicious stew effects property on this typed item component definition and returns the updated builder."),
+        params(effects = "`effects` provides the effects applied when setting the Minecraft suspicious stew effects property on this typed item component definition and returns the updated builder."),
         returns = "Sets the Minecraft suspicious stew effects property on this typed item component definition and returns the updated builder.",
         example = "use sand::prelude::*;\n\nfn demonstrate(effects: Vec < sand::component::SuspiciousStewEffect >)  {\n    let item_component = sand::component::ItemComponent::suspicious_stew_effects(effects);\n}",
     )]
@@ -1201,7 +1187,7 @@ impl ItemComponent {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(size = "`size` supplies the size value used to set the Minecraft max stack size property on this typed item component definition and returns the updated builder."),
+        params(size = "`size` provides the size applied when setting the Minecraft max stack size property on this typed item component definition and returns the updated builder."),
         returns = "Sets the Minecraft max stack size property on this typed item component definition and returns the updated builder.",
         example = "use sand::prelude::*;\n\nfn demonstrate(size: u32)  {\n    let item_component = sand::component::ItemComponent::max_stack_size(size);\n}",
     )]
@@ -1221,7 +1207,7 @@ impl ItemComponent {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(damage = "`damage` supplies the damage value used to set the Minecraft max damage property on this typed item component definition and returns the updated builder."),
+        params(damage = "`damage` provides the damage applied when setting the Minecraft max damage property on this typed item component definition and returns the updated builder."),
         returns = "Sets the Minecraft max damage property on this typed item component definition and returns the updated builder.",
         example = "use sand::prelude::*;\n\nfn demonstrate(damage: i32)  {\n    let item_component = sand::component::ItemComponent::max_damage(damage);\n}",
     )]
@@ -1241,7 +1227,7 @@ impl ItemComponent {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(damage = "`damage` supplies the damage value used to set the Minecraft damage property on this typed item component definition and returns the updated builder."),
+        params(damage = "`damage` provides the damage applied when setting the Minecraft damage property on this typed item component definition and returns the updated builder."),
         returns = "Sets the Minecraft damage property on this typed item component definition and returns the updated builder.",
         example = "use sand::prelude::*;\n\nfn demonstrate(damage: i32)  {\n    let item_component = sand::component::ItemComponent::damage(damage);\n}",
     )]
@@ -1281,7 +1267,7 @@ impl ItemComponent {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(data = "`data` supplies the data value used to set the Minecraft custom data property on this typed item component definition and returns the updated builder."),
+        params(data = "`data` provides the data applied when setting the Minecraft custom data property on this typed item component definition and returns the updated builder."),
         returns = "Sets the Minecraft custom data property on this typed item component definition and returns the updated builder.",
         example = "use sand::prelude::*;\n\nfn demonstrate(data: sand::component::CustomData)  {\n    let item_component = sand::component::ItemComponent::custom_data(data);\n}",
     )]
@@ -1321,8 +1307,8 @@ impl ItemComponent {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(component = "`component` supplies the component value used to provide the explicit raw component escape hatch for schema fields not yet modeled by Sand."),
-        returns = "A newly constructed `ItemComponent` configured to provide the explicit raw component escape hatch for schema fields not yet modeled by Sand.",
+        params(component = "`component` is used to provide the explicit raw component escape hatch for schema fields not yet modeled by Sand."),
+        returns = "An `ItemComponent` that provides the explicit raw component escape hatch for schema fields not yet modeled by Sand.",
         example = "use sand::prelude::*;\n\nfn demonstrate(component: sand::component::RawComponent)  {\n    let item_component = sand::component::ItemComponent::raw_component(component);\n}",
     )]
     pub fn raw_component(component: RawComponent) -> Self {
@@ -1369,8 +1355,8 @@ impl FoodProperties {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(nutrition = "`nutrition` supplies the nutrition value used to create food properties with the given nutrition and saturation values.", saturation = "`saturation` supplies the saturation value used to create food properties with the given nutrition and saturation values."),
-        returns = "A newly constructed `FoodProperties` configured to create food properties with the given nutrition and saturation values.",
+        params(nutrition = "`nutrition` is used when creating food properties with the given nutrition and saturation values.", saturation = "`saturation` is used when creating food properties with the given nutrition and saturation values."),
+        returns = "A `FoodProperties` representing food properties with the given nutrition and saturation values.",
         example = "use sand::prelude::*;\n\nfn demonstrate(nutrition: i32, saturation: f32)  {\n    let food_properties = sand::component::FoodProperties::new(nutrition, saturation);\n}",
     )]
     pub fn new(nutrition: i32, saturation: f32) -> Self {
@@ -1533,8 +1519,8 @@ impl ConsumableProperties {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(consume_seconds = "`consume_seconds` supplies the consume seconds value used to create consumable properties with the given consumption duration in seconds."),
-        returns = "A newly constructed `ConsumableProperties` configured to create consumable properties with the given consumption duration in seconds.",
+        params(consume_seconds = "`consume_seconds` is used when creating consumable properties with the given consumption duration in seconds."),
+        returns = "A `ConsumableProperties` representing consumable properties with the given consumption duration in seconds.",
         example = "use sand::prelude::*;\n\nfn demonstrate(consume_seconds: f32)  {\n    let consumable_properties = sand::component::ConsumableProperties::new(consume_seconds);\n}",
     )]
     pub fn new(consume_seconds: f32) -> Self {
@@ -1558,7 +1544,7 @@ impl ConsumableProperties {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(animation = "`animation` supplies the animation value used to set the animation to play when consuming this item."),
+        params(animation = "`animation` provides the animation applied when setting the animation to play when consuming this item."),
         returns = "The `ConsumableProperties` value with the documented change applied to set the animation to play when consuming this item.",
         example = "use sand::prelude::*;\n\nfn demonstrate(consumable_properties_value: sand::component::ConsumableProperties, animation: sand::component::ConsumableAnimation)  {\n    let updated_consumable_properties = consumable_properties_value.animation(animation);\n}",
     )]
@@ -1753,8 +1739,8 @@ impl EquippableProperties {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(slot = "`slot` supplies the slot value used to create equippable properties for the given equipment slot."),
-        returns = "A newly constructed `EquippableProperties` configured to create equippable properties for the given equipment slot.",
+        params(slot = "`slot` is used when creating equippable properties for the given equipment slot."),
+        returns = "An `EquippableProperties` representing equippable properties for the given equipment slot.",
         example = "use sand::prelude::*;\n\nfn demonstrate(slot: sand::component::EquipmentSlot)  {\n    let equippable_properties = sand::component::EquippableProperties::new(slot);\n}",
     )]
     pub fn new(slot: EquipmentSlot) -> Self {
@@ -1881,7 +1867,7 @@ impl EquippableProperties {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(tag = "`tag` supplies the tag value used to restrict equipping to entities with a specific tag."),
+        params(tag = "`tag` provides the tag restriction when equipping to entities with a specific tag."),
         returns = "The `EquippableProperties` value with the documented change applied to restrict equipping to entities with a specific tag.",
         example = "use std::fmt;\nuse sand::prelude::*;\n\nfn demonstrate(equippable_properties_value: sand::component::EquippableProperties, tag: impl fmt::Display)  {\n    let updated_equippable_properties = equippable_properties_value.allowed_entities(tag);\n}",
     )]
@@ -1921,7 +1907,7 @@ impl EquippableProperties {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(tag = "`tag` supplies the tag value used to restrict equipping to an entity type tag."),
+        params(tag = "`tag` provides the tag restriction when equipping to an entity type tag."),
         returns = "The `EquippableProperties` value with the documented change applied to restrict equipping to an entity type tag.",
         example = "use sand::prelude::*;\n\nfn demonstrate(equippable_properties_value: sand::component::EquippableProperties, tag: sand::component::TagId < sand::registry::EntityTypeId >)  {\n    let updated_equippable_properties = equippable_properties_value.allowed_entity_tag(tag);\n}",
     )]
@@ -2007,8 +1993,8 @@ impl ToolRule {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(blocks = "`blocks` supplies the blocks value used to create a new tool rule for the given block or block tag."),
-        returns = "A newly constructed `ToolRule` configured to create a new tool rule for the given block or block tag.",
+        params(blocks = "`blocks` is used when creating a new tool rule for the given block or block tag."),
+        returns = "A `ToolRule` representing a new tool rule for the given block or block tag.",
         example = "use std::fmt;\nuse sand::prelude::*;\n\nfn demonstrate(blocks: impl fmt::Display)  {\n    let tool_rule = sand::component::ToolRule::new(blocks);\n}",
     )]
     pub fn new(blocks: impl fmt::Display) -> Self {
@@ -2032,7 +2018,7 @@ impl ToolRule {
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
         params(block = "`block` provides the block value or block predicate used to create a new tool rule for one block."),
-        returns = "A newly constructed `ToolRule` configured to create a new tool rule for one block.",
+        returns = "A `ToolRule` representing a new tool rule for one block.",
         example = "use sand::prelude::*;\n\nfn demonstrate(block: sand::registry::BlockId)  {\n    let tool_rule = sand::component::ToolRule::block(block);\n}",
     )]
     pub fn block(block: BlockId) -> Self {
@@ -2051,8 +2037,8 @@ impl ToolRule {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(tag = "`tag` supplies the tag value used to create a new tool rule for a block tag."),
-        returns = "A newly constructed `ToolRule` configured to create a new tool rule for a block tag.",
+        params(tag = "`tag` is used when creating a new tool rule for a block tag."),
+        returns = "A `ToolRule` representing a new tool rule for a block tag.",
         example = "use sand::prelude::*;\n\nfn demonstrate(tag: sand::component::TagId < sand::registry::BlockId >)  {\n    let tool_rule = sand::component::ToolRule::tag(tag);\n}",
     )]
     pub fn tag(tag: TagId<BlockId>) -> Self {
@@ -2071,7 +2057,7 @@ impl ToolRule {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(speed = "`speed` supplies the speed value used to set the mining speed multiplier (1.0 = normal, 2.0 = twice as fast)."),
+        params(speed = "`speed` provides the speed applied when setting the mining speed multiplier (1.0 = normal, 2.0 = twice as fast)."),
         returns = "The `ToolRule` value with the documented change applied to set the mining speed multiplier (1.0 = normal, 2.0 = twice as fast).",
         example = "use sand::prelude::*;\n\nfn demonstrate(tool_rule_value: sand::component::ToolRule, speed: f32)  {\n    let updated_tool_rule = tool_rule_value.speed(speed);\n}",
     )]
@@ -2163,7 +2149,7 @@ impl ToolProperties {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        returns = "A newly constructed `ToolProperties` configured to create a new tool with default properties (1.0x speed, 1 damage per block).",
+        returns = "A `ToolProperties` representing a new tool with default properties (1.0x speed, 1 damage per block).",
         example = "use sand::prelude::*;\n\nfn demonstrate()  {\n    let tool_properties = sand::component::ToolProperties::new();\n}",
     )]
     pub fn new() -> Self {
@@ -2186,7 +2172,7 @@ impl ToolProperties {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(rule = "`rule` supplies the rule value used to add a tool rule for specific block types."),
+        params(rule = "`rule` provides the rule added when building a tool rule for specific block types."),
         returns = "The `ToolProperties` value with the documented change applied to add a tool rule for specific block types.",
         example = "use sand::prelude::*;\n\nfn demonstrate(tool_properties_value: sand::component::ToolProperties, rule: sand::component::ToolRule)  {\n    let updated_tool_properties = tool_properties_value.rule(rule);\n}",
     )]
@@ -2206,7 +2192,7 @@ impl ToolProperties {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(speed = "`speed` supplies the speed value used to set the default mining speed for blocks not matching any rule."),
+        params(speed = "`speed` provides the speed applied when setting the default mining speed for blocks not matching any rule."),
         returns = "The `ToolProperties` value with the documented change applied to set the default mining speed for blocks not matching any rule.",
         example = "use sand::prelude::*;\n\nfn demonstrate(tool_properties_value: sand::component::ToolProperties, speed: f32)  {\n    let updated_tool_properties = tool_properties_value.default_mining_speed(speed);\n}",
     )]
@@ -2226,7 +2212,7 @@ impl ToolProperties {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(damage = "`damage` supplies the damage value used to set how much durability damage this tool takes per broken block."),
+        params(damage = "`damage` provides the damage applied when setting how much durability damage this tool takes per broken block."),
         returns = "The `ToolProperties` value with the documented change applied to set how much durability damage this tool takes per broken block.",
         example = "use sand::prelude::*;\n\nfn demonstrate(tool_properties_value: sand::component::ToolProperties, damage: i32)  {\n    let updated_tool_properties = tool_properties_value.damage_per_block(damage);\n}",
     )]
@@ -2297,8 +2283,8 @@ impl DyedColor {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(r = "`r` supplies the r value used to create a color from individual red, green, and blue values (0-255 each).", g = "`g` supplies the g value used to create a color from individual red, green, and blue values (0-255 each).", b = "`b` supplies the b value used to create a color from individual red, green, and blue values (0-255 each)."),
-        returns = "A newly constructed `DyedColor` configured to create a color from individual red, green, and blue values (0-255 each).",
+        params(r = "`r` is used when creating a color from individual red, green, and blue values (0-255 each).", g = "`g` is used when creating a color from individual red, green, and blue values (0-255 each).", b = "`b` is used when creating a color from individual red, green, and blue values (0-255 each)."),
+        returns = "A `DyedColor` representing a color from individual red, green, and blue values (0-255 each).",
         example = "use sand::prelude::*;\n\nfn demonstrate(r: u8, g: u8, b: u8)  {\n    let dyed_color = sand::component::DyedColor::new(r, g, b);\n}",
     )]
     pub fn new(r: u8, g: u8, b: u8) -> Self {
@@ -2316,8 +2302,8 @@ impl DyedColor {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(rgb = "`rgb` supplies the rgb value used to construct a color from a 24-bit hex integer (e.g. `0xFF5733` for orange)."),
-        returns = "A newly constructed `DyedColor` configured to construct a color from a 24-bit hex integer (e.g. `0xFF5733` for orange).",
+        params(rgb = "`rgb` is used when constructing a color from a 24-bit hex integer (e.g. `0xFF5733` for orange)."),
+        returns = "A `DyedColor` representing a color from a 24-bit hex integer (e.g. `0xFF5733` for orange).",
         example = "use sand::prelude::*;\n\nfn demonstrate(rgb: u32)  {\n    let dyed_color = sand::component::DyedColor::hex(rgb);\n}",
     )]
     pub fn hex(rgb: u32) -> Self {
@@ -2580,8 +2566,8 @@ impl CustomItem {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(base = "`base` supplies the base value used to create a new custom item from a base Minecraft item ID."),
-        returns = "A newly constructed `CustomItem` configured to create a new custom item from a base Minecraft item ID.",
+        params(base = "`base` is used when creating a new custom item from a base Minecraft item ID."),
+        returns = "A `CustomItem` representing a new custom item from a base Minecraft item ID.",
         example = "use sand::component::CustomItem;\nlet item = CustomItem::new(\"minecraft:diamond_sword\");\nassert!(item.to_string().starts_with(\"minecraft:diamond_sword\"));",
     )]
     pub fn new(base: impl fmt::Display) -> Self {
@@ -2631,7 +2617,7 @@ impl CustomItem {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(component = "`component` supplies the component value used to add or merge a typed item component."),
+        params(component = "`component` provides the component added when building or merge a typed item component."),
         returns = "The `CustomItem` value with the documented change applied to add or merge a typed item component.",
         example = "use sand::prelude::*;\n\nfn demonstrate(custom_item_value: sand::component::CustomItem, component: sand::component::ItemComponent)  {\n    let updated_custom_item = custom_item_value.component(component);\n}",
     )]
@@ -2765,7 +2751,7 @@ impl CustomItem {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(data = "`data` supplies the data value used to set typed custom data for this item."),
+        params(data = "`data` provides the data applied when setting typed custom data for this item."),
         returns = "The `CustomItem` value with the documented change applied to set typed custom data for this item.",
         example = "use sand::prelude::*;\n\nfn demonstrate(custom_item_value: sand::component::CustomItem, data: sand::component::CustomData)  {\n    let updated_custom_item = custom_item_value.typed_custom_data(data);\n}",
     )]
@@ -2810,7 +2796,7 @@ impl CustomItem {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(name = "`name` provides the author-visible text value used to set the item's custom display name (not italicized)."),
+        params(name = "`name` provides the author-visible text applied when setting the item's custom display name (not italicized)."),
         returns = "The `CustomItem` value with the documented change applied to set the item's custom display name (not italicized).",
         example = "use sand::prelude::*;\n\nfn demonstrate(custom_item_value: sand::component::CustomItem, name: sand::text::TextComponent)  {\n    let updated_custom_item = custom_item_value.custom_name(name);\n}",
     )]
@@ -2830,7 +2816,7 @@ impl CustomItem {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(name = "`name` provides the author-visible text value used to set the item name component (shown italicized in UI). Use `custom_name` for non-italic text."),
+        params(name = "`name` provides the author-visible text applied when setting the item name component (shown italicized in UI). Use `custom_name` for non-italic text."),
         returns = "The `CustomItem` value with the documented change applied to set the item name component (shown italicized in UI). Use `custom_name` for non-italic text.",
         example = "use sand::prelude::*;\n\nfn demonstrate(custom_item_value: sand::component::CustomItem, name: sand::text::TextComponent)  {\n    let updated_custom_item = custom_item_value.item_name(name);\n}",
     )]
@@ -2850,7 +2836,7 @@ impl CustomItem {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(line = "`line` provides the player-visible text value used to add a single lore line to the item."),
+        params(line = "`line` provides the player-visible text added when building a single lore line to the item."),
         returns = "The `CustomItem` value with the documented change applied to add a single lore line to the item.",
         example = "use sand::prelude::*;\n\nfn demonstrate(custom_item_value: sand::component::CustomItem, line: sand::text::TextComponent)  {\n    let updated_custom_item = custom_item_value.lore_line(line);\n}",
     )]
@@ -2870,7 +2856,7 @@ impl CustomItem {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(lines = "`lines` provides the player-visible text value used to add multiple lore lines at once."),
+        params(lines = "`lines` provides the player-visible text added when building multiple lore lines at once."),
         returns = "The `CustomItem` value with the documented change applied to add multiple lore lines at once.",
         example = "use sand::prelude::*;\n\nfn demonstrate(custom_item_value: sand::component::CustomItem, lines: Vec < sand::text::TextComponent >)  {\n    let updated_custom_item = custom_item_value.lore(lines);\n}",
     )]
@@ -2890,7 +2876,7 @@ impl CustomItem {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(rarity = "`rarity` supplies the rarity value used to set the rarity level (affects item name color)."),
+        params(rarity = "`rarity` provides the rarity applied when setting the rarity level (affects item name color)."),
         returns = "The `CustomItem` value with the documented change applied to set the rarity level (affects item name color).",
         example = "use sand::prelude::*;\n\nfn demonstrate(custom_item_value: sand::component::CustomItem, rarity: sand::component::ItemRarity)  {\n    let updated_custom_item = custom_item_value.rarity(rarity);\n}",
     )]
@@ -2970,7 +2956,7 @@ impl CustomItem {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(size = "`size` supplies the size value used to set the maximum stack size for this item."),
+        params(size = "`size` provides the size applied when setting the maximum stack size for this item."),
         returns = "The `CustomItem` value with the documented change applied to set the maximum stack size for this item.",
         example = "use sand::prelude::*;\n\nfn demonstrate(custom_item_value: sand::component::CustomItem, size: u32)  {\n    let updated_custom_item = custom_item_value.max_stack_size(size);\n}",
     )]
@@ -2990,7 +2976,7 @@ impl CustomItem {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(damage = "`damage` supplies the damage value used to set the maximum durability (creates a damageable item)."),
+        params(damage = "`damage` provides the damage applied when setting the maximum durability (creates a damageable item)."),
         returns = "The `CustomItem` value with the documented change applied to set the maximum durability (creates a damageable item).",
         example = "use sand::prelude::*;\n\nfn demonstrate(custom_item_value: sand::component::CustomItem, damage: i32)  {\n    let updated_custom_item = custom_item_value.max_damage(damage);\n}",
     )]
@@ -3010,7 +2996,7 @@ impl CustomItem {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(damage = "`damage` supplies the damage value used to set the current damage value for this item."),
+        params(damage = "`damage` provides the damage applied when setting the current damage value for this item."),
         returns = "The `CustomItem` value with the documented change applied to set the current damage value for this item.",
         example = "use sand::prelude::*;\n\nfn demonstrate(custom_item_value: sand::component::CustomItem, damage: i32)  {\n    let updated_custom_item = custom_item_value.damage(damage);\n}",
     )]
@@ -3052,7 +3038,7 @@ impl CustomItem {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(cost = "`cost` supplies the cost value used to set the experience cost to repair this item at an anvil."),
+        params(cost = "`cost` provides the cost applied when setting the experience cost to repair this item at an anvil."),
         returns = "The `CustomItem` value with the documented change applied to set the experience cost to repair this item at an anvil.",
         example = "use sand::prelude::*;\n\nfn demonstrate(custom_item_value: sand::component::CustomItem, cost: i32)  {\n    let updated_custom_item = custom_item_value.repair_cost(cost);\n}",
     )]
@@ -3074,7 +3060,7 @@ impl CustomItem {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(id = "`id` provides the typed resource identifier or location used to add an enchantment by resource-location ID and level.", level = "`level` supplies the level value used to add an enchantment by resource-location ID and level."),
+        params(id = "`id` provides the typed resource identifier or location used to add an enchantment by resource-location ID and level.", level = "`level` provides the level added when building an enchantment by resource-location ID and level."),
         returns = "The `CustomItem` value with the documented change applied to add an enchantment by resource-location ID and level.",
         example = "use sand::prelude::*;\n\nfn demonstrate(custom_item_value: sand::component::CustomItem, id: impl Into < String >, level: u32)  {\n    let updated_custom_item = custom_item_value.enchantment(id, level);\n}",
     )]
@@ -3095,7 +3081,7 @@ impl CustomItem {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(id = "`id` provides the typed resource identifier or location used to add a typed enchantment by ID and level.", level = "`level` supplies the level value used to add a typed enchantment by ID and level."),
+        params(id = "`id` provides the typed resource identifier or location used to add a typed enchantment by ID and level.", level = "`level` provides the level added when building a typed enchantment by ID and level."),
         returns = "The `CustomItem` value with the documented change applied to add a typed enchantment by ID and level.",
         example = "use sand::prelude::*;\n\nfn demonstrate(custom_item_value: sand::component::CustomItem, id: sand::registry::EnchantmentId, level: u32)  {\n    let updated_custom_item = custom_item_value.typed_enchantment(id, level);\n}",
     )]
@@ -3115,7 +3101,7 @@ impl CustomItem {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(id = "`id` provides the typed resource identifier or location used to add a stored enchantment (for enchanted books).", level = "`level` supplies the level value used to add a stored enchantment (for enchanted books)."),
+        params(id = "`id` provides the typed resource identifier or location used to add a stored enchantment (for enchanted books).", level = "`level` provides the level added when building a stored enchantment (for enchanted books)."),
         returns = "The `CustomItem` value with the documented change applied to add a stored enchantment (for enchanted books).",
         example = "use sand::prelude::*;\n\nfn demonstrate(custom_item_value: sand::component::CustomItem, id: impl Into < String >, level: u32)  {\n    let updated_custom_item = custom_item_value.stored_enchantment(id, level);\n}",
     )]
@@ -3136,7 +3122,7 @@ impl CustomItem {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(id = "`id` provides the typed resource identifier or location used to add a typed stored enchantment by ID and level.", level = "`level` supplies the level value used to add a typed stored enchantment by ID and level."),
+        params(id = "`id` provides the typed resource identifier or location used to add a typed stored enchantment by ID and level.", level = "`level` provides the level added when building a typed stored enchantment by ID and level."),
         returns = "The `CustomItem` value with the documented change applied to add a typed stored enchantment by ID and level.",
         example = "use sand::prelude::*;\n\nfn demonstrate(custom_item_value: sand::component::CustomItem, id: sand::registry::EnchantmentId, level: u32)  {\n    let updated_custom_item = custom_item_value.typed_stored_enchantment(id, level);\n}",
     )]
@@ -3156,7 +3142,7 @@ impl CustomItem {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(modifier = "`modifier` supplies the modifier value used to add a pre-built [`AttributeModifier`]."),
+        params(modifier = "`modifier` provides the modifier added when building a pre-built [`AttributeModifier`]."),
         returns = "The `CustomItem` value with the documented change applied to add a pre-built [`AttributeModifier`].",
         example = "use sand::prelude::*;\n\nfn demonstrate(custom_item_value: sand::component::CustomItem, modifier: sand::component::AttributeModifier)  {\n    let updated_custom_item = custom_item_value.attribute_modifier(modifier);\n}",
     )]
@@ -3176,7 +3162,7 @@ impl CustomItem {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(attr = "`attr` supplies the attr value used to use convenience shorthand for the common case of a single attribute modifier.", amount = "`amount` provides the requested numeric amount used to use convenience shorthand for the common case of a single attribute modifier.", operation = "`operation` supplies the operation value used to use convenience shorthand for the common case of a single attribute modifier.", slot = "`slot` supplies the slot value used to use convenience shorthand for the common case of a single attribute modifier."),
+        params(attr = "`attr` sets the attr for convenience shorthand for the common case of a single attribute modifier.", amount = "`amount` provides the requested numeric amount used to use convenience shorthand for the common case of a single attribute modifier.", operation = "`operation` sets the operation for convenience shorthand for the common case of a single attribute modifier.", slot = "`slot` sets the slot for convenience shorthand for the common case of a single attribute modifier."),
         returns = "The `CustomItem` value with the documented change applied to use convenience shorthand for the common case of a single attribute modifier.",
         example = "use sand::prelude::*;\n\nfn demonstrate(custom_item_value: sand::component::CustomItem, attr: sand::component::AttributeType, amount: f64, operation: sand::component::AttributeOperation, slot: sand::component::EquipmentSlotGroup)  {\n    let updated_custom_item = custom_item_value.attribute(attr, amount, operation, slot);\n}",
     )]
@@ -3206,7 +3192,7 @@ impl CustomItem {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(food = "`food` supplies the food value used to add food properties to this item (makes it edible)."),
+        params(food = "`food` provides the food added when building food properties to this item (makes it edible)."),
         returns = "The `CustomItem` value with the documented change applied to add food properties to this item (makes it edible).",
         example = "use sand::prelude::*;\n\nfn demonstrate(custom_item_value: sand::component::CustomItem, food: sand::component::FoodProperties)  {\n    let updated_custom_item = custom_item_value.food(food);\n}",
     )]
@@ -3226,7 +3212,7 @@ impl CustomItem {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(consumable = "`consumable` supplies the consumable value used to add consumable properties to this item."),
+        params(consumable = "`consumable` provides the consumable added when building consumable properties to this item."),
         returns = "The `CustomItem` value with the documented change applied to add consumable properties to this item.",
         example = "use sand::prelude::*;\n\nfn demonstrate(custom_item_value: sand::component::CustomItem, consumable: sand::component::ConsumableProperties)  {\n    let updated_custom_item = custom_item_value.consumable(consumable);\n}",
     )]
@@ -3246,7 +3232,7 @@ impl CustomItem {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(seconds = "`seconds` supplies the seconds value used to set a use cooldown (in seconds) between each use."),
+        params(seconds = "`seconds` provides the seconds applied when setting a use cooldown (in seconds) between each use."),
         returns = "The `CustomItem` value with the documented change applied to set a use cooldown (in seconds) between each use.",
         example = "use sand::prelude::*;\n\nfn demonstrate(custom_item_value: sand::component::CustomItem, seconds: f32)  {\n    let updated_custom_item = custom_item_value.use_cooldown(seconds);\n}",
     )]
@@ -3266,7 +3252,7 @@ impl CustomItem {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(tool = "`tool` supplies the tool value used to add tool properties to this item (makes it a tool/weapon)."),
+        params(tool = "`tool` provides the tool added when building tool properties to this item (makes it a tool/weapon)."),
         returns = "The `CustomItem` value with the documented change applied to add tool properties to this item (makes it a tool/weapon).",
         example = "use sand::prelude::*;\n\nfn demonstrate(custom_item_value: sand::component::CustomItem, tool: sand::component::ToolProperties)  {\n    let updated_custom_item = custom_item_value.tool(tool);\n}",
     )]
@@ -3286,7 +3272,7 @@ impl CustomItem {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(equippable = "`equippable` supplies the equippable value used to make this item equippable in a specific slot."),
+        params(equippable = "`equippable` is used to make this item equippable in a specific slot."),
         returns = "The `CustomItem` value with the documented change applied to make this item equippable in a specific slot.",
         example = "use sand::prelude::*;\n\nfn demonstrate(custom_item_value: sand::component::CustomItem, equippable: sand::component::EquippableProperties)  {\n    let updated_custom_item = custom_item_value.equippable(equippable);\n}",
     )]
@@ -3344,7 +3330,7 @@ impl CustomItem {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(color = "`color` supplies the color value used to set a dye color for this item (for leather armor, etc.)."),
+        params(color = "`color` provides the color applied when setting a dye color for this item (for leather armor, etc.)."),
         returns = "The `CustomItem` value with the documented change applied to set a dye color for this item (for leather armor, etc.).",
         example = "use sand::prelude::*;\n\nfn demonstrate(custom_item_value: sand::component::CustomItem, color: sand::component::DyedColor)  {\n    let updated_custom_item = custom_item_value.dyed_color(color);\n}",
     )]
@@ -3364,7 +3350,7 @@ impl CustomItem {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(contents = "`contents` supplies the contents value used to set typed `minecraft:potion_contents` component data."),
+        params(contents = "`contents` provides the contents applied when setting typed `minecraft:potion_contents` component data."),
         returns = "The `CustomItem` value with the documented change applied to set typed `minecraft:potion_contents` component data.",
         example = "use sand::prelude::*;\n\nfn demonstrate(custom_item_value: sand::component::CustomItem, contents: sand::component::PotionContents)  {\n    let updated_custom_item = custom_item_value.potion_contents(contents);\n}",
     )]
@@ -3384,7 +3370,7 @@ impl CustomItem {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(effect = "`effect` supplies the effect value used to add a typed `minecraft:suspicious_stew_effects` entry."),
+        params(effect = "`effect` provides the effect added when building a typed `minecraft:suspicious_stew_effects` entry."),
         returns = "The `CustomItem` value with the documented change applied to add a typed `minecraft:suspicious_stew_effects` entry.",
         example = "use sand::prelude::*;\n\nfn demonstrate(custom_item_value: sand::component::CustomItem, effect: sand::component::SuspiciousStewEffect)  {\n    let updated_custom_item = custom_item_value.suspicious_stew_effect(effect);\n}",
     )]
@@ -3404,7 +3390,7 @@ impl CustomItem {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(effects = "`effects` supplies the effects value used to add typed `minecraft:suspicious_stew_effects` entries."),
+        params(effects = "`effects` provides the effects added when building typed `minecraft:suspicious_stew_effects` entries."),
         returns = "The `CustomItem` value with the documented change applied to add typed `minecraft:suspicious_stew_effects` entries.",
         example = "use sand::prelude::*;\n\nfn demonstrate(custom_item_value: sand::component::CustomItem, effects: Vec < sand::component::SuspiciousStewEffect >)  {\n    let updated_custom_item = custom_item_value.suspicious_stew_effects(effects);\n}",
     )]
@@ -3430,7 +3416,7 @@ impl CustomItem {
         minecraft = "The escape hatch is visible at the construction site: the component's `key=snbt_value` is appended verbatim to the component string.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(component = "`component` supplies the component value used to add a raw item component from an explicit [`RawComponent`] value (for features not covered by the typed API)."),
+        params(component = "`component` provides the component added when building a raw item component from an explicit [`RawComponent`] value (for features not covered by the typed API)."),
         returns = "The `CustomItem` value with the documented change applied to add a raw item component from an explicit [`RawComponent`] value (for features not covered by the typed API).",
         example = "use sand::prelude::*;\n\nfn demonstrate(custom_item_value: sand::component::CustomItem, component: sand::component::RawComponent)  {\n    let updated_custom_item = custom_item_value.with_raw_component(component);\n}",
     )]
@@ -3579,7 +3565,7 @@ impl CustomItem {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Use this for item interactions not covered by the other helper methods."],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(location = "`location` provides the typed resource identifier or location used to build an advancement with a custom trigger. Use this for item interactions not covered by the other helper methods.", trigger = "`trigger` supplies the trigger value used to build an advancement with a custom trigger. Use this for item interactions not covered by the other helper methods.", reward_fn = "`reward_fn` provides the typed Minecraft resource identifier used to build an advancement with a custom trigger. Use this for item interactions not covered by the other helper methods."),
+        params(location = "`location` provides the typed resource identifier or location used to build an advancement with a custom trigger. Use this for item interactions not covered by the other helper methods.", trigger = "`trigger` provides the trigger used to build an advancement with a custom trigger. Use this for item interactions not covered by the other helper methods.", reward_fn = "`reward_fn` provides the typed Minecraft resource identifier used to build an advancement with a custom trigger. Use this for item interactions not covered by the other helper methods."),
         returns = "The `Advancement` value produced to build an advancement with a custom trigger. Use this for item interactions not covered by the other helper methods.",
         example = "use sand::prelude::*;\n\nfn demonstrate(custom_item_value: &sand::component::CustomItem, location: sand::ResourceLocation, trigger: sand::component::AdvancementTrigger, reward_fn: sand::resource_ref::FunctionId)  {\n    let custom_trigger_advancement = custom_item_value.custom_trigger_advancement(location, trigger, reward_fn);\n}",
     )]

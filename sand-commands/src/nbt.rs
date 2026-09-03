@@ -72,8 +72,8 @@ impl NbtValue {
         minecraft = "Operations render vanilla data commands against entity, block, or namespaced command-storage targets and validate writable target cardinality.",
         use_when = ["Reading or mutating structured Minecraft NBT through typed paths and values"],
         avoid_when = ["A scoreboard-backed state field is simpler, or the input is untrusted raw SNBT"],
-        params(values = "`values` supplies the values value used to create an SNBT list from typed NBT values."),
-        returns = "A newly constructed `NbtValue` configured to create an SNBT list from typed NBT values.",
+        params(values = "`values` is used when creating an SNBT list from typed NBT values."),
+        returns = "A `NbtValue` representing an SNBT list from typed NBT values.",
         example = "use sand::prelude::*;\n\nfn demonstrate(values: impl IntoIterator < Item = impl Into < sand::data::NbtValue > >)  {\n    let nbt_value = sand::data::NbtValue::list(values);\n}",
     )]
     pub fn list(values: impl IntoIterator<Item = impl Into<NbtValue>>) -> Self {
@@ -93,7 +93,7 @@ impl NbtValue {
         use_when = ["Reading or mutating structured Minecraft NBT through typed paths and values"],
         avoid_when = ["A scoreboard-backed state field is simpler, or the input is untrusted raw SNBT"],
         params(value = "`value` provides the value being applied or compared used to wrap a typed SNBT compound as an NBT value."),
-        returns = "A newly constructed `NbtValue` configured to wrap a typed SNBT compound as an NBT value.",
+        returns = "A `NbtValue` wrapping a typed SNBT compound as an NBT value.",
         example = "use sand::prelude::*;\n\nfn demonstrate(value: sand::data::NbtCompound)  {\n    let nbt_value = sand::data::NbtValue::compound(value);\n}",
     )]
     pub fn compound(value: NbtCompound) -> Self {
@@ -112,8 +112,8 @@ impl NbtValue {
         minecraft = "Operations render vanilla data commands against entity, block, or namespaced command-storage targets and validate writable target cardinality.",
         use_when = ["Reading or mutating structured Minecraft NBT through typed paths and values"],
         avoid_when = ["A scoreboard-backed state field is simpler, or the input is untrusted raw SNBT"],
-        params(snbt = "`snbt` supplies the snbt value used to provide the explicit raw SNBT escape hatch after the caller accepts validation responsibility."),
-        returns = "A newly constructed `NbtValue` configured to provide the explicit raw SNBT escape hatch after the caller accepts validation responsibility.",
+        params(snbt = "`snbt` is used to provide the explicit raw SNBT escape hatch after the caller accepts validation responsibility."),
+        returns = "A `NbtValue` that provides the explicit raw SNBT escape hatch after the caller accepts validation responsibility.",
         example = "use sand::prelude::*;\n\nfn demonstrate(snbt: impl Into < String >)  {\n    let nbt_value = sand::data::NbtValue::raw(snbt);\n}",
     )]
     pub fn raw(snbt: impl Into<String>) -> Self {
@@ -218,7 +218,7 @@ impl NbtCompound {
         minecraft = "Operations render vanilla data commands against entity, block, or namespaced command-storage targets and validate writable target cardinality.",
         use_when = ["Reading or mutating structured Minecraft NBT through typed paths and values"],
         avoid_when = ["A scoreboard-backed state field is simpler, or the input is untrusted raw SNBT"],
-        returns = "A newly constructed `NbtCompound` configured to create an empty typed SNBT compound.",
+        returns = "A `NbtCompound` representing an empty typed SNBT compound.",
         example = "use sand::prelude::*;\n\nfn demonstrate()  {\n    let nbt_compound = sand::data::NbtCompound::new();\n}",
     )]
     pub fn new() -> Self {
@@ -347,7 +347,7 @@ impl NbtPath {
         use_when = ["Reading or mutating structured Minecraft NBT through typed paths and values"],
         avoid_when = ["A scoreboard-backed state field is simpler, or the input is untrusted raw SNBT"],
         params(path = "`path` provides the typed resource identifier or location used to construct a structurally checked path. Validation is performed at the fallible command-render/export boundary so ordinary command-producing call sites remain ergonomic."),
-        returns = "A newly constructed `NbtPath` configured to construct a structurally checked path. Validation is performed at the fallible command-render/export boundary so ordinary command-producing call sites remain ergonomic.",
+        returns = "A `NbtPath` representing a structurally checked path. Validation is performed at the fallible command-render/export boundary so ordinary command-producing call sites remain ergonomic.",
         example = "use sand::prelude::*;\n\nfn demonstrate(path: impl Into < String >)  {\n    let nbt_path = sand::data::NbtPath::new(path);\n}",
     )]
     pub fn new(path: impl Into<String>) -> Self {
@@ -370,7 +370,7 @@ impl NbtPath {
         use_when = ["Reading or mutating structured Minecraft NBT through typed paths and values"],
         avoid_when = ["A scoreboard-backed state field is simpler, or the input is untrusted raw SNBT"],
         params(path = "`path` provides the typed resource identifier or location used to use explicit opaque path escape hatch. The path renders unchanged."),
-        returns = "A newly constructed `NbtPath` configured to use explicit opaque path escape hatch. The path renders unchanged.",
+        returns = "A `NbtPath` configured for explicit opaque path escape hatch. The path renders unchanged.",
         example = "use sand::prelude::*;\n\nfn demonstrate(path: impl Into < String >)  {\n    let nbt_path = sand::data::NbtPath::raw(path);\n}",
     )]
     pub fn raw(path: impl Into<String>) -> Self {
@@ -393,7 +393,7 @@ impl NbtPath {
         use_when = ["Reading or mutating structured Minecraft NBT through typed paths and values"],
         avoid_when = ["A scoreboard-backed state field is simpler, or the input is untrusted raw SNBT"],
         params(path = "`path` provides the typed resource identifier or location used to use compatibility spelling for a standalone typed path."),
-        returns = "A newly constructed `NbtPath` configured to use compatibility spelling for a standalone typed path.",
+        returns = "A `NbtPath` configured for compatibility spelling for a standalone typed path.",
         example = "use sand::prelude::*;\n\nfn demonstrate(path: impl Into < String >)  {\n    let nbt_path = sand::data::NbtPath::root(path);\n}",
     )]
     pub fn root(path: impl Into<String>) -> Self {
@@ -499,7 +499,7 @@ impl NbtPath {
         minecraft = "Operations render vanilla data commands against entity, block, or namespaced command-storage targets and validate writable target cardinality.",
         use_when = ["Reading or mutating structured Minecraft NBT through typed paths and values"],
         avoid_when = ["A scoreboard-backed state field is simpler, or the input is untrusted raw SNBT"],
-        params(index = "`index` supplies the index value used to extend this typed NBT reference with the supplied index selector."),
+        params(index = "`index` is used to extend this typed NBT reference with the supplied index selector."),
         returns = "The `NbtPath` value with the documented change applied to extend this typed NBT reference with the supplied index selector.",
         example = "use sand::prelude::*;\n\nfn demonstrate(nbt_path_value: &sand::data::NbtPath, index: i32)  {\n    let updated_nbt_path = nbt_path_value.index(index);\n}",
     )]
@@ -664,7 +664,7 @@ impl DataTarget {
         use_when = ["Reading or mutating structured Minecraft NBT through typed paths and values"],
         avoid_when = ["A scoreboard-backed state field is simpler, or the input is untrusted raw SNBT"],
         params(selector = "`selector` provides the Minecraft target selection used to create an entity data-command target from a typed selector."),
-        returns = "A newly constructed `DataTarget` configured to create an entity data-command target from a typed selector.",
+        returns = "A `DataTarget` representing an entity data-command target from a typed selector.",
         example = "use sand::prelude::*;\n\nfn demonstrate(selector: sand::command::Selector)  {\n    let data_target = sand::data::DataTarget::entity(selector);\n}",
     )]
     pub fn entity(selector: Selector) -> Self {
@@ -683,8 +683,8 @@ impl DataTarget {
         minecraft = "Operations render vanilla data commands against entity, block, or namespaced command-storage targets and validate writable target cardinality.",
         use_when = ["Reading or mutating structured Minecraft NBT through typed paths and values"],
         avoid_when = ["A scoreboard-backed state field is simpler, or the input is untrusted raw SNBT"],
-        params(position = "`position` supplies the position value used to create a block data-command target from typed coordinates."),
-        returns = "A newly constructed `DataTarget` configured to create a block data-command target from typed coordinates.",
+        params(position = "`position` is used when creating a block data-command target from typed coordinates."),
+        returns = "A `DataTarget` representing a block data-command target from typed coordinates.",
         example = "use sand::prelude::*;\n\nfn demonstrate(position: sand::command::BlockPos)  {\n    let data_target = sand::data::DataTarget::block(position);\n}",
     )]
     pub fn block(position: BlockPos) -> Self {
@@ -704,7 +704,7 @@ impl DataTarget {
         use_when = ["Reading or mutating structured Minecraft NBT through typed paths and values"],
         avoid_when = ["A scoreboard-backed state field is simpler, or the input is untrusted raw SNBT"],
         params(id = "`id` provides the typed resource identifier or location used to create a command-storage data target from a namespaced identifier."),
-        returns = "A newly constructed `DataTarget` configured to create a command-storage data target from a namespaced identifier.",
+        returns = "A `DataTarget` representing a command-storage data target from a namespaced identifier.",
         example = "use sand::prelude::*;\n\nfn demonstrate(id: impl Into < String >)  {\n    let data_target = sand::data::DataTarget::storage(id);\n}",
     )]
     pub fn storage(id: impl Into<String>) -> Self {
@@ -882,7 +882,7 @@ impl Nbt {
         minecraft = "Operations render vanilla data commands against entity, block, or namespaced command-storage targets and validate writable target cardinality.",
         use_when = ["Reading or mutating structured Minecraft NBT through typed paths and values"],
         avoid_when = ["A scoreboard-backed state field is simpler, or the input is untrusted raw SNBT"],
-        params(position = "`position` supplies the position value used to start a block-backed NBT target from typed coordinates."),
+        params(position = "`position` is used to start a block-backed NBT target from typed coordinates."),
         returns = "The `NbtTarget` value produced to start a block-backed NBT target from typed coordinates.",
         example = "use sand::prelude::*;\n\nfn demonstrate(position: sand::command::BlockPos)  {\n    let block = sand::data::Nbt::block(position);\n}",
     )]
@@ -943,7 +943,7 @@ impl NbtTarget {
         use_when = ["Reading or mutating structured Minecraft NBT through typed paths and values"],
         avoid_when = ["A scoreboard-backed state field is simpler, or the input is untrusted raw SNBT"],
         params(location = "`location` provides the typed resource identifier or location used to wrap a concrete data-command location as an NBT target."),
-        returns = "A newly constructed `NbtTarget` configured to wrap a concrete data-command location as an NBT target.",
+        returns = "A `NbtTarget` wrapping a concrete data-command location as an NBT target.",
         example = "use sand::prelude::*;\n\nfn demonstrate(location: sand::data::DataTarget)  {\n    let nbt_target = sand::data::NbtTarget::new(location);\n}",
     )]
     pub fn new(location: DataTarget) -> Self {
@@ -1081,7 +1081,7 @@ impl<T> NbtRef<T> {
         use_when = ["Reading or mutating structured Minecraft NBT through typed paths and values"],
         avoid_when = ["A scoreboard-backed state field is simpler, or the input is untrusted raw SNBT"],
         params(location = "`location` provides the typed resource identifier or location used to create a typed NBT reference from a target and structured path.", path = "`path` provides the typed resource identifier or location used to create a typed NBT reference from a target and structured path."),
-        returns = "A newly constructed `NbtRef` configured to create a typed NBT reference from a target and structured path.",
+        returns = "A `NbtRef` representing a typed NBT reference from a target and structured path.",
         example = "use sand::prelude::*;\n\nfn demonstrate<T: 'static>(location: sand::data::DataTarget, path: sand::data::NbtPath)  {\n    let nbt_ref = sand::data::NbtRef ::< T >::new(location, path);\n}",
     )]
     pub fn new(location: DataTarget, path: NbtPath) -> Self {
@@ -1246,7 +1246,7 @@ impl<T> NbtRef<T> {
         minecraft = "Operations render vanilla data commands against entity, block, or namespaced command-storage targets and validate writable target cardinality.",
         use_when = ["Reading or mutating structured Minecraft NBT through typed paths and values"],
         avoid_when = ["A scoreboard-backed state field is simpler, or the input is untrusted raw SNBT"],
-        params(index = "`index` supplies the index value used to extend this typed NBT reference with the supplied index selector."),
+        params(index = "`index` is used to extend this typed NBT reference with the supplied index selector."),
         returns = "The `NbtRef < T >` value produced to extend this typed NBT reference with the supplied index selector.",
         example = "use sand::prelude::*;\n\nfn demonstrate<T: 'static>(nbt_ref_value: &sand::data::NbtRef < T >, index: i32)  {\n    let index = nbt_ref_value.index(index);\n}",
     )]
@@ -1288,7 +1288,7 @@ impl<T> NbtRef<T> {
         minecraft = "Operations render vanilla data commands against entity, block, or namespaced command-storage targets and validate writable target cardinality.",
         use_when = ["Reading or mutating structured Minecraft NBT through typed paths and values"],
         avoid_when = ["A scoreboard-backed state field is simpler, or the input is untrusted raw SNBT"],
-        params(scale = "`scale` supplies the scale value used to build the typed Minecraft data query for get scaled."),
+        params(scale = "`scale` provides the scale used to build the typed Minecraft data query for get scaled."),
         returns = "The `DataCommand` value produced to build the typed Minecraft data query for get scaled.",
         example = "use sand::prelude::*;\n\nfn demonstrate<T: 'static>(nbt_ref_value: &sand::data::NbtRef < T >, scale: f64)  {\n    let get_scaled = nbt_ref_value.get_scaled(scale);\n}",
     )]
@@ -1431,7 +1431,7 @@ impl<T> NbtRef<T> {
         minecraft = "Operations render vanilla data commands against entity, block, or namespaced command-storage targets and validate writable target cardinality.",
         use_when = ["Reading or mutating structured Minecraft NBT through typed paths and values"],
         avoid_when = ["A scoreboard-backed state field is simpler, or the input is untrusted raw SNBT"],
-        params(source = "`source` supplies the source value used to build the typed Minecraft data modification for copy from."),
+        params(source = "`source` provides the source used to build the typed Minecraft data modification for copy from."),
         returns = "The `DataCommand` value produced to build the typed Minecraft data modification for copy from.",
         example = "use sand::prelude::*;\n\nfn demonstrate<T: 'static, U: 'static>(nbt_ref_value: &sand::data::NbtRef < T >, source: & sand::data::NbtRef < U >)  {\n    let copy_from = nbt_ref_value.copy_from::<U>(source);\n}",
     )]
@@ -1451,7 +1451,7 @@ impl<T> NbtRef<T> {
         minecraft = "Operations render vanilla data commands against entity, block, or namespaced command-storage targets and validate writable target cardinality.",
         use_when = ["Reading or mutating structured Minecraft NBT through typed paths and values"],
         avoid_when = ["A scoreboard-backed state field is simpler, or the input is untrusted raw SNBT"],
-        params(source = "`source` supplies the source value used to build the typed Minecraft data modification for set string from."),
+        params(source = "`source` provides the source used to build the typed Minecraft data modification for set string from."),
         returns = "The `DataCommand` value produced to build the typed Minecraft data modification for set string from.",
         example = "use sand::prelude::*;\n\nfn demonstrate<T: 'static, U: 'static>(nbt_ref_value: &sand::data::NbtRef < T >, source: & sand::data::NbtRef < U >)  {\n    let set_string_from = nbt_ref_value.set_string_from::<U>(source);\n}",
     )]
@@ -1494,7 +1494,7 @@ impl<T> NbtRef<T> {
         minecraft = "Operations render vanilla data commands against entity, block, or namespaced command-storage targets and validate writable target cardinality.",
         use_when = ["Reading or mutating structured Minecraft NBT through typed paths and values"],
         avoid_when = ["A scoreboard-backed state field is simpler, or the input is untrusted raw SNBT"],
-        params(source = "`source` supplies the source value used to build the typed Minecraft data modification for append from."),
+        params(source = "`source` provides the source used to build the typed Minecraft data modification for append from."),
         returns = "The `DataCommand` value produced to build the typed Minecraft data modification for append from.",
         example = "use sand::prelude::*;\n\nfn demonstrate<T: 'static, U: 'static>(nbt_ref_value: &sand::data::NbtRef < T >, source: & sand::data::NbtRef < U >)  {\n    let append_from = nbt_ref_value.append_from::<U>(source);\n}",
     )]
@@ -1540,7 +1540,7 @@ impl<T> NbtRef<T> {
         minecraft = "Operations render vanilla data commands against entity, block, or namespaced command-storage targets and validate writable target cardinality.",
         use_when = ["Reading or mutating structured Minecraft NBT through typed paths and values"],
         avoid_when = ["A scoreboard-backed state field is simpler, or the input is untrusted raw SNBT"],
-        params(source = "`source` supplies the source value used to build the typed Minecraft data modification for prepend from."),
+        params(source = "`source` provides the source used to build the typed Minecraft data modification for prepend from."),
         returns = "The `DataCommand` value produced to build the typed Minecraft data modification for prepend from.",
         example = "use sand::prelude::*;\n\nfn demonstrate<T: 'static, U: 'static>(nbt_ref_value: &sand::data::NbtRef < T >, source: & sand::data::NbtRef < U >)  {\n    let prepend_from = nbt_ref_value.prepend_from::<U>(source);\n}",
     )]
@@ -1563,7 +1563,7 @@ impl<T> NbtRef<T> {
         minecraft = "Operations render vanilla data commands against entity, block, or namespaced command-storage targets and validate writable target cardinality.",
         use_when = ["Reading or mutating structured Minecraft NBT through typed paths and values"],
         avoid_when = ["A scoreboard-backed state field is simpler, or the input is untrusted raw SNBT"],
-        params(index = "`index` supplies the index value used to build the typed Minecraft data modification for insert.", value = "`value` provides the value being applied or compared used to build the typed Minecraft data modification for insert."),
+        params(index = "`index` provides the index used to build the typed Minecraft data modification for insert.", value = "`value` provides the value being applied or compared used to build the typed Minecraft data modification for insert."),
         returns = "The `DataCommand` value produced to build the typed Minecraft data modification for insert.",
         example = "use sand::prelude::*;\n\nfn demonstrate<T: 'static>(nbt_ref_value: &sand::data::NbtRef < T >, index: i32, value: impl Into < sand::data::NbtValue >)  {\n    let insert = nbt_ref_value.insert(index, value);\n}",
     )]
@@ -1586,7 +1586,7 @@ impl<T> NbtRef<T> {
         minecraft = "Operations render vanilla data commands against entity, block, or namespaced command-storage targets and validate writable target cardinality.",
         use_when = ["Reading or mutating structured Minecraft NBT through typed paths and values"],
         avoid_when = ["A scoreboard-backed state field is simpler, or the input is untrusted raw SNBT"],
-        params(index = "`index` supplies the index value used to build the typed Minecraft data modification for insert from.", source = "`source` supplies the source value used to build the typed Minecraft data modification for insert from."),
+        params(index = "`index` provides the index used to build the typed Minecraft data modification for insert from.", source = "`source` provides the source used to build the typed Minecraft data modification for insert from."),
         returns = "The `DataCommand` value produced to build the typed Minecraft data modification for insert from.",
         example = "use sand::prelude::*;\n\nfn demonstrate<T: 'static, U: 'static>(nbt_ref_value: &sand::data::NbtRef < T >, index: i32, source: & sand::data::NbtRef < U >)  {\n    let insert_from = nbt_ref_value.insert_from::<U>(index, source);\n}",
     )]
@@ -1629,7 +1629,7 @@ impl<T> NbtRef<T> {
         minecraft = "Operations render vanilla data commands against entity, block, or namespaced command-storage targets and validate writable target cardinality.",
         use_when = ["Reading or mutating structured Minecraft NBT through typed paths and values"],
         avoid_when = ["A scoreboard-backed state field is simpler, or the input is untrusted raw SNBT"],
-        params(source = "`source` supplies the source value used to build the typed Minecraft data modification for merge from."),
+        params(source = "`source` provides the source used to build the typed Minecraft data modification for merge from."),
         returns = "The `DataCommand` value produced to build the typed Minecraft data modification for merge from.",
         example = "use sand::prelude::*;\n\nfn demonstrate<T: 'static, U: 'static>(nbt_ref_value: &sand::data::NbtRef < T >, source: & sand::data::NbtRef < U >)  {\n    let merge_from = nbt_ref_value.merge_from::<U>(source);\n}",
     )]
@@ -1743,36 +1743,36 @@ pub enum DataSource {
     avoid_when = ["A scoreboard-backed state field is simpler, or the input is untrusted raw SNBT"],
     example = "use sand::data::DataCommand;",
     variants(Get = "Selects the get NBT or data-command operation.", Merge = "Selects the merge NBT or data-command operation.", Modify = "Selects the modify NBT or data-command operation.", Remove = "Selects the remove NBT or data-command operation."),
-    variant_fields(Get(scale = "`scale` optionally provides the particle scale when the variant selects the get NBT or data-command operation.", source = "`source` provides the source when the variant selects the get NBT or data-command operation."), Merge(target = "`target` provides the command target when the variant selects the merge NBT or data-command operation.", value = "`value` provides the value when the variant selects the merge NBT or data-command operation."), Modify(operation = "`operation` provides the operation when the variant selects the modify NBT or data-command operation.", source = "`source` provides the source when the variant selects the modify NBT or data-command operation.", target = "`target` provides the command target when the variant selects the modify NBT or data-command operation."), Remove(target = "`target` provides the command target when the variant selects the remove NBT or data-command operation.")),
+    variant_fields(Get(scale = "`scale` optionally supplies the particle scale for the data get operation.", source = "`source` supplies the source for the data get operation."), Merge(target = "`target` supplies the command target for the data merge operation.", value = "`value` supplies the value for the data merge operation."), Modify(operation = "`operation` supplies the operation for the data modify operation.", source = "`source` supplies the source for the data modify operation.", target = "`target` supplies the command target for the data modify operation."), Remove(target = "`target` supplies the command target for the data remove operation.")),
 )]
 #[derive(Debug, Clone)]
 pub enum DataCommand {
     #[doc = "Selects the get NBT or data-command operation."]
     Get {
-        /// `source` provides the source when the variant selects the get NBT or data-command operation.
+        /// `source` supplies the source for the data get operation.
         source: NbtRef,
-        /// `scale` optionally provides the particle scale when the variant selects the get NBT or data-command operation.
+        /// `scale` optionally supplies the particle scale for the data get operation.
         scale: Option<f64>,
     },
     #[doc = "Selects the remove NBT or data-command operation."]
     Remove {
-        /// `target` provides the command target when the variant selects the remove NBT or data-command operation.
+        /// `target` supplies the command target for the data remove operation.
         target: NbtRef,
     },
     #[doc = "Selects the modify NBT or data-command operation."]
     Modify {
-        /// `target` provides the command target when the variant selects the modify NBT or data-command operation.
+        /// `target` supplies the command target for the data modify operation.
         target: NbtRef,
-        /// `operation` provides the operation when the variant selects the modify NBT or data-command operation.
+        /// `operation` supplies the operation for the data modify operation.
         operation: DataModifyOperation,
-        /// `source` provides the source when the variant selects the modify NBT or data-command operation.
+        /// `source` supplies the source for the data modify operation.
         source: DataSource,
     },
     #[doc = "Selects the merge NBT or data-command operation."]
     Merge {
-        /// `target` provides the command target when the variant selects the merge NBT or data-command operation.
+        /// `target` supplies the command target for the data merge operation.
         target: DataTarget,
-        /// `value` provides the value when the variant selects the merge NBT or data-command operation.
+        /// `value` supplies the value for the data merge operation.
         value: NbtCompound,
     },
 }
@@ -1790,7 +1790,7 @@ impl DataCommand {
         minecraft = "Operations render vanilla data commands against entity, block, or namespaced command-storage targets and validate writable target cardinality.",
         use_when = ["Reading or mutating structured Minecraft NBT through typed paths and values"],
         avoid_when = ["A scoreboard-backed state field is simpler, or the input is untrusted raw SNBT"],
-        params(profile = "`profile` supplies the profile value used to validate and renders this typed Minecraft data command for the selected command profile."),
+        params(profile = "`profile` is the profile checked when validating and renders this typed Minecraft data command for the selected command profile."),
         returns = "On success, the value produced to validate and renders this typed Minecraft data command for the selected command profile; otherwise, the documented validation or export diagnostic.",
         example = "use sand::prelude::*;\n\nfn demonstrate(data_command_value: &sand::data::DataCommand, profile: & sand::command::CommandProfile)  {\n    let try_render = data_command_value.try_render(profile);\n}",
     )]
@@ -1813,7 +1813,7 @@ impl DataCommand {
         minecraft = "Operations render vanilla data commands against entity, block, or namespaced command-storage targets and validate writable target cardinality.",
         use_when = ["Reading or mutating structured Minecraft NBT through typed paths and values"],
         avoid_when = ["A scoreboard-backed state field is simpler, or the input is untrusted raw SNBT"],
-        params(pattern = "`pattern` supplies the pattern value used to use compatibility convenience for assertions on rendered command text."),
+        params(pattern = "`pattern` sets the pattern for compatibility convenience for assertions on rendered command text."),
         returns = "`true` when the documented condition holds to use compatibility convenience for assertions on rendered command text; otherwise `false`.",
         example = "use sand::prelude::*;\n\nfn demonstrate(data_command_value: &sand::data::DataCommand, pattern: & str)  {\n    let is_contains = data_command_value.contains(pattern);\n}",
     )]
@@ -2069,7 +2069,7 @@ impl DataModify {
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
         params(target = "`target` provides the entity, block, or command target used to create a typed data modify command builder from the supplied command inputs.", path = "`path` provides the typed resource identifier or location used to create a typed data modify command builder from the supplied command inputs."),
-        returns = "A newly constructed `DataModify` configured to create a typed data modify command builder from the supplied command inputs.",
+        returns = "A `DataModify` representing a typed data modify command builder from the supplied command inputs.",
         example = "use sand::prelude::*;\n\nfn demonstrate(target: sand::data::DataTarget, path: impl Into < sand::data::NbtPath >)  {\n    let data_modify = sand::command::DataModify::new(target, path);\n}",
     )]
     pub fn new(target: DataTarget, path: impl Into<NbtPath>) -> Self {
@@ -2110,7 +2110,7 @@ impl DataModify {
         minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        params(source = "`source` supplies the source value used to render the Minecraft command that sets from for the selected data modify.", source_path = "`source_path` supplies the source path value used to render the Minecraft command that sets from for the selected data modify."),
+        params(source = "`source` provides the source rendered when the Minecraft command that sets from for the selected data modify.", source_path = "`source_path` provides the source path rendered when the Minecraft command that sets from for the selected data modify."),
         returns = "The rendered Minecraft command text produced to render the Minecraft command that sets from for the selected data modify.",
         example = "use sand::prelude::*;\n\nfn demonstrate(data_modify_value: sand::command::DataModify, source: sand::data::DataTarget, source_path: impl Into < sand::data::NbtPath >)  {\n    let command = data_modify_value.set_from(source, source_path);\n}",
     )]
@@ -2152,7 +2152,7 @@ impl DataModify {
         minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        params(source = "`source` supplies the source value used to render the Minecraft append from command for the selected data modify.", source_path = "`source_path` supplies the source path value used to render the Minecraft append from command for the selected data modify."),
+        params(source = "`source` provides the source rendered when the Minecraft append from command for the selected data modify.", source_path = "`source_path` provides the source path rendered when the Minecraft append from command for the selected data modify."),
         returns = "The rendered Minecraft command text produced to render the Minecraft append from command for the selected data modify.",
         example = "use sand::prelude::*;\n\nfn demonstrate(data_modify_value: sand::command::DataModify, source: sand::data::DataTarget, source_path: impl Into < sand::data::NbtPath >)  {\n    let command = data_modify_value.append_from(source, source_path);\n}",
     )]
@@ -2194,7 +2194,7 @@ impl DataModify {
         minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        params(index = "`index` supplies the index value used to render the Minecraft insert command for the selected data modify.", value = "`value` provides the value being applied or compared used to render the Minecraft insert command for the selected data modify."),
+        params(index = "`index` provides the index rendered when the Minecraft insert command for the selected data modify.", value = "`value` provides the value being applied or compared used to render the Minecraft insert command for the selected data modify."),
         returns = "The rendered Minecraft command text produced to render the Minecraft insert command for the selected data modify.",
         example = "use sand::prelude::*;\n\nfn demonstrate(data_modify_value: sand::command::DataModify, index: i32, value: impl Into < sand::data::NbtValue >)  {\n    let command = data_modify_value.insert(index, value);\n}",
     )]

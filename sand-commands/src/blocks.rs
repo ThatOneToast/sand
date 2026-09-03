@@ -137,7 +137,7 @@ impl BlockState {
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
         params(block = "`block` provides the block value or block predicate used to start building a block state string for the given block ID (e.g. `\"minecraft:stone\"`)."),
-        returns = "A newly constructed `BlockState` configured to start building a block state string for the given block ID (e.g. `\"minecraft:stone\"`).",
+        returns = "A `BlockState` initialized to building a block state string for the given block ID (e.g. `\"minecraft:stone\"`).",
         example = "use sand::prelude::*;\n\nfn demonstrate(block: impl Into < String >)  {\n    let block_state = sand::command::BlockState::of(block);\n}",
     )]
     pub fn of(block: impl Into<String>) -> Self {
@@ -180,7 +180,7 @@ impl BlockState {
         minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        params(iter = "`iter` supplies the iter value used to add multiple block state properties at once from an iterator of `(key, value)` pairs."),
+        params(iter = "`iter` provides the iter added when building multiple block state properties at once from an iterator of `(key, value)` pairs."),
         returns = "The `BlockState` value with the documented change applied to add multiple block state properties at once from an iterator of `(key, value)` pairs.",
         example = "use sand::prelude::*;\n\nfn demonstrate<K: 'static, V: 'static>(block_state_value: sand::command::BlockState, iter: impl IntoIterator < Item = (K , V) >) where K : Into < String > , V : Into < String > {\n    let updated_block_state = block_state_value.props::<K, V>(iter);\n}",
     )]
@@ -339,8 +339,8 @@ impl SetBlock {
         minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        params(pos = "`pos` supplies the pos value used to create a new `setblock` command at the given position.", block = "`block` provides the block value or block predicate used to create a new `setblock` command at the given position."),
-        returns = "A newly constructed `SetBlock` configured to create a new `setblock` command at the given position.",
+        params(pos = "`pos` is used when creating a new `setblock` command at the given position.", block = "`block` provides the block value or block predicate used to create a new `setblock` command at the given position."),
+        returns = "A `SetBlock` representing a new `setblock` command at the given position.",
         example = "use sand::prelude::*;\n\nfn demonstrate(pos: sand::command::BlockPos, block: impl Into < sand::command::BlockState >)  {\n    let set_block = sand::command::SetBlock::new(pos, block);\n}",
     )]
     pub fn new(pos: BlockPos, block: impl Into<BlockState>) -> Self {
@@ -363,7 +363,7 @@ impl SetBlock {
         minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        params(mode = "`mode` supplies the mode value used to set the mode for this `setblock` command."),
+        params(mode = "`mode` provides the mode applied when setting the mode for this `setblock` command."),
         returns = "The `SetBlock` value with the documented change applied to set the mode for this `setblock` command.",
         example = "use sand::prelude::*;\n\nfn demonstrate(set_block_value: sand::command::SetBlock, mode: sand::command::SetBlockMode)  {\n    let updated_set_block = set_block_value.mode(mode);\n}",
     )]
@@ -502,7 +502,7 @@ impl Fill {
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
         params(from = "Create a new `fill` command for the region from `from` to `to`.", to = "Create a new `fill` command for the region from `from` to `to`.", block = "`block` provides the block value or block predicate used to create a new `fill` command for the region from `from` to `to`."),
-        returns = "A newly constructed `Fill` configured to create a new `fill` command for the region from `from` to `to`.",
+        returns = "A `Fill` representing a new `fill` command for the region from `from` to `to`.",
         example = "use sand::prelude::*;\n\nfn demonstrate(from: sand::command::BlockPos, to: sand::command::BlockPos, block: impl Into < sand::command::BlockState >)  {\n    let fill = sand::command::Fill::new(from, to, block);\n}",
     )]
     pub fn new(from: BlockPos, to: BlockPos, block: impl Into<BlockState>) -> Self {
@@ -526,7 +526,7 @@ impl Fill {
         minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        params(mode = "`mode` supplies the mode value used to set the mode for this `fill` command."),
+        params(mode = "`mode` provides the mode applied when setting the mode for this `fill` command."),
         returns = "The `Fill` value with the documented change applied to set the mode for this `fill` command.",
         example = "use sand::prelude::*;\n\nfn demonstrate(fill_value: sand::command::Fill, mode: sand::command::FillMode)  {\n    let updated_fill = fill_value.mode(mode);\n}",
     )]
@@ -701,8 +701,8 @@ impl CloneBlocks {
         minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        params(from = "`from` supplies the from value used to create a new `clone` command from region `from..to` to `dest`.", to = "`to` supplies the to value used to create a new `clone` command from region `from..to` to `dest`.", dest = "Create a new `clone` command from region `from..to` to `dest`."),
-        returns = "A newly constructed `CloneBlocks` configured to create a new `clone` command from region `from..to` to `dest`.",
+        params(from = "`from` is used when creating a new `clone` command from region `from..to` to `dest`.", to = "`to` is used when creating a new `clone` command from region `from..to` to `dest`.", dest = "Create a new `clone` command from region `from..to` to `dest`."),
+        returns = "A `CloneBlocks` representing a new `clone` command from region `from..to` to `dest`.",
         example = "use sand::prelude::*;\n\nfn demonstrate(from: sand::command::BlockPos, to: sand::command::BlockPos, dest: sand::command::BlockPos)  {\n    let clone_blocks = sand::command::CloneBlocks::new(from, to, dest);\n}",
     )]
     pub fn new(from: BlockPos, to: BlockPos, dest: BlockPos) -> Self {
@@ -770,7 +770,7 @@ impl CloneBlocks {
         minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        params(mode = "`mode` supplies the mode value used to set the clone mode (normal, force, or move)."),
+        params(mode = "`mode` provides the mode applied when setting the clone mode (normal, force, or move)."),
         returns = "The `CloneBlocks` value with the documented change applied to set the clone mode (normal, force, or move).",
         example = "use sand::prelude::*;\n\nfn demonstrate(clone_blocks_value: sand::command::CloneBlocks, mode: sand::command::CloneMode)  {\n    let updated_clone_blocks = clone_blocks_value.clone_mode(mode);\n}",
     )]

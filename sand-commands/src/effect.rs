@@ -50,8 +50,8 @@ impl EffectDuration {
         minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        params(seconds = "`seconds` supplies the seconds value used to create an effect duration measured in whole seconds."),
-        returns = "A newly constructed `EffectDuration` configured to create an effect duration measured in whole seconds.",
+        params(seconds = "`seconds` is used when creating an effect duration measured in whole seconds."),
+        returns = "An `EffectDuration` representing an effect duration measured in whole seconds.",
         example = "use sand::prelude::*;\n\nfn demonstrate(seconds: u32)  {\n    let effect_duration = sand::command::EffectDuration::seconds(seconds);\n}",
     )]
     pub const fn seconds(seconds: u32) -> Self {
@@ -71,7 +71,7 @@ impl EffectDuration {
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
         params(ticks = "`ticks` provides the Minecraft tick duration used to create an effect duration measured in game ticks."),
-        returns = "A newly constructed `EffectDuration` configured to create an effect duration measured in game ticks.",
+        returns = "An `EffectDuration` representing an effect duration measured in game ticks.",
         example = "use sand::prelude::*;\n\nfn demonstrate(ticks: u32)  {\n    let effect_duration = sand::command::EffectDuration::ticks(ticks);\n}",
     )]
     pub const fn ticks(ticks: u32) -> Self {
@@ -123,8 +123,8 @@ impl EffectCommand {
         minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        params(target = "`target` provides the entity, block, or command target used to create a typed effect command builder from the supplied command inputs.", effect = "`effect` supplies the effect value used to create a typed effect command builder from the supplied command inputs."),
-        returns = "A newly constructed `EffectCommand` configured to create a typed effect command builder from the supplied command inputs.",
+        params(target = "`target` provides the entity, block, or command target used to create a typed effect command builder from the supplied command inputs.", effect = "`effect` is used when creating a typed effect command builder from the supplied command inputs."),
+        returns = "An `EffectCommand` representing a typed effect command builder from the supplied command inputs.",
         example = "use sand::prelude::*;\n\nfn demonstrate(target: sand::command::Selector, effect: impl Into < String >)  {\n    let effect_command = sand::command::EffectCommand::give(target, effect);\n}",
     )]
     pub fn give(target: Selector, effect: impl Into<String>) -> Self {
@@ -150,8 +150,8 @@ impl EffectCommand {
         minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        params(target = "`target` provides the entity, block, or command target used to use the explicit raw give escape hatch on the effect command builder.", effect = "`effect` supplies the effect value used to use the explicit raw give escape hatch on the effect command builder."),
-        returns = "A newly constructed `EffectCommand` configured to use the explicit raw give escape hatch on the effect command builder.",
+        params(target = "`target` provides the entity, block, or command target used to use the explicit raw give escape hatch on the effect command builder.", effect = "`effect` sets the effect for the explicit raw give escape hatch on the effect command builder."),
+        returns = "An `EffectCommand` configured for the explicit raw give escape hatch on the effect command builder.",
         example = "use sand::prelude::*;\n\nfn demonstrate(target: sand::command::Selector, effect: impl Into < String >)  {\n    let effect_command = sand::command::EffectCommand::give_raw(target, effect);\n}",
     )]
     pub fn give_raw(target: Selector, effect: impl Into<String>) -> Self {
@@ -194,7 +194,7 @@ impl EffectCommand {
         minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        params(amplifier = "`amplifier` supplies the amplifier value used to set the zero-based effect amplifier on this command builder."),
+        params(amplifier = "`amplifier` provides the amplifier applied when setting the zero-based effect amplifier on this command builder."),
         returns = "The `EffectCommand` value with the documented change applied to set the zero-based effect amplifier on this command builder.",
         example = "use sand::prelude::*;\n\nfn demonstrate(effect_command_value: sand::command::EffectCommand, amplifier: u8)  {\n    let updated_effect_command = effect_command_value.amplifier(amplifier);\n}",
     )]

@@ -55,7 +55,7 @@ impl BannerPattern {
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
         params(location = "`location` provides the typed resource identifier or location used to create a new banner pattern with the given resource location."),
-        returns = "A newly constructed `BannerPattern` configured to create a new banner pattern with the given resource location.",
+        returns = "A `BannerPattern` representing a new banner pattern with the given resource location.",
         example = "use sand::prelude::*;\n\nfn demonstrate(location: sand::ResourceLocation)  {\n    let banner_pattern = sand::component::BannerPattern::new(location);\n}",
     )]
     pub fn new(location: ResourceLocation) -> Self {

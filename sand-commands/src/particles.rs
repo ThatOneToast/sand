@@ -142,8 +142,8 @@ impl Particle {
         minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        params(name = "`name` provides the author-visible text value used to use a named particle with no extra parameters (e.g. `\"minecraft:flame\"`)."),
-        returns = "A newly constructed `Particle` configured to use a named particle with no extra parameters (e.g. `\"minecraft:flame\"`).",
+        params(name = "`name` sets the author-visible text for a named particle with no extra parameters (e.g. `\"minecraft:flame\"`)."),
+        returns = "A `Particle` configured for a named particle with no extra parameters (e.g. `\"minecraft:flame\"`).",
         example = "use sand::prelude::*;\n\nfn demonstrate(name: impl sand::command::IntoParticleId)  {\n    let particle = sand::command::Particle::named(name);\n}",
     )]
     pub fn named(name: impl IntoParticleId) -> Self {
@@ -165,8 +165,8 @@ impl Particle {
         minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        params(token = "`token` supplies the token value used to create an intentionally opaque particle token. Sand renders this unchanged and does not apply particle-specific compatibility checks."),
-        returns = "A newly constructed `Particle` configured to create an intentionally opaque particle token. Sand renders this unchanged and does not apply particle-specific compatibility checks.",
+        params(token = "`token` is used when creating an intentionally opaque particle token. Sand renders this unchanged and does not apply particle-specific compatibility checks."),
+        returns = "A `Particle` representing an intentionally opaque particle token. Sand renders this unchanged and does not apply particle-specific compatibility checks.",
         example = "use sand::prelude::*;\n\nfn demonstrate(token: impl Into < String >)  {\n    let particle = sand::command::Particle::raw_token(token);\n}",
     )]
     pub fn raw_token(token: impl Into<String>) -> Self {
@@ -185,8 +185,8 @@ impl Particle {
         minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        params(r = "`r` supplies the r value used to use colored dust particle. RGB values in `0.0–1.0`, scale is size (1.0 = default).", g = "`g` supplies the g value used to use colored dust particle. RGB values in `0.0–1.0`, scale is size (1.0 = default).", b = "`b` supplies the b value used to use colored dust particle. RGB values in `0.0–1.0`, scale is size (1.0 = default).", scale = "`scale` supplies the scale value used to use colored dust particle. RGB values in `0.0–1.0`, scale is size (1.0 = default)."),
-        returns = "A newly constructed `Particle` configured to use colored dust particle. RGB values in `0.0–1.0`, scale is size (1.0 = default).",
+        params(r = "`r` sets the r for colored dust particle. RGB values in `0.0–1.0`, scale is size (1.0 = default).", g = "`g` sets the g for colored dust particle. RGB values in `0.0–1.0`, scale is size (1.0 = default).", b = "`b` sets the b for colored dust particle. RGB values in `0.0–1.0`, scale is size (1.0 = default).", scale = "`scale` sets the scale for colored dust particle. RGB values in `0.0–1.0`, scale is size (1.0 = default)."),
+        returns = "A `Particle` configured for colored dust particle. RGB values in `0.0–1.0`, scale is size (1.0 = default).",
         example = "use sand::prelude::*;\n\nfn demonstrate(r: f32, g: f32, b: f32, scale: f32)  {\n    let particle = sand::command::Particle::dust(r, g, b, scale);\n}",
     )]
     pub fn dust(r: f32, g: f32, b: f32, scale: f32) -> Self {
@@ -205,8 +205,8 @@ impl Particle {
         minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        params(r = "`r` supplies the r value used to use colored dust from 8-bit RGB (0–255).", g = "`g` supplies the g value used to use colored dust from 8-bit RGB (0–255).", b = "`b` supplies the b value used to use colored dust from 8-bit RGB (0–255).", scale = "`scale` supplies the scale value used to use colored dust from 8-bit RGB (0–255)."),
-        returns = "A newly constructed `Particle` configured to use colored dust from 8-bit RGB (0–255).",
+        params(r = "`r` sets the r for colored dust from 8-bit RGB (0–255).", g = "`g` sets the g for colored dust from 8-bit RGB (0–255).", b = "`b` sets the b for colored dust from 8-bit RGB (0–255).", scale = "`scale` sets the scale for colored dust from 8-bit RGB (0–255)."),
+        returns = "A `Particle` configured for colored dust from 8-bit RGB (0–255).",
         example = "use sand::prelude::*;\n\nfn demonstrate(r: u8, g: u8, b: u8, scale: f32)  {\n    let particle = sand::command::Particle::dust_u8(r, g, b, scale);\n}",
     )]
     pub fn dust_u8(r: u8, g: u8, b: u8, scale: f32) -> Self {
@@ -230,8 +230,8 @@ impl Particle {
         minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        params(hex = "`hex` supplies the hex value used to use colored dust from a hex RGB value, e.g. `0xFF4400` for orange.", scale = "`scale` supplies the scale value used to use colored dust from a hex RGB value, e.g. `0xFF4400` for orange."),
-        returns = "A newly constructed `Particle` configured to use colored dust from a hex RGB value, e.g. `0xFF4400` for orange.",
+        params(hex = "`hex` sets the hex for colored dust from a hex RGB value, e.g. `0xFF4400` for orange.", scale = "`scale` sets the scale for colored dust from a hex RGB value, e.g. `0xFF4400` for orange."),
+        returns = "A `Particle` configured for colored dust from a hex RGB value, e.g. `0xFF4400` for orange.",
         example = "use sand::prelude::*;\n\nfn demonstrate(hex: u32, scale: f32)  {\n    let particle = sand::command::Particle::dust_hex(hex, scale);\n}",
     )]
     pub fn dust_hex(hex: u32, scale: f32) -> Self {
@@ -255,8 +255,8 @@ impl Particle {
         minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        params(from_r = "`from_r` supplies the from r value used to use color-transitioning dust. RGB values in `0.0–1.0`.", from_g = "`from_g` supplies the from g value used to use color-transitioning dust. RGB values in `0.0–1.0`.", from_b = "`from_b` supplies the from b value used to use color-transitioning dust. RGB values in `0.0–1.0`.", to_r = "`to_r` supplies the to r value used to use color-transitioning dust. RGB values in `0.0–1.0`.", to_g = "`to_g` supplies the to g value used to use color-transitioning dust. RGB values in `0.0–1.0`.", to_b = "`to_b` supplies the to b value used to use color-transitioning dust. RGB values in `0.0–1.0`.", scale = "`scale` supplies the scale value used to use color-transitioning dust. RGB values in `0.0–1.0`."),
-        returns = "A newly constructed `Particle` configured to use color-transitioning dust. RGB values in `0.0–1.0`.",
+        params(from_r = "`from_r` sets the from r for color-transitioning dust. RGB values in `0.0–1.0`.", from_g = "`from_g` sets the from g for color-transitioning dust. RGB values in `0.0–1.0`.", from_b = "`from_b` sets the from b for color-transitioning dust. RGB values in `0.0–1.0`.", to_r = "`to_r` sets the to r for color-transitioning dust. RGB values in `0.0–1.0`.", to_g = "`to_g` sets the to g for color-transitioning dust. RGB values in `0.0–1.0`.", to_b = "`to_b` sets the to b for color-transitioning dust. RGB values in `0.0–1.0`.", scale = "`scale` sets the scale for color-transitioning dust. RGB values in `0.0–1.0`."),
+        returns = "A `Particle` configured for color-transitioning dust. RGB values in `0.0–1.0`.",
         example = "use sand::prelude::*;\n\nfn demonstrate(from_r: f32, from_g: f32, from_b: f32, to_r: f32, to_g: f32, to_b: f32, scale: f32)  {\n    let particle = sand::command::Particle::dust_transition(from_r, from_g, from_b, to_r, to_g, to_b, scale);\n}",
     )]
     pub fn dust_transition(
@@ -291,8 +291,8 @@ impl Particle {
         minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        params(from_hex = "`from_hex` supplies the from hex value used to use color-transitioning dust from two hex RGB values.", to_hex = "`to_hex` supplies the to hex value used to use color-transitioning dust from two hex RGB values.", scale = "`scale` supplies the scale value used to use color-transitioning dust from two hex RGB values."),
-        returns = "A newly constructed `Particle` configured to use color-transitioning dust from two hex RGB values.",
+        params(from_hex = "`from_hex` sets the from hex for color-transitioning dust from two hex RGB values.", to_hex = "`to_hex` sets the to hex for color-transitioning dust from two hex RGB values.", scale = "`scale` sets the scale for color-transitioning dust from two hex RGB values."),
+        returns = "A `Particle` configured for color-transitioning dust from two hex RGB values.",
         example = "use sand::prelude::*;\n\nfn demonstrate(from_hex: u32, to_hex: u32, scale: f32)  {\n    let particle = sand::command::Particle::dust_transition_hex(from_hex, to_hex, scale);\n}",
     )]
     pub fn dust_transition_hex(from_hex: u32, to_hex: u32, scale: f32) -> Self {
@@ -321,8 +321,8 @@ impl Particle {
         minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        params(state = "`state` supplies the state value used to block break texture particle, e.g. `\"minecraft:stone\"`."),
-        returns = "A newly constructed `Particle` configured to block break texture particle, e.g. `\"minecraft:stone\"`.",
+        params(state = "`state` selects the block texture shown by the break particle, e.g. `\"minecraft:stone\"`."),
+        returns = "A `Particle` representing a block-break texture particle, e.g. `\"minecraft:stone\"`.",
         example = "use sand::prelude::*;\n\nfn demonstrate(state: impl Into < String >)  {\n    let particle = sand::command::Particle::block(state);\n}",
     )]
     pub fn block(state: impl Into<String>) -> Self {
@@ -342,7 +342,7 @@ impl Particle {
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
         params(item = "`item` provides the item value or item predicate used to item texture particle, e.g. `\"minecraft:diamond_sword\"`."),
-        returns = "A newly constructed `Particle` configured to item texture particle, e.g. `\"minecraft:diamond_sword\"`.",
+        returns = "A `Particle` representing an item-texture particle, e.g. `\"minecraft:diamond_sword\"`.",
         example = "use sand::prelude::*;\n\nfn demonstrate(item: impl Into < String >)  {\n    let particle = sand::command::Particle::item(item);\n}",
     )]
     pub fn item(item: impl Into<String>) -> Self {
@@ -361,8 +361,8 @@ impl Particle {
         minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        params(roll = "`roll` supplies the roll value used to emit the documented `minecraft:sculk_charge` with a roll angle in radians form."),
-        returns = "A newly constructed `Particle` configured to emit the documented `minecraft:sculk_charge` with a roll angle in radians form.",
+        params(roll = "`roll` supplies the documented `minecraft:sculk_charge` with a roll angle in radians form."),
+        returns = "A `Particle` that emits the documented `minecraft:sculk_charge` with a roll angle in radians form.",
         example = "use sand::prelude::*;\n\nfn demonstrate(roll: f32)  {\n    let particle = sand::command::Particle::sculk_charge(roll);\n}",
     )]
     pub fn sculk_charge(roll: f32) -> Self {
@@ -381,8 +381,8 @@ impl Particle {
         minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        params(delay = "`delay` supplies the delay value used to emit the documented `minecraft:shriek` with a delay in ticks form."),
-        returns = "A newly constructed `Particle` configured to emit the documented `minecraft:shriek` with a delay in ticks form.",
+        params(delay = "`delay` supplies the documented `minecraft:shriek` with a delay in ticks form."),
+        returns = "A `Particle` that emits the documented `minecraft:shriek` with a delay in ticks form.",
         example = "use sand::prelude::*;\n\nfn demonstrate(delay: u32)  {\n    let particle = sand::command::Particle::shriek(delay);\n}",
     )]
     pub fn shriek(delay: u32) -> Self {
@@ -532,8 +532,8 @@ impl ParticleSpread {
         minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        params(v = "`v` supplies the v value used to uniform spread in all three directions."),
-        returns = "A newly constructed `ParticleSpread` configured to uniform spread in all three directions.",
+        params(v = "`v` sets the uniform spread in all three directions."),
+        returns = "A `ParticleSpread` with uniform spread in all three directions.",
         example = "use sand::prelude::*;\n\nfn demonstrate(v: f64)  {\n    let particle_spread = sand::command::ParticleSpread::uniform(v);\n}",
     )]
     pub fn uniform(v: f64) -> Self {
@@ -557,7 +557,7 @@ impl ParticleSpread {
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
         params(dx = "`dx` provides the x-axis offset or spread used to use custom per-axis spread.", dy = "`dy` provides the y-axis offset or spread used to use custom per-axis spread.", dz = "`dz` provides the z-axis offset or spread used to use custom per-axis spread."),
-        returns = "A newly constructed `ParticleSpread` configured to use custom per-axis spread.",
+        returns = "A `ParticleSpread` configured for custom per-axis spread.",
         example = "use sand::prelude::*;\n\nfn demonstrate(dx: f64, dy: f64, dz: f64)  {\n    let particle_spread = sand::command::ParticleSpread::new(dx, dy, dz);\n}",
     )]
     pub fn new(dx: f64, dy: f64, dz: f64) -> Self {
@@ -681,8 +681,8 @@ impl ParticleBuilder {
         minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        params(particle = "`particle` supplies the particle value used to create a new builder for the given particle type."),
-        returns = "A newly constructed `ParticleBuilder` configured to create a new builder for the given particle type.",
+        params(particle = "`particle` is used when creating a new builder for the given particle type."),
+        returns = "A `ParticleBuilder` representing a new builder for the given particle type.",
         example = "use sand::prelude::*;\n\nfn demonstrate(particle: sand::command::Particle)  {\n    let particle_builder = sand::command::ParticleBuilder::new(particle);\n}",
     )]
     pub fn new(particle: Particle) -> Self {
@@ -707,7 +707,7 @@ impl ParticleBuilder {
         minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        params(spread = "`spread` supplies the spread value used to set the random spread box around each particle's spawn position."),
+        params(spread = "`spread` provides the spread applied when setting the random spread box around each particle's spawn position."),
         returns = "The `ParticleBuilder` value with the documented change applied to set the random spread box around each particle's spawn position.",
         example = "use sand::prelude::*;\n\nfn demonstrate(particle_builder_value: sand::command::ParticleBuilder, spread: sand::command::ParticleSpread)  {\n    let updated_particle_builder = particle_builder_value.spread(spread);\n}",
     )]
@@ -728,7 +728,7 @@ impl ParticleBuilder {
         minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        params(speed = "`speed` supplies the speed value used to set the initial speed of each particle after spawning."),
+        params(speed = "`speed` provides the speed applied when setting the initial speed of each particle after spawning."),
         returns = "The `ParticleBuilder` value with the documented change applied to set the initial speed of each particle after spawning.",
         example = "use sand::prelude::*;\n\nfn demonstrate(particle_builder_value: sand::command::ParticleBuilder, speed: f64)  {\n    let updated_particle_builder = particle_builder_value.speed(speed);\n}",
     )]
@@ -749,7 +749,7 @@ impl ParticleBuilder {
         minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        params(n = "`n` supplies the n value used to number of particles Minecraft spawns per command call (default: `1`)."),
+        params(n = "`n` sets the number of particles Minecraft spawns per command call (default: `1`)."),
         returns = "The `ParticleBuilder` value with the documented change applied to number of particles Minecraft spawns per command call (default: `1`).",
         example = "use sand::prelude::*;\n\nfn demonstrate(particle_builder_value: sand::command::ParticleBuilder, n: u32)  {\n    let updated_particle_builder = particle_builder_value.particles_per_point(n);\n}",
     )]
@@ -811,7 +811,7 @@ impl ParticleBuilder {
         minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        params(pts = "`pts` supplies the pts value used to use fallible point renderer used by VFX and strict callers."),
+        params(pts = "`pts` sets the pts for fallible point renderer used by VFX and strict callers."),
         returns = "On success, the value produced to use fallible point renderer used by VFX and strict callers; otherwise, the documented validation or export diagnostic.",
         example = "use sand::prelude::*;\n\nfn demonstrate(particle_builder_value: &sand::command::ParticleBuilder, pts: & [[f64 ; 3]])  {\n    let try_points_at = particle_builder_value.try_points_at(pts);\n}",
     )]
@@ -840,7 +840,7 @@ impl ParticleBuilder {
         minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        params(radius = "`radius` supplies the radius value used to use fallible circle generator with explicit geometry diagnostics.", y_offset = "`y_offset` supplies the y offset value used to use fallible circle generator with explicit geometry diagnostics.", points = "`points` supplies the points value used to use fallible circle generator with explicit geometry diagnostics."),
+        params(radius = "`radius` sets the radius for fallible circle generator with explicit geometry diagnostics.", y_offset = "`y_offset` sets the y offset for fallible circle generator with explicit geometry diagnostics.", points = "`points` sets the points for fallible circle generator with explicit geometry diagnostics."),
         returns = "On success, the value produced to use fallible circle generator with explicit geometry diagnostics; otherwise, the documented validation or export diagnostic.",
         example = "use sand::prelude::*;\n\nfn demonstrate(particle_builder_value: &sand::command::ParticleBuilder, radius: f64, y_offset: f64, points: usize)  {\n    let try_circle = particle_builder_value.try_circle(radius, y_offset, points);\n}",
     )]
@@ -868,7 +868,7 @@ impl ParticleBuilder {
         minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        params(radius = "`radius` supplies the radius value used to validate an arc geometry and returns its ordered particle commands.", y_offset = "`y_offset` supplies the y offset value used to validate an arc geometry and returns its ordered particle commands.", start_deg = "`start_deg` supplies the start deg value used to validate an arc geometry and returns its ordered particle commands.", end_deg = "`end_deg` supplies the end deg value used to validate an arc geometry and returns its ordered particle commands.", points = "`points` supplies the points value used to validate an arc geometry and returns its ordered particle commands."),
+        params(radius = "`radius` is the radius checked when validating an arc geometry and returns its ordered particle commands.", y_offset = "`y_offset` is the y offset checked when validating an arc geometry and returns its ordered particle commands.", start_deg = "`start_deg` is the start deg checked when validating an arc geometry and returns its ordered particle commands.", end_deg = "`end_deg` is the end deg checked when validating an arc geometry and returns its ordered particle commands.", points = "`points` is the points checked when validating an arc geometry and returns its ordered particle commands."),
         returns = "Validates an arc geometry and returns its ordered particle commands.",
         example = "use sand::prelude::*;\n\nfn demonstrate(particle_builder_value: &sand::command::ParticleBuilder, radius: f64, y_offset: f64, start_deg: f64, end_deg: f64, points: usize)  {\n    let try_arc = particle_builder_value.try_arc(radius, y_offset, start_deg, end_deg, points);\n}",
     )]
@@ -904,7 +904,7 @@ impl ParticleBuilder {
         minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        params(sides = "`sides` supplies the sides value used to validate a regular polygon and returns its ordered particle commands.", radius = "`radius` supplies the radius value used to validate a regular polygon and returns its ordered particle commands.", y_offset = "`y_offset` supplies the y offset value used to validate a regular polygon and returns its ordered particle commands.", points_per_side = "`points_per_side` supplies the points per side value used to validate a regular polygon and returns its ordered particle commands."),
+        params(sides = "`sides` is the sides checked when validating a regular polygon and returns its ordered particle commands.", radius = "`radius` is the radius checked when validating a regular polygon and returns its ordered particle commands.", y_offset = "`y_offset` is the y offset checked when validating a regular polygon and returns its ordered particle commands.", points_per_side = "`points_per_side` is the points per side checked when validating a regular polygon and returns its ordered particle commands."),
         returns = "Validates a regular polygon and returns its ordered particle commands.",
         example = "use sand::prelude::*;\n\nfn demonstrate(particle_builder_value: &sand::command::ParticleBuilder, sides: usize, radius: f64, y_offset: f64, points_per_side: usize)  {\n    let try_polygon = particle_builder_value.try_polygon(sides, radius, y_offset, points_per_side);\n}",
     )]
@@ -947,7 +947,7 @@ impl ParticleBuilder {
         minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        params(arms = "`arms` supplies the arms value used to validate a star geometry and returns its ordered particle commands.", outer_radius = "`outer_radius` supplies the outer radius value used to validate a star geometry and returns its ordered particle commands.", inner_radius = "`inner_radius` supplies the inner radius value used to validate a star geometry and returns its ordered particle commands.", y_offset = "`y_offset` supplies the y offset value used to validate a star geometry and returns its ordered particle commands."),
+        params(arms = "`arms` is the arms checked when validating a star geometry and returns its ordered particle commands.", outer_radius = "`outer_radius` is the outer radius checked when validating a star geometry and returns its ordered particle commands.", inner_radius = "`inner_radius` is the inner radius checked when validating a star geometry and returns its ordered particle commands.", y_offset = "`y_offset` is the y offset checked when validating a star geometry and returns its ordered particle commands."),
         returns = "Validates a star geometry and returns its ordered particle commands.",
         example = "use sand::prelude::*;\n\nfn demonstrate(particle_builder_value: &sand::command::ParticleBuilder, arms: usize, outer_radius: f64, inner_radius: f64, y_offset: f64)  {\n    let try_star = particle_builder_value.try_star(arms, outer_radius, inner_radius, y_offset);\n}",
     )]
@@ -983,7 +983,7 @@ impl ParticleBuilder {
         minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        params(radius = "`radius` supplies the radius value used to use fallible sphere generator with explicit geometry diagnostics.", y_offset = "`y_offset` supplies the y offset value used to use fallible sphere generator with explicit geometry diagnostics.", points = "`points` supplies the points value used to use fallible sphere generator with explicit geometry diagnostics."),
+        params(radius = "`radius` sets the radius for fallible sphere generator with explicit geometry diagnostics.", y_offset = "`y_offset` sets the y offset for fallible sphere generator with explicit geometry diagnostics.", points = "`points` sets the points for fallible sphere generator with explicit geometry diagnostics."),
         returns = "On success, the value produced to use fallible sphere generator with explicit geometry diagnostics; otherwise, the documented validation or export diagnostic.",
         example = "use sand::prelude::*;\n\nfn demonstrate(particle_builder_value: &sand::command::ParticleBuilder, radius: f64, y_offset: f64, points: usize)  {\n    let try_sphere = particle_builder_value.try_sphere(radius, y_offset, points);\n}",
     )]
@@ -1011,7 +1011,7 @@ impl ParticleBuilder {
         minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        params(radius = "`radius` supplies the radius value used to use fallible helix generator with explicit geometry diagnostics.", height = "`height` supplies the height value used to use fallible helix generator with explicit geometry diagnostics.", turns = "`turns` supplies the turns value used to use fallible helix generator with explicit geometry diagnostics.", points = "`points` supplies the points value used to use fallible helix generator with explicit geometry diagnostics."),
+        params(radius = "`radius` sets the radius for fallible helix generator with explicit geometry diagnostics.", height = "`height` sets the height for fallible helix generator with explicit geometry diagnostics.", turns = "`turns` sets the turns for fallible helix generator with explicit geometry diagnostics.", points = "`points` sets the points for fallible helix generator with explicit geometry diagnostics."),
         returns = "On success, the value produced to use fallible helix generator with explicit geometry diagnostics; otherwise, the documented validation or export diagnostic.",
         example = "use sand::prelude::*;\n\nfn demonstrate(particle_builder_value: &sand::command::ParticleBuilder, radius: f64, height: f64, turns: f64, points: usize)  {\n    let try_helix = particle_builder_value.try_helix(radius, height, turns, points);\n}",
     )]
@@ -1048,7 +1048,7 @@ impl ParticleBuilder {
         minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        params(radius = "`radius` supplies the radius value used to validate a double helix and returns its ordered particle commands.", height = "`height` supplies the height value used to validate a double helix and returns its ordered particle commands.", turns = "`turns` supplies the turns value used to validate a double helix and returns its ordered particle commands.", points = "`points` supplies the points value used to validate a double helix and returns its ordered particle commands."),
+        params(radius = "`radius` is the radius checked when validating a double helix and returns its ordered particle commands.", height = "`height` is the height checked when validating a double helix and returns its ordered particle commands.", turns = "`turns` is the turns checked when validating a double helix and returns its ordered particle commands.", points = "`points` is the points checked when validating a double helix and returns its ordered particle commands."),
         returns = "Validates a double helix and returns its ordered particle commands.",
         example = "use sand::prelude::*;\n\nfn demonstrate(particle_builder_value: &sand::command::ParticleBuilder, radius: f64, height: f64, turns: f64, points: usize)  {\n    let try_double_helix = particle_builder_value.try_double_helix(radius, height, turns, points);\n}",
     )]
@@ -1075,7 +1075,7 @@ impl ParticleBuilder {
         minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        params(from = "`from` supplies the from value used to validate a line segment and returns its ordered particle commands.", to = "`to` supplies the to value used to validate a line segment and returns its ordered particle commands.", points = "`points` supplies the points value used to validate a line segment and returns its ordered particle commands."),
+        params(from = "`from` is the from checked when validating a line segment and returns its ordered particle commands.", to = "`to` is the to checked when validating a line segment and returns its ordered particle commands.", points = "`points` is the points checked when validating a line segment and returns its ordered particle commands."),
         returns = "Validates a line segment and returns its ordered particle commands.",
         example = "use sand::prelude::*;\n\nfn demonstrate(particle_builder_value: &sand::command::ParticleBuilder, from: [f64 ; 3], to: [f64 ; 3], points: usize)  {\n    let try_line = particle_builder_value.try_line(from, to, points);\n}",
     )]
@@ -1104,7 +1104,7 @@ impl ParticleBuilder {
         minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        params(radius = "`radius` supplies the radius value used to validate a filled disc and returns its ordered particle commands.", y_offset = "`y_offset` supplies the y offset value used to validate a filled disc and returns its ordered particle commands.", density = "`density` supplies the density value used to validate a filled disc and returns its ordered particle commands."),
+        params(radius = "`radius` is the radius checked when validating a filled disc and returns its ordered particle commands.", y_offset = "`y_offset` is the y offset checked when validating a filled disc and returns its ordered particle commands.", density = "`density` is the density checked when validating a filled disc and returns its ordered particle commands."),
         returns = "Validates a filled disc and returns its ordered particle commands.",
         example = "use sand::prelude::*;\n\nfn demonstrate(particle_builder_value: &sand::command::ParticleBuilder, radius: f64, y_offset: f64, density: usize)  {\n    let try_disc = particle_builder_value.try_disc(radius, y_offset, density);\n}",
     )]
@@ -1132,7 +1132,7 @@ impl ParticleBuilder {
         minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        params(major_radius = "`major_radius` supplies the major radius value used to validate a torus geometry and returns its ordered particle commands.", minor_radius = "`minor_radius` supplies the minor radius value used to validate a torus geometry and returns its ordered particle commands.", y_offset = "`y_offset` supplies the y offset value used to validate a torus geometry and returns its ordered particle commands.", rings = "`rings` supplies the rings value used to validate a torus geometry and returns its ordered particle commands.", segments_per_ring = "`segments_per_ring` supplies the segments per ring value used to validate a torus geometry and returns its ordered particle commands."),
+        params(major_radius = "`major_radius` is the major radius checked when validating a torus geometry and returns its ordered particle commands.", minor_radius = "`minor_radius` is the minor radius checked when validating a torus geometry and returns its ordered particle commands.", y_offset = "`y_offset` is the y offset checked when validating a torus geometry and returns its ordered particle commands.", rings = "`rings` is the rings checked when validating a torus geometry and returns its ordered particle commands.", segments_per_ring = "`segments_per_ring` is the segments per ring checked when validating a torus geometry and returns its ordered particle commands."),
         returns = "Validates a torus geometry and returns its ordered particle commands.",
         example = "use sand::prelude::*;\n\nfn demonstrate(particle_builder_value: &sand::command::ParticleBuilder, major_radius: f64, minor_radius: f64, y_offset: f64, rings: usize, segments_per_ring: usize)  {\n    let try_torus = particle_builder_value.try_torus(major_radius, minor_radius, y_offset, rings, segments_per_ring);\n}",
     )]
@@ -1177,7 +1177,7 @@ impl ParticleBuilder {
         minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        params(base_radius = "`base_radius` supplies the base radius value used to validate a cone geometry and returns its ordered particle commands.", height = "`height` supplies the height value used to validate a cone geometry and returns its ordered particle commands.", y_offset = "`y_offset` supplies the y offset value used to validate a cone geometry and returns its ordered particle commands.", rings = "`rings` supplies the rings value used to validate a cone geometry and returns its ordered particle commands."),
+        params(base_radius = "`base_radius` is the base radius checked when validating a cone geometry and returns its ordered particle commands.", height = "`height` is the height checked when validating a cone geometry and returns its ordered particle commands.", y_offset = "`y_offset` is the y offset checked when validating a cone geometry and returns its ordered particle commands.", rings = "`rings` is the rings checked when validating a cone geometry and returns its ordered particle commands."),
         returns = "Validates a cone geometry and returns its ordered particle commands.",
         example = "use sand::prelude::*;\n\nfn demonstrate(particle_builder_value: &sand::command::ParticleBuilder, base_radius: f64, height: f64, y_offset: f64, rings: usize)  {\n    let try_cone = particle_builder_value.try_cone(base_radius, height, y_offset, rings);\n}",
     )]
@@ -1207,7 +1207,7 @@ impl ParticleBuilder {
         minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        params(radius = "`radius` supplies the radius value used to validate a radial burst and returns its ordered particle commands.", y_offset = "`y_offset` supplies the y offset value used to validate a radial burst and returns its ordered particle commands.", points = "`points` supplies the points value used to validate a radial burst and returns its ordered particle commands."),
+        params(radius = "`radius` is the radius checked when validating a radial burst and returns its ordered particle commands.", y_offset = "`y_offset` is the y offset checked when validating a radial burst and returns its ordered particle commands.", points = "`points` is the points checked when validating a radial burst and returns its ordered particle commands."),
         returns = "Validates a radial burst and returns its ordered particle commands.",
         example = "use sand::prelude::*;\n\nfn demonstrate(particle_builder_value: &sand::command::ParticleBuilder, radius: f64, y_offset: f64, points: usize)  {\n    let try_burst = particle_builder_value.try_burst(radius, y_offset, points);\n}",
     )]
@@ -1235,7 +1235,7 @@ impl ParticleBuilder {
         minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        params(length = "`length` supplies the length value used to validate a wave geometry and returns its ordered particle commands.", amplitude = "`amplitude` supplies the amplitude value used to validate a wave geometry and returns its ordered particle commands.", cycles = "`cycles` supplies the cycles value used to validate a wave geometry and returns its ordered particle commands.", y_offset = "`y_offset` supplies the y offset value used to validate a wave geometry and returns its ordered particle commands.", points = "`points` supplies the points value used to validate a wave geometry and returns its ordered particle commands."),
+        params(length = "`length` is the length checked when validating a wave geometry and returns its ordered particle commands.", amplitude = "`amplitude` is the amplitude checked when validating a wave geometry and returns its ordered particle commands.", cycles = "`cycles` is the cycles checked when validating a wave geometry and returns its ordered particle commands.", y_offset = "`y_offset` is the y offset checked when validating a wave geometry and returns its ordered particle commands.", points = "`points` is the points checked when validating a wave geometry and returns its ordered particle commands."),
         returns = "Validates a wave geometry and returns its ordered particle commands.",
         example = "use sand::prelude::*;\n\nfn demonstrate(particle_builder_value: &sand::command::ParticleBuilder, length: f64, amplitude: f64, cycles: f64, y_offset: f64, points: usize)  {\n    let try_wave = particle_builder_value.try_wave(length, amplitude, cycles, y_offset, points);\n}",
     )]
@@ -1267,7 +1267,7 @@ impl ParticleBuilder {
         minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        params(width = "`width` supplies the width value used to validate a rectangular grid and returns its ordered particle commands.", depth = "`depth` supplies the depth value used to validate a rectangular grid and returns its ordered particle commands.", cols = "`cols` supplies the cols value used to validate a rectangular grid and returns its ordered particle commands.", rows = "`rows` supplies the rows value used to validate a rectangular grid and returns its ordered particle commands.", y_offset = "`y_offset` supplies the y offset value used to validate a rectangular grid and returns its ordered particle commands."),
+        params(width = "`width` is the width checked when validating a rectangular grid and returns its ordered particle commands.", depth = "`depth` is the depth checked when validating a rectangular grid and returns its ordered particle commands.", cols = "`cols` is the cols checked when validating a rectangular grid and returns its ordered particle commands.", rows = "`rows` is the rows checked when validating a rectangular grid and returns its ordered particle commands.", y_offset = "`y_offset` is the y offset checked when validating a rectangular grid and returns its ordered particle commands."),
         returns = "Validates a rectangular grid and returns its ordered particle commands.",
         example = "use sand::prelude::*;\n\nfn demonstrate(particle_builder_value: &sand::command::ParticleBuilder, width: f64, depth: f64, cols: usize, rows: usize, y_offset: f64)  {\n    let try_grid = particle_builder_value.try_grid(width, depth, cols, rows, y_offset);\n}",
     )]
@@ -1308,7 +1308,7 @@ impl ParticleBuilder {
         minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        params(radius = "`radius` supplies the radius value used to use a horizontal ring of particles at `y_offset` above the executor.", y_offset = "A horizontal ring of particles at `y_offset` above the executor.", points = "`points` supplies the points value used to use a horizontal ring of particles at `y_offset` above the executor."),
+        params(radius = "`radius` sets the radius for a horizontal ring of particles at `y_offset` above the executor.", y_offset = "A horizontal ring of particles at `y_offset` above the executor.", points = "`points` sets the points for a horizontal ring of particles at `y_offset` above the executor."),
         returns = "The ordered values produced to use a horizontal ring of particles at `y_offset` above the executor.",
         example = "use sand::prelude::*;\n\nfn demonstrate(particle_builder_value: &sand::command::ParticleBuilder, radius: f64, y_offset: f64, points: usize)  {\n    let values = particle_builder_value.circle(radius, y_offset, points);\n}",
     )]
@@ -1333,7 +1333,7 @@ impl ParticleBuilder {
         minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        params(radius = "`radius` supplies the radius value used to use a partial arc of a circle, from `start_deg` to `end_deg` (degrees).", y_offset = "`y_offset` supplies the y offset value used to use a partial arc of a circle, from `start_deg` to `end_deg` (degrees).", start_deg = "A partial arc of a circle, from `start_deg` to `end_deg` (degrees).", end_deg = "A partial arc of a circle, from `start_deg` to `end_deg` (degrees).", points = "`points` supplies the points value used to use a partial arc of a circle, from `start_deg` to `end_deg` (degrees)."),
+        params(radius = "`radius` sets the radius for a partial arc of a circle, from `start_deg` to `end_deg` (degrees).", y_offset = "`y_offset` sets the y offset for a partial arc of a circle, from `start_deg` to `end_deg` (degrees).", start_deg = "A partial arc of a circle, from `start_deg` to `end_deg` (degrees).", end_deg = "A partial arc of a circle, from `start_deg` to `end_deg` (degrees).", points = "`points` sets the points for a partial arc of a circle, from `start_deg` to `end_deg` (degrees)."),
         returns = "The ordered values produced to use a partial arc of a circle, from `start_deg` to `end_deg` (degrees).",
         example = "use sand::prelude::*;\n\nfn demonstrate(particle_builder_value: &sand::command::ParticleBuilder, radius: f64, y_offset: f64, start_deg: f64, end_deg: f64, points: usize)  {\n    let values = particle_builder_value.arc(radius, y_offset, start_deg, end_deg, points);\n}",
     )]
@@ -1371,7 +1371,7 @@ impl ParticleBuilder {
         minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        params(sides = "`sides` supplies the sides value used to use a regular polygon at `y_offset`. `points_per_side` particles per edge.", radius = "`radius` supplies the radius value used to use a regular polygon at `y_offset`. `points_per_side` particles per edge.", y_offset = "A regular polygon at `y_offset`. `points_per_side` particles per edge.", points_per_side = "A regular polygon at `y_offset`. `points_per_side` particles per edge."),
+        params(sides = "`sides` sets the sides for a regular polygon at `y_offset`. `points_per_side` particles per edge.", radius = "`radius` sets the radius for a regular polygon at `y_offset`. `points_per_side` particles per edge.", y_offset = "A regular polygon at `y_offset`. `points_per_side` particles per edge.", points_per_side = "A regular polygon at `y_offset`. `points_per_side` particles per edge."),
         returns = "The ordered values produced to use a regular polygon at `y_offset`. `points_per_side` particles per edge.",
         example = "use sand::prelude::*;\n\nfn demonstrate(particle_builder_value: &sand::command::ParticleBuilder, sides: usize, radius: f64, y_offset: f64, points_per_side: usize)  {\n    let values = particle_builder_value.polygon(sides, radius, y_offset, points_per_side);\n}",
     )]
@@ -1412,7 +1412,7 @@ impl ParticleBuilder {
         minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        params(arms = "A star shape with `arms` points, alternating outer and inner radii.", outer_radius = "`outer_radius` supplies the outer radius value used to use a star shape with `arms` points, alternating outer and inner radii.", inner_radius = "`inner_radius` supplies the inner radius value used to use a star shape with `arms` points, alternating outer and inner radii.", y_offset = "`y_offset` supplies the y offset value used to use a star shape with `arms` points, alternating outer and inner radii."),
+        params(arms = "A star shape with `arms` points, alternating outer and inner radii.", outer_radius = "`outer_radius` sets the outer radius for a star shape with `arms` points, alternating outer and inner radii.", inner_radius = "`inner_radius` sets the inner radius for a star shape with `arms` points, alternating outer and inner radii.", y_offset = "`y_offset` sets the y offset for a star shape with `arms` points, alternating outer and inner radii."),
         returns = "The ordered values produced to use a star shape with `arms` points, alternating outer and inner radii.",
         example = "use sand::prelude::*;\n\nfn demonstrate(particle_builder_value: &sand::command::ParticleBuilder, arms: usize, outer_radius: f64, inner_radius: f64, y_offset: f64)  {\n    let values = particle_builder_value.star(arms, outer_radius, inner_radius, y_offset);\n}",
     )]
@@ -1452,7 +1452,7 @@ impl ParticleBuilder {
         minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        params(radius = "`radius` supplies the radius value used to use a sphere surface using the Fibonacci lattice for even distribution.", y_offset = "`y_offset` supplies the y offset value used to use a sphere surface using the Fibonacci lattice for even distribution.", points = "`points` supplies the points value used to use a sphere surface using the Fibonacci lattice for even distribution."),
+        params(radius = "`radius` sets the radius for a sphere surface using the Fibonacci lattice for even distribution.", y_offset = "`y_offset` sets the y offset for a sphere surface using the Fibonacci lattice for even distribution.", points = "`points` sets the points for a sphere surface using the Fibonacci lattice for even distribution."),
         returns = "The ordered values produced to use a sphere surface using the Fibonacci lattice for even distribution.",
         example = "use sand::prelude::*;\n\nfn demonstrate(particle_builder_value: &sand::command::ParticleBuilder, radius: f64, y_offset: f64, points: usize)  {\n    let values = particle_builder_value.sphere(radius, y_offset, points);\n}",
     )]
@@ -1483,7 +1483,7 @@ impl ParticleBuilder {
         minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        params(radius = "`radius` supplies the radius value used to use the upper hemisphere only (y ≥ y_offset).", y_offset = "`y_offset` supplies the y offset value used to use the upper hemisphere only (y ≥ y_offset).", points = "`points` supplies the points value used to use the upper hemisphere only (y ≥ y_offset)."),
+        params(radius = "`radius` sets the radius for the upper hemisphere only (y ≥ y_offset).", y_offset = "`y_offset` sets the y offset for the upper hemisphere only (y ≥ y_offset).", points = "`points` sets the points for the upper hemisphere only (y ≥ y_offset)."),
         returns = "The ordered values produced to use the upper hemisphere only (y ≥ y_offset).",
         example = "use sand::prelude::*;\n\nfn demonstrate(particle_builder_value: &sand::command::ParticleBuilder, radius: f64, y_offset: f64, points: usize)  {\n    let values = particle_builder_value.hemisphere(radius, y_offset, points);\n}",
     )]
@@ -1510,7 +1510,7 @@ impl ParticleBuilder {
         minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        params(radius = "`radius` supplies the radius value used to use a rising spiral helix.", height = "`height` supplies the height value used to use a rising spiral helix.", turns = "`turns` supplies the turns value used to use a rising spiral helix.", points = "`points` supplies the points value used to use a rising spiral helix."),
+        params(radius = "`radius` sets the radius for a rising spiral helix.", height = "`height` sets the height for a rising spiral helix.", turns = "`turns` sets the turns for a rising spiral helix.", points = "`points` sets the points for a rising spiral helix."),
         returns = "The ordered values produced to use a rising spiral helix.",
         example = "use sand::prelude::*;\n\nfn demonstrate(particle_builder_value: &sand::command::ParticleBuilder, radius: f64, height: f64, turns: f64, points: usize)  {\n    let values = particle_builder_value.helix(radius, height, turns, points);\n}",
     )]
@@ -1536,7 +1536,7 @@ impl ParticleBuilder {
         minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        params(radius = "`radius` supplies the radius value used to use two interleaved helices (double-helix / DNA shape).", height = "`height` supplies the height value used to use two interleaved helices (double-helix / DNA shape).", turns = "`turns` supplies the turns value used to use two interleaved helices (double-helix / DNA shape).", points = "`points` supplies the points value used to use two interleaved helices (double-helix / DNA shape)."),
+        params(radius = "`radius` sets the radius for two interleaved helices (double-helix / DNA shape).", height = "`height` sets the height for two interleaved helices (double-helix / DNA shape).", turns = "`turns` sets the turns for two interleaved helices (double-helix / DNA shape).", points = "`points` sets the points for two interleaved helices (double-helix / DNA shape)."),
         returns = "The ordered values produced to use two interleaved helices (double-helix / DNA shape).",
         example = "use sand::prelude::*;\n\nfn demonstrate(particle_builder_value: &sand::command::ParticleBuilder, radius: f64, height: f64, turns: f64, points: usize)  {\n    let values = particle_builder_value.double_helix(radius, height, turns, points);\n}",
     )]
@@ -1564,7 +1564,7 @@ impl ParticleBuilder {
         minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        params(from = "A straight line from `from` to `to` (both relative to executor).", to = "A straight line from `from` to `to` (both relative to executor).", points = "`points` supplies the points value used to use a straight line from `from` to `to` (both relative to executor)."),
+        params(from = "A straight line from `from` to `to` (both relative to executor).", to = "A straight line from `from` to `to` (both relative to executor).", points = "`points` sets the points for a straight line from `from` to `to` (both relative to executor)."),
         returns = "The ordered values produced to use a straight line from `from` to `to` (both relative to executor).",
         example = "use sand::prelude::*;\n\nfn demonstrate(particle_builder_value: &sand::command::ParticleBuilder, from: [f64 ; 3], to: [f64 ; 3], points: usize)  {\n    let values = particle_builder_value.line(from, to, points);\n}",
     )]
@@ -1597,7 +1597,7 @@ impl ParticleBuilder {
         minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        params(radius = "`radius` supplies the radius value used to use a filled disc of concentric rings. `density` controls ring count per unit radius.", y_offset = "`y_offset` supplies the y offset value used to use a filled disc of concentric rings. `density` controls ring count per unit radius.", density = "A filled disc of concentric rings. `density` controls ring count per unit radius."),
+        params(radius = "`radius` sets the radius for a filled disc of concentric rings. `density` controls ring count per unit radius.", y_offset = "`y_offset` sets the y offset for a filled disc of concentric rings. `density` controls ring count per unit radius.", density = "A filled disc of concentric rings. `density` controls ring count per unit radius."),
         returns = "The ordered values produced to use a filled disc of concentric rings. `density` controls ring count per unit radius.",
         example = "use sand::prelude::*;\n\nfn demonstrate(particle_builder_value: &sand::command::ParticleBuilder, radius: f64, y_offset: f64, density: usize)  {\n    let values = particle_builder_value.disc(radius, y_offset, density);\n}",
     )]
@@ -1624,7 +1624,7 @@ impl ParticleBuilder {
         minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        params(major_radius = "`major_radius` supplies the major radius value used to use a 3D torus (donut shape).", minor_radius = "`minor_radius` supplies the minor radius value used to use a 3D torus (donut shape).", y_offset = "`y_offset` supplies the y offset value used to use a 3D torus (donut shape).", rings = "`rings` supplies the rings value used to use a 3D torus (donut shape).", segments_per_ring = "`segments_per_ring` supplies the segments per ring value used to use a 3D torus (donut shape)."),
+        params(major_radius = "`major_radius` sets the major radius for a 3D torus (donut shape).", minor_radius = "`minor_radius` sets the minor radius for a 3D torus (donut shape).", y_offset = "`y_offset` sets the y offset for a 3D torus (donut shape).", rings = "`rings` sets the rings for a 3D torus (donut shape).", segments_per_ring = "`segments_per_ring` sets the segments per ring for a 3D torus (donut shape)."),
         returns = "The ordered values produced to use a 3D torus (donut shape).",
         example = "use sand::prelude::*;\n\nfn demonstrate(particle_builder_value: &sand::command::ParticleBuilder, major_radius: f64, minor_radius: f64, y_offset: f64, rings: usize, segments_per_ring: usize)  {\n    let values = particle_builder_value.torus(major_radius, minor_radius, y_offset, rings, segments_per_ring);\n}",
     )]
@@ -1664,7 +1664,7 @@ impl ParticleBuilder {
         minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        params(base_radius = "`base_radius` supplies the base radius value used to use a cone rising from the base ring up to an apex.", height = "`height` supplies the height value used to use a cone rising from the base ring up to an apex.", y_offset = "`y_offset` supplies the y offset value used to use a cone rising from the base ring up to an apex.", rings = "`rings` supplies the rings value used to use a cone rising from the base ring up to an apex."),
+        params(base_radius = "`base_radius` sets the base radius for a cone rising from the base ring up to an apex.", height = "`height` sets the height for a cone rising from the base ring up to an apex.", y_offset = "`y_offset` sets the y offset for a cone rising from the base ring up to an apex.", rings = "`rings` sets the rings for a cone rising from the base ring up to an apex."),
         returns = "The ordered values produced to use a cone rising from the base ring up to an apex.",
         example = "use sand::prelude::*;\n\nfn demonstrate(particle_builder_value: &sand::command::ParticleBuilder, base_radius: f64, height: f64, y_offset: f64, rings: usize)  {\n    let values = particle_builder_value.cone(base_radius, height, y_offset, rings);\n}",
     )]
@@ -1696,7 +1696,7 @@ impl ParticleBuilder {
         minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        params(radius = "`radius` supplies the radius value used to use an outward burst (sphere with extra spread, simulates an explosion).", y_offset = "`y_offset` supplies the y offset value used to use an outward burst (sphere with extra spread, simulates an explosion).", points = "`points` supplies the points value used to use an outward burst (sphere with extra spread, simulates an explosion)."),
+        params(radius = "`radius` sets the radius for an outward burst (sphere with extra spread, simulates an explosion).", y_offset = "`y_offset` sets the y offset for an outward burst (sphere with extra spread, simulates an explosion).", points = "`points` sets the points for an outward burst (sphere with extra spread, simulates an explosion)."),
         returns = "The ordered values produced to use an outward burst (sphere with extra spread, simulates an explosion).",
         example = "use sand::prelude::*;\n\nfn demonstrate(particle_builder_value: &sand::command::ParticleBuilder, radius: f64, y_offset: f64, points: usize)  {\n    let values = particle_builder_value.burst(radius, y_offset, points);\n}",
     )]
@@ -1724,7 +1724,7 @@ impl ParticleBuilder {
         minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        params(length = "`length` supplies the length value used to use a horizontal sine wave along the X axis.", amplitude = "`amplitude` supplies the amplitude value used to use a horizontal sine wave along the X axis.", cycles = "`cycles` supplies the cycles value used to use a horizontal sine wave along the X axis.", y_offset = "`y_offset` supplies the y offset value used to use a horizontal sine wave along the X axis.", points = "`points` supplies the points value used to use a horizontal sine wave along the X axis."),
+        params(length = "`length` sets the length for a horizontal sine wave along the X axis.", amplitude = "`amplitude` sets the amplitude for a horizontal sine wave along the X axis.", cycles = "`cycles` sets the cycles for a horizontal sine wave along the X axis.", y_offset = "`y_offset` sets the y offset for a horizontal sine wave along the X axis.", points = "`points` sets the points for a horizontal sine wave along the X axis."),
         returns = "The ordered values produced to use a horizontal sine wave along the X axis.",
         example = "use sand::prelude::*;\n\nfn demonstrate(particle_builder_value: &sand::command::ParticleBuilder, length: f64, amplitude: f64, cycles: f64, y_offset: f64, points: usize)  {\n    let values = particle_builder_value.wave(length, amplitude, cycles, y_offset, points);\n}",
     )]
@@ -1761,7 +1761,7 @@ impl ParticleBuilder {
         minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        params(width = "`width` supplies the width value used to use a flat rectangular grid of particles.", depth = "`depth` supplies the depth value used to use a flat rectangular grid of particles.", cols = "`cols` supplies the cols value used to use a flat rectangular grid of particles.", rows = "`rows` supplies the rows value used to use a flat rectangular grid of particles.", y_offset = "`y_offset` supplies the y offset value used to use a flat rectangular grid of particles."),
+        params(width = "`width` sets the width for a flat rectangular grid of particles.", depth = "`depth` sets the depth for a flat rectangular grid of particles.", cols = "`cols` sets the cols for a flat rectangular grid of particles.", rows = "`rows` sets the rows for a flat rectangular grid of particles.", y_offset = "`y_offset` sets the y offset for a flat rectangular grid of particles."),
         returns = "The ordered values produced to use a flat rectangular grid of particles.",
         example = "use sand::prelude::*;\n\nfn demonstrate(particle_builder_value: &sand::command::ParticleBuilder, width: f64, depth: f64, cols: usize, rows: usize, y_offset: f64)  {\n    let values = particle_builder_value.grid(width, depth, cols, rows, y_offset);\n}",
     )]
@@ -1806,7 +1806,7 @@ impl ParticleBuilder {
         minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        params(pts = "`pts` supplies the pts value used to spawn a particle at each point in the given list (relative offsets from executor)."),
+        params(pts = "`pts` is used to spawn a particle at each point in the given list (relative offsets from executor)."),
         returns = "The ordered values produced to spawn a particle at each point in the given list (relative offsets from executor).",
         example = "use sand::prelude::*;\n\nfn demonstrate(particle_builder_value: &sand::command::ParticleBuilder, pts: & [[f64 ; 3]])  {\n    let values = particle_builder_value.points_at(pts);\n}",
     )]
@@ -1863,7 +1863,7 @@ impl ParticleEffect {
         minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        params(particle = "`particle` supplies the particle value used to use horizontal ring of particles.", radius = "`radius` supplies the radius value used to use horizontal ring of particles.", y_offset = "`y_offset` supplies the y offset value used to use horizontal ring of particles.", count = "`count` provides the requested numeric amount used to use horizontal ring of particles.", spread = "`spread` supplies the spread value used to use horizontal ring of particles."),
+        params(particle = "`particle` sets the particle for horizontal ring of particles.", radius = "`radius` sets the radius for horizontal ring of particles.", y_offset = "`y_offset` sets the y offset for horizontal ring of particles.", count = "`count` provides the requested numeric amount used to use horizontal ring of particles.", spread = "`spread` sets the spread for horizontal ring of particles."),
         returns = "The ordered values produced to use horizontal ring of particles.",
         example = "use sand::prelude::*;\n\nfn demonstrate(particle: & str, radius: f64, y_offset: f64, count: usize, spread: & sand::command::ParticleSpread)  {\n    let values = sand::command::ParticleEffect::circle(particle, radius, y_offset, count, spread);\n}",
     )]
@@ -1891,7 +1891,7 @@ impl ParticleEffect {
         minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        params(particle = "`particle` supplies the particle value used to sphere surface (Fibonacci distribution).", radius = "`radius` supplies the radius value used to sphere surface (Fibonacci distribution).", y_offset = "`y_offset` supplies the y offset value used to sphere surface (Fibonacci distribution).", count = "`count` provides the requested numeric amount used to sphere surface (Fibonacci distribution).", spread = "`spread` supplies the spread value used to sphere surface (Fibonacci distribution)."),
+        params(particle = "`particle` selects the particle placed across the sphere surface.", radius = "`radius` sets the sphere radius.", y_offset = "`y_offset` shifts the sphere center vertically.", count = "`count` sets how many Fibonacci-distributed surface points are generated.", spread = "`spread` configures each emitted particle's random offset."),
         returns = "The ordered values produced to sphere surface (Fibonacci distribution).",
         example = "use sand::prelude::*;\n\nfn demonstrate(particle: & str, radius: f64, y_offset: f64, count: usize, spread: & sand::command::ParticleSpread)  {\n    let values = sand::command::ParticleEffect::sphere(particle, radius, y_offset, count, spread);\n}",
     )]
@@ -1919,7 +1919,7 @@ impl ParticleEffect {
         minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        params(particle = "`particle` supplies the particle value used to use rising spiral helix.", radius = "`radius` supplies the radius value used to use rising spiral helix.", height = "`height` supplies the height value used to use rising spiral helix.", turns = "`turns` supplies the turns value used to use rising spiral helix.", count = "`count` provides the requested numeric amount used to use rising spiral helix.", spread = "`spread` supplies the spread value used to use rising spiral helix."),
+        params(particle = "`particle` sets the particle for rising spiral helix.", radius = "`radius` sets the radius for rising spiral helix.", height = "`height` sets the height for rising spiral helix.", turns = "`turns` sets the turns for rising spiral helix.", count = "`count` provides the requested numeric amount used to use rising spiral helix.", spread = "`spread` sets the spread for rising spiral helix."),
         returns = "The ordered values produced to use rising spiral helix.",
         example = "use sand::prelude::*;\n\nfn demonstrate(particle: & str, radius: f64, height: f64, turns: f64, count: usize, spread: & sand::command::ParticleSpread)  {\n    let values = sand::command::ParticleEffect::helix(particle, radius, height, turns, count, spread);\n}",
     )]
@@ -1948,7 +1948,7 @@ impl ParticleEffect {
         minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        params(particle = "`particle` supplies the particle value used to use straight line between two relative points.", x1 = "`x1` supplies the x1 value used to use straight line between two relative points.", y1 = "`y1` supplies the y1 value used to use straight line between two relative points.", z1 = "`z1` supplies the z1 value used to use straight line between two relative points.", x2 = "`x2` supplies the x2 value used to use straight line between two relative points.", y2 = "`y2` supplies the y2 value used to use straight line between two relative points.", z2 = "`z2` supplies the z2 value used to use straight line between two relative points.", count = "`count` provides the requested numeric amount used to use straight line between two relative points.", spread = "`spread` supplies the spread value used to use straight line between two relative points."),
+        params(particle = "`particle` sets the particle for straight line between two relative points.", x1 = "`x1` sets the x1 for straight line between two relative points.", y1 = "`y1` sets the y1 for straight line between two relative points.", z1 = "`z1` sets the z1 for straight line between two relative points.", x2 = "`x2` sets the x2 for straight line between two relative points.", y2 = "`y2` sets the y2 for straight line between two relative points.", z2 = "`z2` sets the z2 for straight line between two relative points.", count = "`count` provides the requested numeric amount used to use straight line between two relative points.", spread = "`spread` sets the spread for straight line between two relative points."),
         returns = "The ordered values produced to use straight line between two relative points.",
         example = "use sand::prelude::*;\n\nfn demonstrate(particle: & str, x1: f64, y1: f64, z1: f64, x2: f64, y2: f64, z2: f64, count: usize, spread: & sand::command::ParticleSpread)  {\n    let values = sand::command::ParticleEffect::line(particle, x1, y1, z1, x2, y2, z2, count, spread);\n}",
     )]
@@ -1981,7 +1981,7 @@ impl ParticleEffect {
         minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        params(particle = "`particle` supplies the particle value used to use outward burst (sphere with boosted spread).", radius = "`radius` supplies the radius value used to use outward burst (sphere with boosted spread).", y_offset = "`y_offset` supplies the y offset value used to use outward burst (sphere with boosted spread).", count = "`count` provides the requested numeric amount used to use outward burst (sphere with boosted spread).", spread = "`spread` supplies the spread value used to use outward burst (sphere with boosted spread)."),
+        params(particle = "`particle` sets the particle for outward burst (sphere with boosted spread).", radius = "`radius` sets the radius for outward burst (sphere with boosted spread).", y_offset = "`y_offset` sets the y offset for outward burst (sphere with boosted spread).", count = "`count` provides the requested numeric amount used to use outward burst (sphere with boosted spread).", spread = "`spread` sets the spread for outward burst (sphere with boosted spread)."),
         returns = "The ordered values produced to use outward burst (sphere with boosted spread).",
         example = "use sand::prelude::*;\n\nfn demonstrate(particle: & str, radius: f64, y_offset: f64, count: usize, spread: & sand::command::ParticleSpread)  {\n    let values = sand::command::ParticleEffect::burst(particle, radius, y_offset, count, spread);\n}",
     )]
@@ -2009,7 +2009,7 @@ impl ParticleEffect {
         minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        params(particle = "`particle` supplies the particle value used to use two interleaved helices.", radius = "`radius` supplies the radius value used to use two interleaved helices.", height = "`height` supplies the height value used to use two interleaved helices.", turns = "`turns` supplies the turns value used to use two interleaved helices.", count = "`count` provides the requested numeric amount used to use two interleaved helices.", spread = "`spread` supplies the spread value used to use two interleaved helices."),
+        params(particle = "`particle` sets the particle for two interleaved helices.", radius = "`radius` sets the radius for two interleaved helices.", height = "`height` sets the height for two interleaved helices.", turns = "`turns` sets the turns for two interleaved helices.", count = "`count` provides the requested numeric amount used to use two interleaved helices.", spread = "`spread` sets the spread for two interleaved helices."),
         returns = "The ordered values produced to use two interleaved helices.",
         example = "use sand::prelude::*;\n\nfn demonstrate(particle: & str, radius: f64, height: f64, turns: f64, count: usize, spread: & sand::command::ParticleSpread)  {\n    let values = sand::command::ParticleEffect::double_helix(particle, radius, height, turns, count, spread);\n}",
     )]
@@ -2038,7 +2038,7 @@ impl ParticleEffect {
         minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        params(particle = "`particle` supplies the particle value used to use filled disc of concentric rings.", radius = "`radius` supplies the radius value used to use filled disc of concentric rings.", y_offset = "`y_offset` supplies the y offset value used to use filled disc of concentric rings.", density = "`density` supplies the density value used to use filled disc of concentric rings.", spread = "`spread` supplies the spread value used to use filled disc of concentric rings."),
+        params(particle = "`particle` sets the particle for filled disc of concentric rings.", radius = "`radius` sets the radius for filled disc of concentric rings.", y_offset = "`y_offset` sets the y offset for filled disc of concentric rings.", density = "`density` sets the density for filled disc of concentric rings.", spread = "`spread` sets the spread for filled disc of concentric rings."),
         returns = "The ordered values produced to use filled disc of concentric rings.",
         example = "use sand::prelude::*;\n\nfn demonstrate(particle: & str, radius: f64, y_offset: f64, density: usize, spread: & sand::command::ParticleSpread)  {\n    let values = sand::command::ParticleEffect::disc(particle, radius, y_offset, density, spread);\n}",
     )]

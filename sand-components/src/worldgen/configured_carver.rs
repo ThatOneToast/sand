@@ -75,8 +75,8 @@ impl CarverFloatRange {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(min_inclusive = "`min_inclusive` supplies the min inclusive value used to create a uniformly sampled inclusive float range.", max_inclusive = "`max_inclusive` supplies the max inclusive value used to create a uniformly sampled inclusive float range."),
-        returns = "A newly constructed `CarverFloatRange` configured to create a uniformly sampled inclusive float range.",
+        params(min_inclusive = "`min_inclusive` is used when creating a uniformly sampled inclusive float range.", max_inclusive = "`max_inclusive` is used when creating a uniformly sampled inclusive float range."),
+        returns = "A `CarverFloatRange` representing a uniformly sampled inclusive float range.",
         example = "use sand::prelude::*;\n\nfn demonstrate(min_inclusive: f32, max_inclusive: f32)  {\n    let carver_float_range = sand::component::CarverFloatRange::new(min_inclusive, max_inclusive);\n}",
     )]
     pub fn new(min_inclusive: f32, max_inclusive: f32) -> Self {
@@ -160,8 +160,8 @@ impl CaveCarverConfig {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(probability = "`probability` (`0..=1`) is the per-chunk chance this carver runs.", y = "`y` provides the y-coordinate used to create a cave-shaped carver config. `probability` (`0..=1`) is the per-chunk chance this carver runs.", y_scale = "`y_scale` provides the accepted numeric range used to create a cave-shaped carver config. `probability` (`0..=1`) is the per-chunk chance this carver runs.", lava_level = "`lava_level` supplies the lava level value used to create a cave-shaped carver config. `probability` (`0..=1`) is the per-chunk chance this carver runs."),
-        returns = "A newly constructed `CaveCarverConfig` configured to create a cave-shaped carver config. `probability` (`0..=1`) is the per-chunk chance this carver runs.",
+        params(probability = "`probability` (`0..=1`) is the per-chunk chance this carver runs.", y = "`y` provides the y-coordinate used to create a cave-shaped carver config. `probability` (`0..=1`) is the per-chunk chance this carver runs.", y_scale = "`y_scale` provides the accepted numeric range used to create a cave-shaped carver config. `probability` (`0..=1`) is the per-chunk chance this carver runs.", lava_level = "`lava_level` is used when creating a cave-shaped carver config. `probability` (`0..=1`) is the per-chunk chance this carver runs."),
+        returns = "A `CaveCarverConfig` representing a cave-shaped carver config. `probability` (`0..=1`) is the per-chunk chance this carver runs.",
         example = "use sand::prelude::*;\n\nfn demonstrate(probability: f32, y: sand::component::HeightProvider, y_scale: sand::component::CarverFloatRange, lava_level: sand::component::VerticalAnchor)  {\n    let cave_carver_config = sand::component::CaveCarverConfig::new(probability, y, y_scale, lava_level);\n}",
     )]
     pub fn new(
@@ -330,8 +330,8 @@ impl ConfiguredCarver {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(location = "`location` provides the typed resource identifier or location used to use a `minecraft:cave` carver.", config = "`config` supplies the config value used to use a `minecraft:cave` carver."),
-        returns = "A newly constructed `ConfiguredCarver` configured to use a `minecraft:cave` carver.",
+        params(location = "`location` provides the typed resource identifier or location used to use a `minecraft:cave` carver.", config = "`config` sets the config for a `minecraft:cave` carver."),
+        returns = "A `ConfiguredCarver` configured for a `minecraft:cave` carver.",
         example = "use sand::prelude::*;\n\nfn demonstrate(location: sand::ResourceLocation, config: sand::component::CaveCarverConfig)  {\n    let configured_carver = sand::component::ConfiguredCarver::cave(location, config);\n}",
     )]
     pub fn cave(location: ResourceLocation, config: CaveCarverConfig) -> Self {
@@ -353,8 +353,8 @@ impl ConfiguredCarver {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(location = "`location` provides the typed resource identifier or location used to use a `minecraft:nether_cave` carver.", config = "`config` supplies the config value used to use a `minecraft:nether_cave` carver."),
-        returns = "A newly constructed `ConfiguredCarver` configured to use a `minecraft:nether_cave` carver.",
+        params(location = "`location` provides the typed resource identifier or location used to use a `minecraft:nether_cave` carver.", config = "`config` sets the config for a `minecraft:nether_cave` carver."),
+        returns = "A `ConfiguredCarver` configured for a `minecraft:nether_cave` carver.",
         example = "use sand::prelude::*;\n\nfn demonstrate(location: sand::ResourceLocation, config: sand::component::CaveCarverConfig)  {\n    let configured_carver = sand::component::ConfiguredCarver::nether_cave(location, config);\n}",
     )]
     pub fn nether_cave(location: ResourceLocation, config: CaveCarverConfig) -> Self {
@@ -382,8 +382,8 @@ impl ConfiguredCarver {
         minecraft = "Prefer [`ConfiguredCarver::cave`] / [`ConfiguredCarver::nether_cave`]. This escape hatch exists for modded carver types and for vanilla configs outside the typed slice. The config must still be a JSON object.",
         use_when = ["Prefer [`ConfiguredCarver::cave`] / [`ConfiguredCarver::nether_cave`]. This escape hatch exists for modded carver types and for vanilla configs outside the typed slice. The config must still be a JSON object."],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(location = "`location` provides the typed resource identifier or location used to use author a configured carver from an explicitly raw carver type and config object.", carver_type = "`carver_type` provides the typed Minecraft resource identifier used to use author a configured carver from an explicitly raw carver type and config object.", config = "`config` supplies the config value used to use author a configured carver from an explicitly raw carver type and config object."),
-        returns = "A newly constructed `ConfiguredCarver` configured to use author a configured carver from an explicitly raw carver type and config object.",
+        params(location = "`location` provides the typed resource identifier or location used to use author a configured carver from an explicitly raw carver type and config object.", carver_type = "`carver_type` provides the typed Minecraft resource identifier used to use author a configured carver from an explicitly raw carver type and config object.", config = "`config` sets the config for author a configured carver from an explicitly raw carver type and config object."),
+        returns = "A `ConfiguredCarver` configured for author a configured carver from an explicitly raw carver type and config object.",
         example = "use sand::prelude::*;\n\nfn demonstrate(location: sand::ResourceLocation, carver_type: sand::ResourceLocation, config: sand::component::RawJson)  {\n    let configured_carver = sand::component::ConfiguredCarver::raw(location, carver_type, config);\n}",
     )]
     pub fn raw(location: ResourceLocation, carver_type: ResourceLocation, config: RawJson) -> Self {

@@ -42,8 +42,8 @@ impl FirstJoinCommands {
         minecraft = "The exact commands, resources, and lifecycle behavior are described by the defining item's source documentation for the selected feature and Minecraft profile.",
         use_when = ["Opting into the documented higher-level gameplay behavior instead of assembling its commands manually"],
         avoid_when = ["Using the API outside its documented system scope or feature configuration"],
-        params(flag_objective = "`flag_objective` supplies the flag objective value used to create a new first-join helper backed by the given flag objective name."),
-        returns = "A newly constructed `FirstJoinCommands` configured to create a new first-join helper backed by the given flag objective name.",
+        params(flag_objective = "`flag_objective` is used when creating a new first-join helper backed by the given flag objective name."),
+        returns = "A `FirstJoinCommands` representing a new first-join helper backed by the given flag objective name.",
         example = "use sand::prelude::*;\n\nfn demonstrate(flag_objective: impl Into < String >)  {\n    let first_join_commands = sand::systems::lifecycle::FirstJoinCommands::new(flag_objective);\n}",
         availability = ["Cargo feature: systems-lifecycle"],
     )]
@@ -150,8 +150,8 @@ impl RespawnCommands {
         minecraft = "The exact commands, resources, and lifecycle behavior are described by the defining item's source documentation for the selected feature and Minecraft profile.",
         use_when = ["Opting into the documented higher-level gameplay behavior instead of assembling its commands manually"],
         avoid_when = ["Using the API outside its documented system scope or feature configuration"],
-        params(dead_flag_objective = "`dead_flag_objective` supplies the dead flag objective value used to create a new respawn helper backed by the given \"is dead\" flag objective."),
-        returns = "A newly constructed `RespawnCommands` configured to create a new respawn helper backed by the given \"is dead\" flag objective.",
+        params(dead_flag_objective = "`dead_flag_objective` is used when creating a new respawn helper backed by the given \"is dead\" flag objective."),
+        returns = "A `RespawnCommands` representing a new respawn helper backed by the given \"is dead\" flag objective.",
         example = "use sand::prelude::*;\n\nfn demonstrate(dead_flag_objective: impl Into < String >)  {\n    let respawn_commands = sand::systems::lifecycle::RespawnCommands::new(dead_flag_objective);\n}",
         availability = ["Cargo feature: systems-lifecycle"],
     )]

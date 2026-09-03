@@ -106,7 +106,7 @@ impl Ingredient {
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
         params(id = "`id` provides the typed resource identifier or location used to create an item ingredient through Sand's validated item-ID boundary."),
-        returns = "A newly constructed `Ingredient` configured to create an item ingredient through Sand's validated item-ID boundary.",
+        returns = "An `Ingredient` representing an item ingredient through Sand's validated item-ID boundary.",
         example = "use sand::prelude::*;\n\nfn demonstrate(id: impl sand::component::IntoRecipeItemId)  {\n    let ingredient = sand::component::Ingredient::item_id(id);\n}",
     )]
     pub fn item_id(id: impl IntoRecipeItemId) -> Self {
@@ -127,7 +127,7 @@ impl Ingredient {
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
         params(id = "`id` provides the typed resource identifier or location used to create an item-tag ingredient. The `ItemId` marker prevents block or other registry tags from being passed accidentally."),
-        returns = "A newly constructed `Ingredient` configured to create an item-tag ingredient. The `ItemId` marker prevents block or other registry tags from being passed accidentally.",
+        returns = "An `Ingredient` representing an item-tag ingredient. The `ItemId` marker prevents block or other registry tags from being passed accidentally.",
         example = "use sand::prelude::*;\n\nfn demonstrate(id: sand::component::TagId < sand::registry::ItemId >)  {\n    let ingredient = sand::component::Ingredient::item_tag(id);\n}",
     )]
     pub fn item_tag(id: TagId<ItemId>) -> Self {
@@ -150,7 +150,7 @@ impl Ingredient {
         use_when = ["Prefer [`Ingredient::item_id`]. This escape hatch remains available for future or modded identifiers that cannot yet use Sand's typed registry."],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
         params(id = "`id` provides the typed resource identifier or location used to create an item ingredient from an unchecked compatibility string."),
-        returns = "A newly constructed `Ingredient` configured to create an item ingredient from an unchecked compatibility string.",
+        returns = "An `Ingredient` representing an item ingredient from an unchecked compatibility string.",
         example = "use sand::prelude::*;\n\nfn demonstrate(id: impl Into < String >)  {\n    let ingredient = sand::component::Ingredient::raw_item(id);\n}",
     )]
     pub fn raw_item(id: impl Into<String>) -> Self {
@@ -175,7 +175,7 @@ impl Ingredient {
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
         params(id = "`id` provides the typed resource identifier or location used to create an item-tag ingredient from an unchecked compatibility string. Prefer [`Ingredient::item_tag`]."),
-        returns = "A newly constructed `Ingredient` configured to create an item-tag ingredient from an unchecked compatibility string. Prefer [`Ingredient::item_tag`].",
+        returns = "An `Ingredient` representing an item-tag ingredient from an unchecked compatibility string. Prefer [`Ingredient::item_tag`].",
         example = "use sand::prelude::*;\n\nfn demonstrate(id: impl Into < String >)  {\n    let ingredient = sand::component::Ingredient::raw_tag(id);\n}",
     )]
     pub fn raw_tag(id: impl Into<String>) -> Self {
@@ -200,7 +200,7 @@ impl Ingredient {
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
         params(id = "`id` provides the typed resource identifier or location used to use legacy unchecked compatibility constructor. Prefer [`Ingredient::item_id`] or make raw intent explicit with [`Ingredient::raw_item`]."),
-        returns = "A newly constructed `Ingredient` configured to use legacy unchecked compatibility constructor. Prefer [`Ingredient::item_id`] or make raw intent explicit with [`Ingredient::raw_item`].",
+        returns = "An `Ingredient` configured for legacy unchecked compatibility constructor. Prefer [`Ingredient::item_id`] or make raw intent explicit with [`Ingredient::raw_item`].",
         example = "use sand::prelude::*;\n\nfn demonstrate(id: impl std::fmt::Display)  {\n    let ingredient = sand::component::Ingredient::item(id);\n}",
     )]
     pub fn item(id: impl Display) -> Self {
@@ -221,7 +221,7 @@ impl Ingredient {
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
         params(id = "`id` provides the typed resource identifier or location used to use legacy unchecked compatibility constructor. Prefer [`Ingredient::item_tag`] or make raw intent explicit with [`Ingredient::raw_tag`]."),
-        returns = "A newly constructed `Ingredient` configured to use legacy unchecked compatibility constructor. Prefer [`Ingredient::item_tag`] or make raw intent explicit with [`Ingredient::raw_tag`].",
+        returns = "An `Ingredient` configured for legacy unchecked compatibility constructor. Prefer [`Ingredient::item_tag`] or make raw intent explicit with [`Ingredient::raw_tag`].",
         example = "use sand::prelude::*;\n\nfn demonstrate(id: impl std::fmt::Display)  {\n    let ingredient = sand::component::Ingredient::tag(id);\n}",
     )]
     pub fn tag(id: impl Display) -> Self {
@@ -242,8 +242,8 @@ impl Ingredient {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(alternatives = "`alternatives` supplies the alternatives value used to create an ingredient that matches any of the supplied alternatives. Modern recipe JSON represents alternatives as an array of ingredient values, where item IDs and tag IDs are both strings."),
-        returns = "A newly constructed `Ingredient` configured to create an ingredient that matches any of the supplied alternatives. Modern recipe JSON represents alternatives as an array of ingredient values, where item IDs and tag IDs are both strings.",
+        params(alternatives = "`alternatives` is used when creating an ingredient that matches any of the supplied alternatives. Modern recipe JSON represents alternatives as an array of ingredient values, where item IDs and tag IDs are both strings."),
+        returns = "An `Ingredient` representing an ingredient that matches any of the supplied alternatives. Modern recipe JSON represents alternatives as an array of ingredient values, where item IDs and tag IDs are both strings.",
         example = "use sand::prelude::*;\n\nfn demonstrate(alternatives: impl IntoIterator < Item = sand::component::Ingredient >)  {\n    let ingredient = sand::component::Ingredient::alternatives(alternatives);\n}",
     )]
     pub fn alternatives(alternatives: impl IntoIterator<Item = Ingredient>) -> Self {
@@ -524,7 +524,7 @@ impl RecipeResult {
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
         params(id = "`id` provides the typed resource identifier or location used to create a recipe result through Sand's validated item-ID boundary.", count = "`count` provides the requested numeric amount used to create a recipe result through Sand's validated item-ID boundary."),
-        returns = "A newly constructed `RecipeResult` configured to create a recipe result through Sand's validated item-ID boundary.",
+        returns = "A `RecipeResult` representing a recipe result through Sand's validated item-ID boundary.",
         example = "use sand::prelude::*;\n\nfn demonstrate(id: impl sand::component::IntoRecipeItemId, count: u32)  {\n    let recipe_result = sand::component::RecipeResult::item(id, count);\n}",
     )]
     pub fn item(id: impl IntoRecipeItemId, count: u32) -> Self {
@@ -544,7 +544,7 @@ impl RecipeResult {
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
         params(id = "`id` provides the typed resource identifier or location used to create a recipe result from an unchecked compatibility string.", count = "`count` provides the requested numeric amount used to create a recipe result from an unchecked compatibility string."),
-        returns = "A newly constructed `RecipeResult` configured to create a recipe result from an unchecked compatibility string.",
+        returns = "A `RecipeResult` representing a recipe result from an unchecked compatibility string.",
         example = "use sand::prelude::*;\n\nfn demonstrate(id: impl Into < String >, count: u32)  {\n    let recipe_result = sand::component::RecipeResult::raw(id, count);\n}",
     )]
     pub fn raw(id: impl Into<String>, count: u32) -> Self {
@@ -569,7 +569,7 @@ impl RecipeResult {
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
         params(id = "`id` provides the typed resource identifier or location used to use legacy unchecked compatibility constructor. Prefer [`RecipeResult::item`] or make raw intent explicit with [`RecipeResult::raw`].", count = "`count` provides the requested numeric amount used to use legacy unchecked compatibility constructor. Prefer [`RecipeResult::item`] or make raw intent explicit with [`RecipeResult::raw`]."),
-        returns = "A newly constructed `RecipeResult` configured to use legacy unchecked compatibility constructor. Prefer [`RecipeResult::item`] or make raw intent explicit with [`RecipeResult::raw`].",
+        returns = "A `RecipeResult` configured for legacy unchecked compatibility constructor. Prefer [`RecipeResult::item`] or make raw intent explicit with [`RecipeResult::raw`].",
         example = "use sand::prelude::*;\n\nfn demonstrate(id: impl std::fmt::Display, count: u32)  {\n    let recipe_result = sand::component::RecipeResult::new(id, count);\n}",
     )]
     pub fn new(id: impl Display, count: u32) -> Self {
@@ -728,17 +728,17 @@ impl Serialize for RecipeResult {
     use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
     avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
     example = "use sand::component::CookingType;",
-    variants(Blasting = "Selects the blasting form in this typed Minecraft component schema.", CampfireCooking = "Selects the campfire cooking form in this typed Minecraft component schema.", Smelting = "Selects the smelting form in this typed Minecraft component schema.", Smoking = "Selects the smoking form in this typed Minecraft component schema."),
+    variants(Blasting = "Uses Minecraft's blasting recipe type.", CampfireCooking = "Uses Minecraft's campfire cooking recipe type.", Smelting = "Uses Minecraft's smelting recipe type.", Smoking = "Uses Minecraft's smoking recipe type."),
 )]
 /// Specifies the type of cooking recipe (smelting, blasting, smoking, or campfire cooking).
 pub enum CookingType {
-    #[doc = "Selects the smelting form in this typed Minecraft component schema."]
+    #[doc = "Uses Minecraft's smelting recipe type."]
     Smelting,
-    #[doc = "Selects the blasting form in this typed Minecraft component schema."]
+    #[doc = "Uses Minecraft's blasting recipe type."]
     Blasting,
-    #[doc = "Selects the smoking form in this typed Minecraft component schema."]
+    #[doc = "Uses Minecraft's smoking recipe type."]
     Smoking,
-    #[doc = "Selects the campfire cooking form in this typed Minecraft component schema."]
+    #[doc = "Uses Minecraft's campfire cooking recipe type."]
     CampfireCooking,
 }
 

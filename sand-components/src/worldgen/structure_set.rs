@@ -53,7 +53,7 @@ impl StructureEntry {
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
         params(structure = "`structure` provides the typed Minecraft resource identifier used to emit the documented `weight` must be at least 1; checked on export form.", weight = "`weight` must be at least 1; checked on export."),
-        returns = "A newly constructed `StructureEntry` configured to emit the documented `weight` must be at least 1; checked on export form.",
+        returns = "A `StructureEntry` that emits the documented `weight` must be at least 1; checked on export form.",
         example = "use sand::prelude::*;\n\nfn demonstrate(structure: sand::registry::StructureId, weight: u32)  {\n    let structure_entry = sand::component::StructureEntry::new(structure, weight);\n}",
     )]
     pub fn new(structure: StructureId, weight: u32) -> Self {
@@ -123,7 +123,7 @@ impl ExclusionZone {
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
         params(other_set = "`other_set` is the raw resource-location string of the other structure set (kept as a string since vanilla exclusion zones may reference sets defined outside the current pack). `chunk_count` must be at least 1.", chunk_count = "`other_set` is the raw resource-location string of the other structure set (kept as a string since vanilla exclusion zones may reference sets defined outside the current pack). `chunk_count` must be at least 1."),
-        returns = "A newly constructed `ExclusionZone` configured to emit the documented `other_set` is the raw resource-location string of the other structure set (kept as a string since vanilla exclusion zones may reference sets defined outside the current pack). `chunk_count` must be at least 1 form.",
+        returns = "An `ExclusionZone` that emits the documented `other_set` is the raw resource-location string of the other structure set (kept as a string since vanilla exclusion zones may reference sets defined outside the current pack). `chunk_count` must be at least 1 form.",
         example = "use sand::prelude::*;\n\nfn demonstrate(other_set: impl Into < String >, chunk_count: u32)  {\n    let exclusion_zone = sand::component::ExclusionZone::new(other_set, chunk_count);\n}",
     )]
     pub fn new(other_set: impl Into<String>, chunk_count: u32) -> Self {
@@ -170,18 +170,18 @@ impl ExclusionZone {
     use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
     avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
     example = "use sand::component::FrequencyReductionMethod;",
-    variants(Default = "Selects the default form in this typed Minecraft component schema.", LegacyType1 = "Selects the legacy type1 form in this typed Minecraft component schema.", LegacyType2 = "Selects the legacy type2 form in this typed Minecraft component schema.", LegacyType3 = "Selects the legacy type3 form in this typed Minecraft component schema."),
+    variants(Default = "Uses Minecraft's default frequency-reduction algorithm.", LegacyType1 = "Uses Minecraft's legacy type1 frequency-reduction algorithm.", LegacyType2 = "Uses Minecraft's legacy type2 frequency-reduction algorithm.", LegacyType3 = "Uses Minecraft's legacy type3 frequency-reduction algorithm."),
 )]
 /// The frequency reduction curve for random-spread placement.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum FrequencyReductionMethod {
-    #[doc = "Selects the default form in this typed Minecraft component schema."]
+    #[doc = "Uses Minecraft's default frequency-reduction algorithm."]
     Default,
-    #[doc = "Selects the legacy type1 form in this typed Minecraft component schema."]
+    #[doc = "Uses Minecraft's legacy type1 frequency-reduction algorithm."]
     LegacyType1,
-    #[doc = "Selects the legacy type2 form in this typed Minecraft component schema."]
+    #[doc = "Uses Minecraft's legacy type2 frequency-reduction algorithm."]
     LegacyType2,
-    #[doc = "Selects the legacy type3 form in this typed Minecraft component schema."]
+    #[doc = "Uses Minecraft's legacy type3 frequency-reduction algorithm."]
     LegacyType3,
 }
 
@@ -222,14 +222,14 @@ impl FrequencyReductionMethod {
     use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
     avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
     example = "use sand::component::SpreadType;",
-    variants(Linear = "Selects the linear form in this typed Minecraft component schema.", Triangular = "Selects the triangular form in this typed Minecraft component schema."),
+    variants(Linear = "Distributes candidate chunks with Minecraft's linear spread.", Triangular = "Distributes candidate chunks with Minecraft's triangular spread."),
 )]
 /// How random-spread candidate chunks are chosen inside each spacing cell.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum SpreadType {
-    #[doc = "Selects the linear form in this typed Minecraft component schema."]
+    #[doc = "Distributes candidate chunks with Minecraft's linear spread."]
     Linear,
-    #[doc = "Selects the triangular form in this typed Minecraft component schema."]
+    #[doc = "Distributes candidate chunks with Minecraft's triangular spread."]
     Triangular,
 }
 
@@ -316,8 +316,8 @@ impl StructurePlacement {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(spacing = "`spacing` supplies the spacing value used to use a random-spread placement with vanilla village-like defaults.", separation = "`separation` supplies the separation value used to use a random-spread placement with vanilla village-like defaults.", salt = "`salt` supplies the salt value used to use a random-spread placement with vanilla village-like defaults."),
-        returns = "A newly constructed `StructurePlacement` configured to use a random-spread placement with vanilla village-like defaults.",
+        params(spacing = "`spacing` sets the spacing for a random-spread placement with vanilla village-like defaults.", separation = "`separation` sets the separation for a random-spread placement with vanilla village-like defaults.", salt = "`salt` sets the salt for a random-spread placement with vanilla village-like defaults."),
+        returns = "A `StructurePlacement` configured for a random-spread placement with vanilla village-like defaults.",
         example = "use sand::prelude::*;\n\nfn demonstrate(spacing: u32, separation: u32, salt: i32)  {\n    let structure_placement = sand::component::StructurePlacement::random_spread(spacing, separation, salt);\n}",
     )]
     pub fn random_spread(spacing: u32, separation: u32, salt: i32) -> Self {
@@ -343,8 +343,8 @@ impl StructurePlacement {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(distance = "`distance` supplies the distance value used to use a concentric-rings placement with vanilla stronghold-like defaults.", spread = "`spread` supplies the spread value used to use a concentric-rings placement with vanilla stronghold-like defaults.", count = "`count` provides the requested numeric amount used to use a concentric-rings placement with vanilla stronghold-like defaults."),
-        returns = "A newly constructed `StructurePlacement` configured to use a concentric-rings placement with vanilla stronghold-like defaults.",
+        params(distance = "`distance` sets the distance for a concentric-rings placement with vanilla stronghold-like defaults.", spread = "`spread` sets the spread for a concentric-rings placement with vanilla stronghold-like defaults.", count = "`count` provides the requested numeric amount used to use a concentric-rings placement with vanilla stronghold-like defaults."),
+        returns = "A `StructurePlacement` configured for a concentric-rings placement with vanilla stronghold-like defaults.",
         example = "use sand::prelude::*;\n\nfn demonstrate(distance: u32, spread: u32, count: u32)  {\n    let structure_placement = sand::component::StructurePlacement::concentric_rings(distance, spread, count);\n}",
     )]
     pub fn concentric_rings(distance: u32, spread: u32, count: u32) -> Self {
@@ -545,8 +545,8 @@ impl StructureSet {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(location = "`location` provides the typed resource identifier or location used to create a structure set from an explicit weighted structure list and placement.", structures = "`structures` supplies the structures value used to create a structure set from an explicit weighted structure list and placement.", placement = "`placement` supplies the placement value used to create a structure set from an explicit weighted structure list and placement."),
-        returns = "A newly constructed `StructureSet` configured to create a structure set from an explicit weighted structure list and placement.",
+        params(location = "`location` provides the typed resource identifier or location used to create a structure set from an explicit weighted structure list and placement.", structures = "`structures` is used when creating a structure set from an explicit weighted structure list and placement.", placement = "`placement` is used when creating a structure set from an explicit weighted structure list and placement."),
+        returns = "A `StructureSet` representing a structure set from an explicit weighted structure list and placement.",
         example = "use sand::prelude::*;\n\nfn demonstrate(location: sand::ResourceLocation, structures: impl IntoIterator < Item = sand::component::StructureEntry >, placement: sand::component::StructurePlacement)  {\n    let structure_set = sand::component::StructureSet::new(location, structures, placement);\n}",
     )]
     pub fn new(
@@ -575,8 +575,8 @@ impl StructureSet {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(location = "`location` provides the typed resource identifier or location used to use convenience constructor for a single-structure random-spread set.", structure = "`structure` provides the typed Minecraft resource identifier used to use convenience constructor for a single-structure random-spread set.", spacing = "`spacing` supplies the spacing value used to use convenience constructor for a single-structure random-spread set.", separation = "`separation` supplies the separation value used to use convenience constructor for a single-structure random-spread set.", salt = "`salt` supplies the salt value used to use convenience constructor for a single-structure random-spread set."),
-        returns = "A newly constructed `StructureSet` configured to use convenience constructor for a single-structure random-spread set.",
+        params(location = "`location` provides the typed resource identifier or location used to use convenience constructor for a single-structure random-spread set.", structure = "`structure` provides the typed Minecraft resource identifier used to use convenience constructor for a single-structure random-spread set.", spacing = "`spacing` sets the spacing for convenience constructor for a single-structure random-spread set.", separation = "`separation` sets the separation for convenience constructor for a single-structure random-spread set.", salt = "`salt` sets the salt for convenience constructor for a single-structure random-spread set."),
+        returns = "A `StructureSet` configured for convenience constructor for a single-structure random-spread set.",
         example = "use sand::prelude::*;\n\nfn demonstrate(location: sand::ResourceLocation, structure: sand::registry::StructureId, spacing: u32, separation: u32, salt: i32)  {\n    let structure_set = sand::component::StructureSet::random_spread(location, structure, spacing, separation, salt);\n}",
     )]
     pub fn random_spread(
@@ -605,8 +605,8 @@ impl StructureSet {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(location = "`location` provides the typed resource identifier or location used to use convenience constructor for a single-structure concentric-rings set.", structure = "`structure` provides the typed Minecraft resource identifier used to use convenience constructor for a single-structure concentric-rings set.", distance = "`distance` supplies the distance value used to use convenience constructor for a single-structure concentric-rings set.", spread = "`spread` supplies the spread value used to use convenience constructor for a single-structure concentric-rings set.", count = "`count` provides the requested numeric amount used to use convenience constructor for a single-structure concentric-rings set."),
-        returns = "A newly constructed `StructureSet` configured to use convenience constructor for a single-structure concentric-rings set.",
+        params(location = "`location` provides the typed resource identifier or location used to use convenience constructor for a single-structure concentric-rings set.", structure = "`structure` provides the typed Minecraft resource identifier used to use convenience constructor for a single-structure concentric-rings set.", distance = "`distance` sets the distance for convenience constructor for a single-structure concentric-rings set.", spread = "`spread` sets the spread for convenience constructor for a single-structure concentric-rings set.", count = "`count` provides the requested numeric amount used to use convenience constructor for a single-structure concentric-rings set."),
+        returns = "A `StructureSet` configured for convenience constructor for a single-structure concentric-rings set.",
         example = "use sand::prelude::*;\n\nfn demonstrate(location: sand::ResourceLocation, structure: sand::registry::StructureId, distance: u32, spread: u32, count: u32)  {\n    let structure_set = sand::component::StructureSet::concentric_rings(location, structure, distance, spread, count);\n}",
     )]
     pub fn concentric_rings(
@@ -635,7 +635,7 @@ impl StructureSet {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(structures = "`structures` supplies the structures value used to set the Minecraft structures property on this typed structure set definition and returns the updated builder."),
+        params(structures = "`structures` provides the structures applied when setting the Minecraft structures property on this typed structure set definition and returns the updated builder."),
         returns = "Sets the Minecraft structures property on this typed structure set definition and returns the updated builder.",
         example = "use sand::prelude::*;\n\nfn demonstrate(structure_set_value: sand::component::StructureSet, structures: impl IntoIterator < Item = sand::component::StructureEntry >)  {\n    let updated_structure_set = structure_set_value.structures(structures);\n}",
     )]
@@ -656,7 +656,7 @@ impl StructureSet {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(entry = "`entry` supplies the entry value used to set the Minecraft add structure property on this typed structure set definition and returns the updated builder."),
+        params(entry = "`entry` provides the entry applied when setting the Minecraft add structure property on this typed structure set definition and returns the updated builder."),
         returns = "Sets the Minecraft add structure property on this typed structure set definition and returns the updated builder.",
         example = "use sand::prelude::*;\n\nfn demonstrate(structure_set_value: sand::component::StructureSet, entry: sand::component::StructureEntry)  {\n    let updated_structure_set = structure_set_value.add_structure(entry);\n}",
     )]
@@ -677,7 +677,7 @@ impl StructureSet {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(placement = "`placement` supplies the placement value used to set the Minecraft placement property on this typed structure set definition and returns the updated builder."),
+        params(placement = "`placement` provides the placement applied when setting the Minecraft placement property on this typed structure set definition and returns the updated builder."),
         returns = "Sets the Minecraft placement property on this typed structure set definition and returns the updated builder.",
         example = "use sand::prelude::*;\n\nfn demonstrate(structure_set_value: sand::component::StructureSet, placement: sand::component::StructurePlacement)  {\n    let updated_structure_set = structure_set_value.placement(placement);\n}",
     )]
@@ -698,7 +698,7 @@ impl StructureSet {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(zone = "`zone` supplies the zone value used to set the Minecraft exclusion zone property on this typed structure set definition and returns the updated builder."),
+        params(zone = "`zone` provides the zone applied when setting the Minecraft exclusion zone property on this typed structure set definition and returns the updated builder."),
         returns = "Sets the Minecraft exclusion zone property on this typed structure set definition and returns the updated builder.",
         example = "use sand::prelude::*;\n\nfn demonstrate(structure_set_value: sand::component::StructureSet, zone: sand::component::ExclusionZone)  {\n    let updated_structure_set = structure_set_value.exclusion_zone(zone);\n}",
     )]

@@ -288,7 +288,7 @@ impl Inventory {
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
         params(selector = "`selector` provides the Minecraft target selection used to create an inventory handle for the given entity selector."),
-        returns = "A newly constructed `Inventory` configured to create an inventory handle for the given entity selector.",
+        returns = "An `Inventory` representing an inventory handle for the given entity selector.",
         example = "use sand::prelude::*;\n\nfn demonstrate(selector: sand::command::Selector)  {\n    let inventory = sand::command::Inventory::of(selector);\n}",
     )]
     pub fn of(selector: Selector) -> Self {
@@ -412,7 +412,7 @@ impl Inventory {
         minecraft = "Accepts any type that converts to [`ItemSlot`]. Never panics on an out-of-range or wildcard slot — the rendered line is re-validated at export time; use [`Inventory::try_set`] to fail fast instead.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        params(slot = "`slot` supplies the slot value used to emit the documented `item replace entity <selector> <slot> with <item>` — overwrite a slot form.", item = "`item` provides the item value or item predicate used to emit the documented `item replace entity <selector> <slot> with <item>` — overwrite a slot form."),
+        params(slot = "`slot` supplies the documented `item replace entity <selector> <slot> with <item>` — overwrite a slot form.", item = "`item` provides the item value or item predicate used to emit the documented `item replace entity <selector> <slot> with <item>` — overwrite a slot form."),
         returns = "The string value produced to emit the documented `item replace entity <selector> <slot> with <item>` — overwrite a slot form.",
         example = "use std::fmt;\nuse sand::prelude::*;\n\nfn demonstrate(inventory_value: &sand::command::Inventory, slot: impl Into < sand::command::ItemSlot >, item: impl fmt::Display)  {\n    let set = inventory_value.set(slot, item);\n}",
     )]
@@ -437,7 +437,7 @@ impl Inventory {
         minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        params(slot = "`slot` supplies the slot value used to use fallible [`Inventory::set`] — rejects out-of-range/wildcard slots and malformed item IDs.", item = "`item` provides the item value or item predicate used to use fallible [`Inventory::set`] — rejects out-of-range/wildcard slots and malformed item IDs."),
+        params(slot = "`slot` sets the slot for fallible [`Inventory::set`] — rejects out-of-range/wildcard slots and malformed item IDs.", item = "`item` provides the item value or item predicate used to use fallible [`Inventory::set`] — rejects out-of-range/wildcard slots and malformed item IDs."),
         returns = "On success, the value produced to use fallible [`Inventory::set`] — rejects out-of-range/wildcard slots and malformed item IDs; otherwise, the documented validation or export diagnostic.",
         example = "use std::fmt;\nuse sand::prelude::*;\n\nfn demonstrate(inventory_value: &sand::command::Inventory, slot: impl Into < sand::command::ItemSlot >, item: impl fmt::Display)  {\n    let try_set = inventory_value.try_set(slot, item);\n}",
     )]
@@ -472,7 +472,7 @@ impl Inventory {
         minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        params(slot = "`slot` supplies the slot value used to emit the documented `item replace entity <selector> <slot> with <item> <count>` — overwrite with a stack size form.", item = "`item` provides the item value or item predicate used to emit the documented `item replace entity <selector> <slot> with <item> <count>` — overwrite with a stack size form.", count = "`count` provides the requested numeric amount used to emit the documented `item replace entity <selector> <slot> with <item> <count>` — overwrite with a stack size form."),
+        params(slot = "`slot` supplies the documented `item replace entity <selector> <slot> with <item> <count>` — overwrite with a stack size form.", item = "`item` provides the item value or item predicate used to emit the documented `item replace entity <selector> <slot> with <item> <count>` — overwrite with a stack size form.", count = "`count` provides the requested numeric amount used to emit the documented `item replace entity <selector> <slot> with <item> <count>` — overwrite with a stack size form."),
         returns = "The string value produced to emit the documented `item replace entity <selector> <slot> with <item> <count>` — overwrite with a stack size form.",
         example = "use std::fmt;\nuse sand::prelude::*;\n\nfn demonstrate(inventory_value: &sand::command::Inventory, slot: impl Into < sand::command::ItemSlot >, item: impl fmt::Display, count: u32)  {\n    let set_count = inventory_value.set_count(slot, item, count);\n}",
     )]
@@ -505,7 +505,7 @@ impl Inventory {
         minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        params(slot = "`slot` supplies the slot value used to use fallible [`Inventory::set_count`] — rejects out-of-range/wildcard slots, malformed item IDs, and a count of `0`.", item = "`item` provides the item value or item predicate used to use fallible [`Inventory::set_count`] — rejects out-of-range/wildcard slots, malformed item IDs, and a count of `0`.", count = "`count` provides the requested numeric amount used to use fallible [`Inventory::set_count`] — rejects out-of-range/wildcard slots, malformed item IDs, and a count of `0`."),
+        params(slot = "`slot` sets the slot for fallible [`Inventory::set_count`] — rejects out-of-range/wildcard slots, malformed item IDs, and a count of `0`.", item = "`item` provides the item value or item predicate used to use fallible [`Inventory::set_count`] — rejects out-of-range/wildcard slots, malformed item IDs, and a count of `0`.", count = "`count` provides the requested numeric amount used to use fallible [`Inventory::set_count`] — rejects out-of-range/wildcard slots, malformed item IDs, and a count of `0`."),
         returns = "On success, the value produced to use fallible [`Inventory::set_count`] — rejects out-of-range/wildcard slots, malformed item IDs, and a count of `0`; otherwise, the documented validation or export diagnostic.",
         example = "use std::fmt;\nuse sand::prelude::*;\n\nfn demonstrate(inventory_value: &sand::command::Inventory, slot: impl Into < sand::command::ItemSlot >, item: impl fmt::Display, count: u32)  {\n    let try_set_count = inventory_value.try_set_count(slot, item, count);\n}",
     )]
@@ -544,7 +544,7 @@ impl Inventory {
         minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        params(slot = "`slot` supplies the slot value used to emit the documented `item replace entity <selector> <slot> with air` — empty a specific slot form."),
+        params(slot = "`slot` supplies the documented `item replace entity <selector> <slot> with air` — empty a specific slot form."),
         returns = "The string value produced to emit the documented `item replace entity <selector> <slot> with air` — empty a specific slot form.",
         example = "use sand::prelude::*;\n\nfn demonstrate(inventory_value: &sand::command::Inventory, slot: impl Into < sand::command::ItemSlot >)  {\n    let clear_slot = inventory_value.clear_slot(slot);\n}",
     )]
@@ -567,7 +567,7 @@ impl Inventory {
         minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        params(slot = "`slot` supplies the slot value used to use fallible [`Inventory::clear_slot`] — rejects out-of-range/wildcard slots."),
+        params(slot = "`slot` sets the slot for fallible [`Inventory::clear_slot`] — rejects out-of-range/wildcard slots."),
         returns = "On success, the value produced to use fallible [`Inventory::clear_slot`] — rejects out-of-range/wildcard slots; otherwise, the documented validation or export diagnostic.",
         example = "use sand::prelude::*;\n\nfn demonstrate(inventory_value: &sand::command::Inventory, slot: impl Into < sand::command::ItemSlot >)  {\n    let try_clear_slot = inventory_value.try_clear_slot(slot);\n}",
     )]
@@ -751,7 +751,7 @@ impl Inventory {
         minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        params(slot = "`slot` supplies the slot value used to use fallible [`Inventory::copy_from`] — validates both the destination and source slots (neither may be out-of-range or a wildcard: a single-item copy resolves to exactly one slot on each side).", source = "`source` provides the Minecraft target selection used to use fallible [`Inventory::copy_from`] — validates both the destination and source slots (neither may be out-of-range or a wildcard: a single-item copy resolves to exactly one slot on each side).", source_slot = "`source_slot` supplies the source slot value used to use fallible [`Inventory::copy_from`] — validates both the destination and source slots (neither may be out-of-range or a wildcard: a single-item copy resolves to exactly one slot on each side)."),
+        params(slot = "`slot` sets the slot for fallible [`Inventory::copy_from`] — validates both the destination and source slots (neither may be out-of-range or a wildcard: a single-item copy resolves to exactly one slot on each side).", source = "`source` provides the Minecraft target selection used to use fallible [`Inventory::copy_from`] — validates both the destination and source slots (neither may be out-of-range or a wildcard: a single-item copy resolves to exactly one slot on each side).", source_slot = "`source_slot` sets the source slot for fallible [`Inventory::copy_from`] — validates both the destination and source slots (neither may be out-of-range or a wildcard: a single-item copy resolves to exactly one slot on each side)."),
         returns = "On success, the value produced to use fallible [`Inventory::copy_from`] — validates both the destination and source slots (neither may be out-of-range or a wildcard: a single-item copy resolves to exactly one slot on each side); otherwise, the documented validation or export diagnostic.",
         example = "use sand::prelude::*;\n\nfn demonstrate(inventory_value: &sand::command::Inventory, slot: impl Into < sand::command::ItemSlot >, source: sand::command::Selector, source_slot: impl Into < sand::command::ItemSlot >)  {\n    let try_copy_from = inventory_value.try_copy_from(slot, source, source_slot);\n}",
     )]
@@ -790,7 +790,7 @@ impl Inventory {
         minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        params(slot = "`slot` supplies the slot value used to emit the documented `item modify entity <selector> <slot> <modifier>` — apply an item modifier form.", modifier = "`modifier` supplies the modifier value used to emit the documented `item modify entity <selector> <slot> <modifier>` — apply an item modifier form."),
+        params(slot = "`slot` supplies the documented `item modify entity <selector> <slot> <modifier>` — apply an item modifier form.", modifier = "`modifier` supplies the documented `item modify entity <selector> <slot> <modifier>` — apply an item modifier form."),
         returns = "The string value produced to emit the documented `item modify entity <selector> <slot> <modifier>` — apply an item modifier form.",
         example = "use sand::prelude::*;\n\nfn demonstrate(inventory_value: &sand::command::Inventory, slot: impl Into < sand::command::ItemSlot >, modifier: impl Into < String >)  {\n    let modify = inventory_value.modify(slot, modifier);\n}",
     )]
@@ -816,7 +816,7 @@ impl Inventory {
         minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        params(slot = "`slot` supplies the slot value used to use fallible [`Inventory::modify`] — rejects out-of-range/wildcard slots and modifier references that are not `namespace:path`-shaped (an optional leading `#` for item-modifier tags is accepted).", modifier = "`modifier` supplies the modifier value used to use fallible [`Inventory::modify`] — rejects out-of-range/wildcard slots and modifier references that are not `namespace:path`-shaped (an optional leading `#` for item-modifier tags is accepted)."),
+        params(slot = "`slot` sets the slot for fallible [`Inventory::modify`] — rejects out-of-range/wildcard slots and modifier references that are not `namespace:path`-shaped (an optional leading `#` for item-modifier tags is accepted).", modifier = "`modifier` sets the modifier for fallible [`Inventory::modify`] — rejects out-of-range/wildcard slots and modifier references that are not `namespace:path`-shaped (an optional leading `#` for item-modifier tags is accepted)."),
         returns = "On success, the value produced to use fallible [`Inventory::modify`] — rejects out-of-range/wildcard slots and modifier references that are not `namespace:path`-shaped (an optional leading `#` for item-modifier tags is accepted); otherwise, the documented validation or export diagnostic.",
         example = "use sand::prelude::*;\n\nfn demonstrate(inventory_value: &sand::command::Inventory, slot: impl Into < sand::command::ItemSlot >, modifier: impl Into < String >)  {\n    let try_modify = inventory_value.try_modify(slot, modifier);\n}",
     )]

@@ -62,7 +62,7 @@ impl BlockState {
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
         params(block = "`block` provides the block value or block predicate used to create a block state with no property overrides."),
-        returns = "A newly constructed `BlockState` configured to create a block state with no property overrides.",
+        returns = "A `BlockState` representing a block state with no property overrides.",
         example = "use sand::prelude::*;\n\nfn demonstrate(block: sand::registry::BlockId)  {\n    let block_state = sand::component::BlockState::new(block);\n}",
     )]
     pub fn new(block: BlockId) -> Self {
@@ -179,8 +179,8 @@ impl WeightedBlockState {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(state = "`state` supplies the state value used to create a weighted block-state entry. `weight` must be at least 1.", weight = "Create a weighted block-state entry. `weight` must be at least 1."),
-        returns = "A newly constructed `WeightedBlockState` configured to create a weighted block-state entry. `weight` must be at least 1.",
+        params(state = "`state` is used when creating a weighted block-state entry. `weight` must be at least 1.", weight = "Create a weighted block-state entry. `weight` must be at least 1."),
+        returns = "A `WeightedBlockState` representing a weighted block-state entry. `weight` must be at least 1.",
         example = "use sand::prelude::*;\n\nfn demonstrate(state: sand::component::BlockState, weight: u32)  {\n    let weighted_block_state = sand::component::WeightedBlockState::new(state, weight);\n}",
     )]
     pub fn new(state: BlockState, weight: u32) -> Self {
@@ -225,8 +225,8 @@ impl BlockStateProvider {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(state = "`state` supplies the state value used to use convenience constructor for a `minecraft:simple_state_provider`."),
-        returns = "A newly constructed `BlockStateProvider` configured to use convenience constructor for a `minecraft:simple_state_provider`.",
+        params(state = "`state` sets the state for convenience constructor for a `minecraft:simple_state_provider`."),
+        returns = "A `BlockStateProvider` configured for convenience constructor for a `minecraft:simple_state_provider`.",
         example = "use sand::prelude::*;\n\nfn demonstrate(state: sand::component::BlockState)  {\n    let block_state_provider = sand::component::BlockStateProvider::simple(state);\n}",
     )]
     pub fn simple(state: BlockState) -> Self {
@@ -244,8 +244,8 @@ impl BlockStateProvider {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(entries = "`entries` supplies the entries value used to use convenience constructor for a `minecraft:weighted_state_provider`."),
-        returns = "A newly constructed `BlockStateProvider` configured to use convenience constructor for a `minecraft:weighted_state_provider`.",
+        params(entries = "`entries` sets the entries for convenience constructor for a `minecraft:weighted_state_provider`."),
+        returns = "A `BlockStateProvider` configured for convenience constructor for a `minecraft:weighted_state_provider`.",
         example = "use sand::prelude::*;\n\nfn demonstrate(entries: impl IntoIterator < Item = sand::component::WeightedBlockState >)  {\n    let block_state_provider = sand::component::BlockStateProvider::weighted(entries);\n}",
     )]
     pub fn weighted(entries: impl IntoIterator<Item = WeightedBlockState>) -> Self {
@@ -450,7 +450,7 @@ impl HeightProvider {
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
         params(y = "`y` provides the y-coordinate used to use a constant absolute-Y height provider."),
-        returns = "A newly constructed `HeightProvider` configured to use a constant absolute-Y height provider.",
+        returns = "A `HeightProvider` configured for a constant absolute-Y height provider.",
         example = "use sand::prelude::*;\n\nfn demonstrate(y: i32)  {\n    let height_provider = sand::component::HeightProvider::absolute(y);\n}",
     )]
     pub fn absolute(y: i32) -> Self {
@@ -582,22 +582,22 @@ fn require_ordered_anchors(
     use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
     avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
     example = "use sand::component::Heightmap;",
-    variants(MotionBlocking = "Selects the motion blocking form in this typed Minecraft component schema.", MotionBlockingNoLeaves = "Selects the motion blocking no leaves form in this typed Minecraft component schema.", OceanFloor = "Selects the ocean floor form in this typed Minecraft component schema.", OceanFloorWg = "Selects the ocean floor wg form in this typed Minecraft component schema.", WorldSurface = "Selects the world surface form in this typed Minecraft component schema.", WorldSurfaceWg = "Selects the world surface wg form in this typed Minecraft component schema."),
+    variants(MotionBlocking = "Samples Minecraft's motion blocking heightmap.", MotionBlockingNoLeaves = "Samples Minecraft's motion blocking no leaves heightmap.", OceanFloor = "Samples Minecraft's ocean floor heightmap.", OceanFloorWg = "Samples Minecraft's ocean floor wg heightmap.", WorldSurface = "Samples Minecraft's world surface heightmap.", WorldSurfaceWg = "Samples Minecraft's world surface wg heightmap."),
 )]
 /// A vanilla chunk heightmap selector.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Heightmap {
-    #[doc = "Selects the world surface wg form in this typed Minecraft component schema."]
+    #[doc = "Samples Minecraft's world surface wg heightmap."]
     WorldSurfaceWg,
-    #[doc = "Selects the world surface form in this typed Minecraft component schema."]
+    #[doc = "Samples Minecraft's world surface heightmap."]
     WorldSurface,
-    #[doc = "Selects the ocean floor wg form in this typed Minecraft component schema."]
+    #[doc = "Samples Minecraft's ocean floor wg heightmap."]
     OceanFloorWg,
-    #[doc = "Selects the ocean floor form in this typed Minecraft component schema."]
+    #[doc = "Samples Minecraft's ocean floor heightmap."]
     OceanFloor,
-    #[doc = "Selects the motion blocking form in this typed Minecraft component schema."]
+    #[doc = "Samples Minecraft's motion blocking heightmap."]
     MotionBlocking,
-    #[doc = "Selects the motion blocking no leaves form in this typed Minecraft component schema."]
+    #[doc = "Samples Minecraft's motion blocking no leaves heightmap."]
     MotionBlockingNoLeaves,
 }
 

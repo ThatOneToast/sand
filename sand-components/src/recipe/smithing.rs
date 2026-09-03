@@ -49,7 +49,7 @@ impl SmithingTransformRecipe {
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
         params(location = "`location` provides the typed resource identifier or location used to create a new smithing transform recipe with the given resource location."),
-        returns = "A newly constructed `SmithingTransformRecipe` configured to create a new smithing transform recipe with the given resource location.",
+        returns = "A `SmithingTransformRecipe` representing a new smithing transform recipe with the given resource location.",
         example = "use sand::prelude::*;\n\nfn demonstrate(location: sand::ResourceLocation)  {\n    let smithing_transform_recipe = sand::component::SmithingTransformRecipe::new(location);\n}",
     )]
     pub fn new(location: ResourceLocation) -> Self {
@@ -75,7 +75,7 @@ impl SmithingTransformRecipe {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(template = "`template` supplies the template value used to set the template ingredient (e.g., netherite upgrade template)."),
+        params(template = "`template` provides the template applied when setting the template ingredient (e.g., netherite upgrade template)."),
         returns = "The `SmithingTransformRecipe` value with the documented change applied to set the template ingredient (e.g., netherite upgrade template).",
         example = "use sand::prelude::*;\n\nfn demonstrate(smithing_transform_recipe_value: sand::component::SmithingTransformRecipe, template: sand::component::Ingredient)  {\n    let updated_smithing_transform_recipe = smithing_transform_recipe_value.template(template);\n}",
     )]
@@ -96,7 +96,7 @@ impl SmithingTransformRecipe {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(base = "`base` supplies the base value used to set the base ingredient to be upgraded."),
+        params(base = "`base` provides the base applied when setting the base ingredient to be upgraded."),
         returns = "The `SmithingTransformRecipe` value with the documented change applied to set the base ingredient to be upgraded.",
         example = "use sand::prelude::*;\n\nfn demonstrate(smithing_transform_recipe_value: sand::component::SmithingTransformRecipe, base: sand::component::Ingredient)  {\n    let updated_smithing_transform_recipe = smithing_transform_recipe_value.base(base);\n}",
     )]
@@ -117,7 +117,7 @@ impl SmithingTransformRecipe {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(addition = "`addition` supplies the addition value used to set the addition ingredient (e.g., netherite ingot)."),
+        params(addition = "`addition` provides the addition applied when setting the addition ingredient (e.g., netherite ingot)."),
         returns = "The `SmithingTransformRecipe` value with the documented change applied to set the addition ingredient (e.g., netherite ingot).",
         example = "use sand::prelude::*;\n\nfn demonstrate(smithing_transform_recipe_value: sand::component::SmithingTransformRecipe, addition: sand::component::Ingredient)  {\n    let updated_smithing_transform_recipe = smithing_transform_recipe_value.addition(addition);\n}",
     )]
@@ -138,7 +138,7 @@ impl SmithingTransformRecipe {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(result = "`result` supplies the result value used to set the result item and quantity produced by this recipe."),
+        params(result = "`result` provides the result applied when setting the result item and quantity produced by this recipe."),
         returns = "The `SmithingTransformRecipe` value with the documented change applied to set the result item and quantity produced by this recipe.",
         example = "use sand::prelude::*;\n\nfn demonstrate(smithing_transform_recipe_value: sand::component::SmithingTransformRecipe, result: sand::component::RecipeResult)  {\n    let updated_smithing_transform_recipe = smithing_transform_recipe_value.result(result);\n}",
     )]
@@ -258,7 +258,7 @@ impl SmithingTrimRecipe {
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
         params(location = "`location` provides the typed resource identifier or location used to create a new smithing trim recipe with the given resource location."),
-        returns = "A newly constructed `SmithingTrimRecipe` configured to create a new smithing trim recipe with the given resource location.",
+        returns = "A `SmithingTrimRecipe` representing a new smithing trim recipe with the given resource location.",
         example = "use sand::prelude::*;\n\nfn demonstrate(location: sand::ResourceLocation)  {\n    let smithing_trim_recipe = sand::component::SmithingTrimRecipe::new(location);\n}",
     )]
     pub fn new(location: ResourceLocation) -> Self {
@@ -283,7 +283,7 @@ impl SmithingTrimRecipe {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(template = "`template` supplies the template value used to set the trim template ingredient."),
+        params(template = "`template` provides the template applied when setting the trim template ingredient."),
         returns = "The `SmithingTrimRecipe` value with the documented change applied to set the trim template ingredient.",
         example = "use sand::prelude::*;\n\nfn demonstrate(smithing_trim_recipe_value: sand::component::SmithingTrimRecipe, template: sand::component::Ingredient)  {\n    let updated_smithing_trim_recipe = smithing_trim_recipe_value.template(template);\n}",
     )]
@@ -304,7 +304,7 @@ impl SmithingTrimRecipe {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(base = "`base` supplies the base value used to set the armor piece to be trimmed."),
+        params(base = "`base` provides the base applied when setting the armor piece to be trimmed."),
         returns = "The `SmithingTrimRecipe` value with the documented change applied to set the armor piece to be trimmed.",
         example = "use sand::prelude::*;\n\nfn demonstrate(smithing_trim_recipe_value: sand::component::SmithingTrimRecipe, base: sand::component::Ingredient)  {\n    let updated_smithing_trim_recipe = smithing_trim_recipe_value.base(base);\n}",
     )]
@@ -325,7 +325,7 @@ impl SmithingTrimRecipe {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(addition = "`addition` supplies the addition value used to set the trim material ingredient (e.g., amethyst shard)."),
+        params(addition = "`addition` provides the addition applied when setting the trim material ingredient (e.g., amethyst shard)."),
         returns = "The `SmithingTrimRecipe` value with the documented change applied to set the trim material ingredient (e.g., amethyst shard).",
         example = "use sand::prelude::*;\n\nfn demonstrate(smithing_trim_recipe_value: sand::component::SmithingTrimRecipe, addition: sand::component::Ingredient)  {\n    let updated_smithing_trim_recipe = smithing_trim_recipe_value.addition(addition);\n}",
     )]

@@ -233,7 +233,7 @@ impl DensityFunctionExpr {
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
         params(value = "`value` provides the value being applied or compared used to use a constant density value."),
-        returns = "A newly constructed `DensityFunctionExpr` configured to use a constant density value.",
+        returns = "A `DensityFunctionExpr` configured for a constant density value.",
         example = "use sand::prelude::*;\n\nfn demonstrate(value: f64)  {\n    let density_function_expr = sand::component::DensityFunctionExpr::constant(value);\n}",
     )]
     pub fn constant(value: f64) -> Self {
@@ -253,7 +253,7 @@ impl DensityFunctionExpr {
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
         params(id = "`id` provides the typed resource identifier or location used to use a reference to another `worldgen/density_function` file."),
-        returns = "A newly constructed `DensityFunctionExpr` configured to use a reference to another `worldgen/density_function` file.",
+        returns = "A `DensityFunctionExpr` configured for a reference to another `worldgen/density_function` file.",
         example = "use sand::prelude::*;\n\nfn demonstrate(id: sand::registry::DensityFunctionId)  {\n    let density_function_expr = sand::component::DensityFunctionExpr::reference(id);\n}",
     )]
     pub fn reference(id: DensityFunctionId) -> Self {
@@ -272,8 +272,8 @@ impl DensityFunctionExpr {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(noise = "`noise` provides the typed Minecraft resource identifier used to sample a `worldgen/noise` parameter file.", xz_scale = "`xz_scale` supplies the xz scale value used to sample a `worldgen/noise` parameter file.", y_scale = "`y_scale` supplies the y scale value used to sample a `worldgen/noise` parameter file."),
-        returns = "A newly constructed `DensityFunctionExpr` configured to sample a `worldgen/noise` parameter file.",
+        params(noise = "`noise` provides the typed Minecraft resource identifier used to sample a `worldgen/noise` parameter file.", xz_scale = "`xz_scale` is used to sample a `worldgen/noise` parameter file.", y_scale = "`y_scale` is used to sample a `worldgen/noise` parameter file."),
+        returns = "A `DensityFunctionExpr` sampling a `worldgen/noise` parameter file.",
         example = "use sand::prelude::*;\n\nfn demonstrate(noise: sand::registry::NoiseId, xz_scale: f64, y_scale: f64)  {\n    let density_function_expr = sand::component::DensityFunctionExpr::noise(noise, xz_scale, y_scale);\n}",
     )]
     pub fn noise(noise: NoiseId, xz_scale: f64, y_scale: f64) -> Self {
@@ -296,8 +296,8 @@ impl DensityFunctionExpr {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(op = "`op` supplies the op value used to apply a single-argument transform.", argument = "`argument` supplies the argument value used to apply a single-argument transform."),
-        returns = "A newly constructed `DensityFunctionExpr` configured to apply a single-argument transform.",
+        params(op = "`op` provides the op applied when a single-argument transform.", argument = "`argument` provides the argument applied when a single-argument transform."),
+        returns = "A `DensityFunctionExpr` that applies a single-argument transform.",
         example = "use sand::prelude::*;\n\nfn demonstrate(op: sand::component::DensityFunctionUnaryOp, argument: sand::component::DensityFunctionExpr)  {\n    let density_function_expr = sand::component::DensityFunctionExpr::unary(op, argument);\n}",
     )]
     pub fn unary(op: DensityFunctionUnaryOp, argument: Self) -> Self {
@@ -319,8 +319,8 @@ impl DensityFunctionExpr {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(argument = "`argument` supplies the argument value used to emit the documented `minecraft:abs` form."),
-        returns = "A newly constructed `DensityFunctionExpr` configured to emit the documented `minecraft:abs` form.",
+        params(argument = "`argument` supplies the documented `minecraft:abs` form."),
+        returns = "A `DensityFunctionExpr` that emits the documented `minecraft:abs` form.",
         example = "use sand::prelude::*;\n\nfn demonstrate(argument: sand::component::DensityFunctionExpr)  {\n    let density_function_expr = sand::component::DensityFunctionExpr::abs(argument);\n}",
     )]
     pub fn abs(argument: Self) -> Self {
@@ -339,8 +339,8 @@ impl DensityFunctionExpr {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(argument = "`argument` supplies the argument value used to emit the documented `minecraft:square` form."),
-        returns = "A newly constructed `DensityFunctionExpr` configured to emit the documented `minecraft:square` form.",
+        params(argument = "`argument` supplies the documented `minecraft:square` form."),
+        returns = "A `DensityFunctionExpr` that emits the documented `minecraft:square` form.",
         example = "use sand::prelude::*;\n\nfn demonstrate(argument: sand::component::DensityFunctionExpr)  {\n    let density_function_expr = sand::component::DensityFunctionExpr::square(argument);\n}",
     )]
     pub fn square(argument: Self) -> Self {
@@ -359,8 +359,8 @@ impl DensityFunctionExpr {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(argument = "`argument` supplies the argument value used to emit the documented `minecraft:cube` form."),
-        returns = "A newly constructed `DensityFunctionExpr` configured to emit the documented `minecraft:cube` form.",
+        params(argument = "`argument` supplies the documented `minecraft:cube` form."),
+        returns = "A `DensityFunctionExpr` that emits the documented `minecraft:cube` form.",
         example = "use sand::prelude::*;\n\nfn demonstrate(argument: sand::component::DensityFunctionExpr)  {\n    let density_function_expr = sand::component::DensityFunctionExpr::cube(argument);\n}",
     )]
     pub fn cube(argument: Self) -> Self {
@@ -379,8 +379,8 @@ impl DensityFunctionExpr {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(argument = "`argument` supplies the argument value used to emit the documented `minecraft:half_negative` form."),
-        returns = "A newly constructed `DensityFunctionExpr` configured to emit the documented `minecraft:half_negative` form.",
+        params(argument = "`argument` supplies the documented `minecraft:half_negative` form."),
+        returns = "A `DensityFunctionExpr` that emits the documented `minecraft:half_negative` form.",
         example = "use sand::prelude::*;\n\nfn demonstrate(argument: sand::component::DensityFunctionExpr)  {\n    let density_function_expr = sand::component::DensityFunctionExpr::half_negative(argument);\n}",
     )]
     pub fn half_negative(argument: Self) -> Self {
@@ -399,8 +399,8 @@ impl DensityFunctionExpr {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(argument = "`argument` supplies the argument value used to emit the documented `minecraft:quarter_negative` form."),
-        returns = "A newly constructed `DensityFunctionExpr` configured to emit the documented `minecraft:quarter_negative` form.",
+        params(argument = "`argument` supplies the documented `minecraft:quarter_negative` form."),
+        returns = "A `DensityFunctionExpr` that emits the documented `minecraft:quarter_negative` form.",
         example = "use sand::prelude::*;\n\nfn demonstrate(argument: sand::component::DensityFunctionExpr)  {\n    let density_function_expr = sand::component::DensityFunctionExpr::quarter_negative(argument);\n}",
     )]
     pub fn quarter_negative(argument: Self) -> Self {
@@ -419,8 +419,8 @@ impl DensityFunctionExpr {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(argument = "`argument` supplies the argument value used to emit the documented `minecraft:squeeze` form."),
-        returns = "A newly constructed `DensityFunctionExpr` configured to emit the documented `minecraft:squeeze` form.",
+        params(argument = "`argument` supplies the documented `minecraft:squeeze` form."),
+        returns = "A `DensityFunctionExpr` that emits the documented `minecraft:squeeze` form.",
         example = "use sand::prelude::*;\n\nfn demonstrate(argument: sand::component::DensityFunctionExpr)  {\n    let density_function_expr = sand::component::DensityFunctionExpr::squeeze(argument);\n}",
     )]
     pub fn squeeze(argument: Self) -> Self {
@@ -439,8 +439,8 @@ impl DensityFunctionExpr {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(op = "`op` supplies the op value used to apply a two-argument combinator.", argument1 = "`argument1` supplies the argument1 value used to apply a two-argument combinator.", argument2 = "`argument2` supplies the argument2 value used to apply a two-argument combinator."),
-        returns = "A newly constructed `DensityFunctionExpr` configured to apply a two-argument combinator.",
+        params(op = "`op` provides the op applied when a two-argument combinator.", argument1 = "`argument1` provides the argument1 applied when a two-argument combinator.", argument2 = "`argument2` provides the argument2 applied when a two-argument combinator."),
+        returns = "A `DensityFunctionExpr` that applies a two-argument combinator.",
         example = "use sand::prelude::*;\n\nfn demonstrate(op: sand::component::DensityFunctionBinaryOp, argument1: sand::component::DensityFunctionExpr, argument2: sand::component::DensityFunctionExpr)  {\n    let density_function_expr = sand::component::DensityFunctionExpr::binary(op, argument1, argument2);\n}",
     )]
     pub fn binary(op: DensityFunctionBinaryOp, argument1: Self, argument2: Self) -> Self {
@@ -463,8 +463,8 @@ impl DensityFunctionExpr {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(argument1 = "`argument1` supplies the argument1 value used to emit the documented `minecraft:add` form.", argument2 = "`argument2` supplies the argument2 value used to emit the documented `minecraft:add` form."),
-        returns = "A newly constructed `DensityFunctionExpr` configured to emit the documented `minecraft:add` form.",
+        params(argument1 = "`argument1` supplies the documented `minecraft:add` form.", argument2 = "`argument2` supplies the documented `minecraft:add` form."),
+        returns = "A `DensityFunctionExpr` that emits the documented `minecraft:add` form.",
         example = "use sand::prelude::*;\n\nfn demonstrate(argument1: sand::component::DensityFunctionExpr, argument2: sand::component::DensityFunctionExpr)  {\n    let density_function_expr = sand::component::DensityFunctionExpr::sum(argument1, argument2);\n}",
     )]
     pub fn sum(argument1: Self, argument2: Self) -> Self {
@@ -483,8 +483,8 @@ impl DensityFunctionExpr {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(argument1 = "`argument1` supplies the argument1 value used to emit the documented `minecraft:mul` form.", argument2 = "`argument2` supplies the argument2 value used to emit the documented `minecraft:mul` form."),
-        returns = "A newly constructed `DensityFunctionExpr` configured to emit the documented `minecraft:mul` form.",
+        params(argument1 = "`argument1` supplies the documented `minecraft:mul` form.", argument2 = "`argument2` supplies the documented `minecraft:mul` form."),
+        returns = "A `DensityFunctionExpr` that emits the documented `minecraft:mul` form.",
         example = "use sand::prelude::*;\n\nfn demonstrate(argument1: sand::component::DensityFunctionExpr, argument2: sand::component::DensityFunctionExpr)  {\n    let density_function_expr = sand::component::DensityFunctionExpr::product(argument1, argument2);\n}",
     )]
     pub fn product(argument1: Self, argument2: Self) -> Self {
@@ -503,8 +503,8 @@ impl DensityFunctionExpr {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(argument1 = "`argument1` supplies the argument1 value used to emit the documented `minecraft:min` form.", argument2 = "`argument2` supplies the argument2 value used to emit the documented `minecraft:min` form."),
-        returns = "A newly constructed `DensityFunctionExpr` configured to emit the documented `minecraft:min` form.",
+        params(argument1 = "`argument1` supplies the documented `minecraft:min` form.", argument2 = "`argument2` supplies the documented `minecraft:min` form."),
+        returns = "A `DensityFunctionExpr` that emits the documented `minecraft:min` form.",
         example = "use sand::prelude::*;\n\nfn demonstrate(argument1: sand::component::DensityFunctionExpr, argument2: sand::component::DensityFunctionExpr)  {\n    let density_function_expr = sand::component::DensityFunctionExpr::min(argument1, argument2);\n}",
     )]
     pub fn min(argument1: Self, argument2: Self) -> Self {
@@ -523,8 +523,8 @@ impl DensityFunctionExpr {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(argument1 = "`argument1` supplies the argument1 value used to emit the documented `minecraft:max` form.", argument2 = "`argument2` supplies the argument2 value used to emit the documented `minecraft:max` form."),
-        returns = "A newly constructed `DensityFunctionExpr` configured to emit the documented `minecraft:max` form.",
+        params(argument1 = "`argument1` supplies the documented `minecraft:max` form.", argument2 = "`argument2` supplies the documented `minecraft:max` form."),
+        returns = "A `DensityFunctionExpr` that emits the documented `minecraft:max` form.",
         example = "use sand::prelude::*;\n\nfn demonstrate(argument1: sand::component::DensityFunctionExpr, argument2: sand::component::DensityFunctionExpr)  {\n    let density_function_expr = sand::component::DensityFunctionExpr::max(argument1, argument2);\n}",
     )]
     pub fn max(argument1: Self, argument2: Self) -> Self {
@@ -543,8 +543,8 @@ impl DensityFunctionExpr {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(input = "`input` supplies the input value used to emit the documented `minecraft:clamp` form.", min = "`min` provides the inclusive lower bound used to emit the documented `minecraft:clamp` form.", max = "`max` provides the inclusive upper bound used to emit the documented `minecraft:clamp` form."),
-        returns = "A newly constructed `DensityFunctionExpr` configured to emit the documented `minecraft:clamp` form.",
+        params(input = "`input` supplies the documented `minecraft:clamp` form.", min = "`min` provides the inclusive lower bound used to emit the documented `minecraft:clamp` form.", max = "`max` provides the inclusive upper bound used to emit the documented `minecraft:clamp` form."),
+        returns = "A `DensityFunctionExpr` that emits the documented `minecraft:clamp` form.",
         example = "use sand::prelude::*;\n\nfn demonstrate(input: sand::component::DensityFunctionExpr, min: f64, max: f64)  {\n    let density_function_expr = sand::component::DensityFunctionExpr::clamp(input, min, max);\n}",
     )]
     pub fn clamp(input: Self, min: f64, max: f64) -> Self {
@@ -567,8 +567,8 @@ impl DensityFunctionExpr {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(from_y = "`from_y` supplies the from y value used to emit the documented `minecraft:y_clamped_gradient` form.", to_y = "`to_y` supplies the to y value used to emit the documented `minecraft:y_clamped_gradient` form.", from_value = "`from_value` supplies the from value used to emit the documented `minecraft:y_clamped_gradient` form.", to_value = "`to_value` supplies the to value used to emit the documented `minecraft:y_clamped_gradient` form."),
-        returns = "A newly constructed `DensityFunctionExpr` configured to emit the documented `minecraft:y_clamped_gradient` form.",
+        params(from_y = "`from_y` supplies the documented `minecraft:y_clamped_gradient` form.", to_y = "`to_y` supplies the documented `minecraft:y_clamped_gradient` form.", from_value = "`from_value` supplies the documented `minecraft:y_clamped_gradient` form.", to_value = "`to_value` supplies the documented `minecraft:y_clamped_gradient` form."),
+        returns = "A `DensityFunctionExpr` that emits the documented `minecraft:y_clamped_gradient` form.",
         example = "use sand::prelude::*;\n\nfn demonstrate(from_y: i32, to_y: i32, from_value: f64, to_value: f64)  {\n    let density_function_expr = sand::component::DensityFunctionExpr::y_clamped_gradient(from_y, to_y, from_value, to_value);\n}",
     )]
     pub fn y_clamped_gradient(from_y: i32, to_y: i32, from_value: f64, to_value: f64) -> Self {
@@ -597,7 +597,7 @@ impl DensityFunctionExpr {
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
         params(value = "`value` provides the value being applied or compared used to use an explicit raw escape hatch for shapes the typed variants do not model."),
-        returns = "A newly constructed `DensityFunctionExpr` configured to use an explicit raw escape hatch for shapes the typed variants do not model.",
+        returns = "A `DensityFunctionExpr` configured for an explicit raw escape hatch for shapes the typed variants do not model.",
         example = "use sand::prelude::*;\n\nfn demonstrate(value: sand::component::RawJson)  {\n    let density_function_expr = sand::component::DensityFunctionExpr::raw(value);\n}",
     )]
     pub fn raw(value: RawJson) -> Self {
@@ -800,8 +800,8 @@ impl DensityFunction {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(location = "`location` provides the typed resource identifier or location used to create a density function from a typed expression.", expr = "`expr` supplies the expr value used to create a density function from a typed expression."),
-        returns = "A newly constructed `DensityFunction` configured to create a density function from a typed expression.",
+        params(location = "`location` provides the typed resource identifier or location used to create a density function from a typed expression.", expr = "`expr` is used when creating a density function from a typed expression."),
+        returns = "A `DensityFunction` representing a density function from a typed expression.",
         example = "use sand::prelude::*;\n\nfn demonstrate(location: sand::ResourceLocation, expr: sand::component::DensityFunctionExpr)  {\n    let density_function = sand::component::DensityFunction::new(location, expr);\n}",
     )]
     pub fn new(location: ResourceLocation, expr: DensityFunctionExpr) -> Self {
@@ -823,8 +823,8 @@ impl DensityFunction {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Prefer [`DensityFunction::new`]. This escape hatch exists for modded or version-specific density-function types Sand does not model."],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(location = "`location` provides the typed resource identifier or location used to create a density function from an explicitly raw JSON body.", body = "`body` supplies the body value used to create a density function from an explicitly raw JSON body."),
-        returns = "A newly constructed `DensityFunction` configured to create a density function from an explicitly raw JSON body.",
+        params(location = "`location` provides the typed resource identifier or location used to create a density function from an explicitly raw JSON body.", body = "`body` is used when creating a density function from an explicitly raw JSON body."),
+        returns = "A `DensityFunction` representing a density function from an explicitly raw JSON body.",
         example = "use sand::prelude::*;\n\nfn demonstrate(location: sand::ResourceLocation, body: sand::component::RawJson)  {\n    let density_function = sand::component::DensityFunction::new_raw(location, body);\n}",
     )]
     pub fn new_raw(location: ResourceLocation, body: RawJson) -> Self {
@@ -863,7 +863,7 @@ impl DensityFunction {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(expr = "`expr` supplies the expr value used to replace the density-function expression."),
+        params(expr = "`expr` provides the replacement expr when the density-function expression."),
         returns = "The `DensityFunction` value with the documented change applied to replace the density-function expression.",
         example = "use sand::prelude::*;\n\nfn demonstrate(density_function_value: sand::component::DensityFunction, expr: sand::component::DensityFunctionExpr)  {\n    let updated_density_function = density_function_value.expr(expr);\n}",
     )]

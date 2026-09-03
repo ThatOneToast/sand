@@ -475,7 +475,7 @@ impl<T> TagId<T> {
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
         params(rl = "`rl` provides the typed Minecraft resource identifier used to wrap any [`ResourceLocation`] as a tag ID."),
-        returns = "A newly constructed `TagId` configured to wrap any [`ResourceLocation`] as a tag ID.",
+        returns = "A `TagId` wrapping any [`ResourceLocation`] as a tag ID.",
         example = "use sand::prelude::*;\n\nfn demonstrate<T: 'static>(rl: sand::ResourceLocation)  {\n    let tag_id = sand::component::TagId ::< T >::custom(rl);\n}",
     )]
     pub fn custom(rl: ResourceLocation) -> Self {

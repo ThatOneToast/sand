@@ -101,8 +101,8 @@ impl EnchantmentCost {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(base = "`base` supplies the base value used to create a new cost with the given base and per-level values.", per_level_above_first = "`per_level_above_first` supplies the per level above first value used to create a new cost with the given base and per-level values."),
-        returns = "A newly constructed `EnchantmentCost` configured to create a new cost with the given base and per-level values.",
+        params(base = "`base` is used when creating a new cost with the given base and per-level values.", per_level_above_first = "`per_level_above_first` is used when creating a new cost with the given base and per-level values."),
+        returns = "An `EnchantmentCost` representing a new cost with the given base and per-level values.",
         example = "use sand::prelude::*;\n\nfn demonstrate(base: u32, per_level_above_first: u32)  {\n    let enchantment_cost = sand::component::EnchantmentCost::new(base, per_level_above_first);\n}",
     )]
     pub fn new(base: u32, per_level_above_first: u32) -> Self {
@@ -486,7 +486,7 @@ impl Enchantment {
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
         params(location = "`location` provides the typed resource identifier or location used to create a new enchantment with sensible defaults."),
-        returns = "A newly constructed `Enchantment` configured to create a new enchantment with sensible defaults.",
+        returns = "An `Enchantment` representing a new enchantment with sensible defaults.",
         example = "use sand::prelude::*;\n\nfn demonstrate(location: sand::ResourceLocation)  {\n    let enchantment = sand::component::Enchantment::new(location);\n}",
     )]
     pub fn new(location: ResourceLocation) -> Self {
@@ -519,7 +519,7 @@ impl Enchantment {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(desc = "`desc` provides the player-visible text value used to set the description as a typed text component."),
+        params(desc = "`desc` provides the player-visible text applied when setting the description as a typed text component."),
         returns = "The `Enchantment` value with the documented change applied to set the description as a typed text component.",
         example = "use sand::prelude::*;\n\nfn demonstrate(enchantment_value: sand::component::Enchantment, desc: sand::text::TextComponent)  {\n    let updated_enchantment = enchantment_value.description(desc);\n}",
     )]
@@ -563,7 +563,7 @@ impl Enchantment {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Use a raw JSON text component when the typed text API cannot represent it."],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(desc = "`desc` supplies the desc value used to use a raw JSON text component when the typed text API cannot represent it."),
+        params(desc = "`desc` sets the desc for a raw JSON text component when the typed text API cannot represent it."),
         returns = "The `Enchantment` value with the documented change applied to use a raw JSON text component when the typed text API cannot represent it.",
         example = "use sand::prelude::*;\n\nfn demonstrate(enchantment_value: sand::component::Enchantment, desc: sand::component::RawJson)  {\n    let updated_enchantment = enchantment_value.raw_description(desc);\n}",
     )]
@@ -586,7 +586,7 @@ impl Enchantment {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(items = "`items` supplies the items value used to set the supported items — the items this enchantment can be applied to (e.g. any sword, or a specific item). Accepts an [`ItemId`] or a `TagId<ItemId>`."),
+        params(items = "`items` provides the items applied when setting the supported items — the items this enchantment can be applied to (e.g. any sword, or a specific item). Accepts an [`ItemId`] or a `TagId<ItemId>`."),
         returns = "The `Enchantment` value with the documented change applied to set the supported items — the items this enchantment can be applied to (e.g. any sword, or a specific item). Accepts an [`ItemId`] or a `TagId<ItemId>`.",
         example = "use sand::prelude::*;\n\nfn demonstrate(enchantment_value: sand::component::Enchantment, items: impl Into < sand::component::ItemOrTag >)  {\n    let updated_enchantment = enchantment_value.supported_items(items);\n}",
     )]
@@ -609,7 +609,7 @@ impl Enchantment {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(items = "`items` supplies the items value used to set the primary items — the subset of supported items this enchantment appears for at an enchanting table. Accepts an [`ItemId`] or a `TagId<ItemId>`."),
+        params(items = "`items` provides the items applied when setting the primary items — the subset of supported items this enchantment appears for at an enchanting table. Accepts an [`ItemId`] or a `TagId<ItemId>`."),
         returns = "The `Enchantment` value with the documented change applied to set the primary items — the subset of supported items this enchantment appears for at an enchanting table. Accepts an [`ItemId`] or a `TagId<ItemId>`.",
         example = "use sand::prelude::*;\n\nfn demonstrate(enchantment_value: sand::component::Enchantment, items: impl Into < sand::component::ItemOrTag >)  {\n    let updated_enchantment = enchantment_value.primary_items(items);\n}",
     )]
@@ -632,7 +632,7 @@ impl Enchantment {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(tag = "`tag` supplies the tag value used to set the exclusive set — enchantments sharing this set (or tag) are mutually exclusive. Accepts an [`EnchantmentId`] or a `TagId<EnchantmentId>`."),
+        params(tag = "`tag` provides the tag applied when setting the exclusive set — enchantments sharing this set (or tag) are mutually exclusive. Accepts an [`EnchantmentId`] or a `TagId<EnchantmentId>`."),
         returns = "The `Enchantment` value with the documented change applied to set the exclusive set — enchantments sharing this set (or tag) are mutually exclusive. Accepts an [`EnchantmentId`] or a `TagId<EnchantmentId>`.",
         example = "use sand::prelude::*;\n\nfn demonstrate(enchantment_value: sand::component::Enchantment, tag: impl Into < sand::component::EnchantmentOrTag >)  {\n    let updated_enchantment = enchantment_value.exclusive_set(tag);\n}",
     )]
@@ -653,7 +653,7 @@ impl Enchantment {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(w = "`w` supplies the w value used to set the enchantment weight (higher = more common, 1–1024)."),
+        params(w = "`w` provides the w applied when setting the enchantment weight (higher = more common, 1–1024)."),
         returns = "The `Enchantment` value with the documented change applied to set the enchantment weight (higher = more common, 1–1024).",
         example = "use sand::prelude::*;\n\nfn demonstrate(enchantment_value: sand::component::Enchantment, w: u32)  {\n    let updated_enchantment = enchantment_value.weight(w);\n}",
     )]
@@ -674,7 +674,7 @@ impl Enchantment {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(lvl = "`lvl` supplies the lvl value used to set the maximum enchantment level (1–255)."),
+        params(lvl = "`lvl` provides the lvl applied when setting the maximum enchantment level (1–255)."),
         returns = "The `Enchantment` value with the documented change applied to set the maximum enchantment level (1–255).",
         example = "use sand::prelude::*;\n\nfn demonstrate(enchantment_value: sand::component::Enchantment, lvl: u32)  {\n    let updated_enchantment = enchantment_value.max_level(lvl);\n}",
     )]
@@ -695,7 +695,7 @@ impl Enchantment {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(cost = "`cost` supplies the cost value used to set the minimum enchanting-table cost."),
+        params(cost = "`cost` provides the cost applied when setting the minimum enchanting-table cost."),
         returns = "The `Enchantment` value with the documented change applied to set the minimum enchanting-table cost.",
         example = "use sand::prelude::*;\n\nfn demonstrate(enchantment_value: sand::component::Enchantment, cost: sand::component::EnchantmentCost)  {\n    let updated_enchantment = enchantment_value.min_cost(cost);\n}",
     )]
@@ -716,7 +716,7 @@ impl Enchantment {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(cost = "`cost` supplies the cost value used to set the maximum enchanting-table cost."),
+        params(cost = "`cost` provides the cost applied when setting the maximum enchanting-table cost."),
         returns = "The `Enchantment` value with the documented change applied to set the maximum enchanting-table cost.",
         example = "use sand::prelude::*;\n\nfn demonstrate(enchantment_value: sand::component::Enchantment, cost: sand::component::EnchantmentCost)  {\n    let updated_enchantment = enchantment_value.max_cost(cost);\n}",
     )]
@@ -737,7 +737,7 @@ impl Enchantment {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(cost = "`cost` supplies the cost value used to set the anvil cost (XP levels)."),
+        params(cost = "`cost` provides the cost applied when setting the anvil cost (XP levels)."),
         returns = "The `Enchantment` value with the documented change applied to set the anvil cost (XP levels).",
         example = "use sand::prelude::*;\n\nfn demonstrate(enchantment_value: sand::component::Enchantment, cost: u32)  {\n    let updated_enchantment = enchantment_value.anvil_cost(cost);\n}",
     )]
@@ -758,7 +758,7 @@ impl Enchantment {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(slot = "`slot` supplies the slot value used to add a typed equipment slot this enchantment is active in."),
+        params(slot = "`slot` provides the slot added when building a typed equipment slot this enchantment is active in."),
         returns = "The `Enchantment` value with the documented change applied to add a typed equipment slot this enchantment is active in.",
         example = "use sand::prelude::*;\n\nfn demonstrate(enchantment_value: sand::component::Enchantment, slot: sand::component::EquipmentSlotGroup)  {\n    let updated_enchantment = enchantment_value.slot(slot);\n}",
     )]
@@ -779,7 +779,7 @@ impl Enchantment {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(slots = "`slots` supplies the slots value used to set all active equipment slots from typed values."),
+        params(slots = "`slots` provides the slots applied when setting all active equipment slots from typed values."),
         returns = "The `Enchantment` value with the documented change applied to set all active equipment slots from typed values.",
         example = "use sand::prelude::*;\n\nfn demonstrate(enchantment_value: sand::component::Enchantment, slots: impl IntoIterator < Item = sand::component::EquipmentSlotGroup >)  {\n    let updated_enchantment = enchantment_value.slots(slots);\n}",
     )]
@@ -801,7 +801,7 @@ impl Enchantment {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(slot = "`slot` supplies the slot value used to add a raw equipment slot name — an escape hatch for slot groups not yet represented by [`EquipmentSlotGroup`]."),
+        params(slot = "`slot` provides the slot added when building a raw equipment slot name — an escape hatch for slot groups not yet represented by [`EquipmentSlotGroup`]."),
         returns = "The `Enchantment` value with the documented change applied to add a raw equipment slot name — an escape hatch for slot groups not yet represented by [`EquipmentSlotGroup`].",
         example = "use sand::prelude::*;\n\nfn demonstrate(enchantment_value: sand::component::Enchantment, slot: impl Into < String >)  {\n    let updated_enchantment = enchantment_value.raw_slot(slot);\n}",
     )]
@@ -823,7 +823,7 @@ impl Enchantment {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(slots = "`slots` supplies the slots value used to set all active equipment slots from raw names — an escape hatch for slot groups not yet represented by [`EquipmentSlotGroup`]."),
+        params(slots = "`slots` provides the slots applied when setting all active equipment slots from raw names — an escape hatch for slot groups not yet represented by [`EquipmentSlotGroup`]."),
         returns = "The `Enchantment` value with the documented change applied to set all active equipment slots from raw names — an escape hatch for slot groups not yet represented by [`EquipmentSlotGroup`].",
         example = "use sand::prelude::*;\n\nfn demonstrate(enchantment_value: sand::component::Enchantment, slots: impl IntoIterator < Item = impl Into < String > >)  {\n    let updated_enchantment = enchantment_value.raw_slots(slots);\n}",
     )]
@@ -848,7 +848,7 @@ impl Enchantment {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(operation = "`operation` supplies the operation value used to add a typed `minecraft:damage` value effect (used by Sharpness, Smite, Bane of Arthropods, Impaling, Power).", value = "`value` provides the value being applied or compared used to add a typed `minecraft:damage` value effect (used by Sharpness, Smite, Bane of Arthropods, Impaling, Power)."),
+        params(operation = "`operation` provides the operation added when building a typed `minecraft:damage` value effect (used by Sharpness, Smite, Bane of Arthropods, Impaling, Power).", value = "`value` provides the value being applied or compared used to add a typed `minecraft:damage` value effect (used by Sharpness, Smite, Bane of Arthropods, Impaling, Power)."),
         returns = "The `Enchantment` value with the documented change applied to add a typed `minecraft:damage` value effect (used by Sharpness, Smite, Bane of Arthropods, Impaling, Power).",
         example = "use sand::prelude::*;\n\nfn demonstrate(enchantment_value: sand::component::Enchantment, operation: sand::component::EnchantmentValueOperation, value: sand::component::LevelBasedValue)  {\n    let updated_enchantment = enchantment_value.damage_effect(operation, value);\n}",
     )]
@@ -873,7 +873,7 @@ impl Enchantment {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(operation = "`operation` supplies the operation value used to add a typed `minecraft:knockback` value effect (used by Knockback, Punch).", value = "`value` provides the value being applied or compared used to add a typed `minecraft:knockback` value effect (used by Knockback, Punch)."),
+        params(operation = "`operation` provides the operation added when building a typed `minecraft:knockback` value effect (used by Knockback, Punch).", value = "`value` provides the value being applied or compared used to add a typed `minecraft:knockback` value effect (used by Knockback, Punch)."),
         returns = "The `Enchantment` value with the documented change applied to add a typed `minecraft:knockback` value effect (used by Knockback, Punch).",
         example = "use sand::prelude::*;\n\nfn demonstrate(enchantment_value: sand::component::Enchantment, operation: sand::component::EnchantmentValueOperation, value: sand::component::LevelBasedValue)  {\n    let updated_enchantment = enchantment_value.knockback_effect(operation, value);\n}",
     )]
@@ -898,7 +898,7 @@ impl Enchantment {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(operation = "`operation` supplies the operation value used to add a typed `minecraft:armor_effectiveness` value effect (used by Breach).", value = "`value` provides the value being applied or compared used to add a typed `minecraft:armor_effectiveness` value effect (used by Breach)."),
+        params(operation = "`operation` provides the operation added when building a typed `minecraft:armor_effectiveness` value effect (used by Breach).", value = "`value` provides the value being applied or compared used to add a typed `minecraft:armor_effectiveness` value effect (used by Breach)."),
         returns = "The `Enchantment` value with the documented change applied to add a typed `minecraft:armor_effectiveness` value effect (used by Breach).",
         example = "use sand::prelude::*;\n\nfn demonstrate(enchantment_value: sand::component::Enchantment, operation: sand::component::EnchantmentValueOperation, value: sand::component::LevelBasedValue)  {\n    let updated_enchantment = enchantment_value.armor_effectiveness_effect(operation, value);\n}",
     )]
@@ -929,7 +929,7 @@ impl Enchantment {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(component = "`component` provides the typed Minecraft resource identifier used to add a typed value effect under an arbitrary effect component ID. Prefer the dedicated `*_effect` helpers for the well-known vanilla value effects; use this for custom namespaced components that share the same `{\"effect\": {\"type\": ..., \"value\": ...}}` shape.", operation = "`operation` supplies the operation value used to add a typed value effect under an arbitrary effect component ID. Prefer the dedicated `*_effect` helpers for the well-known vanilla value effects; use this for custom namespaced components that share the same `{\"effect\": {\"type\": ..., \"value\": ...}}` shape.", value = "`value` provides the value being applied or compared used to add a typed value effect under an arbitrary effect component ID. Prefer the dedicated `*_effect` helpers for the well-known vanilla value effects; use this for custom namespaced components that share the same `{\"effect\": {\"type\": ..., \"value\": ...}}` shape."),
+        params(component = "`component` provides the typed Minecraft resource identifier used to add a typed value effect under an arbitrary effect component ID. Prefer the dedicated `*_effect` helpers for the well-known vanilla value effects; use this for custom namespaced components that share the same `{\"effect\": {\"type\": ..., \"value\": ...}}` shape.", operation = "`operation` provides the operation added when building a typed value effect under an arbitrary effect component ID. Prefer the dedicated `*_effect` helpers for the well-known vanilla value effects; use this for custom namespaced components that share the same `{\"effect\": {\"type\": ..., \"value\": ...}}` shape.", value = "`value` provides the value being applied or compared used to add a typed value effect under an arbitrary effect component ID. Prefer the dedicated `*_effect` helpers for the well-known vanilla value effects; use this for custom namespaced components that share the same `{\"effect\": {\"type\": ..., \"value\": ...}}` shape."),
         returns = "The `Enchantment` value with the documented change applied to add a typed value effect under an arbitrary effect component ID. Prefer the dedicated `*_effect` helpers for the well-known vanilla value effects; use this for custom namespaced components that share the same `{\"effect\": {\"type\": ..., \"value\": ...}}` shape.",
         example = "use sand::prelude::*;\n\nfn demonstrate(enchantment_value: sand::component::Enchantment, component: sand::registry::EnchantmentEffectComponentId, operation: sand::component::EnchantmentValueOperation, value: sand::component::LevelBasedValue)  {\n    let updated_enchantment = enchantment_value.value_effect(component, operation, value);\n}",
     )]
@@ -990,7 +990,7 @@ impl Enchantment {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(effects = "`effects` supplies the effects value used to set the entire effects map as raw JSON, replacing any typed or per-component raw entries added so far. An escape hatch for whole custom effect maps."),
+        params(effects = "`effects` provides the effects applied when setting the entire effects map as raw JSON, replacing any typed or per-component raw entries added so far. An escape hatch for whole custom effect maps."),
         returns = "The `Enchantment` value with the documented change applied to set the entire effects map as raw JSON, replacing any typed or per-component raw entries added so far. An escape hatch for whole custom effect maps.",
         example = "use sand::prelude::*;\n\nfn demonstrate(enchantment_value: sand::component::Enchantment, effects: sand::component::RawJson)  {\n    let updated_enchantment = enchantment_value.raw_effects(effects);\n}",
     )]

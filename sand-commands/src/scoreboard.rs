@@ -80,7 +80,7 @@ impl ScoreHolder {
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
         params(selector = "`selector` provides the Minecraft target selection used to create a score holder from an entity selector."),
-        returns = "A newly constructed `ScoreHolder` configured to create a score holder from an entity selector.",
+        returns = "A `ScoreHolder` representing a score holder from an entity selector.",
         example = "use sand::prelude::*;\n\nfn demonstrate(selector: sand::command::Selector)  {\n    let score_holder = sand::command::ScoreHolder::entity(selector);\n}",
     )]
     pub fn entity(selector: Selector) -> Self {
@@ -102,8 +102,8 @@ impl ScoreHolder {
         minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        params(name = "`name` provides the author-visible text value used to create a score holder from a named fake player. Convention: prefix with `#` (e.g. `\"#const\"`, `\"#zero\"`) to distinguish from real player names."),
-        returns = "A newly constructed `ScoreHolder` configured to create a score holder from a named fake player. Convention: prefix with `#` (e.g. `\"#const\"`, `\"#zero\"`) to distinguish from real player names.",
+        params(name = "`name` is used when creating a score holder from a named fake player. Convention: prefix with `#` (e.g. `\"#const\"`, `\"#zero\"`) to distinguish from real player names."),
+        returns = "A `ScoreHolder` representing a score holder from a named fake player. Convention: prefix with `#` (e.g. `\"#const\"`, `\"#zero\"`) to distinguish from real player names.",
         example = "use sand::prelude::*;\n\nfn demonstrate(name: impl Into < String >)  {\n    let score_holder = sand::command::ScoreHolder::fake(name);\n}",
     )]
     pub fn fake(name: impl Into<String>) -> Self {
@@ -122,7 +122,7 @@ impl ScoreHolder {
         minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        returns = "A newly constructed `ScoreHolder` configured to emit the documented `*` — all score holders with any score in this objective form.",
+        returns = "A `ScoreHolder` that emits the documented `*` — all score holders with any score in this objective form.",
         example = "use sand::prelude::*;\n\nfn demonstrate()  {\n    let score_holder = sand::command::ScoreHolder::all();\n}",
     )]
     pub fn all() -> Self {
@@ -143,7 +143,7 @@ impl ScoreHolder {
         minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        returns = "A newly constructed `ScoreHolder` configured to use alias for [`ScoreHolder::all`]: `*`, every score holder with any score in the objective. Named to match #146's requested canonical constructor set (`entity`/`player`/`fake`/`wildcard`/`raw`).",
+        returns = "A `ScoreHolder` configured for alias for [`ScoreHolder::all`]: `*`, every score holder with any score in the objective. Named to match #146's requested canonical constructor set (`entity`/`player`/`fake`/`wildcard`/`raw`).",
         example = "use sand::prelude::*;\n\nfn demonstrate()  {\n    let score_holder = sand::command::ScoreHolder::wildcard();\n}",
     )]
     pub fn wildcard() -> Self {
@@ -169,8 +169,8 @@ impl ScoreHolder {
         minecraft = "Validated by [`Selector::player`]'s player-name rules (1..=16 ASCII letters, digits, or `_`) — the same shape Minecraft accepts for a literal player-name score holder, kept distinct from [`ScoreHolder::fake`] so a real player name and a `#`-prefixed fake player are never confused.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        params(name = "`name` provides the author-visible text value used to use a literal online-player name (e.g. `\"Notch\"`), independent of a selector or fake-player holder."),
-        returns = "A newly constructed `ScoreHolder` configured to use a literal online-player name (e.g. `\"Notch\"`), independent of a selector or fake-player holder.",
+        params(name = "`name` sets the author-visible text for a literal online-player name (e.g. `\"Notch\"`), independent of a selector or fake-player holder."),
+        returns = "A `ScoreHolder` configured for a literal online-player name (e.g. `\"Notch\"`), independent of a selector or fake-player holder.",
         example = "use sand::prelude::*;\n\nfn demonstrate(name: impl Into < String >)  {\n    let score_holder = sand::command::ScoreHolder::player(name);\n}",
     )]
     pub fn player(name: impl Into<String>) -> Self {
@@ -189,7 +189,7 @@ impl ScoreHolder {
         minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        returns = "A newly constructed `ScoreHolder` configured to emit the documented `@s` — score holder for the entity executing the command form.",
+        returns = "A `ScoreHolder` that emits the documented `@s` — score holder for the entity executing the command form.",
         example = "use sand::prelude::*;\n\nfn demonstrate()  {\n    let score_holder = sand::command::ScoreHolder::self_();\n}",
     )]
     pub fn self_() -> Self {
@@ -209,7 +209,7 @@ impl ScoreHolder {
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
         params(value = "`value` provides the value being applied or compared used to use explicit unchecked score-holder syntax."),
-        returns = "A newly constructed `ScoreHolder` configured to use explicit unchecked score-holder syntax.",
+        returns = "A `ScoreHolder` configured for explicit unchecked score-holder syntax.",
         example = "use sand::prelude::*;\n\nfn demonstrate(value: impl Into < String >)  {\n    let score_holder = sand::command::ScoreHolder::raw(value);\n}",
     )]
     pub fn raw(value: impl Into<String>) -> Self {
@@ -248,7 +248,7 @@ impl ScoreHolder {
         minecraft = "Several vanilla scoreboard command shapes require a single-holder target even though the general `<targets>` grammar allows multiple: `execute if/unless score <holder> <obj> matches ...` and the `<source>` half of `scoreboard players operation`. Plain [`ScoreHolder::validate`] alone is not sufficient there — a wildcard (`*`) or a selector matching multiple entities (`@a`, `@e`) passes ordinary validation but is not legal in those positions. Callers building those command shapes (in this crate or downstream, e.g. `sand-core`'s `ScoreVar::try_of`/`PlayerSchema::try_init_player`) should use this instead of [`ScoreHolder::validate`].",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        params(profile = "`profile` supplies the profile value used to validate this holder *and* require it to statically resolve to exactly one score holder."),
+        params(profile = "`profile` is the profile checked when validating this holder *and* require it to statically resolve to exactly one score holder."),
         returns = "On success, the value produced to validate this holder *and* require it to statically resolve to exactly one score holder; otherwise, the documented validation or export diagnostic.",
         example = "use sand::prelude::*;\n\nfn demonstrate(score_holder_value: &sand::command::ScoreHolder, profile: & sand::command::CommandProfile)  {\n    let validate_single = score_holder_value.validate_single(profile);\n}",
     )]
@@ -405,8 +405,8 @@ impl ObjectiveName {
         minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        params(name = "`name` provides the author-visible text value used to use const-compatible name used by static objectives. Validation occurs at the fallible render/export boundary."),
-        returns = "A newly constructed `ObjectiveName` configured to use const-compatible name used by static objectives. Validation occurs at the fallible render/export boundary.",
+        params(name = "`name` sets the author-visible text for const-compatible name used by static objectives. Validation occurs at the fallible render/export boundary."),
+        returns = "An `ObjectiveName` configured for const-compatible name used by static objectives. Validation occurs at the fallible render/export boundary.",
         example = "use sand::prelude::*;\n\nfn demonstrate(name: & 'static str)  {\n    let objective_name = sand::command::ObjectiveName::new(name);\n}",
     )]
     pub const fn new(name: &'static str) -> Self {
@@ -428,8 +428,8 @@ impl ObjectiveName {
         minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        params(name = "`name` provides the author-visible text value used to use alias for [`ObjectiveName::new`]: an already-valid emitted name."),
-        returns = "A newly constructed `ObjectiveName` configured to use alias for [`ObjectiveName::new`]: an already-valid emitted name.",
+        params(name = "`name` sets the author-visible text for alias for [`ObjectiveName::new`]: an already-valid emitted name."),
+        returns = "An `ObjectiveName` configured for alias for [`ObjectiveName::new`]: an already-valid emitted name.",
         example = "use sand::prelude::*;\n\nfn demonstrate(name: & 'static str)  {\n    let objective_name = sand::command::ObjectiveName::minecraft(name);\n}",
     )]
     pub const fn minecraft(name: &'static str) -> Self {
@@ -453,7 +453,7 @@ impl ObjectiveName {
         minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        params(name = "`name` provides the author-visible text value used to construct and immediately validate a runtime *exact* name."),
+        params(name = "`name` is validated while constructing a runtime *exact* name."),
         returns = "On success, the value produced to construct and immediately validate a runtime *exact* name; otherwise, the documented validation or export diagnostic.",
         example = "use sand::prelude::*;\n\nfn demonstrate(name: impl Into < String >)  {\n    let try_dynamic = sand::command::ObjectiveName::try_dynamic(name);\n}",
     )]
@@ -487,7 +487,7 @@ impl ObjectiveName {
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
         params(name = "If `name` is already a valid direct objective token (non-empty, no whitespace/control characters, ≤16 characters), it is used verbatim. Otherwise `name` is deterministically hashed via [`hash_objective_name`] to a stable, always-valid ≤16-character token. The result of [`ObjectiveName::validate`] is always `Ok` for a value constructed this way."),
-        returns = "A newly constructed `ObjectiveName` configured to construct a deterministically generated name for an arbitrary logical identifier (e.g. a long, human-readable name).",
+        returns = "An `ObjectiveName` representing a deterministically generated name for an arbitrary logical identifier (e.g. a long, human-readable name).",
         example = "use sand::prelude::*;\n\nfn demonstrate(name: impl Into < String >)  {\n    let objective_name = sand::command::ObjectiveName::logical(name);\n}",
     )]
     pub fn logical(name: impl Into<String>) -> Self {
@@ -841,7 +841,7 @@ impl From<ScoreboardPlayersOperation> for String {
     minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
     use_when = ["Constructing Minecraft commands through Sand's typed command model"],
     avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-    params(targets = "Performs integer arithmetic between two scores in-place. `targets` may address multiple score holders, but vanilla requires `source` to resolve to exactly one holder. For per-player copies or arithmetic, execute as the player set and use `@s` for both operands.", target_objective = "`target_objective` supplies the target objective value used to emit the documented `scoreboard players operation <targets> <targetObjective> <op> <source> <sourceObjective>` form.", op = "`op` supplies the op value used to emit the documented `scoreboard players operation <targets> <targetObjective> <op> <source> <sourceObjective>` form.", source = "Performs integer arithmetic between two scores in-place. `targets` may address multiple score holders, but vanilla requires `source` to resolve to exactly one holder. For per-player copies or arithmetic, execute as the player set and use `@s` for both operands.", source_objective = "`source_objective` supplies the source objective value used to emit the documented `scoreboard players operation <targets> <targetObjective> <op> <source> <sourceObjective>` form."),
+    params(targets = "Performs integer arithmetic between two scores in-place. `targets` may address multiple score holders, but vanilla requires `source` to resolve to exactly one holder. For per-player copies or arithmetic, execute as the player set and use `@s` for both operands.", target_objective = "`target_objective` supplies the documented `scoreboard players operation <targets> <targetObjective> <op> <source> <sourceObjective>` form.", op = "`op` supplies the documented `scoreboard players operation <targets> <targetObjective> <op> <source> <sourceObjective>` form.", source = "Performs integer arithmetic between two scores in-place. `targets` may address multiple score holders, but vanilla requires `source` to resolve to exactly one holder. For per-player copies or arithmetic, execute as the player set and use `@s` for both operands.", source_objective = "`source_objective` supplies the documented `scoreboard players operation <targets> <targetObjective> <op> <source> <sourceObjective>` form."),
     returns = "The `ScoreboardPlayersOperation` value produced to emit the documented `scoreboard players operation <targets> <targetObjective> <op> <source> <sourceObjective>` form.",
     example = "use sand::prelude::*;\n\nfn demonstrate(targets: sand::command::ScoreHolder, target_objective: sand::command::ObjectiveName, op: sand::command::ScoreOp, source: sand::command::ScoreHolder, source_objective: sand::command::ObjectiveName)  {\n    let scoreboard_players_operation = sand::command::scoreboard_players_operation(targets, target_objective, op, source, source_objective);\n}",
 )]
@@ -942,8 +942,8 @@ impl Objective {
         minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        params(name = "`name` provides the author-visible text value used to use const-compatible constructor for `static`/`const` declarations."),
-        returns = "A newly constructed `Objective` configured to use const-compatible constructor for `static`/`const` declarations.",
+        params(name = "`name` sets the author-visible text for const-compatible constructor for `static`/`const` declarations."),
+        returns = "An `Objective` configured for const-compatible constructor for `static`/`const` declarations.",
         example = "use sand::prelude::*;\n\nfn demonstrate(name: & 'static str)  {\n    let objective = sand::command::Objective::new(name);\n}",
     )]
     pub const fn new(name: &'static str) -> Self {
@@ -967,8 +967,8 @@ impl Objective {
         minecraft = "Validation is deferred until fallible rendering/export. Prefer [`try_dynamic`](Self::try_dynamic) when handling user input.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        params(name = "`name` provides the author-visible text value used to use compatibility constructor for a runtime-determined name."),
-        returns = "A newly constructed `Objective` configured to use compatibility constructor for a runtime-determined name.",
+        params(name = "`name` sets the author-visible text for compatibility constructor for a runtime-determined name."),
+        returns = "An `Objective` configured for compatibility constructor for a runtime-determined name.",
         example = "use sand::prelude::*;\n\nfn demonstrate(name: impl Into < String >)  {\n    let objective = sand::command::Objective::dynamic(name);\n}",
     )]
     pub fn dynamic(name: impl Into<String>) -> Self {
@@ -992,7 +992,7 @@ impl Objective {
         minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        params(name = "`name` provides the author-visible text value used to use fallible runtime constructor for normal user-provided objective names."),
+        params(name = "`name` sets the author-visible text for fallible runtime constructor for normal user-provided objective names."),
         returns = "On success, the value produced to use fallible runtime constructor for normal user-provided objective names; otherwise, the documented validation or export diagnostic.",
         example = "use sand::prelude::*;\n\nfn demonstrate(name: impl Into < String >)  {\n    let try_dynamic = sand::command::Objective::try_dynamic(name);\n}",
     )]
@@ -1060,7 +1060,7 @@ impl Objective {
         minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        params(criterion = "`criterion` supplies the criterion value used to use validated `scoreboard objectives add <name> <criterion>`."),
+        params(criterion = "`criterion` sets the criterion for validated `scoreboard objectives add <name> <criterion>`."),
         returns = "On success, the value produced to use validated `scoreboard objectives add <name> <criterion>`; otherwise, the documented validation or export diagnostic.",
         example = "use sand::prelude::*;\n\nfn demonstrate(objective_value: &sand::command::Objective, criterion: impl Into < String >)  {\n    let try_create = objective_value.try_create(criterion);\n}",
     )]
@@ -1081,7 +1081,7 @@ impl Objective {
         minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        params(holder = "`holder` supplies the holder value used to use validated `scoreboard players set <holder> <obj> <value>`.", value = "`value` provides the value being applied or compared used to use validated `scoreboard players set <holder> <obj> <value>`."),
+        params(holder = "`holder` sets the holder for validated `scoreboard players set <holder> <obj> <value>`.", value = "`value` provides the value being applied or compared used to use validated `scoreboard players set <holder> <obj> <value>`."),
         returns = "On success, the value produced to use validated `scoreboard players set <holder> <obj> <value>`; otherwise, the documented validation or export diagnostic.",
         example = "use sand::prelude::*;\n\nfn demonstrate(objective_value: &sand::command::Objective, holder: sand::command::ScoreHolder, value: i32)  {\n    let try_set = objective_value.try_set(holder, value);\n}",
     )]
@@ -1103,7 +1103,7 @@ impl Objective {
         minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        params(holder = "`holder` supplies the holder value used to use validated `scoreboard players get <holder> <obj>`."),
+        params(holder = "`holder` sets the holder for validated `scoreboard players get <holder> <obj>`."),
         returns = "On success, the value produced to use validated `scoreboard players get <holder> <obj>`; otherwise, the documented validation or export diagnostic.",
         example = "use sand::prelude::*;\n\nfn demonstrate(objective_value: &sand::command::Objective, holder: sand::command::ScoreHolder)  {\n    let try_get = objective_value.try_get(holder);\n}",
     )]
@@ -1125,7 +1125,7 @@ impl Objective {
         minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        params(holder = "`holder` supplies the holder value used to use validated `scoreboard players add <holder> <obj> <amount>`.", amount = "`amount` provides the requested numeric amount used to use validated `scoreboard players add <holder> <obj> <amount>`."),
+        params(holder = "`holder` sets the holder for validated `scoreboard players add <holder> <obj> <amount>`.", amount = "`amount` provides the requested numeric amount used to use validated `scoreboard players add <holder> <obj> <amount>`."),
         returns = "On success, the value produced to use validated `scoreboard players add <holder> <obj> <amount>`; otherwise, the documented validation or export diagnostic.",
         example = "use sand::prelude::*;\n\nfn demonstrate(objective_value: &sand::command::Objective, holder: sand::command::ScoreHolder, amount: i32)  {\n    let try_add = objective_value.try_add(holder, amount);\n}",
     )]
@@ -1147,7 +1147,7 @@ impl Objective {
         minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        params(holder = "`holder` supplies the holder value used to use validated `scoreboard players remove <holder> <obj> <amount>`.", amount = "`amount` provides the requested numeric amount used to use validated `scoreboard players remove <holder> <obj> <amount>`."),
+        params(holder = "`holder` sets the holder for validated `scoreboard players remove <holder> <obj> <amount>`.", amount = "`amount` provides the requested numeric amount used to use validated `scoreboard players remove <holder> <obj> <amount>`."),
         returns = "On success, the value produced to use validated `scoreboard players remove <holder> <obj> <amount>`; otherwise, the documented validation or export diagnostic.",
         example = "use sand::prelude::*;\n\nfn demonstrate(objective_value: &sand::command::Objective, holder: sand::command::ScoreHolder, amount: i32)  {\n    let try_subtract = objective_value.try_subtract(holder, amount);\n}",
     )]
@@ -1169,7 +1169,7 @@ impl Objective {
         minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        params(holder = "`holder` supplies the holder value used to use validated `scoreboard players reset <holder> <obj>`."),
+        params(holder = "`holder` sets the holder for validated `scoreboard players reset <holder> <obj>`."),
         returns = "On success, the value produced to use validated `scoreboard players reset <holder> <obj>`; otherwise, the documented validation or export diagnostic.",
         example = "use sand::prelude::*;\n\nfn demonstrate(objective_value: &sand::command::Objective, holder: sand::command::ScoreHolder)  {\n    let try_reset = objective_value.try_reset(holder);\n}",
     )]
@@ -1194,7 +1194,7 @@ impl Objective {
         minecraft = "Reuses [`ScoreboardPlayersOperation::validate`], which additionally requires `rhs` to resolve to exactly one score holder.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        params(lhs = "`lhs` supplies the lhs value used to use validated `scoreboard players operation <lhs> <obj> <op> <rhs> <rhs_obj>`.", op = "`op` supplies the op value used to use validated `scoreboard players operation <lhs> <obj> <op> <rhs> <rhs_obj>`.", rhs = "Reuses [`ScoreboardPlayersOperation::validate`], which additionally requires `rhs` to resolve to exactly one score holder.", rhs_obj = "`rhs_obj` supplies the rhs obj value used to use validated `scoreboard players operation <lhs> <obj> <op> <rhs> <rhs_obj>`."),
+        params(lhs = "`lhs` sets the lhs for validated `scoreboard players operation <lhs> <obj> <op> <rhs> <rhs_obj>`.", op = "`op` sets the op for validated `scoreboard players operation <lhs> <obj> <op> <rhs> <rhs_obj>`.", rhs = "Reuses [`ScoreboardPlayersOperation::validate`], which additionally requires `rhs` to resolve to exactly one score holder.", rhs_obj = "`rhs_obj` sets the rhs obj for validated `scoreboard players operation <lhs> <obj> <op> <rhs> <rhs_obj>`."),
         returns = "On success, the value produced to use validated `scoreboard players operation <lhs> <obj> <op> <rhs> <rhs_obj>`; otherwise, the documented validation or export diagnostic.",
         example = "use sand::prelude::*;\n\nfn demonstrate(objective_value: &sand::command::Objective, lhs: sand::command::ScoreHolder, op: sand::command::ScoreOp, rhs: sand::command::ScoreHolder, rhs_obj: & sand::command::Objective)  {\n    let try_operation = objective_value.try_operation(lhs, op, rhs, rhs_obj);\n}",
     )]
@@ -1225,7 +1225,7 @@ impl Objective {
         minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        params(holder = "`holder` supplies the holder value used to emit the documented `execute store result score <holder> <obj> run data get storage <storage_id> <key>` form.", storage_id = "`storage_id` supplies the storage id value used to emit the documented `execute store result score <holder> <obj> run data get storage <storage_id> <key>` form.", key = "`key` provides the key that identifies the setting or entry used to emit the documented `execute store result score <holder> <obj> run data get storage <storage_id> <key>` form."),
+        params(holder = "`holder` supplies the documented `execute store result score <holder> <obj> run data get storage <storage_id> <key>` form.", storage_id = "`storage_id` supplies the documented `execute store result score <holder> <obj> run data get storage <storage_id> <key>` form.", key = "`key` provides the key that identifies the setting or entry used to emit the documented `execute store result score <holder> <obj> run data get storage <storage_id> <key>` form."),
         returns = "The string value produced to emit the documented `execute store result score <holder> <obj> run data get storage <storage_id> <key>` form.",
         example = "use sand::prelude::*;\n\nfn demonstrate(objective_value: &sand::command::Objective, holder: sand::command::ScoreHolder, storage_id: impl Into < String >, key: impl Into < String >)  {\n    let load_from = objective_value.load_from(holder, storage_id, key);\n}",
     )]
@@ -1258,7 +1258,7 @@ impl Objective {
         minecraft = "Load a float NBT value, multiplied by `scale`, into this objective.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        params(holder = "`holder` supplies the holder value used to emit the documented `execute store result score <holder> <obj> run data get storage <storage_id> <key> <scale>` form.", storage_id = "`storage_id` supplies the storage id value used to emit the documented `execute store result score <holder> <obj> run data get storage <storage_id> <key> <scale>` form.", key = "`key` provides the key that identifies the setting or entry used to emit the documented `execute store result score <holder> <obj> run data get storage <storage_id> <key> <scale>` form.", scale = "Load a float NBT value, multiplied by `scale`, into this objective."),
+        params(holder = "`holder` supplies the documented `execute store result score <holder> <obj> run data get storage <storage_id> <key> <scale>` form.", storage_id = "`storage_id` supplies the documented `execute store result score <holder> <obj> run data get storage <storage_id> <key> <scale>` form.", key = "`key` provides the key that identifies the setting or entry used to emit the documented `execute store result score <holder> <obj> run data get storage <storage_id> <key> <scale>` form.", scale = "Load a float NBT value, multiplied by `scale`, into this objective."),
         returns = "The string value produced to emit the documented `execute store result score <holder> <obj> run data get storage <storage_id> <key> <scale>` form.",
         example = "use sand::prelude::*;\n\nfn demonstrate(objective_value: &sand::command::Objective, holder: sand::command::ScoreHolder, storage_id: impl Into < String >, key: impl Into < String >, scale: f64)  {\n    let load_from_scaled = objective_value.load_from_scaled(holder, storage_id, key, scale);\n}",
     )]
@@ -1292,7 +1292,7 @@ impl Objective {
         minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        params(criterion = "`criterion` supplies the criterion value used to emit the documented `scoreboard objectives add <name> <criterion>` — create this objective form."),
+        params(criterion = "`criterion` supplies the documented `scoreboard objectives add <name> <criterion>` — create this objective form."),
         returns = "The string value produced to emit the documented `scoreboard objectives add <name> <criterion>` — create this objective form.",
         example = "use sand::prelude::*;\n\nfn demonstrate(objective_value: &sand::command::Objective, criterion: impl Into < String >)  {\n    let create = objective_value.create(criterion);\n}",
     )]
@@ -1316,7 +1316,7 @@ impl Objective {
         minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        params(criterion = "`criterion` supplies the criterion value used to emit the documented `scoreboard objectives add <name> <criterion> <displayName>` — create with a display name form.", display = "`display` supplies the display value used to emit the documented `scoreboard objectives add <name> <criterion> <displayName>` — create with a display name form."),
+        params(criterion = "`criterion` supplies the documented `scoreboard objectives add <name> <criterion> <displayName>` — create with a display name form.", display = "`display` supplies the documented `scoreboard objectives add <name> <criterion> <displayName>` — create with a display name form."),
         returns = "The string value produced to emit the documented `scoreboard objectives add <name> <criterion> <displayName>` — create with a display name form.",
         example = "use sand::prelude::*;\n\nfn demonstrate(objective_value: &sand::command::Objective, criterion: impl Into < String >, display: impl Into < String >)  {\n    let create_with_display = objective_value.create_with_display(criterion, display);\n}",
     )]
@@ -1364,7 +1364,7 @@ impl Objective {
         minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        params(slot = "`slot` supplies the slot value used to emit the documented `scoreboard objectives setdisplay <slot> <name>` — show in a display slot form."),
+        params(slot = "`slot` supplies the documented `scoreboard objectives setdisplay <slot> <name>` — show in a display slot form."),
         returns = "The string value produced to emit the documented `scoreboard objectives setdisplay <slot> <name>` — show in a display slot form.",
         example = "use sand::prelude::*;\n\nfn demonstrate(objective_value: &sand::command::Objective, slot: sand::command::DisplaySlot)  {\n    let set_display = objective_value.set_display(slot);\n}",
     )]
@@ -1384,7 +1384,7 @@ impl Objective {
         minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        params(slot = "`slot` supplies the slot value used to emit the documented `scoreboard objectives setdisplay <slot>` — clear the given display slot form."),
+        params(slot = "`slot` supplies the documented `scoreboard objectives setdisplay <slot>` — clear the given display slot form."),
         returns = "The string value produced to emit the documented `scoreboard objectives setdisplay <slot>` — clear the given display slot form.",
         example = "use sand::prelude::*;\n\nfn demonstrate(slot: sand::command::DisplaySlot)  {\n    let clear_display = sand::command::Objective::clear_display(slot);\n}",
     )]
@@ -1404,7 +1404,7 @@ impl Objective {
         minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        params(display = "`display` supplies the display value used to emit the documented `scoreboard objectives modify <name> displayname <text>` — change the display name form."),
+        params(display = "`display` supplies the documented `scoreboard objectives modify <name> displayname <text>` — change the display name form."),
         returns = "The string value produced to emit the documented `scoreboard objectives modify <name> displayname <text>` — change the display name form.",
         example = "use sand::prelude::*;\n\nfn demonstrate(objective_value: &sand::command::Objective, display: impl Into < String >)  {\n    let modify_display_name = objective_value.modify_display_name(display);\n}",
     )]
@@ -1428,7 +1428,7 @@ impl Objective {
         minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        params(render_type = "`render_type` supplies the render type value used to emit the documented `scoreboard objectives modify <name> rendertype <type>` — change render type form."),
+        params(render_type = "`render_type` supplies the documented `scoreboard objectives modify <name> rendertype <type>` — change render type form."),
         returns = "The string value produced to emit the documented `scoreboard objectives modify <name> rendertype <type>` — change render type form.",
         example = "use sand::prelude::*;\n\nfn demonstrate(objective_value: &sand::command::Objective, render_type: impl Into < String >)  {\n    let modify_render_type = objective_value.modify_render_type(render_type);\n}",
     )]
@@ -1454,7 +1454,7 @@ impl Objective {
         minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        params(holder = "`holder` supplies the holder value used to emit the documented `scoreboard players set <holder> <obj> <value>` form.", value = "`value` provides the value being applied or compared used to emit the documented `scoreboard players set <holder> <obj> <value>` form."),
+        params(holder = "`holder` supplies the documented `scoreboard players set <holder> <obj> <value>` form.", value = "`value` provides the value being applied or compared used to emit the documented `scoreboard players set <holder> <obj> <value>` form."),
         returns = "The string value produced to emit the documented `scoreboard players set <holder> <obj> <value>` form.",
         example = "use sand::prelude::*;\n\nfn demonstrate(objective_value: &sand::command::Objective, holder: sand::command::ScoreHolder, value: i32)  {\n    let set = objective_value.set(holder, value);\n}",
     )]
@@ -1474,7 +1474,7 @@ impl Objective {
         minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        params(holder = "`holder` supplies the holder value used to emit the documented `scoreboard players get <holder> <obj>` form."),
+        params(holder = "`holder` supplies the documented `scoreboard players get <holder> <obj>` form."),
         returns = "The string value produced to emit the documented `scoreboard players get <holder> <obj>` form.",
         example = "use sand::prelude::*;\n\nfn demonstrate(objective_value: &sand::command::Objective, holder: sand::command::ScoreHolder)  {\n    let get = objective_value.get(holder);\n}",
     )]
@@ -1494,7 +1494,7 @@ impl Objective {
         minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        params(holder = "`holder` supplies the holder value used to emit the documented `scoreboard players add <holder> <obj> <amount>` form.", amount = "`amount` provides the requested numeric amount used to emit the documented `scoreboard players add <holder> <obj> <amount>` form."),
+        params(holder = "`holder` supplies the documented `scoreboard players add <holder> <obj> <amount>` form.", amount = "`amount` provides the requested numeric amount used to emit the documented `scoreboard players add <holder> <obj> <amount>` form."),
         returns = "The string value produced to emit the documented `scoreboard players add <holder> <obj> <amount>` form.",
         example = "use sand::prelude::*;\n\nfn demonstrate(objective_value: &sand::command::Objective, holder: sand::command::ScoreHolder, amount: i32)  {\n    let add = objective_value.add(holder, amount);\n}",
     )]
@@ -1514,7 +1514,7 @@ impl Objective {
         minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        params(holder = "`holder` supplies the holder value used to emit the documented `scoreboard players remove <holder> <obj> <amount>` form.", amount = "`amount` provides the requested numeric amount used to emit the documented `scoreboard players remove <holder> <obj> <amount>` form."),
+        params(holder = "`holder` supplies the documented `scoreboard players remove <holder> <obj> <amount>` form.", amount = "`amount` provides the requested numeric amount used to emit the documented `scoreboard players remove <holder> <obj> <amount>` form."),
         returns = "The string value produced to emit the documented `scoreboard players remove <holder> <obj> <amount>` form.",
         example = "use sand::prelude::*;\n\nfn demonstrate(objective_value: &sand::command::Objective, holder: sand::command::ScoreHolder, amount: i32)  {\n    let subtract = objective_value.subtract(holder, amount);\n}",
     )]
@@ -1537,7 +1537,7 @@ impl Objective {
         minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        params(holder = "`holder` supplies the holder value used to emit the documented `scoreboard players reset <holder> <obj>` form."),
+        params(holder = "`holder` supplies the documented `scoreboard players reset <holder> <obj>` form."),
         returns = "The string value produced to emit the documented `scoreboard players reset <holder> <obj>` form.",
         example = "use sand::prelude::*;\n\nfn demonstrate(objective_value: &sand::command::Objective, holder: sand::command::ScoreHolder)  {\n    let reset = objective_value.reset(holder);\n}",
     )]
@@ -1559,7 +1559,7 @@ impl Objective {
         minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        params(lhs = "`lhs` supplies the lhs value used to emit the documented `scoreboard players operation <lhs> <obj> <op> <rhs> <rhs_obj>` form.", op = "`op` supplies the op value used to emit the documented `scoreboard players operation <lhs> <obj> <op> <rhs> <rhs_obj>` form.", rhs = "`rhs` supplies the rhs value used to emit the documented `scoreboard players operation <lhs> <obj> <op> <rhs> <rhs_obj>` form.", rhs_obj = "`rhs_obj` supplies the rhs obj value used to emit the documented `scoreboard players operation <lhs> <obj> <op> <rhs> <rhs_obj>` form."),
+        params(lhs = "`lhs` supplies the documented `scoreboard players operation <lhs> <obj> <op> <rhs> <rhs_obj>` form.", op = "`op` supplies the documented `scoreboard players operation <lhs> <obj> <op> <rhs> <rhs_obj>` form.", rhs = "`rhs` supplies the documented `scoreboard players operation <lhs> <obj> <op> <rhs> <rhs_obj>` form.", rhs_obj = "`rhs_obj` supplies the documented `scoreboard players operation <lhs> <obj> <op> <rhs> <rhs_obj>` form."),
         returns = "The string value produced to emit the documented `scoreboard players operation <lhs> <obj> <op> <rhs> <rhs_obj>` form.",
         example = "use sand::prelude::*;\n\nfn demonstrate(objective_value: &sand::command::Objective, lhs: sand::command::ScoreHolder, op: sand::command::ScoreOp, rhs: sand::command::ScoreHolder, rhs_obj: & sand::command::Objective)  {\n    let operation = objective_value.operation(lhs, op, rhs, rhs_obj);\n}",
     )]
@@ -1588,7 +1588,7 @@ impl Objective {
         minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        params(holder = "`holder` supplies the holder value used to emit the documented `scoreboard players enable <holder> <obj>` — enable a trigger objective form."),
+        params(holder = "`holder` supplies the documented `scoreboard players enable <holder> <obj>` — enable a trigger objective form."),
         returns = "The string value produced to emit the documented `scoreboard players enable <holder> <obj>` — enable a trigger objective form.",
         example = "use sand::prelude::*;\n\nfn demonstrate(objective_value: &sand::command::Objective, holder: sand::command::ScoreHolder)  {\n    let enable = objective_value.enable(holder);\n}",
     )]
@@ -1649,7 +1649,7 @@ impl Objective {
         minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        params(lhs = "`lhs` supplies the lhs value used to emit the documented `scoreboard players operation <lhs> <obj> += <rhs> <rhs_obj>` form.", rhs = "`rhs` supplies the rhs value used to emit the documented `scoreboard players operation <lhs> <obj> += <rhs> <rhs_obj>` form.", rhs_obj = "`rhs_obj` supplies the rhs obj value used to emit the documented `scoreboard players operation <lhs> <obj> += <rhs> <rhs_obj>` form."),
+        params(lhs = "`lhs` supplies the documented `scoreboard players operation <lhs> <obj> += <rhs> <rhs_obj>` form.", rhs = "`rhs` supplies the documented `scoreboard players operation <lhs> <obj> += <rhs> <rhs_obj>` form.", rhs_obj = "`rhs_obj` supplies the documented `scoreboard players operation <lhs> <obj> += <rhs> <rhs_obj>` form."),
         returns = "The string value produced to emit the documented `scoreboard players operation <lhs> <obj> += <rhs> <rhs_obj>` form.",
         example = "use sand::prelude::*;\n\nfn demonstrate(objective_value: &sand::command::Objective, lhs: sand::command::ScoreHolder, rhs: sand::command::ScoreHolder, rhs_obj: & sand::command::Objective)  {\n    let add_from = objective_value.add_from(lhs, rhs, rhs_obj);\n}",
     )]
@@ -1669,7 +1669,7 @@ impl Objective {
         minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        params(lhs = "`lhs` supplies the lhs value used to emit the documented `scoreboard players operation <lhs> <obj> -= <rhs> <rhs_obj>` form.", rhs = "`rhs` supplies the rhs value used to emit the documented `scoreboard players operation <lhs> <obj> -= <rhs> <rhs_obj>` form.", rhs_obj = "`rhs_obj` supplies the rhs obj value used to emit the documented `scoreboard players operation <lhs> <obj> -= <rhs> <rhs_obj>` form."),
+        params(lhs = "`lhs` supplies the documented `scoreboard players operation <lhs> <obj> -= <rhs> <rhs_obj>` form.", rhs = "`rhs` supplies the documented `scoreboard players operation <lhs> <obj> -= <rhs> <rhs_obj>` form.", rhs_obj = "`rhs_obj` supplies the documented `scoreboard players operation <lhs> <obj> -= <rhs> <rhs_obj>` form."),
         returns = "The string value produced to emit the documented `scoreboard players operation <lhs> <obj> -= <rhs> <rhs_obj>` form.",
         example = "use sand::prelude::*;\n\nfn demonstrate(objective_value: &sand::command::Objective, lhs: sand::command::ScoreHolder, rhs: sand::command::ScoreHolder, rhs_obj: & sand::command::Objective)  {\n    let sub_from = objective_value.sub_from(lhs, rhs, rhs_obj);\n}",
     )]
@@ -1689,7 +1689,7 @@ impl Objective {
         minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        params(lhs = "`lhs` supplies the lhs value used to emit the documented `scoreboard players operation <lhs> <obj> *= <rhs> <rhs_obj>` form.", rhs = "`rhs` supplies the rhs value used to emit the documented `scoreboard players operation <lhs> <obj> *= <rhs> <rhs_obj>` form.", rhs_obj = "`rhs_obj` supplies the rhs obj value used to emit the documented `scoreboard players operation <lhs> <obj> *= <rhs> <rhs_obj>` form."),
+        params(lhs = "`lhs` supplies the documented `scoreboard players operation <lhs> <obj> *= <rhs> <rhs_obj>` form.", rhs = "`rhs` supplies the documented `scoreboard players operation <lhs> <obj> *= <rhs> <rhs_obj>` form.", rhs_obj = "`rhs_obj` supplies the documented `scoreboard players operation <lhs> <obj> *= <rhs> <rhs_obj>` form."),
         returns = "The string value produced to emit the documented `scoreboard players operation <lhs> <obj> *= <rhs> <rhs_obj>` form.",
         example = "use sand::prelude::*;\n\nfn demonstrate(objective_value: &sand::command::Objective, lhs: sand::command::ScoreHolder, rhs: sand::command::ScoreHolder, rhs_obj: & sand::command::Objective)  {\n    let mul_from = objective_value.mul_from(lhs, rhs, rhs_obj);\n}",
     )]
@@ -1709,7 +1709,7 @@ impl Objective {
         minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        params(lhs = "`lhs` supplies the lhs value used to emit the documented `scoreboard players operation <lhs> <obj> /= <rhs> <rhs_obj>` form.", rhs = "`rhs` supplies the rhs value used to emit the documented `scoreboard players operation <lhs> <obj> /= <rhs> <rhs_obj>` form.", rhs_obj = "`rhs_obj` supplies the rhs obj value used to emit the documented `scoreboard players operation <lhs> <obj> /= <rhs> <rhs_obj>` form."),
+        params(lhs = "`lhs` supplies the documented `scoreboard players operation <lhs> <obj> /= <rhs> <rhs_obj>` form.", rhs = "`rhs` supplies the documented `scoreboard players operation <lhs> <obj> /= <rhs> <rhs_obj>` form.", rhs_obj = "`rhs_obj` supplies the documented `scoreboard players operation <lhs> <obj> /= <rhs> <rhs_obj>` form."),
         returns = "The string value produced to emit the documented `scoreboard players operation <lhs> <obj> /= <rhs> <rhs_obj>` form.",
         example = "use sand::prelude::*;\n\nfn demonstrate(objective_value: &sand::command::Objective, lhs: sand::command::ScoreHolder, rhs: sand::command::ScoreHolder, rhs_obj: & sand::command::Objective)  {\n    let div_from = objective_value.div_from(lhs, rhs, rhs_obj);\n}",
     )]
@@ -1729,7 +1729,7 @@ impl Objective {
         minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        params(lhs = "`lhs` supplies the lhs value used to emit the documented `scoreboard players operation <lhs> <obj> %= <rhs> <rhs_obj>` form.", rhs = "`rhs` supplies the rhs value used to emit the documented `scoreboard players operation <lhs> <obj> %= <rhs> <rhs_obj>` form.", rhs_obj = "`rhs_obj` supplies the rhs obj value used to emit the documented `scoreboard players operation <lhs> <obj> %= <rhs> <rhs_obj>` form."),
+        params(lhs = "`lhs` supplies the documented `scoreboard players operation <lhs> <obj> %= <rhs> <rhs_obj>` form.", rhs = "`rhs` supplies the documented `scoreboard players operation <lhs> <obj> %= <rhs> <rhs_obj>` form.", rhs_obj = "`rhs_obj` supplies the documented `scoreboard players operation <lhs> <obj> %= <rhs> <rhs_obj>` form."),
         returns = "The string value produced to emit the documented `scoreboard players operation <lhs> <obj> %= <rhs> <rhs_obj>` form.",
         example = "use sand::prelude::*;\n\nfn demonstrate(objective_value: &sand::command::Objective, lhs: sand::command::ScoreHolder, rhs: sand::command::ScoreHolder, rhs_obj: & sand::command::Objective)  {\n    let mod_from = objective_value.mod_from(lhs, rhs, rhs_obj);\n}",
     )]
@@ -1749,7 +1749,7 @@ impl Objective {
         minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        params(lhs = "`lhs` supplies the lhs value used to emit the documented `scoreboard players operation <lhs> <obj> = <rhs> <rhs_obj>` form.", rhs = "`rhs` supplies the rhs value used to emit the documented `scoreboard players operation <lhs> <obj> = <rhs> <rhs_obj>` form.", rhs_obj = "`rhs_obj` supplies the rhs obj value used to emit the documented `scoreboard players operation <lhs> <obj> = <rhs> <rhs_obj>` form."),
+        params(lhs = "`lhs` supplies the documented `scoreboard players operation <lhs> <obj> = <rhs> <rhs_obj>` form.", rhs = "`rhs` supplies the documented `scoreboard players operation <lhs> <obj> = <rhs> <rhs_obj>` form.", rhs_obj = "`rhs_obj` supplies the documented `scoreboard players operation <lhs> <obj> = <rhs> <rhs_obj>` form."),
         returns = "The string value produced to emit the documented `scoreboard players operation <lhs> <obj> = <rhs> <rhs_obj>` form.",
         example = "use sand::prelude::*;\n\nfn demonstrate(objective_value: &sand::command::Objective, lhs: sand::command::ScoreHolder, rhs: sand::command::ScoreHolder, rhs_obj: & sand::command::Objective)  {\n    let copy_from = objective_value.copy_from(lhs, rhs, rhs_obj);\n}",
     )]
@@ -1769,7 +1769,7 @@ impl Objective {
         minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        params(lhs = "`lhs` supplies the lhs value used to emit the documented `scoreboard players operation <lhs> <obj> < <rhs> <rhs_obj>` form.", rhs = "`rhs` supplies the rhs value used to emit the documented `scoreboard players operation <lhs> <obj> < <rhs> <rhs_obj>` form.", rhs_obj = "`rhs_obj` supplies the rhs obj value used to emit the documented `scoreboard players operation <lhs> <obj> < <rhs> <rhs_obj>` form."),
+        params(lhs = "`lhs` supplies the documented `scoreboard players operation <lhs> <obj> < <rhs> <rhs_obj>` form.", rhs = "`rhs` supplies the documented `scoreboard players operation <lhs> <obj> < <rhs> <rhs_obj>` form.", rhs_obj = "`rhs_obj` supplies the documented `scoreboard players operation <lhs> <obj> < <rhs> <rhs_obj>` form."),
         returns = "The string value produced to emit the documented `scoreboard players operation <lhs> <obj> < <rhs> <rhs_obj>` form.",
         example = "use sand::prelude::*;\n\nfn demonstrate(objective_value: &sand::command::Objective, lhs: sand::command::ScoreHolder, rhs: sand::command::ScoreHolder, rhs_obj: & sand::command::Objective)  {\n    let min_from = objective_value.min_from(lhs, rhs, rhs_obj);\n}",
     )]
@@ -1789,7 +1789,7 @@ impl Objective {
         minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        params(lhs = "`lhs` supplies the lhs value used to emit the documented `scoreboard players operation <lhs> <obj> > <rhs> <rhs_obj>` form.", rhs = "`rhs` supplies the rhs value used to emit the documented `scoreboard players operation <lhs> <obj> > <rhs> <rhs_obj>` form.", rhs_obj = "`rhs_obj` supplies the rhs obj value used to emit the documented `scoreboard players operation <lhs> <obj> > <rhs> <rhs_obj>` form."),
+        params(lhs = "`lhs` supplies the documented `scoreboard players operation <lhs> <obj> > <rhs> <rhs_obj>` form.", rhs = "`rhs` supplies the documented `scoreboard players operation <lhs> <obj> > <rhs> <rhs_obj>` form.", rhs_obj = "`rhs_obj` supplies the documented `scoreboard players operation <lhs> <obj> > <rhs> <rhs_obj>` form."),
         returns = "The string value produced to emit the documented `scoreboard players operation <lhs> <obj> > <rhs> <rhs_obj>` form.",
         example = "use sand::prelude::*;\n\nfn demonstrate(objective_value: &sand::command::Objective, lhs: sand::command::ScoreHolder, rhs: sand::command::ScoreHolder, rhs_obj: & sand::command::Objective)  {\n    let max_from = objective_value.max_from(lhs, rhs, rhs_obj);\n}",
     )]
@@ -1809,7 +1809,7 @@ impl Objective {
         minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        params(lhs = "`lhs` supplies the lhs value used to emit the documented `scoreboard players operation <lhs> <obj> >< <rhs> <rhs_obj>` form.", rhs = "`rhs` supplies the rhs value used to emit the documented `scoreboard players operation <lhs> <obj> >< <rhs> <rhs_obj>` form.", rhs_obj = "`rhs_obj` supplies the rhs obj value used to emit the documented `scoreboard players operation <lhs> <obj> >< <rhs> <rhs_obj>` form."),
+        params(lhs = "`lhs` supplies the documented `scoreboard players operation <lhs> <obj> >< <rhs> <rhs_obj>` form.", rhs = "`rhs` supplies the documented `scoreboard players operation <lhs> <obj> >< <rhs> <rhs_obj>` form.", rhs_obj = "`rhs_obj` supplies the documented `scoreboard players operation <lhs> <obj> >< <rhs> <rhs_obj>` form."),
         returns = "The string value produced to emit the documented `scoreboard players operation <lhs> <obj> >< <rhs> <rhs_obj>` form.",
         example = "use sand::prelude::*;\n\nfn demonstrate(objective_value: &sand::command::Objective, lhs: sand::command::ScoreHolder, rhs: sand::command::ScoreHolder, rhs_obj: & sand::command::Objective)  {\n    let swap_with = objective_value.swap_with(lhs, rhs, rhs_obj);\n}",
     )]
@@ -1831,7 +1831,7 @@ impl Objective {
         minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        params(holder = "`holder` supplies the holder value used to return a condition fragment `if score <holder> <obj> matches <range>`.", range = "`range` supplies the range value used to return a condition fragment `if score <holder> <obj> matches <range>`."),
+        params(holder = "`holder` is used to return a condition fragment `if score <holder> <obj> matches <range>`.", range = "`range` is used to return a condition fragment `if score <holder> <obj> matches <range>`."),
         returns = "Return a condition fragment `if score <holder> <obj> matches <range>`.",
         example = "use sand::prelude::*;\n\nfn demonstrate(objective_value: &sand::command::Objective, holder: sand::command::ScoreHolder, range: impl Into < String >)  {\n    let if_matches = objective_value.if_matches(holder, range);\n}",
     )]
@@ -1851,7 +1851,7 @@ impl Objective {
         minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        params(holder = "`holder` supplies the holder value used to return a condition fragment `unless score <holder> <obj> matches <range>`.", range = "`range` supplies the range value used to return a condition fragment `unless score <holder> <obj> matches <range>`."),
+        params(holder = "`holder` is used to return a condition fragment `unless score <holder> <obj> matches <range>`.", range = "`range` is used to return a condition fragment `unless score <holder> <obj> matches <range>`."),
         returns = "Return a condition fragment `unless score <holder> <obj> matches <range>`.",
         example = "use sand::prelude::*;\n\nfn demonstrate(objective_value: &sand::command::Objective, holder: sand::command::ScoreHolder, range: impl Into < String >)  {\n    let unless_matches = objective_value.unless_matches(holder, range);\n}",
     )]
@@ -1898,7 +1898,7 @@ impl Objective {
         minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        params(fake_player = "`fake_player` supplies the fake player value used to create a `TextComponent` displaying a fake player's score in this objective."),
+        params(fake_player = "`fake_player` is used when creating a `TextComponent` displaying a fake player's score in this objective."),
         returns = "The `TextComponent` value produced to create a `TextComponent` displaying a fake player's score in this objective.",
         example = "use sand::prelude::*;\n\nfn demonstrate(objective_value: &sand::command::Objective, fake_player: impl Into < String >)  {\n    let as_text_fake = objective_value.as_text_fake(fake_player);\n}",
     )]

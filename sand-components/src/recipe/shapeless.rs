@@ -47,7 +47,7 @@ impl ShapelessRecipe {
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
         params(location = "`location` provides the typed resource identifier or location used to create a new shapeless recipe with the given resource location."),
-        returns = "A newly constructed `ShapelessRecipe` configured to create a new shapeless recipe with the given resource location.",
+        returns = "A `ShapelessRecipe` representing a new shapeless recipe with the given resource location.",
         example = "use sand::prelude::*;\n\nfn demonstrate(location: sand::ResourceLocation)  {\n    let shapeless_recipe = sand::component::ShapelessRecipe::new(location);\n}",
     )]
     pub fn new(location: ResourceLocation) -> Self {
@@ -72,7 +72,7 @@ impl ShapelessRecipe {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(ingredient = "`ingredient` supplies the ingredient value used to add an ingredient to the recipe."),
+        params(ingredient = "`ingredient` provides the ingredient added when building an ingredient to the recipe."),
         returns = "The `ShapelessRecipe` value with the documented change applied to add an ingredient to the recipe.",
         example = "use sand::prelude::*;\n\nfn demonstrate(shapeless_recipe_value: sand::component::ShapelessRecipe, ingredient: sand::component::Ingredient)  {\n    let updated_shapeless_recipe = shapeless_recipe_value.ingredient(ingredient);\n}",
     )]
@@ -93,7 +93,7 @@ impl ShapelessRecipe {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(result = "`result` supplies the result value used to set the result item and quantity produced by this recipe."),
+        params(result = "`result` provides the result applied when setting the result item and quantity produced by this recipe."),
         returns = "The `ShapelessRecipe` value with the documented change applied to set the result item and quantity produced by this recipe.",
         example = "use sand::prelude::*;\n\nfn demonstrate(shapeless_recipe_value: sand::component::ShapelessRecipe, result: sand::component::RecipeResult)  {\n    let updated_shapeless_recipe = shapeless_recipe_value.result(result);\n}",
     )]
@@ -114,7 +114,7 @@ impl ShapelessRecipe {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(cat = "`cat` supplies the cat value used to set the recipe category for organization."),
+        params(cat = "`cat` provides the cat applied when setting the recipe category for organization."),
         returns = "The `ShapelessRecipe` value with the documented change applied to set the recipe category for organization.",
         example = "use sand::prelude::*;\n\nfn demonstrate(shapeless_recipe_value: sand::component::ShapelessRecipe, cat: impl Into < String >)  {\n    let updated_shapeless_recipe = shapeless_recipe_value.category(cat);\n}",
     )]

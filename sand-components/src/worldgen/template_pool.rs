@@ -185,7 +185,7 @@ impl PoolElement {
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
         params(location = "`location` provides the typed resource identifier or location used to use a `minecraft:single_pool_element` with vanilla `minecraft:empty` processors and rigid projection."),
-        returns = "A newly constructed `PoolElement` configured to use a `minecraft:single_pool_element` with vanilla `minecraft:empty` processors and rigid projection.",
+        returns = "A `PoolElement` configured for a `minecraft:single_pool_element` with vanilla `minecraft:empty` processors and rigid projection.",
         example = "use sand::prelude::*;\n\nfn demonstrate(location: sand::registry::StructureTemplateId)  {\n    let pool_element = sand::component::PoolElement::single(location);\n}",
     )]
     pub fn single(location: StructureTemplateId) -> Self {
@@ -340,8 +340,8 @@ impl PoolEntry {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(element = "`element` supplies the element value used to emit the documented `weight` must be at least 1; checked on export form.", weight = "`weight` must be at least 1; checked on export."),
-        returns = "A newly constructed `PoolEntry` configured to emit the documented `weight` must be at least 1; checked on export form.",
+        params(element = "`element` supplies the documented `weight` must be at least 1; checked on export form.", weight = "`weight` must be at least 1; checked on export."),
+        returns = "A `PoolEntry` that emits the documented `weight` must be at least 1; checked on export form.",
         example = "use sand::prelude::*;\n\nfn demonstrate(element: sand::component::PoolElement, weight: u32)  {\n    let pool_entry = sand::component::PoolEntry::new(element, weight);\n}",
     )]
     pub fn new(element: PoolElement, weight: u32) -> Self {
@@ -419,8 +419,8 @@ impl TemplatePool {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(location = "`location` provides the typed resource identifier or location used to create a template pool with an explicit fallback and weighted elements.", fallback = "`fallback` provides the typed Minecraft resource identifier used to create a template pool with an explicit fallback and weighted elements.", elements = "`elements` supplies the elements value used to create a template pool with an explicit fallback and weighted elements."),
-        returns = "A newly constructed `TemplatePool` configured to create a template pool with an explicit fallback and weighted elements.",
+        params(location = "`location` provides the typed resource identifier or location used to create a template pool with an explicit fallback and weighted elements.", fallback = "`fallback` provides the typed Minecraft resource identifier used to create a template pool with an explicit fallback and weighted elements.", elements = "`elements` is used when creating a template pool with an explicit fallback and weighted elements."),
+        returns = "A `TemplatePool` representing a template pool with an explicit fallback and weighted elements.",
         example = "use sand::prelude::*;\n\nfn demonstrate(location: sand::ResourceLocation, fallback: sand::registry::TemplatePoolId, elements: impl IntoIterator < Item = sand::component::PoolEntry >)  {\n    let template_pool = sand::component::TemplatePool::new(location, fallback, elements);\n}",
     )]
     pub fn new(
@@ -468,7 +468,7 @@ impl TemplatePool {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(entry = "`entry` supplies the entry value used to set the Minecraft element property on this typed template pool definition and returns the updated builder."),
+        params(entry = "`entry` provides the entry applied when setting the Minecraft element property on this typed template pool definition and returns the updated builder."),
         returns = "Sets the Minecraft element property on this typed template pool definition and returns the updated builder.",
         example = "use sand::prelude::*;\n\nfn demonstrate(template_pool_value: sand::component::TemplatePool, entry: sand::component::PoolEntry)  {\n    let updated_template_pool = template_pool_value.element(entry);\n}",
     )]
@@ -489,7 +489,7 @@ impl TemplatePool {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(elements = "`elements` supplies the elements value used to set the Minecraft elements property on this typed template pool definition and returns the updated builder."),
+        params(elements = "`elements` provides the elements applied when setting the Minecraft elements property on this typed template pool definition and returns the updated builder."),
         returns = "Sets the Minecraft elements property on this typed template pool definition and returns the updated builder.",
         example = "use sand::prelude::*;\n\nfn demonstrate(template_pool_value: sand::component::TemplatePool, elements: impl IntoIterator < Item = sand::component::PoolEntry >)  {\n    let updated_template_pool = template_pool_value.elements(elements);\n}",
     )]

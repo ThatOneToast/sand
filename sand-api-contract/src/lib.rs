@@ -105,8 +105,34 @@ pub struct ApiEntry {
 /// boilerplate sections. The CLI and generated Rust both consume the same
 /// [`ApiEntry`] values, so wording cannot drift between structured metadata
 /// and IDE hover documentation.
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub enum RustdocExampleMode {
+    /// Compile the example as a doctest without executing it.
+    NoRun,
+    /// Do not compile the example because it requires generated project context.
+    #[default]
+    Ignore,
+}
+
+/// Renders Rustdoc for a generated or implementation-crate surface.
+///
+/// These surfaces retain facade-shaped examples for users but cannot depend
+/// back on `sand` without creating a Cargo cycle. Facade-defined `#[api]`
+/// items select checked [`RustdocExampleMode::NoRun`] explicitly.
 #[must_use]
 pub fn render_rustdoc(entry: &ApiEntry) -> Vec<String> {
+    render_rustdoc_with_example_mode(entry, RustdocExampleMode::Ignore)
+}
+
+/// Renders Rustdoc with an explicit example testability policy.
+///
+/// `Ignore` is reserved for examples that cannot compile outside generated
+/// project context; ordinary endpoint examples use the checked `NoRun` mode.
+#[must_use]
+pub fn render_rustdoc_with_example_mode(
+    entry: &ApiEntry,
+    example_mode: RustdocExampleMode,
+) -> Vec<String> {
     let mut lines = vec![entry.summary.clone()];
     let compact = matches!(
         entry.kind,
@@ -159,7 +185,11 @@ pub fn render_rustdoc(entry: &ApiEntry) -> Vec<String> {
     push_owned_section(&mut lines, "Availability", availability);
 
     if !compact && !entry.example.trim().is_empty() {
-        lines.extend([String::new(), "# Example".into(), "```rust,ignore".into()]);
+        let fence = match example_mode {
+            RustdocExampleMode::NoRun => "```rust,no_run",
+            RustdocExampleMode::Ignore => "```rust,ignore",
+        };
+        lines.extend([String::new(), "# Example".into(), fence.into()]);
         lines.extend(entry.example.trim().lines().map(ToOwned::to_owned));
         lines.push("```".into());
     }
@@ -790,19 +820,40 @@ fn validate_resolved_quality(entries: &[ApiEntry]) -> Result<(), CatalogError> {
                 .description
                 .starts_with("Rust parameter with type `")
                 || parameter.description.contains("apply this API's specific")
+                || (parameter.description.contains(" supplies the ")
+                    && parameter.description.contains(" value used to "))
+                || parameter
+                    .description
+                    .contains("when the variant selects the ")
         }) {
             return Err(CatalogError::InvalidEntry {
                 path: entry.canonical_path.clone(),
-                message: "parameter documentation only repeats its Rust type".into(),
+                message: "parameter documentation is generic filler rather than local semantics"
+                    .into(),
             });
         }
         if entry.returns.as_deref().is_some_and(|returns| {
             returns.starts_with("A value with Rust type `")
                 || returns.contains("apply this API's specific")
+                || (returns.starts_with("A newly constructed `")
+                    && returns.contains(" configured to "))
         }) {
             return Err(CatalogError::InvalidEntry {
                 path: entry.canonical_path.clone(),
-                message: "return documentation only repeats its Rust type".into(),
+                message: "return documentation is generic filler rather than local semantics"
+                    .into(),
+            });
+        }
+        if matches!(entry.kind, ApiKind::Variant | ApiKind::Field)
+            && entry
+                .summary
+                .contains("form in this typed Minecraft component schema")
+        {
+            return Err(CatalogError::InvalidEntry {
+                path: entry.canonical_path.clone(),
+                message:
+                    "generated member documentation is schema filler rather than member semantics"
+                        .into(),
             });
         }
         if entry.kind == ApiKind::Field && entry.example.trim().is_empty() {
@@ -1396,7 +1447,7 @@ mod tests {
                 "Selects an equipment slot.",
                 "Rust parameter with type `EquipmentSlot`.",
                 "A predicate builder.",
-                "only repeats its Rust type",
+                "generic filler",
             ),
             (
                 "Creates this typed datapack component definition.",
@@ -1420,7 +1471,19 @@ mod tests {
                 "Selects an equipment slot.",
                 "The selected equipment slot.",
                 "A value with Rust type `Predicate`.",
-                "only repeats its Rust type",
+                "generic filler",
+            ),
+            (
+                "Selects an equipment slot.",
+                "`slot` supplies the slot value used to choose an equipment slot.",
+                "A predicate builder.",
+                "generic filler",
+            ),
+            (
+                "Selects an equipment slot.",
+                "The selected equipment slot.",
+                "A newly constructed `Predicate` configured to select an equipment slot.",
+                "generic filler",
             ),
         ] {
             let mut filler = ApiEntry::from(&REGISTRATION);
@@ -1442,6 +1505,27 @@ mod tests {
                     .contains(expected)
             );
         }
+
+        let mut generated_member = ApiEntry::from(&REGISTRATION);
+        generated_member.kind = ApiKind::Variant;
+        generated_member.summary =
+            "Selects the red form in this typed Minecraft component schema.".into();
+        generated_member.parameters.clear();
+        generated_member.returns = None;
+        let catalog = ApiCatalog::from_entries_with_coverage(
+            "0.1.0",
+            configuration(1),
+            vec![generated_member],
+            ApiCoverage::unverified(),
+        )
+        .unwrap();
+        assert!(
+            catalog
+                .validate_quality()
+                .unwrap_err()
+                .to_string()
+                .contains("schema filler")
+        );
     }
 
     #[test]
@@ -1490,7 +1574,8 @@ mod tests {
     #[test]
     fn rustdoc_renderer_is_complete_for_callables_and_compact_for_members() {
         let method = ApiEntry::from(&REGISTRATION);
-        let documentation = render_rustdoc(&method).join("\n");
+        let documentation =
+            render_rustdoc_with_example_mode(&method, RustdocExampleMode::NoRun).join("\n");
         for section in [
             "# Context",
             "# Minecraft behavior",
@@ -1503,6 +1588,14 @@ mod tests {
             assert!(documentation.contains(section), "missing {section}");
         }
         assert!(!documentation.contains("sand api show"));
+        assert!(documentation.contains("```rust,no_run"));
+
+        let ignored = render_rustdoc_with_example_mode(
+            &ApiEntry::from(&REGISTRATION),
+            RustdocExampleMode::Ignore,
+        )
+        .join("\n");
+        assert!(ignored.contains("```rust,ignore"));
 
         let mut variant = method;
         variant.kind = ApiKind::Variant;

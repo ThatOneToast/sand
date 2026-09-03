@@ -57,7 +57,7 @@ impl EntityEventId {
         use_when = ["Defining or using typed entity behavior in a Sand datapack"],
         avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
         params(location = "`location` provides the typed resource identifier or location used to construct a namespaced event identifier."),
-        returns = "A newly constructed `EntityEventId` configured to construct a namespaced event identifier.",
+        returns = "An `EntityEventId` representing a namespaced event identifier.",
         example = "use sand::prelude::*;\n\nfn demonstrate(location: sand::ResourceLocation)  {\n    let entity_event_id = sand::entity::EntityEventId::new(location);\n}",
     )]
     pub fn new(location: crate::ResourceLocation) -> Self {
@@ -140,7 +140,7 @@ impl RefreshPolicy {
         minecraft = "Sand validates this definition and lowers it to entity-scoped selectors, scoreboards, NBT operations, and generated lifecycle functions as required.",
         use_when = ["Defining or using typed entity behavior in a Sand datapack"],
         avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
-        params(archetype = "`archetype` provides the entity archetype supplying the property used to validate scheduling invariants with archetype/property context.", property = "`property` supplies the property value used to validate scheduling invariants with archetype/property context."),
+        params(archetype = "`archetype` provides the entity archetype supplying the property used to validate scheduling invariants with archetype/property context.", property = "`property` is the property checked when validating scheduling invariants with archetype/property context."),
         returns = "On success, the value produced to validate scheduling invariants with archetype/property context; otherwise, the documented validation or export diagnostic.",
         example = "use std::fmt;\nuse sand::prelude::*;\n\nfn demonstrate(refresh_policy_value: &sand::entity::RefreshPolicy, archetype: impl fmt::Display, property: impl fmt::Display)  {\n    let validate = refresh_policy_value.validate(archetype, property);\n}",
     )]
@@ -328,8 +328,8 @@ impl HealthBinding {
         minecraft = "Sand validates this definition and lowers it to entity-scoped selectors, scoreboards, NBT operations, and generated lifecycle functions as required.",
         use_when = ["Defining or using typed entity behavior in a Sand datapack"],
         avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
-        params(max_health = "`max_health` supplies the max health value used to bind a max-health state score with safe absolute-health preservation."),
-        returns = "A newly constructed `HealthBinding` configured to bind a max-health state score with safe absolute-health preservation.",
+        params(max_health = "`max_health` provides the max health used when binding a max-health state score with safe absolute-health preservation."),
+        returns = "A `HealthBinding` binding a max-health state score with safe absolute-health preservation.",
         example = "use sand::prelude::*;\n\nfn demonstrate(max_health: sand::entity::EntityScore < i32 >)  {\n    let health_binding = sand::entity::HealthBinding::new(max_health);\n}",
     )]
     #[must_use]
@@ -384,7 +384,7 @@ impl HealthBinding {
         minecraft = "Sand validates this definition and lowers it to entity-scoped selectors, scoreboards, NBT operations, and generated lifecycle functions as required.",
         use_when = ["Defining or using typed entity behavior in a Sand datapack"],
         avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
-        params(interval = "`interval` supplies the interval value used to observe native current health at a bounded cadence in addition to source-dirty refreshes."),
+        params(interval = "`interval` provides the interval observed when tracking native current health at a bounded cadence in addition to source-dirty refreshes."),
         returns = "The `HealthBinding` value with the documented change applied to observe native current health at a bounded cadence in addition to source-dirty refreshes.",
         example = "use sand::prelude::*;\n\nfn demonstrate(health_binding_value: sand::entity::HealthBinding, interval: sand::state::Ticks)  {\n    let updated_health_binding = health_binding_value.observe_native_every(interval);\n}",
     )]
@@ -406,7 +406,7 @@ impl HealthBinding {
         minecraft = "Sand validates this definition and lowers it to entity-scoped selectors, scoreboards, NBT operations, and generated lifecycle functions as required.",
         use_when = ["Defining or using typed entity behavior in a Sand datapack"],
         avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
-        params(policy = "`policy` supplies the policy value used to select behavior when max health changes."),
+        params(policy = "`policy` provides the policy used when selecting behavior when max health changes."),
         returns = "The `HealthBinding` value with the documented change applied to select behavior when max health changes.",
         example = "use sand::prelude::*;\n\nfn demonstrate(health_binding_value: sand::entity::HealthBinding, policy: sand::entity::HealthResizePolicy)  {\n    let updated_health_binding = health_binding_value.resize(policy);\n}",
     )]
@@ -428,7 +428,7 @@ impl HealthBinding {
         minecraft = "Sand validates this definition and lowers it to entity-scoped selectors, scoreboards, NBT operations, and generated lifecycle functions as required.",
         use_when = ["Defining or using typed entity behavior in a Sand datapack"],
         avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
-        params(policy = "`policy` supplies the policy value used to select ownership behavior."),
+        params(policy = "`policy` provides the policy used when selecting ownership behavior."),
         returns = "The `HealthBinding` value with the documented change applied to select ownership behavior.",
         example = "use sand::prelude::*;\n\nfn demonstrate(health_binding_value: sand::entity::HealthBinding, policy: sand::entity::OwnershipPolicy)  {\n    let updated_health_binding = health_binding_value.ownership(policy);\n}",
     )]
@@ -450,7 +450,7 @@ impl HealthBinding {
         minecraft = "Sand validates this definition and lowers it to entity-scoped selectors, scoreboards, NBT operations, and generated lifecycle functions as required.",
         use_when = ["Defining or using typed entity behavior in a Sand datapack"],
         avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
-        params(policy = "`policy` supplies the policy value used to select automatic refresh scheduling."),
+        params(policy = "`policy` provides the policy used when selecting automatic refresh scheduling."),
         returns = "The `HealthBinding` value with the documented change applied to select automatic refresh scheduling.",
         example = "use sand::prelude::*;\n\nfn demonstrate(health_binding_value: sand::entity::HealthBinding, policy: sand::entity::RefreshPolicy)  {\n    let updated_health_binding = health_binding_value.refresh(policy);\n}",
     )]
@@ -735,7 +735,7 @@ impl NumericPropertySource {
         minecraft = "Sand validates this definition and lowers it to entity-scoped selectors, scoreboards, NBT operations, and generated lifecycle functions as required.",
         use_when = ["Defining or using typed entity behavior in a Sand datapack"],
         avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
-        params(units = "`units` supplies the units value used to construct a finite fixed-point constant.", scale = "`scale` supplies the scale value used to construct a finite fixed-point constant."),
+        params(units = "`units` is used when constructing a finite fixed-point constant.", scale = "`scale` is used when constructing a finite fixed-point constant."),
         returns = "On success, the value produced to construct a finite fixed-point constant; otherwise, the documented validation or export diagnostic.",
         example = "use sand::prelude::*;\n\nfn demonstrate(units: i64, scale: u32)  {\n    let fixed = sand::entity::NumericPropertySource::fixed(units, scale);\n}",
     )]
@@ -762,8 +762,8 @@ impl NumericPropertySource {
         minecraft = "Sand validates this definition and lowers it to entity-scoped selectors, scoreboards, NBT operations, and generated lifecycle functions as required.",
         use_when = ["Use a typed state score as the source."],
         avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
-        params(field = "`field` supplies the field value used to use a typed state score as the source."),
-        returns = "A newly constructed `NumericPropertySource` configured to use a typed state score as the source.",
+        params(field = "`field` sets the field for a typed state score as the source."),
+        returns = "A `NumericPropertySource` configured for a typed state score as the source.",
         example = "use sand::prelude::*;\n\nfn demonstrate<T : 'static>(field: sand::entity::EntityScore < T >)  {\n    let numeric_property_source = sand::entity::NumericPropertySource::state::<T>(field);\n}",
     )]
     #[must_use]
@@ -838,8 +838,8 @@ impl AttributeModifierBinding {
         minecraft = "Sand validates this definition and lowers it to entity-scoped selectors, scoreboards, NBT operations, and generated lifecycle functions as required.",
         use_when = ["Defining or using typed entity behavior in a Sand datapack"],
         avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
-        params(attribute = "`attribute` supplies the attribute value used to create an exact, dirty-refreshed modifier.", id = "`id` provides the typed resource identifier or location used to create an exact, dirty-refreshed modifier.", source = "`source` supplies the source value used to create an exact, dirty-refreshed modifier.", operation = "`operation` supplies the operation value used to create an exact, dirty-refreshed modifier."),
-        returns = "A newly constructed `AttributeModifierBinding` configured to create an exact, dirty-refreshed modifier.",
+        params(attribute = "`attribute` is used when creating an exact, dirty-refreshed modifier.", id = "`id` provides the typed resource identifier or location used to create an exact, dirty-refreshed modifier.", source = "`source` is used when creating an exact, dirty-refreshed modifier.", operation = "`operation` is used when creating an exact, dirty-refreshed modifier."),
+        returns = "An `AttributeModifierBinding` representing an exact, dirty-refreshed modifier.",
         example = "use sand::prelude::*;\n\nfn demonstrate(attribute: sand::component::AttributeType, id: sand::ResourceLocation, source: sand::entity::NumericPropertySource, operation: sand::component::AttributeOperation)  {\n    let attribute_modifier_binding = sand::entity::AttributeModifierBinding::new(attribute, id, source, operation);\n}",
     )]
     #[must_use]
@@ -871,7 +871,7 @@ impl AttributeModifierBinding {
         minecraft = "Sand validates this definition and lowers it to entity-scoped selectors, scoreboards, NBT operations, and generated lifecycle functions as required.",
         use_when = ["Defining or using typed entity behavior in a Sand datapack"],
         avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
-        params(policy = "`policy` supplies the policy value used to select ownership behavior."),
+        params(policy = "`policy` provides the policy used when selecting ownership behavior."),
         returns = "The `AttributeModifierBinding` value with the documented change applied to select ownership behavior.",
         example = "use sand::prelude::*;\n\nfn demonstrate(attribute_modifier_binding_value: sand::entity::AttributeModifierBinding, policy: sand::entity::OwnershipPolicy)  {\n    let updated_attribute_modifier_binding = attribute_modifier_binding_value.ownership(policy);\n}",
     )]
@@ -893,7 +893,7 @@ impl AttributeModifierBinding {
         minecraft = "Sand validates this definition and lowers it to entity-scoped selectors, scoreboards, NBT operations, and generated lifecycle functions as required.",
         use_when = ["Defining or using typed entity behavior in a Sand datapack"],
         avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
-        params(policy = "`policy` supplies the policy value used to select refresh scheduling."),
+        params(policy = "`policy` provides the policy used when selecting refresh scheduling."),
         returns = "The `AttributeModifierBinding` value with the documented change applied to select refresh scheduling.",
         example = "use sand::prelude::*;\n\nfn demonstrate(attribute_modifier_binding_value: sand::entity::AttributeModifierBinding, policy: sand::entity::RefreshPolicy)  {\n    let updated_attribute_modifier_binding = attribute_modifier_binding_value.refresh(policy);\n}",
     )]
@@ -1066,8 +1066,8 @@ impl AttributeBinding {
         minecraft = "Sand validates this definition and lowers it to entity-scoped selectors, scoreboards, NBT operations, and generated lifecycle functions as required.",
         use_when = ["Defining or using typed entity behavior in a Sand datapack"],
         avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
-        params(attribute = "`attribute` supplies the attribute value used to bind an attribute base value to a typed numeric source.", source = "`source` supplies the source value used to bind an attribute base value to a typed numeric source."),
-        returns = "A newly constructed `AttributeBinding` configured to bind an attribute base value to a typed numeric source.",
+        params(attribute = "`attribute` provides the attribute used when binding an attribute base value to a typed numeric source.", source = "`source` provides the source used when binding an attribute base value to a typed numeric source."),
+        returns = "An `AttributeBinding` binding an attribute base value to a typed numeric source.",
         example = "use sand::prelude::*;\n\nfn demonstrate(attribute: sand::component::AttributeType, source: sand::entity::NumericPropertySource)  {\n    let attribute_binding = sand::entity::AttributeBinding::new(attribute, source);\n}",
     )]
     #[must_use]
@@ -1092,7 +1092,7 @@ impl AttributeBinding {
         minecraft = "Sand validates this definition and lowers it to entity-scoped selectors, scoreboards, NBT operations, and generated lifecycle functions as required.",
         use_when = ["Defining or using typed entity behavior in a Sand datapack"],
         avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
-        params(policy = "`policy` supplies the policy value used to set ownership behavior."),
+        params(policy = "`policy` provides the policy applied when setting ownership behavior."),
         returns = "The `AttributeBinding` value with the documented change applied to set ownership behavior.",
         example = "use sand::prelude::*;\n\nfn demonstrate(attribute_binding_value: sand::entity::AttributeBinding, policy: sand::entity::OwnershipPolicy)  {\n    let updated_attribute_binding = attribute_binding_value.ownership(policy);\n}",
     )]
@@ -1114,7 +1114,7 @@ impl AttributeBinding {
         minecraft = "Sand validates this definition and lowers it to entity-scoped selectors, scoreboards, NBT operations, and generated lifecycle functions as required.",
         use_when = ["Defining or using typed entity behavior in a Sand datapack"],
         avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
-        params(policy = "`policy` supplies the policy value used to set refresh scheduling."),
+        params(policy = "`policy` provides the policy applied when setting refresh scheduling."),
         returns = "The `AttributeBinding` value with the documented change applied to set refresh scheduling.",
         example = "use sand::prelude::*;\n\nfn demonstrate(attribute_binding_value: sand::entity::AttributeBinding, policy: sand::entity::RefreshPolicy)  {\n    let updated_attribute_binding = attribute_binding_value.refresh(policy);\n}",
     )]
@@ -1270,7 +1270,7 @@ impl EffectBinding {
         use_when = ["Defining or using typed entity behavior in a Sand datapack"],
         avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
         params(effect = "`effect` provides the typed Minecraft resource identifier used to create an effect binding with amplifier zero.", duration = "`duration` provides the Minecraft tick duration used to create an effect binding with amplifier zero."),
-        returns = "A newly constructed `EffectBinding` configured to create an effect binding with amplifier zero.",
+        returns = "An `EffectBinding` representing an effect binding with amplifier zero.",
         example = "use sand::prelude::*;\n\nfn demonstrate(effect: sand::registry::StatusEffectId, duration: sand::state::Ticks)  {\n    let effect_binding = sand::entity::EffectBinding::new(effect, duration);\n}",
     )]
     #[must_use]
@@ -1296,7 +1296,7 @@ impl EffectBinding {
         minecraft = "Sand validates this definition and lowers it to entity-scoped selectors, scoreboards, NBT operations, and generated lifecycle functions as required.",
         use_when = ["Defining or using typed entity behavior in a Sand datapack"],
         avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
-        params(amplifier = "`amplifier` supplies the amplifier value used to set the zero-based Minecraft effect amplifier."),
+        params(amplifier = "`amplifier` provides the amplifier applied when setting the zero-based Minecraft effect amplifier."),
         returns = "The `EffectBinding` value with the documented change applied to set the zero-based Minecraft effect amplifier.",
         example = "use sand::prelude::*;\n\nfn demonstrate(effect_binding_value: sand::entity::EffectBinding, amplifier: u8)  {\n    let updated_effect_binding = effect_binding_value.amplifier(amplifier);\n}",
     )]
@@ -1318,7 +1318,7 @@ impl EffectBinding {
         minecraft = "Sand validates this definition and lowers it to entity-scoped selectors, scoreboards, NBT operations, and generated lifecycle functions as required.",
         use_when = ["Defining or using typed entity behavior in a Sand datapack"],
         avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
-        params(ownership = "`ownership` supplies the ownership value used to set ownership behavior."),
+        params(ownership = "`ownership` provides the ownership applied when setting ownership behavior."),
         returns = "The `EffectBinding` value with the documented change applied to set ownership behavior.",
         example = "use sand::prelude::*;\n\nfn demonstrate(effect_binding_value: sand::entity::EffectBinding, ownership: sand::entity::OwnershipPolicy)  {\n    let updated_effect_binding = effect_binding_value.ownership(ownership);\n}",
     )]
@@ -1340,7 +1340,7 @@ impl EffectBinding {
         minecraft = "Sand validates this definition and lowers it to entity-scoped selectors, scoreboards, NBT operations, and generated lifecycle functions as required.",
         use_when = ["Defining or using typed entity behavior in a Sand datapack"],
         avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
-        params(refresh = "`refresh` supplies the refresh value used to set refresh scheduling."),
+        params(refresh = "`refresh` provides the refresh applied when setting refresh scheduling."),
         returns = "The `EffectBinding` value with the documented change applied to set refresh scheduling.",
         example = "use sand::prelude::*;\n\nfn demonstrate(effect_binding_value: sand::entity::EffectBinding, refresh: sand::entity::RefreshPolicy)  {\n    let updated_effect_binding = effect_binding_value.refresh(refresh);\n}",
     )]
@@ -1512,7 +1512,7 @@ impl EquipmentBinding {
         use_when = ["Defining or using typed entity behavior in a Sand datapack"],
         avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
         params(slot = "Equip `stack` in `slot` according to preserve-by-default initialization.", stack = "Equip `stack` in `slot` according to preserve-by-default initialization."),
-        returns = "A newly constructed `EquipmentBinding` configured to equip `stack` in `slot` according to preserve-by-default initialization.",
+        returns = "An `EquipmentBinding` equipping `stack` in `slot` according to preserve-by-default initialization.",
         example = "use sand::prelude::*;\n\nfn demonstrate(slot: sand::component::EquipmentSlot, stack: sand::component::ItemStack)  {\n    let equipment_binding = sand::entity::EquipmentBinding::new(slot, stack);\n}",
     )]
     #[must_use]
@@ -1537,7 +1537,7 @@ impl EquipmentBinding {
         minecraft = "Sand validates this definition and lowers it to entity-scoped selectors, scoreboards, NBT operations, and generated lifecycle functions as required.",
         use_when = ["Defining or using typed entity behavior in a Sand datapack"],
         avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
-        params(ownership = "`ownership` supplies the ownership value used to set ownership behavior."),
+        params(ownership = "`ownership` provides the ownership applied when setting ownership behavior."),
         returns = "The `EquipmentBinding` value with the documented change applied to set ownership behavior.",
         example = "use sand::prelude::*;\n\nfn demonstrate(equipment_binding_value: sand::entity::EquipmentBinding, ownership: sand::entity::OwnershipPolicy)  {\n    let updated_equipment_binding = equipment_binding_value.ownership(ownership);\n}",
     )]
@@ -1559,7 +1559,7 @@ impl EquipmentBinding {
         minecraft = "Sand validates this definition and lowers it to entity-scoped selectors, scoreboards, NBT operations, and generated lifecycle functions as required.",
         use_when = ["Defining or using typed entity behavior in a Sand datapack"],
         avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
-        params(refresh = "`refresh` supplies the refresh value used to set refresh scheduling."),
+        params(refresh = "`refresh` provides the refresh applied when setting refresh scheduling."),
         returns = "The `EquipmentBinding` value with the documented change applied to set refresh scheduling.",
         example = "use sand::prelude::*;\n\nfn demonstrate(equipment_binding_value: sand::entity::EquipmentBinding, refresh: sand::entity::RefreshPolicy)  {\n    let updated_equipment_binding = equipment_binding_value.refresh(refresh);\n}",
     )]
@@ -1800,7 +1800,7 @@ impl EntityText {
         minecraft = "Sand validates this definition and lowers it to entity-scoped selectors, scoreboards, NBT operations, and generated lifecycle functions as required.",
         use_when = ["Defining or using typed entity behavior in a Sand datapack"],
         avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
-        returns = "A newly constructed `EntityText` configured to start an empty template.",
+        returns = "An `EntityText` initialized to an empty template.",
         example = "use sand::prelude::*;\n\nfn demonstrate()  {\n    let entity_text = sand::entity::EntityText::new();\n}",
     )]
     #[must_use]
@@ -1822,7 +1822,7 @@ impl EntityText {
         minecraft = "Sand validates this definition and lowers it to entity-scoped selectors, scoreboards, NBT operations, and generated lifecycle functions as required.",
         use_when = ["Defining or using typed entity behavior in a Sand datapack"],
         avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
-        params(text = "`text` provides the author-visible text value used to append literal text."),
+        params(text = "`text` provides the author-visible text appended when building literal text."),
         returns = "The `EntityText` value with the documented change applied to append literal text.",
         example = "use sand::prelude::*;\n\nfn demonstrate(entity_text_value: sand::entity::EntityText, text: impl Into < String >)  {\n    let updated_entity_text = entity_text_value.literal(text);\n}",
     )]
@@ -1847,7 +1847,7 @@ impl EntityText {
         minecraft = "Sand validates this definition and lowers it to entity-scoped selectors, scoreboards, NBT operations, and generated lifecycle functions as required.",
         use_when = ["Defining or using typed entity behavior in a Sand datapack"],
         avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
-        params(field = "`field` supplies the field value used to append a typed numeric state field."),
+        params(field = "`field` provides the field appended when building a typed numeric state field."),
         returns = "The `EntityText` value with the documented change applied to append a typed numeric state field.",
         example = "use sand::prelude::*;\n\nfn demonstrate<T : 'static>(entity_text_value: sand::entity::EntityText, field: sand::entity::EntityScore < T >)  {\n    let updated_entity_text = entity_text_value.score::<T>(field);\n}",
     )]
@@ -1873,7 +1873,7 @@ impl EntityText {
         minecraft = "Sand validates this definition and lowers it to entity-scoped selectors, scoreboards, NBT operations, and generated lifecycle functions as required.",
         use_when = ["Defining or using typed entity behavior in a Sand datapack"],
         avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
-        params(field = "`field` supplies the field value used to append a typed enum using schema variant names as display strings."),
+        params(field = "`field` provides the field appended when building a typed enum using schema variant names as display strings."),
         returns = "The `EntityText` value with the documented change applied to append a typed enum using schema variant names as display strings.",
         example = "use sand::prelude::*;\n\nfn demonstrate<T : sand::entity::EntityEnumValue + 'static>(entity_text_value: sand::entity::EntityText, field: sand::entity::EntityEnum < T >)  {\n    let updated_entity_text = entity_text_value.enum_value::<T>(field);\n}",
     )]
@@ -1903,7 +1903,7 @@ impl EntityText {
         minecraft = "Sand validates this definition and lowers it to entity-scoped selectors, scoreboards, NBT operations, and generated lifecycle functions as required.",
         use_when = ["Defining or using typed entity behavior in a Sand datapack"],
         avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
-        params(field = "`field` supplies the field value used to append a typed flag with explicit display strings.", disabled = "`disabled` supplies the disabled value used to append a typed flag with explicit display strings.", enabled = "`enabled` supplies the enabled value used to append a typed flag with explicit display strings."),
+        params(field = "`field` provides the field appended when building a typed flag with explicit display strings.", disabled = "`disabled` provides the disabled appended when building a typed flag with explicit display strings.", enabled = "`enabled` provides the enabled appended when building a typed flag with explicit display strings."),
         returns = "The `EntityText` value with the documented change applied to append a typed flag with explicit display strings.",
         example = "use sand::prelude::*;\n\nfn demonstrate(entity_text_value: sand::entity::EntityText, field: sand::entity::EntityFlag, disabled: impl Into < String >, enabled: impl Into < String >)  {\n    let updated_entity_text = entity_text_value.flag(field, disabled, enabled);\n}",
     )]
@@ -1938,7 +1938,7 @@ impl EntityText {
         minecraft = "Sand validates this definition and lowers it to entity-scoped selectors, scoreboards, NBT operations, and generated lifecycle functions as required.",
         use_when = ["Defining or using typed entity behavior in a Sand datapack"],
         avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
-        params(color = "`color` supplies the color value used to color the most recently appended segment. Calling this on an empty template is a harmless no-op."),
+        params(color = "`color` is used to color the most recently appended segment. Calling this on an empty template is a harmless no-op."),
         returns = "The `EntityText` value with the documented change applied to color the most recently appended segment. Calling this on an empty template is a harmless no-op.",
         example = "use sand::prelude::*;\n\nfn demonstrate(entity_text_value: sand::entity::EntityText, color: sand::text::ChatColor)  {\n    let updated_entity_text = entity_text_value.color_last(color);\n}",
     )]
@@ -2005,8 +2005,8 @@ impl NameBinding {
         minecraft = "Sand validates this definition and lowers it to entity-scoped selectors, scoreboards, NBT operations, and generated lifecycle functions as required.",
         use_when = ["Defining or using typed entity behavior in a Sand datapack"],
         avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
-        params(text = "`text` provides the author-visible text value used to create a visible name refreshed only when a source changes."),
-        returns = "A newly constructed `NameBinding` configured to create a visible name refreshed only when a source changes.",
+        params(text = "`text` is used when creating a visible name refreshed only when a source changes."),
+        returns = "A `NameBinding` representing a visible name refreshed only when a source changes.",
         example = "use sand::prelude::*;\n\nfn demonstrate(text: sand::entity::EntityText)  {\n    let name_binding = sand::entity::NameBinding::new(text);\n}",
     )]
     #[must_use]
@@ -2053,7 +2053,7 @@ impl NameBinding {
         minecraft = "Sand validates this definition and lowers it to entity-scoped selectors, scoreboards, NBT operations, and generated lifecycle functions as required.",
         use_when = ["Defining or using typed entity behavior in a Sand datapack"],
         avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
-        params(ownership = "`ownership` supplies the ownership value used to set ownership behavior."),
+        params(ownership = "`ownership` provides the ownership applied when setting ownership behavior."),
         returns = "The `NameBinding` value with the documented change applied to set ownership behavior.",
         example = "use sand::prelude::*;\n\nfn demonstrate(name_binding_value: sand::entity::NameBinding, ownership: sand::entity::OwnershipPolicy)  {\n    let updated_name_binding = name_binding_value.ownership(ownership);\n}",
     )]
@@ -2075,7 +2075,7 @@ impl NameBinding {
         minecraft = "Sand validates this definition and lowers it to entity-scoped selectors, scoreboards, NBT operations, and generated lifecycle functions as required.",
         use_when = ["Defining or using typed entity behavior in a Sand datapack"],
         avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
-        params(refresh = "`refresh` supplies the refresh value used to set refresh scheduling."),
+        params(refresh = "`refresh` provides the refresh applied when setting refresh scheduling."),
         returns = "The `NameBinding` value with the documented change applied to set refresh scheduling.",
         example = "use sand::prelude::*;\n\nfn demonstrate(name_binding_value: sand::entity::NameBinding, refresh: sand::entity::RefreshPolicy)  {\n    let updated_name_binding = name_binding_value.refresh(refresh);\n}",
     )]
@@ -2348,8 +2348,8 @@ impl TagBinding {
         minecraft = "Sand validates this definition and lowers it to entity-scoped selectors, scoreboards, NBT operations, and generated lifecycle functions as required.",
         use_when = ["Defining or using typed entity behavior in a Sand datapack"],
         avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
-        params(tag = "`tag` supplies the tag value used to add a validated tag during initialization."),
-        returns = "A newly constructed `TagBinding` configured to add a validated tag during initialization.",
+        params(tag = "`tag` provides the tag added when building a validated tag during initialization."),
+        returns = "A `TagBinding` with a validated tag during initialization.",
         example = "use sand::prelude::*;\n\nfn demonstrate(tag: sand::entity::EntityTag)  {\n    let tag_binding = sand::entity::TagBinding::new(tag);\n}",
     )]
     #[must_use]
@@ -2373,7 +2373,7 @@ impl TagBinding {
         minecraft = "Sand validates this definition and lowers it to entity-scoped selectors, scoreboards, NBT operations, and generated lifecycle functions as required.",
         use_when = ["Defining or using typed entity behavior in a Sand datapack"],
         avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
-        params(ownership = "`ownership` supplies the ownership value used to set whether reconciliation preserves, observes, or enforces this tag."),
+        params(ownership = "`ownership` provides the ownership applied when setting whether reconciliation preserves, observes, or enforces this tag."),
         returns = "The `TagBinding` value with the documented change applied to set whether reconciliation preserves, observes, or enforces this tag.",
         example = "use sand::prelude::*;\n\nfn demonstrate(tag_binding_value: sand::entity::TagBinding, ownership: sand::entity::OwnershipPolicy)  {\n    let updated_tag_binding = tag_binding_value.ownership(ownership);\n}",
     )]
@@ -2395,7 +2395,7 @@ impl TagBinding {
         minecraft = "Sand validates this definition and lowers it to entity-scoped selectors, scoreboards, NBT operations, and generated lifecycle functions as required.",
         use_when = ["Defining or using typed entity behavior in a Sand datapack"],
         avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
-        params(refresh = "`refresh` supplies the refresh value used to set refresh scheduling."),
+        params(refresh = "`refresh` provides the refresh applied when setting refresh scheduling."),
         returns = "The `TagBinding` value with the documented change applied to set refresh scheduling.",
         example = "use sand::prelude::*;\n\nfn demonstrate(tag_binding_value: sand::entity::TagBinding, refresh: sand::entity::RefreshPolicy)  {\n    let updated_tag_binding = tag_binding_value.refresh(refresh);\n}",
     )]
@@ -2528,8 +2528,8 @@ impl TeamBinding {
         minecraft = "Sand validates this definition and lowers it to entity-scoped selectors, scoreboards, NBT operations, and generated lifecycle functions as required.",
         use_when = ["Defining or using typed entity behavior in a Sand datapack"],
         avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
-        params(team = "`team` supplies the team value used to join a validated team during initialization."),
-        returns = "A newly constructed `TeamBinding` configured to join a validated team during initialization.",
+        params(team = "`team` is used to join a validated team during initialization."),
+        returns = "A `TeamBinding` joining a validated team during initialization.",
         example = "use sand::prelude::*;\n\nfn demonstrate(team: sand::entity::EntityTeam)  {\n    let team_binding = sand::entity::TeamBinding::new(team);\n}",
     )]
     #[must_use]
@@ -2553,7 +2553,7 @@ impl TeamBinding {
         minecraft = "Sand validates this definition and lowers it to entity-scoped selectors, scoreboards, NBT operations, and generated lifecycle functions as required.",
         use_when = ["Defining or using typed entity behavior in a Sand datapack"],
         avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
-        params(ownership = "`ownership` supplies the ownership value used to set membership ownership behavior."),
+        params(ownership = "`ownership` provides the ownership applied when setting membership ownership behavior."),
         returns = "The `TeamBinding` value with the documented change applied to set membership ownership behavior.",
         example = "use sand::prelude::*;\n\nfn demonstrate(team_binding_value: sand::entity::TeamBinding, ownership: sand::entity::OwnershipPolicy)  {\n    let updated_team_binding = team_binding_value.ownership(ownership);\n}",
     )]
@@ -2575,7 +2575,7 @@ impl TeamBinding {
         minecraft = "Sand validates this definition and lowers it to entity-scoped selectors, scoreboards, NBT operations, and generated lifecycle functions as required.",
         use_when = ["Defining or using typed entity behavior in a Sand datapack"],
         avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
-        params(refresh = "`refresh` supplies the refresh value used to set refresh scheduling."),
+        params(refresh = "`refresh` provides the refresh applied when setting refresh scheduling."),
         returns = "The `TeamBinding` value with the documented change applied to set refresh scheduling.",
         example = "use sand::prelude::*;\n\nfn demonstrate(team_binding_value: sand::entity::TeamBinding, refresh: sand::entity::RefreshPolicy)  {\n    let updated_team_binding = team_binding_value.refresh(refresh);\n}",
     )]
@@ -2926,7 +2926,7 @@ impl EntityNbtValue {
         minecraft = "Sand validates this definition and lowers it to entity-scoped selectors, scoreboards, NBT operations, and generated lifecycle functions as required.",
         use_when = ["Defining or using typed entity behavior in a Sand datapack"],
         avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
-        params(units = "`units` supplies the units value used to construct a fixed-point decimal, rejecting a zero scale.", scale = "`scale` supplies the scale value used to construct a fixed-point decimal, rejecting a zero scale."),
+        params(units = "`units` is used when constructing a fixed-point decimal, rejecting a zero scale.", scale = "`scale` is used when constructing a fixed-point decimal, rejecting a zero scale."),
         returns = "On success, the value produced to construct a fixed-point decimal, rejecting a zero scale; otherwise, the documented validation or export diagnostic.",
         example = "use sand::prelude::*;\n\nfn demonstrate(units: i64, scale: u32)  {\n    let fixed = sand::entity::EntityNbtValue::fixed(units, scale);\n}",
     )]
@@ -2987,8 +2987,8 @@ impl EntityNbtBinding {
         minecraft = "Sand validates this definition and lowers it to entity-scoped selectors, scoreboards, NBT operations, and generated lifecycle functions as required.",
         use_when = ["Defining or using typed entity behavior in a Sand datapack"],
         avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
-        params(property = "`property` supplies the property value used to bind a stable property to a typed value.", value = "`value` provides the value being applied or compared used to bind a stable property to a typed value."),
-        returns = "A newly constructed `EntityNbtBinding` configured to bind a stable property to a typed value.",
+        params(property = "`property` provides the property used when binding a stable property to a typed value.", value = "`value` provides the value being applied or compared used to bind a stable property to a typed value."),
+        returns = "An `EntityNbtBinding` binding a stable property to a typed value.",
         example = "use sand::prelude::*;\n\nfn demonstrate(property: sand::entity::EntityNbtProperty, value: sand::entity::EntityNbtValue)  {\n    let entity_nbt_binding = sand::entity::EntityNbtBinding::new(property, value);\n}",
     )]
     #[must_use]
@@ -3013,7 +3013,7 @@ impl EntityNbtBinding {
         minecraft = "Sand validates this definition and lowers it to entity-scoped selectors, scoreboards, NBT operations, and generated lifecycle functions as required.",
         use_when = ["Defining or using typed entity behavior in a Sand datapack"],
         avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
-        params(ownership = "`ownership` supplies the ownership value used to set ownership behavior."),
+        params(ownership = "`ownership` provides the ownership applied when setting ownership behavior."),
         returns = "The `EntityNbtBinding` value with the documented change applied to set ownership behavior.",
         example = "use sand::prelude::*;\n\nfn demonstrate(entity_nbt_binding_value: sand::entity::EntityNbtBinding, ownership: sand::entity::OwnershipPolicy)  {\n    let updated_entity_nbt_binding = entity_nbt_binding_value.ownership(ownership);\n}",
     )]
@@ -3035,7 +3035,7 @@ impl EntityNbtBinding {
         minecraft = "Sand validates this definition and lowers it to entity-scoped selectors, scoreboards, NBT operations, and generated lifecycle functions as required.",
         use_when = ["Defining or using typed entity behavior in a Sand datapack"],
         avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
-        params(refresh = "`refresh` supplies the refresh value used to set refresh scheduling."),
+        params(refresh = "`refresh` provides the refresh applied when setting refresh scheduling."),
         returns = "The `EntityNbtBinding` value with the documented change applied to set refresh scheduling.",
         example = "use sand::prelude::*;\n\nfn demonstrate(entity_nbt_binding_value: sand::entity::EntityNbtBinding, refresh: sand::entity::RefreshPolicy)  {\n    let updated_entity_nbt_binding = entity_nbt_binding_value.refresh(refresh);\n}",
     )]
@@ -3261,7 +3261,7 @@ impl RawEntityProperty {
         minecraft = "Sand validates this definition and lowers it to entity-scoped selectors, scoreboards, NBT operations, and generated lifecycle functions as required.",
         use_when = ["Defining or using typed entity behavior in a Sand datapack"],
         avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
-        params(path = "`path` provides the typed resource identifier or location used to construct a validated raw NBT path.", wire_type = "`wire_type` supplies the wire type value used to construct a validated raw NBT path.", access = "`access` supplies the access value used to construct a validated raw NBT path."),
+        params(path = "`path` provides the typed resource identifier or location used to construct a validated raw NBT path.", wire_type = "`wire_type` is used when constructing a validated raw NBT path.", access = "`access` is used when constructing a validated raw NBT path."),
         returns = "On success, the value produced to construct a validated raw NBT path; otherwise, the documented validation or export diagnostic.",
         example = "use sand::prelude::*;\n\nfn demonstrate(path: & str, wire_type: sand::entity::EntityNbtType, access: sand::entity::RawPropertyAccess)  {\n    let raw_entity_property_result = sand::entity::RawEntityProperty::new(path, wire_type, access);\n}",
     )]
@@ -3405,7 +3405,7 @@ impl RawEntityStateField {
         minecraft = "Sand validates this definition and lowers it to entity-scoped selectors, scoreboards, NBT operations, and generated lifecycle functions as required.",
         use_when = ["Defining or using typed entity behavior in a Sand datapack"],
         avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
-        params(name = "`name` provides the author-visible text value used to construct a validated raw state field name and explicit backend.", backend = "`backend` supplies the backend value used to construct a validated raw state field name and explicit backend."),
+        params(name = "`name` is used when constructing a validated raw state field name and explicit backend.", backend = "`backend` is used when constructing a validated raw state field name and explicit backend."),
         returns = "On success, the value produced to construct a validated raw state field name and explicit backend; otherwise, the documented validation or export diagnostic.",
         example = "use sand::prelude::*;\n\nfn demonstrate(name: & str, backend: sand::entity::RawStateBackend)  {\n    let raw_entity_state_field_result = sand::entity::RawEntityStateField::new(name, backend);\n}",
     )]

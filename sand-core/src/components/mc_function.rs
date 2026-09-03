@@ -62,7 +62,7 @@ impl McFunction {
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
         params(location = "`location` provides the typed resource identifier or location used to create a new function with the given resource location."),
-        returns = "A newly constructed `McFunction` configured to create a new function with the given resource location.",
+        returns = "A `McFunction` representing a new function with the given resource location.",
         example = "use sand::prelude::*;\n\nfn demonstrate(location: sand::ResourceLocation)  {\n    let mc_function = sand::component::McFunction::new(location);\n}",
     )]
     pub fn new(location: ResourceLocation) -> Self {
@@ -83,7 +83,7 @@ impl McFunction {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(cmd = "`cmd` supplies the cmd value used to add a single command to this function."),
+        params(cmd = "`cmd` provides the cmd added when building a single command to this function."),
         returns = "The `McFunction` value with the documented change applied to add a single command to this function.",
         example = "use sand::prelude::*;\n\nfn demonstrate(mc_function_value: sand::component::McFunction, cmd: impl Into < String >)  {\n    let updated_mc_function = mc_function_value.command(cmd);\n}",
     )]
@@ -103,7 +103,7 @@ impl McFunction {
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(cmds = "`cmds` supplies the cmds value used to add multiple commands to this function."),
+        params(cmds = "`cmds` provides the cmds added when building multiple commands to this function."),
         returns = "The `McFunction` value with the documented change applied to add multiple commands to this function.",
         example = "use sand::prelude::*;\n\nfn demonstrate(mc_function_value: sand::component::McFunction, cmds: impl IntoIterator < Item = impl Into < String > >)  {\n    let updated_mc_function = mc_function_value.commands(cmds);\n}",
     )]

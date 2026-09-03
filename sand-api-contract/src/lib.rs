@@ -771,6 +771,32 @@ fn validate_resolved_quality(entries: &[ApiEntry]) -> Result<(), CatalogError> {
                     .into(),
             });
         }
+        let contains_generated_filler = std::iter::once(entry.summary.as_str())
+            .chain(std::iter::once(entry.context.as_str()))
+            .chain(std::iter::once(entry.minecraft.as_str()))
+            .chain(entry.use_when.iter().map(String::as_str))
+            .chain(entry.avoid_when.iter().map(String::as_str))
+            .chain(
+                entry
+                    .parameters
+                    .iter()
+                    .map(|parameter| parameter.description.as_str()),
+            )
+            .chain(entry.returns.as_deref())
+            .any(|prose| {
+                (prose.starts_with("A newly constructed `") && prose.contains(" configured to "))
+                    || (prose.contains(" supplies the ") && prose.contains(" value used to "))
+                    || prose.contains("when the variant selects the ")
+                    || prose.contains("form in this typed Minecraft component schema")
+            });
+        if contains_generated_filler {
+            return Err(CatalogError::InvalidEntry {
+                path: entry.canonical_path.clone(),
+                message:
+                    "semantic documentation is generic filler generated without local semantics"
+                        .into(),
+            });
+        }
         let compact_signature = entry.signature.replace(char::is_whitespace, "");
         if entry.signature.contains("#[doc")
             || entry.signature.contains("# [doc")
@@ -820,11 +846,6 @@ fn validate_resolved_quality(entries: &[ApiEntry]) -> Result<(), CatalogError> {
                 .description
                 .starts_with("Rust parameter with type `")
                 || parameter.description.contains("apply this API's specific")
-                || (parameter.description.contains(" supplies the ")
-                    && parameter.description.contains(" value used to "))
-                || parameter
-                    .description
-                    .contains("when the variant selects the ")
         }) {
             return Err(CatalogError::InvalidEntry {
                 path: entry.canonical_path.clone(),
@@ -835,25 +856,11 @@ fn validate_resolved_quality(entries: &[ApiEntry]) -> Result<(), CatalogError> {
         if entry.returns.as_deref().is_some_and(|returns| {
             returns.starts_with("A value with Rust type `")
                 || returns.contains("apply this API's specific")
-                || (returns.starts_with("A newly constructed `")
-                    && returns.contains(" configured to "))
         }) {
             return Err(CatalogError::InvalidEntry {
                 path: entry.canonical_path.clone(),
                 message: "return documentation is generic filler rather than local semantics"
                     .into(),
-            });
-        }
-        if matches!(entry.kind, ApiKind::Variant | ApiKind::Field)
-            && entry
-                .summary
-                .contains("form in this typed Minecraft component schema")
-        {
-            return Err(CatalogError::InvalidEntry {
-                path: entry.canonical_path.clone(),
-                message:
-                    "generated member documentation is schema filler rather than member semantics"
-                        .into(),
             });
         }
         if entry.kind == ApiKind::Field && entry.example.trim().is_empty() {
@@ -1497,13 +1504,8 @@ mod tests {
                 ApiCoverage::unverified(),
             )
             .unwrap();
-            assert!(
-                catalog
-                    .validate_quality()
-                    .unwrap_err()
-                    .to_string()
-                    .contains(expected)
-            );
+            let error = catalog.validate_quality().unwrap_err().to_string();
+            assert!(error.contains(expected), "{summary}: {error}");
         }
 
         let mut generated_member = ApiEntry::from(&REGISTRATION);
@@ -1524,7 +1526,7 @@ mod tests {
                 .validate_quality()
                 .unwrap_err()
                 .to_string()
-                .contains("schema filler")
+                .contains("generic filler")
         );
     }
 

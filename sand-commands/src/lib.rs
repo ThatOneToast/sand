@@ -72,9 +72,10 @@ pub use scoreboard::{
     ScoreboardPlayersOperation, hash_objective_name, scoreboard_players_operation,
 };
 pub use selector::{
-    EntityTag, EntityTarget, EntityTargets, GameMode, IntoEntityType, Many, One, PlayerTarget,
-    PlayerTargets, PredicateId, ScoreRange, Selector, SelectorRange, SelectorScores, SingleEntity,
-    SinglePlayer, SortOrder, TargetBase, TeamName,
+    AnyTarget, EntityTag, EntityTarget, EntityTargets, GameMode, IntoEntityType, Many, One,
+    PlayerTarget, PlayerTargets, PlayersOnly, PredicateId, ScoreRange, Selector, SelectorRange,
+    SelectorScores, SingleEntity, SinglePlayer, SingleTargetArgument, SortOrder, Target,
+    TargetArgument, TargetBase, TeamName,
 };
 pub use sound::{IntoSoundEvent, Sound, SoundSource, StopSoundCommand};
 pub use text::{
@@ -123,7 +124,7 @@ pub use text::{
 /// `&T` automatically implements `Build` whenever `T: Build`:
 ///
 /// ```rust,ignore
-/// let cmd = Execute::new().as_(Selector::all_players()).run_raw("say hi");
+/// let cmd = Execute::new().as_(Target::players()).run_raw("say hi");
 /// let s = (&cmd).build(); // works via the &T impl
 /// ```
 ///
@@ -133,7 +134,7 @@ pub use text::{
 /// use sand_commands::{Build, Execute, Selector};
 ///
 /// let cmd = Execute::new()
-///     .as_(Selector::all_players())
+///     .as_(Target::players())
 ///     .run_raw("say hello");
 ///
 /// // Three equivalent ways to get the String:

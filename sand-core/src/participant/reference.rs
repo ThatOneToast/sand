@@ -1,6 +1,8 @@
 //! Typed generated-command participant references (#230 Phase 8).
 
-use sand_commands::selector::{SingleEntity, SinglePlayer};
+use sand_commands::selector::{
+    AnyTarget, One, PlayersOnly, SingleEntity, SinglePlayer, SingleTargetArgument, Target,
+};
 
 use super::lifetime::ParticipantLifetime;
 use super::reliability::ParticipantReliability;
@@ -79,7 +81,7 @@ impl std::error::Error for ParticipantReliabilityError {}
 ///
 /// // Fields are private — this does not compile.
 /// let _ = PlayerParticipant {
-///     selector: sand_commands::selector::SinglePlayer::self_(),
+///     selector: sand_commands::selector::Target::current_player(),
 ///     role: EntityParticipantRole::Attacker,
 ///     reliability: ParticipantReliability::Exact,
 ///     lifetime: ParticipantLifetime::Invocation,
@@ -203,8 +205,8 @@ impl PlayerParticipant {
         returns = "The `& SinglePlayer` value produced to use the typed selector for building commands against this participant. Never exposes a raw/unrestricted selector string — the caller gets [`SinglePlayer`]'s own safe builder surface.",
         example = "use sand::prelude::*;\n\nfn demonstrate(player_participant_value: &sand::participant::PlayerParticipant)  {\n    let selector = player_participant_value.selector();\n}",
     )]
-    pub fn selector(&self) -> &SinglePlayer {
-        &self.selector
+    pub fn selector(&self) -> Target<PlayersOnly, One> {
+        self.selector.clone().into()
     }
 
     /// Require at least `required` reliability, or a
@@ -281,10 +283,10 @@ impl PlayerParticipant {
 /// use sand_core::participant::{
 ///     EntityParticipant, EntityParticipantRole, ParticipantLifetime,
 /// };
-/// use sand_commands::selector::SingleEntity;
+/// use sand_commands::Target;
 ///
 /// let attacker = EntityParticipant::correlated(
-///     SingleEntity::raw("@e[tag=candidate,limit=1]"),
+///     Target::raw_single("@e[tag=candidate,limit=1]"),
 ///     EntityParticipantRole::Attacker,
 ///     ParticipantLifetime::Invocation,
 /// );
@@ -348,15 +350,15 @@ impl EntityParticipant {
         avoid_when = ["Assuming an entity or item remains live beyond its declared invocation, event-cycle, or bounded correlation lifetime"],
         params(selector = "There is no exact-entity constructor beyond [`EntityParticipant::subject`]/[`PlayerParticipant::subject`] in Phase 8: \"exact non-subject entity\" requires a stable generated binding mechanism (e.g. the tag-then-target pattern `EntityScope::bind` already uses for live traversal) applied at an authoritative event boundary, which is Phase 9 observation-backend work, not a type-system concern. Correlated/inferred references remain honestly weaker than `Exact` by construction — there is no API path to mark a `selector` exact without going through [`subject`](Self::subject).", role = "`role` is used when constructing a correlated entity participant reference.", lifetime = "`lifetime` is used when constructing a correlated entity participant reference."),
         returns = "An `EntityParticipant` representing a correlated entity participant reference.",
-        example = "use sand::prelude::*;\n\nfn demonstrate(selector: sand::command::SingleEntity, role: sand::participant::EntityParticipantRole, lifetime: sand::participant::ParticipantLifetime)  {\n    let entity_participant = sand::participant::EntityParticipant::correlated(selector, role, lifetime);\n}",
+        example = "use sand::prelude::*;\nlet entity_participant = EntityParticipant::correlated(Target::self_(), EntityParticipantRole::Attacker, ParticipantLifetime::Invocation);",
     )]
     pub fn correlated(
-        selector: SingleEntity,
+        selector: impl SingleTargetArgument,
         role: EntityParticipantRole,
         lifetime: ParticipantLifetime,
     ) -> Self {
         Self {
-            selector,
+            selector: selector.into(),
             role,
             reliability: ParticipantReliability::Correlated,
             lifetime,
@@ -377,15 +379,15 @@ impl EntityParticipant {
         avoid_when = ["Assuming an entity or item remains live beyond its declared invocation, event-cycle, or bounded correlation lifetime"],
         params(selector = "`selector` provides the Minecraft target selection used to construct an inferred entity participant reference (a heuristic query result that may be ambiguous). See [`correlated`](Self::correlated).", role = "`role` is used when constructing an inferred entity participant reference (a heuristic query result that may be ambiguous). See [`correlated`](Self::correlated).", lifetime = "`lifetime` is used when constructing an inferred entity participant reference (a heuristic query result that may be ambiguous). See [`correlated`](Self::correlated)."),
         returns = "An `EntityParticipant` representing an inferred entity participant reference (a heuristic query result that may be ambiguous). See [`correlated`](Self::correlated).",
-        example = "use sand::prelude::*;\n\nfn demonstrate(selector: sand::command::SingleEntity, role: sand::participant::EntityParticipantRole, lifetime: sand::participant::ParticipantLifetime)  {\n    let entity_participant = sand::participant::EntityParticipant::inferred(selector, role, lifetime);\n}",
+        example = "use sand::prelude::*;\nlet entity_participant = EntityParticipant::inferred(Target::self_(), EntityParticipantRole::Attacker, ParticipantLifetime::Invocation);",
     )]
     pub fn inferred(
-        selector: SingleEntity,
+        selector: impl SingleTargetArgument,
         role: EntityParticipantRole,
         lifetime: ParticipantLifetime,
     ) -> Self {
         Self {
-            selector,
+            selector: selector.into(),
             role,
             reliability: ParticipantReliability::Inferred,
             lifetime,
@@ -460,8 +462,8 @@ impl EntityParticipant {
         returns = "Returns the single-entity selector bound to this participant.",
         example = "use sand::prelude::*;\n\nfn demonstrate(entity_participant_value: &sand::participant::EntityParticipant)  {\n    let selector = entity_participant_value.selector();\n}",
     )]
-    pub fn selector(&self) -> &SingleEntity {
-        &self.selector
+    pub fn selector(&self) -> Target<AnyTarget, One> {
+        self.selector.clone().into()
     }
 
     /// Checks that the participant evidence meets the requested reliability.
@@ -527,7 +529,7 @@ impl EntityParticipant {
     /// Before this fix, `execute_at` generated a bare `execute at <selector>
     /// run <cmd>`. Vanilla's `execute at` only moves the execution
     /// *position* — it never rebinds the executing entity (`@s`). Every
-    /// caller of this method builds `cmd` with [`sand_commands::Selector::self_`]
+    /// caller of this method builds `cmd` with [`sand_commands::Target::self_`]
     /// specifically to reference "this participant" — so with the old
     /// `execute at`-only form, `@s` inside `cmd` silently kept resolving to
     /// whatever `@s` already was in the *caller's* context (typically the
@@ -549,16 +551,15 @@ impl EntityParticipant {
     /// use sand_core::participant::{EntityParticipant, EntityParticipantRole};
     /// use sand_core::participant::lifetime::ParticipantLifetime;
     /// use sand_core::state::StorageSchema;
-    /// use sand_commands::Selector;
-    /// use sand_commands::selector::SingleEntity;
+    /// use sand_commands::Target;
     ///
     /// let attacker = EntityParticipant::correlated(
-    ///     SingleEntity::raw("@e[tag=x,limit=1]"),
+    ///     Target::raw_single("@e[tag=x,limit=1]"),
     ///     EntityParticipantRole::Attacker,
     ///     ParticipantLifetime::SynchronousDescendants,
     /// );
     /// static AUDIT: StorageSchema<()> = StorageSchema::new("pack:audit", "audit");
-    /// let cmd = attacker.execute_at(AUDIT.field::<String>("attacker_uuid").copy_from_entity(Selector::self_(), "UUID"));
+    /// let cmd = attacker.execute_at(AUDIT.field::<String>("attacker_uuid").copy_from_entity(Target::self_(), "UUID"));
     /// assert_eq!(
     ///     cmd,
     ///     "execute as @e[tag=x,limit=1] at @s run data modify storage pack:audit audit.attacker_uuid set from entity @s UUID"
@@ -570,13 +571,13 @@ impl EntityParticipant {
         module = "sand::participant",
         kind = "method",
         summary = "`execute as <this participant's selector> at @s run <cmd>` — run a typed command with this participant as *both* the executing entity and the execution position, without ever stringifying the selector yourself.",
-        context = "`execute as <this participant's selector> at @s run <cmd>` — run a typed command with this participant as *both* the executing entity and the execution position, without ever stringifying the selector yourself. This is the normal way to consume a resolved [`EntityParticipant`]: build `cmd` with any other typed command builder (targeting `@s`, which — via the leading `execute as <participant>` — resolves to *this participant*, not the caller). Before this fix, `execute_at` generated a bare `execute at <selector> run <cmd>`. Vanilla's `execute at` only moves the execution *position* — it never rebinds the executing entity (`@s`). Every caller of this method builds `cmd` with [`sand::command::Selector::self_`] specifically to reference \"this participant\" — so with the old `execute at`-only form, `@s` inside `cmd` silently kept resolving to whatever `@s` already was in the *caller's* context (typically the event's subject, e.g. the victim of an attack), never to the participant this method exists to address. Every structural/export test asserted the exact (wrong) generated string, so nothing caught it — real Minecraft 26.2 runtime validation for #265 did: a summoned \"attacker\" zombi...",
+        context = "`execute as <this participant's selector> at @s run <cmd>` — run a typed command with this participant as *both* the executing entity and the execution position, without ever stringifying the selector yourself. This is the normal way to consume a resolved [`EntityParticipant`]: build `cmd` with any other typed command builder (targeting `@s`, which — via the leading `execute as <participant>` — resolves to *this participant*, not the caller). Before this fix, `execute_at` generated a bare `execute at <selector> run <cmd>`. Vanilla's `execute at` only moves the execution *position* — it never rebinds the executing entity (`@s`). Every caller of this method builds `cmd` with [`sand::command::Target::self_`] specifically to reference \"this participant\" — so with the old `execute at`-only form, `@s` inside `cmd` silently kept resolving to whatever `@s` already was in the *caller's* context (typically the event's subject, e.g. the victim of an attack), never to the participant this method exists to address. Every structural/export test asserted the exact (wrong) generated string, so nothing caught it — real Minecraft 26.2 runtime validation for #265 did: a summoned \"attacker\" zombi...",
         minecraft = "This is the normal way to consume a resolved [`EntityParticipant`]: build `cmd` with any other typed command builder (targeting `@s`, which — via the leading `execute as <participant>` — resolves to *this participant*, not the caller).",
         use_when = ["Declaring or reading a typed participant whose lifecycle is guaranteed by the event plan"],
         avoid_when = ["Assuming an entity or item remains live beyond its declared invocation, event-cycle, or bounded correlation lifetime"],
         params(cmd = "This is the normal way to consume a resolved [`EntityParticipant`]: build `cmd` with any other typed command builder (targeting `@s`, which — via the leading `execute as <participant>` — resolves to *this participant*, not the caller)."),
         returns = "The rendered Minecraft command text produced to emit the documented `execute as <this participant's selector> at @s run <cmd>` — run a typed command with this participant as *both* the executing entity and the execution position, without ever stringifying the selector yourself form.",
-        example = "use {sand::participant::EntityParticipant, sand::participant::EntityParticipantRole};\nuse sand::participant::ParticipantLifetime;\nuse sand::data::StorageSchema;\nuse sand::command::Selector;\nuse sand::command::SingleEntity;\nlet attacker = EntityParticipant::correlated(\nSingleEntity::raw(\"@e[tag=x,limit=1]\"),\nEntityParticipantRole::Attacker,\nParticipantLifetime::SynchronousDescendants,\n);\nstatic AUDIT: StorageSchema<()> = StorageSchema::new(\"pack:audit\", \"audit\");\nlet cmd = attacker.execute_at(AUDIT.field::<String>(\"attacker_uuid\").copy_from_entity(Selector::self_(), \"UUID\"));\nassert_eq!(\ncmd,\n\"execute as @e[tag=x,limit=1] at @s run data modify storage pack:audit audit.attacker_uuid set from entity @s UUID\"\n);",
+        example = "use {sand::participant::EntityParticipant, sand::participant::EntityParticipantRole};\nuse sand::participant::ParticipantLifetime;\nuse sand::data::StorageSchema;\nuse sand::command::Target;\nlet attacker = EntityParticipant::correlated(\nTarget::raw_single(\"@e[tag=x,limit=1]\"),\nEntityParticipantRole::Attacker,\nParticipantLifetime::SynchronousDescendants,\n);\nstatic AUDIT: StorageSchema<()> = StorageSchema::new(\"pack:audit\", \"audit\");\nlet cmd = attacker.execute_at(AUDIT.field::<String>(\"attacker_uuid\").copy_from_entity(Target::self_(), \"UUID\"));\nassert_eq!(\ncmd,\n\"execute as @e[tag=x,limit=1] at @s run data modify storage pack:audit audit.attacker_uuid set from entity @s UUID\"\n);",
     )]
     pub fn execute_at(&self, cmd: impl Into<String>) -> String {
         format!("execute as {} at @s run {}", self.selector, cmd.into())
@@ -598,13 +599,7 @@ mod tests {
 
     #[test]
     fn player_subject_selector_renders_as_self() {
-        assert_eq!(
-            PlayerParticipant::subject()
-                .selector()
-                .selector()
-                .to_string(),
-            "@s"
-        );
+        assert_eq!(PlayerParticipant::subject().selector().to_string(), "@s");
     }
 
     #[test]

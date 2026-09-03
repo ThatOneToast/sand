@@ -18,13 +18,13 @@
 //!
 //! # Example
 //! ```rust,ignore
-//! use sand_core::cmd::{self, Execute, Selector};
+//! use sand_core::cmd::{self, Execute, Target};
 //!
 //! mcfunction! {
-//!     cmd::give(Selector::all_players(), "diamond_sword").count(1);
-//!     cmd::kill(Selector::all_entities().tag("enemy"));
+//!     cmd::give(Target::players(), "diamond_sword").count(1);
+//!     cmd::kill(Target::entities().tag("enemy"));
 //!     Execute::new()
-//!         .as_(Selector::all_players())
+//!         .as_(Target::players())
 //!         .if_score_matches("@s", "playtime", "100..")
 //!         .run(cmd::say("100 ticks!"));
 //! }
@@ -75,6 +75,7 @@ pub use sand_commands::{
     Build, CommandError, CommandProfile, CommandResult, EffectCommand, EffectDuration,
     IntoDamageTargets, IntoEntityType, RawCommand, RenderCommand, Validate,
 };
+pub(crate) use sand_commands::{Selector, SingleEntity, SingleTargetArgument, TargetArgument};
 
 /// Trait for types resolving to a `function <id>` command.
 pub use crate::function::IntoFunctionRef;
@@ -102,9 +103,7 @@ pub use sand_commands::{
 };
 // Entity/player targeting
 pub use sand_commands::{
-    Damage as DamageBuilder, DamageAmount, DamageKind, EntityTag, EntityTarget, EntityTargets,
-    GameMode, Many, One, PlayerTarget, PlayerTargets, ScoreRange, Selector, SingleEntity,
-    SinglePlayer, SortOrder, TargetBase, TeamName,
+    Damage as DamageBuilder, DamageAmount, DamageKind, GameMode, ScoreRange, Target,
 };
 // Sound
 pub use sand_commands::{IntoSoundEvent, Sound, SoundSource, StopSoundCommand};
@@ -326,9 +325,9 @@ pub fn try_function_id(
 /// ```rust,ignore
 /// use sand_core::prelude::*;
 ///
-/// cmd::show_dialog(Selector::self_(), DialogId::local("welcome"));
+/// cmd::show_dialog(Target::self_(), DialogId::local("welcome"));
 /// cmd::show_dialog(
-///     Selector::all_players(),
+///     Target::players(),
 ///     DialogId::custom("other_pack:settings".parse().unwrap()),
 /// );
 /// ```
@@ -344,34 +343,34 @@ pub fn try_function_id(
     avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
     params(selector = "`selector` provides the Minecraft target selection used to show a typed datapack dialog to one or more players.", dialog = "`dialog` is used to show a typed datapack dialog to one or more players."),
     returns = "The string value produced to show a typed datapack dialog to one or more players.",
-    example = "use sand::prelude::*;\ncmd::show_dialog(Selector::self_(), DialogId::local(\"welcome\"));\ncmd::show_dialog(\nSelector::all_players(),\nDialogId::custom(\"other_pack:settings\".parse().unwrap()),\n);",
+    example = "use sand::prelude::*;\ncmd::show_dialog(Target::self_(), DialogId::local(\"welcome\"));\ncmd::show_dialog(\nSelector::all_players(),\nDialogId::custom(\"other_pack:settings\".parse().unwrap()),\n);",
 )]
 pub fn show_dialog(
-    selector: Selector,
+    selector: impl TargetArgument,
     dialog: impl sand_components::dialog::IntoDialogRef,
 ) -> String {
     format!("dialog show {selector} {}", dialog.into_dialog_ref())
 }
 
 /// Validated counterpart to [`show_dialog`] — validates `selector` through
-/// [`Selector`]'s normal validation before returning command text. `dialog`
+/// [`Target`]'s normal validation before returning command text. `dialog`
 /// resolution is already typed via [`IntoDialogRef`](sand_components::dialog::IntoDialogRef).
 #[sand_macros::api(
     registry = sand_api_contract,
     path = "sand::command::try_show_dialog",
     aliases = ["sand::cmd::try_show_dialog", "sand::prelude::cmd::try_show_dialog"],
     module = "sand::command",
-    summary = "Validated counterpart to [`show_dialog`] — validates `selector` through [`Selector`]'s normal validation before returning command text. `dialog` resolution is already typed via [`IntoDialogRef`](sand::component::IntoDialogRef).",
-    context = "Validated counterpart to [`show_dialog`] — validates `selector` through [`Selector`]'s normal validation before returning command text. `dialog` resolution is already typed via [`IntoDialogRef`](sand::component::IntoDialogRef). This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
+    summary = "Validated counterpart to [`show_dialog`] — validates `selector` through [`Target`]'s normal validation before returning command text. `dialog` resolution is already typed via [`IntoDialogRef`](sand::component::IntoDialogRef).",
+    context = "Validated counterpart to [`show_dialog`] — validates `selector` through [`Target`]'s normal validation before returning command text. `dialog` resolution is already typed via [`IntoDialogRef`](sand::component::IntoDialogRef). This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
     minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
     use_when = ["Constructing Minecraft commands through Sand's typed command model"],
     avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-    params(selector = "Validated counterpart to [`show_dialog`] — validates `selector` through [`Selector`]'s normal validation before returning command text. `dialog` resolution is already typed via [`IntoDialogRef`](sand::component::IntoDialogRef).", dialog = "Validated counterpart to [`show_dialog`] — validates `selector` through [`Selector`]'s normal validation before returning command text. `dialog` resolution is already typed via [`IntoDialogRef`](sand::component::IntoDialogRef)."),
-    returns = "The `sand :: command :: CommandResult < String >` value produced to use validated counterpart to [`show_dialog`] — validates `selector` through [`Selector`]'s normal validation before returning command text. `dialog` resolution is already typed via [`IntoDialogRef`](sand::component::IntoDialogRef).",
-    example = "use sand::prelude::*;\n\nfn demonstrate(selector: sand::command::Selector, dialog: impl sand::component::IntoDialogRef)  {\n    let try_show_dialog = sand::command::try_show_dialog(selector, dialog);\n}",
+    params(selector = "Validated counterpart to [`show_dialog`] — validates `selector` through [`Target`]'s normal validation before returning command text. `dialog` resolution is already typed via [`IntoDialogRef`](sand::component::IntoDialogRef).", dialog = "Validated counterpart to [`show_dialog`] — validates `selector` through [`Target`]'s normal validation before returning command text. `dialog` resolution is already typed via [`IntoDialogRef`](sand::component::IntoDialogRef)."),
+    returns = "The `sand :: command :: CommandResult < String >` value produced to use validated counterpart to [`show_dialog`] — validates `selector` through [`Target`]'s normal validation before returning command text. `dialog` resolution is already typed via [`IntoDialogRef`](sand::component::IntoDialogRef).",
+    example = "use sand::prelude::*;\n\nfn demonstrate(selector: sand::command::Target, dialog: impl sand::component::IntoDialogRef)  {\n    let try_show_dialog = sand::command::try_show_dialog(selector, dialog);\n}",
 )]
 pub fn try_show_dialog(
-    selector: Selector,
+    selector: impl TargetArgument,
     dialog: impl sand_components::dialog::IntoDialogRef,
 ) -> sand_commands::CommandResult<String> {
     selector.validate(&CommandProfile::unprofiled())?;
@@ -391,10 +390,10 @@ pub fn try_show_dialog(
     avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
     params(target = "`target` provides the entity, block, or command target used to emit the documented `tellraw <target> <json>` — send a rich JSON text component to a target form.", text = "`text` supplies the documented `tellraw <target> <json>` — send a rich JSON text component to a target form."),
     returns = "The string value produced to emit the documented `tellraw <target> <json>` — send a rich JSON text component to a target form.",
-    example = "use sand::prelude::*;\n\nfn demonstrate(target: sand::command::Selector, text: sand::text::TextComponent)  {\n    let tellraw = sand::command::tellraw(target, text);\n}",
+    example = "use sand::prelude::*;\n\nfn demonstrate(target: sand::command::Target, text: sand::text::TextComponent)  {\n    let tellraw = sand::command::tellraw(target, text);\n}",
 )]
-pub fn tellraw(target: Selector, text: TextComponent) -> String {
-    TextCommand::tellraw(target, text).build()
+pub fn tellraw(target: impl TargetArgument, text: TextComponent) -> String {
+    TextCommand::tellraw(target.into_target_selector(), text).build()
 }
 
 /// `tellraw <target> <raw_json>` — send a raw JSON text component to a target.
@@ -424,7 +423,7 @@ pub fn tellraw_raw(target: impl std::fmt::Display, json: impl Into<String>) -> S
 
 /// Validated counterpart to [`tellraw_raw`].
 ///
-/// Validates `target` through [`Selector`]'s normal validation and parses
+/// Validates `target` through [`Target`]'s normal validation and parses
 /// `json` as JSON syntax (it does not validate it against the text-component
 /// schema the way [`TextComponent`] does — that would duplicate the
 /// component-level validation `Text`/`TextComponent` already own).
@@ -433,17 +432,17 @@ pub fn tellraw_raw(target: impl std::fmt::Display, json: impl Into<String>) -> S
     path = "sand::command::try_tellraw_raw",
     aliases = ["sand::cmd::try_tellraw_raw", "sand::prelude::cmd::try_tellraw_raw"],
     module = "sand::command",
-    summary = "Validated counterpart to [`tellraw_raw`]. Validates `target` through [`Selector`]'s normal validation and parses `json` as JSON syntax (it does not validate it against the text-component schema the way [`TextComponent`] does — that would duplicate the component-level validation `Text`/`TextComponent` already own).",
-    context = "Validated counterpart to [`tellraw_raw`]. Validates `target` through [`Selector`]'s normal validation and parses `json` as JSON syntax (it does not validate it against the text-component schema the way [`TextComponent`] does — that would duplicate the component-level validation `Text`/`TextComponent` already own). This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
-    minecraft = "Validates `target` through [`Selector`]'s normal validation and parses `json` as JSON syntax (it does not validate it against the text-component schema the way [`TextComponent`] does — that would duplicate the component-level validation `Text`/`TextComponent` already own).",
+    summary = "Validated counterpart to [`tellraw_raw`]. Validates `target` through [`Target`]'s normal validation and parses `json` as JSON syntax (it does not validate it against the text-component schema the way [`TextComponent`] does — that would duplicate the component-level validation `Text`/`TextComponent` already own).",
+    context = "Validated counterpart to [`tellraw_raw`]. Validates `target` through [`Target`]'s normal validation and parses `json` as JSON syntax (it does not validate it against the text-component schema the way [`TextComponent`] does — that would duplicate the component-level validation `Text`/`TextComponent` already own). This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
+    minecraft = "Validates `target` through [`Target`]'s normal validation and parses `json` as JSON syntax (it does not validate it against the text-component schema the way [`TextComponent`] does — that would duplicate the component-level validation `Text`/`TextComponent` already own).",
     use_when = ["Constructing Minecraft commands through Sand's typed command model"],
     avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-    params(target = "Validates `target` through [`Selector`]'s normal validation and parses `json` as JSON syntax (it does not validate it against the text-component schema the way [`TextComponent`] does — that would duplicate the component-level validation `Text`/`TextComponent` already own).", json = "Validates `target` through [`Selector`]'s normal validation and parses `json` as JSON syntax (it does not validate it against the text-component schema the way [`TextComponent`] does — that would duplicate the component-level validation `Text`/`TextComponent` already own)."),
-    returns = "The `sand :: command :: CommandResult < String >` value produced to use validated counterpart to [`tellraw_raw`]. Validates `target` through [`Selector`]'s normal validation and parses `json` as JSON syntax (it does not validate it against the text-component schema the way [`TextComponent`] does — that would duplicate the component-level validation `Text`/`TextComponent` already own).",
-    example = "use sand::prelude::*;\n\nfn demonstrate(target: sand::command::Selector, json: impl Into < String >)  {\n    let try_tellraw_raw = sand::command::try_tellraw_raw(target, json);\n}",
+    params(target = "Validates `target` through [`Target`]'s normal validation and parses `json` as JSON syntax (it does not validate it against the text-component schema the way [`TextComponent`] does — that would duplicate the component-level validation `Text`/`TextComponent` already own).", json = "Validates `target` through [`Target`]'s normal validation and parses `json` as JSON syntax (it does not validate it against the text-component schema the way [`TextComponent`] does — that would duplicate the component-level validation `Text`/`TextComponent` already own)."),
+    returns = "The `sand :: command :: CommandResult < String >` value produced to use validated counterpart to [`tellraw_raw`]. Validates `target` through [`Target`]'s normal validation and parses `json` as JSON syntax (it does not validate it against the text-component schema the way [`TextComponent`] does — that would duplicate the component-level validation `Text`/`TextComponent` already own).",
+    example = "use sand::prelude::*;\n\nfn demonstrate(target: sand::command::Target, json: impl Into < String >)  {\n    let try_tellraw_raw = sand::command::try_tellraw_raw(target, json);\n}",
 )]
 pub fn try_tellraw_raw(
-    target: Selector,
+    target: impl TargetArgument,
     json: impl Into<String>,
 ) -> sand_commands::CommandResult<String> {
     target.validate(&CommandProfile::unprofiled())?;
@@ -550,13 +549,13 @@ impl IntoGiveItem for &sand_components::CustomItem {
 /// ```
 /// use sand_core::cmd;
 /// use sand_components::ItemId;
-/// use sand_commands::Selector;
+/// use sand::command::Target;
 ///
 /// cmd::give(
-///     Selector::all_players(),
+///     Target::players(),
 ///     ItemId::minecraft("diamond").unwrap(),
 /// );
-/// cmd::give(Selector::self_(), "minecraft:diamond_sword");
+/// cmd::give(Target::self_(), "minecraft:diamond_sword");
 /// ```
 #[sand_macros::api(
     registry = sand_api_contract,
@@ -570,9 +569,9 @@ impl IntoGiveItem for &sand_components::CustomItem {
     avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
     params(selector = "`selector` provides the Minecraft target selection used to emit the documented `give <targets> <item>` — give an item stack to one or more players form.", item = "`item` provides the item value or item predicate used to emit the documented `give <targets> <item>` — give an item stack to one or more players form."),
     returns = "The string value produced to emit the documented `give <targets> <item>` — give an item stack to one or more players form.",
-    example = "use sand::command;\nuse sand::registry::ItemId;\nuse sand::command::Selector;\ncmd::give(\nSelector::all_players(),\nItemId::minecraft(\"diamond\").unwrap(),\n);\ncmd::give(Selector::self_(), \"minecraft:diamond_sword\");",
+    example = "use sand::command;\nuse sand::registry::ItemId;\nuse sand::command::Target;\ncmd::give(\nSelector::all_players(),\nItemId::minecraft(\"diamond\").unwrap(),\n);\ncmd::give(Target::self_(), \"minecraft:diamond_sword\");",
 )]
-pub fn give(selector: Selector, item: impl IntoGiveItem) -> String {
+pub fn give(selector: impl TargetArgument, item: impl IntoGiveItem) -> String {
     format!("give {selector} {}", item.into_give_item())
 }
 
@@ -597,10 +596,10 @@ pub fn give(selector: Selector, item: impl IntoGiveItem) -> String {
     avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
     params(selector = "Typed [`IntoGiveItem`] implementors (the profile-generated vanilla item enum, [`sand::registry::ItemId`], and [`sand::component::CustomItem`]) are already well-formed by construction, but the `&str`/`String` raw escape hatch is not — this validates the leading `namespace:path` item ID (any trailing `[...]`/`{...}` item-component/NBT payload is preserved verbatim, matching `sand::command::Inventory`'s item validation) and the target `selector` before returning command text.", item = "`item` provides the item value or item predicate used to use validated counterpart to [`give`]. Typed [`IntoGiveItem`] implementors (the profile-generated vanilla item enum, [`sand::registry::ItemId`], and [`sand::component::CustomItem`]) are already well-formed by construction, but the `&str`/`String` raw escape hatch is not — this validates the leading `namespace:path` item ID (any trailing `[...]`/`{...}` item-component/NBT payload is preserved verbatim, matching `sand::command::Inventory`'s item validation) and the target `selector` before returning command text."),
     returns = "The `sand :: command :: CommandResult < String >` value produced to use validated counterpart to [`give`]. Typed [`IntoGiveItem`] implementors (the profile-generated vanilla item enum, [`sand::registry::ItemId`], and [`sand::component::CustomItem`]) are already well-formed by construction, but the `&str`/`String` raw escape hatch is not — this validates the leading `namespace:path` item ID (any trailing `[...]`/`{...}` item-component/NBT payload is preserved verbatim, matching `sand::command::Inventory`'s item validation) and the target `selector` before returning command text.",
-    example = "use sand::prelude::*;\n\nfn demonstrate(selector: sand::command::Selector, item: impl sand::command::IntoGiveItem)  {\n    let try_give = sand::command::try_give(selector, item);\n}",
+    example = "use sand::prelude::*;\n\nfn demonstrate(selector: sand::command::Target, item: impl sand::command::IntoGiveItem)  {\n    let try_give = sand::command::try_give(selector, item);\n}",
 )]
 pub fn try_give(
-    selector: Selector,
+    selector: impl TargetArgument,
     item: impl IntoGiveItem,
 ) -> sand_commands::CommandResult<String> {
     selector.validate(&CommandProfile::unprofiled())?;
@@ -618,7 +617,7 @@ pub fn try_give(
 ///
 /// ```rust,ignore
 /// when(HAS_CELLS.of("@s").is_true()).then_all([
-///     tellraw(Selector::self_(), Text::new("Already granted")),
+///     tellraw(Target::self_(), Text::new("Already granted")),
 ///     cmd::return_fail(),
 /// ]);
 /// ```
@@ -633,7 +632,7 @@ pub fn try_give(
     use_when = ["Constructing Minecraft commands through Sand's typed command model"],
     avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
     returns = "The string value produced to emit the documented `return fail` — stop the current function with a failure return value form.",
-    example = "when(HAS_CELLS.of(\"@s\").is_true()).then_all([\ntellraw(Selector::self_(), Text::new(\"Already granted\")),\ncmd::return_fail(),\n]);",
+    example = "when(HAS_CELLS.of(\"@s\").is_true()).then_all([\ntellraw(Target::self_(), Text::new(\"Already granted\")),\ncmd::return_fail(),\n]);",
 )]
 pub fn return_fail() -> String {
     "return fail".to_string()
@@ -719,7 +718,7 @@ pub fn raw(command: impl Into<String>) -> sand_commands::RawCommand {
 /// builders directly in [`crate::mcfunction!`]:
 /// ```rust,ignore
 /// mcfunction! {
-///     cmd::kill(Selector::all_entities().tag("mob"));
+///     cmd::kill(Target::entities().tag("mob"));
 ///     "raw fallback command string";
 /// }
 /// ```

@@ -24,7 +24,7 @@
 //!
 //! ```rust,ignore
 //! when(HAS_CELLS.of("@s").is_true()).then_all([
-//!     tellraw(Selector::self_(), Text::new("Already granted")),
+//!     tellraw(Target::self_(), Text::new("Already granted")),
 //!     cmd::return_fail(),
 //! ]);
 //! // → execute if score @s has_cells matches 1 run function <ns>:sand/branches/0
@@ -304,7 +304,7 @@ impl WhenBuilder {
     ///
     /// ```rust,ignore
     /// when(HAS_CELLS.of("@s").is_true()).then_all([
-    ///     cmd::tellraw(Selector::self_(), Text::new("Already granted")),
+    ///     cmd::tellraw(Target::self_(), Text::new("Already granted")),
     ///     cmd::return_fail(),
     /// ]);
     /// ```
@@ -442,7 +442,7 @@ impl UnlessBuilder {
     ///
     /// ```rust,ignore
     /// unless(HAS_CELLS.of("@s").is_true()).then_all([
-    ///     cmd::attribute_base_set(Selector::self_(), AttributeType::MaxHealth.as_str(), 40.0),
+    ///     cmd::attribute_base_set(Target::self_(), AttributeType::MaxHealth.as_str(), 40.0),
     ///     HAS_CELLS.enable("@s"),
     ///     cmd::return_cmd(0),
     /// ]);
@@ -631,7 +631,7 @@ impl crate::components::mc_function::IntoCommands for IfThenBuilder {
 ///
 /// // Grouped branch — condition evaluated once, all commands run in order:
 /// let cmds = when(HAS_CELLS.of("@s").is_true()).then_all([
-///     tellraw(Selector::self_(), Text::new("Already granted")),
+///     tellraw(Target::self_(), Text::new("Already granted")),
 ///     cmd::return_fail(),
 /// ]);
 /// ```
@@ -663,7 +663,7 @@ pub fn when(cond: impl Into<Conditional>) -> WhenBuilder {
 ///
 /// // Grouped branch:
 /// let cmds = unless(HAS_CELLS.of("@s").is_true()).then_all([
-///     attribute_base_set(Selector::self_(), "minecraft:max_health", 40.0),
+///     attribute_base_set(Target::self_(), "minecraft:max_health", 40.0),
 ///     HAS_CELLS.enable("@s"),
 ///     cmd::return_cmd(0),
 /// ]);
@@ -693,12 +693,12 @@ pub fn unless(cond: impl Into<Conditional>) -> UnlessBuilder {
 /// ```rust,ignore
 /// if_(HAS_CELLS.of("@s").is_true())
 ///     .then_all([
-///         tellraw(Selector::self_(), Text::new("Already have enhanced cells")),
+///         tellraw(Target::self_(), Text::new("Already have enhanced cells")),
 ///         cmd::return_fail(),
 ///     ])
 ///     .else_all([
-///         attribute_base_set(Selector::self_(), "minecraft:max_health", 40.0),
-///         tellraw(Selector::self_(), Text::new("Granted enhanced cells!")),
+///         attribute_base_set(Target::self_(), "minecraft:max_health", 40.0),
+///         tellraw(Target::self_(), Text::new("Granted enhanced cells!")),
 ///         HAS_CELLS.enable("@s"),
 ///         cmd::return_cmd(0),
 ///     ]);

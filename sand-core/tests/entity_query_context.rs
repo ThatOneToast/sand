@@ -1,10 +1,11 @@
-//! Integration coverage for issue #227: cardinality-aware entity queries,
+//! Integration coverage for cardinality-aware targets,
 //! execution-scoped contexts, typed relationship traversal, and scoped
 //! bindings that preserve context across traversal.
 
 use std::sync::Mutex;
 
-use sand_core::entity::{EntityQuery, EntityScope, PlayerQuery};
+use sand_commands::Target;
+use sand_core::entity::{EntityScope, TargetExecution};
 use sand_core::version::{MinecraftVersion, VersionProfile};
 
 fn latest() -> VersionProfile {
@@ -20,7 +21,7 @@ static DYN_FN_REGISTRY_LOCK: Mutex<()> = Mutex::new(());
 fn each_lowers_query_iteration_without_a_manual_execute_chain() {
     // Acceptance: "Users can iterate a typed entity query without manually
     // writing an execute chain."
-    let cmds = EntityQuery::entities()
+    let cmds = Target::entities()
         .entity_type("minecraft:zombie")
         .without_tag("friendly")
         .within_blocks(15.0)
@@ -41,7 +42,7 @@ fn nested_relationship_traversal_retains_original_context() {
     // a specific item — tag the *original* bound entity, not the owner.
     let profile = latest();
 
-    let cmds = EntityQuery::entities()
+    let cmds = Target::entities()
         .entity_type("minecraft:arrow")
         .each(|arrow| {
             EntityScope::bind(arrow, |arrow_ref| {
@@ -108,7 +109,7 @@ fn version_gated_relation_fails_with_actionable_diagnostic_before_export() {
 
 #[test]
 fn player_query_each_narrows_to_player_context() {
-    let cmds = PlayerQuery::players()
+    let cmds = Target::players()
         .tag("ready")
         .nearest()
         .each(|player| vec![player.add_tag("chosen")]);
@@ -123,7 +124,7 @@ fn player_query_each_narrows_to_player_context() {
 fn passengers_relation_is_many_cardinality_and_iterates_via_each() {
     let _guard = DYN_FN_REGISTRY_LOCK.lock().unwrap();
     let profile = latest();
-    let cmds = EntityQuery::entities()
+    let cmds = Target::entities()
         .entity_type("minecraft:boat")
         .limit(1)
         .expect("a positive limit is valid")

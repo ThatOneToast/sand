@@ -18,7 +18,7 @@ use std::fmt;
 use crate::Build;
 use crate::error::{CommandError, CommandResult};
 use crate::render::{CommandProfile, RenderCommand, Validate};
-use crate::selector::Selector;
+use crate::selector::{Selector, Target, TargetArgument};
 use crate::text::TextComponent;
 use crate::validate;
 
@@ -29,9 +29,9 @@ use crate::validate;
 /// # Examples
 /// ```
 /// use sand_commands::scoreboard::ScoreHolder;
-/// use sand_commands::selector::Selector;
+/// use sand_commands::Target;
 ///
-/// let self_holder = ScoreHolder::entity(Selector::self_());
+/// let self_holder = ScoreHolder::entity(Target::self_());
 /// assert_eq!(self_holder.to_string(), "@s");
 ///
 /// let global = ScoreHolder::fake("#total_kills");
@@ -81,10 +81,10 @@ impl ScoreHolder {
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
         params(selector = "`selector` provides the Minecraft target selection used to create a score holder from an entity selector."),
         returns = "A `ScoreHolder` representing a score holder from an entity selector.",
-        example = "use sand::prelude::*;\n\nfn demonstrate(selector: sand::command::Selector)  {\n    let score_holder = sand::command::ScoreHolder::entity(selector);\n}",
+        example = "use sand::prelude::*;\n\nfn demonstrate(selector: sand::command::Target)  {\n    let score_holder = sand::command::ScoreHolder::entity(selector);\n}",
     )]
-    pub fn entity(selector: Selector) -> Self {
-        ScoreHolder(ScoreHolderKind::Entity(selector))
+    pub fn entity(selector: impl TargetArgument) -> Self {
+        ScoreHolder(ScoreHolderKind::Entity(selector.into_target_selector()))
     }
 
     /// Create a score holder from a named fake player.
@@ -153,7 +153,7 @@ impl ScoreHolder {
     /// A literal online-player name (e.g. `"Notch"`), independent of a
     /// selector or fake-player holder.
     ///
-    /// Validated by [`Selector::player`]'s player-name rules (1..=16 ASCII
+    /// Validated by [`Target::named_player`]'s player-name rules (1..=16 ASCII
     /// letters, digits, or `_`) — the same shape Minecraft accepts for a
     /// literal player-name score holder, kept distinct from
     /// [`ScoreHolder::fake`] so a real player name and a `#`-prefixed fake
@@ -165,8 +165,8 @@ impl ScoreHolder {
         module = "sand::command",
         kind = "method",
         summary = "A literal online-player name (e.g. `\"Notch\"`), independent of a selector or fake-player holder.",
-        context = "A literal online-player name (e.g. `\"Notch\"`), independent of a selector or fake-player holder. Validated by [`Selector::player`]'s player-name rules (1..=16 ASCII letters, digits, or `_`) — the same shape Minecraft accepts for a literal player-name score holder, kept distinct from [`ScoreHolder::fake`] so a real player name and a `#`-prefixed fake player are never confused.",
-        minecraft = "Validated by [`Selector::player`]'s player-name rules (1..=16 ASCII letters, digits, or `_`) — the same shape Minecraft accepts for a literal player-name score holder, kept distinct from [`ScoreHolder::fake`] so a real player name and a `#`-prefixed fake player are never confused.",
+        context = "A literal online-player name (e.g. `\"Notch\"`), independent of a selector or fake-player holder. Validated by [`Target::named_player`]'s player-name rules (1..=16 ASCII letters, digits, or `_`) — the same shape Minecraft accepts for a literal player-name score holder, kept distinct from [`ScoreHolder::fake`] so a real player name and a `#`-prefixed fake player are never confused.",
+        minecraft = "Validated by [`Target::named_player`]'s player-name rules (1..=16 ASCII letters, digits, or `_`) — the same shape Minecraft accepts for a literal player-name score holder, kept distinct from [`ScoreHolder::fake`] so a real player name and a `#`-prefixed fake player are never confused.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
         params(name = "`name` sets the author-visible text for a literal online-player name (e.g. `\"Notch\"`), independent of a selector or fake-player holder."),
@@ -174,7 +174,7 @@ impl ScoreHolder {
         example = "use sand::prelude::*;\n\nfn demonstrate(name: impl Into < String >)  {\n    let score_holder = sand::command::ScoreHolder::player(name);\n}",
     )]
     pub fn player(name: impl Into<String>) -> Self {
-        ScoreHolder::entity(Selector::player(name))
+        ScoreHolder::entity(Target::named_player(name))
     }
 
     /// `@s` — score holder for the entity executing the command.
@@ -345,6 +345,12 @@ impl RenderCommand for ScoreHolder {
 impl From<Selector> for ScoreHolder {
     fn from(selector: Selector) -> Self {
         Self::entity(selector)
+    }
+}
+
+impl<K, A> From<crate::selector::Target<K, A>> for ScoreHolder {
+    fn from(target: crate::selector::Target<K, A>) -> Self {
+        Self::entity(target.into_selector())
     }
 }
 
@@ -1880,10 +1886,10 @@ impl Objective {
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
         params(selector = "`selector` provides the Minecraft target selection used to create a `TextComponent` displaying this objective's value for an entity selector."),
         returns = "The `TextComponent` value produced to create a `TextComponent` displaying this objective's value for an entity selector.",
-        example = "use sand::prelude::*;\n\nfn demonstrate(objective_value: &sand::command::Objective, selector: sand::command::Selector)  {\n    let as_text = objective_value.as_text(selector);\n}",
+        example = "use sand::prelude::*;\n\nfn demonstrate(objective_value: &sand::command::Objective, selector: sand::command::Target)  {\n    let as_text = objective_value.as_text(selector);\n}",
     )]
-    pub fn as_text(&self, selector: Selector) -> TextComponent {
-        TextComponent::score(selector.to_string(), self.name())
+    pub fn as_text(&self, selector: impl TargetArgument) -> TextComponent {
+        TextComponent::score(selector.into_target_selector().to_string(), self.name())
     }
 
     /// Create a `TextComponent` displaying a fake player's score in this objective.

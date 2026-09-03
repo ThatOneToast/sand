@@ -18,7 +18,7 @@
 //!
 //! - [`ResourceLocation`] — validated `namespace:path` identifiers
 //! - [`DatapackComponent`] — trait implemented by all datapack element types
-//! - [`cmd`] — typed command builders (`Execute`, `Selector`, `SetBlock`, etc.)
+//! - [`cmd`] — typed command builders (`Execute`, `Target`, `SetBlock`, etc.)
 //!   plus auto-generated enums for `Item`, `Block`, `EntityType`, and more
 //! - [`components`] — advancements, recipes, loot tables, predicates, item
 //!   modifiers, tags, and custom items
@@ -36,7 +36,7 @@
 //! #[function]
 //! pub fn greet() {
 //!     cmd::tellraw(
-//!         Selector::all_players(),
+//!         Target::players(),
 //!         Text::new("Hello from Sand!").gold().bold(true),
 //!     );
 //! }
@@ -99,10 +99,10 @@ pub use sand_components::dialog::SAND_DIALOG_TRIGGER;
 
 pub use cmd::{
     Actionbar, BlockState, Bossbar, BossbarColor, BossbarStyle, CloneBlocks, CloneMaskMode,
-    CloneMode, Command, ConditionedExecute, Cooldown, EntityTargets, ExecuteExt, Fill, FillMode,
-    ItemSlot, NbtStoreKind, NbtValue, Objective, ObjectiveName, ParticleEffect, ParticleSpread,
-    PlayerTargets, RawCommand, RenderCommand, ScoreCmp, ScoreHolder, SetBlock, SetBlockMode,
-    SingleEntity, SinglePlayer, Sound, SoundSource, Storage, Title, TypedExecute, Validate,
+    CloneMode, Command, ConditionedExecute, Cooldown, ExecuteExt, Fill, FillMode, ItemSlot,
+    NbtStoreKind, NbtValue, Objective, ObjectiveName, ParticleEffect, ParticleSpread, RawCommand,
+    RenderCommand, ScoreCmp, ScoreHolder, SetBlock, SetBlockMode, Sound, SoundSource, Storage,
+    Target, Title, TypedExecute, Validate,
 };
 pub use component::try_export_components;
 pub use component::try_export_components_for_version;
@@ -493,10 +493,10 @@ pub use serde_json;
 ///
 /// With command builders:
 /// ```rust,ignore
-/// use sand_core::{mcfunction, cmd::Selector};
+/// use sand_core::{mcfunction, cmd::Target};
 /// let cmds = mcfunction![
 ///     sand_core::cmd::say("Welcome!");
-///     sand_core::cmd::kill(Selector::all_entities().tag("enemy"));
+///     sand_core::cmd::kill(Target::entities().tag("enemy"));
 /// ];
 /// ```
 #[macro_export]

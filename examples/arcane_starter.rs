@@ -49,7 +49,7 @@ pub fn load() {
     DASH.define();
     PLAYER_DATA.set_int(100);
     cmd::tellraw(
-        Selector::all_players(),
+        Target::players(),
         Text::new("[Arcane] Datapack loaded.").gold().bold(true),
     );
 }
@@ -68,7 +68,7 @@ pub fn tick() {
             DASH.ready("@s"),
         ])
         .run(Actionbar::show(
-            Selector::self_(),
+            Target::self_(),
             Text::new("Dash ready").aqua().bold(true),
         ));
 }
@@ -88,10 +88,10 @@ pub fn cast_dash() {
 /// Internal: actually apply the dash effect (called by cast_dash via function ref).
 #[function("arcane:cast_dash/execute")]
 pub fn cast_dash_execute() {
-    MANA.remove(Selector::self_(), 25);
-    DASH.start(Selector::self_());
+    MANA.remove(Target::self_(), 25);
+    DASH.start(Target::self_());
     cmd::tellraw(
-        Selector::self_(),
+        Target::self_(),
         Text::new("Dash cast!").gold(),
     );
 }
@@ -102,7 +102,7 @@ pub fn show_mana() {
     TypedExecute::as_players()
         .when(MANA.of("@s").gte(0))
         .run(cmd::tellraw(
-            Selector::self_(),
+            Target::self_(),
             Text::new("Your mana is available.").green(),
         ));
 }
@@ -124,7 +124,7 @@ pub fn welcome_dialog() -> Dialog {
 /// Opens the local welcome dialog for the current player.
 #[function("arcane:open_welcome_menu")]
 pub fn open_welcome_menu() {
-    cmd::show_dialog(Selector::self_(), DialogId::local("welcome"));
+    cmd::show_dialog(Target::self_(), DialogId::local("welcome"));
 }
 
 // -- Interop escape hatch --------------------------------------------------

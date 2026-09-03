@@ -5,7 +5,7 @@ use std::fmt;
 
 use crate::error::{CommandError, CommandResult};
 use crate::render::{CommandProfile, RenderCommand, Validate};
-use crate::selector::Selector;
+use crate::selector::{Selector, TargetArgument};
 use crate::text::TextComponent;
 
 #[sand_macros::api(
@@ -47,11 +47,11 @@ impl Title {
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
         params(selector = "`selector` provides the Minecraft target selection used to create a payload-oriented title builder."),
         returns = "A `Title` representing a payload-oriented title builder.",
-        example = "use sand::prelude::*;\n\nfn demonstrate(selector: sand::command::Selector)  {\n    let title = sand::command::Title::of(selector);\n}",
+        example = "use sand::prelude::*;\n\nfn demonstrate(selector: sand::command::Target)  {\n    let title = sand::command::Title::of(selector);\n}",
     )]
-    pub fn of(selector: Selector) -> Self {
+    pub fn of(selector: impl TargetArgument) -> Self {
         Self {
-            selector,
+            selector: selector.into_target_selector(),
             title: None,
             subtitle: None,
             actionbar: None,
@@ -224,10 +224,10 @@ impl Title {
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
         params(selector = "`selector` provides the Minecraft target selection used to render the Minecraft clear command for the selected title."),
         returns = "The rendered Minecraft command text produced to render the Minecraft clear command for the selected title.",
-        example = "use sand::prelude::*;\n\nfn demonstrate(selector: sand::command::Selector)  {\n    let command = sand::command::Title::clear(selector);\n}",
+        example = "use sand::prelude::*;\n\nfn demonstrate(selector: sand::command::Target)  {\n    let command = sand::command::Title::clear(selector);\n}",
     )]
-    pub fn clear(selector: Selector) -> String {
-        TitleCommand::Clear(selector).build_registered()
+    pub fn clear(selector: impl TargetArgument) -> String {
+        TitleCommand::Clear(selector.into_target_selector()).build_registered()
     }
 
     /// Renders the Minecraft reset command for the selected title.
@@ -244,10 +244,10 @@ impl Title {
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
         params(selector = "`selector` provides the Minecraft target selection used to render the Minecraft reset command for the selected title."),
         returns = "The rendered Minecraft command text produced to render the Minecraft reset command for the selected title.",
-        example = "use sand::prelude::*;\n\nfn demonstrate(selector: sand::command::Selector)  {\n    let command = sand::command::Title::reset(selector);\n}",
+        example = "use sand::prelude::*;\n\nfn demonstrate(selector: sand::command::Target)  {\n    let command = sand::command::Title::reset(selector);\n}",
     )]
-    pub fn reset(selector: Selector) -> String {
-        TitleCommand::Reset(selector).build_registered()
+    pub fn reset(selector: impl TargetArgument) -> String {
+        TitleCommand::Reset(selector.into_target_selector()).build_registered()
     }
 }
 
@@ -312,11 +312,11 @@ impl TitleTimes {
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
         params(selector = "`selector` provides the Minecraft target selection used to create a typed title times command builder from the supplied command inputs.", fade_in = "`fade_in` is used when creating a typed title times command builder from the supplied command inputs.", stay = "`stay` is used when creating a typed title times command builder from the supplied command inputs.", fade_out = "`fade_out` is used when creating a typed title times command builder from the supplied command inputs."),
         returns = "A `TitleTimes` representing a typed title times command builder from the supplied command inputs.",
-        example = "use sand::prelude::*;\n\nfn demonstrate(selector: sand::command::Selector, fade_in: u32, stay: u32, fade_out: u32)  {\n    let title_times = sand::command::TitleTimes::new(selector, fade_in, stay, fade_out);\n}",
+        example = "use sand::prelude::*;\n\nfn demonstrate(selector: sand::command::Target, fade_in: u32, stay: u32, fade_out: u32)  {\n    let title_times = sand::command::TitleTimes::new(selector, fade_in, stay, fade_out);\n}",
     )]
-    pub fn new(selector: Selector, fade_in: u32, stay: u32, fade_out: u32) -> Self {
+    pub fn new(selector: impl TargetArgument, fade_in: u32, stay: u32, fade_out: u32) -> Self {
         Self {
-            selector,
+            selector: selector.into_target_selector(),
             fade_in,
             stay,
             fade_out,
@@ -430,7 +430,7 @@ impl Actionbar {
     /// ```
     /// use sand_commands::{Actionbar, Selector, Text};
     ///
-    /// let command = Actionbar::show(Selector::self_(), Text::new("Ready").green());
+    /// let command = Actionbar::show(Target::self_(), Text::new("Ready").green());
     /// assert!(command.starts_with("title @s actionbar "));
     /// assert!(command.contains("Ready"));
     /// ```
@@ -448,11 +448,11 @@ impl Actionbar {
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
         params(selector = "`selector` identifies the players whose actionbar is updated. `text` is the typed text component serialized into the command's JSON payload.", text = "`selector` identifies the players whose actionbar is updated. `text` is the typed text component serialized into the command's JSON payload."),
         returns = "The rendered Minecraft command text produced to render the Minecraft show command for the selected actionbar.",
-        example = "use {sand::command::Actionbar, sand::command::Selector, sand::text::Text};\nlet command = Actionbar::show(Selector::self_(), Text::new(\"Ready\").green());\nassert!(command.starts_with(\"title @s actionbar \"));\nassert!(command.contains(\"Ready\"));",
+        example = "use {sand::command::Actionbar, sand::command::Target, sand::text::Text};\nlet command = Actionbar::show(Target::self_(), Text::new(\"Ready\").green());\nassert!(command.starts_with(\"title @s actionbar \"));\nassert!(command.contains(\"Ready\"));",
     )]
-    pub fn show(selector: Selector, text: TextComponent) -> String {
+    pub fn show(selector: impl TargetArgument, text: TextComponent) -> String {
         TitleCommand::Actionbar {
-            selector,
+            selector: selector.into_target_selector(),
             text: Box::new(text),
         }
         .build_registered()
@@ -1021,12 +1021,12 @@ impl Bossbar {
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
         params(id = "`id` provides the typed resource identifier or location used to render the Minecraft command that sets players for the selected bossbar.", players = "`players` provides the Minecraft target selection used to render the Minecraft command that sets players for the selected bossbar."),
         returns = "The rendered Minecraft command text produced to render the Minecraft command that sets players for the selected bossbar.",
-        example = "use sand::prelude::*;\n\nfn demonstrate(id: impl sand::command::IntoBossbarId, players: sand::command::Selector)  {\n    let command = sand::command::Bossbar::set_players(id, players);\n}",
+        example = "use sand::prelude::*;\n\nfn demonstrate(id: impl sand::command::IntoBossbarId, players: sand::command::Target)  {\n    let command = sand::command::Bossbar::set_players(id, players);\n}",
     )]
-    pub fn set_players(id: impl IntoBossbarId, players: Selector) -> String {
+    pub fn set_players(id: impl IntoBossbarId, players: impl TargetArgument) -> String {
         BossbarCommand::SetPlayers {
             id: id.into_bossbar_id(),
-            players,
+            players: players.into_target_selector(),
         }
         .build_registered()
     }

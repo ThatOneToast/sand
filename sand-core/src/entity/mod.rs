@@ -1,5 +1,5 @@
-//! Cardinality-aware entity queries, execution-scoped entity contexts, and
-//! typed vanilla relationship traversal.
+//! Canonical targets, execution-scoped entity contexts, and typed vanilla
+//! relationship traversal.
 //!
 //! This module is the foundation issue #227 adds ahead of #228 (entity
 //! operations/blueprints/state), #229 (item model), and #230 (event
@@ -7,16 +7,14 @@
 //!
 //! # Quick start
 //! ```
-//! use sand_core::entity::EntityQuery;
-//! use sand_commands::selector::SortOrder;
+//! use sand_commands::Target;
+//! use sand_core::entity::TargetExecution;
 //!
-//! let cmds = EntityQuery::entities()
+//! let cmds = Target::entities()
 //!     .entity_type("minecraft:zombie")
 //!     .without_tag("friendly")
 //!     .within_blocks(15.0)
-//!     .sort(SortOrder::Nearest)
-//!     .limit(1)
-//!     .expect("a positive limit is valid")
+//!     .nearest()
 //!     .each(|entity| vec![entity.add_tag("observed")]);
 //!
 //! assert!(cmds[0].starts_with("execute as @e["));
@@ -24,11 +22,8 @@
 //!
 //! # Concepts
 //!
-//! - [`EntityQuery`] / [`PlayerQuery`] — cardinality-aware query builders on
-//!   top of [`sand_commands::selector`]'s arity-typed selectors. Filtering
-//!   methods are available while cardinality is [`sand_commands::selector::Many`];
-//!   [`EntityQuery::limit`]/[`EntityQuery::nearest`] narrow to
-//!   [`sand_commands::selector::One`].
+//! - [`sand_commands::Target`] — the one cardinality-aware entity/player
+//!   selection model. [`TargetExecution`] adds state filtering and iteration.
 //! - [`EntityContext`] — the execution-scoped "current entity" (`@s`) handle
 //!   passed into a query's `.each(...)` closure. It is **not** a persistent
 //!   entity reference; see its docs for what that means.
@@ -71,10 +66,7 @@ pub use property::{
     RawEntityStateField, RawPropertyAccess, RawStateBackend, RefreshPolicy, TagBinding,
     TeamBinding,
 };
-pub use query::{
-    EntityQueries, EntityQuery, PlayerQueries, PlayerQuery, SingleEntityQuery, SinglePlayerQuery,
-    StateQueryOperations,
-};
+pub use query::{StateQueryOperations, TargetExecution};
 pub use relation::{Relation, RelationQuery};
 pub use state::{
     Data, EntityCooldown, EntityCooldownAccessor, EntityEnum, EntityEnumAccessor, EntityEnumValue,

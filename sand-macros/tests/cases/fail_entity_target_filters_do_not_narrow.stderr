@@ -1,15 +1,21 @@
-error[E0308]: mismatched types
- --> tests/cases/fail_entity_target_filters_do_not_narrow.rs:9:15
+error[E0277]: the trait bound `sand::prelude::Target: sand_commands::selector::SingleTargetArgument` is not satisfied
+ --> tests/cases/fail_entity_target_filters_do_not_narrow.rs:7:9
   |
-9 |     needs_one(EntityTargets::all().tag("elite").within_blocks(8.0));
-  |     --------- ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ expected `EntityTarget<One>`, found `EntityTarget<Many>`
-  |     |
-  |     arguments to this function are incorrect
+6 |     let _ = cmd::damage(
+  |             ----------- required by a bound introduced by this call
+7 |         Target::entities().tag("elite").within_blocks(8.0),
+  |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ the trait `sand_commands::selector::SingleTargetArgument` is not implemented for `sand::prelude::Target`
   |
-  = note: expected struct `EntityTarget<One>`
-             found struct `EntityTarget<Many>`
-note: function defined here
- --> tests/cases/fail_entity_target_filters_do_not_narrow.rs:3:4
+help: the following other types implement trait `sand_commands::selector::SingleTargetArgument`
+ --> $WORKSPACE/sand-commands/src/selector.rs
   |
-3 | fn needs_one(_target: SingleEntity) {}
-  |    ^^^^^^^^^ ---------------------
+  | impl SingleTargetArgument for Target<AnyTarget, One> {}
+  | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ `sand::prelude::Target<sand_commands::selector::AnyTarget, sand_commands::selector::One>`
+...
+  | impl SingleTargetArgument for Target<PlayersOnly, One> {}
+  | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ `sand::prelude::Target<sand_commands::selector::PlayersOnly, sand_commands::selector::One>`
+note: required by a bound in `damage`
+ --> $OUT_DIR[sand-core]/commands.rs
+  |
+  | pub fn damage(target: impl SingleTargetArgument, amount: f32) -> Damage {
+  |                            ^^^^^^^^^^^^^^^^^^^^ required by this bound in `damage`

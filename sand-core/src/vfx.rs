@@ -24,7 +24,7 @@
 //!
 //! #[function]
 //! pub fn level_up() {
-//!     for cmd in level_up_vfx().play_at(Selector::self_()) {
+//!     for cmd in level_up_vfx().play_at(Target::self_()) {
 //!         cmd;
 //!     }
 //! }
@@ -34,7 +34,7 @@ use crate::cmd::{
     Build, CommandProfile, Execute, Particle, ParticleBuilder, ParticleSpread, RawCommand,
     RenderCommand, Selector, Sound, SoundSource, Validate, Vec3,
 };
-use sand_commands::{CommandResult, IntoParticleId, IntoSoundEvent};
+use sand_commands::{CommandResult, IntoParticleId, IntoSoundEvent, TargetArgument};
 use sand_macros::api;
 
 /// A reusable group of visual/audio commands.
@@ -230,9 +230,10 @@ impl Vfx {
         avoid_when = ["Broadcasting a sound to an audience without changing position; use play_for"],
         params(target = "The selector whose execution positions receive the effect."),
         returns = "Ordered command lines wrapped for the selected positions.",
-        example = "let commands = Vfx::new(\"spark\").play_at(Selector::self_());"
+        example = "let commands = Vfx::new(\"spark\").play_at(Target::self_());"
     )]
-    pub fn play_at(&self, target: Selector) -> Vec<String> {
+    pub fn play_at(&self, target: impl TargetArgument) -> Vec<String> {
+        let target = target.into_target_selector();
         self.steps
             .iter()
             .flat_map(|step| step.render_at(&target))
@@ -253,9 +254,10 @@ impl Vfx {
         avoid_when = ["Moving the effect to each selected entity; use play_at"],
         params(audience = "The selector that receives sound steps."),
         returns = "Ordered command lines for the requested audience.",
-        example = "let commands = Vfx::new(\"ding\").play_for(Selector::all_players());"
+        example = "let commands = Vfx::new(\"ding\").play_for(Target::players());"
     )]
-    pub fn play_for(&self, audience: Selector) -> Vec<String> {
+    pub fn play_for(&self, audience: impl TargetArgument) -> Vec<String> {
+        let audience = audience.into_target_selector();
         self.steps
             .iter()
             .flat_map(|step| step.render_for(&audience))
@@ -732,10 +734,10 @@ impl VfxSound {
         avoid_when = ["Moving the particle or raw-command execution position"],
         params(audience = "The selector that should receive the sound."),
         returns = "This sound step with the requested default audience.",
-        example = "let step = VfxSound::new(\"minecraft:block.note_block.bell\").to(Selector::all_players());"
+        example = "let step = VfxSound::new(\"minecraft:block.note_block.bell\").to(Target::players());"
     )]
-    pub fn to(mut self, audience: Selector) -> Self {
-        self.audience = Some(audience);
+    pub fn to(mut self, audience: impl TargetArgument) -> Self {
+        self.audience = Some(audience.into_target_selector());
         self
     }
 

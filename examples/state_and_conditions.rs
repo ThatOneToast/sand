@@ -12,8 +12,8 @@ pub fn load_state() {
     MANA.define();
     CASTING.define();
     DASH.define();
-    MANA.set(Selector::all_players(), 100);
-    CASTING.disable(Selector::all_players());
+    MANA.set(Target::players(), 100);
+    CASTING.disable(Target::players());
 }
 
 #[datapack_component(Tick)]
@@ -39,7 +39,7 @@ pub fn try_dash() {
             ],
         ])
         .run(Actionbar::show(
-            Selector::self_(),
+            Target::self_(),
             Text::new("Dash ready").aqua(),
         ));
 }

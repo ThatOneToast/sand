@@ -58,9 +58,9 @@ pub fn tick() {
 /// Demonstrates `run_fn!` — calls an inline function via execute.
 #[function]
 pub fn execute_example() {
-    use sand_core::cmd::{self, Execute, Selector};
+    use sand_core::cmd::{self, Execute, Target};
     Execute::new()
-        .as_(Selector::all_players())
+        .as_(Target::all_players())
         .run(run_fn!("hello_world:greet_inline" {
             cmd::raw("say Welcome from the inline function!");
         }));
@@ -72,9 +72,9 @@ pub fn execute_example() {
 /// panic and produces the expected fully-namespaced function ID.
 #[function]
 pub fn execute_path_only_example() {
-    use sand_core::cmd::{self, Execute, Selector};
+    use sand_core::cmd::{self, Execute, Target};
     Execute::new()
-        .as_(Selector::all_players())
+        .as_(Target::all_players())
         .run(run_fn!("helpers/path_only_greet" {
             cmd::raw("say Welcome from the path-only inline function!");
         }));
@@ -86,8 +86,8 @@ pub fn execute_path_only_example() {
 /// one explicitly.
 #[function]
 pub fn execute_anonymous_example() {
-    use sand_core::cmd::{self, Execute, Selector};
-    Execute::new().as_(Selector::all_players()).run(run_fn!({
+    use sand_core::cmd::{self, Execute, Target};
+    Execute::new().as_(Target::all_players()).run(run_fn!({
         cmd::raw("say Welcome from the anonymous inline function!");
     }));
 }

@@ -5,7 +5,7 @@ use std::fmt;
 use std::marker::PhantomData;
 
 use crate::condition::Condition;
-use sand_commands::{BlockPos, DataTarget, Selector};
+use sand_commands::{BlockPos, DataTarget, Selector, TargetArgument};
 use sand_components::{RawSnbt, ResourceLocation};
 
 pub use sand_commands::{
@@ -139,10 +139,12 @@ impl EntityNbt {
         avoid_when = ["A scoreboard-backed state field is simpler, or the input is untrusted raw SNBT"],
         params(target = "`target` provides the entity, block, or command target used to create an entity NBT root bound to the supplied selector."),
         returns = "An `EntityNbt` representing an entity NBT root bound to the supplied selector.",
-        example = "use sand::prelude::*;\n\nfn demonstrate(target: sand::command::Selector)  {\n    let entity_nbt = sand::data::EntityNbt::target(target);\n}",
+        example = "use sand::prelude::*;\n\nfn demonstrate(target: sand::command::Target)  {\n    let entity_nbt = sand::data::EntityNbt::target(target);\n}",
     )]
-    pub fn target(target: Selector) -> Self {
-        Self { target }
+    pub fn target(target: impl TargetArgument) -> Self {
+        Self {
+            target: target.into_target_selector(),
+        }
     }
 
     /// Extends this typed NBT reference with the supplied path selector.
@@ -877,10 +879,10 @@ impl<Schema, T> StorageField<Schema, T> {
     /// `data modify storage <s> <path> set from entity <entity> <src_path>`
     ///
     /// Copy a value from entity NBT into this field. Takes a typed
-    /// [`Selector`] — never build this by stringifying a participant handle
-    /// yourself; pass [`Selector::self_()`] from inside an
+    /// [`Target`] — never build this by stringifying a participant handle
+    /// yourself; pass [`Target::self_()`] from inside an
     /// [`crate::participant::EntityParticipant::execute_at`] callback (or any
-    /// other typed selector) instead.
+    /// other typed target) instead.
     #[sand_macros::api(
         registry = sand_api_contract,
         path = "sand::data::StorageField::copy_from_entity",
@@ -888,15 +890,19 @@ impl<Schema, T> StorageField<Schema, T> {
         module = "sand::data",
         kind = "method",
         summary = "`data modify storage <s> <path> set from entity <entity> <src_path>`",
-        context = "`data modify storage <s> <path> set from entity <entity> <src_path>` Copy a value from entity NBT into this field. Takes a typed [`Selector`] — never build this by stringifying a participant handle yourself; pass [`Selector::self_()`] from inside an [`sand::participant::EntityParticipant::execute_at`] callback (or any other typed selector) instead.",
-        minecraft = "Copy a value from entity NBT into this field. Takes a typed [`Selector`] — never build this by stringifying a participant handle yourself; pass [`Selector::self_()`] from inside an [`sand::participant::EntityParticipant::execute_at`] callback (or any other typed selector) instead.",
+        context = "`data modify storage <s> <path> set from entity <entity> <src_path>` Copy a value from entity NBT into this field. Takes a typed [`Target`] — never build this by stringifying a participant handle yourself; pass [`Target::self_()`] from inside an [`sand::participant::EntityParticipant::execute_at`] callback (or any other typed target) instead.",
+        minecraft = "Copy a value from entity NBT into this field. Takes a typed [`Target`] — never build this by stringifying a participant handle yourself; pass [`Target::self_()`] from inside an [`sand::participant::EntityParticipant::execute_at`] callback (or any other typed target) instead.",
         use_when = ["Reading or mutating structured Minecraft NBT through typed paths and values"],
         avoid_when = ["A scoreboard-backed state field is simpler, or the input is untrusted raw SNBT"],
         params(entity = "`entity` provides the entity participant or predicate used to emit the documented `data modify storage <s> <path> set from entity <entity> <src_path>` form.", src_path = "`src_path` supplies the documented `data modify storage <s> <path> set from entity <entity> <src_path>` form."),
         returns = "The string value produced to emit the documented `data modify storage <s> <path> set from entity <entity> <src_path>` form.",
-        example = "use sand::prelude::*;\n\nfn demonstrate<Schema: 'static, T: 'static>(storage_field_value: &sand::data::StorageField < Schema , T >, entity: sand::command::Selector, src_path: impl Into < String >)  {\n    let copy_from_entity = storage_field_value.copy_from_entity(entity, src_path);\n}",
+        example = "use sand::prelude::*;\n\nfn demonstrate<Schema: 'static, T: 'static>(storage_field_value: &sand::data::StorageField < Schema , T >, entity: sand::command::Target, src_path: impl Into < String >)  {\n    let copy_from_entity = storage_field_value.copy_from_entity(entity, src_path);\n}",
     )]
-    pub fn copy_from_entity(&self, entity: Selector, src_path: impl Into<String>) -> String {
+    pub fn copy_from_entity(
+        &self,
+        entity: impl TargetArgument,
+        src_path: impl Into<String>,
+    ) -> String {
         let source = Nbt::entity(entity).path(src_path.into());
         self.path().copy_from(&source).to_string()
     }

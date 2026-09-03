@@ -3,14 +3,14 @@
 //! # Example
 //! ```rust,ignore
 //! let cmd = Sound::play("minecraft:entity.experience_orb.pickup")
-//!     .to(Selector::self_())
+//!     .to(Target::self_())
 //!     .source(SoundSource::Player)
 //!     .volume(1.0)
 //!     .pitch(1.2)
 //!     .build();
 //! // → "playsound minecraft:entity.experience_orb.pickup player @s ~ ~ ~ 1 1.2"
 //!
-//! let cmd = Sound::stop_all(Selector::all_players());
+//! let cmd = Sound::stop_all(Target::players());
 //! // → "stopsound @a"
 //! ```
 
@@ -21,7 +21,7 @@ use crate::Build;
 use crate::coord::Vec3;
 use crate::error::{CommandError, CommandResult};
 use crate::render::{CommandProfile, RenderCommand, Validate};
-use crate::selector::Selector;
+use crate::selector::{Selector, TargetArgument};
 
 // ── SoundSource ───────────────────────────────────────────────────────────────
 
@@ -221,10 +221,10 @@ impl Sound {
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
         params(selector = "`selector` provides the Minecraft target selection used to set the target entity/player who hears the sound (default: `@s`)."),
         returns = "The `Sound` value with the documented change applied to set the target entity/player who hears the sound (default: `@s`).",
-        example = "use sand::prelude::*;\n\nfn demonstrate(sound_value: sand::command::Sound, selector: sand::command::Selector)  {\n    let updated_sound = sound_value.to(selector);\n}",
+        example = "use sand::prelude::*;\n\nfn demonstrate(sound_value: sand::command::Sound, selector: sand::command::Target)  {\n    let updated_sound = sound_value.to(selector);\n}",
     )]
-    pub fn to(mut self, selector: Selector) -> Self {
-        self.target = Some(selector);
+    pub fn to(mut self, selector: impl TargetArgument) -> Self {
+        self.target = Some(selector.into_target_selector());
         self
     }
 
@@ -349,10 +349,13 @@ impl Sound {
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
         params(target = "`target` provides the entity, block, or command target used to emit the documented `stopsound <selector>` — stop all sounds playing for the target form."),
         returns = "The string value produced to emit the documented `stopsound <selector>` — stop all sounds playing for the target form.",
-        example = "use sand::prelude::*;\n\nfn demonstrate(target: sand::command::Selector)  {\n    let stop_all = sand::command::Sound::stop_all(target);\n}",
+        example = "use sand::prelude::*;\n\nfn demonstrate(target: sand::command::Target)  {\n    let stop_all = sand::command::Sound::stop_all(target);\n}",
     )]
-    pub fn stop_all(target: Selector) -> String {
-        StopSoundCommand::All { target }.build_registered()
+    pub fn stop_all(target: impl TargetArgument) -> String {
+        StopSoundCommand::All {
+            target: target.into_target_selector(),
+        }
+        .build_registered()
     }
 
     /// `stopsound <selector> <source>` — stop all sounds in a specific category.
@@ -369,10 +372,14 @@ impl Sound {
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
         params(target = "`target` provides the entity, block, or command target used to emit the documented `stopsound <selector> <source>` — stop all sounds in a specific category form.", source = "`source` supplies the documented `stopsound <selector> <source>` — stop all sounds in a specific category form."),
         returns = "The string value produced to emit the documented `stopsound <selector> <source>` — stop all sounds in a specific category form.",
-        example = "use sand::prelude::*;\n\nfn demonstrate(target: sand::command::Selector, source: sand::command::SoundSource)  {\n    let stop_source = sand::command::Sound::stop_source(target, source);\n}",
+        example = "use sand::prelude::*;\n\nfn demonstrate(target: sand::command::Target, source: sand::command::SoundSource)  {\n    let stop_source = sand::command::Sound::stop_source(target, source);\n}",
     )]
-    pub fn stop_source(target: Selector, source: SoundSource) -> String {
-        StopSoundCommand::Source { target, source }.build_registered()
+    pub fn stop_source(target: impl TargetArgument, source: SoundSource) -> String {
+        StopSoundCommand::Source {
+            target: target.into_target_selector(),
+            source,
+        }
+        .build_registered()
     }
 
     /// `stopsound <selector> <source> <event>` — stop a specific sound for the target.
@@ -389,11 +396,15 @@ impl Sound {
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
         params(target = "`target` provides the entity, block, or command target used to emit the documented `stopsound <selector> <source> <event>` — stop a specific sound for the target form.", source = "`source` supplies the documented `stopsound <selector> <source> <event>` — stop a specific sound for the target form.", event = "`event` supplies the documented `stopsound <selector> <source> <event>` — stop a specific sound for the target form."),
         returns = "The string value produced to emit the documented `stopsound <selector> <source> <event>` — stop a specific sound for the target form.",
-        example = "use sand::prelude::*;\n\nfn demonstrate(target: sand::command::Selector, source: sand::command::SoundSource, event: impl Into < String >)  {\n    let stop_event = sand::command::Sound::stop_event(target, source, event);\n}",
+        example = "use sand::prelude::*;\n\nfn demonstrate(target: sand::command::Target, source: sand::command::SoundSource, event: impl Into < String >)  {\n    let stop_event = sand::command::Sound::stop_event(target, source, event);\n}",
     )]
-    pub fn stop_event(target: Selector, source: SoundSource, event: impl Into<String>) -> String {
+    pub fn stop_event(
+        target: impl TargetArgument,
+        source: SoundSource,
+        event: impl Into<String>,
+    ) -> String {
         StopSoundCommand::Event {
-            target,
+            target: target.into_target_selector(),
             source,
             event: event.into(),
             raw_event: false,
@@ -415,9 +426,13 @@ impl Sound {
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
         params(target = "`target` provides the entity, block, or command target used to use compatibility alias for [`Sound::stop_event`].", source = "`source` sets the source for compatibility alias for [`Sound::stop_event`].", event = "`event` sets the event for compatibility alias for [`Sound::stop_event`]."),
         returns = "The string value produced to use compatibility alias for [`Sound::stop_event`].",
-        example = "use sand::prelude::*;\n\nfn demonstrate(target: sand::command::Selector, source: sand::command::SoundSource, event: impl Into < String >)  {\n    let stop = sand::command::Sound::stop(target, source, event);\n}",
+        example = "use sand::prelude::*;\n\nfn demonstrate(target: sand::command::Target, source: sand::command::SoundSource, event: impl Into < String >)  {\n    let stop = sand::command::Sound::stop(target, source, event);\n}",
     )]
-    pub fn stop(target: Selector, source: SoundSource, event: impl Into<String>) -> String {
+    pub fn stop(
+        target: impl TargetArgument,
+        source: SoundSource,
+        event: impl Into<String>,
+    ) -> String {
         Self::stop_event(target, source, event)
     }
 
@@ -435,15 +450,15 @@ impl Sound {
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
         params(target = "`target` provides the entity, block, or command target used to stop a sound with an intentionally opaque event token.", source = "`source` is used to stop a sound with an intentionally opaque event token.", event = "`event` is used to stop a sound with an intentionally opaque event token."),
         returns = "The string value produced to stop a sound with an intentionally opaque event token.",
-        example = "use sand::prelude::*;\n\nfn demonstrate(target: sand::command::Selector, source: sand::command::SoundSource, event: impl Into < String >)  {\n    let stop_event_raw = sand::command::Sound::stop_event_raw(target, source, event);\n}",
+        example = "use sand::prelude::*;\n\nfn demonstrate(target: sand::command::Target, source: sand::command::SoundSource, event: impl Into < String >)  {\n    let stop_event_raw = sand::command::Sound::stop_event_raw(target, source, event);\n}",
     )]
     pub fn stop_event_raw(
-        target: Selector,
+        target: impl TargetArgument,
         source: SoundSource,
         event: impl Into<String>,
     ) -> String {
         StopSoundCommand::Event {
-            target,
+            target: target.into_target_selector(),
             source,
             event: event.into(),
             raw_event: true,

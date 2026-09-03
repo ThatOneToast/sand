@@ -26,10 +26,10 @@ impl AdvancementEvent for AteChorusFruitEvent {
 
 #[function]
 pub fn apply_strength_buff() {
-    cmd::effect_give(Selector::self_(), EffectId::Strength)
+    cmd::effect_give(Target::self_(), EffectId::Strength)
         .seconds(30)
         .amplifier(0);
-    cmd::tellraw(Selector::self_(), Text::new("Strength granted!").red());
+    cmd::tellraw(Target::self_(), Text::new("Strength granted!").red());
 }
 
 #[on_event]

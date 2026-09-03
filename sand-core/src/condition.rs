@@ -374,7 +374,7 @@ impl Condition {
     /// Condition on an entity selector.
     ///
     /// ```rust,ignore
-    /// let c = Condition::entity(Selector::self_().tag("ready"));
+    /// let c = Condition::entity(Target::self_().tag("ready"));
     /// ```
     #[sand_macros::api(
         registry = sand_api_contract,
@@ -388,9 +388,9 @@ impl Condition {
         avoid_when = ["Commands must execute as or at each matched entity", "An unchecked raw selector fragment is required"],
         params(selector = "The typed entity selector whose match set is tested for existence."),
         returns = "A condition that succeeds when the selector matches at least one entity.",
-        example = "Condition::entity(Selector::all_players().tag(\"ready\"))"
+        example = "Condition::entity(Target::players().tag(\"ready\"))"
     )]
-    pub fn entity(selector: sand_commands::Selector) -> Self {
+    pub fn entity(selector: impl sand_commands::TargetArgument) -> Self {
         Self::entity_raw(selector.to_string())
     }
 

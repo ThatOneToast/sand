@@ -10,8 +10,8 @@ pub fn load() {
 
 #[function]
 pub fn reward() {
-    MANA.add(Selector::self_(), 10);
-    cmd::tellraw(Selector::self_(), Text::new("+10 mana").aqua());
+    MANA.add(Target::self_(), 10);
+    cmd::tellraw(Target::self_(), Text::new("+10 mana").aqua());
 }
 
 fn main() {

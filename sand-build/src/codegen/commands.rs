@@ -66,7 +66,7 @@ fn parser_str(node: &Value) -> &str {
 // ---------------------------------------------------------------------------
 
 /// Returns (param_type, stored_type, needs_into)
-/// `needs_into` means the param uses `impl Into<String>` and the field is `String`.
+/// `needs_into` means the public parameter converts into the stored IR type.
 fn map_parser(parser: &str) -> (&'static str, &'static str, bool) {
     // Types are referenced without `crate::` prefix because the generated code
     // is included inside a module with `use super::*` bringing cmd types into scope.
@@ -75,7 +75,7 @@ fn map_parser(parser: &str) -> (&'static str, &'static str, bool) {
         "brigadier:integer" => ("i32", "i32", false),
         "brigadier:float" => ("f32", "f32", false),
         "brigadier:double" => ("f64", "f64", false),
-        "minecraft:entity" | "minecraft:game_profile" => ("Selector", "Selector", false),
+        "minecraft:entity" | "minecraft:game_profile" => ("impl TargetArgument", "Selector", true),
         "minecraft:block_pos" | "minecraft:column_pos" => ("BlockPos", "BlockPos", false),
         "minecraft:vec3" => ("Vec3", "Vec3", false),
         "minecraft:vec2" => ("Vec2", "Vec2", false),
@@ -100,7 +100,7 @@ fn map_parser(parser: &str) -> (&'static str, &'static str, bool) {
 
 fn map_arg_parser(literals: &[&str], arg: &ArgInfo) -> (&'static str, &'static str, bool) {
     if literals == ["damage"] && arg.name == "target" && arg.parser == "minecraft:entity" {
-        return ("impl Into<SingleEntity>", "SingleEntity", true);
+        return ("impl SingleTargetArgument", "SingleEntity", true);
     }
 
     map_parser(&arg.parser)
@@ -870,8 +870,8 @@ mod tests {
         assert!(!n);
 
         let (p, _s, n) = map_parser("minecraft:entity");
-        assert_eq!(p, "Selector");
-        assert!(!n);
+        assert_eq!(p, "impl TargetArgument");
+        assert!(n);
 
         let (p, s, n) = map_parser("minecraft:message");
         assert_eq!(p, "impl Into<String>");

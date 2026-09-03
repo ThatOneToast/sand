@@ -81,7 +81,7 @@ fn heal_commands() -> Vec<String> {
     let has_mana = MANA.of("@s").gte(20);
 
     TypedExecute::as_self_at_self().when(has_mana).run(
-        cmd::effect_give(Selector::self_(), EffectId::Regeneration)
+        cmd::effect_give(Target::self_(), EffectId::Regeneration)
             .seconds(5)
             .amplifier(2),
     )

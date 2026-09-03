@@ -59,7 +59,7 @@ pub fn discover_oasis() {
     let state = PlayerState::on(PlayerContext::default());
     state.discoveries.add(1);
     cmd::tellraw(
-        Selector::self_(),
+        Target::self_(),
         Text::new("Oasis discovered!").gold().bold(true),
     );
 }

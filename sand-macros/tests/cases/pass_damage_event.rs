@@ -20,7 +20,7 @@ impl DamageAdvancementEvent for HurtEvent {}
 pub fn on_hurt(event: DamageEvent<HurtEvent>) {
     event
         .reflect_damage()
-        .to(EntityTargets::nearby(5.0).excluding_players().excluding_self())
+        .to(Target::nearby(5.0).excluding_players().excluding_self())
         .amount(DamageAmount::fixed(4.0))
         .damage_type(DamageKind::Generic)
         .run();

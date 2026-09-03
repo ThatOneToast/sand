@@ -418,7 +418,7 @@ impl<E> Event<E> {
         }
     }
 
-    /// Returns `Selector::self_()` — the player who triggered the event.
+    /// Returns `Target::self_()` — the player who triggered the event.
     ///
     /// `@s` is the player selected by the advancement reward or generated
     /// per-player dispatcher.
@@ -428,35 +428,35 @@ impl<E> Event<E> {
         aliases = ["sand::prelude::Event::player"],
         module = "sand::event",
         kind = "method",
-        summary = "Returns `Selector::self_()` — the player who triggered the event.",
-        context = "Returns `Selector::self_()` — the player who triggered the event. `@s` is the player selected by the advancement reward or generated per-player dispatcher.",
+        summary = "Returns `Target::self_()` — the player who triggered the event.",
+        context = "Returns `Target::self_()` — the player who triggered the event. `@s` is the player selected by the advancement reward or generated per-player dispatcher.",
         minecraft = "Resolves to the reward function's @s player, not an arbitrary entity.",
         use_when = ["Defining, composing, or handling a typed Sand event"],
         avoid_when = ["Inspecting generated advancement or event-graph implementation state"],
-        returns = "Returns `Selector::self_()` — the player who triggered the event.",
+        returns = "Returns `Target::self_()` — the player who triggered the event.",
         example = "use sand::prelude::*;\n\nfn demonstrate<E: 'static>(event_value: &sand::event::Event < E >)  {\n    let player = event_value.player();\n}",
     )]
-    pub fn player(&self) -> sand_commands::Selector {
-        sand_commands::Selector::self_()
+    pub fn player(&self) -> sand_commands::Target<sand_commands::PlayersOnly, sand_commands::One> {
+        sand_commands::Target::current_player()
     }
 
-    /// Returns `Selector::self_()` — alias for [`player`](Event::player).
+    /// Returns `Target::self_()` — alias for [`player`](Event::player).
     #[sand_macros::api(
         registry = sand_api_contract,
         path = "sand::event::Event::subject",
         aliases = ["sand::prelude::Event::subject"],
         module = "sand::event",
         kind = "method",
-        summary = "Returns `Selector::self_()` — alias for [`player`](Event::player).",
-        context = "Returns `Selector::self_()` — alias for [`player`](Event::player). This typed event API is part of Sand's author-facing event model; exporter records and generated function wiring remain private.",
+        summary = "Returns `Target::self_()` — alias for [`player`](Event::player).",
+        context = "Returns `Target::self_()` — alias for [`player`](Event::player). This typed event API is part of Sand's author-facing event model; exporter records and generated function wiring remain private.",
         minecraft = "For advancement events this is the triggering player bound to @s.",
         use_when = ["Defining, composing, or handling a typed Sand event"],
         avoid_when = ["Inspecting generated advancement or event-graph implementation state"],
-        returns = "Returns `Selector::self_()` — alias for [`player`](Event::player).",
+        returns = "Returns `Target::self_()` — alias for [`player`](Event::player).",
         example = "use sand::prelude::*;\n\nfn demonstrate<E: 'static>(event_value: &sand::event::Event < E >)  {\n    let subject = event_value.subject();\n}",
     )]
-    pub fn subject(&self) -> sand_commands::Selector {
-        sand_commands::Selector::self_()
+    pub fn subject(&self) -> sand_commands::Target<sand_commands::PlayersOnly, sand_commands::One> {
+        sand_commands::Target::current_player()
     }
 }
 
@@ -769,8 +769,8 @@ impl<E: DamageAdvancementEvent> DamageEvent<E> {
         returns = "Returns `@s` as a single player: the player who triggered the event.",
         example = "use sand::prelude::*;\n\nfn demonstrate<E : sand::event::DamageAdvancementEvent + 'static>(damage_event_value: &sand::event::DamageEvent < E >)  {\n    let player = damage_event_value.player();\n}",
     )]
-    pub fn player(&self) -> crate::cmd::SinglePlayer {
-        crate::cmd::SinglePlayer::self_()
+    pub fn player(&self) -> sand_commands::Target<sand_commands::PlayersOnly, sand_commands::One> {
+        sand_commands::Target::current_player()
     }
 
     /// Returns `@s` as a single entity: the damaged subject.
@@ -788,8 +788,8 @@ impl<E: DamageAdvancementEvent> DamageEvent<E> {
         returns = "Returns `@s` as a single entity: the damaged subject.",
         example = "use sand::prelude::*;\n\nfn demonstrate<E : sand::event::DamageAdvancementEvent + 'static>(damage_event_value: &sand::event::DamageEvent < E >)  {\n    let subject = damage_event_value.subject();\n}",
     )]
-    pub fn subject(&self) -> crate::cmd::SingleEntity {
-        crate::cmd::SingleEntity::self_()
+    pub fn subject(&self) -> sand_commands::Target<sand_commands::AnyTarget, sand_commands::One> {
+        sand_commands::Target::self_()
     }
 
     /// Start a reflected-damage builder centered on and sourced from the player.

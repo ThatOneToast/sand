@@ -6,13 +6,13 @@
 //!
 //! // execute as @a at @s run kill @s
 //! Execute::new()
-//!     .as_(Selector::all_players())
-//!     .at(Selector::self_())
+//!     .as_(Target::players())
+//!     .at(Target::self_())
 //!     .run("kill @s");
 //!
 //! // execute if entity @a[tag=ready] run say ready!
 //! Execute::new()
-//!     .if_entity(Selector::all_players().tag("ready"))
+//!     .if_entity(Target::players().tag("ready"))
 //!     .run("say ready!");
 //! ```
 
@@ -27,7 +27,7 @@ use crate::execute_ir::{ConditionIr, ExecuteOp, ExecuteStoreTarget};
 use crate::nbt::DataTarget;
 use crate::render::{CommandProfile, RenderCommand, Validate};
 use crate::scoreboard::{ScoreCmp, ScoreHolder};
-use crate::selector::Selector;
+use crate::selector::{Selector, TargetArgument};
 use crate::validate;
 
 #[sand_macros::api(
@@ -216,9 +216,10 @@ impl Execute {
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
         params(selector = "`selector` provides the Minecraft target selection used to emit the documented `as <selector>` — change the executing entity form."),
         returns = "The `Execute` value with the documented change applied to emit the documented `as <selector>` — change the executing entity form.",
-        example = "use sand::prelude::*;\n\nfn demonstrate(execute_value: sand::command::Execute, selector: sand::command::Selector)  {\n    let updated_execute = execute_value.as_(selector);\n}",
+        example = "use sand::prelude::*;\n\nfn demonstrate(execute_value: sand::command::Execute, selector: sand::command::Target)  {\n    let updated_execute = execute_value.as_(selector);\n}",
     )]
-    pub fn as_(mut self, selector: Selector) -> Self {
+    pub fn as_(mut self, selector: impl TargetArgument) -> Self {
+        let selector = selector.into_target_selector();
         self.check_selector("as", &selector);
         self.operations.push(ExecuteOp::As(selector));
         self
@@ -238,9 +239,10 @@ impl Execute {
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
         params(selector = "`selector` provides the Minecraft target selection used to emit the documented `at <selector>` — change position and rotation to match the selected entity form."),
         returns = "The `Execute` value with the documented change applied to emit the documented `at <selector>` — change position and rotation to match the selected entity form.",
-        example = "use sand::prelude::*;\n\nfn demonstrate(execute_value: sand::command::Execute, selector: sand::command::Selector)  {\n    let updated_execute = execute_value.at(selector);\n}",
+        example = "use sand::prelude::*;\n\nfn demonstrate(execute_value: sand::command::Execute, selector: sand::command::Target)  {\n    let updated_execute = execute_value.at(selector);\n}",
     )]
-    pub fn at(mut self, selector: Selector) -> Self {
+    pub fn at(mut self, selector: impl TargetArgument) -> Self {
+        let selector = selector.into_target_selector();
         self.check_selector("at", &selector);
         self.operations.push(ExecuteOp::At(selector));
         self
@@ -282,9 +284,10 @@ impl Execute {
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
         params(selector = "`selector` provides the Minecraft target selection used to emit the documented `positioned as <selector>` — change position to match the selected entity form."),
         returns = "The `Execute` value with the documented change applied to emit the documented `positioned as <selector>` — change position to match the selected entity form.",
-        example = "use sand::prelude::*;\n\nfn demonstrate(execute_value: sand::command::Execute, selector: sand::command::Selector)  {\n    let updated_execute = execute_value.positioned_as(selector);\n}",
+        example = "use sand::prelude::*;\n\nfn demonstrate(execute_value: sand::command::Execute, selector: sand::command::Target)  {\n    let updated_execute = execute_value.positioned_as(selector);\n}",
     )]
-    pub fn positioned_as(mut self, selector: Selector) -> Self {
+    pub fn positioned_as(mut self, selector: impl TargetArgument) -> Self {
+        let selector = selector.into_target_selector();
         self.check_selector("positioned_as", &selector);
         self.operations.push(ExecuteOp::PositionedAs(selector));
         self
@@ -330,9 +333,10 @@ impl Execute {
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
         params(selector = "`selector` provides the Minecraft target selection used to emit the documented `rotated as <selector>` — change rotation to match the selected entity form."),
         returns = "The `Execute` value with the documented change applied to emit the documented `rotated as <selector>` — change rotation to match the selected entity form.",
-        example = "use sand::prelude::*;\n\nfn demonstrate(execute_value: sand::command::Execute, selector: sand::command::Selector)  {\n    let updated_execute = execute_value.rotated_as(selector);\n}",
+        example = "use sand::prelude::*;\n\nfn demonstrate(execute_value: sand::command::Execute, selector: sand::command::Target)  {\n    let updated_execute = execute_value.rotated_as(selector);\n}",
     )]
-    pub fn rotated_as(mut self, selector: Selector) -> Self {
+    pub fn rotated_as(mut self, selector: impl TargetArgument) -> Self {
+        let selector = selector.into_target_selector();
         self.check_selector("rotated_as", &selector);
         self.operations.push(ExecuteOp::RotatedAs(selector));
         self
@@ -374,9 +378,10 @@ impl Execute {
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
         params(selector = "`selector` provides the Minecraft target selection used to emit the documented `facing entity <selector> <anchor>` — rotate execution to face an entity's anchor point form.", anchor = "`anchor` supplies the documented `facing entity <selector> <anchor>` — rotate execution to face an entity's anchor point form."),
         returns = "The `Execute` value with the documented change applied to emit the documented `facing entity <selector> <anchor>` — rotate execution to face an entity's anchor point form.",
-        example = "use sand::prelude::*;\n\nfn demonstrate(execute_value: sand::command::Execute, selector: sand::command::Selector, anchor: sand::command::Anchor)  {\n    let updated_execute = execute_value.facing_entity(selector, anchor);\n}",
+        example = "use sand::prelude::*;\n\nfn demonstrate(execute_value: sand::command::Execute, selector: sand::command::Target, anchor: sand::command::Anchor)  {\n    let updated_execute = execute_value.facing_entity(selector, anchor);\n}",
     )]
-    pub fn facing_entity(mut self, selector: Selector, anchor: Anchor) -> Self {
+    pub fn facing_entity(mut self, selector: impl TargetArgument, anchor: Anchor) -> Self {
+        let selector = selector.into_target_selector();
         self.check_selector("facing_entity", &selector);
         self.operations.push(ExecuteOp::FacingEntity {
             target: selector,
@@ -532,9 +537,10 @@ impl Execute {
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
         params(selector = "`selector` provides the Minecraft target selection used to emit the documented `if entity <selector>` — execute only if the selector matches at least one entity form."),
         returns = "The `Execute` value with the documented change applied to emit the documented `if entity <selector>` — execute only if the selector matches at least one entity form.",
-        example = "use sand::prelude::*;\n\nfn demonstrate(execute_value: sand::command::Execute, selector: sand::command::Selector)  {\n    let updated_execute = execute_value.if_entity(selector);\n}",
+        example = "use sand::prelude::*;\n\nfn demonstrate(execute_value: sand::command::Execute, selector: sand::command::Target)  {\n    let updated_execute = execute_value.if_entity(selector);\n}",
     )]
-    pub fn if_entity(mut self, selector: Selector) -> Self {
+    pub fn if_entity(mut self, selector: impl TargetArgument) -> Self {
+        let selector = selector.into_target_selector();
         self.check_selector("if_entity", &selector);
         self.operations
             .push(ExecuteOp::If(ConditionIr::Entity(selector)));
@@ -555,9 +561,10 @@ impl Execute {
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
         params(selector = "`selector` provides the Minecraft target selection used to emit the documented `unless entity <selector>` — execute only if the selector matches NO entities form."),
         returns = "The `Execute` value with the documented change applied to emit the documented `unless entity <selector>` — execute only if the selector matches NO entities form.",
-        example = "use sand::prelude::*;\n\nfn demonstrate(execute_value: sand::command::Execute, selector: sand::command::Selector)  {\n    let updated_execute = execute_value.unless_entity(selector);\n}",
+        example = "use sand::prelude::*;\n\nfn demonstrate(execute_value: sand::command::Execute, selector: sand::command::Target)  {\n    let updated_execute = execute_value.unless_entity(selector);\n}",
     )]
-    pub fn unless_entity(mut self, selector: Selector) -> Self {
+    pub fn unless_entity(mut self, selector: impl TargetArgument) -> Self {
+        let selector = selector.into_target_selector();
         self.check_selector("unless_entity", &selector);
         self.operations
             .push(ExecuteOp::Unless(ConditionIr::Entity(selector)));
@@ -622,15 +629,17 @@ impl Execute {
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
         params(a = "`a` provides the Minecraft target selection used to emit the documented `if score <a> <a_obj> = <b> <b_obj>` — continue only if the two scores are equal form.", a_obj = "`a_obj` supplies the documented `if score <a> <a_obj> = <b> <b_obj>` — continue only if the two scores are equal form.", b = "`b` provides the Minecraft target selection used to emit the documented `if score <a> <a_obj> = <b> <b_obj>` — continue only if the two scores are equal form.", b_obj = "`b_obj` supplies the documented `if score <a> <a_obj> = <b> <b_obj>` — continue only if the two scores are equal form."),
         returns = "The `Execute` value with the documented change applied to emit the documented `if score <a> <a_obj> = <b> <b_obj>` — continue only if the two scores are equal form.",
-        example = "use sand::prelude::*;\n\nfn demonstrate(execute_value: sand::command::Execute, a: sand::command::Selector, a_obj: impl Into < String >, b: sand::command::Selector, b_obj: impl Into < String >)  {\n    let updated_execute = execute_value.if_score(a, a_obj, b, b_obj);\n}",
+        example = "use sand::prelude::*;\n\nfn demonstrate(execute_value: sand::command::Execute, a: sand::command::Target, a_obj: impl Into < String >, b: sand::command::Target, b_obj: impl Into < String >)  {\n    let updated_execute = execute_value.if_score(a, a_obj, b, b_obj);\n}",
     )]
     pub fn if_score(
         mut self,
-        a: Selector,
+        a: impl TargetArgument,
         a_obj: impl Into<String>,
-        b: Selector,
+        b: impl TargetArgument,
         b_obj: impl Into<String>,
     ) -> Self {
+        let a = a.into_target_selector();
+        let b = b.into_target_selector();
         self.check_selector("if_score.left", &a);
         self.check_selector("if_score.right", &b);
         self.checks.push(ExecuteCheck::SingleHolder {
@@ -672,15 +681,17 @@ impl Execute {
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
         params(primary_selector = "`primary_selector` provides the Minecraft target selection used to emit the documented `unless score <a> <a_obj> = <b> <b_obj>` — skip if two scores are equal form.", primary = "`primary` supplies the documented `unless score <a> <a_obj> = <b> <b_obj>` — skip if two scores are equal form.", secondary_selector = "`secondary_selector` provides the Minecraft target selection used to emit the documented `unless score <a> <a_obj> = <b> <b_obj>` — skip if two scores are equal form.", secondary = "`secondary` supplies the documented `unless score <a> <a_obj> = <b> <b_obj>` — skip if two scores are equal form."),
         returns = "The `Execute` value with the documented change applied to emit the documented `unless score <a> <a_obj> = <b> <b_obj>` — skip if two scores are equal form.",
-        example = "use sand::prelude::*;\n\nfn demonstrate(execute_value: sand::command::Execute, primary_selector: sand::command::Selector, primary: impl Into < String >, secondary_selector: sand::command::Selector, secondary: impl Into < String >)  {\n    let updated_execute = execute_value.unless_score(primary_selector, primary, secondary_selector, secondary);\n}",
+        example = "use sand::prelude::*;\n\nfn demonstrate(execute_value: sand::command::Execute, primary_selector: sand::command::Target, primary: impl Into < String >, secondary_selector: sand::command::Target, secondary: impl Into < String >)  {\n    let updated_execute = execute_value.unless_score(primary_selector, primary, secondary_selector, secondary);\n}",
     )]
     pub fn unless_score(
         mut self,
-        primary_selector: Selector,
+        primary_selector: impl TargetArgument,
         primary: impl Into<String>,
-        secondary_selector: Selector,
+        secondary_selector: impl TargetArgument,
         secondary: impl Into<String>,
     ) -> Self {
+        let primary_selector = primary_selector.into_target_selector();
+        let secondary_selector = secondary_selector.into_target_selector();
         self.check_selector("unless_score.left", &primary_selector);
         self.check_selector("unless_score.right", &secondary_selector);
         self.checks.push(ExecuteCheck::SingleHolder {
@@ -1200,9 +1211,14 @@ impl Execute {
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
         params(selector = "`selector` provides the Minecraft target selection used to emit the documented `if data entity <selector> <path>` — continue if entity NBT has a value at `path` form.", path = "`if data entity <selector> <path>` — continue if entity NBT has a value at `path`."),
         returns = "The `Execute` value with the documented change applied to emit the documented `if data entity <selector> <path>` — continue if entity NBT has a value at `path` form.",
-        example = "use sand::prelude::*;\n\nfn demonstrate(execute_value: sand::command::Execute, selector: sand::command::Selector, path: impl Into < String >)  {\n    let updated_execute = execute_value.if_data_entity(selector, path);\n}",
+        example = "use sand::prelude::*;\n\nfn demonstrate(execute_value: sand::command::Execute, selector: sand::command::Target, path: impl Into < String >)  {\n    let updated_execute = execute_value.if_data_entity(selector, path);\n}",
     )]
-    pub fn if_data_entity(mut self, selector: Selector, path: impl Into<String>) -> Self {
+    pub fn if_data_entity(
+        mut self,
+        selector: impl TargetArgument,
+        path: impl Into<String>,
+    ) -> Self {
+        let selector = selector.into_target_selector();
         self.check_selector("if_data_entity", &selector);
         self.operations.push(ExecuteOp::If(ConditionIr::Data {
             target: DataTarget::entity(selector),
@@ -1225,9 +1241,14 @@ impl Execute {
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
         params(selector = "`selector` provides the Minecraft target selection used to emit the documented `unless data entity <selector> <path>` — skip if entity NBT has a value at `path` form.", path = "`unless data entity <selector> <path>` — skip if entity NBT has a value at `path`."),
         returns = "The `Execute` value with the documented change applied to emit the documented `unless data entity <selector> <path>` — skip if entity NBT has a value at `path` form.",
-        example = "use sand::prelude::*;\n\nfn demonstrate(execute_value: sand::command::Execute, selector: sand::command::Selector, path: impl Into < String >)  {\n    let updated_execute = execute_value.unless_data_entity(selector, path);\n}",
+        example = "use sand::prelude::*;\n\nfn demonstrate(execute_value: sand::command::Execute, selector: sand::command::Target, path: impl Into < String >)  {\n    let updated_execute = execute_value.unless_data_entity(selector, path);\n}",
     )]
-    pub fn unless_data_entity(mut self, selector: Selector, path: impl Into<String>) -> Self {
+    pub fn unless_data_entity(
+        mut self,
+        selector: impl TargetArgument,
+        path: impl Into<String>,
+    ) -> Self {
+        let selector = selector.into_target_selector();
         self.check_selector("unless_data_entity", &selector);
         self.operations.push(ExecuteOp::Unless(ConditionIr::Data {
             target: DataTarget::entity(selector),
@@ -1506,14 +1527,15 @@ impl Execute {
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
         params(selector = "`selector` provides the Minecraft target selection used to emit the documented `if items entity <selector> <slot> <item>` — execute if an entity has a matching item form.", slot = "`slot` supplies the documented `if items entity <selector> <slot> <item>` — execute if an entity has a matching item form.", item = "`item` provides the item value or item predicate used to emit the documented `if items entity <selector> <slot> <item>` — execute if an entity has a matching item form."),
         returns = "The `Execute` value with the documented change applied to emit the documented `if items entity <selector> <slot> <item>` — execute if an entity has a matching item form.",
-        example = "use sand::prelude::*;\n\nfn demonstrate(execute_value: sand::command::Execute, selector: sand::command::Selector, slot: sand::command::ItemSlot, item: impl Into < String >)  {\n    let updated_execute = execute_value.if_items_entity(selector, slot, item);\n}",
+        example = "use sand::prelude::*;\n\nfn demonstrate(execute_value: sand::command::Execute, selector: sand::command::Target, slot: sand::command::ItemSlot, item: impl Into < String >)  {\n    let updated_execute = execute_value.if_items_entity(selector, slot, item);\n}",
     )]
     pub fn if_items_entity(
         mut self,
-        selector: Selector,
+        selector: impl TargetArgument,
         slot: ItemSlot,
         item: impl Into<String>,
     ) -> Self {
+        let selector = selector.into_target_selector();
         self.check_selector("if_items_entity", &selector);
         self.checks.push(ExecuteCheck::Slot {
             index: self.next_index(),
@@ -1543,14 +1565,15 @@ impl Execute {
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
         params(selector = "`selector` provides the Minecraft target selection used to emit the documented `unless items entity <selector> <slot> <item>` — skip if the entity has the item form.", slot = "`slot` supplies the documented `unless items entity <selector> <slot> <item>` — skip if the entity has the item form.", item = "`item` provides the item value or item predicate used to emit the documented `unless items entity <selector> <slot> <item>` — skip if the entity has the item form."),
         returns = "The `Execute` value with the documented change applied to emit the documented `unless items entity <selector> <slot> <item>` — skip if the entity has the item form.",
-        example = "use sand::prelude::*;\n\nfn demonstrate(execute_value: sand::command::Execute, selector: sand::command::Selector, slot: sand::command::ItemSlot, item: impl Into < String >)  {\n    let updated_execute = execute_value.unless_items_entity(selector, slot, item);\n}",
+        example = "use sand::prelude::*;\n\nfn demonstrate(execute_value: sand::command::Execute, selector: sand::command::Target, slot: sand::command::ItemSlot, item: impl Into < String >)  {\n    let updated_execute = execute_value.unless_items_entity(selector, slot, item);\n}",
     )]
     pub fn unless_items_entity(
         mut self,
-        selector: Selector,
+        selector: impl TargetArgument,
         slot: ItemSlot,
         item: impl Into<String>,
     ) -> Self {
+        let selector = selector.into_target_selector();
         self.check_selector("unless_items_entity", &selector);
         self.checks.push(ExecuteCheck::Slot {
             index: self.next_index(),
@@ -1730,14 +1753,15 @@ impl Execute {
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
         params(selector = "`selector` provides the Minecraft target selection used to emit the documented `if items entity <selector> <slot> <item>` — execute if the slot holds a matching item form.", slot = "`slot` supplies the documented `if items entity <selector> <slot> <item>` — execute if the slot holds a matching item form.", item = "`item` provides the item value or item predicate used to emit the documented `if items entity <selector> <slot> <item>` — execute if the slot holds a matching item form."),
         returns = "The `Execute` value with the documented change applied to emit the documented `if items entity <selector> <slot> <item>` — execute if the slot holds a matching item form.",
-        example = "use sand::prelude::*;\n\nfn demonstrate(execute_value: sand::command::Execute, selector: sand::command::Selector, slot: impl Into < sand::command::ItemSlot >, item: impl Into < String >)  {\n    let updated_execute = execute_value.if_items(selector, slot, item);\n}",
+        example = "use sand::prelude::*;\n\nfn demonstrate(execute_value: sand::command::Execute, selector: sand::command::Target, slot: impl Into < sand::command::ItemSlot >, item: impl Into < String >)  {\n    let updated_execute = execute_value.if_items(selector, slot, item);\n}",
     )]
     pub fn if_items(
         mut self,
-        selector: Selector,
+        selector: impl TargetArgument,
         slot: impl Into<ItemSlot>,
         item: impl Into<String>,
     ) -> Self {
+        let selector = selector.into_target_selector();
         let slot = slot.into();
         self.check_selector("if_items", &selector);
         self.checks.push(ExecuteCheck::Slot {
@@ -1768,14 +1792,15 @@ impl Execute {
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
         params(selector = "`selector` provides the Minecraft target selection used to emit the documented `unless items entity <selector> <slot> <item>` — execute if the slot does NOT match form.", slot = "`slot` supplies the documented `unless items entity <selector> <slot> <item>` — execute if the slot does NOT match form.", item = "`item` provides the item value or item predicate used to emit the documented `unless items entity <selector> <slot> <item>` — execute if the slot does NOT match form."),
         returns = "The `Execute` value with the documented change applied to emit the documented `unless items entity <selector> <slot> <item>` — execute if the slot does NOT match form.",
-        example = "use sand::prelude::*;\n\nfn demonstrate(execute_value: sand::command::Execute, selector: sand::command::Selector, slot: impl Into < sand::command::ItemSlot >, item: impl Into < String >)  {\n    let updated_execute = execute_value.unless_items(selector, slot, item);\n}",
+        example = "use sand::prelude::*;\n\nfn demonstrate(execute_value: sand::command::Execute, selector: sand::command::Target, slot: impl Into < sand::command::ItemSlot >, item: impl Into < String >)  {\n    let updated_execute = execute_value.unless_items(selector, slot, item);\n}",
     )]
     pub fn unless_items(
         mut self,
-        selector: Selector,
+        selector: impl TargetArgument,
         slot: impl Into<ItemSlot>,
         item: impl Into<String>,
     ) -> Self {
+        let selector = selector.into_target_selector();
         let slot = slot.into();
         self.check_selector("unless_items", &selector);
         self.checks.push(ExecuteCheck::Slot {

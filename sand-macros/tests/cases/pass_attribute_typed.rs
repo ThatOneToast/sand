@@ -19,23 +19,23 @@ pub fn load() {
 
 #[datapack_component(Tick)]
 pub fn tick() {
-    DASH.tick(Selector::all_players());
+    DASH.tick(Target::all_players());
     TypedExecute::as_players()
         .when(all![
             MANA.of("@s").gte(25),
             any![DASH.ready("@s"), SETTINGS.exists()],
         ])
         .run(Actionbar::show(
-            Selector::self_(),
+            Target::self_(),
             Text::new("Dash ready").aqua().bold(true),
         ));
 }
 
 #[function("example:cast_dash")]
 pub fn cast_dash() {
-    MANA.remove(Selector::self_(), 25);
-    DASH.start(Selector::self_());
-    cmd::tellraw(Selector::self_(), Text::new("Dash cast").green());
+    MANA.remove(Target::self_(), 25);
+    DASH.start(Target::self_());
+    cmd::tellraw(Target::self_(), Text::new("Dash cast").green());
     cmd::raw("function other_pack:api/after_dash");
 }
 

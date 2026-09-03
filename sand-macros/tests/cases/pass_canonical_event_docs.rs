@@ -140,7 +140,7 @@ impl SandEvent for JumpedOrUsedElevator {
     fn dispatch() -> SandEventDispatch {
         SandEventDispatch::after_any::<(PlayerJumped, ElevatorGoingUp)>()
             .while_::<PlayerSneakEvent>()
-            .unless(Condition::entity(Selector::self_().tag("blocked")))
+            .unless(Condition::entity(Target::self_().tag("blocked")))
             .into()
     }
 }
@@ -155,7 +155,7 @@ pub struct JumpedAndUsedElevator;
 impl SandEvent for JumpedAndUsedElevator {
     fn dispatch() -> SandEventDispatch {
         SandEventDispatch::after_all::<(PlayerJumped, ElevatorGoingUp)>()
-            .when(Condition::entity(Selector::self_().tag("ready")))
+            .when(Condition::entity(Target::self_().tag("ready")))
             .into()
     }
 }

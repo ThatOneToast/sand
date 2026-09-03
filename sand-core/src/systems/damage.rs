@@ -42,7 +42,7 @@
 //! }
 //! ```
 
-use crate::cmd::SingleEntity;
+use crate::cmd::{SingleEntity, SingleTargetArgument};
 use crate::condition::{Condition, ScoreRange};
 use crate::state::Ticks;
 
@@ -339,10 +339,11 @@ impl DamageTracker {
         avoid_when = ["Using the API outside its documented system scope or feature configuration"],
         params(target = "`target` provides the entity, block, or command target used to update damage tracking for one entity (call every tick)."),
         returns = "The ordered values produced to update damage tracking for one entity (call every tick).",
-        example = "use sand::prelude::*;\n\nfn demonstrate(target: sand::command::SingleEntity)  {\n    let values = sand::systems::damage::DamageTracker::tick(target);\n}",
+        example = "use sand::prelude::*;\nlet values = DamageTracker::tick(Target::self_());",
         availability = ["Cargo feature: systems-damage"],
     )]
-    pub fn tick(target: SingleEntity) -> Vec<String> {
+    pub fn tick(target: impl SingleTargetArgument) -> Vec<String> {
+        let target: SingleEntity = target.into();
         Self::tick_selector(target.to_string())
     }
 

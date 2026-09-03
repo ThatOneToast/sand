@@ -1,5 +1,7 @@
-error[E0599]: no method named `gamemode_typed` found for struct `EntityTarget<A>` in the current scope
- --> tests/cases/fail_entity_target_gamemode.rs:7:34
+error[E0599]: no method named `gamemode_typed` found for struct `sand::prelude::Target` in the current scope
+ --> tests/cases/fail_entity_target_gamemode.rs:5:32
   |
-7 |     let _ = EntityTargets::all().gamemode_typed(GameMode::Survival);
-  |                                  ^^^^^^^^^^^^^^ method not found in `EntityTarget<Many>`
+5 |     let _ = Target::entities().gamemode_typed(GameMode::Survival);
+  |                                ^^^^^^^^^^^^^^ method not found in `sand::prelude::Target`
+  |
+  = note: the method was found for `sand::prelude::Target<sand_commands::selector::PlayersOnly, A>`

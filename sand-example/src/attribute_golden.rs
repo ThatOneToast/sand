@@ -26,7 +26,7 @@ pub fn golden_tick() {
             GOLDEN_CASTING.of("@s").is_false(),
         ])
         .run(Actionbar::show(
-            Selector::self_(),
+            Target::self_(),
             Text::new("Dash ready").aqua().bold(true),
         ));
 }
@@ -45,8 +45,8 @@ pub fn nested_or() {
 
 #[function]
 pub fn golden_text() {
-    cmd::tellraw(Selector::all_players(), Text::new("Hello").gold());
-    Title::of(Selector::self_())
+    cmd::tellraw(Target::all_players(), Text::new("Hello").gold());
+    Title::of(Target::self_())
         .title(Text::new("Dash").aqua())
         .subtitle(Text::new("Ready").green())
         .build();

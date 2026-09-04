@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed — canonical target API (#368)
+
+- Consolidated entity queries, player queries, selector wrappers, and their
+  single/many aliases into the canonical `Target` API. Category and
+  cardinality remain inferred type state, so commands still reject invalid
+  targets without requiring authors to remember separate wrapper names.
+- Moved selector filters onto `Target`, including typed game modes, direct
+  distance/level bounds, ordinary objective/range score pairs, and the
+  generated `PredicateId`. Unmodeled syntax remains available only through
+  methods explicitly suffixed `_raw`.
+- Removed redundant public aliases (`Identifier`, `Rarity`, `Slot`, and
+  `PlayerContext`) in favor of their canonical `ResourceLocation`,
+  `ItemRarity`, `ItemSlot`, and `EntityContext<PlayerKind>` spellings.
+- Renamed relation selection to `RelationTraversal` to distinguish Minecraft
+  `execute on` traversal from target construction. Bound executor contexts,
+  state queries, scoreboard holders, and JSON predicate schemas remain
+  separate because they carry different behavior or serialized meaning.
+
 ### Added — version-aware world-build registry validation (#356)
 
 - `sand-build` now generates a real, per-Minecraft-version vanilla biome

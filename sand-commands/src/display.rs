@@ -428,7 +428,7 @@ impl Actionbar {
     /// # Example
     ///
     /// ```
-    /// use sand_commands::{Actionbar, Selector, Text};
+    /// use sand_commands::{Actionbar, Target, Text};
     ///
     /// let command = Actionbar::show(Target::self_(), Text::new("Ready").green());
     /// assert!(command.starts_with("title @s actionbar "));

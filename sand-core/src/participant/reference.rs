@@ -1,8 +1,6 @@
 //! Typed generated-command participant references (#230 Phase 8).
 
-use sand_commands::selector::{
-    AnyTarget, One, PlayersOnly, SingleEntity, SinglePlayer, SingleTargetArgument, Target,
-};
+use sand_commands::selector::{AnyTarget, One, PlayersOnly, Target};
 
 use super::lifetime::ParticipantLifetime;
 use super::reliability::ParticipantReliability;
@@ -100,7 +98,7 @@ impl std::error::Error for ParticipantReliabilityError {}
 /// cannot self-report a stronger reliability than they actually have.
 #[derive(Debug, Clone)]
 pub struct PlayerParticipant {
-    selector: SinglePlayer,
+    selector: Target<PlayersOnly, One>,
     role: EntityParticipantRole,
     reliability: ParticipantReliability,
     lifetime: ParticipantLifetime,
@@ -128,7 +126,7 @@ impl PlayerParticipant {
     )]
     pub fn subject() -> Self {
         Self {
-            selector: SinglePlayer::self_(),
+            selector: Target::current_player(),
             role: EntityParticipantRole::Subject,
             reliability: ParticipantReliability::Exact,
             lifetime: ParticipantLifetime::Invocation,
@@ -191,22 +189,22 @@ impl PlayerParticipant {
 
     /// The typed selector for building commands against this participant.
     /// Never exposes a raw/unrestricted selector string — the caller gets
-    /// [`SinglePlayer`]'s own safe builder surface.
+    /// [`Target`]'s player-only safe builder surface.
     #[sand_macros::api(
         registry = sand_api_contract,
         path = "sand::participant::PlayerParticipant::selector",
         module = "sand::participant",
         kind = "method",
-        summary = "The typed selector for building commands against this participant. Never exposes a raw/unrestricted selector string — the caller gets [`SinglePlayer`]'s own safe builder surface.",
-        context = "The typed selector for building commands against this participant. Never exposes a raw/unrestricted selector string — the caller gets [`SinglePlayer`]'s own safe builder surface. Participants are available only when the event plan declares a real observation or a valid same-cycle inheritance path; the exporter rejects unsupported transport.",
+        summary = "The typed target for building commands against this participant. Never exposes the internal selector representation.",
+        context = "The typed target for building commands against this participant preserves its player-only, single-target capability. Participants are available only when the event plan declares a real observation or a valid same-cycle inheritance path; the exporter rejects unsupported transport.",
         minecraft = "Entity relationships use the matching execute relation, while item snapshots are copied into Sand-owned command storage and cleaned up at the end of their declared lifetime.",
         use_when = ["Declaring or reading a typed participant whose lifecycle is guaranteed by the event plan"],
         avoid_when = ["Assuming an entity or item remains live beyond its declared invocation, event-cycle, or bounded correlation lifetime"],
-        returns = "The `& SinglePlayer` value produced to use the typed selector for building commands against this participant. Never exposes a raw/unrestricted selector string — the caller gets [`SinglePlayer`]'s own safe builder surface.",
+        returns = "The canonical single-player `Target` bound to this participant.",
         example = "use sand::prelude::*;\n\nfn demonstrate(player_participant_value: &sand::participant::PlayerParticipant)  {\n    let selector = player_participant_value.selector();\n}",
     )]
     pub fn selector(&self) -> Target<PlayersOnly, One> {
-        self.selector.clone().into()
+        self.selector.clone()
     }
 
     /// Require at least `required` reliability, or a
@@ -294,7 +292,7 @@ impl PlayerParticipant {
 /// ```
 #[derive(Debug, Clone)]
 pub struct EntityParticipant {
-    selector: SingleEntity,
+    selector: Target<AnyTarget, One>,
     role: EntityParticipantRole,
     reliability: ParticipantReliability,
     lifetime: ParticipantLifetime,
@@ -319,7 +317,7 @@ impl EntityParticipant {
     )]
     pub fn subject() -> Self {
         Self {
-            selector: SingleEntity::self_(),
+            selector: Target::self_(),
             role: EntityParticipantRole::Subject,
             reliability: ParticipantReliability::Exact,
             lifetime: ParticipantLifetime::Invocation,
@@ -353,7 +351,7 @@ impl EntityParticipant {
         example = "use sand::prelude::*;\nlet entity_participant = EntityParticipant::correlated(Target::self_(), EntityParticipantRole::Attacker, ParticipantLifetime::Invocation);",
     )]
     pub fn correlated(
-        selector: impl SingleTargetArgument,
+        selector: impl Into<Target<AnyTarget, One>>,
         role: EntityParticipantRole,
         lifetime: ParticipantLifetime,
     ) -> Self {
@@ -382,7 +380,7 @@ impl EntityParticipant {
         example = "use sand::prelude::*;\nlet entity_participant = EntityParticipant::inferred(Target::self_(), EntityParticipantRole::Attacker, ParticipantLifetime::Invocation);",
     )]
     pub fn inferred(
-        selector: impl SingleTargetArgument,
+        selector: impl Into<Target<AnyTarget, One>>,
         role: EntityParticipantRole,
         lifetime: ParticipantLifetime,
     ) -> Self {
@@ -463,7 +461,7 @@ impl EntityParticipant {
         example = "use sand::prelude::*;\n\nfn demonstrate(entity_participant_value: &sand::participant::EntityParticipant)  {\n    let selector = entity_participant_value.selector();\n}",
     )]
     pub fn selector(&self) -> Target<AnyTarget, One> {
-        self.selector.clone().into()
+        self.selector.clone()
     }
 
     /// Checks that the participant evidence meets the requested reliability.
@@ -612,7 +610,7 @@ mod tests {
     #[test]
     fn correlated_entity_does_not_satisfy_exact_requirement() {
         let attacker = EntityParticipant::correlated(
-            SingleEntity::raw("@e[tag=candidate,limit=1]"),
+            Target::raw_single("@e[tag=candidate,limit=1]"),
             EntityParticipantRole::Attacker,
             ParticipantLifetime::Invocation,
         );
@@ -625,7 +623,7 @@ mod tests {
     #[test]
     fn inferred_entity_does_not_satisfy_correlated_requirement() {
         let target = EntityParticipant::inferred(
-            SingleEntity::raw("@e[type=zombie,limit=1,sort=nearest]"),
+            Target::raw_single("@e[type=zombie,limit=1,sort=nearest]"),
             EntityParticipantRole::Target,
             ParticipantLifetime::Invocation,
         );
@@ -635,7 +633,7 @@ mod tests {
     #[test]
     fn reliability_error_message_names_role_and_levels() {
         let target = EntityParticipant::inferred(
-            SingleEntity::raw("@e[limit=1]"),
+            Target::raw_single("@e[limit=1]"),
             EntityParticipantRole::Victim,
             ParticipantLifetime::Invocation,
         );

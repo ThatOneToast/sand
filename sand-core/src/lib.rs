@@ -204,7 +204,7 @@ pub use function::{
 mod compiler;
 mod transition;
 pub use mc_version::McVersion;
-pub use resource_location::{Identifier, PackNamespace, ResourceLocation};
+pub use resource_location::{PackNamespace, ResourceLocation};
 pub use state::{
     BlockNbt, EntityNbt, NbtLocation, NbtPath, SnbtCompound, SnbtValue, StorageField,
     StorageLocation, StorageSchema, StorageVar,
@@ -398,7 +398,6 @@ pub use sand_components::{
     Projection,
     // Villager trades (26.1+)
     RandomSequenceId,
-    Rarity,
     // Raw escape hatch types
     RawComponent,
     RawJson,

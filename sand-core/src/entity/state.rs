@@ -944,7 +944,7 @@ trait ComponentDirtyField: EntityStateField {
     avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
     example = "use sand::entity::StatePredicate;",
 )]
-/// Typed score predicate consumable by [`crate::entity::Target`].
+/// Typed score predicate consumable by [`sand_commands::Target`].
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct StatePredicate {
     pub(crate) objective: String,
@@ -974,7 +974,7 @@ impl StatePredicate {
     }
 
     /// Vanilla selector range used when this predicate constrains adoption or
-    /// an [`crate::entity::Target`].
+    /// a [`sand_commands::Target`].
     #[sand_macros::api(
         registry = sand_api_contract,
         path = "sand::entity::StatePredicate::selector_range",

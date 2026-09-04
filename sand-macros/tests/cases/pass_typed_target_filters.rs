@@ -18,9 +18,9 @@ fn main() {
 
     let players = Target::players()
         .tag("ready")
-        .gamemode_typed(GameMode::Adventure)
-        .not_gamemode_typed(GameMode::Spectator)
-        .level("10..30");
+        .gamemode(GameMode::Adventure)
+        .not_gamemode(GameMode::Spectator)
+        .level_range(10.0, 30.0);
     let _ = cmd::tellraw(players, Text::new("Ready"));
 
     let nearest_player = Target::players().tag("ready").nearest();

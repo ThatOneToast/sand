@@ -42,7 +42,7 @@
 //! }
 //! ```
 
-use crate::cmd::{SingleEntity, SingleTargetArgument};
+use crate::cmd::{SingleTargetArgument, Target};
 use crate::condition::{Condition, ScoreRange};
 use crate::state::Ticks;
 
@@ -343,8 +343,7 @@ impl DamageTracker {
         availability = ["Cargo feature: systems-damage"],
     )]
     pub fn tick(target: impl SingleTargetArgument) -> Vec<String> {
-        let target: SingleEntity = target.into();
-        Self::tick_selector(target.to_string())
+        Self::tick_selector(target.into_single_target_selector().to_string())
     }
 
     /// Explicit unchecked compatibility path for selector syntax Sand cannot
@@ -422,7 +421,7 @@ impl DamageTracker {
         availability = ["Cargo feature: systems-damage"],
     )]
     pub fn tick_players() -> Vec<String> {
-        Self::tick(SingleEntity::self_())
+        Self::tick(Target::self_())
             .into_iter()
             .map(|command| {
                 command.strip_prefix("execute as @s").map_or_else(
@@ -791,7 +790,7 @@ mod tests {
 
     #[test]
     fn tick_produces_six_commands_in_correct_order() {
-        let cmds = DamageTracker::tick(SingleEntity::self_());
+        let cmds = DamageTracker::tick(Target::self_());
         assert_eq!(cmds.len(), 6, "expected 6 tick commands: {cmds:?}");
 
         // 1: delta = stat

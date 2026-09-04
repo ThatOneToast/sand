@@ -15,14 +15,14 @@
 //!   expression macros (`all!`, `any!`, `mcfunction!`, `run_fn!`) that
 //!   drive datapack authoring.
 //! - **Commands** — the [`crate::cmd`] module (as `cmd::...`) plus typed
-//!   command builders: `Execute`/`TypedExecute`, `Selector` and target types,
+//!   command builders: `Execute`/`TypedExecute`, the canonical `Target`,
 //!   `Actionbar`, `Bossbar`, `Title`, particles, and `Damage`.
 //! - **Conditions** — [`Condition`] and the grouped-branch
 //!   helpers `if_`/`unless`/`when` from [`crate::execute_when`].
 //! - **State** — `ScoreVar`, `Flag`, `Timer`, `Cooldown`, `GameState`/
 //!   `TypedGameState`, and storage types (`StorageVar`, `StorageSchema`,
 //!   `SnbtValue`, …).
-//! - **Entities** — typed entity/player query builders and execution-scoped
+//! - **Entities** — target execution capabilities and execution-scoped
 //!   contexts from [`crate::entity`].
 //! - **Events** — the typed event model: `Event`, `AdvancementEvent`,
 //!   trigger builders (`InventoryChangedTrigger`, …), and `EventHandle`;

@@ -31,9 +31,8 @@
 //! # Example
 //! ```rust,ignore
 //! use sand_core::systems::movement::{PushAway, Launch, SpeedBoost, Slow};
-//! use sand_core::cmd::Selector;
+//! use sand_core::cmd::Target;
 //! use sand_core::state::Ticks;
-//! use sand_commands::selector::EntityTargets;
 //!
 //! // Shockwave push: push all nearby non-player entities away from @s
 //! let cmds = PushAway::new()
@@ -850,13 +849,11 @@ fn fmt_rel_coord(v: f64) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use sand_commands::selector::EntityTargets;
-
     #[test]
     fn push_away_defaults() {
         let cmds = PushAway::new()
             .source(Selector::self_())
-            .targets(EntityTargets::nearby(6.0).excluding_players())
+            .targets(Target::nearby(6.0).excluding_players())
             .build();
         assert_eq!(cmds.len(), 1);
         assert!(cmds[0].starts_with("execute as "), "cmd: {}", cmds[0]);
@@ -872,7 +869,7 @@ mod tests {
     fn push_away_with_strength_and_lift() {
         let cmds = PushAway::new()
             .source(Selector::self_())
-            .targets(EntityTargets::nearby(6.0).excluding_players())
+            .targets(Target::nearby(6.0).excluding_players())
             .strength(1.5)
             .lift(0.25)
             .build();
@@ -888,7 +885,7 @@ mod tests {
     fn push_away_integer_lift() {
         let cmds = PushAway::new()
             .source(Selector::self_())
-            .targets(EntityTargets::nearby(4.0))
+            .targets(Target::nearby(4.0))
             .strength(2.0)
             .lift(1.0)
             .build();
@@ -903,9 +900,7 @@ mod tests {
 
     #[test]
     fn launch_with_targets_and_amount() {
-        let cmds = Launch::targets(EntityTargets::nearby(4.0))
-            .amount(0.7)
-            .build();
+        let cmds = Launch::targets(Target::nearby(4.0)).amount(0.7).build();
         assert_eq!(cmds.len(), 1);
         assert!(cmds[0].contains("~ ~0.7 ~"), "cmd: {}", cmds[0]);
     }
@@ -961,7 +956,7 @@ mod tests {
 
     #[test]
     fn slow_targets_many() {
-        let cmd = Slow::targets(EntityTargets::nearby(5.0))
+        let cmd = Slow::targets(Target::nearby(5.0))
             .amount(0.4)
             .duration(Ticks::seconds(3))
             .build();

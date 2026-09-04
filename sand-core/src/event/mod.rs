@@ -340,8 +340,8 @@ pub trait EventPlayer {
         returns = "Returns `@s`, the player for whom the event handler is executing.",
         example = "use sand::prelude::*;\n\nfn demonstrate<T: sand::event::EventPlayer>(event_player_value: &T)  {\n    let player = event_player_value.player();\n}",
     )]
-    fn player(&self) -> sand_commands::Selector {
-        sand_commands::Selector::self_()
+    fn player(&self) -> sand_commands::Target<sand_commands::PlayersOnly, sand_commands::One> {
+        sand_commands::Target::current_player()
     }
 }
 
@@ -705,7 +705,7 @@ impl<E: DamageAdvancementEvent> Event<E> {
         example = "use sand::prelude::*;\n\nfn demonstrate<E : sand::event::DamageAdvancementEvent + 'static>(event_value: &sand::event::Event < E >)  {\n    let damage = event_value.damage();\n}",
     )]
     pub fn damage(&self) -> sand_commands::Damage {
-        sand_commands::Damage::reflect_from(crate::cmd::SingleEntity::self_())
+        sand_commands::Damage::reflect_from(crate::cmd::Target::self_())
     }
 }
 

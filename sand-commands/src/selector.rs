@@ -80,7 +80,7 @@ impl IntoEntityType for &String {
 /// use sand_commands::Target;
 ///
 /// // @a[tag=ready,limit=1]
-/// let sel = Target::players().tag("ready").limit(1);
+/// let sel = Target::players().tag("ready").limit(1).unwrap();
 /// assert_eq!(sel.to_string(), "@a[tag=ready,limit=1]");
 ///
 /// // @s
@@ -116,8 +116,7 @@ impl From<&Selector> for String {
 
 /// The base target variant of a selector.
 #[derive(Debug, Clone, PartialEq)]
-#[doc(hidden)]
-pub enum TargetBase {
+enum TargetBase {
     #[doc = "Selects the all players form of the target base Minecraft command value."]
     AllPlayers,
     #[doc = "Selects the all entities form of the target base Minecraft command value."]
@@ -144,40 +143,6 @@ pub enum One {}
 #[doc(hidden)]
 pub enum Many {}
 
-/// Entity selector with statically modeled arity.
-#[derive(Debug, Clone)]
-#[doc(hidden)]
-#[must_use = "targets do nothing until passed to a command"]
-pub struct EntityTarget<A> {
-    raw: Selector,
-    _arity: PhantomData<A>,
-}
-
-/// Player selector with statically modeled arity.
-#[derive(Debug, Clone)]
-#[doc(hidden)]
-#[must_use = "targets do nothing until passed to a command"]
-pub struct PlayerTarget<A> {
-    raw: Selector,
-    _arity: PhantomData<A>,
-}
-
-/// An entity target that resolves to at most one entity.
-#[doc(hidden)]
-pub type SingleEntity = EntityTarget<One>;
-
-/// An entity target that may resolve to zero or more entities.
-#[doc(hidden)]
-pub type EntityTargets = EntityTarget<Many>;
-
-/// A player target that resolves to at most one player.
-#[doc(hidden)]
-pub type SinglePlayer = PlayerTarget<One>;
-
-/// A player target that may resolve to zero or more players.
-#[doc(hidden)]
-pub type PlayerTargets = PlayerTarget<Many>;
-
 // ── Canonical target model ───────────────────────────────────────────────────
 
 /// Hidden category marker for targets that may select any entity.
@@ -202,7 +167,7 @@ pub enum PlayersOnly {}
 ///
 /// let enemies = Target::entities().tag("enemy").within_blocks(16.0);
 /// let nearest = enemies.nearest();
-/// let players = Target::players().gamemode_typed(sand_commands::GameMode::Survival);
+/// let players = Target::players().gamemode(sand_commands::GameMode::Survival);
 ///
 /// assert_eq!(nearest.to_string(), "@e[tag=enemy,distance=..16,sort=nearest,limit=1]");
 /// assert_eq!(players.to_string(), "@a[gamemode=survival]");
@@ -262,9 +227,7 @@ impl<K, A> Target<K, A> {
         self.without_tag(tag)
     }
 
-    /// Restricts the target to the supplied distance range.
-    #[sand_macros::api(registry = sand_api_contract, path = "sand::command::Target::distance_typed", aliases = ["sand::cmd::Target::distance_typed", "sand::prelude::Target::distance_typed", "sand::prelude::cmd::Target::distance_typed"], module = "sand::command", summary = "Restricts a target with a typed distance range.", context = "Uses SelectorRange so invalid or non-finite bounds are rejected by normal target validation.", minecraft = "Emits distance=<range>.", use_when = ["Selecting entities by an arbitrary typed distance range"], avoid_when = ["A simple upper bound is clearer; use within_blocks"], params(range = "The typed distance range."), returns = "The same typed target with the distance filter applied.", example = "let target = sand::command::Target::entities().distance_typed(sand::command::TargetRange::between(2.0, 8.0));")]
-    pub fn distance_typed(mut self, range: SelectorRange) -> Self {
+    fn with_distance_range(mut self, range: TargetRange) -> Self {
         self.raw = self.raw.distance_typed(range);
         self
     }
@@ -272,23 +235,23 @@ impl<K, A> Target<K, A> {
     /// Restricts the target to entities within `max` blocks.
     #[sand_macros::api(registry = sand_api_contract, path = "sand::command::Target::within_blocks", aliases = ["sand::cmd::Target::within_blocks", "sand::prelude::Target::within_blocks", "sand::prelude::cmd::Target::within_blocks"], module = "sand::command", summary = "Restricts a target to entities within a maximum distance.", context = "Convenience form of a typed distance upper bound.", minecraft = "Emits distance=..<max>.", use_when = ["Selecting nearby entities or players"], avoid_when = ["Selecting a full minimum/maximum range"], params(max = "The inclusive maximum distance in blocks."), returns = "The same typed target with the distance filter applied.", example = "let target = sand::command::Target::entities().within_blocks(16.0);")]
     pub fn within_blocks(self, max: f64) -> Self {
-        self.distance_typed(SelectorRange::at_most(max))
+        self.with_distance_range(TargetRange::at_most(max))
     }
 
     /// Restricts the target to entities at least `min` blocks away.
     #[sand_macros::api(registry = sand_api_contract, path = "sand::command::Target::distance_min", aliases = ["sand::cmd::Target::distance_min", "sand::prelude::Target::distance_min", "sand::prelude::cmd::Target::distance_min"], module = "sand::command", summary = "Restricts a target to entities beyond a minimum distance.", context = "Convenience form of a typed distance lower bound.", minecraft = "Emits distance=<min>...", use_when = ["Excluding nearby entities by distance"], avoid_when = ["Selecting a full minimum/maximum range"], params(min = "The inclusive minimum distance in blocks."), returns = "The same typed target with the distance filter applied.", example = "let target = sand::command::Target::entities().distance_min(1.0);")]
     pub fn distance_min(self, min: f64) -> Self {
-        self.distance_typed(SelectorRange::at_least(min))
+        self.with_distance_range(TargetRange::at_least(min))
     }
 
     /// Restricts the target to entities between `min` and `max` blocks away.
     #[sand_macros::api(registry = sand_api_contract, path = "sand::command::Target::distance_range", aliases = ["sand::cmd::Target::distance_range", "sand::prelude::Target::distance_range", "sand::prelude::cmd::Target::distance_range"], module = "sand::command", summary = "Restricts a target to an inclusive distance range.", context = "Builds a typed two-sided selector distance range.", minecraft = "Emits distance=<min>..<max>.", use_when = ["Selecting entities inside a distance band"], avoid_when = ["Only an upper bound is needed; use within_blocks"], params(min = "The inclusive minimum distance.", max = "The inclusive maximum distance."), returns = "The same typed target with the distance range applied.", example = "let target = sand::command::Target::entities().distance_range(2.0, 16.0);")]
     pub fn distance_range(self, min: f64, max: f64) -> Self {
-        self.distance_typed(SelectorRange::between(min, max))
+        self.with_distance_range(TargetRange::between(min, max))
     }
 
     /// Restricts the target to a scoreboard range.
-    #[sand_macros::api(registry = sand_api_contract, path = "sand::command::Target::score", aliases = ["sand::cmd::Target::score", "sand::prelude::Target::score", "sand::prelude::cmd::Target::score"], module = "sand::command", summary = "Adds one typed scoreboard filter to a target.", context = "Validates the objective and score range without requiring a hand-formatted selector score map.", minecraft = "Emits a scores={<objective>=<range>} selector entry.", use_when = ["Filtering by one scoreboard objective"], avoid_when = ["Filtering by several objectives at once; use scores_typed"], params(objective = "The validated scoreboard objective.", range = "The accepted integer score range."), returns = "The filtered target or an objective validation error.", example = "let target = sand::command::Target::entities().score(sand::command::ObjectiveName::new(\"threat\"), sand::command::ScoreRange::at_least(5))?;")]
+    #[sand_macros::api(registry = sand_api_contract, path = "sand::command::Target::score", aliases = ["sand::cmd::Target::score", "sand::prelude::Target::score", "sand::prelude::cmd::Target::score"], module = "sand::command", summary = "Adds one typed scoreboard filter to a target.", context = "Validates the objective and score range without requiring a hand-formatted selector score map.", minecraft = "Emits a scores={<objective>=<range>} selector entry.", use_when = ["Filtering by one scoreboard objective"], avoid_when = ["Filtering by several objectives at once; use scores"], params(objective = "The validated scoreboard objective.", range = "The accepted integer score range."), returns = "The filtered target or an objective validation error.", example = "let target = sand::command::Target::entities().score(sand::command::ObjectiveName::new(\"threat\"), sand::command::ScoreRange::at_least(5))?;")]
     pub fn score(
         mut self,
         objective: crate::ObjectiveName,
@@ -298,15 +261,22 @@ impl<K, A> Target<K, A> {
         Ok(self)
     }
 
-    /// Restricts the target with a typed scoreboard map.
-    #[sand_macros::api(registry = sand_api_contract, path = "sand::command::Target::scores_typed", aliases = ["sand::cmd::Target::scores_typed", "sand::prelude::Target::scores_typed", "sand::prelude::cmd::Target::scores_typed"], module = "sand::command", summary = "Adds a typed scoreboard filter map to a target.", context = "Keeps objective ordering deterministic and validates every score range.", minecraft = "Emits scores={...}.", use_when = ["Filtering by multiple scoreboard objectives"], avoid_when = ["Supplying a hand-formatted score map"], params(scores = "The typed objective-to-range map."), returns = "The same typed target with score filters applied.", example = "let target = sand::command::Target::entities().scores_typed(sand::command::TargetScores::new());")]
-    pub fn scores_typed(mut self, scores: SelectorScores) -> Self {
-        self.raw = self.raw.scores_typed(scores);
+    /// Restricts the target with one or more typed scoreboard filters.
+    #[sand_macros::api(registry = sand_api_contract, path = "sand::command::Target::scores", aliases = ["sand::cmd::Target::scores", "sand::prelude::Target::scores", "sand::prelude::cmd::Target::scores"], module = "sand::command", summary = "Adds typed scoreboard filters directly to a target.", context = "Accepts ordinary objective/range pairs so authors do not need a separate selector-map wrapper. Objectives and ranges are checked at the normal target validation boundary.", minecraft = "Emits scores={<objective>=<range>,...} in insertion order.", use_when = ["Filtering by several scoreboard objectives"], avoid_when = ["Filtering by one objective; use score"], params(scores = "Objective/range pairs to require."), returns = "The same target with the typed score filters applied.", example = "let target = sand::command::Target::entities().scores([(ObjectiveName::new(\"threat\"), ScoreRange::at_least(5))]);")]
+    pub fn scores(
+        mut self,
+        scores: impl IntoIterator<Item = (crate::ObjectiveName, ScoreRange)>,
+    ) -> Self {
+        self.raw = self.raw.scores_typed(
+            scores
+                .into_iter()
+                .map(|(objective, range)| (objective.to_string(), range)),
+        );
         self
     }
 
     /// Explicit raw escape hatch for a scoreboard selector map.
-    #[sand_macros::api(registry = sand_api_contract, path = "sand::command::Target::scores_raw", aliases = ["sand::cmd::Target::scores_raw", "sand::prelude::Target::scores_raw", "sand::prelude::cmd::Target::scores_raw"], module = "sand::command", summary = "Adds an explicitly raw scoreboard selector map.", context = "Escape hatch for score syntax not represented by SelectorScores.", minecraft = "Emits the supplied fragment inside scores={...} after shape validation.", use_when = ["Using future or modded score selector syntax"], avoid_when = ["SelectorScores can represent the filter"], params(scores = "The raw score-map fragment."), returns = "The same typed target with the raw filter applied.", example = "let target = sand::command::Target::entities().scores_raw(\"threat=5..\");")]
+    #[sand_macros::api(registry = sand_api_contract, path = "sand::command::Target::scores_raw", aliases = ["sand::cmd::Target::scores_raw", "sand::prelude::Target::scores_raw", "sand::prelude::cmd::Target::scores_raw"], module = "sand::command", summary = "Adds an explicitly raw scoreboard selector map.", context = "Escape hatch for future or modded score syntax not represented by ObjectiveName and ScoreRange pairs.", minecraft = "Emits the supplied fragment inside scores={...} after shape validation.", use_when = ["Using future or modded score selector syntax"], avoid_when = ["Target::score or Target::scores can represent the filter"], params(scores = "The raw score-map fragment."), returns = "The same typed target with the raw filter applied.", example = "let target = sand::command::Target::entities().scores_raw(\"threat=5..\");")]
     pub fn scores_raw(mut self, scores: impl Into<String>) -> Self {
         self.raw = self.raw.scores(scores);
         self
@@ -372,6 +342,20 @@ impl<K, A> Target<K, A> {
     #[sand_macros::api(registry = sand_api_contract, path = "sand::command::Target::predicate_raw", aliases = ["sand::cmd::Target::predicate_raw", "sand::prelude::Target::predicate_raw", "sand::prelude::cmd::Target::predicate_raw"], module = "sand::command", summary = "Adds an explicitly raw predicate selector filter.", context = "Escape hatch pending consolidation on the canonical predicate resource ID.", minecraft = "Emits predicate=<namespace:path> after resource-location validation.", use_when = ["Filtering by a predicate before a shared typed ID is available at this layer"], avoid_when = ["Passing unchecked user input"], params(predicate = "The predicate resource location text."), returns = "The same typed target with the predicate filter applied.", example = "let target = sand::command::Target::entities().predicate_raw(\"demo:is_enemy\");")]
     pub fn predicate_raw(mut self, predicate: impl Into<String>) -> Self {
         self.raw = self.raw.predicate_raw(predicate);
+        self
+    }
+
+    /// Restricts the target through a canonical predicate resource identifier.
+    #[sand_macros::api(registry = sand_api_contract, path = "sand::command::Target::predicate", aliases = ["sand::cmd::Target::predicate", "sand::prelude::Target::predicate", "sand::prelude::cmd::Target::predicate"], module = "sand::command", summary = "Filters a target through a named predicate resource.", context = "Accepts the canonical PredicateId directly through its Display representation, avoiding a command-local identifier wrapper.", minecraft = "Emits predicate=<namespace:path>.", use_when = ["Filtering entities through a reusable predicate resource"], avoid_when = ["Supplying unsupported raw selector syntax; use predicate_raw"], params(predicate = "The canonical predicate resource identifier."), returns = "The same target with the predicate filter applied.", example = "let target = sand::command::Target::entities().predicate(predicate_id);")]
+    pub fn predicate(mut self, predicate: impl fmt::Display) -> Self {
+        self.raw = self.raw.predicate(predicate.to_string());
+        self
+    }
+
+    /// Excludes entities matching a canonical predicate resource identifier.
+    #[sand_macros::api(registry = sand_api_contract, path = "sand::command::Target::not_predicate", aliases = ["sand::cmd::Target::not_predicate", "sand::prelude::Target::not_predicate", "sand::prelude::cmd::Target::not_predicate"], module = "sand::command", summary = "Excludes entities matching a named predicate resource.", context = "Negation is a capability of Target rather than a second predicate-ID wrapper state.", minecraft = "Emits predicate=!<namespace:path>.", use_when = ["Excluding matches of a reusable predicate resource"], avoid_when = ["The predicate should be required; use predicate"], params(predicate = "The canonical predicate resource identifier to negate."), returns = "The same target with the negated predicate filter applied.", example = "let target = sand::command::Target::entities().not_predicate(predicate_id);")]
+    pub fn not_predicate(mut self, predicate: impl fmt::Display) -> Self {
+        self.raw = self.raw.predicate(format!("!{predicate}"));
         self
     }
 }
@@ -458,7 +442,7 @@ impl<A> Target<AnyTarget, A> {
 
 impl Target<PlayersOnly, Many> {
     /// `@a` — starts a target that may contain any number of players.
-    #[sand_macros::api(registry = sand_api_contract, path = "sand::command::Target::players", aliases = ["sand::cmd::Target::players", "sand::prelude::Target::players", "sand::prelude::cmd::Target::players"], module = "sand::command", summary = "Starts a many-player target.", context = "Canonical entry point that enables player-only target filters.", minecraft = "Starts from @a.", use_when = ["Selecting and filtering Minecraft players"], avoid_when = ["Non-player entities must be selectable"], returns = "A statically player-only target that may select many players.", example = "let target = sand::command::Target::players();")]
+    #[sand_macros::api(registry = sand_api_contract, path = "sand::command::Target::players", aliases = ["sand::cmd::Target::players", "sand::prelude::Target::players", "sand::prelude::cmd::Target::players"], module = "sand::command", summary = "Starts the canonical target used to select or query players.", context = "Canonical player-query entry point that enables player-only target filters without a separate PlayerQuery wrapper.", minecraft = "Starts from @a.", use_when = ["Selecting, filtering, or querying Minecraft players"], avoid_when = ["Non-player entities must be selectable"], returns = "A statically player-only target that may select many players.", example = "let target = sand::command::Target::players();")]
     pub fn players() -> Self {
         Self::from_selector(Selector::all_players())
     }
@@ -498,36 +482,50 @@ impl Target<PlayersOnly, One> {
 
 impl<A> Target<PlayersOnly, A> {
     /// Restricts the target to a typed game mode.
-    #[sand_macros::api(registry = sand_api_contract, path = "sand::command::Target::gamemode_typed", aliases = ["sand::cmd::Target::gamemode_typed", "sand::prelude::Target::gamemode_typed", "sand::prelude::cmd::Target::gamemode_typed"], module = "sand::command", summary = "Restricts a player target to a typed game mode.", context = "This method exists only on targets constructed as player-only.", minecraft = "Emits gamemode=<mode>.", use_when = ["Filtering players by a known vanilla game mode"], avoid_when = ["Filtering a target that may contain non-player entities"], params(mode = "The required game mode."), returns = "The same player target with the game-mode filter applied.", example = "let target = sand::command::Target::players().gamemode_typed(sand::command::GameMode::Survival);")]
-    pub fn gamemode_typed(mut self, mode: GameMode) -> Self {
+    #[sand_macros::api(registry = sand_api_contract, path = "sand::command::Target::gamemode", aliases = ["sand::cmd::Target::gamemode", "sand::prelude::Target::gamemode", "sand::prelude::cmd::Target::gamemode"], module = "sand::command", summary = "Restricts a player target to a typed game mode.", context = "This method exists only on targets constructed as player-only; GameMode is the canonical vanilla value.", minecraft = "Emits gamemode=<mode>.", use_when = ["Filtering players by a known vanilla game mode"], avoid_when = ["Filtering a target that may contain non-player entities"], params(mode = "The required game mode."), returns = "The same player target with the game-mode filter applied.", example = "let target = sand::command::Target::players().gamemode(sand::command::GameMode::Survival);")]
+    pub fn gamemode(mut self, mode: GameMode) -> Self {
         self.raw = self.raw.gamemode_typed(mode);
         self
     }
 
     /// Excludes a typed game mode.
-    #[sand_macros::api(registry = sand_api_contract, path = "sand::command::Target::not_gamemode_typed", aliases = ["sand::cmd::Target::not_gamemode_typed", "sand::prelude::Target::not_gamemode_typed", "sand::prelude::cmd::Target::not_gamemode_typed"], module = "sand::command", summary = "Excludes a typed game mode from a player target.", context = "This method exists only on targets constructed as player-only.", minecraft = "Emits gamemode=!<mode>.", use_when = ["Excluding players in one vanilla game mode"], avoid_when = ["Filtering a target that may contain non-player entities"], params(mode = "The excluded game mode."), returns = "The same player target with the exclusion applied.", example = "let target = sand::command::Target::players().not_gamemode_typed(sand::command::GameMode::Spectator);")]
-    pub fn not_gamemode_typed(mut self, mode: GameMode) -> Self {
+    #[sand_macros::api(registry = sand_api_contract, path = "sand::command::Target::not_gamemode", aliases = ["sand::cmd::Target::not_gamemode", "sand::prelude::Target::not_gamemode", "sand::prelude::cmd::Target::not_gamemode"], module = "sand::command", summary = "Excludes a typed game mode from a player target.", context = "This method exists only on targets constructed as player-only.", minecraft = "Emits gamemode=!<mode>.", use_when = ["Excluding players in one vanilla game mode"], avoid_when = ["Filtering a target that may contain non-player entities"], params(mode = "The excluded game mode."), returns = "The same player target with the exclusion applied.", example = "let target = sand::command::Target::players().not_gamemode(sand::command::GameMode::Spectator);")]
+    pub fn not_gamemode(mut self, mode: GameMode) -> Self {
         self.raw = self.raw.not_gamemode_typed(mode);
         self
     }
 
     /// Explicit raw escape hatch for a game-mode selector filter.
-    #[sand_macros::api(registry = sand_api_contract, path = "sand::command::Target::gamemode", aliases = ["sand::cmd::Target::gamemode", "sand::prelude::Target::gamemode", "sand::prelude::cmd::Target::gamemode"], module = "sand::command", summary = "Adds a raw game-mode filter to a player target.", context = "Compatibility escape hatch for future or modded game modes; prefer gamemode_typed for vanilla modes.", minecraft = "Emits gamemode=<mode> after validation.", use_when = ["Using game-mode syntax not represented by GameMode"], avoid_when = ["A GameMode variant is available"], params(mode = "The raw game-mode token."), returns = "The same player target with the filter applied.", example = "let target = sand::command::Target::players().gamemode(\"survival\");")]
-    pub fn gamemode(mut self, mode: impl Into<String>) -> Self {
+    #[sand_macros::api(registry = sand_api_contract, path = "sand::command::Target::gamemode_raw", aliases = ["sand::cmd::Target::gamemode_raw", "sand::prelude::Target::gamemode_raw", "sand::prelude::cmd::Target::gamemode_raw"], module = "sand::command", summary = "Adds a raw game-mode filter to a player target.", context = "Explicit escape hatch for future or modded game modes; prefer gamemode for vanilla modes.", minecraft = "Emits gamemode=<mode> after validation.", use_when = ["Using game-mode syntax not represented by GameMode"], avoid_when = ["A GameMode variant is available"], params(mode = "The raw game-mode token."), returns = "The same player target with the filter applied.", example = "let target = sand::command::Target::players().gamemode_raw(\"mod:mode\");")]
+    pub fn gamemode_raw(mut self, mode: impl Into<String>) -> Self {
         self.raw = self.raw.gamemode(mode);
         self
     }
 
-    /// Restricts the target to a typed experience-level range.
-    #[sand_macros::api(registry = sand_api_contract, path = "sand::command::Target::level_typed", aliases = ["sand::cmd::Target::level_typed", "sand::prelude::Target::level_typed", "sand::prelude::cmd::Target::level_typed"], module = "sand::command", summary = "Restricts a player target to a typed experience-level range.", context = "This player-only method validates non-negative integral level bounds.", minecraft = "Emits level=<range>.", use_when = ["Filtering players by experience level"], avoid_when = ["Filtering non-player entities"], params(range = "The accepted experience-level range."), returns = "The same player target with the level filter applied.", example = "let target = sand::command::Target::players().level_typed(sand::command::TargetRange::between(10.0, 30.0));")]
-    pub fn level_typed(mut self, range: SelectorRange) -> Self {
-        self.raw = self.raw.level_typed(range);
+    /// Restricts the target to players between two experience levels.
+    #[sand_macros::api(registry = sand_api_contract, path = "sand::command::Target::level_range", aliases = ["sand::cmd::Target::level_range", "sand::prelude::Target::level_range", "sand::prelude::cmd::Target::level_range"], module = "sand::command", summary = "Restricts a player target to an inclusive experience-level range.", context = "Accepts bounds directly so authors do not need a selector-specific range wrapper.", minecraft = "Emits level=<min>..<max>.", use_when = ["Filtering players by an experience-level interval"], avoid_when = ["Filtering non-player entities"], params(min = "The inclusive minimum level.", max = "The inclusive maximum level."), returns = "The same player target with the level filter applied.", example = "let target = sand::command::Target::players().level_range(10.0, 30.0);")]
+    pub fn level_range(mut self, min: f64, max: f64) -> Self {
+        self.raw = self.raw.level_typed(TargetRange::between(min, max));
+        self
+    }
+
+    /// Restricts the target to players at or above an experience level.
+    #[sand_macros::api(registry = sand_api_contract, path = "sand::command::Target::level_min", aliases = ["sand::cmd::Target::level_min", "sand::prelude::Target::level_min", "sand::prelude::cmd::Target::level_min"], module = "sand::command", summary = "Restricts a player target to a minimum experience level.", context = "Accepts the numeric bound directly on Target.", minecraft = "Emits level=<min>...", use_when = ["Selecting players at or above a level"], avoid_when = ["Filtering non-player entities"], params(min = "The inclusive minimum level."), returns = "The same player target with the level filter applied.", example = "let target = sand::command::Target::players().level_min(10.0);")]
+    pub fn level_min(mut self, min: f64) -> Self {
+        self.raw = self.raw.level_typed(TargetRange::at_least(min));
+        self
+    }
+
+    /// Restricts the target to players at or below an experience level.
+    #[sand_macros::api(registry = sand_api_contract, path = "sand::command::Target::level_max", aliases = ["sand::cmd::Target::level_max", "sand::prelude::Target::level_max", "sand::prelude::cmd::Target::level_max"], module = "sand::command", summary = "Restricts a player target to a maximum experience level.", context = "Accepts the numeric bound directly on Target.", minecraft = "Emits level=..<max>.", use_when = ["Selecting players at or below a level"], avoid_when = ["Filtering non-player entities"], params(max = "The inclusive maximum level."), returns = "The same player target with the level filter applied.", example = "let target = sand::command::Target::players().level_max(30.0);")]
+    pub fn level_max(mut self, max: f64) -> Self {
+        self.raw = self.raw.level_typed(TargetRange::at_most(max));
         self
     }
 
     /// Explicit raw escape hatch for an experience-level range.
-    #[sand_macros::api(registry = sand_api_contract, path = "sand::command::Target::level", aliases = ["sand::cmd::Target::level", "sand::prelude::Target::level", "sand::prelude::cmd::Target::level"], module = "sand::command", summary = "Adds a raw experience-level filter to a player target.", context = "Compatibility escape hatch for level syntax not represented by SelectorRange.", minecraft = "Emits level=<range> after validation.", use_when = ["Using future level-range syntax"], avoid_when = ["SelectorRange can represent the range"], params(range = "The raw experience-level range."), returns = "The same player target with the level filter applied.", example = "let target = sand::command::Target::players().level(\"10..30\");")]
-    pub fn level(mut self, range: impl Into<String>) -> Self {
+    #[sand_macros::api(registry = sand_api_contract, path = "sand::command::Target::level_raw", aliases = ["sand::cmd::Target::level_raw", "sand::prelude::Target::level_raw", "sand::prelude::cmd::Target::level_raw"], module = "sand::command", summary = "Adds a raw experience-level filter to a player target.", context = "Explicit escape hatch for future level syntax; prefer level_min, level_max, or level_range.", minecraft = "Emits level=<range> after validation.", use_when = ["Using future level-range syntax"], avoid_when = ["The numeric Target methods can represent the range"], params(range = "The raw experience-level range."), returns = "The same player target with the level filter applied.", example = "let target = sand::command::Target::players().level_raw(\"10..30\");")]
+    pub fn level_raw(mut self, range: impl Into<String>) -> Self {
         self.raw = self.raw.level(range);
         self
     }
@@ -586,54 +584,6 @@ impl<A> From<Target<PlayersOnly, A>> for Target<AnyTarget, A> {
     }
 }
 
-impl From<Target<AnyTarget, One>> for SingleEntity {
-    fn from(target: Target<AnyTarget, One>) -> Self {
-        SingleEntity::from_selector(target.raw)
-    }
-}
-
-impl From<Target<PlayersOnly, One>> for SingleEntity {
-    fn from(target: Target<PlayersOnly, One>) -> Self {
-        SingleEntity::from_selector(target.raw)
-    }
-}
-
-impl From<Target<PlayersOnly, One>> for SinglePlayer {
-    fn from(target: Target<PlayersOnly, One>) -> Self {
-        SinglePlayer::from_selector(target.raw)
-    }
-}
-
-impl From<Target<AnyTarget, Many>> for EntityTargets {
-    fn from(target: Target<AnyTarget, Many>) -> Self {
-        EntityTargets::from_selector(target.raw)
-    }
-}
-
-impl From<Target<PlayersOnly, Many>> for EntityTargets {
-    fn from(target: Target<PlayersOnly, Many>) -> Self {
-        EntityTargets::from_selector(target.raw)
-    }
-}
-
-impl From<Target<PlayersOnly, Many>> for PlayerTargets {
-    fn from(target: Target<PlayersOnly, Many>) -> Self {
-        PlayerTargets::from_selector(target.raw)
-    }
-}
-
-impl From<SingleEntity> for Target<AnyTarget, One> {
-    fn from(target: SingleEntity) -> Self {
-        Self::from_selector(target.raw)
-    }
-}
-
-impl From<SinglePlayer> for Target<PlayersOnly, One> {
-    fn from(target: SinglePlayer) -> Self {
-        Self::from_selector(target.raw)
-    }
-}
-
 mod target_argument_sealed {
     pub trait Sealed {}
 }
@@ -668,708 +618,19 @@ mod single_target_argument_sealed {
 /// Internal capability accepted by commands that require at most one entity.
 #[doc(hidden)]
 pub trait SingleTargetArgument:
-    single_target_argument_sealed::Sealed + Clone + Into<SingleEntity>
+    single_target_argument_sealed::Sealed + Clone + Into<Selector> + Sized
 {
+    #[doc(hidden)]
+    fn into_single_target_selector(self) -> Selector {
+        self.into()
+    }
 }
-
-impl single_target_argument_sealed::Sealed for SingleEntity {}
-impl SingleTargetArgument for SingleEntity {}
-
-impl single_target_argument_sealed::Sealed for SinglePlayer {}
-impl SingleTargetArgument for SinglePlayer {}
 
 impl single_target_argument_sealed::Sealed for Target<AnyTarget, One> {}
 impl SingleTargetArgument for Target<AnyTarget, One> {}
 
 impl single_target_argument_sealed::Sealed for Target<PlayersOnly, One> {}
 impl SingleTargetArgument for Target<PlayersOnly, One> {}
-
-impl<A> EntityTarget<A> {
-    /// Access the underlying selector.
-    pub fn selector(&self) -> &Selector {
-        &self.raw
-    }
-
-    /// Convert this typed target into the underlying selector.
-    pub fn into_selector(self) -> Selector {
-        self.raw
-    }
-
-    /// `tag=<tag>` — select only entities that have the given tag.
-    pub fn tag(mut self, tag: impl Into<String>) -> Self {
-        self.raw = self.raw.tag(tag);
-        self
-    }
-
-    /// `tag=!<tag>` — select only entities that do NOT have the given tag.
-    pub fn not_tag(mut self, tag: impl Into<String>) -> Self {
-        self.raw = self.raw.not_tag(tag);
-        self
-    }
-
-    /// `type=<entity_type>` — select only entities of the given type.
-    pub fn entity_type(mut self, ty: impl IntoEntityType) -> Self {
-        self.raw = self.raw.entity_type(ty);
-        self
-    }
-
-    /// `type=!<entity_type>` — select only entities NOT of the given type.
-    pub fn not_type(mut self, ty: impl IntoEntityType) -> Self {
-        self.raw = self.raw.not_type(ty);
-        self
-    }
-
-    /// `type=!minecraft:player` — exclude players from the target set.
-    pub fn excluding_players(self) -> Self {
-        self.not_type("minecraft:player")
-    }
-
-    /// Add one typed scoreboard filter without formatting a selector score map.
-    ///
-    /// ```
-    /// use sand_commands::ObjectiveName;
-    /// use sand_commands::selector::{EntityTargets, ScoreRange};
-    ///
-    /// let targets = Target::entities()
-    ///     .score(ObjectiveName::new("threat"), ScoreRange::at_least(5))
-    ///     .unwrap();
-    /// assert_eq!(targets.to_string(), "@e[scores={threat=5..}]");
-    /// ```
-    pub fn score(
-        mut self,
-        objective: crate::ObjectiveName,
-        range: ScoreRange,
-    ) -> CommandResult<Self> {
-        self.raw = self.raw.score_typed(objective, range)?;
-        Ok(self)
-    }
-
-    /// `distance=0.1..` — exclude the current executor when centered at `@s`.
-    pub fn excluding_self(mut self) -> Self {
-        self.raw = self.raw.exclude_self_distance();
-        self
-    }
-
-    /// `distance=..<max>` — select targets within `max` blocks.
-    pub fn within_blocks(mut self, max: f64) -> Self {
-        self.raw = self.raw.distance_max(max);
-        self
-    }
-
-    /// `distance=<range>` — select only entities within a distance range.
-    pub fn distance(mut self, range: impl Into<String>) -> Self {
-        self.raw = self.raw.distance(range);
-        self
-    }
-
-    /// `distance=<min>..<max>` — select only entities between `min` and `max`.
-    pub fn distance_range(mut self, min: f64, max: f64) -> Self {
-        self.raw = self.raw.distance_range(min, max);
-        self
-    }
-
-    /// `distance=<min>..` — select only entities at least `min` blocks away.
-    pub fn distance_min(mut self, min: f64) -> Self {
-        self.raw = self.raw.distance_min(min);
-        self
-    }
-
-    /// `distance=<range>` — select only entities within a typed distance
-    /// range, using [`SelectorRange`] instead of a hand-formatted string.
-    ///
-    /// ```
-    /// use sand_commands::selector::{EntityTargets, SelectorRange};
-    ///
-    /// let targets = Target::entities().distance_typed(SelectorRange::at_most(16.0));
-    /// assert_eq!(targets.to_string(), "@e[distance=..16]");
-    /// ```
-    pub fn distance_typed(mut self, range: SelectorRange) -> Self {
-        self.raw = self.raw.distance_typed(range);
-        self
-    }
-
-    /// `tag=<tag>` — select only entities with the given tag, using a typed
-    /// [`EntityTag`] instead of a raw string.
-    pub fn tag_typed(mut self, tag: EntityTag) -> Self {
-        self.raw = self.raw.tag_typed(tag);
-        self
-    }
-
-    /// `team=<team>` — select only entities on the given team.
-    pub fn team(mut self, team: impl Into<String>) -> Self {
-        self.raw = self.raw.team(team);
-        self
-    }
-
-    /// `team=!<team>` — select only entities NOT on the given team.
-    pub fn not_team(mut self, team: impl Into<String>) -> Self {
-        self.raw = self.raw.not_team(team);
-        self
-    }
-
-    /// `team=<team>` — select only entities on the given team, using a typed
-    /// [`TeamName`] instead of a raw string.
-    pub fn team_typed(mut self, team: TeamName) -> Self {
-        self.raw = self.raw.team_typed(team);
-        self
-    }
-
-    /// `name=<name>` — select only entities with the exact display name.
-    pub fn name(mut self, name: impl Into<String>) -> Self {
-        self.raw = self.raw.name(name);
-        self
-    }
-
-    /// `name=!<name>` — select only entities WITHOUT the given display name.
-    pub fn not_name(mut self, name: impl Into<String>) -> Self {
-        self.raw = self.raw.not_name(name);
-        self
-    }
-
-    /// `scores={<objective>=<range>,...}` — select only entities with
-    /// matching scoreboard scores, built from typed [`SelectorScores`]
-    /// entries instead of a hand-formatted string.
-    ///
-    /// ```
-    /// use sand_commands::selector::{EntityTargets, ScoreRange, SelectorScores};
-    ///
-    /// let targets = Target::entities().scores_typed(
-    ///     SelectorScores::new()
-    ///         .with("threat", ScoreRange::at_least(5))
-    ///         .with("kills", ScoreRange::exact(0)),
-    /// );
-    /// assert_eq!(targets.to_string(), "@e[scores={threat=5..,kills=0}]");
-    /// ```
-    pub fn scores_typed(mut self, scores: SelectorScores) -> Self {
-        self.raw = self.raw.scores_typed(scores);
-        self
-    }
-
-    /// `predicate=<id>` — select only entities matching a loot table
-    /// predicate, using a typed [`PredicateId`] instead of a raw string.
-    ///
-    /// ```
-    /// use sand_commands::selector::{EntityTargets, PredicateId};
-    ///
-    /// let targets = Target::entities().predicate_id(PredicateId::new("my_pack:is_burning"));
-    /// assert_eq!(targets.to_string(), "@e[predicate=my_pack:is_burning]");
-    /// ```
-    pub fn predicate_id(mut self, id: PredicateId) -> Self {
-        self.raw = self.raw.predicate_id(id);
-        self
-    }
-
-    /// `dx/dy/dz` — set a bounding box volume filter.
-    pub fn volume(mut self, dx: f64, dy: f64, dz: f64) -> Self {
-        self.raw = self.raw.volume(dx, dy, dz);
-        self
-    }
-
-    /// `x/y/z` — set the origin point for distance and volume checks.
-    pub fn at_pos(mut self, x: f64, y: f64, z: f64) -> Self {
-        self.raw = self.raw.at_pos(x, y, z);
-        self
-    }
-
-    /// Explicit raw escape hatch for `scores=...` syntax.
-    ///
-    /// This opts out of Sand's typed score model: the fragment is passed
-    /// through verbatim (e.g. `"kills=1..10,deaths=0"`) and only checked for
-    /// shape at [`Selector::try_build`] time. Prefer
-    /// [`EntityTarget::scores_typed`] in normal code; use this only for score
-    /// syntax Sand cannot model yet. Delegates to [`Selector::scores_raw`].
-    pub fn scores_raw(mut self, scores: impl Into<String>) -> Self {
-        self.raw = self.raw.scores_raw(scores);
-        self
-    }
-
-    /// Explicit raw escape hatch for `nbt=...` syntax.
-    ///
-    /// This crate has no typed SNBT representation yet, so this remains the
-    /// normal path for NBT filters — the compound is passed through verbatim
-    /// and only balance-checked at [`Selector::try_build`] time. Delegates to
-    /// [`Selector::nbt_raw`].
-    pub fn nbt_raw(mut self, nbt: impl Into<String>) -> Self {
-        self.raw = self.raw.nbt_raw(nbt);
-        self
-    }
-
-    /// Explicit raw escape hatch for `predicate=...` syntax.
-    ///
-    /// This opts out of the typed [`PredicateId`] wrapper: the string is
-    /// passed through verbatim and only resource-location-shape checked at
-    /// [`Selector::try_build`] time. Prefer
-    /// [`EntityTarget::predicate_id`] in normal code. Delegates to
-    /// [`Selector::predicate_raw`].
-    pub fn predicate_raw(mut self, predicate: impl Into<String>) -> Self {
-        self.raw = self.raw.predicate_raw(predicate);
-        self
-    }
-}
-
-impl<A> Validate for EntityTarget<A> {
-    fn validate(&self, profile: &CommandProfile) -> CommandResult<()> {
-        self.raw.validate(profile)
-    }
-}
-
-impl<A> RenderCommand for EntityTarget<A> {
-    fn render_unchecked(&self, _profile: &CommandProfile) -> String {
-        self.to_string()
-    }
-}
-
-impl EntityTargets {
-    /// `@e` — all entities.
-    pub fn all() -> Self {
-        Self::from_selector(Selector::all_entities())
-    }
-
-    /// `@e[distance=..<radius>]` — all entities within a radius of the executor.
-    pub fn nearby(radius: f64) -> Self {
-        Self::all().within_blocks(radius)
-    }
-
-    /// Add `limit=1` and convert to a single-entity target.
-    pub fn limit(mut self, n: i32) -> CommandResult<SingleEntity> {
-        if n != 1 {
-            return Err(CommandError::new(
-                "EntityTargets::limit",
-                "limit",
-                format!("single-entity narrowing requires `limit=1`, got `{n}`"),
-            ));
-        }
-        self.raw = self.raw.limit(n);
-        Ok(SingleEntity::from_selector(self.raw))
-    }
-
-    /// Pick the nearest matching entity as a single target.
-    pub fn nearest(mut self) -> SingleEntity {
-        self.raw = self.raw.sort(SortOrder::Nearest).limit(1);
-        SingleEntity::from_selector(self.raw)
-    }
-}
-
-impl SingleEntity {
-    /// `@s` — the current executor as a single entity.
-    pub fn self_() -> Self {
-        Self::from_selector(Selector::self_())
-    }
-
-    /// Explicit unchecked single-entity selector syntax.
-    ///
-    /// This opts out of Sand's cardinality proof. Use only when advanced or
-    /// modded syntax guarantees zero or one result.
-    pub fn raw(selector: impl Into<String>) -> Self {
-        Self::from_selector(Selector::raw(selector))
-    }
-}
-
-impl<A> PlayerTarget<A> {
-    /// Access the underlying selector.
-    pub fn selector(&self) -> &Selector {
-        &self.raw
-    }
-
-    /// Convert this typed target into the underlying selector.
-    pub fn into_selector(self) -> Selector {
-        self.raw
-    }
-
-    /// `tag=<tag>` — select only players that have the given tag.
-    pub fn tag(mut self, tag: impl Into<String>) -> Self {
-        self.raw = self.raw.tag(tag);
-        self
-    }
-
-    /// `tag=!<tag>` — select only players that do NOT have the given tag.
-    pub fn not_tag(mut self, tag: impl Into<String>) -> Self {
-        self.raw = self.raw.not_tag(tag);
-        self
-    }
-
-    /// `distance=..<max>` — select players within `max` blocks.
-    pub fn within_blocks(mut self, max: f64) -> Self {
-        self.raw = self.raw.distance_max(max);
-        self
-    }
-
-    /// `distance=<min>..<max>` — select only players between `min` and `max`.
-    pub fn distance_range(mut self, min: f64, max: f64) -> Self {
-        self.raw = self.raw.distance_range(min, max);
-        self
-    }
-
-    /// `distance=<min>..` — select only players at least `min` blocks away.
-    pub fn distance_min(mut self, min: f64) -> Self {
-        self.raw = self.raw.distance_min(min);
-        self
-    }
-
-    /// `distance=<range>` — select only players within a distance range.
-    pub fn distance(mut self, range: impl Into<String>) -> Self {
-        self.raw = self.raw.distance(range);
-        self
-    }
-
-    /// `distance=<range>` — select only players within a typed distance
-    /// range, using [`SelectorRange`] instead of a hand-formatted string.
-    ///
-    /// ```
-    /// use sand_commands::selector::{PlayerTargets, SelectorRange};
-    ///
-    /// let targets = PlayerTargets::all().distance_typed(SelectorRange::between(0.5, 10.0));
-    /// assert_eq!(targets.to_string(), "@a[distance=0.5..10]");
-    /// ```
-    pub fn distance_typed(mut self, range: SelectorRange) -> Self {
-        self.raw = self.raw.distance_typed(range);
-        self
-    }
-
-    /// `distance=0.1..` — exclude the current executor when centered at `@s`.
-    pub fn excluding_self(mut self) -> Self {
-        self.raw = self.raw.exclude_self_distance();
-        self
-    }
-
-    /// `tag=<tag>` — select only players with the given tag, using a typed
-    /// [`EntityTag`] instead of a raw string.
-    pub fn tag_typed(mut self, tag: EntityTag) -> Self {
-        self.raw = self.raw.tag_typed(tag);
-        self
-    }
-
-    /// `team=<team>` — select only players on the given team.
-    pub fn team(mut self, team: impl Into<String>) -> Self {
-        self.raw = self.raw.team(team);
-        self
-    }
-
-    /// `team=!<team>` — select only players NOT on the given team.
-    pub fn not_team(mut self, team: impl Into<String>) -> Self {
-        self.raw = self.raw.not_team(team);
-        self
-    }
-
-    /// `team=<team>` — select only players on the given team, using a typed
-    /// [`TeamName`] instead of a raw string.
-    pub fn team_typed(mut self, team: TeamName) -> Self {
-        self.raw = self.raw.team_typed(team);
-        self
-    }
-
-    /// `name=<name>` — select only players with the exact display name.
-    pub fn name(mut self, name: impl Into<String>) -> Self {
-        self.raw = self.raw.name(name);
-        self
-    }
-
-    /// `name=!<name>` — select only players WITHOUT the given display name.
-    pub fn not_name(mut self, name: impl Into<String>) -> Self {
-        self.raw = self.raw.not_name(name);
-        self
-    }
-
-    /// Add one typed scoreboard filter without formatting a selector score map.
-    ///
-    /// ```
-    /// use sand_commands::ObjectiveName;
-    /// use sand_commands::selector::{PlayerTargets, ScoreRange};
-    ///
-    /// let targets = PlayerTargets::all()
-    ///     .score(ObjectiveName::new("kills"), ScoreRange::at_least(1))
-    ///     .unwrap();
-    /// assert_eq!(targets.to_string(), "@a[scores={kills=1..}]");
-    /// ```
-    pub fn score(
-        mut self,
-        objective: crate::ObjectiveName,
-        range: ScoreRange,
-    ) -> CommandResult<Self> {
-        self.raw = self.raw.score_typed(objective, range)?;
-        Ok(self)
-    }
-
-    /// `scores={<objective>=<range>,...}` — select only players with matching
-    /// scoreboard scores, built from typed [`SelectorScores`] entries instead
-    /// of a hand-formatted string.
-    ///
-    /// ```
-    /// use sand_commands::selector::{PlayerTargets, ScoreRange, SelectorScores};
-    ///
-    /// let targets = PlayerTargets::all().scores_typed(
-    ///     SelectorScores::new()
-    ///         .with("kills", ScoreRange::between(1, 10))
-    ///         .with("deaths", ScoreRange::exact(0)),
-    /// );
-    /// assert_eq!(targets.to_string(), "@a[scores={kills=1..10,deaths=0}]");
-    /// ```
-    pub fn scores_typed(mut self, scores: SelectorScores) -> Self {
-        self.raw = self.raw.scores_typed(scores);
-        self
-    }
-
-    /// `predicate=<id>` — select only players matching a loot table
-    /// predicate, using a typed [`PredicateId`] instead of a raw string.
-    ///
-    /// ```
-    /// use sand_commands::selector::{PlayerTargets, PredicateId};
-    ///
-    /// let targets = PlayerTargets::all().predicate_id(PredicateId::new("my_pack:is_sneaking"));
-    /// assert_eq!(targets.to_string(), "@a[predicate=my_pack:is_sneaking]");
-    /// ```
-    pub fn predicate_id(mut self, id: PredicateId) -> Self {
-        self.raw = self.raw.predicate_id(id);
-        self
-    }
-
-    /// `level=<range>` — select only players within the given XP level range.
-    ///
-    /// Raw/compatibility: `range` is a hand-formatted string, validated at
-    /// [`Selector::try_build`] time. Prefer [`PlayerTarget::level_typed`].
-    pub fn level(mut self, range: impl Into<String>) -> Self {
-        self.raw = self.raw.level(range);
-        self
-    }
-
-    /// `level=<range>` — select only players within a typed XP level range,
-    /// using [`SelectorRange`] instead of a hand-formatted string.
-    ///
-    /// ```
-    /// use sand_commands::selector::{PlayerTargets, SelectorRange};
-    ///
-    /// let targets = PlayerTargets::all().level_typed(SelectorRange::between(10.0, 30.0));
-    /// assert_eq!(targets.to_string(), "@a[level=10..30]");
-    /// ```
-    pub fn level_typed(mut self, range: SelectorRange) -> Self {
-        self.raw = self.raw.level_typed(range);
-        self
-    }
-
-    /// `gamemode=<mode>` — select only players in the given gamemode.
-    ///
-    /// Raw/compatibility: `mode` is a string, validated against the vanilla
-    /// gamemode set at [`Selector::try_build`] time rather than at the type
-    /// level. Prefer [`PlayerTarget::gamemode_typed`] in normal code.
-    pub fn gamemode(mut self, mode: impl Into<String>) -> Self {
-        self.raw = self.raw.gamemode(mode);
-        self
-    }
-
-    /// `gamemode=<mode>` — select only players in the given gamemode, using
-    /// the canonical typed [`GameMode`] enum instead of a validated string.
-    ///
-    /// ```
-    /// use sand_commands::selector::{GameMode, PlayerTargets};
-    ///
-    /// let targets = PlayerTargets::all().gamemode_typed(GameMode::Adventure);
-    /// assert_eq!(targets.to_string(), "@a[gamemode=adventure]");
-    /// ```
-    pub fn gamemode_typed(mut self, mode: GameMode) -> Self {
-        self.raw = self.raw.gamemode_typed(mode);
-        self
-    }
-
-    /// `gamemode=!<mode>` — exclude players in the given gamemode.
-    pub fn not_gamemode_typed(mut self, mode: GameMode) -> Self {
-        self.raw = self.raw.not_gamemode_typed(mode);
-        self
-    }
-
-    /// `dx/dy/dz` — set a bounding box volume filter.
-    pub fn volume(mut self, dx: f64, dy: f64, dz: f64) -> Self {
-        self.raw = self.raw.volume(dx, dy, dz);
-        self
-    }
-
-    /// `x/y/z` — set the origin point for distance and volume checks.
-    pub fn at_pos(mut self, x: f64, y: f64, z: f64) -> Self {
-        self.raw = self.raw.at_pos(x, y, z);
-        self
-    }
-
-    /// Explicit raw escape hatch for `scores=...` syntax.
-    ///
-    /// This opts out of Sand's typed score model: the fragment is passed
-    /// through verbatim (e.g. `"kills=1..10,deaths=0"`) and only checked for
-    /// shape at [`Selector::try_build`] time. Prefer
-    /// [`PlayerTarget::scores_typed`] in normal code; use this only for score
-    /// syntax Sand cannot model yet. Delegates to [`Selector::scores_raw`].
-    pub fn scores_raw(mut self, scores: impl Into<String>) -> Self {
-        self.raw = self.raw.scores_raw(scores);
-        self
-    }
-
-    /// Explicit raw escape hatch for `nbt=...` syntax.
-    ///
-    /// This crate has no typed SNBT representation yet, so this remains the
-    /// normal path for NBT filters — the compound is passed through verbatim
-    /// and only balance-checked at [`Selector::try_build`] time. Delegates to
-    /// [`Selector::nbt_raw`].
-    pub fn nbt_raw(mut self, nbt: impl Into<String>) -> Self {
-        self.raw = self.raw.nbt_raw(nbt);
-        self
-    }
-
-    /// Explicit raw escape hatch for `predicate=...` syntax.
-    ///
-    /// This opts out of the typed [`PredicateId`] wrapper: the string is
-    /// passed through verbatim and only resource-location-shape checked at
-    /// [`Selector::try_build`] time. Prefer [`PlayerTarget::predicate_id`] in
-    /// normal code. Delegates to [`Selector::predicate_raw`].
-    pub fn predicate_raw(mut self, predicate: impl Into<String>) -> Self {
-        self.raw = self.raw.predicate_raw(predicate);
-        self
-    }
-}
-
-impl<A> Validate for PlayerTarget<A> {
-    fn validate(&self, profile: &CommandProfile) -> CommandResult<()> {
-        self.raw.validate(profile)
-    }
-}
-
-impl<A> RenderCommand for PlayerTarget<A> {
-    fn render_unchecked(&self, _profile: &CommandProfile) -> String {
-        self.to_string()
-    }
-}
-
-impl PlayerTargets {
-    /// `@a` — all players.
-    pub fn all() -> Self {
-        Self::from_selector(Selector::all_players())
-    }
-
-    /// Add `limit=1` and convert to a single-player target.
-    pub fn limit(mut self, n: i32) -> CommandResult<SinglePlayer> {
-        if n != 1 {
-            return Err(CommandError::new(
-                "PlayerTargets::limit",
-                "limit",
-                format!("single-player narrowing requires `limit=1`, got `{n}`"),
-            ));
-        }
-        self.raw = self.raw.limit(n);
-        Ok(SinglePlayer::from_selector(self.raw))
-    }
-
-    /// Pick the nearest matching player as a single target.
-    pub fn nearest(mut self) -> SinglePlayer {
-        self.raw = self.raw.sort(SortOrder::Nearest).limit(1);
-        SinglePlayer::from_selector(self.raw)
-    }
-}
-
-impl SinglePlayer {
-    /// `@s` — the current executor as a single player.
-    pub fn self_() -> Self {
-        Self::from_selector(Selector::self_())
-    }
-
-    /// `@p` — the nearest player.
-    pub fn nearest() -> Self {
-        Self::from_selector(Selector::nearest_player())
-    }
-
-    /// Explicit unchecked single-player selector syntax.
-    pub fn raw(selector: impl Into<String>) -> Self {
-        Self::from_selector(Selector::raw(selector))
-    }
-}
-
-impl SingleEntity {
-    fn from_selector(raw: Selector) -> Self {
-        Self {
-            raw,
-            _arity: PhantomData,
-        }
-    }
-}
-
-impl EntityTargets {
-    fn from_selector(raw: Selector) -> Self {
-        Self {
-            raw,
-            _arity: PhantomData,
-        }
-    }
-}
-
-impl SinglePlayer {
-    fn from_selector(raw: Selector) -> Self {
-        Self {
-            raw,
-            _arity: PhantomData,
-        }
-    }
-}
-
-impl PlayerTargets {
-    fn from_selector(raw: Selector) -> Self {
-        Self {
-            raw,
-            _arity: PhantomData,
-        }
-    }
-}
-
-impl TryFrom<Selector> for SingleEntity {
-    type Error = CommandError;
-    fn try_from(raw: Selector) -> CommandResult<Self> {
-        raw.validate_single("SingleEntity")?;
-        Ok(Self::from_selector(raw))
-    }
-}
-
-impl TryFrom<Selector> for EntityTargets {
-    type Error = CommandError;
-    fn try_from(raw: Selector) -> CommandResult<Self> {
-        raw.validate(&CommandProfile::unprofiled())?;
-        Ok(Self::from_selector(raw))
-    }
-}
-
-impl TryFrom<Selector> for SinglePlayer {
-    type Error = CommandError;
-    fn try_from(raw: Selector) -> CommandResult<Self> {
-        raw.validate_player("SinglePlayer")?;
-        raw.validate_single("SinglePlayer")?;
-        Ok(Self::from_selector(raw))
-    }
-}
-
-impl TryFrom<Selector> for PlayerTargets {
-    type Error = CommandError;
-    fn try_from(raw: Selector) -> CommandResult<Self> {
-        raw.validate_player("PlayerTargets")?;
-        Ok(Self::from_selector(raw))
-    }
-}
-
-impl From<SinglePlayer> for SingleEntity {
-    fn from(player: SinglePlayer) -> Self {
-        SingleEntity::from_selector(player.raw)
-    }
-}
-
-impl From<PlayerTargets> for EntityTargets {
-    fn from(players: PlayerTargets) -> Self {
-        EntityTargets::from_selector(players.raw)
-    }
-}
-
-impl<A> fmt::Display for EntityTarget<A> {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        self.raw.fmt(f)
-    }
-}
-
-impl<A> fmt::Display for PlayerTarget<A> {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        self.raw.fmt(f)
-    }
-}
 
 /// Sort order for entity selection in `@a`/`@e` selectors.
 ///
@@ -1668,21 +929,17 @@ impl Selector {
     }
 
     /// `scores={<objective>=<range>,...}` — select only entities with
-    /// matching scoreboard scores, built from typed [`SelectorScores`]
-    /// entries instead of a hand-formatted string.
-    ///
-    /// ```
-    /// use sand_commands::selector::{Selector, SelectorScores, ScoreRange};
-    ///
-    /// let sel = Target::players().scores_typed(
-    ///     SelectorScores::new()
-    ///         .with("kills", ScoreRange::between(1, 10))
-    ///         .with("deaths", ScoreRange::exact(0)),
-    /// );
-    /// assert_eq!(sel.to_string(), "@a[scores={kills=1..10,deaths=0}]");
-    /// ```
-    pub fn scores_typed(mut self, scores: SelectorScores) -> Self {
-        self.args.push(SelectorArg::Scores(scores.to_string()));
+    /// matching scoreboard scores from ordinary objective/range pairs.
+    pub(crate) fn scores_typed(
+        mut self,
+        scores: impl IntoIterator<Item = (String, ScoreRange)>,
+    ) -> Self {
+        let scores = scores
+            .into_iter()
+            .map(|(objective, range)| format!("{objective}={range}"))
+            .collect::<Vec<_>>()
+            .join(",");
+        self.args.push(SelectorArg::Scores(scores));
         self
     }
 
@@ -1747,8 +1004,7 @@ impl Selector {
     ///
     /// Raw/compatibility: `predicate` is a string, validated for
     /// resource-location shape at [`Selector::try_build`] time. Prefer
-    /// [`Selector::predicate_id`] in normal code — see
-    /// [#200](https://github.com/ThatOneToast/sand/issues/200). Equivalent to
+    /// [`Target::predicate`] in normal code. Equivalent to
     /// [`Selector::predicate_raw`].
     pub fn predicate(mut self, predicate: impl Into<String>) -> Self {
         self.args.push(SelectorArg::Predicate(predicate.into()));
@@ -1761,59 +1017,17 @@ impl Selector {
         self.predicate(predicate)
     }
 
-    /// `predicate=<id>` — select only entities matching a loot table
-    /// predicate, using a typed [`PredicateId`] instead of a raw string.
-    ///
-    /// ```
-    /// use sand_commands::selector::{Selector, PredicateId};
-    ///
-    /// let sel = Target::players().predicate_id(PredicateId::new("my_pack:is_sneaking"));
-    /// assert_eq!(sel.to_string(), "@a[predicate=my_pack:is_sneaking]");
-    /// ```
-    pub fn predicate_id(mut self, id: PredicateId) -> Self {
-        self.args.push(SelectorArg::Predicate(id.to_string()));
-        self
-    }
-
     /// `distance=<range>` — select only entities within a typed distance
-    /// range, using [`SelectorRange`] instead of a hand-formatted string.
-    ///
-    /// ```
-    /// use sand_commands::selector::{Selector, SelectorRange};
-    ///
-    /// let sel = Target::entities().distance_typed(SelectorRange::at_most(16.0));
-    /// assert_eq!(sel.to_string(), "@e[distance=..16]");
-    /// ```
-    pub fn distance_typed(mut self, range: SelectorRange) -> Self {
+    /// range using the internal numeric range representation.
+    pub(crate) fn distance_typed(mut self, range: TargetRange) -> Self {
         self.args.push(SelectorArg::Distance(range.to_string()));
         self
     }
 
-    /// `level=<range>` — select only players within a typed XP level range,
-    /// using [`SelectorRange`] instead of a hand-formatted string.
-    ///
-    /// ```
-    /// use sand_commands::selector::{Selector, SelectorRange};
-    ///
-    /// let sel = Target::players().level_typed(SelectorRange::between(10.0, 30.0));
-    /// assert_eq!(sel.to_string(), "@a[level=10..30]");
-    /// ```
-    pub fn level_typed(mut self, range: SelectorRange) -> Self {
+    /// `level=<range>` — select only players within a typed XP level range
+    /// using the internal numeric range representation.
+    pub(crate) fn level_typed(mut self, range: TargetRange) -> Self {
         self.args.push(SelectorArg::Level(range.to_string()));
-        self
-    }
-
-    /// `tag=<tag>` — select only entities with the given tag, using a typed
-    /// [`EntityTag`] instead of a raw string.
-    pub fn tag_typed(mut self, tag: EntityTag) -> Self {
-        self.args.push(SelectorArg::Tag(tag.into_inner()));
-        self
-    }
-
-    /// `team=<team>` — select only entities on the given team, using a typed
-    /// [`TeamName`] instead of a raw string.
-    pub fn team_typed(mut self, team: TeamName) -> Self {
-        self.args.push(SelectorArg::Team(team.into_inner()));
         self
     }
 
@@ -1887,39 +1101,6 @@ impl Selector {
                 .args
                 .iter()
                 .any(|arg| matches!(arg, SelectorArg::Limit(1))))
-    }
-
-    fn validate_single(&self, helper: &'static str) -> CommandResult<()> {
-        self.validate(&CommandProfile::unprofiled())?;
-        if self.is_statically_single() {
-            Ok(())
-        } else {
-            Err(CommandError::new(
-                helper,
-                "selector",
-                "target may match multiple entities; add `limit=1` or use a many-target type",
-            ))
-        }
-    }
-
-    fn validate_player(&self, helper: &'static str) -> CommandResult<()> {
-        self.validate(&CommandProfile::unprofiled())?;
-        if matches!(
-            self.base,
-            TargetBase::AllPlayers
-                | TargetBase::NearestPlayer
-                | TargetBase::Self_
-                | TargetBase::RandomPlayer
-                | TargetBase::Player(_)
-        ) {
-            Ok(())
-        } else {
-            Err(CommandError::new(
-                helper,
-                "selector",
-                "selector is not statically player-targeting",
-            ))
-        }
     }
 }
 
@@ -2272,33 +1453,25 @@ fn validate_scores(value: &str) -> CommandResult<()> {
     Ok(())
 }
 
-// ── SelectorRange ─────────────────────────────────────────────────────────────
+// ── TargetRange ─────────────────────────────────────────────────────────────
 
 /// A typed numeric range for selector arguments such as `distance` and
 /// `level` (see [#200](https://github.com/ThatOneToast/sand/issues/200)).
 ///
 /// Renders to vanilla's `min..max` range syntax. At least one bound must be
-/// present; use [`SelectorRange::at_least`]/[`SelectorRange::at_most`] for
+/// present; use [`TargetRange::at_least`]/[`TargetRange::at_most`] for
 /// open-ended ranges. Impossible ranges (`min > max`) and non-finite bounds
 /// are not rejected at construction — they are diagnosed uniformly with all
 /// other selector arguments at [`Selector::try_build`] time.
 #[derive(Debug, Clone, Copy, PartialEq)]
-pub struct SelectorRange {
+pub(crate) struct TargetRange {
     min: Option<f64>,
     max: Option<f64>,
 }
 
-impl SelectorRange {
-    /// An exact value: `n..n`, rendered as `n`.
-    pub fn exact(n: f64) -> Self {
-        Self {
-            min: Some(n),
-            max: Some(n),
-        }
-    }
-
+impl TargetRange {
     /// `n..` — at least `n`.
-    pub fn at_least(n: f64) -> Self {
+    pub(crate) fn at_least(n: f64) -> Self {
         Self {
             min: Some(n),
             max: None,
@@ -2306,7 +1479,7 @@ impl SelectorRange {
     }
 
     /// `..n` — at most `n`.
-    pub fn at_most(n: f64) -> Self {
+    pub(crate) fn at_most(n: f64) -> Self {
         Self {
             min: None,
             max: Some(n),
@@ -2314,7 +1487,7 @@ impl SelectorRange {
     }
 
     /// `min..max` — an inclusive range.
-    pub fn between(min: f64, max: f64) -> Self {
+    pub(crate) fn between(min: f64, max: f64) -> Self {
         Self {
             min: Some(min),
             max: Some(max),
@@ -2322,7 +1495,7 @@ impl SelectorRange {
     }
 }
 
-impl fmt::Display for SelectorRange {
+impl fmt::Display for TargetRange {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         fn fmt_bound(v: f64, f: &mut fmt::Formatter<'_>) -> fmt::Result {
             write!(f, "{v}")
@@ -2352,7 +1525,7 @@ impl fmt::Display for SelectorRange {
 /// A typed integer range for `scores={...}` selector entries (see
 /// [#200](https://github.com/ThatOneToast/sand/issues/200)).
 ///
-/// Deliberately distinct from [`SelectorRange`]: Minecraft scoreboard scores
+/// Deliberately distinct from [`TargetRange`]: Minecraft scoreboard scores
 /// are always 32-bit integers, so `scores={obj=1.5..3.2}` is not legal
 /// vanilla syntax even though the same `min..max` grammar shape is used for
 /// `distance`/`level` (which *are* floating-point). Using an `i32`-based
@@ -2365,8 +1538,8 @@ impl fmt::Display for SelectorRange {
     aliases = ["sand::cmd::ScoreRange", "sand::prelude::cmd::ScoreRange"],
     module = "sand::command",
     summary = "A typed integer range for `scores={...}` selector entries (see [#200](https://github.com/ThatOneToast/sand/issues/200)).",
-    context = "A typed integer range for `scores={...}` selector entries (see [#200](https://github.com/ThatOneToast/sand/issues/200)). Deliberately distinct from [`SelectorRange`]: Minecraft scoreboard scores are always 32-bit integers, so `scores={obj=1.5..3.2}` is not legal vanilla syntax even though the same `min..max` grammar shape is used for `distance`/`level` (which *are* floating-point). Using an `i32`-based type here at the API boundary makes a fractional score range a compile error instead of a malformed-selector diagnostic discovered at `try_build` time.",
-    minecraft = "Deliberately distinct from [`SelectorRange`]: Minecraft scoreboard scores are always 32-bit integers, so `scores={obj=1.5..3.2}` is not legal vanilla syntax even though the same `min..max` grammar shape is used for `distance`/`level` (which *are* floating-point). Using an `i32`-based type here at the API boundary makes a fractional score range a compile error instead of a malformed-selector diagnostic discovered at `try_build` time.",
+    context = "A typed integer range for `scores={...}` selector entries (see [#200](https://github.com/ThatOneToast/sand/issues/200)). Deliberately distinct from [`TargetRange`]: Minecraft scoreboard scores are always 32-bit integers, so `scores={obj=1.5..3.2}` is not legal vanilla syntax even though the same `min..max` grammar shape is used for `distance`/`level` (which *are* floating-point). Using an `i32`-based type here at the API boundary makes a fractional score range a compile error instead of a malformed-selector diagnostic discovered at `try_build` time.",
+    minecraft = "Deliberately distinct from [`TargetRange`]: Minecraft scoreboard scores are always 32-bit integers, so `scores={obj=1.5..3.2}` is not legal vanilla syntax even though the same `min..max` grammar shape is used for `distance`/`level` (which *are* floating-point). Using an `i32`-based type here at the API boundary makes a fractional score range a compile error instead of a malformed-selector diagnostic discovered at `try_build` time.",
     use_when = ["Constructing Minecraft commands through Sand's typed command model"],
     avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
     example = "use sand::command::ScoreRange;",
@@ -2483,142 +1656,6 @@ impl fmt::Display for ScoreRange {
     }
 }
 
-// ── SelectorScores ───────────────────────────────────────────────────────────
-
-/// A typed `scores={...}` selector filter map (see
-/// [#200](https://github.com/ThatOneToast/sand/issues/200)).
-///
-/// Entries are rendered in insertion order, so equivalent construction order
-/// always produces an identical rendered selector. Values are [`ScoreRange`]
-/// (integer), not [`SelectorRange`] (float) — scoreboard scores are always
-/// integers in vanilla Minecraft.
-///
-/// ```
-/// use sand_commands::selector::{SelectorScores, ScoreRange};
-///
-/// let scores = SelectorScores::new()
-///     .with("kills", ScoreRange::between(1, 10))
-///     .with("deaths", ScoreRange::exact(0));
-/// assert_eq!(scores.to_string(), "kills=1..10,deaths=0");
-/// ```
-#[derive(Debug, Clone, Default)]
-pub struct SelectorScores {
-    entries: Vec<(String, ScoreRange)>,
-}
-
-impl SelectorScores {
-    /// Create an empty score filter map.
-    pub fn new() -> Self {
-        Self::default()
-    }
-
-    /// Add `objective=range` to this filter map.
-    pub fn with(mut self, objective: impl Into<String>, range: ScoreRange) -> Self {
-        self.entries.push((objective.into(), range));
-        self
-    }
-}
-
-impl fmt::Display for SelectorScores {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let rendered = self
-            .entries
-            .iter()
-            .map(|(objective, range)| format!("{objective}={range}"))
-            .collect::<Vec<_>>()
-            .join(",");
-        write!(f, "{rendered}")
-    }
-}
-
-// ── PredicateId ──────────────────────────────────────────────────────────────
-
-/// A typed `predicate=<namespace:path>` identifier (see
-/// [#200](https://github.com/ThatOneToast/sand/issues/200)).
-///
-/// Resource-location shape is validated at [`Selector::try_build`] time
-/// (consistent with [`Selector::predicate`]/[`Selector::predicate_raw`]),
-/// not at construction, so this stays const/static-friendly.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct PredicateId {
-    location: String,
-    negated: bool,
-}
-
-impl PredicateId {
-    /// Create a predicate ID from a `namespace:path` resource location.
-    pub fn new(location: impl Into<String>) -> Self {
-        Self {
-            location: location.into(),
-            negated: false,
-        }
-    }
-
-    /// `predicate=!<id>` — negate this predicate filter.
-    pub fn negated(mut self) -> Self {
-        self.negated = true;
-        self
-    }
-}
-
-impl fmt::Display for PredicateId {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        if self.negated {
-            write!(f, "!{}", self.location)
-        } else {
-            write!(f, "{}", self.location)
-        }
-    }
-}
-
-// ── EntityTag / TeamName ─────────────────────────────────────────────────────
-
-/// A typed selector `tag` value (see
-/// [#200](https://github.com/ThatOneToast/sand/issues/200)). Whitespace/
-/// control-character validity is checked at [`Selector::try_build`] time,
-/// matching [`Selector::tag`]'s existing validation.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct EntityTag(String);
-
-impl EntityTag {
-    /// Wrap a tag value.
-    pub fn new(tag: impl Into<String>) -> Self {
-        Self(tag.into())
-    }
-
-    fn into_inner(self) -> String {
-        self.0
-    }
-}
-
-impl fmt::Display for EntityTag {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", self.0)
-    }
-}
-
-/// A typed selector `team` value (see
-/// [#200](https://github.com/ThatOneToast/sand/issues/200)).
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct TeamName(String);
-
-impl TeamName {
-    /// Wrap a team name.
-    pub fn new(team: impl Into<String>) -> Self {
-        Self(team.into())
-    }
-
-    fn into_inner(self) -> String {
-        self.0
-    }
-}
-
-impl fmt::Display for TeamName {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", self.0)
-    }
-}
-
 // ── GameMode ──────────────────────────────────────────────────────────────────
 
 #[sand_macros::api(
@@ -2702,9 +1739,7 @@ mod tests {
 
     #[test]
     fn typed_entity_targets_render_stably() {
-        let targets = EntityTargets::nearby(5.0)
-            .excluding_players()
-            .excluding_self();
+        let targets = Target::nearby(5.0).excluding_players().excluding_self();
         assert_eq!(
             targets.to_string(),
             "@e[distance=0.1..5,type=!minecraft:player]"
@@ -2713,9 +1748,7 @@ mod tests {
 
     #[test]
     fn many_entity_limit_converts_to_single() {
-        let target = EntityTargets::all()
-            .entity_type("minecraft:zombie")
-            .nearest();
+        let target = Target::entities().entity_type("minecraft:zombie").nearest();
         assert_eq!(
             target.to_string(),
             "@e[type=minecraft:zombie,sort=nearest,limit=1]"
@@ -2883,11 +1916,8 @@ mod tests {
 
     #[test]
     fn narrowing_is_fallible_and_safe_widening_remains_infallible() {
-        assert!(SingleEntity::try_from(Selector::all_entities()).is_err());
-        assert!(SinglePlayer::try_from(Selector::all_entities().limit(1)).is_err());
-        assert!(SingleEntity::try_from(Selector::all_entities().limit(1)).is_ok());
-        assert!(EntityTargets::all().limit(2).is_err());
-        let entity: SingleEntity = SinglePlayer::self_().into();
+        assert!(Target::entities().limit(2).is_err());
+        let entity: Target<AnyTarget, One> = Target::current_player().into();
         assert_eq!(entity.to_string(), "@s");
     }
 
@@ -2907,7 +1937,7 @@ mod tests {
     fn distance_typed_matches_string_variants() {
         assert_eq!(
             Selector::all_entities()
-                .distance_typed(SelectorRange::at_most(16.0))
+                .distance_typed(TargetRange::at_most(16.0))
                 .try_build()
                 .unwrap(),
             Selector::all_entities()
@@ -2917,14 +1947,14 @@ mod tests {
         );
         assert_eq!(
             Selector::all_entities()
-                .distance_typed(SelectorRange::between(0.5, 10.0))
+                .distance_typed(TargetRange::between(0.5, 10.0))
                 .try_build()
                 .unwrap(),
             "@e[distance=0.5..10]"
         );
         assert_eq!(
             Selector::all_entities()
-                .distance_typed(SelectorRange::at_least(2.0))
+                .distance_typed(TargetRange::at_least(2.0))
                 .try_build()
                 .unwrap(),
             "@e[distance=2..]"
@@ -2935,7 +1965,7 @@ mod tests {
     fn level_typed_renders_same_as_string_level() {
         assert_eq!(
             Selector::all_players()
-                .level_typed(SelectorRange::between(10.0, 30.0))
+                .level_typed(TargetRange::between(10.0, 30.0))
                 .try_build()
                 .unwrap(),
             Selector::all_players().level("10..30").try_build().unwrap()
@@ -2945,7 +1975,7 @@ mod tests {
     #[test]
     fn selector_range_impossible_range_is_a_diagnostic_not_a_panic() {
         let err = Selector::all_entities()
-            .distance_typed(SelectorRange::between(10.0, 1.0))
+            .distance_typed(TargetRange::between(10.0, 1.0))
             .try_build()
             .unwrap_err();
         assert!(err.to_string().contains("distance"), "{err}");
@@ -2954,11 +1984,10 @@ mod tests {
     #[test]
     fn scores_typed_matches_string_scores() {
         let typed = Selector::all_players()
-            .scores_typed(
-                SelectorScores::new()
-                    .with("kills", ScoreRange::between(1, 10))
-                    .with("deaths", ScoreRange::exact(0)),
-            )
+            .scores_typed([
+                ("kills".to_owned(), ScoreRange::between(1, 10)),
+                ("deaths".to_owned(), ScoreRange::exact(0)),
+            ])
             .try_build()
             .unwrap();
         let stringly = Selector::all_players()
@@ -2972,11 +2001,10 @@ mod tests {
     #[test]
     fn scores_typed_duplicate_objective_is_a_diagnostic() {
         let err = Selector::all_players()
-            .scores_typed(
-                SelectorScores::new()
-                    .with("kills", ScoreRange::exact(1))
-                    .with("kills", ScoreRange::exact(2)),
-            )
+            .scores_typed([
+                ("kills".to_owned(), ScoreRange::exact(1)),
+                ("kills".to_owned(), ScoreRange::exact(2)),
+            ])
             .try_build()
             .unwrap_err();
         assert!(err.to_string().contains("duplicate"), "{err}");
@@ -2996,10 +2024,10 @@ mod tests {
     }
 
     #[test]
-    fn predicate_id_matches_string_predicate() {
+    fn predicate_filters_render_stably() {
         assert_eq!(
             Selector::all_players()
-                .predicate_id(PredicateId::new("my_pack:is_sneaking"))
+                .predicate("my_pack:is_sneaking")
                 .try_build()
                 .unwrap(),
             Selector::all_players()
@@ -3009,7 +2037,7 @@ mod tests {
         );
         assert_eq!(
             Selector::all_players()
-                .predicate_id(PredicateId::new("my_pack:is_sneaking").negated())
+                .predicate("!my_pack:is_sneaking")
                 .try_build()
                 .unwrap(),
             "@a[predicate=!my_pack:is_sneaking]"
@@ -3017,20 +2045,14 @@ mod tests {
     }
 
     #[test]
-    fn tag_typed_and_team_typed_match_string_variants() {
+    fn tag_and_team_filters_render_stably() {
         assert_eq!(
-            Selector::all_players()
-                .tag_typed(EntityTag::new("ready"))
-                .try_build()
-                .unwrap(),
-            Selector::all_players().tag("ready").try_build().unwrap()
+            Selector::all_players().tag("ready").try_build().unwrap(),
+            "@a[tag=ready]"
         );
         assert_eq!(
-            Selector::all_players()
-                .team_typed(TeamName::new("red"))
-                .try_build()
-                .unwrap(),
-            Selector::all_players().team("red").try_build().unwrap()
+            Selector::all_players().team("red").try_build().unwrap(),
+            "@a[team=red]"
         );
     }
 
@@ -3060,8 +2082,8 @@ mod tests {
     fn selector_construction_order_is_deterministic() {
         // #200/#173: rebuilding the same selector from scratch, in the same
         // call order, must always render identically — no run-to-run
-        // variance. `Selector`'s args and `SelectorScores`'s entries are
-        // both backed by `Vec` (insertion order), not a hasher-seeded map,
+        // variance. `Selector`'s args and the supplied score pairs preserve
+        // insertion order rather than using a hasher-seeded map,
         // so this is not merely "the same closure returns the same string
         // twice": each `build()` call constructs fresh `Vec`s from scratch,
         // and a `HashMap`-backed regression (each instance gets an
@@ -3073,13 +2095,12 @@ mod tests {
             Selector::all_entities()
                 .entity_type("minecraft:zombie")
                 .tag("elite")
-                .distance_typed(SelectorRange::at_most(20.0))
-                .scores_typed(
-                    SelectorScores::new()
-                        .with("threat", ScoreRange::at_least(5))
-                        .with("armor", ScoreRange::between(0, 3))
-                        .with("kills", ScoreRange::exact(0)),
-                )
+                .distance_typed(TargetRange::at_most(20.0))
+                .scores_typed([
+                    ("threat".to_owned(), ScoreRange::at_least(5)),
+                    ("armor".to_owned(), ScoreRange::between(0, 3)),
+                    ("kills".to_owned(), ScoreRange::exact(0)),
+                ])
                 .limit(3)
                 .to_string()
         };
@@ -3091,7 +2112,7 @@ mod tests {
         }
 
         // Construction order is caller-controlled and semantically
-        // significant for `SelectorScores` (it is not canonicalized/sorted),
+        // significant for score pairs (they are not canonicalized/sorted),
         // so two *different* insertion orders are expected to render
         // differently from each other — while each remains internally
         // deterministic across repeated builds.
@@ -3099,13 +2120,12 @@ mod tests {
             Selector::all_entities()
                 .entity_type("minecraft:zombie")
                 .tag("elite")
-                .distance_typed(SelectorRange::at_most(20.0))
-                .scores_typed(
-                    SelectorScores::new()
-                        .with("kills", ScoreRange::exact(0))
-                        .with("armor", ScoreRange::between(0, 3))
-                        .with("threat", ScoreRange::at_least(5)),
-                )
+                .distance_typed(TargetRange::at_most(20.0))
+                .scores_typed([
+                    ("kills".to_owned(), ScoreRange::exact(0)),
+                    ("armor".to_owned(), ScoreRange::between(0, 3)),
+                    ("threat".to_owned(), ScoreRange::at_least(5)),
+                ])
                 .limit(3)
                 .to_string()
         };

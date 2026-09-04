@@ -360,7 +360,7 @@ mod tests {
         assert!(lib_rs.contains("cmd::tellraw("));
         assert!(lib_rs.contains("cmd::call(hello_world)"));
         assert!(lib_rs.contains("Text::new("));
-        assert!(lib_rs.contains("Selector::self_()"));
+        assert!(lib_rs.contains("Target::self_()"));
         // No raw mcfunction usage in generated beginner code
         assert!(!lib_rs.contains("mcfunction!"));
         assert!(!lib_rs.contains("tellraw @"));

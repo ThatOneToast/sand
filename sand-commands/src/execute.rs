@@ -2,7 +2,7 @@
 //!
 //! # Examples
 //! ```rust,ignore
-//! use sand_commands::{Execute, Selector, BlockPos};
+//! use sand_commands::{Execute, Target, BlockPos};
 //!
 //! // execute as @a at @s run kill @s
 //! Execute::new()

@@ -11,7 +11,7 @@ surfaces are not retained as aliases.
 | entity schemas | entity-specific derive with associated handles only | `#[derive(State)]` with a concrete bound view | removed and migrated |
 | manual objective lifecycle registry | register/drain helpers plus a parallel export phase | derive-emitted immutable lifecycle descriptors | removed |
 | function command references | strings, `Display`, and `IntoFunctionRef` | one typed function reference/resolution path | follow-up; #373 (the closed #175 covered validation, not consolidation) |
-| selectors used as command targets | `Selector`, typed target aliases, and entity/player query wrappers | one inferred `Target` model; `ScoreHolder` remains distinct for fake players/wildcards | completed; #368 |
+| entity/player selection | `Selector`, entity/player target aliases, entity/player query wrappers, selector-specific range/map inputs, and a command-local predicate ID | one inferred `Target` model with direct scalar/tuple filters and the canonical `PredicateId`; `ScoreHolder` remains distinct for fake players/wildcards | completed; #368 |
 | resource and registry identifiers | mixed strings and typed IDs | existing typed refs/IDs backed by `ResourceLocation` | follow-up; #372 |
 | trim materials and patterns | raw string/JSON IDs, items, text, and overrides | typed `ItemId`, `ResourceLocation`, `TextComponent`, `TrimAssetName`, and typed override maps | completed normal paths; #198 |
 | enchantment providers | whole-provider raw JSON only | `EnchantmentProvider`, typed IDs/tags, and typed constant/uniform integer providers | completed common vanilla shapes; #188 |
@@ -60,6 +60,19 @@ The unified state foundation now uses that one declaration path for scoped
 components, bundles, queries, systems, lifecycle, migrations, archetypes, and
 global resources. Low-level command primitives remain available for advanced
 work, but they are no longer a second state framework.
+
+## Selection boundaries retained deliberately
+
+The consolidation does not equate every type that eventually mentions an
+entity. `Target` owns selector-compatible construction, filtering, narrowing,
+command consumption, score-holder conversion, and `.each(...)` execution.
+`EntityContext` remains the currently bound executor inside generated command
+code. `StateQuery` remains component-presence composition. Relationship
+chaining returns `RelationTraversal` because it lowers to vanilla
+`execute on <relation>`, not to a selector expression. Likewise, the predicate
+JSON structs model distinct vanilla schemas; only the duplicate command-local
+predicate identifier was removed in favor of the generated canonical
+`PredicateId`.
 
 ## Ordered remaining slices
 

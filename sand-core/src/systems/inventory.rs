@@ -3,7 +3,7 @@
 //! # Example
 //! ```rust,ignore
 //! use sand_core::systems::inventory::InventorySystem;
-//! use sand_core::cmd::{Selector, ItemSlot};
+//! use sand_core::cmd::{ItemSlot, Target};
 //!
 //! // Check mainhand then run a command:
 //! let cmd = InventorySystem::for_entity(Target::self_())

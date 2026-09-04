@@ -94,7 +94,7 @@ pub use registry::{
     RandomSequenceId, RecipeId, SoundEventId, StatusEffectId, StructureId, StructureSetId,
     StructureTemplateId, StructureTypeId, TagId, TemplatePoolId, TradeSetId, VillagerTradeId,
 };
-pub use resource_location::{Identifier, PackNamespace, ResourceLocation};
+pub use resource_location::{PackNamespace, ResourceLocation};
 
 // ── Advancement ───────────────────────────────────────────────────────────────
 
@@ -143,7 +143,7 @@ pub use item::{
     AttributeId, AttributeModifier, AttributeOperation, AttributeType, ConsumableAnimation,
     ConsumableProperties, CustomData, CustomItem, DyedColor, EnchantmentEntry, EquipmentSlot,
     EquipmentSlotGroup, EquippableProperties, FoodProperties, ItemComponent, ItemRarity,
-    ItemStackComponents, Rarity, ToolProperties, ToolRule,
+    ItemStackComponents, ToolProperties, ToolRule,
 };
 
 // ── Item Modifier ─────────────────────────────────────────────────────────────

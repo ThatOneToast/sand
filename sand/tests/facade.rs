@@ -87,6 +87,21 @@ fn prelude_only_inventory_try_methods_compile_and_validate() {
 }
 
 #[test]
+fn canonical_predicate_id_filters_the_canonical_target() {
+    let predicate = PredicateId::custom("facade_ns:is_ready".parse().unwrap());
+    assert_eq!(
+        Target::entities().predicate(predicate).to_string(),
+        "@e[predicate=facade_ns:is_ready]"
+    );
+
+    let predicate = PredicateId::custom("facade_ns:is_ready".parse().unwrap());
+    assert_eq!(
+        Target::players().not_predicate(predicate).to_string(),
+        "@a[predicate=!facade_ns:is_ready]"
+    );
+}
+
+#[test]
 fn prelude_does_not_leak_compiler_internals() {
     // These modules exist, but their contents are deliberately not in the
     // prelude; reaching them requires an explicit advanced/__private path.

@@ -48,7 +48,7 @@ pub use archetype::{
     EntityDerivation, EntityTransition, EntityTransitionField, Migration, ReconcilePolicy,
     SpecialEntityPolicy, ThresholdDirection,
 };
-pub use context::{EntityContext, EntityScope, PlayerContext, ScopedEntityRef};
+pub use context::{EntityContext, EntityScope, ScopedEntityRef};
 pub use curve::{
     CurveEvaluationError, CurveInputs, DEFAULT_FIXED_POINT_SCALE, FixedPoint, FixedValue,
     OverflowPolicy, RoundingPolicy, StatCurve,
@@ -67,7 +67,7 @@ pub use property::{
     TeamBinding,
 };
 pub use query::{StateQueryOperations, TargetExecution};
-pub use relation::{Relation, RelationQuery};
+pub use relation::{Relation, RelationTraversal};
 pub use state::{
     Data, EntityCooldown, EntityCooldownAccessor, EntityEnum, EntityEnumAccessor, EntityEnumValue,
     EntityFlag, EntityFlagAccessor, EntityScore, EntityScoreAccessor, EntityState,

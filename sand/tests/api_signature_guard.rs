@@ -39,7 +39,7 @@ const LOOKS_LIKE_TYPED_CONCEPT: &[&str] = &[
 /// Function names known to accept a typed identifier/target concept even
 /// though their parameter is conventionally named something generic like
 /// `ty` rather than spelling out the concept (`entity_type`/`not_type` on
-/// `EntityTarget`/`Selector`/`EntityQuery`, `summon*` builders). Every
+/// `Target` filtering methods and `summon*` builders). Every
 /// non-`self` parameter of a matching function is checked, regardless of
 /// its name — this exists because [`LOOKS_LIKE_TYPED_CONCEPT`]'s
 /// name-based matching alone would silently miss these (parameter name

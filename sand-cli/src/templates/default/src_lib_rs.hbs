@@ -19,7 +19,7 @@ static PLAYER_DATA: StorageVar<i32> = StorageVar::new("{{namespace}}:data", "pla
 #[function]
 pub fn hello_world() {
     cmd::tellraw(
-        Selector::self_(),
+        Target::self_(),
         Text::new("Welcome to {{name}}!").gold().bold(true),
     );
 }

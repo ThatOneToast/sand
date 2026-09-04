@@ -5,8 +5,8 @@ use std::marker::PhantomData;
 use sand_commands::Selector;
 use sand_commands::selector::{Many, One};
 
-use crate::entity::kind::{EntityKind, PlayerKind};
-use crate::entity::relation::{Relation, RelationQuery};
+use crate::entity::kind::EntityKind;
+use crate::entity::relation::{Relation, RelationTraversal};
 
 #[sand_macros::api(
     registry = sand_api_contract,
@@ -36,21 +36,6 @@ pub struct EntityContext<K> {
     _kind: PhantomData<K>,
 }
 
-#[sand_macros::api(
-    registry = sand_api_contract,
-    path = "sand::entity::PlayerContext",
-    aliases = ["sand::prelude::PlayerContext"],
-    module = "sand::entity",
-    summary = "Execution-scoped context for the current player (`@s`, known to be a player).",
-    context = "Execution-scoped context for the current player (`@s`, known to be a player). This declaration belongs to Sand's typed entity model. Semantic definitions are public; selector rendering, validation bookkeeping, and compiler lowering remain internal.",
-    minecraft = "Sand validates this definition and lowers it to entity-scoped selectors, scoreboards, NBT operations, and generated lifecycle functions as required.",
-    use_when = ["Defining or using typed entity behavior in a Sand datapack"],
-    avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
-    example = "use sand::entity::PlayerContext;",
-)]
-/// Execution-scoped context for the current player (`@s`, known to be a player).
-pub type PlayerContext = EntityContext<PlayerKind>;
-
 impl<K: EntityKind> Default for EntityContext<K> {
     fn default() -> Self {
         Self::new()
@@ -70,7 +55,7 @@ impl<K: EntityKind> EntityContext<K> {
     #[sand_macros::api(
         registry = sand_api_contract,
         path = "sand::entity::EntityContext::state",
-        aliases = ["sand::entity::PlayerContext::state", "sand::prelude::EntityContext::state", "sand::prelude::PlayerContext::state"],
+        aliases = ["sand::prelude::EntityContext::state"],
         module = "sand::entity",
         kind = "method",
         summary = "Bind a typed entity-state field to the current executor (`@s`).",
@@ -90,7 +75,7 @@ impl<K: EntityKind> EntityContext<K> {
     #[sand_macros::api(
         registry = sand_api_contract,
         path = "sand::entity::EntityContext::add_tag",
-        aliases = ["sand::entity::PlayerContext::add_tag", "sand::prelude::EntityContext::add_tag", "sand::prelude::PlayerContext::add_tag"],
+        aliases = ["sand::prelude::EntityContext::add_tag"],
         module = "sand::entity",
         kind = "method",
         summary = "`tag @s add <tag>`.",
@@ -110,7 +95,7 @@ impl<K: EntityKind> EntityContext<K> {
     #[sand_macros::api(
         registry = sand_api_contract,
         path = "sand::entity::EntityContext::remove_tag",
-        aliases = ["sand::entity::PlayerContext::remove_tag", "sand::prelude::EntityContext::remove_tag", "sand::prelude::PlayerContext::remove_tag"],
+        aliases = ["sand::prelude::EntityContext::remove_tag"],
         module = "sand::entity",
         kind = "method",
         summary = "`tag @s remove <tag>`.",
@@ -130,7 +115,7 @@ impl<K: EntityKind> EntityContext<K> {
     #[sand_macros::api(
         registry = sand_api_contract,
         path = "sand::entity::EntityContext::owner",
-        aliases = ["sand::entity::PlayerContext::owner", "sand::prelude::EntityContext::owner", "sand::prelude::PlayerContext::owner"],
+        aliases = ["sand::prelude::EntityContext::owner"],
         module = "sand::entity",
         kind = "method",
         summary = "The entity that owns this entity (e.g. a tamed wolf's owner).",
@@ -138,18 +123,18 @@ impl<K: EntityKind> EntityContext<K> {
         minecraft = "Sand validates this definition and lowers it to entity-scoped selectors, scoreboards, NBT operations, and generated lifecycle functions as required.",
         use_when = ["Defining or using typed entity behavior in a Sand datapack"],
         avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
-        returns = "The `RelationQuery < One >` value produced to use the entity that owns this entity (e.g. a tamed wolf's owner).",
+        returns = "The `RelationTraversal < One >` value produced to use the entity that owns this entity (e.g. a tamed wolf's owner).",
         example = "use sand::prelude::*;\n\nfn demonstrate<K : sand::entity::EntityKind + 'static>(entity_context_value: &sand::entity::EntityContext < K >)  {\n    let owner = entity_context_value.owner();\n}",
     )]
-    pub fn owner(&self) -> RelationQuery<One> {
-        RelationQuery::new(Relation::Owner)
+    pub fn owner(&self) -> RelationTraversal<One> {
+        RelationTraversal::new(Relation::Owner)
     }
 
     /// The entity leashing this entity.
     #[sand_macros::api(
         registry = sand_api_contract,
         path = "sand::entity::EntityContext::leasher",
-        aliases = ["sand::entity::PlayerContext::leasher", "sand::prelude::EntityContext::leasher", "sand::prelude::PlayerContext::leasher"],
+        aliases = ["sand::prelude::EntityContext::leasher"],
         module = "sand::entity",
         kind = "method",
         summary = "The entity leashing this entity.",
@@ -157,18 +142,18 @@ impl<K: EntityKind> EntityContext<K> {
         minecraft = "Sand validates this definition and lowers it to entity-scoped selectors, scoreboards, NBT operations, and generated lifecycle functions as required.",
         use_when = ["Defining or using typed entity behavior in a Sand datapack"],
         avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
-        returns = "The `RelationQuery < One >` value produced to use the entity leashing this entity.",
+        returns = "The `RelationTraversal < One >` value produced to use the entity leashing this entity.",
         example = "use sand::prelude::*;\n\nfn demonstrate<K : sand::entity::EntityKind + 'static>(entity_context_value: &sand::entity::EntityContext < K >)  {\n    let leasher = entity_context_value.leasher();\n}",
     )]
-    pub fn leasher(&self) -> RelationQuery<One> {
-        RelationQuery::new(Relation::Leasher)
+    pub fn leasher(&self) -> RelationTraversal<One> {
+        RelationTraversal::new(Relation::Leasher)
     }
 
     /// This entity's current attack/follow target.
     #[sand_macros::api(
         registry = sand_api_contract,
         path = "sand::entity::EntityContext::target",
-        aliases = ["sand::entity::PlayerContext::target", "sand::prelude::EntityContext::target", "sand::prelude::PlayerContext::target"],
+        aliases = ["sand::prelude::EntityContext::target"],
         module = "sand::entity",
         kind = "method",
         summary = "This entity's current attack/follow target.",
@@ -176,18 +161,18 @@ impl<K: EntityKind> EntityContext<K> {
         minecraft = "Sand validates this definition and lowers it to entity-scoped selectors, scoreboards, NBT operations, and generated lifecycle functions as required.",
         use_when = ["Defining or using typed entity behavior in a Sand datapack"],
         avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
-        returns = "The `RelationQuery < One >` value produced to thi entity's current attack/follow target.",
+        returns = "The `RelationTraversal < One >` value produced to use this entity's current attack/follow target.",
         example = "use sand::prelude::*;\n\nfn demonstrate<K : sand::entity::EntityKind + 'static>(entity_context_value: &sand::entity::EntityContext < K >)  {\n    let target = entity_context_value.target();\n}",
     )]
-    pub fn target(&self) -> RelationQuery<One> {
-        RelationQuery::new(Relation::Target)
+    pub fn target(&self) -> RelationTraversal<One> {
+        RelationTraversal::new(Relation::Target)
     }
 
     /// The vehicle this entity is riding.
     #[sand_macros::api(
         registry = sand_api_contract,
         path = "sand::entity::EntityContext::vehicle",
-        aliases = ["sand::entity::PlayerContext::vehicle", "sand::prelude::EntityContext::vehicle", "sand::prelude::PlayerContext::vehicle"],
+        aliases = ["sand::prelude::EntityContext::vehicle"],
         module = "sand::entity",
         kind = "method",
         summary = "The vehicle this entity is riding.",
@@ -195,18 +180,18 @@ impl<K: EntityKind> EntityContext<K> {
         minecraft = "Sand validates this definition and lowers it to entity-scoped selectors, scoreboards, NBT operations, and generated lifecycle functions as required.",
         use_when = ["Defining or using typed entity behavior in a Sand datapack"],
         avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
-        returns = "The `RelationQuery < One >` value produced to use the vehicle this entity is riding.",
+        returns = "The `RelationTraversal < One >` value produced to use the vehicle this entity is riding.",
         example = "use sand::prelude::*;\n\nfn demonstrate<K : sand::entity::EntityKind + 'static>(entity_context_value: &sand::entity::EntityContext < K >)  {\n    let vehicle = entity_context_value.vehicle();\n}",
     )]
-    pub fn vehicle(&self) -> RelationQuery<One> {
-        RelationQuery::new(Relation::Vehicle)
+    pub fn vehicle(&self) -> RelationTraversal<One> {
+        RelationTraversal::new(Relation::Vehicle)
     }
 
     /// The entity steering this entity's vehicle.
     #[sand_macros::api(
         registry = sand_api_contract,
         path = "sand::entity::EntityContext::controller",
-        aliases = ["sand::entity::PlayerContext::controller", "sand::prelude::EntityContext::controller", "sand::prelude::PlayerContext::controller"],
+        aliases = ["sand::prelude::EntityContext::controller"],
         module = "sand::entity",
         kind = "method",
         summary = "The entity steering this entity's vehicle.",
@@ -214,18 +199,18 @@ impl<K: EntityKind> EntityContext<K> {
         minecraft = "Sand validates this definition and lowers it to entity-scoped selectors, scoreboards, NBT operations, and generated lifecycle functions as required.",
         use_when = ["Defining or using typed entity behavior in a Sand datapack"],
         avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
-        returns = "The `RelationQuery < One >` value produced to use the entity steering this entity's vehicle.",
+        returns = "The `RelationTraversal < One >` value produced to use the entity steering this entity's vehicle.",
         example = "use sand::prelude::*;\n\nfn demonstrate<K : sand::entity::EntityKind + 'static>(entity_context_value: &sand::entity::EntityContext < K >)  {\n    let controller = entity_context_value.controller();\n}",
     )]
-    pub fn controller(&self) -> RelationQuery<One> {
-        RelationQuery::new(Relation::Controller)
+    pub fn controller(&self) -> RelationTraversal<One> {
+        RelationTraversal::new(Relation::Controller)
     }
 
     /// The entity that last damaged this entity.
     #[sand_macros::api(
         registry = sand_api_contract,
         path = "sand::entity::EntityContext::attacker",
-        aliases = ["sand::entity::PlayerContext::attacker", "sand::prelude::EntityContext::attacker", "sand::prelude::PlayerContext::attacker"],
+        aliases = ["sand::prelude::EntityContext::attacker"],
         module = "sand::entity",
         kind = "method",
         summary = "The entity that last damaged this entity.",
@@ -233,18 +218,18 @@ impl<K: EntityKind> EntityContext<K> {
         minecraft = "Sand validates this definition and lowers it to entity-scoped selectors, scoreboards, NBT operations, and generated lifecycle functions as required.",
         use_when = ["Defining or using typed entity behavior in a Sand datapack"],
         avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
-        returns = "The `RelationQuery < One >` value produced to use the entity that last damaged this entity.",
+        returns = "The `RelationTraversal < One >` value produced to use the entity that last damaged this entity.",
         example = "use sand::prelude::*;\n\nfn demonstrate<K : sand::entity::EntityKind + 'static>(entity_context_value: &sand::entity::EntityContext < K >)  {\n    let attacker = entity_context_value.attacker();\n}",
     )]
-    pub fn attacker(&self) -> RelationQuery<One> {
-        RelationQuery::new(Relation::Attacker)
+    pub fn attacker(&self) -> RelationTraversal<One> {
+        RelationTraversal::new(Relation::Attacker)
     }
 
     /// The entity that fired/summoned this entity (e.g. a projectile's shooter).
     #[sand_macros::api(
         registry = sand_api_contract,
         path = "sand::entity::EntityContext::origin",
-        aliases = ["sand::entity::PlayerContext::origin", "sand::prelude::EntityContext::origin", "sand::prelude::PlayerContext::origin"],
+        aliases = ["sand::prelude::EntityContext::origin"],
         module = "sand::entity",
         kind = "method",
         summary = "The entity that fired/summoned this entity (e.g. a projectile's shooter).",
@@ -252,18 +237,18 @@ impl<K: EntityKind> EntityContext<K> {
         minecraft = "Sand validates this definition and lowers it to entity-scoped selectors, scoreboards, NBT operations, and generated lifecycle functions as required.",
         use_when = ["Defining or using typed entity behavior in a Sand datapack"],
         avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
-        returns = "The `RelationQuery < One >` value produced to use the entity that fired/summoned this entity (e.g. a projectile's shooter).",
+        returns = "The `RelationTraversal < One >` value produced to use the entity that fired/summoned this entity (e.g. a projectile's shooter).",
         example = "use sand::prelude::*;\n\nfn demonstrate<K : sand::entity::EntityKind + 'static>(entity_context_value: &sand::entity::EntityContext < K >)  {\n    let origin = entity_context_value.origin();\n}",
     )]
-    pub fn origin(&self) -> RelationQuery<One> {
-        RelationQuery::new(Relation::Origin)
+    pub fn origin(&self) -> RelationTraversal<One> {
+        RelationTraversal::new(Relation::Origin)
     }
 
     /// The entities riding this entity.
     #[sand_macros::api(
         registry = sand_api_contract,
         path = "sand::entity::EntityContext::passengers",
-        aliases = ["sand::entity::PlayerContext::passengers", "sand::prelude::EntityContext::passengers", "sand::prelude::PlayerContext::passengers"],
+        aliases = ["sand::prelude::EntityContext::passengers"],
         module = "sand::entity",
         kind = "method",
         summary = "The entities riding this entity.",
@@ -271,11 +256,11 @@ impl<K: EntityKind> EntityContext<K> {
         minecraft = "Sand validates this definition and lowers it to entity-scoped selectors, scoreboards, NBT operations, and generated lifecycle functions as required.",
         use_when = ["Defining or using typed entity behavior in a Sand datapack"],
         avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
-        returns = "The `RelationQuery < Many >` value produced to use the entities riding this entity.",
+        returns = "The `RelationTraversal < Many >` value produced to use the entities riding this entity.",
         example = "use sand::prelude::*;\n\nfn demonstrate<K : sand::entity::EntityKind + 'static>(entity_context_value: &sand::entity::EntityContext < K >)  {\n    let passengers = entity_context_value.passengers();\n}",
     )]
-    pub fn passengers(&self) -> RelationQuery<Many> {
-        RelationQuery::new(Relation::Passengers)
+    pub fn passengers(&self) -> RelationTraversal<Many> {
+        RelationTraversal::new(Relation::Passengers)
     }
 }
 
@@ -373,11 +358,11 @@ impl<K: EntityKind> ScopedEntityRef<K> {
         minecraft = "Sand validates this definition and lowers it to entity-scoped selectors, scoreboards, NBT operations, and generated lifecycle functions as required.",
         use_when = ["Defining or using typed entity behavior in a Sand datapack"],
         avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
-        returns = "The `RelationQuery < One >` value produced to use the bound entity's owner relationship, evaluated relative to `@s` (valid because the current executor is still the bound entity at the point relation methods are called from within the `bind` body).",
+        returns = "The `RelationTraversal < One >` value produced to use the bound entity's owner relationship, evaluated relative to `@s` (valid because the current executor is still the bound entity at the point relation methods are called from within the `bind` body).",
         example = "use sand::prelude::*;\n\nfn demonstrate<K : sand::entity::EntityKind + 'static>(scoped_entity_ref_value: &sand::entity::ScopedEntityRef < K >)  {\n    let owner = scoped_entity_ref_value.owner();\n}",
     )]
-    pub fn owner(&self) -> RelationQuery<One> {
-        RelationQuery::new(Relation::Owner)
+    pub fn owner(&self) -> RelationTraversal<One> {
+        RelationTraversal::new(Relation::Owner)
     }
 
     /// The bound entity's leasher relationship.
@@ -392,11 +377,11 @@ impl<K: EntityKind> ScopedEntityRef<K> {
         minecraft = "Sand validates this definition and lowers it to entity-scoped selectors, scoreboards, NBT operations, and generated lifecycle functions as required.",
         use_when = ["Defining or using typed entity behavior in a Sand datapack"],
         avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
-        returns = "The `RelationQuery < One >` value produced to use the bound entity's leasher relationship.",
+        returns = "The `RelationTraversal < One >` value produced to use the bound entity's leasher relationship.",
         example = "use sand::prelude::*;\n\nfn demonstrate<K : sand::entity::EntityKind + 'static>(scoped_entity_ref_value: &sand::entity::ScopedEntityRef < K >)  {\n    let leasher = scoped_entity_ref_value.leasher();\n}",
     )]
-    pub fn leasher(&self) -> RelationQuery<One> {
-        RelationQuery::new(Relation::Leasher)
+    pub fn leasher(&self) -> RelationTraversal<One> {
+        RelationTraversal::new(Relation::Leasher)
     }
 
     /// The bound entity's target relationship.
@@ -411,11 +396,11 @@ impl<K: EntityKind> ScopedEntityRef<K> {
         minecraft = "Sand validates this definition and lowers it to entity-scoped selectors, scoreboards, NBT operations, and generated lifecycle functions as required.",
         use_when = ["Defining or using typed entity behavior in a Sand datapack"],
         avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
-        returns = "The `RelationQuery < One >` value produced to use the bound entity's target relationship.",
+        returns = "The `RelationTraversal < One >` value produced to use the bound entity's target relationship.",
         example = "use sand::prelude::*;\n\nfn demonstrate<K : sand::entity::EntityKind + 'static>(scoped_entity_ref_value: &sand::entity::ScopedEntityRef < K >)  {\n    let target = scoped_entity_ref_value.target();\n}",
     )]
-    pub fn target(&self) -> RelationQuery<One> {
-        RelationQuery::new(Relation::Target)
+    pub fn target(&self) -> RelationTraversal<One> {
+        RelationTraversal::new(Relation::Target)
     }
 
     /// The bound entity's vehicle relationship.
@@ -430,11 +415,11 @@ impl<K: EntityKind> ScopedEntityRef<K> {
         minecraft = "Sand validates this definition and lowers it to entity-scoped selectors, scoreboards, NBT operations, and generated lifecycle functions as required.",
         use_when = ["Defining or using typed entity behavior in a Sand datapack"],
         avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
-        returns = "The `RelationQuery < One >` value produced to use the bound entity's vehicle relationship.",
+        returns = "The `RelationTraversal < One >` value produced to use the bound entity's vehicle relationship.",
         example = "use sand::prelude::*;\n\nfn demonstrate<K : sand::entity::EntityKind + 'static>(scoped_entity_ref_value: &sand::entity::ScopedEntityRef < K >)  {\n    let vehicle = scoped_entity_ref_value.vehicle();\n}",
     )]
-    pub fn vehicle(&self) -> RelationQuery<One> {
-        RelationQuery::new(Relation::Vehicle)
+    pub fn vehicle(&self) -> RelationTraversal<One> {
+        RelationTraversal::new(Relation::Vehicle)
     }
 
     /// The bound entity's controller relationship.
@@ -449,11 +434,11 @@ impl<K: EntityKind> ScopedEntityRef<K> {
         minecraft = "Sand validates this definition and lowers it to entity-scoped selectors, scoreboards, NBT operations, and generated lifecycle functions as required.",
         use_when = ["Defining or using typed entity behavior in a Sand datapack"],
         avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
-        returns = "The `RelationQuery < One >` value produced to use the bound entity's controller relationship.",
+        returns = "The `RelationTraversal < One >` value produced to use the bound entity's controller relationship.",
         example = "use sand::prelude::*;\n\nfn demonstrate<K : sand::entity::EntityKind + 'static>(scoped_entity_ref_value: &sand::entity::ScopedEntityRef < K >)  {\n    let controller = scoped_entity_ref_value.controller();\n}",
     )]
-    pub fn controller(&self) -> RelationQuery<One> {
-        RelationQuery::new(Relation::Controller)
+    pub fn controller(&self) -> RelationTraversal<One> {
+        RelationTraversal::new(Relation::Controller)
     }
 
     /// The bound entity's attacker relationship.
@@ -468,11 +453,11 @@ impl<K: EntityKind> ScopedEntityRef<K> {
         minecraft = "Sand validates this definition and lowers it to entity-scoped selectors, scoreboards, NBT operations, and generated lifecycle functions as required.",
         use_when = ["Defining or using typed entity behavior in a Sand datapack"],
         avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
-        returns = "The `RelationQuery < One >` value produced to use the bound entity's attacker relationship.",
+        returns = "The `RelationTraversal < One >` value produced to use the bound entity's attacker relationship.",
         example = "use sand::prelude::*;\n\nfn demonstrate<K : sand::entity::EntityKind + 'static>(scoped_entity_ref_value: &sand::entity::ScopedEntityRef < K >)  {\n    let attacker = scoped_entity_ref_value.attacker();\n}",
     )]
-    pub fn attacker(&self) -> RelationQuery<One> {
-        RelationQuery::new(Relation::Attacker)
+    pub fn attacker(&self) -> RelationTraversal<One> {
+        RelationTraversal::new(Relation::Attacker)
     }
 
     /// The bound entity's origin relationship.
@@ -487,11 +472,11 @@ impl<K: EntityKind> ScopedEntityRef<K> {
         minecraft = "Sand validates this definition and lowers it to entity-scoped selectors, scoreboards, NBT operations, and generated lifecycle functions as required.",
         use_when = ["Defining or using typed entity behavior in a Sand datapack"],
         avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
-        returns = "The `RelationQuery < One >` value produced to use the bound entity's origin relationship.",
+        returns = "The `RelationTraversal < One >` value produced to use the bound entity's origin relationship.",
         example = "use sand::prelude::*;\n\nfn demonstrate<K : sand::entity::EntityKind + 'static>(scoped_entity_ref_value: &sand::entity::ScopedEntityRef < K >)  {\n    let origin = scoped_entity_ref_value.origin();\n}",
     )]
-    pub fn origin(&self) -> RelationQuery<One> {
-        RelationQuery::new(Relation::Origin)
+    pub fn origin(&self) -> RelationTraversal<One> {
+        RelationTraversal::new(Relation::Origin)
     }
 
     /// The bound entity's passengers.
@@ -506,11 +491,11 @@ impl<K: EntityKind> ScopedEntityRef<K> {
         minecraft = "Sand validates this definition and lowers it to entity-scoped selectors, scoreboards, NBT operations, and generated lifecycle functions as required.",
         use_when = ["Defining or using typed entity behavior in a Sand datapack"],
         avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
-        returns = "The `RelationQuery < Many >` value produced to use the bound entity's passengers.",
+        returns = "The `RelationTraversal < Many >` value produced to use the bound entity's passengers.",
         example = "use sand::prelude::*;\n\nfn demonstrate<K : sand::entity::EntityKind + 'static>(scoped_entity_ref_value: &sand::entity::ScopedEntityRef < K >)  {\n    let passengers = scoped_entity_ref_value.passengers();\n}",
     )]
-    pub fn passengers(&self) -> RelationQuery<Many> {
-        RelationQuery::new(Relation::Passengers)
+    pub fn passengers(&self) -> RelationTraversal<Many> {
+        RelationTraversal::new(Relation::Passengers)
     }
 }
 

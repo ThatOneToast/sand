@@ -73,9 +73,9 @@ mod typed_execute;
 /// Command construction and the shared profile-aware validation boundary.
 pub use sand_commands::{
     Build, CommandError, CommandProfile, CommandResult, EffectCommand, EffectDuration,
-    IntoDamageTargets, IntoEntityType, RawCommand, RenderCommand, Validate,
+    IntoEntityType, RawCommand, RenderCommand, Validate,
 };
-pub(crate) use sand_commands::{Selector, SingleEntity, SingleTargetArgument, TargetArgument};
+pub(crate) use sand_commands::{Selector, SingleTargetArgument, TargetArgument};
 
 /// Trait for types resolving to a `function <id>` command.
 pub use crate::function::IntoFunctionRef;
@@ -343,7 +343,7 @@ pub fn try_function_id(
     avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
     params(selector = "`selector` provides the Minecraft target selection used to show a typed datapack dialog to one or more players.", dialog = "`dialog` is used to show a typed datapack dialog to one or more players."),
     returns = "The string value produced to show a typed datapack dialog to one or more players.",
-    example = "use sand::prelude::*;\ncmd::show_dialog(Target::self_(), DialogId::local(\"welcome\"));\ncmd::show_dialog(\nSelector::all_players(),\nDialogId::custom(\"other_pack:settings\".parse().unwrap()),\n);",
+    example = "use sand::prelude::*;\ncmd::show_dialog(Target::self_(), DialogId::local(\"welcome\"));\ncmd::show_dialog(\nTarget::players(),\nDialogId::custom(\"other_pack:settings\".parse().unwrap()),\n);",
 )]
 pub fn show_dialog(
     selector: impl TargetArgument,
@@ -569,7 +569,7 @@ impl IntoGiveItem for &sand_components::CustomItem {
     avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
     params(selector = "`selector` provides the Minecraft target selection used to emit the documented `give <targets> <item>` — give an item stack to one or more players form.", item = "`item` provides the item value or item predicate used to emit the documented `give <targets> <item>` — give an item stack to one or more players form."),
     returns = "The string value produced to emit the documented `give <targets> <item>` — give an item stack to one or more players form.",
-    example = "use sand::command;\nuse sand::registry::ItemId;\nuse sand::command::Target;\ncmd::give(\nSelector::all_players(),\nItemId::minecraft(\"diamond\").unwrap(),\n);\ncmd::give(Target::self_(), \"minecraft:diamond_sword\");",
+    example = "use sand::command;\nuse sand::registry::ItemId;\nuse sand::command::Target;\ncommand::give(\nTarget::players(),\nItemId::minecraft(\"diamond\").unwrap(),\n);\ncommand::give(Target::self_(), \"minecraft:diamond_sword\");",
 )]
 pub fn give(selector: impl TargetArgument, item: impl IntoGiveItem) -> String {
     format!("give {selector} {}", item.into_give_item())

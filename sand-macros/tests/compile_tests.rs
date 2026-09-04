@@ -39,7 +39,7 @@ fn compile_tests() {
     t.compile_fail("tests/cases/fail_damage_event_non_damage.rs");
     t.compile_fail("tests/cases/fail_damage_direct_many_targets.rs");
     t.compile_fail("tests/cases/fail_selector_implicit_narrowing.rs");
-    // #200: typed selector filter forwarding on `EntityTarget`/`PlayerTarget`.
+    // Typed selector filters preserve Target category/cardinality capabilities.
     t.pass("tests/cases/pass_typed_target_filters.rs");
     t.compile_fail("tests/cases/fail_entity_target_gamemode.rs");
     t.compile_fail("tests/cases/fail_player_target_entity_type.rs");

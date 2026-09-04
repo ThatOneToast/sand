@@ -1476,7 +1476,35 @@ fn installed_api_identities_by_path() -> &'static BTreeMap<&'static str, &'stati
 }
 
 fn normalize_shape_paths(value: &str, source_identity: Option<&str>) -> String {
-    let mut normalized = value.to_owned();
+    let mut normalized = value
+        .replace(
+            "impl sand_commands::SingleTargetArgument",
+            "sand_commands::Target",
+        )
+        .replace(
+            "impl sand_commands :: SingleTargetArgument",
+            "sand_commands :: Target",
+        )
+        .replace(
+            "impl sand_commands::TargetArgument",
+            "sand_commands::Target",
+        )
+        .replace(
+            "impl sand_commands :: TargetArgument",
+            "sand_commands :: Target",
+        )
+        .replace(
+            "sand_commands::SingleTargetArgument",
+            "sand_commands::Target",
+        )
+        .replace(
+            "sand_commands :: SingleTargetArgument",
+            "sand_commands :: Target",
+        )
+        .replace("sand_commands::TargetArgument", "sand_commands::Target")
+        .replace("sand_commands :: TargetArgument", "sand_commands :: Target")
+        .replace("sand_core::entity::Target", "sand_commands::Target")
+        .replace("sand_core :: entity :: Target", "sand_commands :: Target");
     if let Some(source_crate) = source_identity.and_then(|identity| identity.split("::").next()) {
         normalized = normalized
             .replace("crate::", &format!("{source_crate}::"))
@@ -1496,7 +1524,67 @@ fn normalize_shape_paths(value: &str, source_identity: Option<&str>) -> String {
         }
     }
     normalized = rewrite_braced_use_paths(&normalized, source_identity);
-    rewrite_qualified_paths(&normalized, source_identity)
+    normalized = rewrite_qualified_paths(&normalized, source_identity);
+    erase_hidden_target_state(normalized)
+}
+
+/// API discovery presents inferred target/traversal state as one canonical
+/// capability. The Rust compiler still sees these generic markers and
+/// enforces category/cardinality, but authors never need their private names.
+fn erase_hidden_target_state(mut value: String) -> String {
+    for owner in [
+        "sand::command::Target",
+        "sand :: command :: Target",
+        "sand::entity::RelationTraversal",
+        "sand :: entity :: RelationTraversal",
+    ] {
+        let mut search_from = 0;
+        while let Some(relative_start) = value[search_from..].find(owner) {
+            let owner_end = search_from + relative_start + owner.len();
+            let generic_start = value[owner_end..]
+                .find(|character: char| !character.is_whitespace())
+                .map(|offset| owner_end + offset);
+            let Some(generic_start) =
+                generic_start.filter(|index| value.as_bytes()[*index] == b'<')
+            else {
+                search_from = owner_end;
+                continue;
+            };
+
+            let mut depth = 0_usize;
+            let mut generic_end = None;
+            for (offset, byte) in value.as_bytes()[generic_start..].iter().enumerate() {
+                match byte {
+                    b'<' => depth += 1,
+                    b'>' => {
+                        depth -= 1;
+                        if depth == 0 {
+                            generic_end = Some(generic_start + offset + 1);
+                            break;
+                        }
+                    }
+                    _ => {}
+                }
+            }
+            let Some(generic_end) = generic_end else {
+                break;
+            };
+            let generic = &value[generic_start..generic_end];
+            let is_hidden_state = if owner.contains("Target") {
+                (generic.contains("AnyTarget") || generic.contains("PlayersOnly"))
+                    && (generic.contains("One") || generic.contains("Many"))
+            } else {
+                generic.contains("One") || generic.contains("Many")
+            };
+            if is_hidden_state {
+                value.replace_range(generic_start..generic_end, "");
+                search_from = owner_end;
+            } else {
+                search_from = generic_end;
+            }
+        }
+    }
+    value
 }
 
 fn rewrite_braced_use_paths(value: &str, source_identity: Option<&str>) -> String {
@@ -2463,9 +2551,9 @@ mod tests {
     fn source_paths_resolve_through_installed_facade_identities() {
         let cases = [
             (
-                "crate::selector::EntityTarget<Player>",
-                "sand_commands::selector::EntityTarget",
-                "sand::command::EntityTarget<Player>",
+                "crate::selector::Target<Player>",
+                "sand_commands::selector::Target",
+                "sand::command::Target<Player>",
             ),
             (
                 "crate :: worldgen :: ConfiguredCarver",
@@ -2491,6 +2579,20 @@ mod tests {
         for (source, identity, expected) in cases {
             assert_eq!(normalize_shape_paths(source, Some(identity)), expected);
         }
+        assert_eq!(
+            normalize_shape_paths(
+                "sand_commands::Target<sand_commands::PlayersOnly, sand_commands::One>",
+                Some("sand_core::event::Event::player"),
+            ),
+            "sand::command::Target"
+        );
+        assert_eq!(
+            normalize_shape_paths(
+                "impl sand_commands::TargetArgument",
+                Some("sand_core::condition::Condition::entity"),
+            ),
+            "sand::command::Target"
+        );
         assert_eq!(
             normalize_shape_paths(
                 "use sand_components::{AdvancementDisplay, AdvancementIcon, ItemId};",
@@ -3695,7 +3797,7 @@ mod tests {
         let catalog = generated_catalog();
         let nearby = search_with_options(catalog, "nearby entities", Some(5), None, None).unwrap();
         assert!(nearby.contains("showing 5 of"));
-        assert!(nearby.contains("sand::entity::EntityQuery::nearby"));
+        assert!(nearby.contains("sand::command::Target::nearby"));
         let events = search_with_options(
             catalog,
             "advancement event",

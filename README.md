@@ -56,7 +56,7 @@ struct PlayerState {
 
 #[function]
 pub fn discover_oasis() {
-    let state = PlayerState::on(PlayerContext::default());
+    let state = PlayerState::on(EntityContext::<PlayerKind>::default());
     state.discoveries.add(1);
     cmd::tellraw(
         Target::self_(),

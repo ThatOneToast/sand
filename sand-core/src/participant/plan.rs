@@ -70,7 +70,7 @@ use crate::participant::observation::{self, ObservationError, ObservationSchema}
 use crate::participant::reference::EntityParticipant;
 use crate::participant::role::{EntityParticipantRole, ItemParticipantRole, ParticipantHand};
 use crate::version::VersionProfile;
-use sand_commands::selector::SingleEntity;
+use sand_commands::selector::Target;
 
 /// The fixed, Sand-owned storage location every [`EventParticipantPlan`]
 /// observation uses, regardless of the exporting pack's own namespace —
@@ -885,7 +885,7 @@ impl EventParticipantPlan {
         };
         let schema = ObservationSchema::new(PARTICIPANT_STORAGE, schema_event_label);
         ParticipantAvailability::Available(EntityParticipant::correlated(
-            SingleEntity::raw(format!("@e[tag={},limit=1]", schema.tag())),
+            Target::raw_single(format!("@e[tag={},limit=1]", schema.tag())),
             role,
             ParticipantLifetime::SynchronousDescendants,
         ))

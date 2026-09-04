@@ -18,9 +18,9 @@ fn latest() -> VersionProfile {
 static DYN_FN_REGISTRY_LOCK: Mutex<()> = Mutex::new(());
 
 #[test]
-fn each_lowers_query_iteration_without_a_manual_execute_chain() {
-    // Acceptance: "Users can iterate a typed entity query without manually
-    // writing an execute chain."
+fn each_lowers_target_iteration_without_a_manual_execute_chain() {
+    // Authors can iterate the canonical target without manually writing an
+    // execute chain.
     let cmds = Target::entities()
         .entity_type("minecraft:zombie")
         .without_tag("friendly")
@@ -108,7 +108,7 @@ fn version_gated_relation_fails_with_actionable_diagnostic_before_export() {
 }
 
 #[test]
-fn player_query_each_narrows_to_player_context() {
+fn player_target_each_binds_a_player_context() {
     let cmds = Target::players()
         .tag("ready")
         .nearest()

@@ -1,1 +1,1 @@
-pub use sand_components::resource_location::{Identifier, PackNamespace, ResourceLocation};
+pub use sand_components::resource_location::{PackNamespace, ResourceLocation};

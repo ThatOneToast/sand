@@ -183,9 +183,6 @@ impl<'de> Deserialize<'de> for ResourceLocation {
     }
 }
 
-/// Type alias for [`ResourceLocation`].
-pub type Identifier = ResourceLocation;
-
 /// The user's declared pack namespace (e.g. `"my_pack"`).
 #[sand_macros::api(
     registry = sand_api_contract,

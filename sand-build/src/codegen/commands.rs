@@ -100,7 +100,7 @@ fn map_parser(parser: &str) -> (&'static str, &'static str, bool) {
 
 fn map_arg_parser(literals: &[&str], arg: &ArgInfo) -> (&'static str, &'static str, bool) {
     if literals == ["damage"] && arg.name == "target" && arg.parser == "minecraft:entity" {
-        return ("impl SingleTargetArgument", "SingleEntity", true);
+        return ("impl SingleTargetArgument", "Selector", true);
     }
 
     map_parser(&arg.parser)

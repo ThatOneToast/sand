@@ -29,13 +29,13 @@
       <div class="card"><div class="caption">Author-facing target types</div><div class="metric">1</div><div class="good"><code>Target</code> is canonical</div></div>
       <div class="card"><div class="caption">Follow-up audits filed</div><div class="metric">4</div><div class="amber">NBT, resources, functions, state</div></div>
     </div>
-    <div class="callout">The removed surface is not merely renamed. Query wrappers and aliases were removed from the supported facade and API contract; legacy command representations remain hidden only where inter-crate lowering still requires them.</div>
+    <div class="callout">The removed surface is not merely renamed. The entity/player target wrappers, their aliases, the query wrappers, the damage conversion trait, and command-local predicate/tag/team identifier wrappers were deleted. Only the low-level selector IR remains hidden behind <code>Target</code>.</div>
   </section>
 
   <section>
     <h2>Canonical architecture</h2>
     <div class="flow">
-      <div class="node"><strong>Construct &amp; filter</strong><span><code>Target::entities()</code>, <code>players()</code>, tags, distance, scores</span></div><div class="arrow">→</div>
+      <div class="node"><strong>Construct &amp; filter</strong><span><code>Target::entities()</code>, <code>players()</code>, tags, scalar ranges, score pairs, canonical predicate IDs</span></div><div class="arrow">→</div>
       <div class="node"><strong>Narrow or iterate</strong><span><code>.nearest()</code> encodes one; <code>.each(...)</code> binds an <code>EntityContext</code></span></div><div class="arrow">→</div>
       <div class="node"><strong>Consume directly</strong><span>Commands, execute chains, storage, VFX, participants, and score holders</span></div>
     </div>
@@ -51,6 +51,7 @@ cmd::damage(enemy, 4.0);</pre>
       <li><strong>Capability boundaries:</strong> player-only filters exist only on player targets; single-target commands accept only statically single targets.</li>
       <li><strong>Execution stays honest:</strong> <code>TargetExecution</code> adds <code>state</code>/<code>each</code> to the same target value, while <code>EntityContext</code> remains the distinct bound-executor concept.</li>
       <li><strong>Scoreboards stay broader:</strong> entity targets convert naturally to <code>ScoreHolder</code>; fake players and wildcard holders remain separate valid scoreboard concepts with centralized validation.</li>
+      <li><strong>No selector-era helper vocabulary:</strong> typed level bounds are scalar methods, multiple score filters are ordinary <code>(ObjectiveName, ScoreRange)</code> pairs, and raw syntax is explicitly named <code>_raw</code>.</li>
     </ul>
   </section>
 
@@ -62,7 +63,7 @@ cmd::damage(enemy, 4.0);</pre>
       <tr><td>Category/cardinality safety</td><td>Inferred hidden markers control method availability and <code>SingleTargetArgument</code>; compile-fail cases cover many-to-single misuse and category-specific filters.</td><td class="status">Met</td></tr>
       <tr><td>Command convergence</td><td>Generated and handwritten command surfaces accept the sealed <code>TargetArgument</code> capability, including execute, effects, teleport, inventory, NBT, display, sound, text, VFX, and systems.</td><td class="status">Met</td></tr>
       <tr><td>Score-holder integration</td><td><code>Target</code> converts into <code>ScoreHolder</code>; single-holder validation is reused for guarded timer/cooldown operations.</td><td class="status">Met</td></tr>
-      <tr><td>Documentation and API discovery</td><td>README, book, examples, rustdoc/API metadata, compile fixtures, and profile baselines now teach <code>Target</code>.</td><td class="status">Met</td></tr>
+      <tr><td>Documentation and API discovery</td><td>README, scaffold output, macro examples, rustdoc/API metadata, compile fixtures, and profile baselines now teach <code>Target</code>.</td><td class="status">Met</td></tr>
     </tbody></table>
   </section>
 
@@ -71,23 +72,36 @@ cmd::damage(enemy, 4.0);</pre>
     <p>The adjacent families are related but materially broader than selection, so they were recorded as independently reviewable follow-ups rather than folded into an already large migration.</p>
     <table><thead><tr><th>Family</th><th>Finding</th><th>Tracking</th></tr></thead><tbody>
       <tr><td>Storage / NBT roots</td><td><code>Nbt</code>, <code>NbtRef</code>, locations, targets, and storage roots need one documented addressing hierarchy while preserving real entity/block/storage distinctions.</td><td><a href="https://github.com/ThatOneToast/sand/issues/371">#371</a></td></tr>
-      <tr><td>Registry references</td><td>Generated enums, typed IDs, <code>ResourceLocation</code>, conversion traits, and a duplicate predicate identifier need a consistent conversion/reference policy.</td><td><a href="https://github.com/ThatOneToast/sand/issues/372">#372</a></td></tr>
+      <tr><td>Registry references</td><td>This PR removes the duplicate command predicate ID and lets <code>Target</code> consume the canonical generated <code>PredicateId</code>. The broader conversion-trait policy remains independently tracked.</td><td><a href="https://github.com/ThatOneToast/sand/issues/372">#372</a> · partially completed here</td></tr>
       <tr><td>Function references</td><td>String, display, and typed function paths remain fragmented. The previous #175 scope was validated as stale/insufficient rather than silently duplicated.</td><td><a href="https://github.com/ThatOneToast/sand/issues/373">#373</a></td></tr>
       <tr><td>Legacy state primitives</td><td><code>ScoreVar</code>, <code>Flag</code>, <code>Timer</code>, <code>Cooldown</code>, and <code>GameState</code> remain prominent beside derive-first state authoring.</td><td><a href="https://github.com/ThatOneToast/sand/issues/374">#374</a></td></tr>
     </tbody></table>
   </section>
 
   <section>
+    <h2>Semantic boundaries retained</h2>
+    <p>Consolidation is based on meaning, not on whether two values eventually render text. These types remain separate because they model different operations or data:</p>
+    <table><thead><tr><th>Type</th><th>Why it is not another Target</th></tr></thead><tbody>
+      <tr><td><code>EntityContext&lt;K&gt;</code></td><td>The currently bound <code>@s</code> executor inside generated code, not an expression that selects entities. The redundant <code>PlayerContext</code> alias was removed; player context is <code>EntityContext&lt;PlayerKind&gt;</code>.</td></tr>
+      <tr><td><code>StateQuery</code></td><td>Composes required, optional, and forbidden component presence. Its lowering uses the canonical target machinery, but the query itself is not a selector.</td></tr>
+      <tr><td><code>RelationTraversal</code></td><td>A pending vanilla <code>execute on &lt;relation&gt;</code> traversal. Renaming it from <code>RelationQuery</code> makes that distinction explicit.</td></tr>
+      <tr><td><code>ScoreHolder</code></td><td>A strict superset of entity targets that must also represent fake players and wildcard <code>*</code>.</td></tr>
+      <tr><td>Predicate JSON structs</td><td><code>EntityPredicate</code>, <code>ItemPredicate</code>, location, damage, and weather predicates are different vanilla JSON schemas—not aliases for one selectable value.</td></tr>
+    </tbody></table>
+    <div class="callout">The facade audit also removed unused compatibility aliases <code>Identifier</code>, <code>Rarity</code>, and <code>Slot</code>. Canonical names are <code>ResourceLocation</code>, <code>ItemRarity</code>, and <code>ItemSlot</code>.</div>
+  </section>
+
+  <section>
     <h2>Verification record</h2>
     <table><thead><tr><th>Check</th><th>Coverage</th><th>Result</th></tr></thead><tbody>
       <tr><td><code>cargo check --workspace --all-targets</code></td><td>Every workspace crate, target, example, and test target</td><td class="status">Passed</td></tr>
-      <tr><td><code>cargo test -p sand-core --doc</code></td><td>2,790 generated/handwritten doctests plus compile-fail docs</td><td class="status">Passed</td></tr>
+      <tr><td><code>cargo test -p sand-core --doc</code></td><td>Generated and handwritten doctests plus compile-fail docs</td><td class="status">Passed</td></tr>
       <tr><td>Trybuild compile contracts</td><td>50 pass/fail cases, including target category and cardinality diagnostics</td><td class="status">Passed</td></tr>
       <tr><td>Focused command/query/facade tests</td><td>Target filters, execution lowering, public facade, API enforcement, command mapping</td><td class="status">Passed</td></tr>
       <tr><td>API surface ratchet</td><td>Placeholder, Minecraft 1.21.4, and 26.2 profiles</td><td class="status">Passed</td></tr>
       <tr><td><code>git diff --check</code></td><td>Whitespace and patch integrity</td><td class="status">Passed</td></tr>
     </tbody></table>
-    <div class="callout risk"><strong>Compatibility note.</strong> This deliberately removes redundant supported exports before Sand’s stability boundary. Hidden lower-level types remain temporarily available inside the workspace so the change can focus public migration without coupling it to a command IR rewrite.</div>
+    <div class="callout risk"><strong>Compatibility note.</strong> This deliberately removes redundant supported exports and implementation wrappers before Sand’s stability boundary. The hidden <code>Selector</code> is command IR, not a second author-facing API; follow-up issues isolate the broader NBT, registry-reference, function-reference, and legacy-state migrations.</div>
   </section>
 
   <div class="footer">Prepared from the implementation branch and repository API audit. No PR was merged as part of this work.</div>

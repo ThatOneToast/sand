@@ -114,8 +114,8 @@ pub mod prelude;
 
 // ── Topic modules ─────────────────────────────────────────────────────────────
 
-/// Typed command builders: `execute` chains, selectors (`Target`,
-/// `Target`), scoreboard operations, effects, sounds, particles,
+/// Typed command builders: `execute` chains, canonical [`Target`](command::Target)
+/// values, scoreboard operations, effects, sounds, particles,
 /// block/NBT operations, and free functions like `cmd::say`/`cmd::tellraw`.
 /// Reach for this when the [`prelude`] doesn't already have the command
 /// builder you need, or when you want to name the module explicitly (e.g. in
@@ -280,13 +280,12 @@ pub mod entity {
         FixedScore, FixedScoreAccessor, FixedScoreValue, FixedValue, GlobalStateBundleOperations,
         HealthBinding, HealthResizePolicy, KeyedData, KnownEntityKind, LivingEntityKind,
         MarkerKind, Migration, MutableLivingEntityKind, NameBinding, NumericPropertySource,
-        OverflowPolicy, OwnershipPolicy, PlayerContext, PlayerKind, PropertyNameError,
-        RawEntityProperty, RawEntityStateField, RawPropertyAccess, RawStateBackend,
-        ReconcilePolicy, RefreshPolicy, Relation, RelationQuery, RoundingPolicy,
-        SafeEntityDataWriteKind, ScopedEntityRef, Score, SpecialEntityPolicy, StatCurve,
-        StateComposition, StateFieldDescriptor, StateFieldKind, StatePredicate,
-        StateQueryOperations, StateSchema, TagBinding, TargetExecution, TeamBinding,
-        ThresholdDirection, ZombieKind,
+        OverflowPolicy, OwnershipPolicy, PlayerKind, PropertyNameError, RawEntityProperty,
+        RawEntityStateField, RawPropertyAccess, RawStateBackend, ReconcilePolicy, RefreshPolicy,
+        Relation, RelationTraversal, RoundingPolicy, SafeEntityDataWriteKind, ScopedEntityRef,
+        Score, SpecialEntityPolicy, StatCurve, StateComposition, StateFieldDescriptor,
+        StateFieldKind, StatePredicate, StateQueryOperations, StateSchema, TagBinding,
+        TargetExecution, TeamBinding, ThresholdDirection, ZombieKind,
     };
 }
 

@@ -55,9 +55,6 @@ pub use execute_args::{Anchor, ItemSlot, NbtStoreKind, Swizzle};
 pub use execute_ir::{ConditionIr, ExecuteCapability, ExecuteOp, ExecuteStoreTarget};
 pub use export_registry::{ExportRegistryGuard, NestedExportError};
 pub use inventory::Inventory;
-/// Canonical slot type alias — same as [`ItemSlot`].
-///
-pub type Slot = ItemSlot;
 pub use nbt::{
     DataCommand, DataModify, DataModifyOperation, DataSource, DataTarget, Nbt, NbtCompound,
     NbtPath, NbtRef, NbtTarget, NbtValue, UntypedNbt, data_modify,
@@ -72,10 +69,8 @@ pub use scoreboard::{
     ScoreboardPlayersOperation, hash_objective_name, scoreboard_players_operation,
 };
 pub use selector::{
-    AnyTarget, EntityTag, EntityTarget, EntityTargets, GameMode, IntoEntityType, Many, One,
-    PlayerTarget, PlayerTargets, PlayersOnly, PredicateId, ScoreRange, Selector, SelectorRange,
-    SelectorScores, SingleEntity, SinglePlayer, SingleTargetArgument, SortOrder, Target,
-    TargetArgument, TargetBase, TeamName,
+    AnyTarget, GameMode, IntoEntityType, Many, One, PlayersOnly, ScoreRange, Selector,
+    SingleTargetArgument, SortOrder, Target, TargetArgument,
 };
 pub use sound::{IntoSoundEvent, Sound, SoundSource, StopSoundCommand};
 pub use text::{
@@ -131,7 +126,7 @@ pub use text::{
 /// # Example
 ///
 /// ```rust,ignore
-/// use sand_commands::{Build, Execute, Selector};
+/// use sand_commands::{Build, Execute, Target};
 ///
 /// let cmd = Execute::new()
 ///     .as_(Target::players())

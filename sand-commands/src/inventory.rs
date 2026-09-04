@@ -7,7 +7,7 @@
 //! `impl Into<ItemSlot>` so you can pass an `ItemSlot` directly:
 //!
 //! ```rust,ignore
-//! use sand_commands::{Inventory, ItemSlot, Selector};
+//! use sand_commands::{Inventory, ItemSlot, Target};
 //!
 //! let inv = Inventory::of(Target::self_());
 //! inv.give("minecraft:diamond");

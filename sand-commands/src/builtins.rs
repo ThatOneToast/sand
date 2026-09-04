@@ -15,12 +15,7 @@
 
 use crate::coord::{Rotation, Vec3};
 use crate::error::CommandResult;
-#[cfg(test)]
-use crate::selector::Selector;
-use crate::selector::{
-    AnyTarget, EntityTargets, IntoEntityType, Many, One, PlayersOnly, SingleEntity,
-    SingleTargetArgument, Target, TargetArgument,
-};
+use crate::selector::{IntoEntityType, Selector, SingleTargetArgument, Target, TargetArgument};
 use crate::text::TextComponent;
 use crate::validate;
 
@@ -216,7 +211,7 @@ pub fn try_tp_relative(
 ///
 /// # Examples
 /// ```
-/// use sand_commands::{Selector, coord::{Vec3, Coord}};
+/// use sand_commands::{Target, coord::{Vec3, Coord}};
 /// use sand_commands::builtins::tp_vec3;
 ///
 /// assert_eq!(tp_vec3(Target::self_(), Vec3::here()), "tp @s ~ ~ ~");
@@ -234,7 +229,7 @@ pub fn tp_vec3(target: impl TargetArgument, pos: Vec3) -> String {
 ///
 /// # Example
 /// ```
-/// use sand_commands::{Selector, coord::{Vec3, Rotation}};
+/// use sand_commands::{Target, coord::{Vec3, Rotation}};
 /// use sand_commands::builtins::tp_with_rotation;
 ///
 /// let cmd = tp_with_rotation(Target::self_(), Vec3::here(), Rotation::absolute(90.0, 0.0));
@@ -771,7 +766,7 @@ pub fn damage(
     amount: f64,
     damage_type: impl Into<String>,
 ) -> String {
-    let target = target.into();
+    let target = target.into_single_target_selector();
     format!("damage {} {} {}", target, amount, damage_type.into())
 }
 
@@ -782,7 +777,7 @@ pub fn try_damage(
     amount: f64,
     damage_type: impl Into<String>,
 ) -> CommandResult<String> {
-    let target = target.into();
+    let target = target.into_single_target_selector();
     let damage_type = damage_type.into();
     validate::finite(amount, "damage", "amount")?;
     validate::resource_location_shape(&damage_type, "damage", "damage_type")?;
@@ -1020,14 +1015,14 @@ pub struct Damage {
     targets: DamageTargets,
     amount: DamageAmount,
     damage_type: String,
-    source: Option<SingleEntity>,
-    centered_at: Option<SingleEntity>,
+    source: Option<Selector>,
+    centered_at: Option<Selector>,
 }
 
 #[derive(Debug, Clone)]
-pub enum DamageTargets {
-    One(SingleEntity),
-    Many(EntityTargets),
+enum DamageTargets {
+    One(Selector),
+    Many(Selector),
 }
 
 impl Damage {
@@ -1048,7 +1043,7 @@ impl Damage {
     )]
     pub fn new() -> Self {
         Self {
-            targets: DamageTargets::One(SingleEntity::self_()),
+            targets: DamageTargets::One(Selector::self_()),
             amount: DamageAmount::Fixed(1.0),
             damage_type: DamageKind::Generic.as_str().to_string(),
             source: None,
@@ -1073,8 +1068,10 @@ impl Damage {
         example = "use sand::prelude::*;\nlet damage_builder = DamageBuilder::reflect_from(Target::self_());",
     )]
     pub fn reflect_from(source: impl SingleTargetArgument) -> Self {
-        let source = source.into();
-        Self::new().centered_at(source)
+        let source = source.into_single_target_selector();
+        let mut damage = Self::new();
+        damage.centered_at = Some(source);
+        damage
     }
 
     /// Set target entity or entities.
@@ -1091,10 +1088,15 @@ impl Damage {
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
         params(targets = "`targets` provides the Minecraft target selection used to set target entity or entities."),
         returns = "The `DamageBuilder` value with the documented change applied to set target entity or entities.",
-        example = "use sand::prelude::*;\n\nfn demonstrate(damage_builder_value: sand::command::DamageBuilder, targets: impl sand::command::IntoDamageTargets)  {\n    let updated_damage_builder = damage_builder_value.to(targets);\n}",
+        example = "use sand::prelude::*;\nlet damage = DamageBuilder::new().to(Target::entities().tag(\"enemy\"));",
     )]
-    pub fn to(mut self, targets: impl IntoDamageTargets) -> Self {
-        self.targets = targets.into_damage_targets();
+    pub fn to<K, A>(mut self, targets: Target<K, A>) -> Self {
+        let selector = targets.into_target_selector();
+        self.targets = if selector.is_statically_single() {
+            DamageTargets::One(selector)
+        } else {
+            DamageTargets::Many(selector)
+        };
         self
     }
 
@@ -1177,7 +1179,7 @@ impl Damage {
         example = "use sand::prelude::*;\nlet damage_builder = DamageBuilder::new().source(Target::self_());",
     )]
     pub fn source(mut self, source: impl SingleTargetArgument) -> Self {
-        self.source = Some(source.into());
+        self.source = Some(source.into_single_target_selector());
         self
     }
 
@@ -1218,7 +1220,7 @@ impl Damage {
         example = "use sand::prelude::*;\nlet damage_builder = DamageBuilder::new().centered_at(Target::self_());",
     )]
     pub fn centered_at(mut self, center: impl SingleTargetArgument) -> Self {
-        self.centered_at = Some(center.into());
+        self.centered_at = Some(center.into_single_target_selector());
         self
     }
 
@@ -1261,7 +1263,7 @@ impl Damage {
             }
             DamageTargets::Many(targets) => {
                 let inner =
-                    damage_command(SingleEntity::self_(), amount, &damage_type, source.as_ref());
+                    damage_command(Selector::self_(), amount, &damage_type, source.as_ref());
                 let prefix = match centered_at {
                     Some(center) => format!("execute at {center} as {targets}"),
                     None => format!("execute as {targets}"),
@@ -1296,10 +1298,10 @@ impl Damage {
 }
 
 fn damage_command(
-    target: SingleEntity,
+    target: Selector,
     amount: f64,
     damage_type: &str,
-    source: Option<&SingleEntity>,
+    source: Option<&Selector>,
 ) -> String {
     let base = format!("damage {target} {amount} {damage_type}");
     match source {
@@ -1311,74 +1313,6 @@ fn damage_command(
 impl Default for Damage {
     fn default() -> Self {
         Self::new()
-    }
-}
-
-/// Converts typed target wrappers into the damage builder's target model.
-#[sand_macros::api(
-    registry = sand_api_contract,
-    path = "sand::command::IntoDamageTargets",
-    aliases = ["sand::cmd::IntoDamageTargets", "sand::prelude::cmd::IntoDamageTargets"],
-    module = "sand::command",
-    summary = "Converts typed target wrappers into the damage builder's target model.",
-    context = "Converts typed target wrappers into the damage builder's target model. This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
-    minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
-    use_when = ["Constructing Minecraft commands through Sand's typed command model"],
-    avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-    example = "use sand::command::IntoDamageTargets;",
-)]
-pub trait IntoDamageTargets {
-    /// Converts the receiver into either one entity or a selector-backed set
-    /// of entities accepted by [`Damage::to`].
-    #[sand_macros::api(
-        registry = sand_api_contract,
-        path = "sand::command::IntoDamageTargets::into_damage_targets",
-        aliases = ["sand::cmd::IntoDamageTargets::into_damage_targets", "sand::prelude::cmd::IntoDamageTargets::into_damage_targets"],
-        module = "sand::command",
-        summary = "Converts the receiver into either one entity or a selector-backed set of entities accepted by [`Damage::to`].",
-        context = "Converts the receiver into either one entity or a selector-backed set of entities accepted by [`Damage::to`]. This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
-        minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
-        use_when = ["Constructing Minecraft commands through Sand's typed command model"],
-        avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        returns = "The `DamageTargets` value produced to convert the receiver into either one entity or a selector-backed set of entities accepted by [`Damage::to`].",
-        example = "use sand::prelude::*;\n\nfn demonstrate<T: sand::command::IntoDamageTargets>(into_damage_targets_value: T)  {\n    let into_damage_targets = into_damage_targets_value.into_damage_targets();\n}",
-    )]
-    fn into_damage_targets(self) -> DamageTargets;
-}
-
-impl IntoDamageTargets for SingleEntity {
-    fn into_damage_targets(self) -> DamageTargets {
-        DamageTargets::One(self)
-    }
-}
-
-impl IntoDamageTargets for EntityTargets {
-    fn into_damage_targets(self) -> DamageTargets {
-        DamageTargets::Many(self)
-    }
-}
-
-impl IntoDamageTargets for Target<AnyTarget, One> {
-    fn into_damage_targets(self) -> DamageTargets {
-        DamageTargets::One(self.into())
-    }
-}
-
-impl IntoDamageTargets for Target<PlayersOnly, One> {
-    fn into_damage_targets(self) -> DamageTargets {
-        DamageTargets::One(self.into())
-    }
-}
-
-impl IntoDamageTargets for Target<AnyTarget, Many> {
-    fn into_damage_targets(self) -> DamageTargets {
-        DamageTargets::Many(self.into())
-    }
-}
-
-impl IntoDamageTargets for Target<PlayersOnly, Many> {
-    fn into_damage_targets(self) -> DamageTargets {
-        DamageTargets::Many(self.into())
     }
 }
 
@@ -1638,7 +1572,7 @@ mod tests {
     #[test]
     fn damage_test() {
         assert_eq!(
-            damage(SingleEntity::self_(), 5.0, "minecraft:generic"),
+            damage(Target::self_(), 5.0, "minecraft:generic"),
             "damage @s 5 minecraft:generic"
         );
     }
@@ -1646,9 +1580,7 @@ mod tests {
     #[test]
     fn damage_many_lowers_through_execute_as() {
         let cmds = Damage::new()
-            .to(EntityTargets::nearby(5.0)
-                .excluding_players()
-                .excluding_self())
+            .to(Target::nearby(5.0).excluding_players().excluding_self())
             .amount(DamageAmount::fixed(4.0))
             .damage_type(DamageKind::Generic)
             .run();
@@ -1664,10 +1596,8 @@ mod tests {
 
     #[test]
     fn reflected_many_damage_centers_on_source_without_unsafe_attribution() {
-        let cmds = Damage::reflect_from(SingleEntity::self_())
-            .to(EntityTargets::nearby(5.0)
-                .excluding_players()
-                .excluding_self())
+        let cmds = Damage::reflect_from(Target::self_())
+            .to(Target::nearby(5.0).excluding_players().excluding_self())
             .amount(4.0)
             .damage_type(DamageKind::Generic)
             .run();
@@ -2077,9 +2007,9 @@ mod tests {
 
     #[test]
     fn try_damage_rejects_non_finite_amount_and_bad_type() {
-        assert!(try_damage(SingleEntity::self_(), f64::NAN, "minecraft:generic").is_err());
-        assert!(try_damage(SingleEntity::self_(), 5.0, "generic").is_err());
-        assert!(try_damage(SingleEntity::self_(), 5.0, "minecraft:generic").is_ok());
+        assert!(try_damage(Target::self_(), f64::NAN, "minecraft:generic").is_err());
+        assert!(try_damage(Target::self_(), 5.0, "generic").is_err());
+        assert!(try_damage(Target::self_(), 5.0, "minecraft:generic").is_ok());
     }
 
     #[test]

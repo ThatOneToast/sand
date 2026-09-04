@@ -13,7 +13,7 @@
 //!
 //! `execute on attacker` (Minecraft 1.20.2+) is a direct vanilla relation
 //! query: "the entity that last damaged the current entity." It is
-//! single-valued by construction — [`crate::entity::relation::RelationQuery<One>`]
+//! single-valued by construction — [`crate::entity::relation::RelationTraversal<One>`]
 //! resolves to at most one entity, never a set — so there is no "multiple
 //! credible candidates" ambiguity case to police here the way there would be
 //! for a proximity-based guess. That is *why* this phase implements only
@@ -124,7 +124,7 @@ use crate::participant::lifetime::ParticipantLifetime;
 use crate::participant::reference::EntityParticipant;
 use crate::participant::role::EntityParticipantRole;
 use crate::version::VersionProfile;
-use sand_commands::selector::SingleEntity;
+use sand_commands::selector::Target;
 
 #[sand_macros::api(
     registry = sand_api_contract,
@@ -401,7 +401,7 @@ impl CorrelatedEntityObservation {
     )]
     pub fn participant(&self) -> EntityParticipant {
         EntityParticipant::correlated(
-            SingleEntity::raw(format!("@e[tag={},limit=1]", self.schema.tag())),
+            Target::raw_single(format!("@e[tag={},limit=1]", self.schema.tag())),
             self.role,
             ParticipantLifetime::SynchronousDescendants,
         )
@@ -550,7 +550,7 @@ pub(crate) fn attacker_observation_setup(
     // Each `execute on attacker run <command>` line runs a single command
     // directly, inline — deliberately not routed through
     // `EntityContext::attacker().if_present(...)`'s multi-command
-    // dynamic-function-wrapping (`RelationQuery::lower`), which registers a
+    // dynamic-function-wrapping (`RelationTraversal::lower`), which registers a
     // separate generated function via `register_dyn_fn_dedup` from inside
     // `SandEvent::setup()`. Now that the registry is thread-local (see
     // `function.rs`'s dyn-fn registry doc comment), that wrapping would be

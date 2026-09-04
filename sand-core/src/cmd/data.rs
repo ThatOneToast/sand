@@ -681,11 +681,13 @@ impl Storage {
     pub fn copy_from_entity(
         &self,
         key: impl Into<String>,
-        entity: sand_commands::Selector,
+        entity: impl sand_commands::TargetArgument,
         src_path: impl Into<String>,
     ) -> String {
-        DataModify::new(self.target(), key.into())
-            .set_from(DataTarget::Entity(entity), src_path.into())
+        DataModify::new(self.target(), key.into()).set_from(
+            DataTarget::Entity(entity.into_target_selector()),
+            src_path.into(),
+        )
     }
 
     /// Copy a value from another storage namespace.

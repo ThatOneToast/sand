@@ -2054,22 +2054,15 @@ fn component_claims(definitions: &[ArchetypeDefinition]) -> ComponentClaims {
     claims
 }
 
-fn dirty_consumption_name(dirty_objective: &str, marker: &str) -> String {
-    sand_commands::ObjectiveName::logical(format!("{dirty_objective}.{marker}.consumed"))
-        .as_str()
-        .to_string()
-}
-
 fn dirty_pending_name(dirty_objective: &str, marker: &str) -> String {
-    sand_commands::ObjectiveName::logical(format!("{dirty_objective}.{marker}.pending_consumers"))
+    sand_commands::ObjectiveName::logical(format!("{dirty_objective}.{marker}.pending"))
         .as_str()
         .to_string()
 }
 
-fn dirty_consumption_commands(
+fn dirty_distribution_commands(
     fields: &ArchetypeFields,
     claims: &ComponentClaims,
-    marker: &str,
     objectives: &mut BTreeSet<String>,
 ) -> Vec<String> {
     let mut commands = Vec::new();
@@ -2077,36 +2070,32 @@ fn dirty_consumption_commands(
         let Some(claim_markers) = claims.get(&field.component) else {
             continue;
         };
-        let own_consumed = dirty_consumption_name(&field.dirty_objective, marker);
-        objectives.insert(own_consumed.clone());
-        commands.push(format!(
-            "execute if score @s {} matches 1 run scoreboard players set @s {own_consumed} 1",
-            field.dirty_objective
-        ));
-
-        let pending = dirty_pending_name(&field.dirty_objective, marker);
-        objectives.insert(pending.clone());
-        commands.push(format!("scoreboard players set @s {pending} 0"));
         for claim_marker in claim_markers {
-            let consumed = dirty_consumption_name(&field.dirty_objective, claim_marker);
-            objectives.insert(consumed.clone());
+            let pending = dirty_pending_name(&field.dirty_objective, claim_marker);
+            objectives.insert(pending.clone());
             commands.push(format!(
-                "execute if entity @s[tag={claim_marker}] unless score @s {consumed} matches 1 run scoreboard players set @s {pending} 1"
-            ));
-        }
-        for claim_marker in claim_markers {
-            let consumed = dirty_consumption_name(&field.dirty_objective, claim_marker);
-            commands.push(format!(
-                "execute if score @s {} matches 1 if score @s {pending} matches 0 run scoreboard players set @s {consumed} 0",
+                "execute if score @s {} matches 1 if entity @s[tag={claim_marker}] run scoreboard players set @s {pending} 1",
                 field.dirty_objective
             ));
         }
         commands.push(format!(
-            "execute if score @s {} matches 1 if score @s {pending} matches 0 run scoreboard players set @s {} 0",
+            "execute if score @s {} matches 1 run scoreboard players set @s {} 0",
             field.dirty_objective, field.dirty_objective
         ));
     }
     commands
+}
+
+fn dirty_acknowledgement_commands(fields: &ArchetypeFields, marker: &str) -> Vec<String> {
+    fields
+        .values()
+        .map(|field| {
+            format!(
+                "scoreboard players set @s {} 0",
+                dirty_pending_name(&field.dirty_objective, marker)
+            )
+        })
+        .collect()
 }
 
 #[derive(Debug, Clone)]
@@ -2192,6 +2181,12 @@ impl ArchetypeFields {
 
     fn values(&self) -> impl Iterator<Item = &ResolvedArchetypeField> {
         self.by_objective.values()
+    }
+
+    fn field_for_dirty_objective(&self, dirty_objective: &str) -> Option<&ResolvedArchetypeField> {
+        self.by_objective
+            .values()
+            .find(|field| field.dirty_objective == dirty_objective)
     }
 
     fn resolve_reference<'a>(
@@ -2280,7 +2275,7 @@ fn compile_definition_with_claims(
         objectives.insert(field.component_dirty_objective.clone());
         if let Some(markers) = claims.get(&field.component) {
             for claim_marker in markers {
-                objectives.insert(dirty_consumption_name(&field.dirty_objective, claim_marker));
+                objectives.insert(dirty_pending_name(&field.dirty_objective, claim_marker));
             }
         }
     }
@@ -2320,7 +2315,7 @@ fn compile_definition_with_claims(
     objectives.insert(repair_objective.clone());
     let mut repair_refresh_commands = Vec::new();
 
-    let derivations = compile_derivations(definition, &fields, &root)?;
+    let derivations = compile_derivations(definition, &fields, &root, &marker)?;
     objectives.extend(derivations.objectives);
     functions.extend(derivations.functions);
     records.extend(derivations.records);
@@ -2368,16 +2363,17 @@ fn compile_definition_with_claims(
             ));
         }
         for (source, output) in &refresh_sources {
+            let pending = fields
+                .field_for_dirty_objective(source)
+                .map(|field| dirty_pending_name(&field.dirty_objective, &marker));
+            if let Some(pending) = pending {
+                commands.push(format!(
+                    "execute if score @s {pending} matches 1 run scoreboard players set @s {output} 1"
+                ));
+            }
             commands.push(format!(
                 "execute if score @s {source} matches 1 run scoreboard players set @s {output} 1"
             ));
-        }
-        for source in refresh_sources
-            .iter()
-            .map(|(source, _)| source)
-            .collect::<BTreeSet<_>>()
-        {
-            commands.push(format!("scoreboard players set @s {source} 0"));
         }
         for (output, function) in &refresh_outputs {
             commands.push(format!(
@@ -2398,12 +2394,12 @@ fn compile_definition_with_claims(
     records.extend(transitions.records);
     initialize_commands.extend(transitions.initialize_commands.iter().cloned());
     repair_refresh_commands.extend(transitions.initialize_commands);
-    initialize_commands.extend(dirty_consumption_commands(
+    initialize_commands.extend(dirty_distribution_commands(
         &fields,
         claims,
-        &marker,
         &mut objectives,
     ));
+    initialize_commands.extend(dirty_acknowledgement_commands(&fields, &marker));
     if let Some(callback) = &definition.initialize {
         initialize_commands.push(format!("function {callback}"));
     }
@@ -2531,6 +2527,16 @@ fn compile_definition_with_claims(
             field.objective, field.objective,
         ));
     }
+    reconcile_commands.extend(dirty_distribution_commands(
+        &fields,
+        claims,
+        &mut objectives,
+    ));
+    for acknowledgement in dirty_acknowledgement_commands(&fields, &marker) {
+        reconcile_commands.push(format!(
+            "execute if score @s {repair_objective} matches 1 run {acknowledgement}"
+        ));
+    }
     if !refresh_outputs.is_empty() {
         if let Some(path) = &derivations.refresh_function {
             reconcile_commands.push(format!("function {path}"));
@@ -2545,12 +2551,12 @@ fn compile_definition_with_claims(
     if let Some(path) = &transitions.check_function {
         reconcile_commands.push(format!("function {path}"));
     }
-    reconcile_commands.extend(dirty_consumption_commands(
+    reconcile_commands.extend(dirty_distribution_commands(
         &fields,
         claims,
-        &marker,
         &mut objectives,
     ));
+    reconcile_commands.extend(dirty_acknowledgement_commands(&fields, &marker));
     records.push(function_record(
         definition.id.namespace(),
         &reconcile_path,
@@ -3116,6 +3122,7 @@ fn compile_derivations(
     definition: &ArchetypeDefinition,
     fields: &ArchetypeFields,
     root: &str,
+    marker: &str,
 ) -> Result<DerivationCompilation, EntityDiagnostic> {
     use crate::entity::curve::DependencyGraph;
 
@@ -3187,6 +3194,10 @@ fn compile_derivations(
                 )?
             };
             let source_dirty = &source.dirty_objective;
+            let pending = dirty_pending_name(source_dirty, marker);
+            refresh_commands.push(format!(
+                "execute if score @s {pending} matches 1 run scoreboard players set @s {derivation_dirty} 1"
+            ));
             refresh_commands.push(format!(
                 "execute if score @s {source_dirty} matches 1 run scoreboard players set @s {derivation_dirty} 1"
             ));
@@ -5163,12 +5174,16 @@ mod tests {
     }
 
     #[test]
-    fn shared_component_dirty_state_waits_for_every_active_archetype() {
+    fn shared_component_dirty_state_is_distributed_once_to_every_active_archetype() {
         let first = EntityArchetype::<ZombieKind>::new(
             ResourceLocation::new("rpg", "shared_first").unwrap(),
         )
         .components::<MobState>()
         .derive(HEALTH, StatCurve::state(LEVEL))
+        .attribute(AttributeBinding::new(
+            sand_components::AttributeType::AttackDamage,
+            NumericPropertySource::state(LEVEL),
+        ))
         .definition();
         let second = EntityArchetype::<ZombieKind>::new(
             ResourceLocation::new("rpg", "shared_second").unwrap(),
@@ -5187,12 +5202,43 @@ mod tests {
             .find(|record| record.path.ends_with("/reconcile"))
             .unwrap();
         let second_marker = initialized_tag(&second.id.to_string());
-        assert!(reconcile.content.contains(&format!("tag={second_marker}")));
-        let pending = dirty_pending_name(
+        let first_pending = dirty_pending_name(
             &LEVEL.dirty_objective(),
             &initialized_tag(&first.id.to_string()),
         );
-        assert!(reconcile.content.contains(&format!("{pending} matches 0")));
+        let second_pending = dirty_pending_name(&LEVEL.dirty_objective(), &second_marker);
+        assert!(reconcile.content.contains(&format!(
+            "tag={second_marker}] run scoreboard players set @s {second_pending} 1"
+        )));
+        assert!(
+            reconcile
+                .content
+                .contains(&format!("scoreboard players set @s {first_pending} 0"))
+        );
+        let derive_refresh = compiled
+            .records
+            .iter()
+            .find(|record| record.path.ends_with("/derive_refresh"))
+            .unwrap();
+        assert!(
+            derive_refresh
+                .content
+                .contains(&format!("{first_pending} matches 1"))
+        );
+        let property_refresh = compiled
+            .records
+            .iter()
+            .find(|record| record.path.ends_with("/refresh"))
+            .unwrap();
+        assert!(
+            property_refresh
+                .content
+                .contains(&format!("{first_pending} matches 1"))
+        );
+        assert!(!property_refresh.content.contains(&format!(
+            "scoreboard players set @s {} 0",
+            LEVEL.dirty_objective()
+        )));
         assert!(!reconcile.content.lines().any(|line| {
             line == format!("scoreboard players set @s {} 0", LEVEL.dirty_objective())
         }));

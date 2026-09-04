@@ -1,0 +1,21 @@
+error[E0277]: the trait bound `sand::prelude::ItemId: IntoPredicateId` is not satisfied
+ --> tests/cases/fail_selector_wrong_predicate_id.rs:5:42
+  |
+5 |     let _ = Target::entities().predicate(item);
+  |                                --------- ^^^^ the trait `IntoPredicateId` is not implemented for `sand::prelude::ItemId`
+  |                                |
+  |                                required by a bound introduced by this call
+  |
+help: the following other types implement trait `IntoPredicateId`
+ --> $WORKSPACE/sand-components/src/registry.rs
+  |
+  | impl sand_commands::IntoPredicateId for PredicateId {
+  | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ `PredicateId`
+...
+  | impl sand_commands::IntoPredicateId for &PredicateId {
+  | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ `&PredicateId`
+note: required by a bound in `sand::prelude::Target::<K, A>::predicate`
+ --> $WORKSPACE/sand-commands/src/selector.rs
+  |
+  |     pub fn predicate(mut self, predicate: impl IntoPredicateId) -> Self {
+  |                                                ^^^^^^^^^^^^^^^ required by this bound in `Target::<K, A>::predicate`

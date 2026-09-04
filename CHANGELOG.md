@@ -15,8 +15,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   targets without requiring authors to remember separate wrapper names.
 - Moved selector filters onto `Target`, including typed game modes, direct
   distance/level bounds, ordinary objective/range score pairs, and the
-  generated `PredicateId`. Unmodeled syntax remains available only through
-  methods explicitly suffixed `_raw`.
+  generated `PredicateId`. Predicate filters now use the predicate-specific
+  `IntoPredicateId` capability, so unrelated registry IDs cannot compile at
+  that boundary. Unmodeled syntax remains available only through methods
+  explicitly suffixed `_raw`.
 - Removed redundant public aliases (`Identifier`, `Rarity`, `Slot`, and
   `PlayerContext`) in favor of their canonical `ResourceLocation`,
   `ItemRarity`, `ItemSlot`, and `EntityContext<PlayerKind>` spellings.

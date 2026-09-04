@@ -68,6 +68,44 @@ impl IntoEntityType for &String {
     }
 }
 
+// ── Predicate ID conversion ──────────────────────────────────────────────────
+
+/// Conversion capability for canonical predicate resource identifiers.
+///
+/// Sand implements this trait for `PredicateId` and `&PredicateId`. Arbitrary
+/// selector text deliberately remains behind [`Target::predicate_raw`], so a
+/// different registry ID cannot be passed to a predicate filter merely because
+/// it also implements [`fmt::Display`].
+#[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::command::IntoPredicateId",
+    aliases = ["sand::cmd::IntoPredicateId", "sand::prelude::cmd::IntoPredicateId"],
+    module = "sand::command",
+    summary = "Converts the canonical predicate resource ID for a target filter.",
+    context = "Implemented for PredicateId and its shared-reference form so predicate resource kinds cannot be confused with unrelated registry IDs.",
+    minecraft = "Produces the namespace:path identifier used by a selector predicate argument.",
+    use_when = ["Writing a generic helper that accepts typed predicate resource IDs"],
+    avoid_when = ["Supplying unmodeled selector text; use Target::predicate_raw"],
+    example = "use sand::command::IntoPredicateId;",
+)]
+pub trait IntoPredicateId {
+    /// Converts this typed predicate identifier to its resource location.
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::command::IntoPredicateId::into_predicate_id",
+        aliases = ["sand::cmd::IntoPredicateId::into_predicate_id", "sand::prelude::cmd::IntoPredicateId::into_predicate_id"],
+        module = "sand::command",
+        summary = "Converts a predicate identifier to namespace:path text.",
+        context = "Preserves the predicate-specific type boundary before selector lowering.",
+        minecraft = "Produces the resource location placed after predicate= or predicate=!.",
+        use_when = ["Lowering a typed predicate resource ID into a target filter"],
+        avoid_when = ["Passing arbitrary text; use Target::predicate_raw"],
+        returns = "The predicate resource location.",
+        example = "let id = predicate_id.into_predicate_id();",
+    )]
+    fn into_predicate_id(self) -> String;
+}
+
 // ── Public types ──────────────────────────────────────────────────────────────
 
 /// An entity/player selector for use in Minecraft commands.
@@ -341,23 +379,25 @@ impl<K, A> Target<K, A> {
     }
 
     /// Explicit raw escape hatch for a predicate selector filter.
-    #[sand_macros::api(registry = sand_api_contract, path = "sand::command::Target::predicate_raw", aliases = ["sand::cmd::Target::predicate_raw", "sand::prelude::Target::predicate_raw", "sand::prelude::cmd::Target::predicate_raw"], module = "sand::command", summary = "Adds an explicitly raw predicate selector filter.", context = "Escape hatch pending consolidation on the canonical predicate resource ID.", minecraft = "Emits predicate=<namespace:path> after resource-location validation.", use_when = ["Filtering by a predicate before a shared typed ID is available at this layer"], avoid_when = ["Passing unchecked user input"], params(predicate = "The predicate resource location text."), returns = "The same typed target with the predicate filter applied.", example = "let target = sand::command::Target::entities().predicate_raw(\"demo:is_enemy\");")]
+    #[sand_macros::api(registry = sand_api_contract, path = "sand::command::Target::predicate_raw", aliases = ["sand::cmd::Target::predicate_raw", "sand::prelude::Target::predicate_raw", "sand::prelude::cmd::Target::predicate_raw"], module = "sand::command", summary = "Adds an explicitly raw predicate selector filter.", context = "Escape hatch for future, modded, or negated predicate selector text that is not supplied as the canonical PredicateId.", minecraft = "Emits predicate=<namespace:path> after resource-location validation.", use_when = ["Filtering with predicate selector text not represented by PredicateId"], avoid_when = ["A canonical PredicateId is available; use predicate or not_predicate"], params(predicate = "The raw predicate resource location text, optionally prefixed with !."), returns = "The same typed target with the predicate filter applied.", example = "let target = sand::command::Target::entities().predicate_raw(\"demo:is_enemy\");")]
     pub fn predicate_raw(mut self, predicate: impl Into<String>) -> Self {
         self.raw = self.raw.predicate_raw(predicate);
         self
     }
 
     /// Restricts the target through a canonical predicate resource identifier.
-    #[sand_macros::api(registry = sand_api_contract, path = "sand::command::Target::predicate", aliases = ["sand::cmd::Target::predicate", "sand::prelude::Target::predicate", "sand::prelude::cmd::Target::predicate"], module = "sand::command", summary = "Filters a target through a named predicate resource.", context = "Accepts the canonical PredicateId directly through its Display representation, avoiding a command-local identifier wrapper.", minecraft = "Emits predicate=<namespace:path>.", use_when = ["Filtering entities through a reusable predicate resource"], avoid_when = ["Supplying unsupported raw selector syntax; use predicate_raw"], params(predicate = "The canonical predicate resource identifier."), returns = "The same target with the predicate filter applied.", example = "let target = sand::command::Target::entities().predicate(predicate_id);")]
-    pub fn predicate(mut self, predicate: impl fmt::Display) -> Self {
-        self.raw = self.raw.predicate(predicate.to_string());
+    #[sand_macros::api(registry = sand_api_contract, path = "sand::command::Target::predicate", aliases = ["sand::cmd::Target::predicate", "sand::prelude::Target::predicate", "sand::prelude::cmd::Target::predicate"], module = "sand::command", summary = "Filters a target through a named predicate resource.", context = "Accepts the canonical PredicateId through the predicate-specific IntoPredicateId capability, preventing unrelated registry IDs from compiling here.", minecraft = "Emits predicate=<namespace:path>.", use_when = ["Filtering entities through a reusable predicate resource"], avoid_when = ["Supplying unsupported raw selector syntax; use predicate_raw"], params(predicate = "The canonical predicate resource identifier."), returns = "The same target with the predicate filter applied.", example = "let target = sand::command::Target::entities().predicate(predicate_id);")]
+    pub fn predicate(mut self, predicate: impl IntoPredicateId) -> Self {
+        self.raw = self.raw.predicate(predicate.into_predicate_id());
         self
     }
 
     /// Excludes entities matching a canonical predicate resource identifier.
-    #[sand_macros::api(registry = sand_api_contract, path = "sand::command::Target::not_predicate", aliases = ["sand::cmd::Target::not_predicate", "sand::prelude::Target::not_predicate", "sand::prelude::cmd::Target::not_predicate"], module = "sand::command", summary = "Excludes entities matching a named predicate resource.", context = "Negation is a capability of Target rather than a second predicate-ID wrapper state.", minecraft = "Emits predicate=!<namespace:path>.", use_when = ["Excluding matches of a reusable predicate resource"], avoid_when = ["The predicate should be required; use predicate"], params(predicate = "The canonical predicate resource identifier to negate."), returns = "The same target with the negated predicate filter applied.", example = "let target = sand::command::Target::entities().not_predicate(predicate_id);")]
-    pub fn not_predicate(mut self, predicate: impl fmt::Display) -> Self {
-        self.raw = self.raw.predicate(format!("!{predicate}"));
+    #[sand_macros::api(registry = sand_api_contract, path = "sand::command::Target::not_predicate", aliases = ["sand::cmd::Target::not_predicate", "sand::prelude::Target::not_predicate", "sand::prelude::cmd::Target::not_predicate"], module = "sand::command", summary = "Excludes entities matching a named predicate resource.", context = "Accepts the predicate-specific IntoPredicateId capability; negation remains a method on Target rather than another predicate-ID wrapper state.", minecraft = "Emits predicate=!<namespace:path>.", use_when = ["Excluding matches of a reusable predicate resource"], avoid_when = ["The predicate should be required; use predicate", "Supplying unsupported raw selector syntax; use predicate_raw with an explicit ! prefix"], params(predicate = "The canonical predicate resource identifier to negate."), returns = "The same target with the negated predicate filter applied.", example = "let target = sand::command::Target::entities().not_predicate(predicate_id);")]
+    pub fn not_predicate(mut self, predicate: impl IntoPredicateId) -> Self {
+        self.raw = self
+            .raw
+            .predicate(format!("!{}", predicate.into_predicate_id()));
         self
     }
 }

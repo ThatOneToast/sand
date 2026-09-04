@@ -64,6 +64,10 @@ is emitted verbatim until typed refinements are added; refinements such as
 `.sort(...)` and `.limit(1)` are incorporated into the selector text so the
 rendered command continues to match its typed cardinality.
 
+Reusable predicate filters use `.predicate(PredicateId)` and
+`.not_predicate(PredicateId)`. Other registry ID kinds do not compile at that
+boundary; arbitrary predicate text stays explicit through `.predicate_raw(...)`.
+
 `ScoreHolder` remains a distinct, broader scoreboard domain because it also
 models fake players and wildcards. Entity/player targets, display and sound
 audiences, and execute targets all consume `Target` directly.

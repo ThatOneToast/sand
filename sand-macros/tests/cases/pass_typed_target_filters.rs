@@ -13,6 +13,10 @@ fn main() {
         .predicate_raw("pack:is_burning");
     let _ = cmd::kill().targets(entities);
 
+    let predicate = PredicateId::custom("pack:is_burning".parse().unwrap());
+    let _ = Target::entities().predicate(&predicate);
+    let _ = Target::players().not_predicate(predicate);
+
     let one = Target::entities().tag("elite").nearest();
     let _ = cmd::damage(one, 5.0);
 

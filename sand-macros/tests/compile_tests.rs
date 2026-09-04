@@ -39,6 +39,7 @@ fn compile_tests() {
     t.compile_fail("tests/cases/fail_damage_event_non_damage.rs");
     t.compile_fail("tests/cases/fail_damage_direct_many_targets.rs");
     t.compile_fail("tests/cases/fail_selector_implicit_narrowing.rs");
+    t.compile_fail("tests/cases/fail_selector_wrong_predicate_id.rs");
     // Typed selector filters preserve Target category/cardinality capabilities.
     t.pass("tests/cases/pass_typed_target_filters.rs");
     t.compile_fail("tests/cases/fail_entity_target_gamemode.rs");

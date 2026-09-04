@@ -69,8 +69,8 @@ pub use scoreboard::{
     ScoreboardPlayersOperation, hash_objective_name, scoreboard_players_operation,
 };
 pub use selector::{
-    AnyTarget, GameMode, IntoEntityType, Many, One, PlayersOnly, ScoreRange, Selector,
-    SingleTargetArgument, SortOrder, Target, TargetArgument,
+    AnyTarget, GameMode, IntoEntityType, IntoPredicateId, Many, One, PlayersOnly, ScoreRange,
+    Selector, SingleTargetArgument, SortOrder, Target, TargetArgument,
 };
 pub use sound::{IntoSoundEvent, Sound, SoundSource, StopSoundCommand};
 pub use text::{

@@ -43,8 +43,8 @@ fn entity_filters_render_on_one_value() {
         .distance_range(2.0, 16.0)
         .at_pos(0.0, 64.0, 0.0)
         .volume(8.0, 4.0, 8.0)
-        .predicate("demo:is_hostile")
-        .not_predicate("demo:is_friendly");
+        .predicate_raw("demo:is_hostile")
+        .predicate_raw("!demo:is_friendly");
 
     assert_eq!(
         target.to_string(),
@@ -204,7 +204,7 @@ fn invalid_filters_share_the_target_validation_boundary() {
     );
     assert!(
         Target::entities()
-            .predicate("NOT A LOCATION")
+            .predicate_raw("NOT A LOCATION")
             .try_build()
             .is_err()
     );

@@ -2883,7 +2883,7 @@ fn compile_derivations(
                 &target,
                 derivation.fixed.scale(),
                 derivation.target_scale,
-                derivation.fixed.rounding(),
+                RoundingPolicy::NearestTiesAwayFromZero,
                 index,
             )?;
             objectives.extend(conversion_objectives);
@@ -3596,22 +3596,29 @@ fn append_score_division(
             "execute if score @s {remainder} matches 1.. run scoreboard players add @s {destination} 1"
         )),
         RoundingPolicy::NearestTiesAwayFromZero | RoundingPolicy::NearestTiesToEven => {
-            let twice = scratch("twice_remainder");
+            let half = scratch("half_divisor");
+            let divisor_parity = scratch("divisor_parity");
             let two = constant_objective(definition, "curve_two", 2)?;
-            objectives.extend([twice.clone(), two.clone()]);
+            objectives.extend([half.clone(), divisor_parity.clone(), two.clone()]);
             commands.push(format!("scoreboard players set #value {two} 2"));
             commands.push(format!(
-                "scoreboard players operation @s {twice} = @s {remainder}"
+                "scoreboard players operation @s {half} = {divisor}"
             ));
             commands.push(format!(
-                "scoreboard players operation @s {twice} *= #value {two}"
+                "scoreboard players operation @s {half} /= #value {two}"
             ));
             commands.push(format!(
-                "execute if score @s {twice} > {divisor} run scoreboard players add @s {destination} 1"
+                "scoreboard players operation @s {divisor_parity} = {divisor}"
+            ));
+            commands.push(format!(
+                "scoreboard players operation @s {divisor_parity} %= #value {two}"
+            ));
+            commands.push(format!(
+                "execute if score @s {remainder} > @s {half} run scoreboard players add @s {destination} 1"
             ));
             if rounding == RoundingPolicy::NearestTiesAwayFromZero {
                 commands.push(format!(
-                    "execute if score @s {original} matches 0.. if score @s {twice} = {divisor} run scoreboard players add @s {destination} 1"
+                    "execute if score @s {original} matches 0.. if score @s {remainder} = @s {half} if score @s {divisor_parity} matches 0 run scoreboard players add @s {destination} 1"
                 ));
             } else {
                 let parity = scratch("parity");
@@ -3623,7 +3630,7 @@ fn append_score_division(
                     "scoreboard players operation @s {parity} %= #value {two}"
                 ));
                 commands.push(format!(
-                    "execute if score @s {twice} = {divisor} unless score @s {parity} matches 0 run scoreboard players add @s {destination} 1"
+                    "execute if score @s {remainder} = @s {half} if score @s {divisor_parity} matches 0 unless score @s {parity} matches 0 run scoreboard players add @s {destination} 1"
                 ));
             }
         }
@@ -4803,6 +4810,30 @@ mod tests {
         // FixedScore(scale=100) -> working scale 1,000 -> Score(scale=1).
         assert!(derive.content.contains(" 10"));
         assert!(derive.content.contains(" 1000"));
+    }
+
+    #[test]
+    fn destination_conversion_uses_canonical_rounding() {
+        let working =
+            FixedPoint::new(1_000, RoundingPolicy::TowardZero, OverflowPolicy::Error).unwrap();
+        let archetype = EntityArchetype::<ZombieKind, MobState>::new(
+            ResourceLocation::new("rpg", "canonical_destination_rounding").unwrap(),
+        )
+        .derive(
+            EntityDerivation::new("speed", SPEED, StatCurve::constant(1.239)).fixed_point(working),
+        );
+        let compiled = compile_definition(&archetype.definition(), &profile()).unwrap();
+        let derive = compiled
+            .records
+            .iter()
+            .find(|record| record.path.ends_with("/derive/0"))
+            .unwrap();
+        assert!(derive.content.lines().any(|line| {
+            line.contains("matches 0..") && line.contains("run scoreboard players add")
+        }));
+        assert!(!derive.content.lines().any(|line| {
+            line.contains("matches ..-1") && line.contains("run scoreboard players add")
+        }));
     }
 
     #[test]

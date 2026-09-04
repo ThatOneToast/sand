@@ -3239,6 +3239,13 @@ fn append_field_numeric_operation(
         return;
     }
 
+    // A detached or otherwise absent optional source makes a scoreboard copy
+    // fail without changing its destination. Clear the reusable scratch score
+    // first so the remaining conversion is a deterministic no-op rather than
+    // reusing a previous mutation's value.
+    commands.push(format!(
+        "scoreboard players set {destination_holder} {scratch_objective} 0"
+    ));
     commands.push(format!(
         "scoreboard players operation {destination_holder} {scratch_objective} = {source_holder} {source_objective}"
     ));
@@ -3288,16 +3295,18 @@ fn append_nearest_division(
     commands.push(format!(
         "scoreboard players operation #remainder {scratch_objective} -= #product {scratch_objective}"
     ));
-    commands.push(format!("scoreboard players set #two {scratch_objective} 2"));
     commands.push(format!(
-        "scoreboard players operation #remainder {scratch_objective} *= #two {scratch_objective}"
+        "scoreboard players set #half {scratch_objective} {}",
+        divisor / 2
     ));
     commands.push(format!(
-        "execute if score #remainder {scratch_objective} > #divisor {scratch_objective} run scoreboard players add {holder} {scratch_objective} 1"
+        "execute if score #remainder {scratch_objective} > #half {scratch_objective} run scoreboard players add {holder} {scratch_objective} 1"
     ));
-    commands.push(format!(
-        "execute if score #original {scratch_objective} matches 0.. if score #remainder {scratch_objective} = #divisor {scratch_objective} run scoreboard players add {holder} {scratch_objective} 1"
-    ));
+    if divisor % 2 == 0 {
+        commands.push(format!(
+            "execute if score #original {scratch_objective} matches 0.. if score #remainder {scratch_objective} = #half {scratch_objective} run scoreboard players add {holder} {scratch_objective} 1"
+        ));
+    }
 }
 
 fn append_mutation_bounds_and_dirty<F: EntityStateField + ComponentDirtyField>(
@@ -3563,15 +3572,42 @@ mod tests {
         let precise = FixedScore::__new("rpg", "mob", "precise", 1_000, 1_255, None);
         let commands = multiplier.bind().add(precise.bind());
         let scratch = numeric_scratch_name("rpg", "mob");
-        assert!(commands[0].contains(&scratch));
+        assert_eq!(
+            commands[0],
+            format!("scoreboard players set @s {scratch} 0")
+        );
+        assert!(commands[1].contains(&scratch));
         assert!(
             commands
                 .iter()
                 .any(|command| command.contains("#divisor") && command.ends_with(" 10"))
         );
+        assert!(
+            commands
+                .iter()
+                .any(|command| command.contains("#half") && command.ends_with(" 5"))
+        );
+        assert!(
+            commands
+                .iter()
+                .all(|command| { !(command.contains("#remainder") && command.contains(" *= ")) })
+        );
         assert!(commands.iter().any(|command| {
             command.contains(&multiplier.objective()) && command.contains(" += ")
         }));
+
+        let very_precise = FixedScore::__new("rpg", "mob", "very_precise", 2_000_000_000, 0, None);
+        let commands = health.bind().add(very_precise.bind());
+        assert!(
+            commands
+                .iter()
+                .any(|command| { command.contains("#half") && command.ends_with(" 1000000000") })
+        );
+        assert!(
+            commands
+                .iter()
+                .all(|command| { !(command.contains("#remainder") && command.contains(" *= ")) })
+        );
     }
 
     #[test]

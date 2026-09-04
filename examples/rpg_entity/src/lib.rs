@@ -49,11 +49,6 @@ pub struct Combat {
     stats_dirty: EntityScore<i32>,
 }
 
-fn hundredths() -> FixedPoint {
-    FixedPoint::new(100, RoundingPolicy::TowardZero, OverflowPolicy::Error)
-        .expect("scale one hundred is a valid fixed-point configuration")
-}
-
 /// Initialization callback referenced by a canonical typed function ID.
 #[function]
 pub fn initialized() {
@@ -121,10 +116,7 @@ pub fn rpg_zombie() -> EntityArchetype<ZombieKind> {
             "rpg:migrate_v1_v2".parse::<FunctionId>().unwrap(),
         ))
         .initialize_with("rpg:initialized".parse::<FunctionId>().unwrap())
-        .derive_with(
-            EntityDerivation::for_target(Combat::max_health, health_curve)
-                .fixed_point(hundredths()),
-        )
+        .derive(Combat::max_health, health_curve)
         .derive(
             Combat::attack_damage,
             StatCurve::clamped_linear(

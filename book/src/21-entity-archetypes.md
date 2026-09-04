@@ -85,7 +85,7 @@ scoreboard state survives unloading and reconciliation resumes after load.
 ## Derive Across Components
 
 The normal derivation API takes a typed target and a curve. Its stable identity
-and target encoding come from the State field metadata:
+and stored representation come from the State field metadata:
 
 ```rust
 let archetype = seeker().derive(
@@ -100,8 +100,11 @@ to later targets, and a real cycle across components stops export. A target or
 input from an unattached component also stops export with the archetype,
 property, component, and field in the diagnostic.
 
-For deliberate fixed-point or output-encoding overrides, construct the
-advanced value explicitly:
+Curves are written in logical gameplay units. A `Score` target receives a whole
+number, while a `FixedScore` target receives its declared scale. Inputs may use
+different scales; `StatCurve::state` carries that metadata into the same
+expression and Sand resizes it automatically. For deliberate working-precision
+or rounding-policy overrides, construct the advanced value explicitly:
 
 ```rust
 let fixed = FixedPoint::new(
@@ -118,7 +121,8 @@ let archetype = archetype.derive_with(
 ```
 
 This uses the same numeric model as ordinary `StatCurve` lowering; it does not
-introduce another scaling convention.
+introduce another scaling convention. The complete scale and rounding model is
+covered in [Numeric State: scales, rounding, and arithmetic](23a-numeric-state.md).
 
 ## Bind Native Minecraft Behavior
 

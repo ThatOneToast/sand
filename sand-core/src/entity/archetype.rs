@@ -30,8 +30,8 @@ use crate::entity::property::{
     TagBinding, TeamBinding, validate_native_ownership,
 };
 use crate::entity::state::{
-    EntityFlag, EntityStateField, StateComposition, StateFieldReference, StateSchema, dirty_name,
-    objective_name,
+    EntityFlag, EntityStateField, NumericStateField, StateComposition, StateFieldReference,
+    StateSchema, dirty_name, objective_name,
 };
 use crate::resource_ref::FunctionId;
 use crate::state::Ticks;
@@ -735,11 +735,7 @@ where
         example = "use sand::prelude::*; fn derive<K: KnownEntityKind>(archetype: EntityArchetype<K>, target: Score, curve: StatCurve) { let _ = archetype.derive(target, curve); }",
     )]
     #[must_use]
-    pub fn derive(
-        mut self,
-        target: crate::entity::state::EntityScore<i32>,
-        curve: StatCurve,
-    ) -> Self {
+    pub fn derive<F: NumericStateField>(mut self, target: F, curve: StatCurve) -> Self {
         self.derivations
             .push(EntityDerivation::for_target(target, curve));
         self
@@ -1367,24 +1363,25 @@ fn dedup_commands(commands: &mut Vec<String>) {
     aliases = ["sand::prelude::EntityDerivation"],
     module = "sand::entity",
     summary = "Advanced lowering configuration for a typed State-field derivation.",
-    context = "The target field supplies the stable derivation identity. Curves use Sand's existing integer fixed-point arithmetic; this type is needed only when overriding its scale, stored encoding, or helper identity.",
-    minecraft = "Curves use integer fixed-point arithmetic. For native properties whose Minecraft command accepts whole values, choose scale `1`; higher scales preserve fractional values for later score arithmetic.",
+    context = "The target field supplies the stable derivation identity and stored representation. Curves use fixed-point working arithmetic internally; this type is needed only when overriding its working precision, policies, or helper identity.",
+    minecraft = "Sand evaluates the curve with scoreboard integer arithmetic, converts once to the destination field's declared scale, applies its bounds, and caches the result.",
     use_when = ["A derivation needs advanced fixed-point or output configuration"],
     avoid_when = ["The normal EntityArchetype::derive target-and-curve API is sufficient"],
     example = "use sand::entity::EntityDerivation;",
 )]
 /// Advanced lowering configuration for a typed State-field derivation.
 ///
-/// Curves use integer fixed-point arithmetic. For native properties whose
-/// Minecraft command accepts whole values, choose scale `1`; higher scales
-/// preserve fractional values for later score arithmetic.
+/// [`Score`](crate::entity::state::Score) destinations store whole logical
+/// values. [`FixedScore`](crate::entity::state::FixedScore) destinations store
+/// logical decimals using their declared scale. Curve working precision is an
+/// implementation detail unless explicitly customized with [`Self::fixed_point`].
 #[derive(Debug, Clone)]
 pub struct EntityDerivation {
     name: String,
     target: crate::entity::state::EntityScore<i32>,
+    target_scale: i64,
     curve: StatCurve,
     fixed: FixedPoint,
-    output: DerivedScoreEncoding,
 }
 
 #[sand_macros::api(
@@ -1392,21 +1389,23 @@ pub struct EntityDerivation {
     path = "sand::entity::DerivedScoreEncoding",
     aliases = ["sand::prelude::DerivedScoreEncoding"],
     module = "sand::entity",
-    summary = "Representation written to a derivation's target score.",
-    context = "Representation written to a derivation's target score. This declaration belongs to Sand's typed entity model. Semantic definitions are public; selector rendering, validation bookkeeping, and compiler lowering remain internal.",
-    minecraft = "Sand validates this definition and lowers it to entity-scoped selectors, scoreboards, NBT operations, and generated lifecycle functions as required.",
+    summary = "Compatibility view of the representation inferred from a derivation's destination field.",
+    context = "This value reports whether a derivation targets whole or scaled storage. Callers do not select it independently: Score implies Whole and FixedScore implies FixedPoint.",
+    minecraft = "Sand infers the representation from the destination State field and performs the required scale conversion while lowering the derivation.",
     use_when = ["Defining or using typed entity behavior in a Sand datapack"],
     avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
     example = "use sand::entity::DerivedScoreEncoding;",
-    variants(FixedPoint = "Keep scaled fixed-point units in the target score.", Whole = "Divide the fixed-point result by its scale before caching it."),
+    variants(FixedPoint = "The destination is a FixedScore with a schema-declared scale.", Whole = "The destination is a whole-number Score."),
 )]
-/// Representation written to a derivation's target score.
+/// Compatibility view of the representation inferred from a derivation's
+/// destination State field.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[non_exhaustive]
 pub enum DerivedScoreEncoding {
-    /// Divide the fixed-point result by its scale before caching it.
+    /// The destination is a whole-number [`Score`](crate::entity::state::Score).
     Whole,
-    /// Keep scaled fixed-point units in the target score.
+    /// The destination is a [`FixedScore`](crate::entity::state::FixedScore)
+    /// with a schema-declared scale.
     FixedPoint,
 }
 
@@ -1774,31 +1773,43 @@ struct EntityTransitionRule {
 }
 
 impl EntityDerivation {
-    /// Create an advanced derivation while inferring identity from its target.
+    /// Create a derivation whose stored representation is inferred from its
+    /// destination State field.
     #[sand_macros::api(
         registry = sand_api_contract,
         path = "sand::entity::EntityDerivation::for_target",
         aliases = ["sand::prelude::EntityDerivation::for_target"],
         module = "sand::entity",
         kind = "method",
-        summary = "Create an advanced derivation while inferring its stable identity from the target State field.",
-        context = "The ordinary path is EntityArchetype::derive; construct this value directly only to override fixed-point lowering or the inferred identity.",
+        summary = "Create an advanced derivation while inferring identity and stored representation from its target State field.",
+        context = "The ordinary path is EntityArchetype::derive; construct this value directly only to override working precision, policies, or the inferred identity. Score stores whole logical values and FixedScore stores values using its declared scale.",
         minecraft = "Sand validates this definition and lowers it to entity-scoped selectors, scoreboards, NBT operations, and generated lifecycle functions as required.",
         use_when = ["Defining or using typed entity behavior in a Sand datapack"],
         avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
         params(target = "The composed State score that receives the derived value.", curve = "The typed numeric expression used to compute the target."),
-        returns = "An `EntityDerivation` representing a derivation using Sand's default scale of 1000.",
-        example = "use sand::prelude::*; fn advanced(target: Score, curve: StatCurve) { let _ = EntityDerivation::for_target(target, curve); }",
+        returns = "An `EntityDerivation` using the destination field's canonical storage representation.",
+        example = "use sand::prelude::*; fn advanced(target: impl NumericStateField, curve: StatCurve) { let _ = EntityDerivation::for_target(target, curve); }",
     )]
     #[must_use]
-    pub fn for_target(target: crate::entity::state::EntityScore<i32>, curve: StatCurve) -> Self {
+    pub fn for_target<F: NumericStateField>(target: F, curve: StatCurve) -> Self {
         let name = format!("{}::{}", target.component_id(), target.descriptor().name);
+        let target_scale = i64::from(target.numeric_scale());
+        let fixed = if target_scale == 1 {
+            FixedPoint::default()
+        } else {
+            FixedPoint::new(
+                target_scale,
+                RoundingPolicy::NearestTiesAwayFromZero,
+                OverflowPolicy::Error,
+            )
+            .expect("NumericStateField scales are positive")
+        };
         Self {
             name,
-            target,
+            target: target.erase_numeric(),
+            target_scale,
             curve,
-            fixed: FixedPoint::default(),
-            output: DerivedScoreEncoding::Whole,
+            fixed,
         }
     }
 
@@ -1824,20 +1835,20 @@ impl EntityDerivation {
         self
     }
 
-    /// Select fixed-point scale, rounding, and overflow semantics.
+    /// Override the curve's internal working precision and policies.
     #[sand_macros::api(
         registry = sand_api_contract,
         path = "sand::entity::EntityDerivation::fixed_point",
         aliases = ["sand::prelude::EntityDerivation::fixed_point"],
         module = "sand::entity",
         kind = "method",
-        summary = "Select fixed-point scale, rounding, and overflow semantics.",
-        context = "Select fixed-point scale, rounding, and overflow semantics. This declaration belongs to Sand's typed entity model. Semantic definitions are public; selector rendering, validation bookkeeping, and compiler lowering remain internal.",
-        minecraft = "Sand validates this definition and lowers it to entity-scoped selectors, scoreboards, NBT operations, and generated lifecycle functions as required.",
+        summary = "Override a curve's internal fixed-point working precision and policies.",
+        context = "This advanced control changes intermediate curve arithmetic only. It never changes the destination representation: Score remains whole and FixedScore retains its declared scale.",
+        minecraft = "Sand evaluates intermediate curve operations at this scale, then converts once to the destination field's inferred scale.",
         use_when = ["Defining or using typed entity behavior in a Sand datapack"],
         avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
         params(fixed = "`fixed` provides the fixed-value inputs used to select fixed-point scale, rounding, and overflow semantics."),
-        returns = "The `EntityDerivation` value with the documented change applied to select fixed-point scale, rounding, and overflow semantics.",
+        returns = "The `EntityDerivation` with customized internal curve arithmetic.",
         example = "use sand::prelude::*;\n\nfn demonstrate(entity_derivation_value: sand::entity::EntityDerivation, fixed: sand::entity::FixedPoint)  {\n    let updated_entity_derivation = entity_derivation_value.fixed_point(fixed);\n}",
     )]
     #[must_use]
@@ -1846,25 +1857,27 @@ impl EntityDerivation {
         self
     }
 
-    /// Keep fixed-point units instead of converting the cached target to a
-    /// whole scoreboard value.
+    /// Deprecated compatibility no-op.
     #[sand_macros::api(
         registry = sand_api_contract,
         path = "sand::entity::EntityDerivation::store_fixed_point",
         aliases = ["sand::prelude::EntityDerivation::store_fixed_point"],
         module = "sand::entity",
         kind = "method",
-        summary = "Keep fixed-point units instead of converting the cached target to a whole scoreboard value.",
-        context = "Keep fixed-point units instead of converting the cached target to a whole scoreboard value. This declaration belongs to Sand's typed entity model. Semantic definitions are public; selector rendering, validation bookkeeping, and compiler lowering remain internal.",
-        minecraft = "Sand validates this definition and lowers it to entity-scoped selectors, scoreboards, NBT operations, and generated lifecycle functions as required.",
+        summary = "Deprecated compatibility no-op; the destination field now determines storage.",
+        context = "Use a FixedScore destination with the desired State scale. This method remains source-compatible but cannot override Score or FixedScore representation.",
+        minecraft = "This method emits no additional behavior; lowering follows the destination field's declared representation.",
         use_when = ["Defining or using typed entity behavior in a Sand datapack"],
         avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
-        returns = "The `EntityDerivation` value with the documented change applied to keep fixed-point units instead of converting the cached target to a whole scoreboard value.",
+        returns = "The unchanged `EntityDerivation`.",
         example = "use sand::prelude::*;\n\nfn demonstrate(entity_derivation_value: sand::entity::EntityDerivation)  {\n    let updated_entity_derivation = entity_derivation_value.store_fixed_point();\n}",
     )]
     #[must_use]
-    pub fn store_fixed_point(mut self) -> Self {
-        self.output = DerivedScoreEncoding::FixedPoint;
+    #[deprecated(
+        since = "0.1.0",
+        note = "the destination Score or FixedScore now determines storage; choose FixedScore with #[state(scale = ...)]"
+    )]
+    pub fn store_fixed_point(self) -> Self {
         self
     }
 
@@ -1928,19 +1941,19 @@ impl EntityDerivation {
         &self.curve
     }
 
-    /// Fixed-point representation.
+    /// Fixed-point working representation used for curve evaluation.
     #[sand_macros::api(
         registry = sand_api_contract,
         path = "sand::entity::EntityDerivation::fixed",
         aliases = ["sand::prelude::EntityDerivation::fixed"],
         module = "sand::entity",
         kind = "method",
-        summary = "Fixed-point representation.",
-        context = "Fixed-point representation. This declaration belongs to Sand's typed entity model. Semantic definitions are public; selector rendering, validation bookkeeping, and compiler lowering remain internal.",
-        minecraft = "Sand validates this definition and lowers it to entity-scoped selectors, scoreboards, NBT operations, and generated lifecycle functions as required.",
+        summary = "Fixed-point working representation used for curve evaluation.",
+        context = "This describes intermediate arithmetic, not cached storage. The destination Score or FixedScore independently determines the stored representation.",
+        minecraft = "Sand evaluates intermediate curve operations with this configuration before converting to the destination field's scale.",
         use_when = ["Defining or using typed entity behavior in a Sand datapack"],
         avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
-        returns = "The `FixedPoint` value produced to fixed-point representation.",
+        returns = "The `FixedPoint` configuration used for intermediate curve arithmetic.",
         example = "use sand::prelude::*;\n\nfn demonstrate(entity_derivation_value: &sand::entity::EntityDerivation)  {\n    let fixed = entity_derivation_value.fixed();\n}",
     )]
     #[must_use]
@@ -1948,16 +1961,16 @@ impl EntityDerivation {
         self.fixed
     }
 
-    /// Target score representation.
+    /// Representation inferred from the destination State field.
     #[sand_macros::api(
         registry = sand_api_contract,
         path = "sand::entity::EntityDerivation::output_encoding",
         aliases = ["sand::prelude::EntityDerivation::output_encoding"],
         module = "sand::entity",
         kind = "method",
-        summary = "Target score representation.",
-        context = "Target score representation. This declaration belongs to Sand's typed entity model. Semantic definitions are public; selector rendering, validation bookkeeping, and compiler lowering remain internal.",
-        minecraft = "Sand validates this definition and lowers it to entity-scoped selectors, scoreboards, NBT operations, and generated lifecycle functions as required.",
+        summary = "Representation inferred from the destination State field.",
+        context = "Score destinations report Whole; FixedScore destinations report FixedPoint. This is an introspection and compatibility API, not a separate storage choice.",
+        minecraft = "Sand derives this value from the destination scale used when lowering the final scoreboard assignment.",
         use_when = ["Defining or using typed entity behavior in a Sand datapack"],
         avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
         returns = "The `DerivedScoreEncoding` value produced to target score representation.",
@@ -1965,7 +1978,10 @@ impl EntityDerivation {
     )]
     #[must_use]
     pub const fn output_encoding(&self) -> DerivedScoreEncoding {
-        self.output
+        match self.target.retained_kind() {
+            crate::entity::state::StateFieldKind::Fixed(_) => DerivedScoreEncoding::FixedPoint,
+            _ => DerivedScoreEncoding::Whole,
+        }
     }
 }
 
@@ -3021,19 +3037,25 @@ fn compile_derivations(
         functions.extend(rendered.functions);
         records.extend(rendered.records);
         let mut commands = rendered.commands;
-        if derivation.output == DerivedScoreEncoding::Whole && derivation.fixed.scale() != 1 {
+        if derivation.fixed.scale() != derivation.target_scale {
             let mut conversion_objectives = BTreeSet::new();
-            append_scaled_division(
+            append_scale_conversion(
                 definition,
                 &mut conversion_objectives,
                 &mut commands,
                 &target,
                 derivation.fixed.scale(),
-                derivation.fixed.rounding(),
+                derivation.target_scale,
+                RoundingPolicy::NearestTiesAwayFromZero,
                 index,
             )?;
             objectives.extend(conversion_objectives);
         }
+        append_destination_bounds(
+            &mut commands,
+            &target,
+            derivation.target.descriptor().bounds,
+        );
         commands.push(format!("scoreboard players set @s {target_dirty} 1"));
         records.push(function_record(definition.id.namespace(), &path, commands));
         initialize_commands.push(format!("function {}:{path}", definition.id.namespace()));
@@ -3065,6 +3087,26 @@ fn compile_derivations(
     })
 }
 
+fn append_destination_bounds(
+    commands: &mut Vec<String>,
+    destination: &str,
+    bounds: Option<(i32, i32)>,
+) {
+    if let Some((minimum, maximum)) = bounds {
+        if minimum != i32::MIN {
+            commands.push(format!(
+                "execute if score @s {destination} matches ..{} run scoreboard players set @s {destination} {minimum}",
+                minimum - 1
+            ));
+        }
+        if maximum != i32::MAX {
+            commands.push(format!(
+                "execute if score @s {destination} matches {}.. run scoreboard players set @s {destination} {maximum}",
+                maximum + 1
+            ));
+        }
+    }
+}
 struct RenderedCurve {
     commands: Vec<String>,
     records: Vec<crate::component::ComponentRecord>,
@@ -3098,22 +3140,25 @@ fn render_lowered_curve(
             LoweredCurveOperation::ScoreToFixed {
                 destination,
                 source,
-                scale,
+                source_scale,
+                target_scale,
+                rounding,
                 overflow,
             } => {
                 require_scoreboard_overflow(definition, lowered, *overflow)?;
-                let scale_objective =
-                    constant_objective(definition, &format!("curve_input_scale_{index}"), *scale)?;
-                objectives.insert(scale_objective.clone());
                 commands.push(format!(
                     "scoreboard players operation @s {destination} = @s {source}"
                 ));
-                commands.push(format!(
-                    "scoreboard players set #value {scale_objective} {scale}"
-                ));
-                commands.push(format!(
-                    "scoreboard players operation @s {destination} *= #value {scale_objective}"
-                ));
+                append_scale_conversion(
+                    definition,
+                    &mut objectives,
+                    &mut commands,
+                    destination,
+                    *source_scale,
+                    *target_scale,
+                    *rounding,
+                    index,
+                )?;
             }
             LoweredCurveOperation::Add {
                 destination,
@@ -3597,6 +3642,59 @@ fn append_scaled_division(
     )
 }
 
+#[allow(clippy::too_many_arguments)] // Lowering keeps each scoreboard operand explicit.
+fn append_scale_conversion(
+    definition: &ArchetypeDefinition,
+    objectives: &mut BTreeSet<String>,
+    commands: &mut Vec<String>,
+    destination: &str,
+    source_scale: i64,
+    target_scale: i64,
+    rounding: RoundingPolicy,
+    index: usize,
+) -> Result<(), EntityDiagnostic> {
+    debug_assert!(source_scale > 0 && target_scale > 0);
+    let common = gcd(source_scale, target_scale);
+    let multiplier = target_scale / common;
+    let divisor = source_scale / common;
+
+    if multiplier != 1 {
+        let objective = constant_objective(
+            definition,
+            &format!("curve_rescale_multiplier_{index}"),
+            multiplier,
+        )?;
+        objectives.insert(objective.clone());
+        commands.push(format!(
+            "scoreboard players set #value {objective} {multiplier}"
+        ));
+        commands.push(format!(
+            "scoreboard players operation @s {destination} *= #value {objective}"
+        ));
+    }
+    if divisor != 1 {
+        append_scaled_division(
+            definition,
+            objectives,
+            commands,
+            destination,
+            divisor,
+            rounding,
+            index,
+        )?;
+    }
+    Ok(())
+}
+
+fn gcd(mut left: i64, mut right: i64) -> i64 {
+    while right != 0 {
+        let remainder = left % right;
+        left = right;
+        right = remainder;
+    }
+    left.abs()
+}
+
 fn append_score_division(
     definition: &ArchetypeDefinition,
     objectives: &mut BTreeSet<String>,
@@ -3655,22 +3753,29 @@ fn append_score_division(
             "execute if score @s {remainder} matches 1.. run scoreboard players add @s {destination} 1"
         )),
         RoundingPolicy::NearestTiesAwayFromZero | RoundingPolicy::NearestTiesToEven => {
-            let twice = scratch("twice_remainder");
+            let half = scratch("half_divisor");
+            let divisor_parity = scratch("divisor_parity");
             let two = constant_objective(definition, "curve_two", 2)?;
-            objectives.extend([twice.clone(), two.clone()]);
+            objectives.extend([half.clone(), divisor_parity.clone(), two.clone()]);
             commands.push(format!("scoreboard players set #value {two} 2"));
             commands.push(format!(
-                "scoreboard players operation @s {twice} = @s {remainder}"
+                "scoreboard players operation @s {half} = {divisor}"
             ));
             commands.push(format!(
-                "scoreboard players operation @s {twice} *= #value {two}"
+                "scoreboard players operation @s {half} /= #value {two}"
             ));
             commands.push(format!(
-                "execute if score @s {twice} > {divisor} run scoreboard players add @s {destination} 1"
+                "scoreboard players operation @s {divisor_parity} = {divisor}"
+            ));
+            commands.push(format!(
+                "scoreboard players operation @s {divisor_parity} %= #value {two}"
+            ));
+            commands.push(format!(
+                "execute if score @s {remainder} > @s {half} run scoreboard players add @s {destination} 1"
             ));
             if rounding == RoundingPolicy::NearestTiesAwayFromZero {
                 commands.push(format!(
-                    "execute if score @s {original} matches 0.. if score @s {twice} = {divisor} run scoreboard players add @s {destination} 1"
+                    "execute if score @s {original} matches 0.. if score @s {remainder} = @s {half} if score @s {divisor_parity} matches 0 run scoreboard players add @s {destination} 1"
                 ));
             } else {
                 let parity = scratch("parity");
@@ -3682,7 +3787,7 @@ fn append_score_division(
                     "scoreboard players operation @s {parity} %= #value {two}"
                 ));
                 commands.push(format!(
-                    "execute if score @s {twice} = {divisor} unless score @s {parity} matches 0 run scoreboard players add @s {destination} 1"
+                    "execute if score @s {remainder} = @s {half} if score @s {divisor_parity} matches 0 unless score @s {parity} matches 0 run scoreboard players add @s {destination} 1"
                 ));
             }
         }
@@ -4093,7 +4198,9 @@ fn lower_attribute(
             functions: Vec::new(),
             objectives: Vec::new(),
         }),
-        NumericPropertySource::StateScore { objective, .. } => {
+        NumericPropertySource::StateScore {
+            objective, scale, ..
+        } => {
             require_macros(
                 definition,
                 profile,
@@ -4108,7 +4215,8 @@ fn lower_attribute(
             Ok(NativeLowering {
                 commands: vec![
                     format!(
-                        "execute store result storage {storage} {args}.value int 1 run scoreboard players get @s {objective}"
+                        "execute store result storage {storage} {args}.value double {} run scoreboard players get @s {objective}",
+                        1.0 / f64::from(*scale)
                     ),
                     format!(
                         "function {}:{helper} with storage {storage} {args}",
@@ -4160,7 +4268,9 @@ fn lower_attribute_modifier(
             functions: Vec::new(),
             objectives: Vec::new(),
         }),
-        NumericPropertySource::StateScore { objective, .. } => {
+        NumericPropertySource::StateScore {
+            objective, scale, ..
+        } => {
             let helper = format!("{root}/property/{index}/modifier_macro");
             require_macros(definition, profile, &helper)?;
             let storage = format!("{}:__sand_entity", definition.id.namespace());
@@ -4172,7 +4282,8 @@ fn lower_attribute_modifier(
                 commands: vec![
                     remove,
                     format!(
-                        "execute store result storage {storage} {args}.value int 1 run scoreboard players get @s {objective}"
+                        "execute store result storage {storage} {args}.value double {} run scoreboard players get @s {objective}",
+                        1.0 / f64::from(*scale)
                     ),
                     format!(
                         "function {}:{helper} with storage {storage} {args}",
@@ -4701,13 +4812,16 @@ fn stable_hash(value: &str) -> u64 {
 mod tests {
     use super::*;
     use crate::entity::ZombieKind;
-    use crate::entity::state::EntityState;
-    use crate::entity::state::{EntityFlag, EntityScore, StateFieldDescriptor, StateFieldKind};
+    use crate::entity::state::{
+        EntityFlag, EntityScore, EntityState, FixedScore, NumericStateField, StateFieldDescriptor,
+        StateFieldKind,
+    };
 
     struct MobState;
     static FIELDS: &[StateFieldDescriptor] = &[
         StateFieldDescriptor::new("level", StateFieldKind::Score, 1, Some((1, 100))),
         StateFieldDescriptor::new("health", StateFieldKind::Score, 20, Some((1, 2_000))),
+        StateFieldDescriptor::new("speed", StateFieldKind::Fixed(100), 125, Some((0, 1_000))),
         StateFieldDescriptor::new("sick", StateFieldKind::Flag, 0, Some((0, 1))),
     ];
     impl EntityState for MobState {
@@ -4739,6 +4853,7 @@ mod tests {
     }
     const LEVEL: EntityScore<i32> = EntityScore::new("rpg", "mob", "level", 1, Some((1, 100)));
     const HEALTH: EntityScore<i32> = EntityScore::new("rpg", "mob", "health", 20, Some((1, 2_000)));
+    const SPEED: FixedScore = FixedScore::__new("rpg", "mob", "speed", 100, 125, Some((0, 1_000)));
     const SICK: EntityFlag = EntityFlag::new("rpg", "mob", "sick", false);
 
     fn profile() -> crate::version::VersionProfile {
@@ -4840,16 +4955,12 @@ mod tests {
 
     #[test]
     fn derivation_property_and_transition_form_one_dirty_pipeline() {
-        let fixed = FixedPoint::new(1, RoundingPolicy::TowardZero, OverflowPolicy::Error).unwrap();
         let archetype =
             EntityArchetype::<ZombieKind>::new(ResourceLocation::new("rpg", "scaled").unwrap())
                 .components::<MobState>()
-                .derive_with(
-                    EntityDerivation::for_target(
-                        HEALTH,
-                        StatCurve::linear(StatCurve::state(LEVEL), 2.0, 18.0),
-                    )
-                    .fixed_point(fixed),
+                .derive(
+                    HEALTH,
+                    StatCurve::linear(StatCurve::state(LEVEL), 2.0, 18.0),
                 )
                 .health(
                     HealthBinding::new(HEALTH)
@@ -4888,6 +4999,124 @@ mod tests {
     }
 
     #[test]
+    fn derivations_infer_destination_and_input_scales() {
+        let fixed_target = EntityArchetype::<ZombieKind>::new(
+            ResourceLocation::new("rpg", "fixed_target").unwrap(),
+        )
+        .components::<MobState>()
+        .derive(SPEED, StatCurve::state(HEALTH));
+        let definition = fixed_target.definition();
+        assert_eq!(definition.derivations[0].fixed().scale(), 100);
+        assert_eq!(
+            definition.derivations[0].output_encoding(),
+            DerivedScoreEncoding::FixedPoint
+        );
+        let compiled = compile_definition(&definition, &profile()).unwrap();
+        let derive = compiled
+            .records
+            .iter()
+            .find(|record| record.path.ends_with("/derive/0"))
+            .unwrap();
+        assert!(derive.content.contains(" 100"));
+        assert!(derive.content.contains("*="));
+        assert!(derive.content.contains("matches 1001.."));
+
+        let whole_target = EntityDerivation::for_target(HEALTH, StatCurve::state(SPEED));
+        assert_eq!(whole_target.fixed().scale(), 1_000);
+        assert_eq!(whole_target.output_encoding(), DerivedScoreEncoding::Whole);
+
+        let unit_fixed = FixedScore::__new("rpg", "mob", "unit_fixed", 1, 0, None);
+        let unit_fixed_target = EntityDerivation::for_target(unit_fixed, StatCurve::constant(1.0));
+        assert_eq!(
+            unit_fixed_target.output_encoding(),
+            DerivedScoreEncoding::FixedPoint
+        );
+
+        let archetype = EntityArchetype::<ZombieKind>::new(
+            ResourceLocation::new("rpg", "whole_target").unwrap(),
+        )
+        .components::<MobState>()
+        .derive_with(whole_target);
+        let compiled = compile_definition(&archetype.definition(), &profile()).unwrap();
+        let derive = compiled
+            .records
+            .iter()
+            .find(|record| record.path.ends_with("/derive/0"))
+            .unwrap();
+        // FixedScore(scale=100) -> working scale 1,000 -> Score(scale=1).
+        assert!(derive.content.contains(" 10"));
+        assert!(derive.content.contains(" 1000"));
+    }
+
+    #[test]
+    fn destination_conversion_uses_canonical_rounding() {
+        let working =
+            FixedPoint::new(1_000, RoundingPolicy::TowardZero, OverflowPolicy::Error).unwrap();
+        let archetype = EntityArchetype::<ZombieKind>::new(
+            ResourceLocation::new("rpg", "canonical_destination_rounding").unwrap(),
+        )
+        .components::<MobState>()
+        .derive_with(
+            EntityDerivation::for_target(SPEED, StatCurve::constant(1.239)).fixed_point(working),
+        );
+        let compiled = compile_definition(&archetype.definition(), &profile()).unwrap();
+        let derive = compiled
+            .records
+            .iter()
+            .find(|record| record.path.ends_with("/derive/0"))
+            .unwrap();
+        assert!(derive.content.lines().any(|line| {
+            line.contains("matches 0..") && line.contains("run scoreboard players add")
+        }));
+        assert!(!derive.content.lines().any(|line| {
+            line.contains("matches ..-1") && line.contains("run scoreboard players add")
+        }));
+    }
+
+    #[test]
+    fn erased_fixed_destination_retains_its_scale_when_reused() {
+        let derivation = EntityDerivation::for_target(SPEED, StatCurve::constant(1.25));
+        let target = derivation.target();
+        assert_eq!(target.numeric_scale(), 100);
+
+        let source = NumericPropertySource::state(target);
+        assert!(matches!(
+            source,
+            NumericPropertySource::StateScore { scale: 100, .. }
+        ));
+
+        let lowered = StatCurve::state(target)
+            .lower_scoreboard("result", "rpg:mob.result", FixedPoint::default())
+            .unwrap();
+        assert!(lowered.operations().iter().any(|operation| matches!(
+            operation,
+            LoweredCurveOperation::ScoreToFixed {
+                source_scale: 100,
+                ..
+            }
+        )));
+
+        let health = EntityScore::<i32>::new("rpg", "mob", "health", 20, None);
+        let commands = health.bind().add(target.bind());
+        assert!(
+            commands
+                .iter()
+                .any(|command| command.contains("#divisor") && command.ends_with(" 100"))
+        );
+
+        let commands = target.bind().add(1);
+        assert!(commands[0].starts_with("scoreboard players add @s "));
+        assert!(commands[0].ends_with(" 100"));
+
+        let commands = target.bind().subtract(health.bind());
+        assert!(
+            commands
+                .iter()
+                .any(|command| command.contains("#multiplier") && command.ends_with(" 100"))
+        );
+    }
+
+    #[test]
     fn duplicate_native_ownership_is_rejected() {
         let archetype =
             EntityArchetype::<ZombieKind>::new(ResourceLocation::new("rpg", "conflict").unwrap())
@@ -4919,6 +5148,26 @@ mod tests {
             1
         );
         assert_eq!(compiled.report.outer_scans_per_cycle, 1);
+    }
+
+    #[test]
+    fn native_numeric_binding_consumes_fixed_score_in_logical_units() {
+        let archetype = EntityArchetype::<ZombieKind>::new(
+            ResourceLocation::new("rpg", "fixed_attribute").unwrap(),
+        )
+        .components::<MobState>()
+        .attribute(AttributeBinding::new(
+            sand_components::AttributeType::MovementSpeed,
+            NumericPropertySource::state(SPEED),
+        ));
+        let compiled = compile_definition(&archetype.definition(), &profile()).unwrap();
+        let refresh = compiled
+            .records
+            .iter()
+            .find(|record| record.content.contains("double 0.01"))
+            .unwrap();
+        assert!(refresh.content.contains("double 0.01"));
+        assert!(refresh.content.contains(&SPEED.objective()));
     }
 
     #[test]

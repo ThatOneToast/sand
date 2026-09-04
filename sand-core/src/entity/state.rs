@@ -1068,6 +1068,110 @@ pub struct StateFieldReference {
     pub(crate) descriptor: StateFieldDescriptor,
 }
 
+/// A State field whose value participates in logical numeric expressions.
+///
+/// This is the common contract implemented by [`Score`] and [`FixedScore`].
+/// Authors normally do not name this trait: APIs such as
+/// [`crate::entity::StatCurve::state`] and
+/// [`crate::entity::EntityDerivation::new`] use it to read the field's storage
+/// scale. A `Score` has scale `1`; a `FixedScore` uses the scale declared by
+/// `#[state(scale = ...)]` (or `1_000` when omitted).
+///
+/// The scale is a storage detail. Numeric expressions always describe logical
+/// values, so combining a `Score` and a `FixedScore` does not require manual
+/// multiplication or division.
+#[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::entity::NumericStateField",
+    aliases = ["sand::prelude::NumericStateField"],
+    module = "sand::entity",
+    summary = "The shared logical-number contract implemented by Score and FixedScore.",
+    context = "Carries the destination or source storage scale into State math while authors continue to work in logical gameplay units.",
+    minecraft = "Sand converts typed fields between their declared scoreboard scales during lowering.",
+    use_when = ["Passing Score or FixedScore to a generic numeric State API"],
+    avoid_when = ["Selecting a separate numeric field type; use Score or FixedScore"],
+    example = "use sand::entity::NumericStateField;",
+)]
+pub trait NumericStateField: EntityStateField {
+    /// Number of scoreboard units used to store one logical unit.
+    #[doc(hidden)]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::entity::NumericStateField::numeric_scale",
+        aliases = ["sand::prelude::NumericStateField::numeric_scale"],
+        module = "sand::entity",
+        summary = "Return the field's positive scoreboard storage scale.",
+        context = "Score returns one and FixedScore returns its schema-declared scale.",
+        minecraft = "The scale is used to convert raw scoreboard integers into logical numeric units.",
+        use_when = ["Implementing compiler-facing generic numeric lowering"],
+        avoid_when = ["Ordinary gameplay arithmetic, which infers the scale"],
+        returns = "The number of stored scoreboard units per logical unit.",
+        example = "use sand::prelude::*;\nfn scale(field: impl NumericStateField) -> i32 { field.numeric_scale() }",
+    )]
+    fn numeric_scale(self) -> i32;
+
+    /// Type-erase the field while retaining its State metadata.
+    #[doc(hidden)]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::entity::NumericStateField::erase_numeric",
+        aliases = ["sand::prelude::NumericStateField::erase_numeric"],
+        module = "sand::entity",
+        summary = "Type-erase a numeric field while preserving its State identity.",
+        context = "Compiler-facing conversion used by derivations after the storage scale has been retained.",
+        minecraft = "Preserves the generated objective, bounds, and dirty objective.",
+        use_when = ["Implementing compiler-facing generic numeric lowering"],
+        avoid_when = ["Ordinary gameplay code"],
+        returns = "A type-erased numeric State field handle.",
+        example = "use sand::prelude::*;\nfn erase(field: impl NumericStateField) -> EntityScore { field.erase_numeric() }",
+    )]
+    fn erase_numeric(self) -> EntityScore<i32>;
+}
+
+/// A logical numeric value accepted by `Score` and `FixedScore` mutations.
+///
+/// Integer and decimal constants implement this trait, as do bound `Score`
+/// and `FixedScore` accessors. This lets the same `add`/`subtract` operations
+/// handle constants and typed State sources without exposing objective names
+/// or raw scoreboard units.
+#[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::entity::NumericStateSource",
+    aliases = ["sand::prelude::NumericStateSource"],
+    module = "sand::entity",
+    summary = "A logical constant or bound State field accepted by numeric mutations.",
+    context = "Implemented by integer and decimal constants plus bound Score and FixedScore accessors, giving add and subtract one coherent source model.",
+    minecraft = "Sand emits direct or automatically rescaled scoreboard operations and keeps scratch state internal.",
+    use_when = ["Passing a constant or typed field to Score::add/subtract or FixedScore::add/subtract"],
+    avoid_when = ["Writing raw scoreboard objective operations"],
+    example = "use sand::entity::NumericStateSource;",
+)]
+pub trait NumericStateSource {
+    #[doc(hidden)]
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::entity::NumericStateSource::append_numeric_operation",
+        aliases = ["sand::prelude::NumericStateSource::append_numeric_operation"],
+        module = "sand::entity",
+        summary = "Lower this logical source into one destination mutation.",
+        context = "Compiler-facing hook shared by numeric constants and typed State accessors.",
+        minecraft = "Appends deterministic scoreboard commands using a component-owned scratch objective when scales differ.",
+        use_when = ["Implementing a custom numeric State source"],
+        avoid_when = ["Calling directly from gameplay code"],
+        params(commands = "Destination command buffer.", destination_holder = "Typed destination score holder.", destination_objective = "Generated destination objective.", scratch_objective = "Compiler-owned scale-conversion objective.", destination_scale = "Stored units per logical destination unit.", operation = "Scoreboard assignment operation."),
+        example = "use sand::entity::NumericStateSource;",
+    )]
+    fn append_numeric_operation(
+        self,
+        commands: &mut Vec<String>,
+        destination_holder: &str,
+        destination_objective: &str,
+        scratch_objective: &str,
+        destination_scale: i32,
+        operation: &str,
+    );
+}
+
 trait ComponentDirtyField: EntityStateField {
     fn component_dirty_objective(self) -> String;
 }
@@ -1336,6 +1440,21 @@ impl EntityStateField for FixedScore {
     }
 }
 
+impl NumericStateField for FixedScore {
+    fn numeric_scale(self) -> i32 {
+        self.scale
+    }
+
+    fn erase_numeric(self) -> EntityScore<i32> {
+        EntityScore {
+            namespace: self.namespace,
+            schema: self.schema,
+            descriptor: self.descriptor,
+            _marker: PhantomData,
+        }
+    }
+}
+
 impl ComponentDirtyField for FixedScore {
     fn component_dirty_objective(self) -> String {
         component_dirty_name(self.namespace, self.schema)
@@ -1434,13 +1553,15 @@ impl FixedScoreAccessor {
     )]
     #[must_use]
     #[allow(clippy::should_implement_trait)]
-    pub fn add(self, value: f64) -> Vec<String> {
-        mutation(
+    pub fn add(self, value: impl NumericStateSource) -> Vec<String> {
+        numeric_mutation(
             self.field,
             self.holder,
             self.track_dirty,
-            "add",
-            encode_fixed(value, self.field.scale, None),
+            "+=",
+            value,
+            self.field.scale,
+            numeric_scratch_name(self.field.namespace, self.field.schema),
         )
     }
 
@@ -1461,13 +1582,15 @@ impl FixedScoreAccessor {
         example = "use sand::prelude::*;\n\nfn demonstrate(fixed_score_accessor_value: sand::entity::FixedScoreAccessor, value: f64)  {\n    let values = fixed_score_accessor_value.subtract(value);\n}",
     )]
     #[must_use]
-    pub fn subtract(self, value: f64) -> Vec<String> {
-        mutation(
+    pub fn subtract(self, value: impl NumericStateSource) -> Vec<String> {
+        numeric_mutation(
             self.field,
             self.holder,
             self.track_dirty,
-            "remove",
-            encode_fixed(value, self.field.scale, None),
+            "-=",
+            value,
+            self.field.scale,
+            numeric_scratch_name(self.field.namespace, self.field.schema),
         )
     }
 
@@ -1640,6 +1763,11 @@ impl<T: 'static> EntityScore<T> {
         }
     }
 
+    /// Return the retained schema kind after compiler-facing type erasure.
+    pub(crate) const fn retained_kind(self) -> StateFieldKind {
+        self.descriptor.kind
+    }
+
     /// Match an inclusive/open Rust range without handwritten selector maps.
     #[sand_macros::api(
         registry = sand_api_contract,
@@ -1686,6 +1814,24 @@ impl<T: 'static> EntityStateField for EntityScore<T> {
             field: self,
             holder,
             track_dirty,
+        }
+    }
+}
+
+impl<T: 'static> NumericStateField for EntityScore<T> {
+    fn numeric_scale(self) -> i32 {
+        match self.descriptor.kind {
+            StateFieldKind::Fixed(scale) => scale,
+            _ => 1,
+        }
+    }
+
+    fn erase_numeric(self) -> EntityScore<i32> {
+        EntityScore {
+            namespace: self.namespace,
+            schema: self.schema,
+            descriptor: self.descriptor,
+            _marker: PhantomData,
         }
     }
 }
@@ -1779,8 +1925,17 @@ impl<T: 'static> EntityScoreAccessor<T> {
     )]
     #[must_use]
     #[allow(clippy::should_implement_trait)]
-    pub fn add(self, value: i32) -> Vec<String> {
-        mutation(self.field, self.holder, self.track_dirty, "add", value)
+    pub fn add(self, value: impl NumericStateSource) -> Vec<String> {
+        let destination_scale = self.field.numeric_scale();
+        numeric_mutation(
+            self.field,
+            self.holder,
+            self.track_dirty,
+            "+=",
+            value,
+            destination_scale,
+            numeric_scratch_name(self.field.namespace, self.field.schema),
+        )
     }
 
     /// Subtract a value, marking the source dirty for archetype-bound state.
@@ -1799,8 +1954,17 @@ impl<T: 'static> EntityScoreAccessor<T> {
         example = "use sand::prelude::*;\n\nfn demonstrate<T : 'static>(entity_score_accessor_value: sand::entity::EntityScoreAccessor < T >, value: i32)  {\n    let values = entity_score_accessor_value.subtract(value);\n}",
     )]
     #[must_use]
-    pub fn subtract(self, value: i32) -> Vec<String> {
-        mutation(self.field, self.holder, self.track_dirty, "remove", value)
+    pub fn subtract(self, value: impl NumericStateSource) -> Vec<String> {
+        let destination_scale = self.field.numeric_scale();
+        numeric_mutation(
+            self.field,
+            self.holder,
+            self.track_dirty,
+            "-=",
+            value,
+            destination_scale,
+            numeric_scratch_name(self.field.namespace, self.field.schema),
+        )
     }
 
     /// Build a typed condition over this score.
@@ -3124,6 +3288,246 @@ fn mutation<F: EntityStateField + ComponentDirtyField>(
     commands
 }
 
+impl NumericStateSource for i32 {
+    fn append_numeric_operation(
+        self,
+        commands: &mut Vec<String>,
+        destination_holder: &str,
+        destination_objective: &str,
+        _scratch_objective: &str,
+        destination_scale: i32,
+        operation: &str,
+    ) {
+        let encoded = i64::from(self)
+            .saturating_mul(i64::from(destination_scale))
+            .clamp(i64::from(i32::MIN), i64::from(i32::MAX));
+        let verb = if operation == "+=" { "add" } else { "remove" };
+        commands.push(format!(
+            "scoreboard players {verb} {destination_holder} {destination_objective} {encoded}"
+        ));
+    }
+}
+
+impl NumericStateSource for f64 {
+    fn append_numeric_operation(
+        self,
+        commands: &mut Vec<String>,
+        destination_holder: &str,
+        destination_objective: &str,
+        _scratch_objective: &str,
+        destination_scale: i32,
+        operation: &str,
+    ) {
+        let encoded = encode_fixed(self, destination_scale, None);
+        let verb = if operation == "+=" { "add" } else { "remove" };
+        commands.push(format!(
+            "scoreboard players {verb} {destination_holder} {destination_objective} {encoded}"
+        ));
+    }
+}
+
+impl<T: 'static> NumericStateSource for EntityScoreAccessor<T> {
+    fn append_numeric_operation(
+        self,
+        commands: &mut Vec<String>,
+        destination_holder: &str,
+        destination_objective: &str,
+        scratch_objective: &str,
+        destination_scale: i32,
+        operation: &str,
+    ) {
+        append_field_numeric_operation(
+            commands,
+            self.holder,
+            &self.field.objective(),
+            self.field.numeric_scale(),
+            destination_holder,
+            destination_objective,
+            destination_scale,
+            scratch_objective,
+            operation,
+        );
+    }
+}
+
+impl NumericStateSource for FixedScoreAccessor {
+    fn append_numeric_operation(
+        self,
+        commands: &mut Vec<String>,
+        destination_holder: &str,
+        destination_objective: &str,
+        scratch_objective: &str,
+        destination_scale: i32,
+        operation: &str,
+    ) {
+        append_field_numeric_operation(
+            commands,
+            self.holder,
+            &self.field.objective(),
+            self.field.scale,
+            destination_holder,
+            destination_objective,
+            destination_scale,
+            scratch_objective,
+            operation,
+        );
+    }
+}
+
+fn numeric_mutation<F: EntityStateField + ComponentDirtyField>(
+    field: F,
+    holder: &str,
+    track_dirty: bool,
+    operation: &str,
+    source: impl NumericStateSource,
+    destination_scale: i32,
+    scratch_objective: String,
+) -> Vec<String> {
+    let objective = field.objective();
+    let mut commands = Vec::new();
+    source.append_numeric_operation(
+        &mut commands,
+        holder,
+        &objective,
+        &scratch_objective,
+        destination_scale,
+        operation,
+    );
+    append_mutation_bounds_and_dirty(field, holder, track_dirty, &objective, &mut commands);
+    commands
+}
+
+#[allow(clippy::too_many_arguments)] // Lowering keeps source and destination representations explicit.
+fn append_field_numeric_operation(
+    commands: &mut Vec<String>,
+    source_holder: &str,
+    source_objective: &str,
+    source_scale: i32,
+    destination_holder: &str,
+    destination_objective: &str,
+    destination_scale: i32,
+    scratch_objective: &str,
+    operation: &str,
+) {
+    if source_scale == destination_scale {
+        commands.push(format!(
+            "scoreboard players operation {destination_holder} {destination_objective} {operation} {source_holder} {source_objective}"
+        ));
+        return;
+    }
+
+    // A detached or otherwise absent optional source makes a scoreboard copy
+    // fail without changing its destination. Clear the reusable scratch score
+    // first so the remaining conversion is a deterministic no-op rather than
+    // reusing a previous mutation's value.
+    commands.push(format!(
+        "scoreboard players set {destination_holder} {scratch_objective} 0"
+    ));
+    commands.push(format!(
+        "scoreboard players operation {destination_holder} {scratch_objective} = {source_holder} {source_objective}"
+    ));
+    let common = numeric_gcd(source_scale, destination_scale);
+    let multiplier = destination_scale / common;
+    let divisor = source_scale / common;
+    if multiplier != 1 {
+        commands.push(format!(
+            "scoreboard players set #multiplier {scratch_objective} {multiplier}"
+        ));
+        commands.push(format!(
+            "scoreboard players operation {destination_holder} {scratch_objective} *= #multiplier {scratch_objective}"
+        ));
+    }
+    if divisor != 1 {
+        append_nearest_division(commands, destination_holder, scratch_objective, divisor);
+    }
+    commands.push(format!(
+        "scoreboard players operation {destination_holder} {destination_objective} {operation} {destination_holder} {scratch_objective}"
+    ));
+}
+
+fn append_nearest_division(
+    commands: &mut Vec<String>,
+    holder: &str,
+    scratch_objective: &str,
+    divisor: i32,
+) {
+    commands.push(format!(
+        "scoreboard players set #divisor {scratch_objective} {divisor}"
+    ));
+    commands.push(format!(
+        "scoreboard players operation #original {scratch_objective} = {holder} {scratch_objective}"
+    ));
+    commands.push(format!(
+        "scoreboard players operation {holder} {scratch_objective} /= #divisor {scratch_objective}"
+    ));
+    commands.push(format!(
+        "scoreboard players operation #remainder {scratch_objective} = #original {scratch_objective}"
+    ));
+    commands.push(format!(
+        "scoreboard players operation #product {scratch_objective} = {holder} {scratch_objective}"
+    ));
+    commands.push(format!(
+        "scoreboard players operation #product {scratch_objective} *= #divisor {scratch_objective}"
+    ));
+    commands.push(format!(
+        "scoreboard players operation #remainder {scratch_objective} -= #product {scratch_objective}"
+    ));
+    commands.push(format!(
+        "scoreboard players set #half {scratch_objective} {}",
+        divisor / 2
+    ));
+    commands.push(format!(
+        "execute if score #remainder {scratch_objective} > #half {scratch_objective} run scoreboard players add {holder} {scratch_objective} 1"
+    ));
+    if divisor % 2 == 0 {
+        commands.push(format!(
+            "execute if score #original {scratch_objective} matches 0.. if score #remainder {scratch_objective} = #half {scratch_objective} run scoreboard players add {holder} {scratch_objective} 1"
+        ));
+    }
+}
+
+fn append_mutation_bounds_and_dirty<F: EntityStateField + ComponentDirtyField>(
+    field: F,
+    holder: &str,
+    track_dirty: bool,
+    objective: &str,
+    commands: &mut Vec<String>,
+) {
+    if let Some((min, max)) = field.descriptor().bounds {
+        if min != i32::MIN {
+            commands.push(format!(
+                "execute if score {holder} {objective} matches ..{} run scoreboard players set {holder} {objective} {min}",
+                min - 1
+            ));
+        }
+        if max != i32::MAX {
+            commands.push(format!(
+                "execute if score {holder} {objective} matches {}.. run scoreboard players set {holder} {objective} {max}",
+                max + 1
+            ));
+        }
+    }
+    if track_dirty {
+        commands.push(format!(
+            "scoreboard players set {holder} {} 1",
+            field.dirty_objective()
+        ));
+        commands.push(format!(
+            "scoreboard players set {holder} {} 1",
+            field.component_dirty_objective()
+        ));
+    }
+}
+
+fn numeric_gcd(mut left: i32, mut right: i32) -> i32 {
+    while right != 0 {
+        let remainder = left % right;
+        left = right;
+        right = remainder;
+    }
+    left.abs()
+}
+
 fn encode_fixed(value: f64, scale: i32, bounds: Option<(i32, i32)>) -> i32 {
     let scaled = value * f64::from(scale);
     let encoded = if scaled.is_nan() {
@@ -3158,6 +3562,12 @@ pub(crate) fn component_dirty_name(namespace: &str, schema: &str) -> String {
     sand_commands::ObjectiveName::logical(format!("{namespace}:{schema}.reconcile_dirty"))
         .as_str()
         .to_owned()
+}
+
+pub(crate) fn numeric_scratch_name(namespace: &str, schema: &str) -> String {
+    sand_commands::ObjectiveName::logical(format!("{namespace}:{schema}.numeric_scratch"))
+        .as_str()
+        .to_string()
 }
 
 fn exact_predicate(
@@ -3317,6 +3727,70 @@ mod tests {
                 "scoreboard players remove @s {} 5",
                 FixedScore::__new("rpg", "mob", "power", 100, 100, Some((100, 1_000))).objective()
             )
+        );
+    }
+
+    #[test]
+    fn numeric_fields_add_typed_sources_and_track_reconciliation() {
+        let health = EntityScore::<i32>::new("rpg", "mob", "health", 20, Some((0, 100)));
+        let healing = EntityScore::<i32>::new("rpg", "mob", "healing", 2, Some((0, 10)));
+        let commands = health.bind().add(healing.bind());
+        assert_eq!(
+            commands[0],
+            format!(
+                "scoreboard players operation @s {} += @s {}",
+                health.objective(),
+                healing.objective()
+            )
+        );
+        assert!(commands.contains(&format!(
+            "scoreboard players set @s {} 1",
+            health.dirty_objective()
+        )));
+        assert!(commands.contains(&format!(
+            "scoreboard players set @s {} 1",
+            component_dirty_name("rpg", "mob")
+        )));
+
+        let multiplier = FixedScore::__new("rpg", "mob", "multiplier", 100, 125, None);
+        let precise = FixedScore::__new("rpg", "mob", "precise", 1_000, 1_255, None);
+        let commands = multiplier.bind().add(precise.bind());
+        let scratch = numeric_scratch_name("rpg", "mob");
+        assert_eq!(
+            commands[0],
+            format!("scoreboard players set @s {scratch} 0")
+        );
+        assert!(commands[1].contains(&scratch));
+        assert!(
+            commands
+                .iter()
+                .any(|command| command.contains("#divisor") && command.ends_with(" 10"))
+        );
+        assert!(
+            commands
+                .iter()
+                .any(|command| command.contains("#half") && command.ends_with(" 5"))
+        );
+        assert!(
+            commands
+                .iter()
+                .all(|command| { !(command.contains("#remainder") && command.contains(" *= ")) })
+        );
+        assert!(commands.iter().any(|command| {
+            command.contains(&multiplier.objective()) && command.contains(" += ")
+        }));
+
+        let very_precise = FixedScore::__new("rpg", "mob", "very_precise", 2_000_000_000, 0, None);
+        let commands = health.bind().add(very_precise.bind());
+        assert!(
+            commands
+                .iter()
+                .any(|command| { command.contains("#half") && command.ends_with(" 1000000000") })
+        );
+        assert!(
+            commands
+                .iter()
+                .all(|command| { !(command.contains("#remainder") && command.contains(" *= ")) })
         );
     }
 

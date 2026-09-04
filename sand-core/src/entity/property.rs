@@ -700,7 +700,7 @@ impl From<RefreshPolicyRef> for RefreshPolicy {
     avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
     example = "use sand::entity::NumericPropertySource;",
     variants(Fixed = "A constant fixed-point value: `units / scale`.", StateScore = "The value of a typed entity score."),
-    variant_fields(Fixed(scale = "`scale` provides the particle scale when a constant fixed-point value: `units / scale`.", units = "`units` provides the units when a constant fixed-point value: `units / scale`."), StateScore(dirty_objective = "Hidden source-dirty objective marked by typed mutations.", field = "Owning State component and field metadata retained for archetype membership validation.", objective = "Generated score objective.")),
+    variant_fields(Fixed(scale = "`scale` provides the particle scale when a constant fixed-point value: `units / scale`.", units = "`units` provides the units when a constant fixed-point value: `units / scale`."), StateScore(dirty_objective = "Hidden source-dirty objective marked by typed mutations.", field = "Owning State component and field metadata retained for archetype membership validation.", objective = "Generated score objective.", scale = "Number of stored scoreboard units per logical value.")),
 )]
 /// A typed numeric source for an attribute or effect parameter.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -721,6 +721,8 @@ pub enum NumericPropertySource {
         dirty_objective: String,
         /// Owning component and field metadata used by archetype validation.
         field: StateFieldReference,
+        /// Number of stored scoreboard units per logical value.
+        scale: i32,
     },
 }
 
@@ -766,14 +768,15 @@ impl NumericPropertySource {
         avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
         params(field = "`field` sets the field for a typed state score as the source."),
         returns = "A `NumericPropertySource` configured for a typed state score as the source.",
-        example = "use sand::prelude::*;\n\nfn demonstrate<T : 'static>(field: sand::entity::EntityScore < T >)  {\n    let numeric_property_source = sand::entity::NumericPropertySource::state::<T>(field);\n}",
+        example = "use sand::prelude::*;\n\nfn demonstrate(field: impl sand::entity::NumericStateField)  {\n    let numeric_property_source = sand::entity::NumericPropertySource::state(field);\n}",
     )]
     #[must_use]
-    pub fn state<T: 'static>(field: EntityScore<T>) -> Self {
+    pub fn state(field: impl super::NumericStateField) -> Self {
         Self::StateScore {
             objective: field.objective(),
             dirty_objective: field.dirty_objective(),
             field: field.field_reference(),
+            scale: field.numeric_scale(),
         }
     }
 }

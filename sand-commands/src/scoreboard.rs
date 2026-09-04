@@ -2253,5 +2253,17 @@ mod tests {
 
         let many = ScoreHolder::from(Target::raw_many("@e[tag=candidate]"));
         assert!(many.validate_single(&CommandProfile::unprofiled()).is_err());
+
+        let narrowed = ScoreHolder::from(
+            Target::raw_many("@e[modded=true]")
+                .limit(1)
+                .expect("limit=1 should narrow a raw many target"),
+        );
+        assert_eq!(narrowed.to_string(), "@e[modded=true,limit=1]");
+        assert!(
+            narrowed
+                .validate_single(&CommandProfile::unprofiled())
+                .is_ok()
+        );
     }
 }

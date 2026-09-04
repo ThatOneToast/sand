@@ -112,6 +112,23 @@ fn narrowing_changes_only_cardinality() {
 }
 
 #[test]
+fn raw_many_narrowing_is_rendered_instead_of_only_changing_the_type() {
+    let limited = Target::raw_many("@e[modded=true]").limit(1).unwrap();
+    assert_eq!(limited.to_string(), "@e[modded=true,limit=1]");
+    assert_eq!(limited.try_build().unwrap(), "@e[modded=true,limit=1]");
+    takes_single_entity(limited);
+
+    let nearest = Target::raw_many("@e[modded=true]").nearest();
+    assert_eq!(nearest.to_string(), "@e[modded=true,sort=nearest,limit=1]");
+    takes_single_entity(nearest);
+
+    assert_eq!(
+        Target::raw_many("@e").limit(1).unwrap().to_string(),
+        "@e[limit=1]"
+    );
+}
+
+#[test]
 fn sorting_stays_on_the_canonical_many_target_api() {
     assert_eq!(
         Target::entities().sort(SortOrder::Furthest).to_string(),

@@ -30,6 +30,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added `Target::raw_single_player` so unsupported selector grammar can retain
   both its author-asserted single cardinality and player-only category for
   player commands, filters, iteration contexts, and score-holder conversion.
+- Typed refinements on raw targets are now incorporated into the rendered
+  selector. In particular, `raw_many(...).limit(1)` and `.nearest()` emit the
+  narrowing arguments instead of gaining a false single-target type assertion.
 - Restored every Minecraft selector ordering through `Target::sort`, keeping
   nearest, furthest, random, and arbitrary ordering on the canonical many-target
   API before optional `limit(1)` narrowing.

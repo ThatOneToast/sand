@@ -388,7 +388,7 @@ impl Target<AnyTarget, Many> {
     }
 
     /// Explicit unchecked many-entity selector syntax.
-    #[sand_macros::api(registry = sand_api_contract, path = "sand::command::Target::raw_many", aliases = ["sand::cmd::Target::raw_many", "sand::prelude::Target::raw_many", "sand::prelude::cmd::Target::raw_many"], module = "sand::command", summary = "Creates an unchecked target assumed to allow many entities.", context = "Advanced escape hatch for modded or future selector grammar; the caller supplies the cardinality assertion.", minecraft = "Emits the supplied selector text verbatim.", use_when = ["Using target grammar Sand cannot model"], avoid_when = ["A typed Target constructor can represent the selection"], params(selector = "The unchecked selector expression."), returns = "A target carrying a many-entity cardinality assertion.", example = "let target = sand::command::Target::raw_many(\"@e[modded=true]\");")]
+    #[sand_macros::api(registry = sand_api_contract, path = "sand::command::Target::raw_many", aliases = ["sand::cmd::Target::raw_many", "sand::prelude::Target::raw_many", "sand::prelude::cmd::Target::raw_many"], module = "sand::command", summary = "Creates an unchecked target assumed to allow many entities.", context = "Advanced escape hatch for modded or future selector grammar; the caller supplies the initial cardinality assertion. Later typed refinements are appended to the supplied selector instead of being discarded.", minecraft = "Emits the supplied selector text verbatim until typed selector arguments are added.", use_when = ["Using target grammar Sand cannot model"], avoid_when = ["A typed Target constructor can represent the selection"], params(selector = "The unchecked selector expression."), returns = "A target carrying a many-entity cardinality assertion.", example = "let target = sand::command::Target::raw_many(\"@e[modded=true]\");")]
     pub fn raw_many(selector: impl Into<String>) -> Self {
         Self::from_selector(Selector::raw(selector))
     }
@@ -557,7 +557,7 @@ impl<K> Target<K, Many> {
     }
 
     /// Narrows a many-target expression to `limit=1`.
-    #[sand_macros::api(registry = sand_api_contract, path = "sand::command::Target::limit", aliases = ["sand::cmd::Target::limit", "sand::prelude::Target::limit", "sand::prelude::cmd::Target::limit"], module = "sand::command", summary = "Narrows a many-target expression to one target.", context = "Changes the hidden cardinality state only when the requested limit is exactly one.", minecraft = "Emits limit=1.", use_when = ["Passing a filtered target to a command that requires one entity"], avoid_when = ["Keeping a many-target expression"], params(n = "The limit, which must be exactly one for static narrowing."), returns = "A statically single target or a validation error.", example = "let target = sand::command::Target::entities().limit(1)?;")]
+    #[sand_macros::api(registry = sand_api_contract, path = "sand::command::Target::limit", aliases = ["sand::cmd::Target::limit", "sand::prelude::Target::limit", "sand::prelude::cmd::Target::limit"], module = "sand::command", summary = "Narrows a many-target expression to one target.", context = "Changes the hidden cardinality state only when the requested limit is exactly one. On raw selectors, the limit is incorporated into the rendered selector so the type assertion matches the emitted command.", minecraft = "Emits limit=1.", use_when = ["Passing a filtered target to a command that requires one entity"], avoid_when = ["Keeping a many-target expression"], params(n = "The limit, which must be exactly one for static narrowing."), returns = "A statically single target or a validation error.", example = "let target = sand::command::Target::entities().limit(1)?;")]
     pub fn limit(mut self, n: i32) -> CommandResult<Target<K, One>> {
         if n != 1 {
             return Err(CommandError::new(
@@ -810,8 +810,8 @@ impl Selector {
     /// Wrap advanced selector syntax without typed validation.
     ///
     /// Prefer the typed builder methods for normal selectors. Raw selectors
-    /// are preserved verbatim and should be limited to syntax Sand cannot yet
-    /// model.
+    /// are preserved verbatim until builder arguments are added and should be
+    /// limited to syntax Sand cannot yet model.
     pub fn raw(selector: impl Into<String>) -> Self {
         Self {
             base: TargetBase::Raw(selector.into()),
@@ -1127,7 +1127,22 @@ impl fmt::Display for Selector {
                     .join(",");
                 return write!(f, "@a[name={n},{args},limit=1]");
             }
-            TargetBase::Raw(raw) | TargetBase::RawSingle(raw) => return write!(f, "{raw}"),
+            TargetBase::Raw(raw) | TargetBase::RawSingle(raw) => {
+                if self.args.is_empty() {
+                    return write!(f, "{raw}");
+                }
+                let args = self
+                    .args
+                    .iter()
+                    .map(|a| a.to_string())
+                    .collect::<Vec<_>>()
+                    .join(",");
+                if let Some(prefix) = raw.strip_suffix(']') {
+                    let separator = if prefix.ends_with('[') { "" } else { "," };
+                    return write!(f, "{prefix}{separator}{args}]");
+                }
+                return write!(f, "{raw}[{args}]");
+            }
         };
         if self.args.is_empty() {
             write!(f, "{base}")
@@ -1146,30 +1161,25 @@ impl fmt::Display for Selector {
 impl Selector {
     pub(crate) fn is_statically_single(&self) -> bool {
         matches!(self.base, TargetBase::RawSingle(_))
-            || (!matches!(self.base, TargetBase::Raw(_))
-                && (matches!(
-                    self.base,
-                    TargetBase::NearestPlayer
-                        | TargetBase::Self_
-                        | TargetBase::RandomPlayer
-                        | TargetBase::Player(_)
-                ) || self
-                    .args
-                    .iter()
-                    .any(|arg| matches!(arg, SelectorArg::Limit(1)))))
+            || matches!(
+                self.base,
+                TargetBase::NearestPlayer
+                    | TargetBase::Self_
+                    | TargetBase::RandomPlayer
+                    | TargetBase::Player(_)
+            )
+            || self
+                .args
+                .iter()
+                .any(|arg| matches!(arg, SelectorArg::Limit(1)))
     }
 }
 
 impl Validate for Selector {
     fn validate(&self, _profile: &CommandProfile) -> CommandResult<()> {
-        if matches!(self.base, TargetBase::Raw(_) | TargetBase::RawSingle(_)) {
-            if !self.args.is_empty() {
-                return Err(CommandError::new(
-                    "Selector",
-                    "arguments",
-                    "raw selectors cannot be combined with typed arguments",
-                ));
-            }
+        if matches!(self.base, TargetBase::Raw(_) | TargetBase::RawSingle(_))
+            && self.args.is_empty()
+        {
             return Ok(());
         }
         if let TargetBase::Player(ref name) = self.base {
@@ -1234,7 +1244,13 @@ impl Validate for Selector {
                     ("type-", None)
                 }
                 SelectorArg::Limit(v) => {
-                    if !matches!(self.base, TargetBase::AllPlayers | TargetBase::AllEntities) {
+                    if !matches!(
+                        self.base,
+                        TargetBase::AllPlayers
+                            | TargetBase::AllEntities
+                            | TargetBase::Raw(_)
+                            | TargetBase::RawSingle(_)
+                    ) {
                         return Err(CommandError::new(
                             "Selector",
                             "limit",
@@ -1251,7 +1267,13 @@ impl Validate for Selector {
                     ("limit", None)
                 }
                 SelectorArg::Sort(_) => {
-                    if !matches!(self.base, TargetBase::AllPlayers | TargetBase::AllEntities) {
+                    if !matches!(
+                        self.base,
+                        TargetBase::AllPlayers
+                            | TargetBase::AllEntities
+                            | TargetBase::Raw(_)
+                            | TargetBase::RawSingle(_)
+                    ) {
                         return Err(CommandError::new(
                             "Selector",
                             "sort",

@@ -59,7 +59,10 @@ assert!(Target::entities().limit(2).is_err());
 Opaque advanced syntax (arbitrary SNBT filters, modded selector arguments)
 has an explicit escape hatch rather than a best-effort parser:
 `Target::nbt_raw(...)`, `Target::predicate_raw(...)`, and the explicitly named
-`Target::raw_many(...)` / `Target::raw_single(...)` constructors.
+`Target::raw_many(...)` / `Target::raw_single(...)` constructors. A raw target
+is emitted verbatim until typed refinements are added; refinements such as
+`.sort(...)` and `.limit(1)` are incorporated into the selector text so the
+rendered command continues to match its typed cardinality.
 
 `ScoreHolder` remains a distinct, broader scoreboard domain because it also
 models fake players and wildcards. Entity/player targets, display and sound

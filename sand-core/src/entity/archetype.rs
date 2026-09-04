@@ -698,19 +698,20 @@ where
             let mut identities = lifecycle.identities;
             identities.sort();
             identities.dedup();
-            if !self
-                .components
-                .iter()
-                .any(|component| component.identities == identities)
-            {
-                self.components.push(ArchetypeComponent {
-                    identities,
-                    schemas: lifecycle.schemas,
-                    auto_tick_objectives: lifecycle.auto_tick_objectives,
-                    attach: lifecycle.attach,
-                    detach: lifecycle.detach,
-                });
+            let candidate = ArchetypeComponent {
+                identities,
+                schemas: lifecycle.schemas,
+                auto_tick_objectives: lifecycle.auto_tick_objectives,
+                attach: lifecycle.attach,
+                detach: lifecycle.detach,
+            };
+            if self.components.iter().any(|component| {
+                component.identities == candidate.identities
+                    && component.has_same_metadata(&candidate)
+            }) {
+                continue;
             }
+            self.components.push(candidate);
         }
         self
     }
@@ -1352,6 +1353,15 @@ pub struct ArchetypeComponent {
     auto_tick_objectives: Vec<String>,
     attach: fn(&'static str) -> Vec<String>,
     detach: fn(&'static str) -> Vec<String>,
+}
+
+impl ArchetypeComponent {
+    fn has_same_metadata(&self, other: &Self) -> bool {
+        self.schemas == other.schemas
+            && self.auto_tick_objectives == other.auto_tick_objectives
+            && std::ptr::fn_addr_eq(self.attach, other.attach)
+            && std::ptr::fn_addr_eq(self.detach, other.detach)
+    }
 }
 
 fn dedup_commands(commands: &mut Vec<String>) {
@@ -2117,7 +2127,22 @@ struct ArchetypeFields {
 impl ArchetypeFields {
     fn new(definition: &ArchetypeDefinition) -> Result<Self, EntityDiagnostic> {
         let mut schemas = std::collections::BTreeMap::<String, StateSchema>::new();
-        for component in &definition.components {
+        for (index, component) in definition.components.iter().enumerate() {
+            if definition.components[..index].iter().any(|existing| {
+                existing.identities == component.identities
+                    && !existing.has_same_metadata(component)
+            }) {
+                return Err(EntityDiagnostic::DuplicateStateField {
+                    schema: definition.id.to_string(),
+                    field: component
+                        .identities
+                        .iter()
+                        .map(|(identity, version)| format!("{identity}@{version}"))
+                        .collect::<Vec<_>>()
+                        .join(", "),
+                    detail: "two composed components claim the same lifecycle identity with conflicting schemas, auto-tick metadata, or lifecycle hooks".into(),
+                });
+            }
             for schema in &component.schemas {
                 schema.validate()?;
                 let id = schema.id();
@@ -4987,6 +5012,40 @@ mod tests {
             Vec::new()
         }
     }
+    struct ConflictingMobState;
+    static CONFLICTING_FIELDS: &[StateFieldDescriptor] = &[StateFieldDescriptor::new(
+        "other",
+        StateFieldKind::Score,
+        0,
+        None,
+    )];
+    impl EntityState for ConflictingMobState {
+        fn schema() -> StateSchema {
+            StateSchema {
+                namespace: "rpg",
+                name: "mob",
+                version: 2,
+                fields: CONFLICTING_FIELDS,
+            }
+        }
+    }
+    impl StateComposition for ConflictingMobState {
+        fn composition_identities() -> Vec<(String, u32)> {
+            vec![("rpg:mob.presence".into(), 2)]
+        }
+
+        fn composition_schemas() -> Vec<StateSchema> {
+            vec![Self::schema()]
+        }
+
+        fn composition_attach(_: &'static str) -> Vec<String> {
+            Vec::new()
+        }
+
+        fn composition_detach(_: &'static str) -> Vec<String> {
+            Vec::new()
+        }
+    }
     const LEVEL: EntityScore<i32> = EntityScore::new("rpg", "mob", "level", 1, Some((1, 100)));
     const HEALTH: EntityScore<i32> = EntityScore::new("rpg", "mob", "health", 20, Some((1, 2_000)));
     const SPEED: FixedScore = FixedScore::__new("rpg", "mob", "speed", 100, 125, Some((0, 1_000)));
@@ -5448,6 +5507,18 @@ mod tests {
                 .health(HealthBinding::new(HEALTH));
         let error = compile_definition(&archetype.definition(), &profile()).unwrap_err();
         assert_eq!(error.code(), "SAND-ENTITY-OWNERSHIP");
+    }
+
+    #[test]
+    fn identity_equal_components_with_conflicting_metadata_are_rejected() {
+        let archetype =
+            EntityArchetype::<ZombieKind>::new(ResourceLocation::new("rpg", "conflict").unwrap())
+                .components::<MobState>()
+                .components::<ConflictingMobState>();
+        let error = compile_definition(&archetype.definition(), &profile()).unwrap_err();
+        assert_eq!(error.code(), "SAND-ENTITY-STATE-DUPLICATE");
+        assert!(error.to_string().contains("rpg:mob.presence@2"));
+        assert!(error.to_string().contains("lifecycle identity"));
     }
 
     #[test]

@@ -2029,21 +2029,37 @@ pub(crate) fn compile_registered(
         .collect()
 }
 
-type ComponentClaims = std::collections::BTreeMap<String, Vec<String>>;
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
+struct ComponentClaim {
+    interval: u32,
+    marker: String,
+}
+
+type ComponentClaims = std::collections::BTreeMap<String, Vec<ComponentClaim>>;
+
+fn reconciliation_interval(definition: &ArchetypeDefinition) -> u32 {
+    match definition.reconcile {
+        ReconcilePolicy::Every(interval) => interval.get(),
+        _ => 1,
+    }
+}
 
 fn component_claims(definitions: &[ArchetypeDefinition]) -> ComponentClaims {
     let mut claims = ComponentClaims::new();
     for definition in definitions {
-        let marker = initialized_tag(&definition.id.to_string());
+        let claim = ComponentClaim {
+            interval: reconciliation_interval(definition),
+            marker: initialized_tag(&definition.id.to_string()),
+        };
         for component in &definition.components {
             for (identity, _) in &component.identities {
                 claims
                     .entry(identity.clone())
                     .or_default()
-                    .push(marker.clone());
+                    .push(claim.clone());
             }
             for schema in &component.schemas {
-                claims.entry(schema.id()).or_default().push(marker.clone());
+                claims.entry(schema.id()).or_default().push(claim.clone());
             }
         }
     }
@@ -2070,12 +2086,13 @@ fn dirty_distribution_commands(
         let Some(claim_markers) = claims.get(&field.component) else {
             continue;
         };
-        for claim_marker in claim_markers {
-            let pending = dirty_pending_name(&field.dirty_objective, claim_marker);
+        for claim in claim_markers {
+            let pending = dirty_pending_name(&field.dirty_objective, &claim.marker);
             objectives.insert(pending.clone());
             commands.push(format!(
-                "execute if score @s {} matches 1 if entity @s[tag={claim_marker}] run scoreboard players set @s {pending} 1",
-                field.dirty_objective
+                "execute if score @s {} matches 1 if entity @s[tag={}] run scoreboard players set @s {pending} 1",
+                field.dirty_objective,
+                claim.marker,
             ));
         }
         commands.push(format!(
@@ -2092,6 +2109,18 @@ fn dirty_acknowledgement_commands(fields: &ArchetypeFields, marker: &str) -> Vec
         .map(|field| {
             format!(
                 "scoreboard players set @s {} 0",
+                dirty_pending_name(&field.dirty_objective, marker)
+            )
+        })
+        .collect()
+}
+
+fn dirty_pending_reset_commands(fields: &ArchetypeFields, marker: &str) -> Vec<String> {
+    fields
+        .values()
+        .map(|field| {
+            format!(
+                "scoreboard players reset @s {}",
                 dirty_pending_name(&field.dirty_objective, marker)
             )
         })
@@ -2274,8 +2303,8 @@ fn compile_definition_with_claims(
         objectives.insert(field.dirty_objective.clone());
         objectives.insert(field.component_dirty_objective.clone());
         if let Some(markers) = claims.get(&field.component) {
-            for claim_marker in markers {
-                objectives.insert(dirty_pending_name(&field.dirty_objective, claim_marker));
+            for claim in markers {
+                objectives.insert(dirty_pending_name(&field.dirty_objective, &claim.marker));
             }
         }
     }
@@ -2459,6 +2488,12 @@ fn compile_definition_with_claims(
             ));
         }
     }
+    for field in fields.values() {
+        reconcile_commands.push(format!(
+            "execute unless score @s {} matches -2147483648.. run scoreboard players set @s {repair_objective} 1",
+            field.objective
+        ));
+    }
     reconcile_commands.push(format!(
         "function {}:{provision_path}",
         definition.id.namespace()
@@ -2505,8 +2540,8 @@ fn compile_definition_with_claims(
             .get(&field.component)
             .into_iter()
             .flatten()
-            .take_while(|claim_marker| claim_marker.as_str() < marker.as_str())
-            .map(|claim_marker| format!("unless entity @s[tag={claim_marker}]"))
+            .take_while(|claim| claim.marker != marker)
+            .map(|claim| format!("unless entity @s[tag={}]", claim.marker))
             .collect::<Vec<_>>()
             .join(" ");
         let tick_owner_guard = if tick_owner_guard.is_empty() {
@@ -2575,8 +2610,8 @@ fn compile_definition_with_claims(
             .identities
             .iter()
             .flat_map(|(identity, _)| claims.get(identity).into_iter().flatten())
-            .filter(|claim| *claim != &marker)
-            .cloned()
+            .filter(|claim| claim.marker != marker)
+            .map(|claim| claim.marker.clone())
             .collect::<Vec<_>>();
         retaining_markers.sort();
         retaining_markers.dedup();
@@ -2591,7 +2626,7 @@ fn compile_definition_with_claims(
     for property in &definition.properties {
         cleanup_commands.extend(property_cleanup_commands(property));
     }
-    let component_objectives = fields
+    let mut component_objectives = fields
         .values()
         .flat_map(|field| {
             [
@@ -2601,11 +2636,21 @@ fn compile_definition_with_claims(
             ]
         })
         .collect::<BTreeSet<_>>();
+    for field in fields.values() {
+        if let Some(component_claims) = claims.get(&field.component) {
+            component_objectives.extend(
+                component_claims
+                    .iter()
+                    .map(|claim| dirty_pending_name(&field.dirty_objective, &claim.marker)),
+            );
+        }
+    }
     for objective in &objectives {
         if !component_objectives.contains(objective) {
             cleanup_commands.push(format!("scoreboard players reset @s {objective}"));
         }
     }
+    cleanup_commands.extend(dirty_pending_reset_commands(&fields, &marker));
     dedup_commands(&mut cleanup_commands);
     cleanup_commands.push(format!("tag @s remove {marker}"));
     cleanup_commands.push(format!("tag @s remove {external_marker}"));
@@ -5242,6 +5287,21 @@ mod tests {
         assert!(!reconcile.content.lines().any(|line| {
             line == format!("scoreboard players set @s {} 0", LEVEL.dirty_objective())
         }));
+        let cleanup = compiled
+            .records
+            .iter()
+            .find(|record| record.path.ends_with("/cleanup"))
+            .unwrap();
+        assert!(
+            cleanup
+                .content
+                .contains(&format!("scoreboard players reset @s {first_pending}"))
+        );
+        assert!(
+            !cleanup
+                .content
+                .contains(&format!("scoreboard players reset @s {second_pending}"))
+        );
     }
 
     #[test]
@@ -5271,6 +5331,10 @@ mod tests {
         .to_string();
         assert!(reconcile.content.contains(&repair_objective));
         assert!(reconcile.content.contains("/repair_refresh"));
+        assert!(reconcile.content.contains(&format!(
+            "unless score @s {} matches -2147483648..",
+            LEVEL.objective()
+        )));
         assert!(repair.content.contains("/derive/0"));
         assert!(repair.content.contains("/property/0"));
     }
@@ -5319,6 +5383,7 @@ mod tests {
             ResourceLocation::new("rpg", "timed_first").unwrap(),
         )
         .components::<TimedState>()
+        .reconcile(ReconcilePolicy::Every(Ticks::new(20)))
         .definition();
         let second = EntityArchetype::<ZombieKind>::new(
             ResourceLocation::new("rpg", "timed_second").unwrap(),
@@ -5338,24 +5403,18 @@ mod tests {
             .iter()
             .find(|record| record.path.ends_with("/reconcile"))
             .unwrap();
-        let first_marker = initialized_tag(&first.id.to_string());
         let second_marker = initialized_tag(&second.id.to_string());
         let decrement = format!("scoreboard players remove @s {} 1", TIMER.objective());
         assert!(first_reconcile.content.contains(&decrement));
         assert!(second_reconcile.content.contains(&decrement));
-        let (owner, guarded, owner_marker) = if first_marker < second_marker {
-            (first_reconcile, second_reconcile, first_marker)
-        } else {
-            (second_reconcile, first_reconcile, second_marker)
-        };
-        assert!(owner.content.contains(&format!(
+        assert!(second_reconcile.content.contains(&format!(
             "execute if score @s {} matches 1.. run {decrement}",
             TIMER.objective()
         )));
         assert!(
-            guarded
+            first_reconcile
                 .content
-                .contains(&format!("unless entity @s[tag={owner_marker}]"))
+                .contains(&format!("unless entity @s[tag={second_marker}]"))
         );
     }
 

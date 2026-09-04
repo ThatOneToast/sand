@@ -80,6 +80,7 @@ pub use state::{
     Data, EntityCooldown, EntityCooldownAccessor, EntityEnum, EntityEnumAccessor, EntityEnumValue,
     EntityFlag, EntityFlagAccessor, EntityScore, EntityScoreAccessor, EntityState,
     EntityStateField, EntityTimer, EntityTimerAccessor, EnumEncoding, FixedScore,
-    FixedScoreAccessor, FixedScoreValue, GlobalStateBundleOperations, KeyedData, Score,
-    StateComposition, StateFieldDescriptor, StateFieldKind, StatePredicate, StateSchema,
+    FixedScoreAccessor, FixedScoreValue, GlobalStateBundleOperations, KeyedData, NumericStateField,
+    NumericStateSource, Score, StateComposition, StateFieldDescriptor, StateFieldKind,
+    StatePredicate, StateSchema,
 };

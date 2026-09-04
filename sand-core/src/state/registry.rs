@@ -9,7 +9,7 @@ use std::collections::BTreeMap;
 
 use super::score::objective_name;
 use crate::entity::StateFieldDescriptor;
-use crate::entity::state::StateDataFieldDescriptor;
+use crate::entity::state::{StateDataFieldDescriptor, numeric_scratch_name};
 
 /// Runtime ownership scope for a derived state component.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
@@ -276,6 +276,28 @@ fn automatic_lifecycle_from(
             output
                 .load_commands
                 .push(format!("scoreboard objectives add {} dummy", suppression));
+        }
+
+        if component.fields.iter().any(|field| {
+            matches!(
+                field.field.kind,
+                crate::entity::StateFieldKind::Score | crate::entity::StateFieldKind::Fixed(_)
+            )
+        }) {
+            let (namespace, schema) = component
+                .id
+                .split_once(':')
+                .expect("State component IDs contain a namespace");
+            let numeric_scratch = numeric_scratch_name(namespace, schema);
+            claim_objective(
+                &mut objectives,
+                &numeric_scratch,
+                "dummy",
+                &format!("{}::numeric_scratch", component.id),
+            )?;
+            output
+                .load_commands
+                .push(format!("scoreboard objectives add {numeric_scratch} dummy"));
         }
 
         for field in component.fields {
@@ -596,6 +618,39 @@ mod tests {
                 .player_init_commands
                 .iter()
                 .all(|line| line.contains("unless score @s suppressed matches 1.."))
+        );
+    }
+
+    #[test]
+    fn numeric_components_provision_one_internal_scale_scratch() {
+        const SCORE: StateFieldDescriptor =
+            StateFieldDescriptor::new("health", StateFieldKind::Score, 20, None);
+        const NUMERIC_FIELDS: &[StateLifecycleDescriptor] =
+            &[StateLifecycleDescriptor::new("health_obj", SCORE)];
+        let output = automatic_lifecycle_from([StateDescriptor::new(
+            "demo:stats",
+            1,
+            StateScope::Entity,
+            "presence",
+            "unused",
+            NUMERIC_FIELDS,
+            &[],
+            &[],
+        )])
+        .unwrap();
+        let scratch = numeric_scratch_name("demo", "stats");
+        assert!(
+            output
+                .load_commands
+                .contains(&format!("scoreboard objectives add {scratch} dummy"))
+        );
+        assert_eq!(
+            output
+                .load_commands
+                .iter()
+                .filter(|command| command.contains(&scratch))
+                .count(),
+            1
         );
     }
 

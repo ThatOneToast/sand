@@ -42,16 +42,6 @@ pub struct ZombieState {
     stats_dirty: EntityScore<i32>,
 }
 
-fn whole_numbers() -> FixedPoint {
-    FixedPoint::new(1, RoundingPolicy::TowardZero, OverflowPolicy::Error)
-        .expect("scale one is a valid fixed-point configuration")
-}
-
-fn hundredths() -> FixedPoint {
-    FixedPoint::new(100, RoundingPolicy::TowardZero, OverflowPolicy::Error)
-        .expect("scale one hundred is a valid fixed-point configuration")
-}
-
 /// Initialization callback referenced by a canonical typed function ID.
 #[function]
 pub fn initialized() {
@@ -120,10 +110,11 @@ pub fn rpg_zombie() -> EntityArchetype<ZombieKind, ZombieState> {
             "rpg:migrate_v1_v2".parse::<FunctionId>().unwrap(),
         ))
         .initialize_with("rpg:initialized".parse::<FunctionId>().unwrap())
-        .derive(
-            EntityDerivation::new("max_health", ZombieState::max_health, health_curve)
-                .fixed_point(hundredths()),
-        )
+        .derive(EntityDerivation::new(
+            "max_health",
+            ZombieState::max_health,
+            health_curve,
+        ))
         .derive(
             EntityDerivation::new(
                 "attack_damage",
@@ -135,8 +126,7 @@ pub fn rpg_zombie() -> EntityArchetype<ZombieKind, ZombieState> {
                     3.0,
                     100.0,
                 ),
-            )
-            .fixed_point(whole_numbers()),
+            ),
         )
         .health(
             HealthBinding::new(ZombieState::max_health)

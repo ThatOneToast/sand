@@ -49,9 +49,6 @@ fn rust_and_active_docs(root: &Path) -> Vec<PathBuf> {
                 visit(&path, files);
                 continue;
             }
-            if path.file_name() == Some(OsStr::new("CHANGELOG.md")) {
-                continue;
-            }
             if matches!(path.extension().and_then(OsStr::to_str), Some("rs" | "md")) {
                 files.push(path);
             }
@@ -96,7 +93,7 @@ fn removed_declaration_macros_do_not_return() {
 
     assert!(
         violations.is_empty(),
-        "removed declaration macro names are forbidden outside historical changelog entries:\n{}",
+        "removed declaration macro names are forbidden in active source and documentation:\n{}",
         violations.join("\n")
     );
 }

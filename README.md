@@ -214,7 +214,6 @@ and test serious packs with a vanilla server before release.
 - [Architecture](docs/architecture/adr-001-crate-boundaries.md) — public
   façade, implementation crates, and dependency boundaries.
 - [Contributing](CONTRIBUTING.md) — toolchain policy and validation commands.
-- [Roadmap](ROADMAP.md) — future work and explicitly unfinished areas.
 
 Sand is available under the [MIT License](LICENSE).
 

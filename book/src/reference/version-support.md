@@ -44,6 +44,5 @@ presets, custom references) is stable vanilla behavior across Sand's
 supported version range, so there was nothing to gate yet, but a future
 dimension/generator feature that *is* version-specific would need an
 explicit `VersionFeature` addition here. Extending the registry codegen to
-cover structures/noise settings, and a full `sand-vanilla-audit` real-server
-audit of world-build resources, remain tracked follow-ups (see
-`ROADMAP.md`).
+cover structures/noise settings, and further real-server validation of
+world-build resources, remain tracked as GitHub issues.

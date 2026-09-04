@@ -31,7 +31,7 @@ use std::fmt;
 use sand_commands::coord::BlockPos;
 use sand_commands::execute_args::ItemSlot;
 use sand_commands::nbt::{DataCommand, DataTarget, NbtPath, NbtRef, UntypedNbt};
-use sand_commands::selector::Selector;
+use sand_commands::selector::{Selector, TargetArgument};
 
 use crate::condition::Condition;
 use sand_components::EquipmentSlot;
@@ -167,7 +167,7 @@ pub enum ItemLocation {
     /// `0..=35` vanilla `Inventory` range).
     PlayerInventory(InventoryIndex),
     /// An equipment slot on an arbitrary living entity (`ArmorItems`/
-    /// `HandItems`), addressed by [`Selector`] rather than assumed to be the
+    /// `HandItems`), addressed by a typed target rather than assumed to be the
     /// executing player. Construct via [`ItemLocation::entity_equipment`].
     EntityEquipment {
         entity: Selector,
@@ -180,7 +180,7 @@ pub enum ItemLocation {
         slot: ContainerIndex,
     },
     /// An item entity's own stack (the `Item` compound on a dropped-item
-    /// entity), addressed by [`Selector`].
+    /// entity), addressed by a typed target.
     ItemEntity(Selector),
     /// A discoverable slot produced by [`ItemLocation::entity`].
     EntityInventory {
@@ -268,7 +268,7 @@ impl EnderChestIndex {
 
 /// Factory handle for entity inventory locations. The produced
 /// [`ItemLocation`] remains the sole live-location representation.
-#[sand_macros::api(registry = sand_api_contract, path = "sand::inventory::EntityInventory", aliases = ["sand::item::EntityInventory", "sand::item::location::EntityInventory", "sand::prelude::EntityInventory"], summary = "Builds typed live inventory locations for one explicitly selected entity.", context = "The factory retains the entity selector while each method chooses a semantically named hand, armor, inventory, or ender-chest location.", minecraft = "Produces entity-targeted item or NBT locations; ender-chest locations remain NBT-only because vanilla has no matching /item slot.", use_when = ["Addressing inventory owned by an explicit entity selector"], avoid_when = ["Addressing the executing player's implicit slots"], example = "let hand = ItemLocation::entity(Selector::nearest_player()).mainhand();")]
+#[sand_macros::api(registry = sand_api_contract, path = "sand::inventory::EntityInventory", aliases = ["sand::item::EntityInventory", "sand::item::location::EntityInventory", "sand::prelude::EntityInventory"], summary = "Builds typed live inventory locations for one explicitly selected entity.", context = "The factory retains the entity selector while each method chooses a semantically named hand, armor, inventory, or ender-chest location.", minecraft = "Produces entity-targeted item or NBT locations; ender-chest locations remain NBT-only because vanilla has no matching /item slot.", use_when = ["Addressing inventory owned by an explicit entity selector"], avoid_when = ["Addressing the executing player's implicit slots"], example = "let hand = ItemLocation::entity(Target::nearest_player()).mainhand();")]
 #[derive(Debug, Clone)]
 pub struct EntityInventory {
     entity: Selector,
@@ -282,9 +282,11 @@ pub struct BlockInventory {
 }
 
 impl ItemLocation {
-    #[sand_macros::api(kind = "method", registry = sand_api_contract, path = "sand::inventory::ItemLocation::entity", summary = "Starts typed live-inventory addressing for one selected entity.", context = "The factory keeps the entity selector attached while the caller chooses an inventory or equipment slot.", minecraft = "Uses the selector as the target for generated item or NBT commands.", use_when = ["Addressing an explicitly selected entity inventory"], avoid_when = ["Addressing the executing player's standard slot; use a Player variant"], params(entity = "The entity selector owning the inventory."), returns = "An entity-inventory factory handle.", example = "let inventory = ItemLocation::entity(Selector::nearest_player());")]
-    pub fn entity(entity: Selector) -> EntityInventory {
-        EntityInventory { entity }
+    #[sand_macros::api(kind = "method", registry = sand_api_contract, path = "sand::inventory::ItemLocation::entity", summary = "Starts typed live-inventory addressing for one selected entity.", context = "The factory keeps the entity selector attached while the caller chooses an inventory or equipment slot.", minecraft = "Uses the selector as the target for generated item or NBT commands.", use_when = ["Addressing an explicitly selected entity inventory"], avoid_when = ["Addressing the executing player's standard slot; use a Player variant"], params(entity = "The entity selector owning the inventory."), returns = "An entity-inventory factory handle.", example = "let inventory = ItemLocation::entity(Target::nearest_player());")]
+    pub fn entity(entity: impl TargetArgument) -> EntityInventory {
+        EntityInventory {
+            entity: entity.into_target_selector(),
+        }
     }
 
     #[sand_macros::api(kind = "method", registry = sand_api_contract, path = "sand::inventory::ItemLocation::block", summary = "Starts typed live-inventory addressing for one block container.", context = "The factory binds a block position before the caller chooses a validated container slot.", minecraft = "Uses the position as the target for generated block item and data commands.", use_when = ["Addressing a chest or another supported block container"], avoid_when = ["Addressing an entity inventory"], params(position = "The container block position."), returns = "A block-inventory factory handle.", example = "let chest = ItemLocation::block(BlockPos::new(0, 64, 0));")]
@@ -323,9 +325,9 @@ impl ItemLocation {
     /// `HandItems` structure used here in a way this phase has not verified
     /// across the supported version range (see the module doc), so it is
     /// rejected rather than guessed.
-    #[sand_macros::api(kind = "method", registry = sand_api_contract, path = "sand::inventory::ItemLocation::entity_equipment", summary = "Validates an equipment location on an explicitly selected entity.", context = "The constructor preserves entity ownership and rejects Body because Sand has not verified a stable backing NBT path for it.", minecraft = "Maps supported armor and hand slots to ArmorItems or HandItems on the selected entity.", use_when = ["Reading or matching equipment on a non-player entity"], avoid_when = ["Addressing the executing player's conventional armor slot"], params(entity = "The entity selector owning the equipment.", slot = "The requested equipment slot."), returns = "The validated entity-equipment location or an unsupported-location error.", example = "let weapon = ItemLocation::entity_equipment(Selector::nearest_entity(), EquipmentSlot::Mainhand)?;")]
+    #[sand_macros::api(kind = "method", registry = sand_api_contract, path = "sand::inventory::ItemLocation::entity_equipment", summary = "Validates an equipment location on an explicitly selected entity.", context = "The constructor preserves entity ownership and rejects Body because Sand has not verified a stable backing NBT path for it.", minecraft = "Maps supported armor and hand slots to ArmorItems or HandItems on the selected entity.", use_when = ["Reading or matching equipment on a non-player entity"], avoid_when = ["Addressing the executing player's conventional armor slot"], params(entity = "The entity target owning the equipment.", slot = "The requested equipment slot."), returns = "The validated entity-equipment location or an unsupported-location error.", example = "let weapon = ItemLocation::entity_equipment(Target::entities().nearest(), EquipmentSlot::Mainhand)?;")]
     pub fn entity_equipment(
-        entity: Selector,
+        entity: impl TargetArgument,
         slot: EquipmentSlot,
     ) -> Result<Self, ItemLocationError> {
         if matches!(slot, EquipmentSlot::Body) {
@@ -334,7 +336,10 @@ impl ItemLocation {
                 reason: "the Body equipment slot's backing NBT tag is not verified for this phase",
             });
         }
-        Ok(Self::EntityEquipment { entity, slot })
+        Ok(Self::EntityEquipment {
+            entity: entity.into_target_selector(),
+            slot,
+        })
     }
 
     /// A short, stable label for this location's kind — used in
@@ -359,7 +364,7 @@ impl ItemLocation {
     }
 
     /// Whether this location is scoped to the executing subject (`@s`)
-    /// rather than an explicit external [`Selector`]/[`BlockPos`]. A location
+    /// rather than an explicit external target/[`BlockPos`]. A location
     /// with `is_self_scoped() == false` names its own target explicitly.
     #[sand_macros::api(kind = "method", registry = sand_api_contract, path = "sand::inventory::ItemLocation::is_self_scoped", summary = "Reports whether a location is implicitly bound to the executing subject.", context = "Player variants target @s, while entity and block variants carry explicit ownership and therefore cannot inherit an arbitrary execution subject.", minecraft = "Emits no command; it describes how later commands select their target.", use_when = ["Checking whether location behavior depends on the current execute context"], avoid_when = ["Determining whether an item is present"], returns = "True for implicit-player locations.", example = "assert!(ItemLocation::PlayerMainHand.is_self_scoped());")]
     pub fn is_self_scoped(&self) -> bool {

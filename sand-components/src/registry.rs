@@ -161,6 +161,18 @@ registry_id! {
     PredicateId
 }
 
+impl sand_commands::IntoPredicateId for PredicateId {
+    fn into_predicate_id(self) -> String {
+        self.to_string()
+    }
+}
+
+impl sand_commands::IntoPredicateId for &PredicateId {
+    fn into_predicate_id(self) -> String {
+        self.to_string()
+    }
+}
+
 registry_id! {
     @contract(
         path = "sand::resource_ref::DialogId",

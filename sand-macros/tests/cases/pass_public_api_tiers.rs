@@ -38,9 +38,9 @@ pub fn welcome_advancement() -> Advancement {
 
 #[function]
 pub fn spend_mana() {
-    MANA.remove(Selector::self_(), 1);
-    DASH.start(Selector::self_());
-    cmd::tellraw(Selector::self_(), Text::new("mana spent").green());
+    MANA.remove(Target::self_(), 1);
+    DASH.start(Target::self_());
+    cmd::tellraw(Target::self_(), Text::new("mana spent").green());
     cmd::raw("function other_pack:bridge");
 }
 

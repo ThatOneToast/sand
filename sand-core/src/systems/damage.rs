@@ -42,7 +42,7 @@
 //! }
 //! ```
 
-use crate::cmd::SingleEntity;
+use crate::cmd::{SingleTargetArgument, Target};
 use crate::condition::{Condition, ScoreRange};
 use crate::state::Ticks;
 
@@ -339,11 +339,11 @@ impl DamageTracker {
         avoid_when = ["Using the API outside its documented system scope or feature configuration"],
         params(target = "`target` provides the entity, block, or command target used to update damage tracking for one entity (call every tick)."),
         returns = "The ordered values produced to update damage tracking for one entity (call every tick).",
-        example = "use sand::prelude::*;\n\nfn demonstrate(target: sand::command::SingleEntity)  {\n    let values = sand::systems::damage::DamageTracker::tick(target);\n}",
+        example = "use sand::prelude::*;\nlet values = DamageTracker::tick(Target::self_());",
         availability = ["Cargo feature: systems-damage"],
     )]
-    pub fn tick(target: SingleEntity) -> Vec<String> {
-        Self::tick_selector(target.to_string())
+    pub fn tick(target: impl SingleTargetArgument) -> Vec<String> {
+        Self::tick_selector(target.into_single_target_selector().to_string())
     }
 
     /// Explicit unchecked compatibility path for selector syntax Sand cannot
@@ -421,7 +421,7 @@ impl DamageTracker {
         availability = ["Cargo feature: systems-damage"],
     )]
     pub fn tick_players() -> Vec<String> {
-        Self::tick(SingleEntity::self_())
+        Self::tick(Target::self_())
             .into_iter()
             .map(|command| {
                 command.strip_prefix("execute as @s").map_or_else(
@@ -790,7 +790,7 @@ mod tests {
 
     #[test]
     fn tick_produces_six_commands_in_correct_order() {
-        let cmds = DamageTracker::tick(SingleEntity::self_());
+        let cmds = DamageTracker::tick(Target::self_());
         assert_eq!(cmds.len(), 6, "expected 6 tick commands: {cmds:?}");
 
         // 1: delta = stat

@@ -1,6 +1,6 @@
 //! Export coverage for persistent `while_<E>()` composition (#240).
 
-use sand_commands::Selector;
+use sand_commands::Target;
 use sand_core::condition::Condition;
 use sand_core::events::{
     ChainEventDispatch, EventSetup, PersistentSandEvent, PlayerSneakEvent, SandEvent,
@@ -26,8 +26,8 @@ impl SandEvent for WhileSneaking {
         SandEventDispatch::chain::<ParentOccurrence>()
             .while_::<PlayerSneakEvent>()
             .while_::<PlayerSneakEvent>()
-            .when(Condition::entity(Selector::self_().tag("ready")))
-            .unless(Condition::entity(Selector::self_().tag("blocked")))
+            .when(Condition::entity(Target::self_().tag("ready")))
+            .unless(Condition::entity(Target::self_().tag("blocked")))
     }
 }
 

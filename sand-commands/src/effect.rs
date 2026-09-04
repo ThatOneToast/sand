@@ -6,7 +6,7 @@ use std::fmt;
 use crate::Build;
 use crate::error::{CommandError, CommandResult};
 use crate::render::{CommandProfile, RenderCommand, Validate};
-use crate::selector::Selector;
+use crate::selector::{Selector, TargetArgument};
 
 #[sand_macros::api(
     registry = sand_api_contract,
@@ -125,11 +125,11 @@ impl EffectCommand {
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
         params(target = "`target` provides the entity, block, or command target used to create a typed effect command builder from the supplied command inputs.", effect = "`effect` is used when creating a typed effect command builder from the supplied command inputs."),
         returns = "An `EffectCommand` representing a typed effect command builder from the supplied command inputs.",
-        example = "use sand::prelude::*;\n\nfn demonstrate(target: sand::command::Selector, effect: impl Into < String >)  {\n    let effect_command = sand::command::EffectCommand::give(target, effect);\n}",
+        example = "use sand::prelude::*;\n\nfn demonstrate(target: sand::command::Target, effect: impl Into < String >)  {\n    let effect_command = sand::command::EffectCommand::give(target, effect);\n}",
     )]
-    pub fn give(target: Selector, effect: impl Into<String>) -> Self {
+    pub fn give(target: impl TargetArgument, effect: impl Into<String>) -> Self {
         Self {
-            target,
+            target: target.into_target_selector(),
             effect: effect.into(),
             raw_effect: false,
             duration: None,
@@ -152,9 +152,9 @@ impl EffectCommand {
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
         params(target = "`target` provides the entity, block, or command target used to use the explicit raw give escape hatch on the effect command builder.", effect = "`effect` sets the effect for the explicit raw give escape hatch on the effect command builder."),
         returns = "An `EffectCommand` configured for the explicit raw give escape hatch on the effect command builder.",
-        example = "use sand::prelude::*;\n\nfn demonstrate(target: sand::command::Selector, effect: impl Into < String >)  {\n    let effect_command = sand::command::EffectCommand::give_raw(target, effect);\n}",
+        example = "use sand::prelude::*;\n\nfn demonstrate(target: sand::command::Target, effect: impl Into < String >)  {\n    let effect_command = sand::command::EffectCommand::give_raw(target, effect);\n}",
     )]
-    pub fn give_raw(target: Selector, effect: impl Into<String>) -> Self {
+    pub fn give_raw(target: impl TargetArgument, effect: impl Into<String>) -> Self {
         Self {
             raw_effect: true,
             ..Self::give(target, effect)

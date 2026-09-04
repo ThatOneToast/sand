@@ -12,20 +12,20 @@ pub fn load() {
     MANA.define();
     CAST_CD.define();
     SILENCED.define();
-    MANA.set(Selector::all_players(), 100);
-    SILENCED.disable(Selector::all_players());
+    MANA.set(Target::all_players(), 100);
+    SILENCED.disable(Target::all_players());
 }
 
 #[datapack_component(Tick)]
 pub fn tick() {
-    CAST_CD.tick(Selector::all_players());
+    CAST_CD.tick(Target::all_players());
 }
 
 #[function]
 pub fn cast_bolt() {
-    MANA.remove(Selector::self_(), 20);
-    CAST_CD.start(Selector::self_());
-    cmd::tellraw(Selector::self_(), Text::new("Bolt cast!").aqua());
+    MANA.remove(Target::self_(), 20);
+    CAST_CD.start(Target::self_());
+    cmd::tellraw(Target::self_(), Text::new("Bolt cast!").aqua());
 }
 
 fn main() {

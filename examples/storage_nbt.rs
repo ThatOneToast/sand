@@ -16,7 +16,7 @@ pub fn show_storage_state() {
     TypedExecute::as_players()
         .when(PLAYER_MANA.exists())
         .run(Actionbar::show(
-            Selector::self_(),
+            Target::self_(),
             Text::new("Storage ready").green(),
         ));
 }

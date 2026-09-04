@@ -30,7 +30,7 @@
 //!
 //! #[function]
 //! pub fn greet() {
-//!     cmd::tellraw(Selector::all_players(), Text::new("Hello from Sand").gold());
+//!     cmd::tellraw(Target::players(), Text::new("Hello from Sand").gold());
 //! }
 //!
 //! #[datapack_component(Tick)]
@@ -207,9 +207,9 @@ fn expected_public_function(function: &ItemFn) -> Option<String> {
 ///     use_when = ["A system needs immediate healing"],
 ///     avoid_when = ["Health should regenerate over time"],
 ///     params(player = "The single player to heal."),
-///     example = "heal(PlayerTarget::self_());",
+///     example = "heal(Target::current_player());",
 /// )]
-/// pub fn heal(player: sand::command::PlayerTarget<sand::command::One>) {}
+/// pub fn heal(player: sand::command::Target) {}
 /// ```
 #[proc_macro_attribute]
 pub fn api(attr: TokenStream, item: TokenStream) -> TokenStream {
@@ -252,7 +252,7 @@ pub fn registry_id(input: TokenStream) -> TokenStream {
 ///     #[state(default = 20, min = 0)]
 ///     health: sand::state::Score<i32>,
 /// }
-/// let player = PlayerState::on(sand::command::PlayerTarget::self_());
+/// let player = PlayerState::on(sand::command::Target::current_player());
 /// player.health.set(20);
 /// ```
 #[proc_macro_derive(State, attributes(state))]
@@ -949,7 +949,7 @@ fn build_cmd_body(block: &syn::Block) -> syn::Result<proc_macro2::TokenStream> {
 /// #[function]
 /// fn hello_world() {
 ///     cmd::tellraw(
-///         Selector::all_players(),
+///         Target::players(),
 ///         Text::new("Welcome!").gold().bold(true),
 ///     );
 ///     cmd::say("Enjoy your stay!");
@@ -1199,7 +1199,7 @@ fn expand_function(
 /// ```rust,ignore
 /// #[datapack_component(Tick)]
 /// pub fn my_tick() {
-///     TIMER.tick(Selector::all_players());
+///     TIMER.tick(Target::players());
 /// }
 ///
 /// #[datapack_component(Load)]
@@ -2450,10 +2450,10 @@ fn expand_event(attr: TokenStream, func: ItemFn) -> syn::Result<proc_macro2::Tok
 /// #[function]
 /// fn my_fn() {
 ///     Execute::new()
-///         .as_(Selector::all_players())
+///         .as_(Target::players())
 ///         .run(run_fn!("hello_world:greet" {
 ///             cmd::say("Welcome!");
-///             VISITS.add(Selector::self_(), 1);
+///             VISITS.add(Target::self_(), 1);
 ///         }));
 /// }
 /// ```
@@ -2466,7 +2466,7 @@ fn expand_event(attr: TokenStream, func: ItemFn) -> syn::Result<proc_macro2::Tok
 ///
 /// ```rust,ignore
 /// Execute::new()
-///     .as_(Selector::all_players())
+///     .as_(Target::players())
 ///     .run(run_fn!({
 ///         cmd::say("One-off greeting!");
 ///     }));
@@ -2476,7 +2476,7 @@ fn expand_event(attr: TokenStream, func: ItemFn) -> syn::Result<proc_macro2::Tok
 ///
 /// ```rust,ignore
 /// Execute::new()
-///     .as_(Selector::all_players())
+///     .as_(Target::players())
 ///     .run(run_fn!("hello_world:on_player_join"))
 /// ```
 ///
@@ -3415,13 +3415,13 @@ impl syn::parse::Parse for ArmorEventAttr {
 /// #[armor_event(Equip, slot = Feet, item = "minecraft:leather_boots",
 ///               custom_data = "{mana_boots:true}")]
 /// pub fn on_mana_boots_equip() {
-///     MANA_REGEN_BOOST.enable(Selector::self_());
+///     MANA_REGEN_BOOST.enable(Target::self_());
 /// }
 ///
 /// #[armor_event(Unequip, slot = Feet, item = "minecraft:leather_boots",
 ///               custom_data = "{mana_boots:true}")]
 /// pub fn on_mana_boots_unequip() {
-///     MANA_REGEN_BOOST.disable(Selector::self_());
+///     MANA_REGEN_BOOST.disable(Target::self_());
 /// }
 /// ```
 ///
@@ -3875,9 +3875,9 @@ fn expand_schedule(func: ItemFn, attr: ScheduleAttr) -> syn::Result<proc_macro2:
 /// Usage:
 /// ```rust,ignore
 /// Execute::new()
-///     .as_(Selector::all_players())
-///     .at(Selector::self_())
-///     .if_items_entity(Selector::self_(), ItemSlot::Feet, ManaBoots::PREDICATE)
+///     .as_(Target::players())
+///     .at(Target::self_())
+///     .if_items_entity(Target::self_(), ItemSlot::Feet, ManaBoots::PREDICATE)
 ///     .run_fn("ns:on_mana_boots_tick");
 /// ```
 #[proc_macro_attribute]

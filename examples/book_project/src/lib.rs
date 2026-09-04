@@ -63,7 +63,7 @@ pub fn load() {
     DamageTracker::define();
     GRAPPLE_RANGE.set_int(8);
     cmd::tellraw(
-        Selector::all_players(),
+        Target::players(),
         Text::new("[Trailforge] loaded.").gold(),
     );
 }
@@ -81,10 +81,10 @@ pub fn tick() {
     // to every player below the cap, then restart the timer.
     TypedExecute::as_players()
         .when(all![REGEN.expired("@s"), STAMINA.of("@s").lt(100)])
-        .run(STAMINA.add(Selector::self_(), 10));
+        .run(STAMINA.add(Target::self_(), 10));
     TypedExecute::as_players()
         .when(REGEN.expired("@s"))
-        .run(REGEN.start(Selector::self_()));
+        .run(REGEN.start(Target::self_()));
 
     // Exhaustion clears once stamina recovers past half.
     TypedExecute::as_players()
@@ -102,7 +102,7 @@ pub fn tick() {
             EXHAUSTED.of("@s").is_false(),
         ])
         .run(Actionbar::show(
-            Selector::self_(),
+            Target::self_(),
             Text::new("Grapple ready").aqua().bold(true),
         ));
 
@@ -111,7 +111,7 @@ pub fn tick() {
     TypedExecute::as_players()
         .when(DamageTracker::hurt_within("@s", Ticks::seconds(3)))
         .run(Actionbar::show(
-            Selector::self_(),
+            Target::self_(),
             Text::new("Catch your breath...").red(),
         ));
 }
@@ -197,17 +197,17 @@ pub fn grapple() {
 /// Applies the grapple dash: pay stamina, start the cooldown, launch, sparkle.
 #[function("trail:grapple/execute")]
 pub fn grapple_execute() {
-    STAMINA.remove(Selector::self_(), 30);
-    GRAPPLE.start(Selector::self_());
-    cmd::effect_give(Selector::self_(), EffectId::Speed)
+    STAMINA.remove(Target::self_(), 30);
+    GRAPPLE.start(Target::self_());
+    cmd::effect_give(Target::self_(), EffectId::Speed)
         .duration(Ticks::seconds(3))
         .amplifier(2)
         .particles(false);
-    cmd::effect_give(Selector::self_(), EffectId::SlowFalling)
+    cmd::effect_give(Target::self_(), EffectId::SlowFalling)
         .duration(Ticks::seconds(4))
         .particles(false);
-    grapple_vfx().play_at(Selector::self_());
-    cmd::tellraw(Selector::self_(), Text::new("Whoosh!").aqua());
+    grapple_vfx().play_at(Target::self_());
+    cmd::tellraw(Target::self_(), Text::new("Whoosh!").aqua());
 }
 // ANCHOR_END: fn_grapple_execute
 
@@ -215,9 +215,9 @@ pub fn grapple_execute() {
 /// Clears exhaustion once stamina has recovered (called from `tick`).
 #[function("trail:recover")]
 pub fn recover() {
-    EXHAUSTED.disable(Selector::self_());
+    EXHAUSTED.disable(Target::self_());
     cmd::tellraw(
-        Selector::self_(),
+        Target::self_(),
         Text::new("You feel steady again.").green(),
     );
 }
@@ -234,7 +234,7 @@ pub fn claim_striders() {
     if_(HAS_STRIDERS.of("@s").is_true())
         .then_all(mcfunction![
             cmd::tellraw(
-                Selector::self_(),
+                Target::self_(),
                 Text::new("You already wear Trail Striders.").red(),
             );
             cmd::return_fail();
@@ -243,7 +243,7 @@ pub fn claim_striders() {
             cmd::raw(format!("give @s {}", trail_striders()));
             HAS_STRIDERS.enable("@s");
             cmd::tellraw(
-                Selector::self_(),
+                Target::self_(),
                 Text::new("Trail Striders bound to your feet!").gold(),
             );
             cmd::return_cmd(1);
@@ -255,7 +255,7 @@ pub fn claim_striders() {
 /// Opens the trailhead menu dialog for the current player.
 #[function("trail:menu")]
 pub fn open_menu() {
-    cmd::show_dialog(Selector::self_(), DialogId::local("trailhead"));
+    cmd::show_dialog(Target::self_(), DialogId::local("trailhead"));
 }
 // ANCHOR_END: fn_open_menu
 
@@ -365,8 +365,8 @@ pub fn on_first_join(event: FirstJoin) {
 /// Death resets the traversal state so respawned players start steady.
 #[on_event]
 pub fn on_death(event: OnDeath) {
-    EXHAUSTED.disable(Selector::self_());
-    GRAPPLE.stop(Selector::self_());
+    EXHAUSTED.disable(Target::self_());
+    GRAPPLE.stop(Target::self_());
     STAMINA.set(event.player(), 100);
 }
 // ANCHOR_END: event_on_death
@@ -389,7 +389,7 @@ pub fn on_obtained_grapple_core(event: Event<ObtainedGrappleCoreEvent>) {
 pub fn on_stamina_exhausted(_event: StaminaExhaustedEvent) {
     EXHAUSTED.enable("@s");
     cmd::tellraw(
-        Selector::self_(),
+        Target::self_(),
         Text::new("You are exhausted!").red().bold(true),
     );
 }
@@ -399,7 +399,7 @@ pub fn on_stamina_exhausted(_event: StaminaExhaustedEvent) {
 /// Sprinting while exhausted is punished with brief slowness.
 #[on_event]
 pub fn on_sprint_while_exhausted(_event: SprintingWhileExhaustedEvent) {
-    cmd::effect_give(Selector::self_(), EffectId::Slowness)
+    cmd::effect_give(Target::self_(), EffectId::Slowness)
         .duration(Ticks::seconds(2))
         .particles(false);
 }

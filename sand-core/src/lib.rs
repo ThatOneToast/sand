@@ -18,7 +18,7 @@
 //!
 //! - [`ResourceLocation`] — validated `namespace:path` identifiers
 //! - [`DatapackComponent`] — trait implemented by all datapack element types
-//! - [`cmd`] — typed command builders (`Execute`, `Selector`, `SetBlock`, etc.)
+//! - [`cmd`] — typed command builders (`Execute`, `Target`, `SetBlock`, etc.)
 //!   plus auto-generated enums for `Item`, `Block`, `EntityType`, and more
 //! - [`components`] — advancements, recipes, loot tables, predicates, item
 //!   modifiers, tags, and custom items
@@ -36,7 +36,7 @@
 //! #[function]
 //! pub fn greet() {
 //!     cmd::tellraw(
-//!         Selector::all_players(),
+//!         Target::players(),
 //!         Text::new("Hello from Sand!").gold().bold(true),
 //!     );
 //! }
@@ -99,10 +99,10 @@ pub use sand_components::dialog::SAND_DIALOG_TRIGGER;
 
 pub use cmd::{
     Actionbar, BlockState, Bossbar, BossbarColor, BossbarStyle, CloneBlocks, CloneMaskMode,
-    CloneMode, Command, ConditionedExecute, Cooldown, EntityTargets, ExecuteExt, Fill, FillMode,
-    ItemSlot, NbtStoreKind, NbtValue, Objective, ObjectiveName, ParticleEffect, ParticleSpread,
-    PlayerTargets, RawCommand, RenderCommand, ScoreCmp, ScoreHolder, SetBlock, SetBlockMode,
-    SingleEntity, SinglePlayer, Sound, SoundSource, Storage, Title, TypedExecute, Validate,
+    CloneMode, Command, ConditionedExecute, Cooldown, ExecuteExt, Fill, FillMode, ItemSlot,
+    NbtStoreKind, NbtValue, Objective, ObjectiveName, ParticleEffect, ParticleSpread, RawCommand,
+    RenderCommand, ScoreCmp, ScoreHolder, SetBlock, SetBlockMode, Sound, SoundSource, Storage,
+    Target, Title, TypedExecute, Validate,
 };
 pub use component::try_export_components;
 pub use component::try_export_components_for_version;
@@ -204,7 +204,7 @@ pub use function::{
 mod compiler;
 mod transition;
 pub use mc_version::McVersion;
-pub use resource_location::{Identifier, PackNamespace, ResourceLocation};
+pub use resource_location::{PackNamespace, ResourceLocation};
 pub use state::{
     BlockNbt, EntityNbt, NbtLocation, NbtPath, SnbtCompound, SnbtValue, StorageField,
     StorageLocation, StorageSchema, StorageVar,
@@ -398,7 +398,6 @@ pub use sand_components::{
     Projection,
     // Villager trades (26.1+)
     RandomSequenceId,
-    Rarity,
     // Raw escape hatch types
     RawComponent,
     RawJson,
@@ -493,10 +492,10 @@ pub use serde_json;
 ///
 /// With command builders:
 /// ```rust,ignore
-/// use sand_core::{mcfunction, cmd::Selector};
+/// use sand_core::{mcfunction, cmd::Target};
 /// let cmds = mcfunction![
 ///     sand_core::cmd::say("Welcome!");
-///     sand_core::cmd::kill(Selector::all_entities().tag("enemy"));
+///     sand_core::cmd::kill(Target::entities().tag("enemy"));
 /// ];
 /// ```
 #[macro_export]
@@ -596,9 +595,9 @@ pub mod __private {
     pub use crate::entity::state::{
         ArchetypeStateScope, EntityStateScope, GlobalStateBundleScope, GlobalStateScope,
         LivingStateScope, PlayerStateScope, SameStateScope, StateBundleMember, StateBundleTarget,
-        StateBundleTree, StateDataFieldDescriptor, StateScopeMarker, resolve_state_objective,
-        state_attach_commands, state_attached_condition, state_bundle_trees_overlap,
-        state_detach_commands, state_presence_predicate,
+        StateBundleTree, StateComponentLifecycle, StateDataFieldDescriptor, StateScopeMarker,
+        resolve_state_objective, state_attach_commands, state_attached_condition,
+        state_bundle_trees_overlap, state_detach_commands, state_presence_predicate,
     };
     #[doc(hidden)]
     pub use crate::function::StateSystemDescriptor;

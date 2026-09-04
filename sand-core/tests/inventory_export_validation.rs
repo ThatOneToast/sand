@@ -15,7 +15,7 @@
 //! this deliberately-invalid fixture in its own file/process keeps it from
 //! being included in every export in that other file's tests.
 
-use sand_commands::{Inventory, ItemSlot, Selector};
+use sand_commands::{Inventory, ItemSlot, Target};
 use sand_core::component::try_export_components_json as export_components_json;
 use sand_core::function::FunctionDescriptor;
 
@@ -24,7 +24,7 @@ fn wildcard_write_pack_body() -> Vec<String> {
     // panic on a wildcard-slot write, but the rendered line is registered
     // so export-time validation still catches it (see #172's acceptance
     // criterion: "route inventory output through exporter validation").
-    vec![Inventory::of(Selector::self_()).set(ItemSlot::AnyHotbar, "regtest:direct_wildcard")]
+    vec![Inventory::of(Target::self_()).set(ItemSlot::AnyHotbar, "regtest:direct_wildcard")]
 }
 
 sand_core::inventory::submit! {

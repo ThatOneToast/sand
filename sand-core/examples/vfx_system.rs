@@ -23,7 +23,7 @@ fn level_up_vfx() -> Vfx {
 }
 
 fn main() {
-    for command in level_up_vfx().play_at(Selector::self_()) {
+    for command in level_up_vfx().play_at(Target::self_()) {
         println!("{command}");
     }
 }

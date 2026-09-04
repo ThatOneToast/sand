@@ -17,7 +17,7 @@ mod private_state {
     }
 
     pub fn commands() -> Vec<String> {
-        let bound: PrivateStateBound = PrivateState::on(PlayerContext::default());
+        let bound: PrivateStateBound = PrivateState::on(EntityContext::<PlayerKind>::default());
         bound.phase.set(PrivatePhase::Ready)
     }
 }
@@ -52,9 +52,9 @@ fn main() {
     let _ = private_state::commands();
 
     let crate_bound: crate_state::CrateStateBound =
-        crate_state::CrateState::on(PlayerContext::default());
+        crate_state::CrateState::on(EntityContext::<PlayerKind>::default());
     let _ = crate_bound.phase.set(crate_state::CratePhase::Ready);
 
-    let public_bound: PublicStateBound = PublicState::on(PlayerContext::default());
+    let public_bound: PublicStateBound = PublicState::on(EntityContext::<PlayerKind>::default());
     let _ = public_bound.phase.set(PublicPhase::Ready);
 }

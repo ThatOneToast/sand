@@ -1,6 +1,6 @@
 use std::fmt;
 
-use sand_commands::{Build, EffectCommand, EffectDuration, RenderCommand, Selector};
+use sand_commands::{Build, EffectCommand, EffectDuration, RenderCommand, TargetArgument};
 use sand_components::{EffectId, Ticks};
 
 use super::Command;
@@ -38,9 +38,9 @@ impl EffectGive {
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
         params(selector = "`selector` provides the Minecraft target selection used to create a typed effect give command builder from the supplied command inputs.", effect = "`effect` is used when creating a typed effect give command builder from the supplied command inputs."),
         returns = "An `EffectGive` representing a typed effect give command builder from the supplied command inputs.",
-        example = "use sand::prelude::*;\n\nfn demonstrate(selector: sand::command::Selector, effect: impl Into < sand::registry::EffectId >)  {\n    let effect_give = sand::command::EffectGive::new(selector, effect);\n}",
+        example = "use sand::prelude::*;\n\nfn demonstrate(selector: sand::command::Target, effect: impl Into < sand::registry::EffectId >)  {\n    let effect_give = sand::command::EffectGive::new(selector, effect);\n}",
     )]
-    pub fn new(selector: Selector, effect: impl Into<EffectId>) -> Self {
+    pub fn new(selector: impl TargetArgument, effect: impl Into<EffectId>) -> Self {
         Self {
             command: EffectCommand::give(selector, effect.into().to_string()),
         }
@@ -216,9 +216,9 @@ impl From<EffectGive> for String {
     avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
     params(selector = "`selector` provides the Minecraft target selection used to emit the documented `effect give <selector> <effect>` with typed effect IDs form.", effect = "`effect` supplies the documented `effect give <selector> <effect>` with typed effect IDs form."),
     returns = "The `EffectGive` value produced to emit the documented `effect give <selector> <effect>` with typed effect IDs form.",
-    example = "use sand::prelude::*;\n\nfn demonstrate(selector: sand::command::Selector, effect: impl Into < sand::registry::EffectId >)  {\n    let effect_give = sand::command::effect_give(selector, effect);\n}",
+    example = "use sand::prelude::*;\n\nfn demonstrate(selector: sand::command::Target, effect: impl Into < sand::registry::EffectId >)  {\n    let effect_give = sand::command::effect_give(selector, effect);\n}",
 )]
-pub fn effect_give(selector: Selector, effect: impl Into<EffectId>) -> EffectGive {
+pub fn effect_give(selector: impl TargetArgument, effect: impl Into<EffectId>) -> EffectGive {
     EffectGive::new(selector, effect)
 }
 
@@ -235,9 +235,9 @@ pub fn effect_give(selector: Selector, effect: impl Into<EffectId>) -> EffectGiv
     avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
     params(selector = "`selector` provides the Minecraft target selection used to emit the documented `effect clear <selector>` — clear all status effects form."),
     returns = "The string value produced to emit the documented `effect clear <selector>` — clear all status effects form.",
-    example = "use sand::prelude::*;\n\nfn demonstrate(selector: sand::command::Selector)  {\n    let effect_clear = sand::command::effect_clear(selector);\n}",
+    example = "use sand::prelude::*;\n\nfn demonstrate(selector: sand::command::Target)  {\n    let effect_clear = sand::command::effect_clear(selector);\n}",
 )]
-pub fn effect_clear(selector: Selector) -> String {
+pub fn effect_clear(selector: impl TargetArgument) -> String {
     format!("effect clear {selector}")
 }
 
@@ -254,9 +254,9 @@ pub fn effect_clear(selector: Selector) -> String {
     avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
     params(selector = "`selector` provides the Minecraft target selection used to emit the documented `effect clear <selector> <effect>` — clear one typed status effect form.", effect = "`effect` supplies the documented `effect clear <selector> <effect>` — clear one typed status effect form."),
     returns = "The string value produced to emit the documented `effect clear <selector> <effect>` — clear one typed status effect form.",
-    example = "use sand::prelude::*;\n\nfn demonstrate(selector: sand::command::Selector, effect: impl Into < sand::registry::EffectId >)  {\n    let effect_clear_effect = sand::command::effect_clear_effect(selector, effect);\n}",
+    example = "use sand::prelude::*;\n\nfn demonstrate(selector: sand::command::Target, effect: impl Into < sand::registry::EffectId >)  {\n    let effect_clear_effect = sand::command::effect_clear_effect(selector, effect);\n}",
 )]
-pub fn effect_clear_effect(selector: Selector, effect: impl Into<EffectId>) -> String {
+pub fn effect_clear_effect(selector: impl TargetArgument, effect: impl Into<EffectId>) -> String {
     format!("effect clear {selector} {}", effect.into())
 }
 
@@ -273,10 +273,10 @@ pub fn effect_clear_effect(selector: Selector, effect: impl Into<EffectId>) -> S
     avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
     params(selector = "`selector` provides the Minecraft target selection used to use explicit raw escape hatch for unsupported effect command syntax.", effect = "`effect` sets the effect for explicit raw escape hatch for unsupported effect command syntax.", duration_seconds = "`duration_seconds` sets the duration seconds for explicit raw escape hatch for unsupported effect command syntax.", amplifier = "`amplifier` sets the amplifier for explicit raw escape hatch for unsupported effect command syntax.", hide_particles = "`hide_particles` provides the switch that enables or disables the behavior used to use explicit raw escape hatch for unsupported effect command syntax."),
     returns = "The rendered Minecraft command text produced to use explicit raw escape hatch for unsupported effect command syntax.",
-    example = "use std::fmt;\nuse sand::prelude::*;\n\nfn demonstrate(selector: sand::command::Selector, effect: impl fmt::Display, duration_seconds: u32, amplifier: u8, hide_particles: bool)  {\n    let command = sand::command::effect_give_raw(selector, effect, duration_seconds, amplifier, hide_particles);\n}",
+    example = "use std::fmt;\nuse sand::prelude::*;\n\nfn demonstrate(selector: sand::command::Target, effect: impl fmt::Display, duration_seconds: u32, amplifier: u8, hide_particles: bool)  {\n    let command = sand::command::effect_give_raw(selector, effect, duration_seconds, amplifier, hide_particles);\n}",
 )]
 pub fn effect_give_raw(
-    selector: Selector,
+    selector: impl TargetArgument,
     effect: impl fmt::Display,
     duration_seconds: u32,
     amplifier: u8,

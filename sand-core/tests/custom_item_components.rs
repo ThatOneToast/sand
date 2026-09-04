@@ -18,7 +18,7 @@ fn typed_custom_name_lore_model_rarity_and_give_command() {
         "minecraft:diamond_sword[custom_data={\"arcane:inferno_blade\":1b},custom_model_data={floats:[1001.0f]},custom_name={color:\"red\",text:\"Inferno Blade\"},lore=[{color:\"dark_red\",text:\"A weapon of pure flame\"},{color:\"gray\",text:\"Forged below the world\"}],rarity=\"epic\"]"
     );
     assert_eq!(
-        cmd::give(Selector::self_(), item).to_string(),
+        cmd::give(Target::self_(), item).to_string(),
         "give @s minecraft:diamond_sword[custom_data={\"arcane:inferno_blade\":1b},custom_model_data={floats:[1001.0f]},custom_name={color:\"red\",text:\"Inferno Blade\"},lore=[{color:\"dark_red\",text:\"A weapon of pure flame\"},{color:\"gray\",text:\"Forged below the world\"}],rarity=\"epic\"]"
     );
 }
@@ -35,7 +35,7 @@ fn invalid_custom_item_reports_a_sand_diagnostic_before_reaching_give() {
 
     let result: Result<String, _> = invalid
         .try_to_string()
-        .map(|item_str| cmd::give(Selector::all_players(), item_str).to_string());
+        .map(|item_str| cmd::give(Target::all_players(), item_str).to_string());
 
     let err = result.expect_err("invalid CustomItem must not reach cmd::give");
     assert!(err.to_string().contains("max_stack_size"), "{err}");

@@ -72,12 +72,12 @@ fn api_search_and_show_need_no_source_tree() {
         .expect("run `sand api search` outside any Sand source tree");
     assert!(search.status.success());
     assert!(
-        String::from_utf8_lossy(&search.stdout).contains("sand::entity::EntityQuery::nearby"),
+        String::from_utf8_lossy(&search.stdout).contains("sand::command::Target::nearby"),
         "search from outside the repo should find the same results as from inside it"
     );
 
     let show = Command::new(env!("CARGO_BIN_EXE_sand"))
-        .args(["api", "show", "sand::entity::EntityQuery::nearby"])
+        .args(["api", "show", "sand::command::Target::nearby"])
         .current_dir(&outside_dir)
         .output()
         .expect("run `sand api show` outside any Sand source tree");

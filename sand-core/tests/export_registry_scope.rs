@@ -30,7 +30,7 @@ use std::cell::Cell;
 use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hash, Hasher};
 
-use sand_commands::{Execute, ItemSlot, Selector};
+use sand_commands::{Execute, ItemSlot, Target};
 use sand_core::function::FunctionDescriptor;
 
 /// The one command text both phases produce, byte for byte.
@@ -65,7 +65,7 @@ fn phase_body() -> Vec<String> {
     match PHASE.with(Cell::get) {
         Phase::Typed => {
             let line = Execute::new()
-                .if_items(Selector::self_(), ItemSlot::MainHand, "minecraft:diamond")
+                .if_items(Target::self_(), ItemSlot::MainHand, "minecraft:diamond")
                 .run_raw("say found");
             assert_eq!(
                 line, SHARED_LINE,

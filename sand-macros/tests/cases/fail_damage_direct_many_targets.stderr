@@ -1,21 +1,21 @@
-error[E0277]: the trait bound `EntityTarget<One>: std::convert::From<EntityTarget<Many>>` is not satisfied
+error[E0277]: the trait bound `sand_core::Target: sand_commands::selector::SingleTargetArgument` is not satisfied
  --> tests/cases/fail_damage_direct_many_targets.rs:4:25
   |
-4 |     let _ = cmd::damage(EntityTargets::nearby(5.0), 4.0);
-  |             ----------- ^^^^^^^^^^^^^^^^^^^^^^^^^^ the trait `std::convert::From<EntityTarget<Many>>` is not implemented for `EntityTarget<One>`
+4 |     let _ = cmd::damage(Target::nearby(5.0), 4.0);
+  |             ----------- ^^^^^^^^^^^^^^^^^^^ the trait `sand_commands::selector::SingleTargetArgument` is not implemented for `sand_core::Target`
   |             |
   |             required by a bound introduced by this call
   |
-help: the trait `From<EntityTarget<Many>>` is not implemented for `EntityTarget<One>`
-      but trait `From<PlayerTarget<One>>` is implemented for it
+help: the following other types implement trait `sand_commands::selector::SingleTargetArgument`
  --> $WORKSPACE/sand-commands/src/selector.rs
   |
-  | impl From<SinglePlayer> for SingleEntity {
-  | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  = help: for that trait implementation, expected `PlayerTarget<One>`, found `EntityTarget<Many>`
-  = note: required for `EntityTarget<Many>` to implement `Into<EntityTarget<One>>`
+  | impl SingleTargetArgument for Target<AnyTarget, One> {}
+  | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ `sand_core::Target<sand_commands::selector::AnyTarget, sand_commands::selector::One>`
+...
+  | impl SingleTargetArgument for Target<PlayersOnly, One> {}
+  | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ `sand_core::Target<sand_commands::selector::PlayersOnly, sand_commands::selector::One>`
 note: required by a bound in `damage`
  --> $OUT_DIR[sand-core]/commands.rs
   |
-  | pub fn damage(target: impl Into<SingleEntity>, amount: f32) -> Damage {
-  |                            ^^^^^^^^^^^^^^^^^^ required by this bound in `damage`
+  | pub fn damage(target: impl SingleTargetArgument, amount: f32) -> Damage {
+  |                            ^^^^^^^^^^^^^^^^^^^^ required by this bound in `damage`

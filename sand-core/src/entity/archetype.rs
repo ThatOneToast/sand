@@ -694,21 +694,22 @@ where
     where
         B: StateComposition,
     {
-        let mut identities = B::composition_identities();
-        identities.sort();
-        identities.dedup();
-        let schemas = B::composition_schemas();
-        if !self
-            .components
-            .iter()
-            .any(|component| component.identities == identities)
-        {
-            self.components.push(ArchetypeComponent {
-                identities,
-                schemas,
-                attach: B::composition_attach,
-                detach: B::composition_detach,
-            });
+        for lifecycle in B::composition_lifecycles() {
+            let mut identities = lifecycle.identities;
+            identities.sort();
+            identities.dedup();
+            if !self
+                .components
+                .iter()
+                .any(|component| component.identities == identities)
+            {
+                self.components.push(ArchetypeComponent {
+                    identities,
+                    schemas: lifecycle.schemas,
+                    attach: lifecycle.attach,
+                    detach: lifecycle.detach,
+                });
+            }
         }
         self
     }
@@ -1993,10 +1994,33 @@ pub(crate) fn compile_registered(
             });
         }
     }
+    let claims = component_claims(&definitions);
     definitions
         .iter()
-        .map(|definition| compile_definition(definition, profile))
+        .map(|definition| compile_definition_with_claims(definition, profile, &claims))
         .collect()
+}
+
+type ComponentClaims = std::collections::BTreeMap<String, Vec<String>>;
+
+fn component_claims(definitions: &[ArchetypeDefinition]) -> ComponentClaims {
+    let mut claims = ComponentClaims::new();
+    for definition in definitions {
+        let marker = initialized_tag(&definition.id.to_string());
+        for component in &definition.components {
+            for (identity, _) in &component.identities {
+                claims
+                    .entry(identity.clone())
+                    .or_default()
+                    .push(marker.clone());
+            }
+        }
+    }
+    for markers in claims.values_mut() {
+        markers.sort();
+        markers.dedup();
+    }
+    claims
 }
 
 #[derive(Debug, Clone)]
@@ -2119,9 +2143,19 @@ impl ArchetypeFields {
     }
 }
 
+#[cfg(test)]
 fn compile_definition(
     definition: &ArchetypeDefinition,
+    profile: &crate::version::VersionProfile,
+) -> Result<CompiledArchetype, EntityDiagnostic> {
+    let claims = component_claims(std::slice::from_ref(definition));
+    compile_definition_with_claims(definition, profile, &claims)
+}
+
+fn compile_definition_with_claims(
+    definition: &ArchetypeDefinition,
     _profile: &crate::version::VersionProfile,
+    claims: &ComponentClaims,
 ) -> Result<CompiledArchetype, EntityDiagnostic> {
     let fields = ArchetypeFields::new(definition)?;
     validate_definition(definition)?;
@@ -2176,9 +2210,7 @@ fn compile_definition(
     objectives.extend(derivations.objectives);
     functions.extend(derivations.functions);
     records.extend(derivations.records);
-    if let Some(path) = &derivations.refresh_function {
-        initialize_commands.push(format!("function {path}"));
-    }
+    initialize_commands.extend(derivations.initialize_commands.iter().cloned());
 
     let mut refresh_sources: Vec<(String, String)> = Vec::new();
     let mut refresh_outputs: Vec<(String, String)> = Vec::new();
@@ -2356,15 +2388,34 @@ fn compile_definition(
     }
     let mut component_cleanup = Vec::new();
     for component in definition.components.iter().rev() {
-        component_cleanup.extend((component.detach)("@s"));
+        let mut retaining_markers = component
+            .identities
+            .iter()
+            .flat_map(|(identity, _)| claims.get(identity).into_iter().flatten())
+            .filter(|claim| *claim != &marker)
+            .cloned()
+            .collect::<Vec<_>>();
+        retaining_markers.sort();
+        retaining_markers.dedup();
+        component_cleanup.extend(
+            (component.detach)("@s")
+                .into_iter()
+                .map(|command| guard_component_cleanup(&command, &retaining_markers)),
+        );
     }
     dedup_commands(&mut component_cleanup);
     cleanup_commands.extend(component_cleanup);
     for property in &definition.properties {
         cleanup_commands.extend(property_cleanup_commands(property));
     }
+    let component_objectives = fields
+        .values()
+        .flat_map(|field| [field.objective.clone(), field.dirty_objective.clone()])
+        .collect::<BTreeSet<_>>();
     for objective in &objectives {
-        cleanup_commands.push(format!("scoreboard players reset @s {objective}"));
+        if !component_objectives.contains(objective) {
+            cleanup_commands.push(format!("scoreboard players reset @s {objective}"));
+        }
     }
     dedup_commands(&mut cleanup_commands);
     cleanup_commands.push(format!("tag @s remove {marker}"));
@@ -2613,6 +2664,18 @@ fn compile_definition(
     })
 }
 
+fn guard_component_cleanup(command: &str, retaining_markers: &[String]) -> String {
+    if retaining_markers.is_empty() {
+        return command.to_owned();
+    }
+    let guards = retaining_markers
+        .iter()
+        .map(|marker| format!("unless entity @s[tag={marker}]"))
+        .collect::<Vec<_>>()
+        .join(" ");
+    format!("execute {guards} run {command}")
+}
+
 struct TransitionCompilation {
     records: Vec<crate::component::ComponentRecord>,
     functions: Vec<String>,
@@ -2856,6 +2919,7 @@ struct DerivationCompilation {
     records: Vec<crate::component::ComponentRecord>,
     functions: Vec<String>,
     objectives: Vec<String>,
+    initialize_commands: Vec<String>,
     refresh_function: Option<String>,
 }
 
@@ -2909,6 +2973,7 @@ fn compile_derivations(
     let mut functions = Vec::new();
     let mut objectives = BTreeSet::new();
     let mut refresh_commands = Vec::new();
+    let mut initialize_commands = Vec::new();
     for (index, derivation) in derivations.into_iter().enumerate() {
         let target = derivation.target.objective();
         let target_dirty = derivation.target.dirty_objective();
@@ -2965,6 +3030,7 @@ fn compile_derivations(
         }
         commands.push(format!("scoreboard players set @s {target_dirty} 1"));
         records.push(function_record(definition.id.namespace(), &path, commands));
+        initialize_commands.push(format!("function {}:{path}", definition.id.namespace()));
         refresh_commands.push(format!(
             "execute if score @s {derivation_dirty} matches 1 run function {}:{path}",
             definition.id.namespace()
@@ -2988,6 +3054,7 @@ fn compile_derivations(
         records,
         functions,
         objectives: objectives.into_iter().collect(),
+        initialize_commands,
         refresh_function,
     })
 }

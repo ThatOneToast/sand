@@ -84,6 +84,12 @@ fn valid_component_first() -> EntityArchetype<ZombieKind> {
         )
 }
 
+#[entity_archetype]
+fn shared_progression_user() -> EntityArchetype<ZombieKind> {
+    EntityArchetype::new("cf_valid:progression_observer".parse().unwrap())
+        .components::<Progression>()
+}
+
 #[test]
 fn flattened_components_drive_cross_component_properties_deterministically() {
     let first = sand_core::try_export_components_json("cf_valid")
@@ -138,5 +144,65 @@ fn flattened_components_drive_cross_component_properties_deterministically() {
     assert!(
         provision.contains("execute unless score @s"),
         "adoption must preserve already-attached component values"
+    );
+
+    let initialize_record = records
+        .iter()
+        .find(|record| {
+            record["path"]
+                .as_str()
+                .is_some_and(|path| path.ends_with("/initialize"))
+                && record["content"]
+                    .as_str()
+                    .is_some_and(|content| content.contains("/derive/0"))
+        })
+        .expect("seeker initialization function");
+    let initialize = initialize_record["content"].as_str().unwrap();
+    let first_derivation = initialize
+        .lines()
+        .position(|line| line.contains("/derive/0"))
+        .expect("first derivation must be seeded during adoption");
+    let second_derivation = initialize
+        .lines()
+        .position(|line| line.contains("/derive/1"))
+        .expect("chained derivation must be seeded during adoption");
+    assert!(first_derivation < second_derivation);
+
+    let cleanup_path = format!(
+        "{}/cleanup",
+        initialize_record["path"]
+            .as_str()
+            .unwrap()
+            .trim_end_matches("/initialize")
+    );
+    let cleanup = records
+        .iter()
+        .find(|record| record["path"] == cleanup_path)
+        .and_then(|record| record["content"].as_str())
+        .expect("seeker cleanup function");
+    let shared_presence = &Progression::composition_identities()[0].0;
+    let exclusive_presence = &Combat::composition_identities()[0].0;
+    assert!(
+        cleanup
+            .lines()
+            .filter(|line| line.contains(shared_presence))
+            .all(|line| line.starts_with("execute unless entity @s[tag=")),
+        "cleanup must preserve a component still claimed by another archetype"
+    );
+    assert!(
+        cleanup
+            .lines()
+            .any(|line| line.contains(exclusive_presence)
+                && !line.starts_with("execute unless entity")),
+        "cleanup must still detach components exclusive to this archetype"
+    );
+    assert!(
+        !cleanup.lines().any(|line| {
+            line == format!(
+                "scoreboard players reset @s {}",
+                Progression::level.objective()
+            )
+        }),
+        "archetype cleanup must not bypass component ownership with an unconditional field reset"
     );
 }

@@ -966,6 +966,15 @@ pub(crate) fn derive_state(input: DeriveInput) -> syn::Result<proc_macro2::Token
             fn component_schemas() -> Vec<::sand::__private::StateSchema> {
                 vec![<Self as ::sand::__private::EntityState>::schema()]
             }
+
+            fn component_lifecycles() -> Vec<::sand::__private::StateComponentLifecycle> {
+                vec![::sand::__private::StateComponentLifecycle::__new(
+                    <Self as ::sand::__private::StateBundleMember>::presence_requirements(),
+                    <Self as ::sand::__private::StateBundleMember>::component_schemas(),
+                    <Self as ::sand::__private::StateBundleMember>::attach_member,
+                    <Self as ::sand::__private::StateBundleMember>::detach_member,
+                )]
+            }
         }
 
         #lifecycle_registration
@@ -1020,6 +1029,7 @@ pub(crate) fn derive_bundle(input: DeriveInput) -> syn::Result<proc_macro2::Toke
     let mut component_trees = Vec::new();
     let mut presence = Vec::new();
     let mut schemas = Vec::new();
+    let mut lifecycles = Vec::new();
     let mut member_types = Vec::new();
     let mut contracts = Vec::new();
 
@@ -1091,6 +1101,9 @@ pub(crate) fn derive_bundle(input: DeriveInput) -> syn::Result<proc_macro2::Toke
         });
         schemas.push(quote! {
             schemas.extend(<#ty as ::sand::__private::StateBundleMember>::component_schemas());
+        });
+        lifecycles.push(quote! {
+            lifecycles.extend(<#ty as ::sand::__private::StateBundleMember>::component_lifecycles());
         });
     }
     detach.reverse();
@@ -1253,6 +1266,12 @@ pub(crate) fn derive_bundle(input: DeriveInput) -> syn::Result<proc_macro2::Toke
                 let mut seen = ::std::collections::BTreeSet::new();
                 schemas.retain(|schema| seen.insert(schema.id()));
                 schemas
+            }
+
+            fn component_lifecycles() -> Vec<::sand::__private::StateComponentLifecycle> {
+                let mut lifecycles = Vec::new();
+                #(#lifecycles)*
+                lifecycles
             }
         }
 

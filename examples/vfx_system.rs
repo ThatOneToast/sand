@@ -21,7 +21,7 @@ fn level_up_vfx() -> Vfx {
 
 #[function]
 pub fn level_up() {
-    let commands = level_up_vfx().play_at(Selector::self_());
+    let commands = level_up_vfx().play_at(Target::self_());
 
     mcfunction! {
         for command in &commands {

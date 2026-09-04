@@ -7,6 +7,49 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed — canonical target API (#368)
+
+- Consolidated entity queries, player queries, selector wrappers, and their
+  single/many aliases into the canonical `Target` API. Category and
+  cardinality remain inferred type state, so commands still reject invalid
+  targets without requiring authors to remember separate wrapper names.
+- Moved selector filters onto `Target`, including typed game modes, direct
+  distance/level bounds, ordinary objective/range score pairs, and the
+  generated `PredicateId`. Predicate filters now use the predicate-specific
+  `IntoPredicateId` capability, so unrelated registry IDs cannot compile at
+  that boundary. Unmodeled syntax remains available only through methods
+  explicitly suffixed `_raw`.
+- Removed redundant public aliases (`Identifier`, `Rarity`, `Slot`, and
+  `PlayerContext`) in favor of their canonical `ResourceLocation`,
+  `ItemRarity`, `ItemSlot`, and `EntityContext<PlayerKind>` spellings.
+- Renamed relation selection to `RelationTraversal` to distinguish Minecraft
+  `execute on` traversal from target construction. Bound executor contexts,
+  state queries, scoreboard holders, and JSON predicate schemas remain
+  separate because they carry different behavior or serialized meaning.
+- Preserved the explicit cardinality assertion from `Target::raw_single`
+  when converting into a `ScoreHolder`, so guarded timer, cooldown, and score
+  operations continue to accept advanced single-target selector syntax.
+- Added `Target::raw_single_player` so unsupported selector grammar can retain
+  both its author-asserted single cardinality and player-only category for
+  player commands, filters, iteration contexts, and score-holder conversion.
+- Typed refinements on raw targets are now incorporated into the rendered
+  selector. In particular, `raw_many(...).limit(1)` and `.nearest()` emit the
+  narrowing arguments instead of gaining a false single-target type assertion.
+- Restored every Minecraft selector ordering through `Target::sort`, keeping
+  nearest, furthest, random, and arbitrary ordering on the canonical many-target
+  API before optional `limit(1)` narrowing.
+- Named targets now lower to `@a[name=<player>,...,limit=1]` when filters are
+  applied, preserving both those filters and the target's single cardinality;
+  unfiltered named targets continue to render as literal player names. Selector
+  validation rejects a second positive name (including the literal's implicit
+  name) while continuing to allow repeated negative name exclusions.
+- Updated the representative vanilla audit pack and all version-keyed API
+  surface ratchets to the consolidated `Target` facade.
+- Updated public-facade compile fixtures and API catalog expectations for the
+  consolidated surface. Generated examples for extension traits now qualify
+  `Self`-associated types through their generic receiver, so those examples
+  compile as ordinary downstream code.
+
 ### Added — version-aware world-build registry validation (#356)
 
 - `sand-build` now generates a real, per-Minecraft-version vanilla biome

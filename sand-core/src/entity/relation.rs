@@ -135,24 +135,24 @@ impl Relation {
 
 #[sand_macros::api(
     registry = sand_api_contract,
-    path = "sand::entity::RelationQuery",
-    aliases = ["sand::prelude::RelationQuery"],
+    path = "sand::entity::RelationTraversal",
+    aliases = ["sand::prelude::RelationTraversal"],
     module = "sand::entity",
-    summary = "A pending traversal of a single [`Relation`] from an [`EntityContext`].",
-    context = "A pending traversal of a single [`Relation`] from an [`EntityContext`]. `A` encodes cardinality: [`One`] for relations that resolve to at most one entity, [`Many`] for [`Relation::Passengers`]. Cardinality is enforced at the type level: [`RelationQuery::<One>::if_present`] and [`RelationQuery::<One>::if_player`] are only defined for single-cardinality relations, and [`RelationQuery::<Many>::each`] is only defined for many-cardinality ones. Calling the single-relation API on a many-cardinality relation is a compile error, not a runtime one:",
-    minecraft = "Sand validates this definition and lowers it to entity-scoped selectors, scoreboards, NBT operations, and generated lifecycle functions as required.",
-    use_when = ["Defining or using typed entity behavior in a Sand datapack"],
-    avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
-    example = "use sand::entity::RelationQuery;",
+    summary = "A pending `execute on` relationship traversal from an [`EntityContext`].",
+    context = "A pending traversal through a vanilla `execute on <relation>` relationship. This is an execution capability returned by entity contexts, not a selector or a renamed target type; callers normally use it through inference by chaining a relation method such as `owner().if_present(...)`.",
+    minecraft = "Sand lowers this capability to `execute on <relation>` and validates relation availability for the selected Minecraft version.",
+    use_when = ["Traversing an owner, vehicle, passenger, or other vanilla entity relationship"],
+    avoid_when = ["Selecting entities by filters; use `Target` for selector-compatible targeting"],
+    example = "use sand::prelude::*;\n\nfn commands(ctx: &EntityContext<AnyEntity>, profile: &VersionProfile) {\n    let _commands = ctx.owner().if_present(profile, |owner| vec![owner.add_tag(\"has_owner\")]).unwrap();\n}",
 )]
 /// A pending traversal of a single [`Relation`] from an [`EntityContext`].
 ///
 /// `A` encodes cardinality: [`One`] for relations that resolve to at most one
 /// entity, [`Many`] for [`Relation::Passengers`].
 ///
-/// Cardinality is enforced at the type level: [`RelationQuery::<One>::if_present`]
-/// and [`RelationQuery::<One>::if_player`] are only defined for single-cardinality
-/// relations, and [`RelationQuery::<Many>::each`] is only defined for
+/// Cardinality is enforced at the type level: [`RelationTraversal::<One>::if_present`]
+/// and [`RelationTraversal::<One>::if_player`] are only defined for single-cardinality
+/// relations, and [`RelationTraversal::<Many>::each`] is only defined for
 /// many-cardinality ones. Calling the single-relation API on a many-cardinality
 /// relation is a compile error, not a runtime one:
 ///
@@ -166,12 +166,12 @@ impl Relation {
 /// // `passengers()` is many-cardinality — `if_present` does not exist for it.
 /// ctx.passengers().if_present(&profile, |p| vec![p.add_tag("x")]);
 /// ```
-pub struct RelationQuery<A> {
+pub struct RelationTraversal<A> {
     relation: Relation,
     _arity: PhantomData<A>,
 }
 
-impl<A> RelationQuery<A> {
+impl<A> RelationTraversal<A> {
     pub(crate) fn new(relation: Relation) -> Self {
         Self {
             relation,
@@ -182,8 +182,8 @@ impl<A> RelationQuery<A> {
     /// The underlying relation.
     #[sand_macros::api(
         registry = sand_api_contract,
-        path = "sand::entity::RelationQuery::relation",
-        aliases = ["sand::prelude::RelationQuery::relation"],
+        path = "sand::entity::RelationTraversal::relation",
+        aliases = ["sand::prelude::RelationTraversal::relation"],
         module = "sand::entity",
         kind = "method",
         summary = "The underlying relation.",
@@ -192,7 +192,7 @@ impl<A> RelationQuery<A> {
         use_when = ["Defining or using typed entity behavior in a Sand datapack"],
         avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
         returns = "The `Relation` value produced to use the underlying relation.",
-        example = "use sand::prelude::*;\n\nfn demonstrate<A: 'static>(relation_query_value: &sand::entity::RelationQuery < A >)  {\n    let relation = relation_query_value.relation();\n}",
+        example = "use sand::prelude::*;\n\nfn demonstrate(ctx: &EntityContext<AnyEntity>) {\n    let relation = ctx.owner().relation();\n}",
     )]
     pub fn relation(&self) -> Relation {
         self.relation
@@ -222,15 +222,15 @@ impl<A> RelationQuery<A> {
     }
 }
 
-impl RelationQuery<One> {
+impl RelationTraversal<One> {
     /// Run `body` if the relation resolves to an entity, as a generic
     /// [`AnyEntity`] context. No-op (empty command list) if the relation is
     /// absent at runtime — vanilla `execute on <relation>` fails silently
     /// when there is no such entity.
     #[sand_macros::api(
         registry = sand_api_contract,
-        path = "sand::entity::RelationQuery::if_present",
-        aliases = ["sand::prelude::RelationQuery::if_present"],
+        path = "sand::entity::RelationTraversal::if_present",
+        aliases = ["sand::prelude::RelationTraversal::if_present"],
         module = "sand::entity",
         kind = "method",
         summary = "Run `body` if the relation resolves to an entity, as a generic [`AnyEntity`] context. No-op (empty command list) if the relation is absent at runtime — vanilla `execute on <relation>` fails silently when there is no such entity.",
@@ -240,7 +240,7 @@ impl RelationQuery<One> {
         avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
         params(profile = "`profile` provides the profile used when running `body` if the relation resolves to an entity, as a generic [`AnyEntity`] context. No-op (empty command list) if the relation is absent at runtime — vanilla `execute on <relation>` fails silently when there is no such entity.", body = "Run `body` if the relation resolves to an entity, as a generic [`AnyEntity`] context. No-op (empty command list) if the relation is absent at runtime — vanilla `execute on <relation>` fails silently when there is no such entity."),
         returns = "On success, the value produced to run `body` if the relation resolves to an entity, as a generic [`AnyEntity`] context. No-op (empty command list) if the relation is absent at runtime — vanilla `execute on <relation>` fails silently when there is no such entity; otherwise, the documented validation or export diagnostic.",
-        example = "use sand::prelude::*;\n\nfn demonstrate(relation_query_value: &sand::entity::RelationQuery < sand::command::One >, profile: & sand::version::VersionProfile, body: impl FnOnce (& sand::entity::EntityContext < sand::entity::AnyEntity >) -> Vec < String >)  {\n    let if_present = relation_query_value.if_present(profile, body);\n}",
+        example = "use sand::prelude::*;\n\nfn demonstrate(ctx: &EntityContext<AnyEntity>, profile: &VersionProfile) {\n    let _commands = ctx.owner().if_present(profile, |owner| vec![owner.add_tag(\"found\")]);\n}",
     )]
     pub fn if_present(
         &self,
@@ -253,8 +253,8 @@ impl RelationQuery<One> {
     /// Run `body` only if the relation resolves to a player.
     #[sand_macros::api(
         registry = sand_api_contract,
-        path = "sand::entity::RelationQuery::if_player",
-        aliases = ["sand::prelude::RelationQuery::if_player"],
+        path = "sand::entity::RelationTraversal::if_player",
+        aliases = ["sand::prelude::RelationTraversal::if_player"],
         module = "sand::entity",
         kind = "method",
         summary = "Run `body` only if the relation resolves to a player.",
@@ -264,7 +264,7 @@ impl RelationQuery<One> {
         avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
         params(profile = "`profile` provides the profile used when running `body` only if the relation resolves to a player.", body = "Run `body` only if the relation resolves to a player."),
         returns = "On success, the value produced to run `body` only if the relation resolves to a player; otherwise, the documented validation or export diagnostic.",
-        example = "use sand::prelude::*;\n\nfn demonstrate(relation_query_value: &sand::entity::RelationQuery < sand::command::One >, profile: & sand::version::VersionProfile, body: impl FnOnce (& sand::entity::EntityContext < sand::entity::PlayerKind >) -> Vec < String >)  {\n    let if_player = relation_query_value.if_player(profile, body);\n}",
+        example = "use sand::prelude::*;\n\nfn demonstrate(ctx: &EntityContext<AnyEntity>, profile: &VersionProfile) {\n    let _commands = ctx.owner().if_player(profile, |player| vec![player.add_tag(\"owner\")]);\n}",
     )]
     pub fn if_player(
         &self,
@@ -275,12 +275,12 @@ impl RelationQuery<One> {
     }
 }
 
-impl RelationQuery<Many> {
+impl RelationTraversal<Many> {
     /// Run `body` once for each passenger, as a generic [`AnyEntity`] context.
     #[sand_macros::api(
         registry = sand_api_contract,
-        path = "sand::entity::RelationQuery::each",
-        aliases = ["sand::prelude::RelationQuery::each"],
+        path = "sand::entity::RelationTraversal::each",
+        aliases = ["sand::prelude::RelationTraversal::each"],
         module = "sand::entity",
         kind = "method",
         summary = "Run `body` once for each passenger, as a generic [`AnyEntity`] context.",
@@ -290,7 +290,7 @@ impl RelationQuery<Many> {
         avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
         params(profile = "`profile` provides the profile used when running `body` once for each passenger, as a generic [`AnyEntity`] context.", body = "Run `body` once for each passenger, as a generic [`AnyEntity`] context."),
         returns = "On success, the value produced to run `body` once for each passenger, as a generic [`AnyEntity`] context; otherwise, the documented validation or export diagnostic.",
-        example = "use sand::prelude::*;\n\nfn demonstrate(relation_query_value: &sand::entity::RelationQuery < sand::command::Many >, profile: & sand::version::VersionProfile, body: impl FnOnce (& sand::entity::EntityContext < sand::entity::AnyEntity >) -> Vec < String >)  {\n    let each = relation_query_value.each(profile, body);\n}",
+        example = "use sand::prelude::*;\n\nfn demonstrate(ctx: &EntityContext<AnyEntity>, profile: &VersionProfile) {\n    let _commands = ctx.passengers().each(profile, |passenger| vec![passenger.add_tag(\"aboard\")]);\n}",
     )]
     pub fn each(
         &self,
@@ -362,7 +362,7 @@ mod tests {
     #[test]
     fn owner_if_present_lowers_to_execute_on_owner() {
         let p = profile("latest");
-        let cmds = RelationQuery::<One>::new(Relation::Owner)
+        let cmds = RelationTraversal::<One>::new(Relation::Owner)
             .if_present(&p, |owner| vec![owner.add_tag("has_owner")])
             .unwrap();
         assert_eq!(cmds.len(), 1);
@@ -376,7 +376,7 @@ mod tests {
     #[test]
     fn owner_if_player_adds_player_type_guard() {
         let p = profile("latest");
-        let cmds = RelationQuery::<One>::new(Relation::Owner)
+        let cmds = RelationTraversal::<One>::new(Relation::Owner)
             .if_player(&p, |owner| vec![owner.add_tag("owner_is_player")])
             .unwrap();
         assert_eq!(cmds.len(), 1);
@@ -388,7 +388,7 @@ mod tests {
     #[test]
     fn gated_relation_returns_err_before_lowering() {
         let old = profile("1.19.4");
-        let result = RelationQuery::<One>::new(Relation::Attacker)
+        let result = RelationTraversal::<One>::new(Relation::Attacker)
             .if_present(&old, |a| vec![a.add_tag("hit")]);
         assert!(result.is_err());
     }
@@ -396,7 +396,7 @@ mod tests {
     #[test]
     fn empty_relation_body_emits_no_commands() {
         let p = profile("latest");
-        let cmds = RelationQuery::<One>::new(Relation::Owner)
+        let cmds = RelationTraversal::<One>::new(Relation::Owner)
             .if_present(&p, |_| Vec::new())
             .unwrap();
         assert!(cmds.is_empty());
@@ -405,7 +405,7 @@ mod tests {
     #[test]
     fn passengers_each_lowers_to_execute_on_passengers() {
         let p = profile("latest");
-        let cmds = RelationQuery::<Many>::new(Relation::Passengers)
+        let cmds = RelationTraversal::<Many>::new(Relation::Passengers)
             .each(&p, |passenger| vec![passenger.add_tag("carried")])
             .unwrap();
         assert_eq!(cmds.len(), 1);

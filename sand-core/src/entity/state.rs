@@ -421,6 +421,38 @@ pub trait StateBundleMember: 'static {
 
     /// Flattened component schemas in deterministic declaration order.
     fn component_schemas() -> Vec<StateSchema>;
+
+    /// Flattened component lifecycle entries in deterministic declaration order.
+    fn component_lifecycles() -> Vec<StateComponentLifecycle>;
+}
+
+/// Type-erased canonical lifecycle for one independently owned State component.
+#[doc(hidden)]
+#[derive(Clone)]
+pub struct StateComponentLifecycle {
+    pub(crate) identities: Vec<(String, u32)>,
+    pub(crate) schemas: Vec<StateSchema>,
+    pub(crate) attach: fn(&'static str) -> Vec<String>,
+    pub(crate) detach: fn(&'static str) -> Vec<String>,
+}
+
+impl StateComponentLifecycle {
+    /// Construct compiler metadata for a generated State component.
+    #[doc(hidden)]
+    #[must_use]
+    pub fn __new(
+        identities: Vec<(String, u32)>,
+        schemas: Vec<StateSchema>,
+        attach: fn(&'static str) -> Vec<String>,
+        detach: fn(&'static str) -> Vec<String>,
+    ) -> Self {
+        Self {
+            identities,
+            schemas,
+            attach,
+            detach,
+        }
+    }
 }
 
 /// A State component or nested bundle that can participate in archetype composition.
@@ -508,6 +540,31 @@ pub trait StateComposition: 'static {
         example = "use sand::prelude::*;\n\nfn demonstrate<T: sand::entity::StateComposition>(holder: & 'static str)  {\n    let values = <T as sand::entity::StateComposition>::composition_detach(holder);\n}",
     )]
     fn composition_detach(holder: &'static str) -> Vec<String>;
+
+    /// Returns independently owned flattened component lifecycle entries.
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::entity::StateComposition::composition_lifecycles",
+        aliases = ["sand::prelude::StateComposition::composition_lifecycles"],
+        module = "sand::entity",
+        kind = "trait_method",
+        summary = "Returns canonical lifecycle metadata for each flattened State component.",
+        context = "Generated State and StateBundle implementations expose each independently owned component so archetype cleanup can preserve a component still claimed by another archetype.",
+        minecraft = "Each entry delegates to that component's canonical idempotent attach and ownership-safe detach commands.",
+        use_when = ["Implementing generated State composition metadata"],
+        avoid_when = ["Calling component lifecycle internals directly from datapack code"],
+        returns = "The deterministically flattened independent component lifecycle entries.",
+        example = "use sand::prelude::*; fn lifecycle_metadata<T: StateComposition>() { let _ = T::composition_lifecycles(); }",
+    )]
+    #[doc(hidden)]
+    fn composition_lifecycles() -> Vec<StateComponentLifecycle> {
+        vec![StateComponentLifecycle::__new(
+            Self::composition_identities(),
+            Self::composition_schemas(),
+            Self::composition_attach,
+            Self::composition_detach,
+        )]
+    }
 }
 
 impl<T> StateComposition for T
@@ -529,6 +586,10 @@ where
 
     fn composition_detach(holder: &'static str) -> Vec<String> {
         T::detach_member(holder)
+    }
+
+    fn composition_lifecycles() -> Vec<StateComponentLifecycle> {
+        T::component_lifecycles()
     }
 }
 
@@ -1016,14 +1077,14 @@ trait ComponentDirtyField: EntityStateField {
     path = "sand::entity::StatePredicate",
     aliases = ["sand::prelude::StatePredicate"],
     module = "sand::entity",
-    summary = "Typed score predicate consumable by [`sand::entity::EntityQuery`].",
-    context = "Typed score predicate consumable by [`sand::entity::EntityQuery`]. This declaration belongs to Sand's typed entity model. Semantic definitions are public; selector rendering, validation bookkeeping, and compiler lowering remain internal.",
+    summary = "Typed score predicate consumable by [`sand::command::Target`].",
+    context = "Typed score predicate consumable by [`sand::command::Target`]. This declaration belongs to Sand's typed entity model. Semantic definitions are public; selector rendering, validation bookkeeping, and compiler lowering remain internal.",
     minecraft = "Sand validates this definition and lowers it to entity-scoped selectors, scoreboards, NBT operations, and generated lifecycle functions as required.",
     use_when = ["Defining or using typed entity behavior in a Sand datapack"],
     avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
     example = "use sand::entity::StatePredicate;",
 )]
-/// Typed score predicate consumable by [`crate::entity::EntityQuery`].
+/// Typed score predicate consumable by [`sand_commands::Target`].
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct StatePredicate {
     pub(crate) objective: String,
@@ -1054,19 +1115,19 @@ impl StatePredicate {
     }
 
     /// Vanilla selector range used when this predicate constrains adoption or
-    /// an [`crate::entity::EntityQuery`].
+    /// a [`sand_commands::Target`].
     #[sand_macros::api(
         registry = sand_api_contract,
         path = "sand::entity::StatePredicate::selector_range",
         aliases = ["sand::prelude::StatePredicate::selector_range"],
         module = "sand::entity",
         kind = "method",
-        summary = "Vanilla selector range used when this predicate constrains adoption or an [`sand::entity::EntityQuery`].",
-        context = "Vanilla selector range used when this predicate constrains adoption or an [`sand::entity::EntityQuery`]. This declaration belongs to Sand's typed entity model. Semantic definitions are public; selector rendering, validation bookkeeping, and compiler lowering remain internal.",
+        summary = "Vanilla selector range used when this predicate constrains adoption or an [`sand::command::Target`].",
+        context = "Vanilla selector range used when this predicate constrains adoption or an [`sand::command::Target`]. This declaration belongs to Sand's typed entity model. Semantic definitions are public; selector rendering, validation bookkeeping, and compiler lowering remain internal.",
         minecraft = "Sand validates this definition and lowers it to entity-scoped selectors, scoreboards, NBT operations, and generated lifecycle functions as required.",
         use_when = ["Defining or using typed entity behavior in a Sand datapack"],
         avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
-        returns = "The string value produced to vanilla selector range used when this predicate constrains adoption or an [`sand::entity::EntityQuery`].",
+        returns = "The string value produced to vanilla selector range used when this predicate constrains adoption or an [`sand::command::Target`].",
         example = "use sand::prelude::*;\n\nfn demonstrate(state_predicate_value: &sand::entity::StatePredicate)  {\n    let selector_range = state_predicate_value.selector_range();\n}",
     )]
     #[must_use]

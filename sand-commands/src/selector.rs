@@ -337,7 +337,7 @@ impl<K, A> Target<K, A> {
     }
 
     /// Restricts the target to entities with the supplied name.
-    #[sand_macros::api(registry = sand_api_contract, path = "sand::command::Target::name", aliases = ["sand::cmd::Target::name", "sand::prelude::Target::name", "sand::prelude::cmd::Target::name"], module = "sand::command", summary = "Restricts a target to an entity name.", context = "Adds a validated name selector filter.", minecraft = "Emits name=<name>.", use_when = ["Selecting a named entity"], avoid_when = ["Selecting a literal player target; use named_player"], params(name = "The required entity name."), returns = "The same typed target with the name filter applied.", example = "let target = sand::command::Target::entities().name(\"Boss\");")]
+    #[sand_macros::api(registry = sand_api_contract, path = "sand::command::Target::name", aliases = ["sand::cmd::Target::name", "sand::prelude::Target::name", "sand::prelude::cmd::Target::name"], module = "sand::command", summary = "Restricts a target to an entity name.", context = "Adds a validated positive name selector filter. Validation permits only one positive name, including the implicit name carried by a literal named target.", minecraft = "Emits name=<name>.", use_when = ["Selecting a named entity"], avoid_when = ["Selecting a literal player target; use named_player"], params(name = "The required entity name."), returns = "The same typed target with the name filter applied.", example = "let target = sand::command::Target::entities().name(\"Boss\");")]
     pub fn name(mut self, name: impl Into<String>) -> Self {
         self.raw = self.raw.name(name);
         self
@@ -1247,6 +1247,7 @@ impl Validate for Selector {
         }
 
         let mut singleton_keys = std::collections::BTreeSet::new();
+        let mut positive_name = matches!(self.base, TargetBase::Player(_));
         let mut positive_type = false;
         for arg in &self.args {
             let (key, value): (&str, Option<&str>) = match arg {
@@ -1258,7 +1259,22 @@ impl Validate for Selector {
                     validate_optional_token(v, "team")?;
                     ("team*", None)
                 }
-                SelectorArg::Name(v) | SelectorArg::NotName(v) => ("name*", Some(v)),
+                SelectorArg::Name(v) => {
+                    if positive_name {
+                        return Err(CommandError::new(
+                            "Selector",
+                            "name",
+                            "duplicate positive `name` arguments are contradictory",
+                        ));
+                    }
+                    positive_name = true;
+                    validate::no_whitespace_or_control(v, "Selector", "name")?;
+                    ("name+", None)
+                }
+                SelectorArg::NotName(v) => {
+                    validate::no_whitespace_or_control(v, "Selector", "name")?;
+                    ("name-", None)
+                }
                 SelectorArg::Type(v) => {
                     if positive_type {
                         return Err(CommandError::new(

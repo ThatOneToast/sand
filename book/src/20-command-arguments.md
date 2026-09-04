@@ -56,6 +56,10 @@ assert_eq!(scan.to_string(), "@e[distance=0..16,sort=nearest,limit=1]");
 assert!(Target::entities().limit(2).is_err());
 ```
 
+Literal named targets can still be refined, but their literal already counts
+as the selector's one positive `name` filter. Validation rejects a second
+positive name while allowing multiple `.not_name(...)` exclusions.
+
 Opaque advanced syntax (arbitrary SNBT filters, modded selector arguments)
 has an explicit escape hatch rather than a best-effort parser:
 `Target::nbt_raw(...)`, `Target::predicate_raw(...)`, and the explicitly named

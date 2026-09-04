@@ -167,6 +167,29 @@ fn named_target_filters_are_rendered_and_remain_single() {
 }
 
 #[test]
+fn positive_name_filters_are_unique_including_literal_named_targets() {
+    let literal = Target::named_player("Steve").name("Alex");
+    assert_eq!(literal.to_string(), "@a[name=Steve,name=Alex,limit=1]");
+    assert!(literal.try_build().is_err());
+
+    assert!(
+        Target::entities()
+            .name("Boss")
+            .name("Decoy")
+            .try_build()
+            .is_err()
+    );
+
+    let exclusions = Target::named_player("Steve")
+        .not_name("Alex")
+        .not_name("Herobrine");
+    assert_eq!(
+        exclusions.try_build().unwrap(),
+        "@a[name=Steve,name=!Alex,name=!Herobrine,limit=1]"
+    );
+}
+
+#[test]
 fn explicit_raw_escape_hatches_are_named_raw() {
     let target = Target::players()
         .gamemode_raw("survival")

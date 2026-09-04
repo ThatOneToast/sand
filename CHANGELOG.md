@@ -40,7 +40,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   API before optional `limit(1)` narrowing.
 - Named targets now lower to `@a[name=<player>,...,limit=1]` when filters are
   applied, preserving both those filters and the target's single cardinality;
-  unfiltered named targets continue to render as literal player names.
+  unfiltered named targets continue to render as literal player names. Selector
+  validation rejects a second positive name (including the literal's implicit
+  name) while continuing to allow repeated negative name exclusions.
 - Updated the representative vanilla audit pack and all version-keyed API
   surface ratchets to the consolidated `Target` facade.
 - Updated public-facade compile fixtures and API catalog expectations for the

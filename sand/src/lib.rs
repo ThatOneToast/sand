@@ -239,11 +239,6 @@ pub mod state {
 ///
 /// #[entity_archetype]
 /// fn zombie() -> EntityArchetype<ZombieKind, Mob> {
-///     let fixed = FixedPoint::new(
-///         1,
-///         RoundingPolicy::TowardZero,
-///         OverflowPolicy::Error,
-///     ).unwrap();
 ///     EntityArchetype::new(ResourceLocation::new("demo", "zombie").unwrap())
 ///         .adopt(Adoption::natural_and_external().every(Ticks::new(5)))
 ///         .derive(
@@ -251,7 +246,7 @@ pub mod state {
 ///                 "health",
 ///                 Mob::max_health,
 ///                 StatCurve::linear(StatCurve::state(Mob::level), 2.0, 18.0),
-///             ).fixed_point(fixed),
+///             ),
 ///         )
 ///         .health(HealthBinding::new(Mob::max_health))
 /// }
@@ -280,12 +275,13 @@ pub mod entity {
         FixedScore, FixedScoreAccessor, FixedScoreValue, FixedValue, GlobalStateBundleOperations,
         HealthBinding, HealthResizePolicy, KeyedData, KnownEntityKind, LivingEntityKind,
         MarkerKind, Migration, MutableLivingEntityKind, NameBinding, NumericPropertySource,
-        OverflowPolicy, OwnershipPolicy, PlayerKind, PropertyNameError, RawEntityProperty,
-        RawEntityStateField, RawPropertyAccess, RawStateBackend, ReconcilePolicy, RefreshPolicy,
-        Relation, RelationTraversal, RoundingPolicy, SafeEntityDataWriteKind, ScopedEntityRef,
-        Score, SpecialEntityPolicy, StatCurve, StateComposition, StateFieldDescriptor,
-        StateFieldKind, StatePredicate, StateQueryOperations, StateSchema, TagBinding,
-        TargetExecution, TeamBinding, ThresholdDirection, ZombieKind,
+        NumericStateField, NumericStateSource, OverflowPolicy, OwnershipPolicy, PlayerKind,
+        PropertyNameError, RawEntityProperty, RawEntityStateField, RawPropertyAccess,
+        RawStateBackend, ReconcilePolicy, RefreshPolicy, Relation, RelationTraversal,
+        RoundingPolicy, SafeEntityDataWriteKind, ScopedEntityRef, Score, SpecialEntityPolicy,
+        StatCurve, StateComposition, StateFieldDescriptor, StateFieldKind, StatePredicate,
+        StateQueryOperations, StateSchema, TagBinding, TargetExecution, TeamBinding,
+        ThresholdDirection, ZombieKind,
     };
 }
 

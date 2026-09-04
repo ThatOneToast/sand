@@ -75,16 +75,11 @@ Preserve mode changes only properties the archetype explicitly owns.
 
 ## Derive Health And Damage
 
-Curves validate host constants, convert them to integers once, and use
-fixed-point scoreboard arithmetic at runtime.
+Curves are written in logical gameplay units. Sand validates constants,
+chooses deterministic integer arithmetic for Minecraft, and converts the final
+result to the destination field's declared representation.
 
 ```rust
-let fixed = FixedPoint::new(
-    100,
-    RoundingPolicy::TowardZero,
-    OverflowPolicy::Error,
-).unwrap();
-
 let health = StatCurve::multiply([
     StatCurve::linear(
         StatCurve::state(ZombieState::level),
@@ -103,16 +98,19 @@ let archetype = EntityArchetype::<ZombieKind, ZombieState>::new(
     ResourceLocation::new("rpg", "plagued_zombie").unwrap(),
 )
 .derive(
-    EntityDerivation::new("max_health", ZombieState::max_health, health)
-        .fixed_point(fixed),
+    EntityDerivation::new("max_health", ZombieState::max_health, health),
 );
 ```
 
-A derivation stores a whole score by default; `store_fixed_point()` retains
-scaled units. Curves support constants, affine and clamped-linear formulas,
-addition, multiplication, ratios, steps, piecewise branches, lookups, enum
-and flag maps, and canonical custom callbacks. Invalid ranges, non-finite
-values, score overflow, duplicate targets, and dependency cycles stop export.
+The target is the storage contract: a `Score` receives a whole number, while a
+`FixedScore` receives its declared scale. Inputs may use different scales;
+`StatCurve::state` carries that metadata into the same expression and Sand
+resizes it automatically. Curves support constants, affine and clamped-linear
+formulas, addition, multiplication, ratios, steps, piecewise branches,
+lookups, enum and flag maps, and canonical custom callbacks. Invalid ranges,
+non-finite values, score overflow, duplicate targets, and dependency cycles
+stop export. The complete scale and rounding model is covered in
+[Numeric State: scales, rounding, and arithmetic](23a-numeric-state.md).
 
 When `level`, `rarity`, or `sick` changes, only their transitive dependents are
 recomputed.

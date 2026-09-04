@@ -38,7 +38,7 @@ use std::sync::Arc;
 
 use thiserror::Error;
 
-use super::{EntityDiagnostic, EntityStateField};
+use super::{EntityDiagnostic, EntityStateField, NumericStateField};
 
 #[sand_macros::api(
     registry = sand_api_contract,
@@ -659,14 +659,19 @@ pub(crate) enum LoweredCurveOperation {
         /// Source score objective.
         source: String,
     },
-    /// Convert a whole entity score to fixed-point units.
+    /// Convert a numeric State field from its storage scale to the curve's
+    /// working scale.
     ScoreToFixed {
         /// Destination fixed-point scratch objective.
         destination: String,
-        /// Existing whole-score objective.
+        /// Existing numeric State objective.
         source: String,
-        /// Positive fixed-point scale.
-        scale: i64,
+        /// Number of source scoreboard units per logical unit.
+        source_scale: i64,
+        /// Number of destination scoreboard units per logical unit.
+        target_scale: i64,
+        /// Rounding applied when conversion loses precision.
+        rounding: RoundingPolicy,
         /// Overflow behavior required by the definition.
         overflow: OverflowPolicy,
     },
@@ -868,7 +873,10 @@ pub struct StatCurve {
 #[derive(Clone, Debug)]
 enum CurveKind {
     Constant(f64),
-    Input(String),
+    Input {
+        objective: String,
+        storage_scale: i32,
+    },
     Linear {
         input: Box<StatCurve>,
         slope: f64,
@@ -947,12 +955,15 @@ impl StatCurve {
         avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
         params(field = "`field` is used to reference a typed entity-state input."),
         returns = "A `StatCurve` referencing a typed entity-state input.",
-        example = "use sand::prelude::*;\n\nfn demonstrate(field: impl sand::entity::EntityStateField)  {\n    let stat_curve = sand::entity::StatCurve::state(field);\n}",
+        example = "use sand::prelude::*;\n\nfn demonstrate(field: impl sand::entity::NumericStateField)  {\n    let stat_curve = sand::entity::StatCurve::state(field);\n}",
     )]
     #[must_use]
-    pub fn state(field: impl super::EntityStateField) -> Self {
+    pub fn state(field: impl NumericStateField) -> Self {
         Self {
-            kind: CurveKind::Input(field.objective()),
+            kind: CurveKind::Input {
+                objective: field.objective(),
+                storage_scale: field.numeric_scale(),
+            },
         }
     }
 
@@ -977,7 +988,10 @@ impl StatCurve {
     #[must_use]
     pub fn input_raw(name: &str) -> Self {
         Self {
-            kind: CurveKind::Input(name.to_owned()),
+            kind: CurveKind::Input {
+                objective: name.to_owned(),
+                storage_scale: 1,
+            },
         }
     }
 
@@ -1573,7 +1587,7 @@ impl StatCurve {
             CurveKind::Constant(value) => {
                 fixed.encode(*value, archetype, derivation)?;
             }
-            CurveKind::Input(_) => {}
+            CurveKind::Input { .. } => {}
             CurveKind::Linear {
                 input,
                 slope,
@@ -1699,15 +1713,15 @@ impl StatCurve {
     ) -> Result<FixedValue, CurveEvaluationError> {
         match &self.kind {
             CurveKind::Constant(value) => Ok(fixed.encode(*value, archetype, derivation)?),
-            CurveKind::Input(name) => {
-                inputs
-                    .get(name)
-                    .ok_or_else(|| CurveEvaluationError::MissingInput {
-                        archetype: archetype.into(),
-                        derivation: derivation.into(),
-                        input: name.clone(),
-                    })
-            }
+            CurveKind::Input {
+                objective: name, ..
+            } => inputs
+                .get(name)
+                .ok_or_else(|| CurveEvaluationError::MissingInput {
+                    archetype: archetype.into(),
+                    derivation: derivation.into(),
+                    input: name.clone(),
+                }),
             CurveKind::Linear {
                 input,
                 slope,
@@ -1895,13 +1909,17 @@ impl StatCurve {
                 numerator,
                 denominator,
             } => combine_strategy(numerator.strategy_inner(), denominator.strategy_inner()),
-            CurveKind::Constant(_) | CurveKind::Input(_) => LoweringStrategy::ScoreboardArithmetic,
+            CurveKind::Constant(_) | CurveKind::Input { .. } => {
+                LoweringStrategy::ScoreboardArithmetic
+            }
         }
     }
 
     fn collect_inputs(&self, inputs: &mut BTreeSet<String>) {
         match &self.kind {
-            CurveKind::Input(input)
+            CurveKind::Input {
+                objective: input, ..
+            }
             | CurveKind::Lookup { input, .. }
             | CurveKind::EnumMap { input, .. }
             | CurveKind::FlagMap { input, .. } => {
@@ -1978,11 +1996,16 @@ impl CurveLoweringBuilder<'_> {
                     value,
                 });
             }
-            CurveKind::Input(source) => {
+            CurveKind::Input {
+                objective: source,
+                storage_scale,
+            } => {
                 self.operations.push(LoweredCurveOperation::ScoreToFixed {
                     destination: destination.clone(),
                     source: source.clone(),
-                    scale: self.fixed.scale(),
+                    source_scale: i64::from(*storage_scale),
+                    target_scale: self.fixed.scale(),
+                    rounding: self.fixed.rounding(),
                     overflow: self.fixed.overflow(),
                 });
             }
@@ -2792,6 +2815,24 @@ mod tests {
             Some(LoweredCurveOperation::Copy { destination, .. })
                 if destination == "rpg_health"
         ));
+    }
+
+    #[test]
+    fn typed_inputs_carry_their_declared_storage_scale() {
+        let fixed =
+            super::super::state::FixedScore::__new("rpg", "mob", "multiplier", 100, 125, None);
+        let curve = StatCurve::add([StatCurve::state(fixed), StatCurve::constant(1.0)]);
+        let lowered = curve
+            .lower_scoreboard("result", "rpg:mob.result", FixedPoint::default())
+            .unwrap();
+        assert!(lowered.operations().iter().any(|operation| matches!(
+            operation,
+            LoweredCurveOperation::ScoreToFixed {
+                source_scale: 100,
+                target_scale: DEFAULT_FIXED_POINT_SCALE,
+                ..
+            }
+        )));
     }
 
     #[test]

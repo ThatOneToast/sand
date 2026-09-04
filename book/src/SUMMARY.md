@@ -28,6 +28,7 @@
 - [21. RPG Entities: State, Archetypes, And Derived Stats](21-entity-archetypes.md)
 - [22. Parameterized Functions](22-function-macros.md)
 - [23. Unified State Components, Bundles, Queries, And Systems](23-unified-state.md)
+  - [Numeric State: Scales, Rounding, And Arithmetic](23a-numeric-state.md)
 
 # Typed World & Server Configuration
 

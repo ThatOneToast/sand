@@ -1,7 +1,7 @@
-error[E0599]: the method `health` exists for struct `sand::prelude::EntityArchetype<sand::prelude::MarkerKind, MarkerState>`, but its trait bounds were not satisfied
-  --> tests/cases/fail_entity_marker_health_capability.rs:14:23
+error[E0599]: the method `health` exists for struct `sand::prelude::EntityArchetype<sand::prelude::MarkerKind>`, but its trait bounds were not satisfied
+  --> tests/cases/fail_entity_marker_health_capability.rs:15:23
    |
-14 |     let _ = archetype.health(HealthBinding::new(MarkerState::health));
+15 |     let _ = archetype.health(HealthBinding::new(MarkerState::health));
    |                       ^^^^^^ method cannot be called due to unsatisfied trait bounds
    |
   ::: $WORKSPACE/sand-core/src/entity/kind.rs

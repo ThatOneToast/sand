@@ -79,23 +79,11 @@ struct LivingRuntimeState {
     timer: EntityTimer,
 }
 
-struct ComposedArchetypeRoot;
-
-impl EntityState for ComposedArchetypeRoot {
-    fn schema() -> StateSchema {
-        StateSchema {
-            namespace: "state_test",
-            name: "composed_archetype_root",
-            version: 1,
-            fields: &[],
-        }
-    }
-}
-
 #[entity_archetype]
-fn composed_state_archetype() -> EntityArchetype<ZombieKind, ComposedArchetypeRoot> {
+fn composed_state_archetype() -> EntityArchetype<ZombieKind> {
     EntityArchetype::new(ResourceLocation::new("statepack", "composed_state_archetype").unwrap())
         .components::<LivingRuntimeState>()
+        .components::<OptionalMarker>()
 }
 
 #[allow(dead_code)]
@@ -453,19 +441,24 @@ fn archetype_composition_uses_component_lifecycle_once() {
     let records = records();
     let requirement =
         <LivingRuntimeState as sand::__private::StateBundleMember>::presence_requirements();
-    let initialize = records
+    let provision = records
         .iter()
         .filter(|record| record["dir"] == "function")
-        .filter_map(|record| record["content"].as_str())
-        .find(|content| {
-            content.contains(&format!(
+        .find(|record| {
+            record["path"]
+                .as_str()
+                .is_some_and(|path| path.ends_with("/provision"))
+                && record["content"].as_str().is_some_and(|content| {
+                    content.contains(&format!(
                 "scoreboard players set @s {} {}",
                 requirement[0].0, requirement[0].1
-            )) && content.lines().last().is_some_and(|line| line.starts_with("tag @s add __sand.a."))
+                    ))
+                })
         })
+        .and_then(|record| record["content"].as_str())
         .expect("archetype initialize should attach the composed component before publishing completion");
     assert_eq!(
-        initialize
+        provision
             .lines()
             .filter(|line| {
                 line.ends_with(&format!(
@@ -476,6 +469,52 @@ fn archetype_composition_uses_component_lifecycle_once() {
             .count(),
         1
     );
+    assert!(
+        provision
+            .lines()
+            .any(|line| line.contains("unless score @s"))
+    );
+
+    let migrated =
+        <OptionalMarker as sand::__private::StateBundleMember>::presence_requirements()[0].clone();
+    for (from, to) in [(1, 2), (2, 3)] {
+        assert_eq!(
+            provision
+                .matches(&format!("if score @s {} matches {from}", migrated.0))
+                .count(),
+            2,
+            "each component migration has one hook and one presence-version update",
+        );
+        assert!(provision.contains(&format!(
+            "run scoreboard players set @s {} {to}",
+            migrated.0
+        )));
+    }
+    assert_eq!(
+        provision
+            .lines()
+            .filter(|line| line.ends_with(&format!(
+                "scoreboard players set @s {} {}",
+                migrated.0, migrated.1
+            )) && line.starts_with("execute unless score @s"))
+            .count(),
+        1,
+        "archetype composition must publish one canonical component presence value",
+    );
+
+    let initialize = records
+        .iter()
+        .filter(|record| record["dir"] == "function")
+        .filter_map(|record| record["content"].as_str())
+        .find(|content| {
+            content.contains("/provision")
+                && content
+                    .lines()
+                    .last()
+                    .is_some_and(|line| line.starts_with("tag @s add __sand.a."))
+        })
+        .expect("archetype initialize should publish completion after provisioning");
+    assert!(initialize.lines().next().unwrap().contains("/provision"));
 
     let cleanup = records
         .iter()

@@ -12,7 +12,7 @@
 
 use std::fmt;
 
-use sand_commands::ChatColor;
+use sand_commands::{ChatColor, TextComponent};
 use sand_components::{
     AttributeOperation, AttributeType, EquipmentSlot, ItemStack, StatusEffectId, Ticks,
 };
@@ -20,7 +20,7 @@ use sand_components::{
 use crate::entity::diagnostic::EntityDiagnostic;
 use crate::entity::kind::{EntityKind, PlayerKind};
 use crate::entity::state::{
-    EntityEnum, EntityEnumValue, EntityFlag, EntityScore, EntityStateField,
+    EntityEnum, EntityEnumValue, EntityFlag, EntityScore, EntityStateField, StateFieldReference,
 };
 use crate::resource_ref::FunctionId;
 
@@ -700,7 +700,7 @@ impl From<RefreshPolicyRef> for RefreshPolicy {
     avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
     example = "use sand::entity::NumericPropertySource;",
     variants(Fixed = "A constant fixed-point value: `units / scale`.", StateScore = "The value of a typed entity score."),
-    variant_fields(Fixed(scale = "`scale` provides the particle scale when a constant fixed-point value: `units / scale`.", units = "`units` provides the units when a constant fixed-point value: `units / scale`."), StateScore(dirty_objective = "Hidden source-dirty objective marked by typed mutations.", objective = "Generated score objective.")),
+    variant_fields(Fixed(scale = "`scale` provides the particle scale when a constant fixed-point value: `units / scale`.", units = "`units` provides the units when a constant fixed-point value: `units / scale`."), StateScore(dirty_objective = "Hidden source-dirty objective marked by typed mutations.", field = "Owning State component and field metadata retained for archetype membership validation.", objective = "Generated score objective.")),
 )]
 /// A typed numeric source for an attribute or effect parameter.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -719,6 +719,8 @@ pub enum NumericPropertySource {
         objective: String,
         /// Hidden source-dirty objective marked by typed mutations.
         dirty_objective: String,
+        /// Owning component and field metadata used by archetype validation.
+        field: StateFieldReference,
     },
 }
 
@@ -771,6 +773,7 @@ impl NumericPropertySource {
         Self::StateScore {
             objective: field.objective(),
             dirty_objective: field.dirty_objective(),
+            field: field.field_reference(),
         }
     }
 }
@@ -1679,7 +1682,6 @@ impl EquipmentBinding {
 #[sand_macros::api(
     registry = sand_api_contract,
     path = "sand::entity::EntityTextSegment",
-    aliases = ["sand::prelude::EntityTextSegment"],
     module = "sand::entity",
     summary = "One state-aware custom-name segment.",
     context = "One state-aware custom-name segment. This declaration belongs to Sand's typed entity model. Semantic definitions are public; selector rendering, validation bookkeeping, and compiler lowering remain internal.",
@@ -1687,13 +1689,18 @@ impl EquipmentBinding {
     use_when = ["Defining or using typed entity behavior in a Sand datapack"],
     avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
     example = "use sand::entity::EntityTextSegment;",
-    variants(Enum = "A finite enum rendered through its stable encoding table.", Flag = "A boolean field rendered using caller-provided labels.", Literal = "Literal user-visible text.", Numeric = "A numeric scoreboard field rendered for `@s`."),
-    variant_fields(Enum(color = "Optional named Minecraft color.", dirty_objective = "Hidden dirty objective for the field.", objective = "Generated objective holding the encoding.", variants = "`(score, display name)` mappings in schema order."), Flag(color = "Optional named Minecraft color.", dirty_objective = "Hidden dirty objective for the field.", disabled = "Text displayed for zero.", enabled = "Text displayed for one.", objective = "Generated zero/one objective."), Literal(color = "Optional named Minecraft color.", text = "Segment contents."), Numeric(color = "Optional named Minecraft color.", dirty_objective = "Hidden dirty objective for the field.", objective = "Generated objective holding the field.")),
+    variants(Canonical = "A canonical styled Sand TextComponent.", Enum = "A finite enum rendered through its stable encoding table.", Flag = "A boolean field rendered using caller-provided labels.", Literal = "Literal user-visible text.", Numeric = "A numeric scoreboard field rendered for `@s`."),
+    variant_fields(Canonical(component = "Styled canonical text component."), Enum(color = "Optional named Minecraft color.", dirty_objective = "Hidden dirty objective for the field.", field = "Owning State component and field metadata retained for archetype membership validation.", objective = "Generated objective holding the encoding.", variants = "`(score, display name)` mappings in schema order."), Flag(color = "Optional named Minecraft color.", dirty_objective = "Hidden dirty objective for the field.", disabled = "Text displayed for zero.", enabled = "Text displayed for one.", field = "Owning State component and field metadata retained for archetype membership validation.", objective = "Generated zero/one objective."), Literal(color = "Optional named Minecraft color.", text = "Segment contents."), Numeric(color = "Optional named Minecraft color.", dirty_objective = "Hidden dirty objective for the field.", field = "Owning State component and field metadata retained for archetype membership validation.", objective = "Generated objective holding the field.")),
 )]
 /// One state-aware custom-name segment.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone)]
 #[non_exhaustive]
 pub enum EntityTextSegment {
+    /// A canonical Sand text component retained without a parallel styling model.
+    Canonical {
+        /// Styled canonical text component.
+        component: TextComponent,
+    },
     /// Literal user-visible text.
     Literal {
         /// Segment contents.
@@ -1707,6 +1714,8 @@ pub enum EntityTextSegment {
         objective: String,
         /// Hidden dirty objective for the field.
         dirty_objective: String,
+        /// Owning component and field identity.
+        field: StateFieldReference,
         /// Optional named Minecraft color.
         color: Option<ChatColor>,
     },
@@ -1716,6 +1725,8 @@ pub enum EntityTextSegment {
         objective: String,
         /// Hidden dirty objective for the field.
         dirty_objective: String,
+        /// Owning component and field identity.
+        field: StateFieldReference,
         /// `(score, display name)` mappings in schema order.
         variants: Vec<(i32, String)>,
         /// Optional named Minecraft color.
@@ -1727,6 +1738,8 @@ pub enum EntityTextSegment {
         objective: String,
         /// Hidden dirty objective for the field.
         dirty_objective: String,
+        /// Owning component and field identity.
+        field: StateFieldReference,
         /// Text displayed for zero.
         disabled: String,
         /// Text displayed for one.
@@ -1741,7 +1754,6 @@ impl EntityTextSegment {
     #[sand_macros::api(
         registry = sand_api_contract,
         path = "sand::entity::EntityTextSegment::color",
-        aliases = ["sand::prelude::EntityTextSegment::color"],
         module = "sand::entity",
         kind = "method",
         summary = "Apply a named Minecraft color to this segment.",
@@ -1756,6 +1768,7 @@ impl EntityTextSegment {
     #[must_use]
     pub fn color(mut self, value: ChatColor) -> Self {
         match &mut self {
+            Self::Canonical { .. } => {}
             Self::Literal { color, .. }
             | Self::Numeric { color, .. }
             | Self::Enum { color, .. }
@@ -1768,7 +1781,6 @@ impl EntityTextSegment {
 #[sand_macros::api(
     registry = sand_api_contract,
     path = "sand::entity::EntityText",
-    aliases = ["sand::prelude::EntityText"],
     module = "sand::entity",
     summary = "A custom-name template materialized for the current entity.",
     context = "A custom-name template materialized for the current entity. Dynamic segments use `@s` scoreboard components. Exporters may lower enum and flag mappings through deterministic generated helper functions when direct text components cannot express the mapping.",
@@ -1782,7 +1794,7 @@ impl EntityTextSegment {
 /// Dynamic segments use `@s` scoreboard components. Exporters may lower enum
 /// and flag mappings through deterministic generated helper functions when
 /// direct text components cannot express the mapping.
-#[derive(Debug, Clone, Default, PartialEq, Eq)]
+#[derive(Debug, Clone, Default)]
 pub struct EntityText {
     segments: Vec<EntityTextSegment>,
 }
@@ -1792,7 +1804,6 @@ impl EntityText {
     #[sand_macros::api(
         registry = sand_api_contract,
         path = "sand::entity::EntityText::new",
-        aliases = ["sand::prelude::EntityText::new"],
         module = "sand::entity",
         kind = "method",
         summary = "Start an empty template.",
@@ -1814,7 +1825,6 @@ impl EntityText {
     #[sand_macros::api(
         registry = sand_api_contract,
         path = "sand::entity::EntityText::literal",
-        aliases = ["sand::prelude::EntityText::literal"],
         module = "sand::entity",
         kind = "method",
         summary = "Append literal text.",
@@ -1839,7 +1849,6 @@ impl EntityText {
     #[sand_macros::api(
         registry = sand_api_contract,
         path = "sand::entity::EntityText::score",
-        aliases = ["sand::prelude::EntityText::score"],
         module = "sand::entity",
         kind = "method",
         summary = "Append a typed numeric state field.",
@@ -1856,6 +1865,7 @@ impl EntityText {
         self.segments.push(EntityTextSegment::Numeric {
             objective: field.objective(),
             dirty_objective: field.dirty_objective(),
+            field: field.field_reference(),
             color: None,
         });
         self
@@ -1865,7 +1875,6 @@ impl EntityText {
     #[sand_macros::api(
         registry = sand_api_contract,
         path = "sand::entity::EntityText::enum_value",
-        aliases = ["sand::prelude::EntityText::enum_value"],
         module = "sand::entity",
         kind = "method",
         summary = "Append a typed enum using schema variant names as display strings.",
@@ -1882,6 +1891,7 @@ impl EntityText {
         self.segments.push(EntityTextSegment::Enum {
             objective: field.objective(),
             dirty_objective: field.dirty_objective(),
+            field: field.field_reference(),
             variants: T::ENCODINGS
                 .iter()
                 .map(|encoding| (encoding.score, encoding.name.to_owned()))
@@ -1895,7 +1905,6 @@ impl EntityText {
     #[sand_macros::api(
         registry = sand_api_contract,
         path = "sand::entity::EntityText::flag",
-        aliases = ["sand::prelude::EntityText::flag"],
         module = "sand::entity",
         kind = "method",
         summary = "Append a typed flag with explicit display strings.",
@@ -1917,6 +1926,7 @@ impl EntityText {
         self.segments.push(EntityTextSegment::Flag {
             objective: field.objective(),
             dirty_objective: field.dirty_objective(),
+            field: field.field_reference(),
             disabled: disabled.into(),
             enabled: enabled.into(),
             color: None,
@@ -1930,7 +1940,6 @@ impl EntityText {
     #[sand_macros::api(
         registry = sand_api_contract,
         path = "sand::entity::EntityText::color_last",
-        aliases = ["sand::prelude::EntityText::color_last"],
         module = "sand::entity",
         kind = "method",
         summary = "Color the most recently appended segment. Calling this on an empty template is a harmless no-op.",
@@ -1954,7 +1963,6 @@ impl EntityText {
     #[sand_macros::api(
         registry = sand_api_contract,
         path = "sand::entity::EntityText::segments",
-        aliases = ["sand::prelude::EntityText::segments"],
         module = "sand::entity",
         kind = "method",
         summary = "Ordered segments used by text lowering.",
@@ -1973,8 +1981,247 @@ impl EntityText {
 
 #[sand_macros::api(
     registry = sand_api_contract,
+    path = "sand::entity::EntityName",
+    aliases = ["sand::prelude::EntityName"],
+    module = "sand::entity",
+    summary = "A component-aware custom entity name built from canonical Sand text and typed State fields.",
+    context = "Literal segments use TextComponent directly, while typed State segments retain their owning component identity for archetype membership validation.",
+    minecraft = "Sand lowers static TextComponent segments directly and materializes dynamic State values through deterministic archetype helper functions.",
+    use_when = ["Building a styled native entity name from static text and composed State fields"],
+    avoid_when = ["Building ordinary chat text that does not need archetype State"],
+    example = "use sand::entity::EntityName;",
+)]
+/// Component-aware native entity name using Sand's canonical text styling.
+#[derive(Debug, Clone)]
+pub struct EntityName {
+    text: EntityText,
+    visible: bool,
+    ownership: OwnershipPolicy,
+    refresh: RefreshPolicy,
+}
+
+impl EntityName {
+    /// Start an empty visible name refreshed when a referenced State field changes.
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::entity::EntityName::new",
+        aliases = ["sand::prelude::EntityName::new"],
+        module = "sand::entity",
+        kind = "method",
+        summary = "Starts an empty visible entity name refreshed when referenced State changes.",
+        context = "Append canonical TextComponent values with text and typed component fields with state.",
+        minecraft = "The completed name is written to CustomName and CustomNameVisible by the archetype compiler.",
+        use_when = ["Defining an archetype's native custom name"],
+        avoid_when = ["Creating chat, title, or item text"],
+        returns = "An empty EntityName builder.",
+        example = "let name = sand::entity::EntityName::new();",
+    )]
+    #[must_use]
+    pub const fn new() -> Self {
+        Self {
+            text: EntityText::new(),
+            visible: true,
+            ownership: OwnershipPolicy::ReconcileWhenDirty,
+            refresh: RefreshPolicy::WhenSourceChanges,
+        }
+    }
+
+    /// Append one already-styled canonical text component.
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::entity::EntityName::text",
+        aliases = ["sand::prelude::EntityName::text"],
+        module = "sand::entity",
+        kind = "method",
+        summary = "Appends one already-styled canonical TextComponent segment.",
+        context = "Styling belongs to this segment through the normal Text or TextComponent builder instead of mutating the previous segment.",
+        minecraft = "The canonical JSON text component is embedded in CustomName without introducing a second styling DSL.",
+        use_when = ["Appending static styled text to an entity name"],
+        avoid_when = ["Rendering a State value; use state instead"],
+        params(component = "The canonical styled text component to append."),
+        returns = "This EntityName with the component appended.",
+        example = "use sand::prelude::*; let name = EntityName::new().text(Text::new(\"Boss \" ).gold());",
+    )]
+    #[must_use]
+    pub fn text(mut self, component: TextComponent) -> Self {
+        self.text
+            .segments
+            .push(EntityTextSegment::Canonical { component });
+        self
+    }
+
+    /// Append a typed numeric State field with styling applied to that segment.
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::entity::EntityName::state",
+        aliases = ["sand::prelude::EntityName::state"],
+        module = "sand::entity",
+        kind = "method",
+        summary = "Appends a typed numeric State field with its segment color.",
+        context = "The field retains its component and field identity so export rejects references outside the archetype composition.",
+        minecraft = "The score is materialized for the current entity and inserted into the generated CustomName text.",
+        use_when = ["Showing a composed State score in an entity name"],
+        avoid_when = ["Showing an unrelated raw scoreboard objective"],
+        params(field = "The typed State score to render.", color = "The Minecraft color applied only to this State segment."),
+        returns = "This EntityName with the State segment appended.",
+        example = "use sand::prelude::*; fn add(name: EntityName, field: Score) { let _ = name.state(field, ChatColor::Yellow); }",
+    )]
+    #[must_use]
+    pub fn state<T: 'static>(mut self, field: EntityScore<T>, color: ChatColor) -> Self {
+        self.text = self.text.score(field).color_last(color);
+        self
+    }
+
+    /// Append a typed enum State field with styling applied to that segment.
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::entity::EntityName::enum_state",
+        aliases = ["sand::prelude::EntityName::enum_state"],
+        module = "sand::entity",
+        kind = "method",
+        summary = "Appends a typed enum State field with its segment color.",
+        context = "The enum's stable encoding table is retained while the field's owning component is validated against the archetype composition.",
+        minecraft = "Sand selects the encoded display label and inserts it into the generated CustomName text.",
+        use_when = ["Showing a composed State enum in an entity name"],
+        avoid_when = ["Showing a numeric State value; use state instead"],
+        params(field = "The typed State enum to render.", color = "The color applied only to this enum segment."),
+        returns = "This EntityName with the enum segment appended.",
+        example = "use sand::prelude::*; fn add<T: EntityEnumValue>(name: EntityName, field: EntityEnum<T>) { let _ = name.enum_state(field, ChatColor::Gold); }",
+    )]
+    #[must_use]
+    pub fn enum_state<T: EntityEnumValue>(
+        mut self,
+        field: EntityEnum<T>,
+        color: ChatColor,
+    ) -> Self {
+        self.text = self.text.enum_value(field).color_last(color);
+        self
+    }
+
+    /// Append a typed flag State field with labels and styling for that segment.
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::entity::EntityName::flag_state",
+        aliases = ["sand::prelude::EntityName::flag_state"],
+        module = "sand::entity",
+        kind = "method",
+        summary = "Appends a typed flag State field with explicit labels and segment color.",
+        context = "The flag retains its owning component identity and renders exactly one caller-provided label without a separate styling pass.",
+        minecraft = "Sand selects the disabled or enabled label and inserts it into the generated CustomName text.",
+        use_when = ["Showing a composed State flag in an entity name"],
+        avoid_when = ["Using a flag only as a condition"],
+        params(field = "The typed State flag to render.", disabled = "Text rendered for zero.", enabled = "Text rendered for one.", color = "The color applied only to this flag segment."),
+        returns = "This EntityName with the flag segment appended.",
+        example = "use sand::prelude::*; fn add(name: EntityName, field: EntityFlag) { let _ = name.flag_state(field, \"off\", \"on\", ChatColor::Red); }",
+    )]
+    #[must_use]
+    pub fn flag_state(
+        mut self,
+        field: EntityFlag,
+        disabled: impl Into<String>,
+        enabled: impl Into<String>,
+        color: ChatColor,
+    ) -> Self {
+        self.text = self.text.flag(field, disabled, enabled).color_last(color);
+        self
+    }
+
+    /// Set a deterministic periodic refresh cadence.
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::entity::EntityName::refresh_every",
+        aliases = ["sand::prelude::EntityName::refresh_every"],
+        module = "sand::entity",
+        kind = "method",
+        summary = "Refreshes the name at a deterministic tick cadence.",
+        context = "Use this when native or external changes require periodic materialization in addition to typed dirty tracking.",
+        minecraft = "The archetype shares its reconciliation scan and advances a per-entity refresh clock.",
+        use_when = ["A dynamic name must be refreshed periodically"],
+        avoid_when = ["Typed State writes are the only source of changes"],
+        params(ticks = "The positive refresh interval; zero is rejected during export."),
+        returns = "This EntityName with periodic refresh configured.",
+        example = "use sand::prelude::*; let name = EntityName::new().refresh_every(Ticks::new(5));",
+    )]
+    #[must_use]
+    pub fn refresh_every(mut self, ticks: Ticks) -> Self {
+        self.refresh = RefreshPolicy::Every(ticks);
+        self
+    }
+
+    /// Control whether Minecraft renders the name without targeting the entity.
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::entity::EntityName::visible",
+        aliases = ["sand::prelude::EntityName::visible"],
+        module = "sand::entity",
+        kind = "method",
+        summary = "Controls whether Minecraft renders the custom name above the entity.",
+        context = "Visibility is part of the same native name declaration as its static and State-backed segments.",
+        minecraft = "Sand writes CustomNameVisible together with the compiled CustomName.",
+        use_when = ["The archetype should own custom-name visibility"],
+        avoid_when = ["Another system owns CustomNameVisible"],
+        params(visible = "Whether the native custom name is visible."),
+        returns = "This EntityName with visibility configured.",
+        example = "let name = sand::entity::EntityName::new().visible(false);",
+    )]
+    #[must_use]
+    pub fn visible(mut self, visible: bool) -> Self {
+        self.visible = visible;
+        self
+    }
+
+    /// Set ownership behavior for the native CustomName fields.
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::entity::EntityName::ownership",
+        aliases = ["sand::prelude::EntityName::ownership"],
+        module = "sand::entity",
+        kind = "method",
+        summary = "Sets how the archetype reconciles its native custom name.",
+        context = "The ownership policy controls whether Sand reapplies or preserves external changes to CustomName and CustomNameVisible.",
+        minecraft = "The archetype compiler applies the selected ownership policy during reconciliation.",
+        use_when = ["Choosing how the archetype cooperates with external custom-name changes"],
+        avoid_when = ["The default dirty-driven ownership is sufficient"],
+        params(ownership = "The native property ownership policy."),
+        returns = "This EntityName with ownership configured.",
+        example = "use sand::prelude::*; let name = EntityName::new().ownership(OwnershipPolicy::PreserveExternal);",
+    )]
+    #[must_use]
+    pub fn ownership(mut self, ownership: OwnershipPolicy) -> Self {
+        self.ownership = ownership;
+        self
+    }
+
+    pub(crate) fn text_value(&self) -> &EntityText {
+        &self.text
+    }
+
+    pub(crate) const fn is_visible(&self) -> bool {
+        self.visible
+    }
+
+    pub(crate) const fn ownership_policy(&self) -> OwnershipPolicy {
+        self.ownership
+    }
+
+    pub(crate) fn refresh_policy(&self) -> &RefreshPolicy {
+        &self.refresh
+    }
+
+    pub(crate) fn validate(&self, archetype: impl fmt::Display) -> Result<(), EntityDiagnostic> {
+        self.refresh.validate(archetype, NativePropertyKey::Name)
+    }
+}
+
+impl Default for EntityName {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+#[sand_macros::api(
+    registry = sand_api_contract,
     path = "sand::entity::NameBinding",
-    aliases = ["sand::prelude::NameBinding"],
     module = "sand::entity",
     summary = "A state-aware native custom-name declaration.",
     context = "A state-aware native custom-name declaration. This declaration belongs to Sand's typed entity model. Semantic definitions are public; selector rendering, validation bookkeeping, and compiler lowering remain internal.",
@@ -1984,7 +2231,7 @@ impl EntityText {
     example = "use sand::entity::NameBinding;",
 )]
 /// A state-aware native custom-name declaration.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone)]
 pub struct NameBinding {
     text: EntityText,
     visible: bool,
@@ -1997,7 +2244,6 @@ impl NameBinding {
     #[sand_macros::api(
         registry = sand_api_contract,
         path = "sand::entity::NameBinding::new",
-        aliases = ["sand::prelude::NameBinding::new"],
         module = "sand::entity",
         kind = "method",
         summary = "Create a visible name refreshed only when a source changes.",
@@ -2023,7 +2269,6 @@ impl NameBinding {
     #[sand_macros::api(
         registry = sand_api_contract,
         path = "sand::entity::NameBinding::visible",
-        aliases = ["sand::prelude::NameBinding::visible"],
         module = "sand::entity",
         kind = "method",
         summary = "Control `CustomNameVisible`.",
@@ -2045,7 +2290,6 @@ impl NameBinding {
     #[sand_macros::api(
         registry = sand_api_contract,
         path = "sand::entity::NameBinding::ownership",
-        aliases = ["sand::prelude::NameBinding::ownership"],
         module = "sand::entity",
         kind = "method",
         summary = "Set ownership behavior.",
@@ -2067,7 +2311,6 @@ impl NameBinding {
     #[sand_macros::api(
         registry = sand_api_contract,
         path = "sand::entity::NameBinding::refresh",
-        aliases = ["sand::prelude::NameBinding::refresh"],
         module = "sand::entity",
         kind = "method",
         summary = "Set refresh scheduling.",
@@ -2089,7 +2332,6 @@ impl NameBinding {
     #[sand_macros::api(
         registry = sand_api_contract,
         path = "sand::entity::NameBinding::text",
-        aliases = ["sand::prelude::NameBinding::text"],
         module = "sand::entity",
         kind = "method",
         summary = "Name template.",
@@ -2109,7 +2351,6 @@ impl NameBinding {
     #[sand_macros::api(
         registry = sand_api_contract,
         path = "sand::entity::NameBinding::is_visible",
-        aliases = ["sand::prelude::NameBinding::is_visible"],
         module = "sand::entity",
         kind = "method",
         summary = "Whether Minecraft should render the name without targeting the entity.",
@@ -2129,7 +2370,6 @@ impl NameBinding {
     #[sand_macros::api(
         registry = sand_api_contract,
         path = "sand::entity::NameBinding::ownership_policy",
-        aliases = ["sand::prelude::NameBinding::ownership_policy"],
         module = "sand::entity",
         kind = "method",
         summary = "Selected ownership behavior.",
@@ -2149,7 +2389,6 @@ impl NameBinding {
     #[sand_macros::api(
         registry = sand_api_contract,
         path = "sand::entity::NameBinding::refresh_policy",
-        aliases = ["sand::prelude::NameBinding::refresh_policy"],
         module = "sand::entity",
         kind = "method",
         summary = "Selected refresh scheduling.",
@@ -2169,7 +2408,6 @@ impl NameBinding {
     #[sand_macros::api(
         registry = sand_api_contract,
         path = "sand::entity::NameBinding::validate",
-        aliases = ["sand::prelude::NameBinding::validate"],
         module = "sand::entity",
         kind = "method",
         summary = "Validate refresh scheduling with archetype context.",

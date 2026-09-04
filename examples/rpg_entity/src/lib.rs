@@ -15,13 +15,22 @@ pub enum Rarity {
     Legendary = 2,
 }
 
-/// All persistent state owned by one adopted Zombie.
+/// Reusable progression data shared by RPG living entities.
 #[derive(State)]
-#[state(namespace = "rpg", scope = living, name = "zombie", version = 2)]
+#[state(namespace = "rpg", scope = living, name = "progression")]
 #[allow(dead_code)]
-pub struct ZombieState {
+pub struct Progression {
     #[state(default = 1, min = 1, max = 100)]
     level: EntityScore<i32>,
+    #[state(default = "Rarity::Common")]
+    rarity: EntityEnum<Rarity>,
+}
+
+/// Reusable combat and condition data composed by the Zombie archetype.
+#[derive(State)]
+#[state(namespace = "rpg", scope = living, name = "combat", version = 2)]
+#[allow(dead_code)]
+pub struct Combat {
     #[state(default = 20, min = 0, max = 2000)]
     health: EntityScore<i32>,
     #[state(default = 20, min = 1, max = 2000)]
@@ -30,8 +39,6 @@ pub struct ZombieState {
     attack_damage: EntityScore<i32>,
     #[state(default = false)]
     sick: EntityFlag,
-    #[state(default = "Rarity::Common")]
-    rarity: EntityEnum<Rarity>,
     #[state(default = 0)]
     age: EntityTimer,
     #[state(default = 0)]
@@ -42,11 +49,6 @@ pub struct ZombieState {
     stats_dirty: EntityScore<i32>,
 }
 
-fn whole_numbers() -> FixedPoint {
-    FixedPoint::new(1, RoundingPolicy::TowardZero, OverflowPolicy::Error)
-        .expect("scale one is a valid fixed-point configuration")
-}
-
 fn hundredths() -> FixedPoint {
     FixedPoint::new(100, RoundingPolicy::TowardZero, OverflowPolicy::Error)
         .expect("scale one hundred is a valid fixed-point configuration")
@@ -55,40 +57,40 @@ fn hundredths() -> FixedPoint {
 /// Initialization callback referenced by a canonical typed function ID.
 #[function]
 pub fn initialized() {
-    ZombieState::ability.bind().start(Ticks::seconds(5));
+    Combat::ability.bind().start(Ticks::seconds(5));
 }
 
 /// Contiguous version-one to version-two migration.
 #[function]
 pub fn migrate_v1_v2() {
-    ZombieState::schema_version.bind().set(2);
+    Combat::schema_version.bind().set(2);
 }
 
 /// Transition action used when sickness becomes enabled.
 #[function]
 pub fn sickness_started() {
-    ZombieState::stats_dirty.bind().set(1);
+    Combat::stats_dirty.bind().set(1);
 }
 
 /// Runtime validation entry: mutate only this Zombie's level.
 #[function]
 pub fn level_up() {
-    ZombieState::level.bind().add(1);
+    Progression::level.bind().add(1);
 }
 
 /// Runtime validation entry: enable sickness for this Zombie.
 #[function]
 pub fn infect() {
-    ZombieState::sick.bind().enable();
+    Combat::sick.bind().enable();
 }
 
 /// Natural/external Zombie archetype registered into the export.
 #[entity_archetype]
-pub fn rpg_zombie() -> EntityArchetype<ZombieKind, ZombieState> {
+pub fn rpg_zombie() -> EntityArchetype<ZombieKind> {
     let health_curve = StatCurve::multiply([
-        StatCurve::linear(StatCurve::state(ZombieState::level), 2.0, 18.0),
+        StatCurve::linear(StatCurve::state(Progression::level), 2.0, 18.0),
         StatCurve::enum_mapping(
-            ZombieState::rarity,
+            Progression::rarity,
             [
                 (Rarity::Common, 1.0),
                 (Rarity::Rare, 2.0),
@@ -96,17 +98,16 @@ pub fn rpg_zombie() -> EntityArchetype<ZombieKind, ZombieState> {
             ],
             1.0,
         ),
-        StatCurve::flag_mapping(ZombieState::sick, 1.0, 0.75),
+        StatCurve::flag_mapping(Combat::sick, 1.0, 0.75),
     ]);
-    let name = EntityText::new()
-        .literal("Lv. ")
-        .color_last(ChatColor::Gold)
-        .score(ZombieState::level)
-        .color_last(ChatColor::Yellow)
-        .literal(" Plagued Zombie")
-        .color_last(ChatColor::DarkGreen);
+    let name = EntityName::new()
+        .text(Text::new("Lv. ").gold())
+        .state(Progression::level, ChatColor::Yellow)
+        .text(Text::new(" Plagued Zombie").dark_green());
 
     EntityArchetype::new(ResourceLocation::new("rpg", "plagued_zombie").unwrap())
+        .components::<Progression>()
+        .components::<Combat>()
         .version(2)
         .adopt(
             Adoption::natural_and_external()
@@ -120,44 +121,40 @@ pub fn rpg_zombie() -> EntityArchetype<ZombieKind, ZombieState> {
             "rpg:migrate_v1_v2".parse::<FunctionId>().unwrap(),
         ))
         .initialize_with("rpg:initialized".parse::<FunctionId>().unwrap())
-        .derive(
-            EntityDerivation::new("max_health", ZombieState::max_health, health_curve)
+        .derive_with(
+            EntityDerivation::for_target(Combat::max_health, health_curve)
                 .fixed_point(hundredths()),
         )
         .derive(
-            EntityDerivation::new(
-                "attack_damage",
-                ZombieState::attack_damage,
-                StatCurve::clamped_linear(
-                    StatCurve::state(ZombieState::level),
-                    1.0,
-                    2.0,
-                    3.0,
-                    100.0,
-                ),
-            )
-            .fixed_point(whole_numbers()),
+            Combat::attack_damage,
+            StatCurve::clamped_linear(
+                StatCurve::state(Progression::level),
+                1.0,
+                2.0,
+                3.0,
+                100.0,
+            ),
         )
         .health(
-            HealthBinding::new(ZombieState::max_health)
-                .current_health(ZombieState::health, CurrentHealthSync::Bidirectional)
+            HealthBinding::new(Combat::max_health)
+                .current_health(Combat::health, CurrentHealthSync::Bidirectional)
                 .resize(HealthResizePolicy::PreserveRatio)
                 .observe_native_every(Ticks::new(20)),
         )
         .attribute(AttributeBinding::new(
             AttributeType::AttackDamage,
-            NumericPropertySource::state(ZombieState::attack_damage),
+            NumericPropertySource::state(Combat::attack_damage),
         ))
-        .name(NameBinding::new(name))
+        .name(name)
         .effect_when(
-            ZombieState::sick,
+            Combat::sick,
             EffectBinding::new(
                 StatusEffectId::minecraft("weakness").unwrap(),
                 Ticks::seconds(10),
             ),
         )
         .on(
-            EntityTransition::flag_enabled(ZombieState::sick),
+            EntityTransition::flag_enabled(Combat::sick),
             EntityAction::Run("rpg:sickness_started".parse::<FunctionId>().unwrap()),
         )
 }

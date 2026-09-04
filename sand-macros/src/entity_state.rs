@@ -962,6 +962,10 @@ pub(crate) fn derive_state(input: DeriveInput) -> syn::Result<proc_macro2::Token
             fn presence_requirements() -> Vec<(String, u32)> {
                 vec![(::sand::__private::resolve_state_objective(#presence_objective), #version)]
             }
+
+            fn component_schemas() -> Vec<::sand::__private::StateSchema> {
+                vec![<Self as ::sand::__private::EntityState>::schema()]
+            }
         }
 
         #lifecycle_registration
@@ -1015,6 +1019,7 @@ pub(crate) fn derive_bundle(input: DeriveInput) -> syn::Result<proc_macro2::Toke
     let mut global_detach = Vec::new();
     let mut component_trees = Vec::new();
     let mut presence = Vec::new();
+    let mut schemas = Vec::new();
     let mut member_types = Vec::new();
     let mut contracts = Vec::new();
 
@@ -1083,6 +1088,9 @@ pub(crate) fn derive_bundle(input: DeriveInput) -> syn::Result<proc_macro2::Toke
         });
         presence.push(quote! {
             objectives.extend(<#ty as ::sand::__private::StateBundleMember>::presence_requirements());
+        });
+        schemas.push(quote! {
+            schemas.extend(<#ty as ::sand::__private::StateBundleMember>::component_schemas());
         });
     }
     detach.reverse();
@@ -1237,6 +1245,14 @@ pub(crate) fn derive_bundle(input: DeriveInput) -> syn::Result<proc_macro2::Toke
                 objectives.sort();
                 objectives.dedup();
                 objectives
+            }
+
+            fn component_schemas() -> Vec<::sand::__private::StateSchema> {
+                let mut schemas = Vec::new();
+                #(#schemas)*
+                let mut seen = ::std::collections::BTreeSet::new();
+                schemas.retain(|schema| seen.insert(schema.id()));
+                schemas
             }
         }
 

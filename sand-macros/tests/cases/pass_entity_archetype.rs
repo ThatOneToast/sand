@@ -9,8 +9,9 @@ struct ZombieState {
 }
 
 #[entity_archetype]
-fn zombie() -> EntityArchetype<ZombieKind, ZombieState> {
+fn zombie() -> EntityArchetype<ZombieKind> {
     EntityArchetype::new(ResourceLocation::new("rpg", "zombie").unwrap())
+        .components::<ZombieState>()
         .adopt(Adoption::natural_and_external())
 }
 

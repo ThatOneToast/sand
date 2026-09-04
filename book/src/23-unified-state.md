@@ -159,8 +159,9 @@ fn attack(event: PlayerAttack, query: Fighters) {
 Archetypes compose independent components and nested bundles with
 `.components::<Combat>()`. Composition uses the same idempotent attachment,
 component migration, and ownership-safe detachment paths as direct author
-calls. Use a distinct marker as the archetype's primary schema; repeating that
-schema inside a composed bundle is rejected as a conflicting policy.
+calls. An archetype has no primary State: it owns the flattened composition and
+native Minecraft bindings while every component retains its own data and
+lifecycle.
 
 Player components watch online players automatically. If you explicitly detach
 one, Sand remembers that choice instead of quietly putting it back; `attach`

@@ -741,7 +741,7 @@ fn expand_state_system_impl(
     Ok(quote! { #implementation #(#registrations)* })
 }
 
-/// Register a zero-argument `EntityArchetype<K, S>` factory for export.
+/// Register a zero-argument component-first `EntityArchetype<K>` factory for export.
 ///
 /// The annotated function remains callable by author code. Each export calls
 /// it afresh, so registration does not retain process-global mutable builder
@@ -758,8 +758,9 @@ fn expand_state_system_impl(
 /// use sand::prelude::*;
 ///
 /// #[entity_archetype]
-/// fn zombie_guard() -> EntityArchetype<Zombie, GuardState> {
-///     EntityArchetype::new(EntityType::Zombie)
+/// fn zombie_guard() -> EntityArchetype<ZombieKind> {
+///     EntityArchetype::new("demo:zombie_guard".parse().unwrap())
+///         .components::<GuardState>()
 ///         .health(HealthBinding::new(GuardState::max_health))
 /// }
 /// ```

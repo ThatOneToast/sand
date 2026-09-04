@@ -238,17 +238,17 @@ pub mod state {
 /// }
 ///
 /// #[entity_archetype]
-/// fn zombie() -> EntityArchetype<ZombieKind, Mob> {
+/// fn zombie() -> EntityArchetype<ZombieKind> {
 ///     let fixed = FixedPoint::new(
 ///         1,
 ///         RoundingPolicy::TowardZero,
 ///         OverflowPolicy::Error,
 ///     ).unwrap();
 ///     EntityArchetype::new(ResourceLocation::new("demo", "zombie").unwrap())
+///         .components::<Mob>()
 ///         .adopt(Adoption::natural_and_external().every(Ticks::new(5)))
-///         .derive(
-///             EntityDerivation::new(
-///                 "health",
+///         .derive_with(
+///             EntityDerivation::for_target(
 ///                 Mob::max_health,
 ///                 StatCurve::linear(StatCurve::state(Mob::level), 2.0, 18.0),
 ///             ).fixed_point(fixed),
@@ -273,7 +273,7 @@ pub mod entity {
         DerivedScoreEncoding, EffectBinding, EntityAction, EntityArchetype, EntityContext,
         EntityCooldown, EntityCooldownAccessor, EntityDerivation, EntityDiagnostic, EntityEnum,
         EntityEnumAccessor, EntityEnumValue, EntityEventId, EntityFlag, EntityFlagAccessor,
-        EntityKind, EntityNbtBinding, EntityNbtProperty, EntityNbtType, EntityNbtValue,
+        EntityKind, EntityName, EntityNbtBinding, EntityNbtProperty, EntityNbtType, EntityNbtValue,
         EntityQueries, EntityQuery, EntityScope, EntityScore, EntityScoreAccessor, EntityState,
         EntityStateField, EntityTag, EntityTeam, EntityText, EntityTextSegment, EntityTimer,
         EntityTimerAccessor, EntityTransition, EntityTransitionField, EnumEncoding,

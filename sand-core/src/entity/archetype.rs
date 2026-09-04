@@ -2565,6 +2565,11 @@ fn compile_definition_with_claims(
         )
     });
     let property_schedules_scan = !refresh_outputs.is_empty() || has_timers;
+    let component_schedules_scan = !definition.components.is_empty()
+        && !matches!(
+            definition.reconcile,
+            ReconcilePolicy::InitializeOnly | ReconcilePolicy::Manual
+        );
     let needs_reconcile_scan = (!matches!(
         definition.reconcile,
         ReconcilePolicy::InitializeOnly | ReconcilePolicy::Manual
@@ -2573,7 +2578,8 @@ fn compile_definition_with_claims(
         || !definition.transitions.is_empty()
         || !definition.migrations.is_empty()
         || definition.version > 1))
-        || property_schedules_scan;
+        || property_schedules_scan
+        || component_schedules_scan;
     if needs_reconcile_scan {
         let path = format!("{root}/reconcile_scan");
         functions.insert(path.clone());
@@ -4786,6 +4792,22 @@ mod tests {
         let compiled = compile_definition(&archetype.definition(), &profile()).unwrap();
         assert!(compiled.tick_functions.is_empty());
         assert_eq!(compiled.report.outer_scans_per_cycle, 0);
+    }
+
+    #[test]
+    fn component_versions_schedule_default_reconciliation() {
+        let archetype = EntityArchetype::<ZombieKind>::new(
+            ResourceLocation::new("rpg", "component_upgrade").unwrap(),
+        )
+        .components::<MobState>();
+        let compiled = compile_definition(&archetype.definition(), &profile()).unwrap();
+        assert!(
+            compiled
+                .records
+                .iter()
+                .any(|record| record.path.ends_with("/reconcile_scan"))
+        );
+        assert_eq!(compiled.report.outer_scans_per_cycle, 1);
     }
 
     #[test]

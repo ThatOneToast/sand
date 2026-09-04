@@ -281,7 +281,10 @@ fn automatic_lifecycle_from(
         if component.fields.iter().any(|field| {
             matches!(
                 field.field.kind,
-                crate::entity::StateFieldKind::Score | crate::entity::StateFieldKind::Fixed(_)
+                crate::entity::StateFieldKind::Score
+                    | crate::entity::StateFieldKind::Fixed(_)
+                    | crate::entity::StateFieldKind::Version
+                    | crate::entity::StateFieldKind::Dirty
             )
         }) {
             let (namespace, schema) = component
@@ -649,6 +652,39 @@ mod tests {
                 .load_commands
                 .iter()
                 .filter(|command| command.contains(&scratch))
+                .count(),
+            1
+        );
+    }
+
+    #[test]
+    fn version_and_dirty_only_components_provision_numeric_scratch() {
+        const VERSION: StateFieldDescriptor =
+            StateFieldDescriptor::new("version", StateFieldKind::Version, 1, Some((0, 10)));
+        const DIRTY: StateFieldDescriptor =
+            StateFieldDescriptor::new("dirty", StateFieldKind::Dirty, 0, Some((0, 1)));
+        const INTERNAL_NUMERIC_FIELDS: &[StateLifecycleDescriptor] = &[
+            StateLifecycleDescriptor::new("version_obj", VERSION),
+            StateLifecycleDescriptor::new("dirty_obj", DIRTY),
+        ];
+        let output = automatic_lifecycle_from([StateDescriptor::new(
+            "demo:internal_only",
+            1,
+            StateScope::Entity,
+            "presence",
+            "unused",
+            INTERNAL_NUMERIC_FIELDS,
+            &[],
+            &[],
+        )])
+        .unwrap();
+        let scratch = numeric_scratch_name("demo", "internal_only");
+        let expected = format!("scoreboard objectives add {scratch} dummy");
+        assert_eq!(
+            output
+                .load_commands
+                .iter()
+                .filter(|command| *command == &expected)
                 .count(),
             1
         );

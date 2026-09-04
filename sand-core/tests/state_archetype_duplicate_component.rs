@@ -110,4 +110,20 @@ fn shared_components_remain_reusable_and_cleanup_is_composition_scoped() {
     assert!(first_cleanup.contains(&SharedState::shared.objective()));
     assert!(first_cleanup.contains(&FirstOnly::value.objective()));
     assert!(!first_cleanup.contains(&SecondOnly::value.objective()));
+    let component_dirty = SharedState::shared
+        .bind()
+        .set(1)
+        .into_iter()
+        .last()
+        .and_then(|command| command.split_whitespace().nth(4).map(str::to_owned))
+        .expect("shared component dirty objective");
+    assert!(first_cleanup.lines().any(|line| {
+        line.contains("unless entity @s[tag=")
+            && line.ends_with(&format!("scoreboard players reset @s {component_dirty}"))
+    }));
+    assert!(
+        !first_cleanup
+            .lines()
+            .any(|line| line == format!("scoreboard players reset @s {component_dirty}"))
+    );
 }

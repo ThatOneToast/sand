@@ -2587,7 +2587,13 @@ fn compile_definition_with_claims(
     }
     let component_objectives = fields
         .values()
-        .flat_map(|field| [field.objective.clone(), field.dirty_objective.clone()])
+        .flat_map(|field| {
+            [
+                field.objective.clone(),
+                field.dirty_objective.clone(),
+                field.component_dirty_objective.clone(),
+            ]
+        })
         .collect::<BTreeSet<_>>();
     for objective in &objectives {
         if !component_objectives.contains(objective) {

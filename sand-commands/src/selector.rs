@@ -486,6 +486,15 @@ impl Target<PlayersOnly, One> {
     pub fn current_player() -> Self {
         Self::from_selector(Selector::self_())
     }
+
+    /// Explicit unchecked single-player selector syntax.
+    ///
+    /// This escape hatch preserves both caller assertions: the selector
+    /// resolves to at most one entity, and that entity is a player.
+    #[sand_macros::api(registry = sand_api_contract, path = "sand::command::Target::raw_single_player", aliases = ["sand::cmd::Target::raw_single_player", "sand::prelude::Target::raw_single_player", "sand::prelude::cmd::Target::raw_single_player"], module = "sand::command", summary = "Creates an unchecked target asserted to select at most one player.", context = "Advanced escape hatch for modded or future selector grammar; the caller supplies both the single-cardinality and player-category assertions. The player category is preserved for player-only commands, filters, and TargetExecution callbacks, while the single assertion survives score-holder conversion.", minecraft = "Emits the supplied selector text verbatim.", use_when = ["Using unsupported selector grammar known to select at most one player"], avoid_when = ["A typed player constructor or narrowing method can prove the selection"], params(selector = "The unchecked player selector expression."), returns = "A target carrying single-player category and cardinality assertions.", example = "let target = sand::command::Target::raw_single_player(\"@a[modded=true,limit=1]\");")]
+    pub fn raw_single_player(selector: impl Into<String>) -> Self {
+        Self::from_selector(Selector::raw_single(selector))
+    }
 }
 
 impl<A> Target<PlayersOnly, A> {

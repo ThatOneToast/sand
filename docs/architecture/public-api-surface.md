@@ -82,12 +82,12 @@ The verified profiles are:
 
 | Minecraft version | Enforced identities | Commands | Registries | Baseline |
 | --- | ---: | ---: | ---: | --- |
-| 1.21.4 (compatibility) | 10,231 | 902 | 4,288 | `api-surface-baseline-1.21.4.txt` |
-| 26.2 (latest/default) | 11,141 | 1,233 | 4,867 | `api-surface-baseline.txt` |
+| 1.21.4 (compatibility) | 10,232 | 902 | 4,288 | `api-surface-baseline-1.21.4.txt` |
+| 26.2 (latest/default) | 11,142 | 1,233 | 4,867 | `api-surface-baseline.txt` |
 
-The handwritten source contribution is 4,773 identities in both profiles.
+The handwritten source contribution is 4,774 identities in both profiles.
 An explicit `SAND_ALLOW_PLACEHOLDER_CODEGEN=1` fallback uses a third,
-`placeholder-codegen` profile with 5,041 identities (4,773 source identities
+`placeholder-codegen` profile with 5,042 identities (4,774 source identities
 plus 268 checked-in generator identities). The fallback writer
 atomically replaces generated Rust and both provider catalogs; the catalogs
 are machine-marked empty placeholders and must agree. The facade keeps the
@@ -130,7 +130,7 @@ Generated static families account for 6,368 identities:
 - effect registry enums: 95 identities;
 - generated event marker types: 25 identities.
 
-The remaining 4,773 identities come from ordinary source declarations,
+The remaining 4,774 identities come from ordinary source declarations,
 including the 20 exported procedural macros. Input-dependent items emitted
 into downstream crates by attributes and derives are parametric families, so
 they do not have an honest finite installed count and are not represented as

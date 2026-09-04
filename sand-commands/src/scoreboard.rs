@@ -2243,6 +2243,14 @@ mod tests {
                 .is_ok()
         );
 
+        let player = ScoreHolder::from(Target::raw_single_player("@a[tag=candidate,limit=1]"));
+        assert_eq!(player.to_string(), "@a[tag=candidate,limit=1]");
+        assert!(
+            player
+                .validate_single(&CommandProfile::unprofiled())
+                .is_ok()
+        );
+
         let many = ScoreHolder::from(Target::raw_many("@e[tag=candidate]"));
         assert!(many.validate_single(&CommandProfile::unprofiled()).is_err());
     }

@@ -16,7 +16,16 @@ fn constructors_encode_category_and_cardinality() {
     takes_many_entities(Target::entities());
     takes_single_player(Target::nearest_player());
     takes_single_player(Target::current_player());
+    takes_single_player(Target::raw_single_player("@a[modded=true,limit=1]"));
     takes_many_players(Target::players());
+}
+
+#[test]
+fn raw_single_player_preserves_both_type_assertions() {
+    let target = Target::raw_single_player("@a[modded=true,limit=1]");
+    assert_eq!(target.to_string(), "@a[modded=true,limit=1]");
+    assert!(target.try_build().is_ok());
+    takes_single_player(target);
 }
 
 #[test]

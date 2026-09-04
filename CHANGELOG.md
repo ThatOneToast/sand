@@ -27,6 +27,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Preserved the explicit cardinality assertion from `Target::raw_single`
   when converting into a `ScoreHolder`, so guarded timer, cooldown, and score
   operations continue to accept advanced single-target selector syntax.
+- Added `Target::raw_single_player` so unsupported selector grammar can retain
+  both its author-asserted single cardinality and player-only category for
+  player commands, filters, iteration contexts, and score-holder conversion.
 - Restored every Minecraft selector ordering through `Target::sort`, keeping
   nearest, furthest, random, and arbitrary ordering on the canonical many-target
   API before optional `limit(1)` narrowing.

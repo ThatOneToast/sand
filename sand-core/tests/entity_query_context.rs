@@ -5,7 +5,7 @@
 use std::sync::Mutex;
 
 use sand_commands::Target;
-use sand_core::entity::{EntityScope, TargetExecution};
+use sand_core::entity::{EntityContext, EntityScope, PlayerKind, TargetExecution};
 use sand_core::version::{MinecraftVersion, VersionProfile};
 
 fn latest() -> VersionProfile {
@@ -117,6 +117,17 @@ fn player_target_each_binds_a_player_context() {
     assert_eq!(cmds.len(), 1);
     assert!(cmds[0].starts_with(
         "execute as @a[tag=ready,sort=nearest,limit=1] at @s run function __sand_local:sand/entity_query/"
+    ));
+}
+
+#[test]
+fn raw_single_player_each_binds_a_player_context() {
+    let cmds = Target::raw_single_player("@a[modded=true,limit=1]")
+        .each(|player: &EntityContext<PlayerKind>| vec![player.add_tag("chosen")]);
+
+    assert_eq!(cmds.len(), 1);
+    assert!(cmds[0].starts_with(
+        "execute as @a[modded=true,limit=1] at @s run function __sand_local:sand/entity_query/"
     ));
 }
 

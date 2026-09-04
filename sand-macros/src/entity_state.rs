@@ -44,6 +44,7 @@ pub(crate) fn derive_state(input: DeriveInput) -> syn::Result<proc_macro2::Token
     let mut bound_fields = Vec::new();
     let mut bound_values = Vec::new();
     let mut lifecycle_fields = Vec::new();
+    let mut auto_tick_objectives = Vec::new();
     let mut data_descriptors = Vec::new();
     let mut generated_contracts = Vec::new();
     for field in fields {
@@ -487,6 +488,9 @@ pub(crate) fn derive_state(input: DeriveInput) -> syn::Result<proc_macro2::Token
             .map(|value| quote!(.display_name(#value)))
             .unwrap_or_default();
         let auto_tick = if attrs.auto_tick {
+            auto_tick_objectives.push(quote!(
+                ::sand::__private::resolve_state_objective(#logical_objective)
+            ));
             quote!(.auto_tick())
         } else {
             quote!()
@@ -962,6 +966,20 @@ pub(crate) fn derive_state(input: DeriveInput) -> syn::Result<proc_macro2::Token
             fn presence_requirements() -> Vec<(String, u32)> {
                 vec![(::sand::__private::resolve_state_objective(#presence_objective), #version)]
             }
+
+            fn component_schemas() -> Vec<::sand::__private::StateSchema> {
+                vec![<Self as ::sand::__private::EntityState>::schema()]
+            }
+
+            fn component_lifecycles() -> Vec<::sand::__private::StateComponentLifecycle> {
+                vec![::sand::__private::StateComponentLifecycle::__new(
+                    <Self as ::sand::__private::StateBundleMember>::presence_requirements(),
+                    <Self as ::sand::__private::StateBundleMember>::component_schemas(),
+                    vec![#(#auto_tick_objectives),*],
+                    <Self as ::sand::__private::StateBundleMember>::attach_member,
+                    <Self as ::sand::__private::StateBundleMember>::detach_member,
+                )]
+            }
         }
 
         #lifecycle_registration
@@ -1015,6 +1033,8 @@ pub(crate) fn derive_bundle(input: DeriveInput) -> syn::Result<proc_macro2::Toke
     let mut global_detach = Vec::new();
     let mut component_trees = Vec::new();
     let mut presence = Vec::new();
+    let mut schemas = Vec::new();
+    let mut lifecycles = Vec::new();
     let mut member_types = Vec::new();
     let mut contracts = Vec::new();
 
@@ -1083,6 +1103,12 @@ pub(crate) fn derive_bundle(input: DeriveInput) -> syn::Result<proc_macro2::Toke
         });
         presence.push(quote! {
             objectives.extend(<#ty as ::sand::__private::StateBundleMember>::presence_requirements());
+        });
+        schemas.push(quote! {
+            schemas.extend(<#ty as ::sand::__private::StateBundleMember>::component_schemas());
+        });
+        lifecycles.push(quote! {
+            lifecycles.extend(<#ty as ::sand::__private::StateBundleMember>::component_lifecycles());
         });
     }
     detach.reverse();
@@ -1237,6 +1263,20 @@ pub(crate) fn derive_bundle(input: DeriveInput) -> syn::Result<proc_macro2::Toke
                 objectives.sort();
                 objectives.dedup();
                 objectives
+            }
+
+            fn component_schemas() -> Vec<::sand::__private::StateSchema> {
+                let mut schemas = Vec::new();
+                #(#schemas)*
+                let mut seen = ::std::collections::BTreeSet::new();
+                schemas.retain(|schema| seen.insert(schema.id()));
+                schemas
+            }
+
+            fn component_lifecycles() -> Vec<::sand::__private::StateComponentLifecycle> {
+                let mut lifecycles = Vec::new();
+                #(#lifecycles)*
+                lifecycles
             }
         }
 

@@ -38,7 +38,7 @@ use std::sync::Arc;
 
 use thiserror::Error;
 
-use super::{EntityDiagnostic, EntityStateField, NumericStateField};
+use super::{EntityDiagnostic, NumericStateField};
 
 #[sand_macros::api(
     registry = sand_api_contract,
@@ -873,10 +873,7 @@ pub struct StatCurve {
 #[derive(Clone, Debug)]
 enum CurveKind {
     Constant(f64),
-    Input {
-        objective: String,
-        storage_scale: i32,
-    },
+    Input(CurveInput),
     Linear {
         input: Box<StatCurve>,
         slope: f64,
@@ -900,21 +897,50 @@ enum CurveKind {
         fallback: Box<StatCurve>,
     },
     Lookup {
-        input: String,
+        input: CurveInput,
         entries: Vec<(i64, f64)>,
         fallback: f64,
     },
     EnumMap {
-        input: String,
+        input: CurveInput,
         entries: Vec<(i32, f64)>,
         fallback: f64,
     },
     FlagMap {
-        input: String,
+        input: CurveInput,
         disabled: f64,
         enabled: f64,
     },
     Custom(CustomCurve),
+}
+
+#[derive(Clone, Debug)]
+struct CurveInput {
+    objective: String,
+    storage_scale: i32,
+    field: Option<super::state::StateFieldReference>,
+}
+
+impl CurveInput {
+    fn typed(field: impl super::EntityStateField) -> Self {
+        let storage_scale = match field.descriptor().kind {
+            super::state::StateFieldKind::Fixed(scale) => scale,
+            _ => 1,
+        };
+        Self {
+            objective: field.objective(),
+            storage_scale,
+            field: Some(field.field_reference()),
+        }
+    }
+
+    fn raw(objective: impl Into<String>) -> Self {
+        Self {
+            objective: objective.into(),
+            storage_scale: 1,
+            field: None,
+        }
+    }
 }
 
 impl StatCurve {
@@ -960,10 +986,7 @@ impl StatCurve {
     #[must_use]
     pub fn state(field: impl NumericStateField) -> Self {
         Self {
-            kind: CurveKind::Input {
-                objective: field.objective(),
-                storage_scale: field.numeric_scale(),
-            },
+            kind: CurveKind::Input(CurveInput::typed(field)),
         }
     }
 
@@ -988,10 +1011,7 @@ impl StatCurve {
     #[must_use]
     pub fn input_raw(name: &str) -> Self {
         Self {
-            kind: CurveKind::Input {
-                objective: name.to_owned(),
-                storage_scale: 1,
-            },
+            kind: CurveKind::Input(CurveInput::raw(name)),
         }
     }
 
@@ -1214,7 +1234,15 @@ impl StatCurve {
         entries: impl IntoIterator<Item = (i64, f64)>,
         fallback: f64,
     ) -> Self {
-        Self::lookup_raw(&input.objective(), entries, fallback)
+        let mut entries: Vec<_> = entries.into_iter().collect();
+        entries.sort_by_key(|(key, _)| *key);
+        Self {
+            kind: CurveKind::Lookup {
+                input: CurveInput::typed(input),
+                entries,
+                fallback,
+            },
+        }
     }
 
     /// Creates a lookup table from an explicitly raw objective.
@@ -1243,7 +1271,7 @@ impl StatCurve {
         entries.sort_by_key(|(key, _)| *key);
         Self {
             kind: CurveKind::Lookup {
-                input: input.to_owned(),
+                input: CurveInput::raw(input),
                 entries,
                 fallback,
             },
@@ -1272,13 +1300,18 @@ impl StatCurve {
         entries: impl IntoIterator<Item = (T, f64)>,
         fallback: f64,
     ) -> Self {
-        Self::enum_mapping_raw(
-            &input.objective(),
-            entries
-                .into_iter()
-                .map(|(value, output)| (value.encode(), output)),
-            fallback,
-        )
+        let mut entries: Vec<_> = entries
+            .into_iter()
+            .map(|(value, output)| (value.encode(), output))
+            .collect();
+        entries.sort_by_key(|(encoding, _)| *encoding);
+        Self {
+            kind: CurveKind::EnumMap {
+                input: CurveInput::typed(input),
+                entries,
+                fallback,
+            },
+        }
     }
 
     /// Maps raw enum encodings from an explicitly raw objective.
@@ -1307,7 +1340,7 @@ impl StatCurve {
         entries.sort_by_key(|(encoding, _)| *encoding);
         Self {
             kind: CurveKind::EnumMap {
-                input: input.to_owned(),
+                input: CurveInput::raw(input),
                 entries,
                 fallback,
             },
@@ -1332,7 +1365,13 @@ impl StatCurve {
     )]
     #[must_use]
     pub fn flag_mapping(input: super::EntityFlag, disabled: f64, enabled: f64) -> Self {
-        Self::flag_mapping_raw(&input.objective(), disabled, enabled)
+        Self {
+            kind: CurveKind::FlagMap {
+                input: CurveInput::typed(input),
+                disabled,
+                enabled,
+            },
+        }
     }
 
     /// Maps a flag stored in an explicitly raw objective.
@@ -1355,7 +1394,7 @@ impl StatCurve {
     pub fn flag_mapping_raw(input: &str, disabled: f64, enabled: f64) -> Self {
         Self {
             kind: CurveKind::FlagMap {
-                input: input.to_owned(),
+                input: CurveInput::raw(input),
                 disabled,
                 enabled,
             },
@@ -1577,6 +1616,14 @@ impl StatCurve {
         inputs
     }
 
+    /// Typed State fields referenced by this curve, keyed by objective.
+    #[doc(hidden)]
+    pub(crate) fn field_references(&self) -> BTreeMap<String, super::state::StateFieldReference> {
+        let mut references = BTreeMap::new();
+        self.collect_field_references(&mut references);
+        references
+    }
+
     fn validate_inner(
         &self,
         fixed: FixedPoint,
@@ -1587,7 +1634,7 @@ impl StatCurve {
             CurveKind::Constant(value) => {
                 fixed.encode(*value, archetype, derivation)?;
             }
-            CurveKind::Input { .. } => {}
+            CurveKind::Input(_) => {}
             CurveKind::Linear {
                 input,
                 slope,
@@ -1713,15 +1760,15 @@ impl StatCurve {
     ) -> Result<FixedValue, CurveEvaluationError> {
         match &self.kind {
             CurveKind::Constant(value) => Ok(fixed.encode(*value, archetype, derivation)?),
-            CurveKind::Input {
-                objective: name, ..
-            } => inputs
-                .get(name)
-                .ok_or_else(|| CurveEvaluationError::MissingInput {
-                    archetype: archetype.into(),
-                    derivation: derivation.into(),
-                    input: name.clone(),
-                }),
+            CurveKind::Input(input) => {
+                inputs
+                    .get(&input.objective)
+                    .ok_or_else(|| CurveEvaluationError::MissingInput {
+                        archetype: archetype.into(),
+                        derivation: derivation.into(),
+                        input: input.objective.clone(),
+                    })
+            }
             CurveKind::Linear {
                 input,
                 slope,
@@ -1825,7 +1872,7 @@ impl StatCurve {
                 entries,
                 fallback,
             } => {
-                let value = required_input(inputs, input, archetype, derivation)?;
+                let value = required_input(inputs, &input.objective, archetype, derivation)?;
                 let key = fixed.decode_score(value, archetype, derivation)?;
                 Ok(fixed.encode(
                     entries
@@ -1841,7 +1888,7 @@ impl StatCurve {
                 entries,
                 fallback,
             } => {
-                let value = required_input(inputs, input, archetype, derivation)?;
+                let value = required_input(inputs, &input.objective, archetype, derivation)?;
                 let key = fixed.decode_score(value, archetype, derivation)?;
                 let mapped = i32::try_from(key)
                     .ok()
@@ -1859,7 +1906,7 @@ impl StatCurve {
                 disabled,
                 enabled,
             } => {
-                let value = required_input(inputs, input, archetype, derivation)?;
+                let value = required_input(inputs, &input.objective, archetype, derivation)?;
                 Ok(fixed.encode(
                     if value.0 == 0 { *disabled } else { *enabled },
                     archetype,
@@ -1909,21 +1956,17 @@ impl StatCurve {
                 numerator,
                 denominator,
             } => combine_strategy(numerator.strategy_inner(), denominator.strategy_inner()),
-            CurveKind::Constant(_) | CurveKind::Input { .. } => {
-                LoweringStrategy::ScoreboardArithmetic
-            }
+            CurveKind::Constant(_) | CurveKind::Input(_) => LoweringStrategy::ScoreboardArithmetic,
         }
     }
 
     fn collect_inputs(&self, inputs: &mut BTreeSet<String>) {
         match &self.kind {
-            CurveKind::Input {
-                objective: input, ..
-            }
+            CurveKind::Input(input)
             | CurveKind::Lookup { input, .. }
             | CurveKind::EnumMap { input, .. }
             | CurveKind::FlagMap { input, .. } => {
-                inputs.insert(input.clone());
+                inputs.insert(input.objective.clone());
             }
             CurveKind::Linear { input, .. } | CurveKind::Stepped { input, .. } => {
                 input.collect_inputs(inputs);
@@ -1953,6 +1996,49 @@ impl StatCurve {
             }
             CurveKind::Custom(custom) => inputs.extend(custom.inputs.iter().cloned()),
             CurveKind::Constant(_) => {}
+        }
+    }
+
+    fn collect_field_references(
+        &self,
+        references: &mut BTreeMap<String, super::state::StateFieldReference>,
+    ) {
+        match &self.kind {
+            CurveKind::Input(input)
+            | CurveKind::Lookup { input, .. }
+            | CurveKind::EnumMap { input, .. }
+            | CurveKind::FlagMap { input, .. } => {
+                if let Some(field) = &input.field {
+                    references.insert(input.objective.clone(), field.clone());
+                }
+            }
+            CurveKind::Linear { input, .. } | CurveKind::Stepped { input, .. } => {
+                input.collect_field_references(references);
+            }
+            CurveKind::Add(curves) | CurveKind::Multiply(curves) => {
+                for curve in curves {
+                    curve.collect_field_references(references);
+                }
+            }
+            CurveKind::Ratio {
+                numerator,
+                denominator,
+            } => {
+                numerator.collect_field_references(references);
+                denominator.collect_field_references(references);
+            }
+            CurveKind::Piecewise {
+                input,
+                branches,
+                fallback,
+            } => {
+                input.collect_field_references(references);
+                for (_, curve) in branches {
+                    curve.collect_field_references(references);
+                }
+                fallback.collect_field_references(references);
+            }
+            CurveKind::Constant(_) | CurveKind::Custom(_) => {}
         }
     }
 }
@@ -1996,14 +2082,11 @@ impl CurveLoweringBuilder<'_> {
                     value,
                 });
             }
-            CurveKind::Input {
-                objective: source,
-                storage_scale,
-            } => {
+            CurveKind::Input(source) => {
                 self.operations.push(LoweredCurveOperation::ScoreToFixed {
                     destination: destination.clone(),
-                    source: source.clone(),
-                    source_scale: i64::from(*storage_scale),
+                    source: source.objective.clone(),
+                    source_scale: i64::from(source.storage_scale),
                     target_scale: self.fixed.scale(),
                     rounding: self.fixed.rounding(),
                     overflow: self.fixed.overflow(),
@@ -2161,7 +2244,7 @@ impl CurveLoweringBuilder<'_> {
                     .collect::<Result<Vec<_>, EntityDiagnostic>>()?;
                 self.operations.push(LoweredCurveOperation::LookupTable {
                     destination: destination.clone(),
-                    input: input.clone(),
+                    input: input.objective.clone(),
                     entries,
                     fallback: self.fixed.encode(
                         *fallback,
@@ -2187,7 +2270,7 @@ impl CurveLoweringBuilder<'_> {
                     .collect::<Result<Vec<_>, EntityDiagnostic>>()?;
                 self.operations.push(LoweredCurveOperation::SelectEnum {
                     destination: destination.clone(),
-                    input: input.clone(),
+                    input: input.objective.clone(),
                     entries,
                     fallback: self
                         .fixed
@@ -2201,7 +2284,7 @@ impl CurveLoweringBuilder<'_> {
             } => {
                 self.operations.push(LoweredCurveOperation::SelectFlag {
                     destination: destination.clone(),
-                    input: input.clone(),
+                    input: input.objective.clone(),
                     disabled: self
                         .fixed
                         .encode(*disabled, self.scratch_prefix, "flag_disabled")?,

@@ -60,8 +60,8 @@ pub use kind::{
 };
 pub use property::{
     AttributeBinding, AttributeModifierBinding, CurrentHealthSync, EffectBinding, EntityEventId,
-    EntityNbtBinding, EntityNbtProperty, EntityNbtType, EntityNbtValue, EntityTag, EntityTeam,
-    EntityText, EntityTextSegment, EquipmentBinding, HealthBinding, HealthResizePolicy,
+    EntityName, EntityNbtBinding, EntityNbtProperty, EntityNbtType, EntityNbtValue, EntityTag,
+    EntityTeam, EntityText, EntityTextSegment, EquipmentBinding, HealthBinding, HealthResizePolicy,
     NameBinding, NumericPropertySource, OwnershipPolicy, PropertyNameError, RawEntityProperty,
     RawEntityStateField, RawPropertyAccess, RawStateBackend, RefreshPolicy, TagBinding,
     TeamBinding,

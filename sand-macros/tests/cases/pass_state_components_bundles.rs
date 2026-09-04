@@ -85,8 +85,9 @@ fn main() {
         commands.extend(combatant.boss(|_| vec!["say boss".into()]));
         commands
     });
-    let _: EntityArchetype<ZombieKind, Attack> = EntityArchetype::new(
+    let _: EntityArchetype<ZombieKind> = EntityArchetype::new(
         ResourceLocation::new("rpg", "composed_zombie").unwrap(),
     )
+    .components::<Attack>()
     .components::<BossCombat>();
 }

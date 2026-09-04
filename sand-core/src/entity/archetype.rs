@@ -1,16 +1,17 @@
 //! Reusable entity archetypes and lifecycle compilation.
 //!
-//! An archetype describes state initialization, natural/external adoption,
-//! ordered migrations, reconciliation, and cleanup for one statically known
-//! entity kind. Runtime identity is a Sand-owned tag plus version score, not a
-//! durable Rust entity reference. Every generated function rescans currently
-//! loaded entities and binds the match to `@s`.
+//! An archetype combines one statically known entity kind, a stable archetype
+//! identity, a flattened composition of independent State components, and
+//! native Minecraft behavior. Runtime identity is a Sand-owned tag plus
+//! version score, not a durable Rust entity reference. Every generated
+//! function rescans currently loaded entities and binds the match to `@s`.
 //!
-//! Initialization is idempotent and ordered: missing score dependencies are
-//! provisioned first, native bindings are applied by the property compiler,
-//! the optional typed callback runs, and the version/initialized marker is
-//! written last. Unloaded entities are not scanned; their scoreboard state
-//! remains attached and reconciliation resumes when they are observed again.
+//! Initialization is idempotent and ordered: missing components are attached
+//! through their canonical lifecycle first, native bindings are applied by the
+//! property compiler, the optional typed callback runs, and the archetype
+//! version/initialized marker is written last. Unloaded entities are not
+//! scanned; their scoreboard state remains attached and reconciliation resumes
+//! when they are observed again.
 
 use std::collections::BTreeSet;
 use std::marker::PhantomData;
@@ -23,14 +24,14 @@ use crate::entity::curve::{
 use crate::entity::diagnostic::EntityDiagnostic;
 use crate::entity::kind::{KnownEntityKind, MutableLivingEntityKind, SafeEntityDataWriteKind};
 use crate::entity::property::{
-    AttributeBinding, AttributeModifierBinding, CurrentHealthSync, EffectBinding, EntityNbtBinding,
-    EntityNbtValue, EntityTextSegment, EquipmentBinding, HealthBinding, HealthResizePolicy,
-    NameBinding, NativePropertyKey, NumericPropertySource, OwnershipPolicy, RefreshPolicy,
+    AttributeBinding, AttributeModifierBinding, CurrentHealthSync, EffectBinding, EntityName,
+    EntityNbtBinding, EntityNbtValue, EntityTextSegment, EquipmentBinding, HealthBinding,
+    HealthResizePolicy, NativePropertyKey, NumericPropertySource, OwnershipPolicy, RefreshPolicy,
     TagBinding, TeamBinding, validate_native_ownership,
 };
 use crate::entity::state::{
-    EntityFlag, EntityState, EntityStateField, StateComposition, StateSchema, dirty_name,
-    objective_name,
+    EntityFlag, EntityStateField, NumericStateField, StateComposition, StateFieldReference,
+    StateSchema, component_dirty_name, dirty_name, objective_name,
 };
 use crate::resource_ref::FunctionId;
 use crate::state::Ticks;
@@ -439,21 +440,21 @@ pub(crate) struct CompiledArchetype {
     pub report: EntityRuntimeReport,
 }
 
-/// Reusable lifecycle definition for entity kind `K` and state schema `S`.
+/// Component-first lifecycle definition for entity kind `K`.
 #[sand_macros::api(
     registry = sand_api_contract,
     path = "sand::entity::EntityArchetype",
     aliases = ["sand::prelude::EntityArchetype"],
     module = "sand::entity",
-    summary = "Reusable lifecycle definition for entity kind `K` and state schema `S`.",
-    context = "Reusable lifecycle definition for entity kind `K` and state schema `S`. This declaration belongs to Sand's typed entity model. Semantic definitions are public; selector rendering, validation bookkeeping, and compiler lowering remain internal.",
+    summary = "Component composition and native Minecraft behavior for entity kind `K`.",
+    context = "An archetype gives one entity kind a stable identity, composes reusable State components, and binds their fields to native Minecraft behavior. No component is privileged as a root schema.",
     minecraft = "Sand validates this definition and lowers it to entity-scoped selectors, scoreboards, NBT operations, and generated lifecycle functions as required.",
     use_when = ["Defining or using typed entity behavior in a Sand datapack"],
     avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
     example = "use sand::entity::EntityArchetype;",
 )]
 #[derive(Debug, Clone)]
-pub struct EntityArchetype<K, S> {
+pub struct EntityArchetype<K> {
     id: ResourceLocation,
     version: u32,
     adoption: Option<Adoption>,
@@ -466,28 +467,26 @@ pub struct EntityArchetype<K, S> {
     properties: Vec<ArchetypeProperty>,
     components: Vec<ArchetypeComponent>,
     _kind: PhantomData<fn() -> K>,
-    _state: PhantomData<fn() -> S>,
 }
 
-impl<K, S> EntityArchetype<K, S>
+impl<K> EntityArchetype<K>
 where
     K: KnownEntityKind,
-    S: EntityState,
 {
     /// Create an archetype.
     ///
     /// The identifier namespaces every generated objective, marker, storage
-    /// path, and helper function. The default version is the state schema
-    /// version and reconciliation is version-driven.
+    /// path, and helper function. The default archetype version is `1` and
+    /// reconciliation is version-driven.
     ///
     /// `id` is the stable resource location used to derive those generated
     /// names. Renaming it after release creates a distinct archetype identity.
     ///
-    /// Returns a new archetype builder using the state schema's current
-    /// version and schema-change reconciliation policy.
+    /// Returns a new archetype builder using version `1` and schema-change
+    /// reconciliation policy.
     ///
     /// Use this constructor when declaring the canonical lifecycle policy for
-    /// one entity kind and state schema.
+    /// one entity kind and a composition of reusable State components.
     ///
     /// Avoid creating multiple archetypes with the same identifier; their
     /// generated Minecraft objectives and helper functions would collide.
@@ -496,7 +495,7 @@ where
     /// paths, migration functions, and reconciliation commands at export.
     ///
     /// ```rust,ignore
-    /// let archetype = EntityArchetype::<Zombie, MyState>::new(
+    /// let archetype = EntityArchetype::<ZombieKind>::new(
     ///     "demo:managed_zombie".parse()?,
     /// );
     /// ```
@@ -506,21 +505,20 @@ where
         aliases = ["sand::prelude::EntityArchetype::new"],
         module = "sand::entity",
         kind = "method",
-        summary = "Create an archetype. The identifier namespaces every generated objective, marker, storage path, and helper function. The default version is the state schema version and reconciliation is version-driven.",
-        context = "Create an archetype. The identifier namespaces every generated objective, marker, storage path, and helper function. The default version is the state schema version and reconciliation is version-driven. `id` is the stable resource location used to derive those generated names. Renaming it after release creates a distinct archetype identity. Returns a new archetype builder using the state schema's current version and schema-change reconciliation policy.",
+        summary = "Create an empty component-first archetype for entity kind `K`.",
+        context = "The identifier namespaces archetype markers and helper functions. Add independent State components or bundles with components; the default archetype version is 1 and reconciliation is version-driven.",
         minecraft = "Minecraft receives the resulting objectives, marker tags, storage paths, migration functions, and reconciliation commands at export.",
-        use_when = ["Use this constructor when declaring the canonical lifecycle policy for one entity kind and state schema."],
+        use_when = ["Declaring the component composition and native behavior for one entity kind"],
         avoid_when = ["Avoid creating multiple archetypes with the same identifier; their generated Minecraft objectives and helper functions would collide."],
         params(id = "`id` is the stable resource location used to derive those generated names. Renaming it after release creates a distinct archetype identity."),
-        returns = "Returns a new archetype builder using the state schema's current version and schema-change reconciliation policy.",
-        example = "let archetype = EntityArchetype::<Zombie, MyState>::new(\n\"demo:managed_zombie\".parse()?,\n);",
+        returns = "A component-first archetype builder at version 1.",
+        example = "use sand::prelude::*;\nlet archetype = EntityArchetype::<ZombieKind>::new(\"demo:managed_zombie\".parse().unwrap());",
     )]
     #[must_use]
     pub fn new(id: ResourceLocation) -> Self {
-        let version = S::schema().version;
         Self {
             id,
-            version,
+            version: 1,
             adoption: None,
             reconcile: ReconcilePolicy::WhenSchemaChanges,
             initialize: None,
@@ -531,25 +529,24 @@ where
             properties: Vec::new(),
             components: Vec::new(),
             _kind: PhantomData,
-            _state: PhantomData,
         }
     }
 
-    /// Override the archetype version independently of the schema version.
+    /// Override the archetype version independently of component versions.
     #[sand_macros::api(
         registry = sand_api_contract,
         path = "sand::entity::EntityArchetype::version",
         aliases = ["sand::prelude::EntityArchetype::version"],
         module = "sand::entity",
         kind = "method",
-        summary = "Override the archetype version independently of the schema version.",
-        context = "Override the archetype version independently of the schema version. This declaration belongs to Sand's typed entity model. Semantic definitions are public; selector rendering, validation bookkeeping, and compiler lowering remain internal.",
+        summary = "Override the archetype version independently of component versions.",
+        context = "The archetype version tracks changes to composition or native behavior. Every composed State retains and migrates its own independent component version.",
         minecraft = "Sand validates this definition and lowers it to entity-scoped selectors, scoreboards, NBT operations, and generated lifecycle functions as required.",
         use_when = ["Defining or using typed entity behavior in a Sand datapack"],
         avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
-        params(version = "`version` is used to override the archetype version independently of the schema version."),
-        returns = "The `EntityArchetype` value with the documented change applied to override the archetype version independently of the schema version.",
-        example = "use sand::prelude::*;\n\nfn demonstrate<K: 'static, S: 'static>(entity_archetype_value: sand::entity::EntityArchetype < K , S >, version: u32) where K : sand::entity::KnownEntityKind , S : sand::entity::EntityState {\n    let updated_entity_archetype = entity_archetype_value.version(version);\n}",
+        params(version = "The positive version for this archetype composition and native behavior."),
+        returns = "This archetype with its independent version updated.",
+        example = "use sand::prelude::*; fn update<K: KnownEntityKind>(archetype: EntityArchetype<K>) { let _ = archetype.version(2); }",
     )]
     #[must_use]
     pub fn version(mut self, version: u32) -> Self {
@@ -571,7 +568,7 @@ where
         avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
         params(adoption = "`adoption` is used to discover and initialize existing loaded entities."),
         returns = "The `EntityArchetype` value with the documented change applied to discover and initialize existing loaded entities.",
-        example = "use sand::prelude::*;\n\nfn demonstrate<K: 'static, S: 'static>(entity_archetype_value: sand::entity::EntityArchetype < K , S >, adoption: sand::entity::Adoption) where K : sand::entity::KnownEntityKind , S : sand::entity::EntityState {\n    let updated_entity_archetype = entity_archetype_value.adopt(adoption);\n}",
+        example = "use sand::prelude::*; fn update<K: KnownEntityKind>(archetype: EntityArchetype<K>) { let _ = archetype.adopt(Adoption::natural()); }",
     )]
     #[must_use]
     pub fn adopt(mut self, adoption: Adoption) -> Self {
@@ -593,7 +590,7 @@ where
         avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
         params(policy = "`policy` is used to choose automatic reconciliation behavior."),
         returns = "The `EntityArchetype` value with the documented change applied to choose automatic reconciliation behavior.",
-        example = "use sand::prelude::*;\n\nfn demonstrate<K: 'static, S: 'static>(entity_archetype_value: sand::entity::EntityArchetype < K , S >, policy: sand::entity::ReconcilePolicy) where K : sand::entity::KnownEntityKind , S : sand::entity::EntityState {\n    let updated_entity_archetype = entity_archetype_value.reconcile(policy);\n}",
+        example = "use sand::prelude::*; fn update<K: KnownEntityKind>(archetype: EntityArchetype<K>) { let _ = archetype.reconcile(ReconcilePolicy::WhenDirty); }",
     )]
     #[must_use]
     pub fn reconcile(mut self, policy: ReconcilePolicy) -> Self {
@@ -615,7 +612,7 @@ where
         avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
         params(function = "`function` provides the callback invoked by this operation used to run a typed function after state/native setup and before completion is marked."),
         returns = "The `EntityArchetype` value with the documented change applied to run a typed function after state/native setup and before completion is marked.",
-        example = "use sand::prelude::*;\n\nfn demonstrate<K: 'static, S: 'static>(entity_archetype_value: sand::entity::EntityArchetype < K , S >, function: sand::resource_ref::FunctionId) where K : sand::entity::KnownEntityKind , S : sand::entity::EntityState {\n    let updated_entity_archetype = entity_archetype_value.initialize_with(function);\n}",
+        example = "use sand::prelude::*; fn update<K: KnownEntityKind>(archetype: EntityArchetype<K>, function: FunctionId) { let _ = archetype.initialize_with(function); }",
     )]
     #[must_use]
     pub fn initialize_with(mut self, function: FunctionId) -> Self {
@@ -641,7 +638,7 @@ where
         avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
         params(function = "`function` provides the callback invoked by this operation used to run a best-effort typed cleanup callback before Sand-owned state is cleared."),
         returns = "The `EntityArchetype` value with the documented change applied to run a best-effort typed cleanup callback before Sand-owned state is cleared.",
-        example = "use sand::prelude::*;\n\nfn demonstrate<K: 'static, S: 'static>(entity_archetype_value: sand::entity::EntityArchetype < K , S >, function: sand::resource_ref::FunctionId) where K : sand::entity::KnownEntityKind , S : sand::entity::EntityState {\n    let updated_entity_archetype = entity_archetype_value.cleanup_with(function);\n}",
+        example = "use sand::prelude::*; fn update<K: KnownEntityKind>(archetype: EntityArchetype<K>, function: FunctionId) { let _ = archetype.cleanup_with(function); }",
     )]
     #[must_use]
     pub fn cleanup_with(mut self, function: FunctionId) -> Self {
@@ -663,7 +660,7 @@ where
         avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
         params(migration = "`migration` provides the migration added when building one ordered migration."),
         returns = "The `EntityArchetype` value with the documented change applied to add one ordered migration.",
-        example = "use sand::prelude::*;\n\nfn demonstrate<K: 'static, S: 'static>(entity_archetype_value: sand::entity::EntityArchetype < K , S >, migration: sand::entity::Migration) where K : sand::entity::KnownEntityKind , S : sand::entity::EntityState {\n    let updated_entity_archetype = entity_archetype_value.migration(migration);\n}",
+        example = "use sand::prelude::*; fn update<K: KnownEntityKind>(archetype: EntityArchetype<K>, migration: Migration) { let _ = archetype.migration(migration); }",
     )]
     #[must_use]
     pub fn migration(mut self, migration: Migration) -> Self {
@@ -690,26 +687,31 @@ where
         use_when = ["Defining or using typed entity behavior in a Sand datapack"],
         avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
         returns = "The `EntityArchetype` value with the documented change applied to compose an independent State component or nested bundle into this archetype.",
-        example = "use sand::prelude::*;\n\nfn demonstrate<K: 'static, S: 'static, B: 'static>(entity_archetype_value: sand::entity::EntityArchetype < K , S >) where K : sand::entity::KnownEntityKind , S : sand::entity::EntityState, B : sand::entity::StateComposition {\n    let updated_entity_archetype = entity_archetype_value.components::<B>();\n}",
+        example = "use sand::prelude::*; fn compose<K: KnownEntityKind, B: StateComposition>(archetype: EntityArchetype<K>) { let _ = archetype.components::<B>(); }",
     )]
     #[must_use]
     pub fn components<B>(mut self) -> Self
     where
         B: StateComposition,
     {
-        let mut identities = B::composition_identities();
-        identities.sort();
-        identities.dedup();
-        if !self
-            .components
-            .iter()
-            .any(|component| component.identities == identities)
-        {
-            self.components.push(ArchetypeComponent {
+        for lifecycle in B::composition_lifecycles() {
+            let mut identities = lifecycle.identities;
+            identities.sort();
+            identities.dedup();
+            let candidate = ArchetypeComponent {
                 identities,
-                attach: B::composition_attach,
-                detach: B::composition_detach,
-            });
+                schemas: lifecycle.schemas,
+                auto_tick_objectives: lifecycle.auto_tick_objectives,
+                attach: lifecycle.attach,
+                detach: lifecycle.detach,
+            };
+            if self.components.iter().any(|component| {
+                component.identities == candidate.identities
+                    && component.has_same_metadata(&candidate)
+            }) {
+                continue;
+            }
+            self.components.push(candidate);
         }
         self
     }
@@ -730,12 +732,35 @@ where
         minecraft = "The exporter lowers the curve to entity-scoped scoreboard arithmetic and marks the result dirty only when one of its source scores changes. Cycles among derived targets are rejected before resources are written.",
         use_when = ["Defining or using typed entity behavior in a Sand datapack"],
         avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
-        params(derivation = "`derivation` provides the derived-stat selector used to add a cached derived score and its typed dependency declaration."),
+        params(target = "The composed State score that receives the derived value.", curve = "The typed numeric expression used to compute the target."),
         returns = "The `EntityArchetype` value with the documented change applied to add a cached derived score and its typed dependency declaration.",
-        example = "use sand::prelude::*;\n\nfn demonstrate<K: 'static, S: 'static>(entity_archetype_value: sand::entity::EntityArchetype < K , S >, derivation: sand::entity::EntityDerivation) where K : sand::entity::KnownEntityKind , S : sand::entity::EntityState {\n    let updated_entity_archetype = entity_archetype_value.derive(derivation);\n}",
+        example = "use sand::prelude::*; fn derive<K: KnownEntityKind>(archetype: EntityArchetype<K>, target: Score, curve: StatCurve) { let _ = archetype.derive(target, curve); }",
     )]
     #[must_use]
-    pub fn derive(mut self, derivation: EntityDerivation) -> Self {
+    pub fn derive<F: NumericStateField>(mut self, target: F, curve: StatCurve) -> Self {
+        self.derivations
+            .push(EntityDerivation::for_target(target, curve));
+        self
+    }
+
+    /// Add a derivation with advanced fixed-point or identity overrides.
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::entity::EntityArchetype::derive_with",
+        aliases = ["sand::prelude::EntityArchetype::derive_with"],
+        module = "sand::entity",
+        kind = "method",
+        summary = "Adds a derivation with an explicit advanced lowering configuration.",
+        context = "Use derive for the normal typed target-and-curve path; derive_with accepts EntityDerivation when fixed-point output or helper identity must be overridden.",
+        minecraft = "The same flattened component membership, dependency, dirty propagation, and cycle validation applies as for derive.",
+        use_when = ["A derivation needs a non-default fixed-point or output encoding"],
+        avoid_when = ["The inferred target identity and ordinary numeric encoding are sufficient"],
+        params(derivation = "The explicitly configured derivation."),
+        returns = "This archetype with the advanced derivation added.",
+        example = "use sand::prelude::*; fn add<K: KnownEntityKind>(archetype: EntityArchetype<K>, derivation: EntityDerivation) { let _ = archetype.derive_with(derivation); }",
+    )]
+    #[must_use]
+    pub fn derive_with(mut self, derivation: EntityDerivation) -> Self {
         self.derivations.push(derivation);
         self
     }
@@ -754,7 +779,7 @@ where
         avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
         params(transition = "`transition` provides the transition used when running a typed action when entity-bound state crosses a declared boundary.", action = "`action` provides the action used when running a typed action when entity-bound state crosses a declared boundary."),
         returns = "The `EntityArchetype` value with the documented change applied to run a typed action when entity-bound state crosses a declared boundary.",
-        example = "use sand::prelude::*;\n\nfn demonstrate<K: 'static, S: 'static>(entity_archetype_value: sand::entity::EntityArchetype < K , S >, transition: sand::entity::EntityTransition, action: sand::entity::EntityAction) where K : sand::entity::KnownEntityKind , S : sand::entity::EntityState {\n    let updated_entity_archetype = entity_archetype_value.on(transition, action);\n}",
+        example = "use sand::prelude::*; fn update<K: KnownEntityKind>(archetype: EntityArchetype<K>, transition: EntityTransition, action: EntityAction) { let _ = archetype.on(transition, action); }",
     )]
     #[must_use]
     pub fn on(mut self, transition: EntityTransition, action: EntityAction) -> Self {
@@ -777,7 +802,7 @@ where
         avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
         params(binding = "`binding` provides the binding added when building an archetype-owned tag while preserving unrelated tags."),
         returns = "The `EntityArchetype` value with the documented change applied to add an archetype-owned tag while preserving unrelated tags.",
-        example = "use sand::prelude::*;\n\nfn demonstrate<K: 'static, S: 'static>(entity_archetype_value: sand::entity::EntityArchetype < K , S >, binding: sand::entity::TagBinding) where K : sand::entity::KnownEntityKind , S : sand::entity::EntityState {\n    let updated_entity_archetype = entity_archetype_value.tag(binding);\n}",
+        example = "use sand::prelude::*; fn update<K: KnownEntityKind>(archetype: EntityArchetype<K>, binding: TagBinding) { let _ = archetype.tag(binding); }",
     )]
     #[must_use]
     pub fn tag(mut self, binding: TagBinding) -> Self {
@@ -799,7 +824,7 @@ where
         avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
         params(flag = "`flag` is used to add/remove an owned tag when a typed flag changes.", binding = "`binding` is used to add/remove an owned tag when a typed flag changes."),
         returns = "The `EntityArchetype` value with the documented change applied to add/remove an owned tag when a typed flag changes.",
-        example = "use sand::prelude::*;\n\nfn demonstrate<K: 'static, S: 'static>(entity_archetype_value: sand::entity::EntityArchetype < K , S >, flag: sand::entity::EntityFlag, binding: sand::entity::TagBinding) where K : sand::entity::KnownEntityKind , S : sand::entity::EntityState {\n    let updated_entity_archetype = entity_archetype_value.tag_when(flag, binding);\n}",
+        example = "use sand::prelude::*; fn update<K: KnownEntityKind>(archetype: EntityArchetype<K>, flag: EntityFlag, binding: TagBinding) { let _ = archetype.tag_when(flag, binding); }",
     )]
     #[must_use]
     pub fn tag_when(mut self, flag: EntityFlag, binding: TagBinding) -> Self {
@@ -823,7 +848,7 @@ where
         avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
         params(binding = "`binding` provides the binding added when building typed team membership while leaving team configuration external."),
         returns = "The `EntityArchetype` value with the documented change applied to add typed team membership while leaving team configuration external.",
-        example = "use sand::prelude::*;\n\nfn demonstrate<K: 'static, S: 'static>(entity_archetype_value: sand::entity::EntityArchetype < K , S >, binding: sand::entity::TeamBinding) where K : sand::entity::KnownEntityKind , S : sand::entity::EntityState {\n    let updated_entity_archetype = entity_archetype_value.team(binding);\n}",
+        example = "use sand::prelude::*; fn update<K: KnownEntityKind>(archetype: EntityArchetype<K>, binding: TeamBinding) { let _ = archetype.team(binding); }",
     )]
     #[must_use]
     pub fn team(mut self, binding: TeamBinding) -> Self {
@@ -845,7 +870,7 @@ where
         avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
         params(flag = "`flag` is used to join/leave an owned team when a typed flag changes.", binding = "`binding` is used to join/leave an owned team when a typed flag changes."),
         returns = "The `EntityArchetype` value with the documented change applied to join/leave an owned team when a typed flag changes.",
-        example = "use sand::prelude::*;\n\nfn demonstrate<K: 'static, S: 'static>(entity_archetype_value: sand::entity::EntityArchetype < K , S >, flag: sand::entity::EntityFlag, binding: sand::entity::TeamBinding) where K : sand::entity::KnownEntityKind , S : sand::entity::EntityState {\n    let updated_entity_archetype = entity_archetype_value.team_when(flag, binding);\n}",
+        example = "use sand::prelude::*; fn update<K: KnownEntityKind>(archetype: EntityArchetype<K>, flag: EntityFlag, binding: TeamBinding) { let _ = archetype.team_when(flag, binding); }",
     )]
     #[must_use]
     pub fn team_when(mut self, flag: EntityFlag, binding: TeamBinding) -> Self {
@@ -868,7 +893,7 @@ where
         use_when = ["Defining or using typed entity behavior in a Sand datapack"],
         avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
         returns = "The `& ResourceLocation` value produced to archetype identifier.",
-        example = "use sand::prelude::*;\n\nfn demonstrate<K: 'static, S: 'static>(entity_archetype_value: &sand::entity::EntityArchetype < K , S >) where K : sand::entity::KnownEntityKind , S : sand::entity::EntityState {\n    let id = entity_archetype_value.id();\n}",
+        example = "use sand::prelude::*; fn inspect<K: KnownEntityKind>(archetype: &EntityArchetype<K>) { let _ = archetype.id(); }",
     )]
     #[must_use]
     pub fn id(&self) -> &ResourceLocation {
@@ -888,7 +913,7 @@ where
         use_when = ["Defining or using typed entity behavior in a Sand datapack"],
         avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
         returns = "The string value produced to sand-owned initialized marker, deterministic across exports.",
-        example = "use sand::prelude::*;\n\nfn demonstrate<K: 'static, S: 'static>(entity_archetype_value: &sand::entity::EntityArchetype < K , S >) where K : sand::entity::KnownEntityKind , S : sand::entity::EntityState {\n    let initialized_tag = entity_archetype_value.initialized_tag();\n}",
+        example = "use sand::prelude::*; fn inspect<K: KnownEntityKind>(archetype: &EntityArchetype<K>) { let _ = archetype.initialized_tag(); }",
     )]
     #[must_use]
     pub fn initialized_tag(&self) -> String {
@@ -909,7 +934,7 @@ where
         use_when = ["Defining or using typed entity behavior in a Sand datapack"],
         avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
         returns = "The `sand :: entity :: EntityTag` value produced to sand-owned tag used to opt an externally summoned entity into an [`Adoption::external`] scan.",
-        example = "use sand::prelude::*;\n\nfn demonstrate<K: 'static, S: 'static>(entity_archetype_value: &sand::entity::EntityArchetype < K , S >) where K : sand::entity::KnownEntityKind , S : sand::entity::EntityState {\n    let external_adoption_tag = entity_archetype_value.external_adoption_tag();\n}",
+        example = "use sand::prelude::*; fn inspect<K: KnownEntityKind>(archetype: &EntityArchetype<K>) { let _ = archetype.external_adoption_tag(); }",
     )]
     #[must_use]
     pub fn external_adoption_tag(&self) -> crate::entity::property::EntityTag {
@@ -932,7 +957,7 @@ where
         use_when = ["Call the generated attach/initialize function for the current `@s`."],
         avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
         returns = "The string value produced to call the generated attach/initialize function for the current `@s`.",
-        example = "use sand::prelude::*;\n\nfn demonstrate<K: 'static, S: 'static>(entity_archetype_value: &sand::entity::EntityArchetype < K , S >) where K : sand::entity::KnownEntityKind , S : sand::entity::EntityState {\n    let attach = entity_archetype_value.attach();\n}",
+        example = "use sand::prelude::*; fn commands<K: KnownEntityKind>(archetype: &EntityArchetype<K>) { let _ = archetype.attach(); }",
     )]
     #[must_use]
     pub fn attach(&self) -> String {
@@ -959,7 +984,7 @@ where
         use_when = ["Defining or using typed entity behavior in a Sand datapack"],
         avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
         returns = "The ordered values produced to summon this archetype and initialize the newly created entity.",
-        example = "use sand::prelude::*;\n\nfn demonstrate<K: 'static, S: 'static>(entity_archetype_value: &sand::entity::EntityArchetype < K , S >) where K : sand::entity::KnownEntityKind , S : sand::entity::EntityState {\n    let values = entity_archetype_value.summon();\n}",
+        example = "use sand::prelude::*; fn commands<K: KnownEntityKind>(archetype: &EntityArchetype<K>) { let _ = archetype.summon(); }",
     )]
     #[must_use]
     pub fn summon(&self) -> Vec<String> {
@@ -981,7 +1006,6 @@ where
             kind_label: K::LABEL,
             living: is_living::<K>(),
             mutable_living: is_mutable_living::<K>(),
-            schema: S::schema(),
             adoption: self.adoption.clone(),
             reconcile: self.reconcile,
             initialize: self.initialize.clone(),
@@ -1000,18 +1024,16 @@ where
 /// This is public only so generated code can cross the crate boundary through
 /// `sand::__private`; it is not part of the author-facing entity API.
 #[doc(hidden)]
-pub fn registered_definition<K, S>(archetype: &EntityArchetype<K, S>) -> ArchetypeDefinition
+pub fn registered_definition<K>(archetype: &EntityArchetype<K>) -> ArchetypeDefinition
 where
     K: KnownEntityKind,
-    S: EntityState,
 {
     archetype.definition()
 }
 
-impl<K, S> EntityArchetype<K, S>
+impl<K> EntityArchetype<K>
 where
     K: KnownEntityKind + SafeEntityDataWriteKind,
-    S: EntityState,
 {
     /// Bind a state-aware custom name and visibility.
     #[sand_macros::api(
@@ -1027,10 +1049,10 @@ where
         avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
         params(binding = "`binding` provides the binding used when binding a state-aware custom name and visibility."),
         returns = "The `EntityArchetype` value with the documented change applied to bind a state-aware custom name and visibility.",
-        example = "use sand::prelude::*;\n\nfn demonstrate<K: 'static, S: 'static>(entity_archetype_value: sand::entity::EntityArchetype < K , S >, binding: sand::entity::NameBinding) where K : sand::entity::KnownEntityKind + sand::entity::SafeEntityDataWriteKind , S : sand::entity::EntityState {\n    let updated_entity_archetype = entity_archetype_value.name(binding);\n}",
+        example = "use sand::prelude::*; fn update<K: KnownEntityKind + SafeEntityDataWriteKind>(archetype: EntityArchetype<K>, name: EntityName) { let _ = archetype.name(name); }",
     )]
     #[must_use]
-    pub fn name(mut self, binding: NameBinding) -> Self {
+    pub fn name(mut self, binding: EntityName) -> Self {
         self.properties.push(ArchetypeProperty::Name(binding));
         self
     }
@@ -1049,7 +1071,7 @@ where
         avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
         params(binding = "`binding` provides the binding used when binding a stable typed native-NBT field."),
         returns = "The `EntityArchetype` value with the documented change applied to bind a stable typed native-NBT field.",
-        example = "use sand::prelude::*;\n\nfn demonstrate<K: 'static, S: 'static>(entity_archetype_value: sand::entity::EntityArchetype < K , S >, binding: sand::entity::EntityNbtBinding) where K : sand::entity::KnownEntityKind + sand::entity::SafeEntityDataWriteKind , S : sand::entity::EntityState {\n    let updated_entity_archetype = entity_archetype_value.native_data(binding);\n}",
+        example = "use sand::prelude::*; fn update<K: KnownEntityKind + SafeEntityDataWriteKind>(archetype: EntityArchetype<K>, binding: EntityNbtBinding) { let _ = archetype.native_data(binding); }",
     )]
     #[must_use]
     pub fn native_data(mut self, binding: EntityNbtBinding) -> Self {
@@ -1058,10 +1080,9 @@ where
     }
 }
 
-impl<K, S> EntityArchetype<K, S>
+impl<K> EntityArchetype<K>
 where
     K: KnownEntityKind + MutableLivingEntityKind,
-    S: EntityState,
 {
     /// Synchronize current/max health according to an explicit resize policy.
     #[sand_macros::api(
@@ -1077,7 +1098,7 @@ where
         avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
         params(binding = "`binding` is used to synchronize current/max health according to an explicit resize policy."),
         returns = "The `EntityArchetype` value with the documented change applied to synchronize current/max health according to an explicit resize policy.",
-        example = "use sand::prelude::*;\n\nfn demonstrate<K: 'static, S: 'static>(entity_archetype_value: sand::entity::EntityArchetype < K , S >, binding: sand::entity::HealthBinding) where K : sand::entity::KnownEntityKind + sand::entity::MutableLivingEntityKind , S : sand::entity::EntityState {\n    let updated_entity_archetype = entity_archetype_value.health(binding);\n}",
+        example = "use sand::prelude::*; fn update<K: KnownEntityKind + MutableLivingEntityKind>(archetype: EntityArchetype<K>, binding: HealthBinding) { let _ = archetype.health(binding); }",
     )]
     #[must_use]
     pub fn health(mut self, binding: HealthBinding) -> Self {
@@ -1099,7 +1120,7 @@ where
         avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
         params(binding = "`binding` provides the binding used when binding an attribute base value."),
         returns = "The `EntityArchetype` value with the documented change applied to bind an attribute base value.",
-        example = "use sand::prelude::*;\n\nfn demonstrate<K: 'static, S: 'static>(entity_archetype_value: sand::entity::EntityArchetype < K , S >, binding: sand::entity::AttributeBinding) where K : sand::entity::KnownEntityKind + sand::entity::MutableLivingEntityKind , S : sand::entity::EntityState {\n    let updated_entity_archetype = entity_archetype_value.attribute(binding);\n}",
+        example = "use sand::prelude::*; fn update<K: KnownEntityKind + MutableLivingEntityKind>(archetype: EntityArchetype<K>, binding: AttributeBinding) { let _ = archetype.attribute(binding); }",
     )]
     #[must_use]
     pub fn attribute(mut self, binding: AttributeBinding) -> Self {
@@ -1121,7 +1142,7 @@ where
         avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
         params(binding = "`binding` provides the binding used when binding one idempotent namespaced attribute modifier."),
         returns = "The `EntityArchetype` value with the documented change applied to bind one idempotent namespaced attribute modifier.",
-        example = "use sand::prelude::*;\n\nfn demonstrate<K: 'static, S: 'static>(entity_archetype_value: sand::entity::EntityArchetype < K , S >, binding: sand::entity::AttributeModifierBinding) where K : sand::entity::KnownEntityKind + sand::entity::MutableLivingEntityKind , S : sand::entity::EntityState {\n    let updated_entity_archetype = entity_archetype_value.attribute_modifier(binding);\n}",
+        example = "use sand::prelude::*; fn update<K: KnownEntityKind + MutableLivingEntityKind>(archetype: EntityArchetype<K>, binding: AttributeModifierBinding) { let _ = archetype.attribute_modifier(binding); }",
     )]
     #[must_use]
     pub fn attribute_modifier(mut self, binding: AttributeModifierBinding) -> Self {
@@ -1144,7 +1165,7 @@ where
         avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
         params(binding = "`binding` provides the binding applied when an archetype-owned status effect on refresh."),
         returns = "The `EntityArchetype` value with the documented change applied to apply an archetype-owned status effect on refresh.",
-        example = "use sand::prelude::*;\n\nfn demonstrate<K: 'static, S: 'static>(entity_archetype_value: sand::entity::EntityArchetype < K , S >, binding: sand::entity::EffectBinding) where K : sand::entity::KnownEntityKind + sand::entity::MutableLivingEntityKind , S : sand::entity::EntityState {\n    let updated_entity_archetype = entity_archetype_value.effect(binding);\n}",
+        example = "use sand::prelude::*; fn update<K: KnownEntityKind + MutableLivingEntityKind>(archetype: EntityArchetype<K>, binding: EffectBinding) { let _ = archetype.effect(binding); }",
     )]
     #[must_use]
     pub fn effect(mut self, binding: EffectBinding) -> Self {
@@ -1166,7 +1187,7 @@ where
         avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
         params(flag = "Apply/remove an effect only when `flag` is enabled/disabled.", binding = "`binding` is used to apply/remove an effect only when `flag` is enabled/disabled."),
         returns = "The `EntityArchetype` value with the documented change applied to apply/remove an effect only when `flag` is enabled/disabled.",
-        example = "use sand::prelude::*;\n\nfn demonstrate<K: 'static, S: 'static>(entity_archetype_value: sand::entity::EntityArchetype < K , S >, flag: sand::entity::EntityFlag, binding: sand::entity::EffectBinding) where K : sand::entity::KnownEntityKind + sand::entity::MutableLivingEntityKind , S : sand::entity::EntityState {\n    let updated_entity_archetype = entity_archetype_value.effect_when(flag, binding);\n}",
+        example = "use sand::prelude::*; fn update<K: KnownEntityKind + MutableLivingEntityKind>(archetype: EntityArchetype<K>, flag: EntityFlag, binding: EffectBinding) { let _ = archetype.effect_when(flag, binding); }",
     )]
     #[must_use]
     pub fn effect_when(mut self, flag: EntityFlag, binding: EffectBinding) -> Self {
@@ -1189,7 +1210,7 @@ where
         avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
         params(binding = "`binding` is used to own one typed equipment slot using Sand's canonical item stack model."),
         returns = "The `EntityArchetype` value with the documented change applied to own one typed equipment slot using Sand's canonical item stack model.",
-        example = "use sand::prelude::*;\n\nfn demonstrate<K: 'static, S: 'static>(entity_archetype_value: sand::entity::EntityArchetype < K , S >, binding: sand::entity::EquipmentBinding) where K : sand::entity::KnownEntityKind + sand::entity::MutableLivingEntityKind , S : sand::entity::EntityState {\n    let updated_entity_archetype = entity_archetype_value.equipment(binding);\n}",
+        example = "use sand::prelude::*; fn update<K: KnownEntityKind + MutableLivingEntityKind>(archetype: EntityArchetype<K>, binding: EquipmentBinding) { let _ = archetype.equipment(binding); }",
     )]
     #[must_use]
     pub fn equipment(mut self, binding: EquipmentBinding) -> Self {
@@ -1212,7 +1233,7 @@ where
         avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
         params(flag = "`flag` is used to equip/clear one owned slot when a typed flag changes.", binding = "`binding` is used to equip/clear one owned slot when a typed flag changes."),
         returns = "The `EntityArchetype` value with the documented change applied to equip/clear one owned slot when a typed flag changes.",
-        example = "use sand::prelude::*;\n\nfn demonstrate<K: 'static, S: 'static>(entity_archetype_value: sand::entity::EntityArchetype < K , S >, flag: sand::entity::EntityFlag, binding: sand::entity::EquipmentBinding) where K : sand::entity::KnownEntityKind + sand::entity::MutableLivingEntityKind , S : sand::entity::EntityState {\n    let updated_entity_archetype = entity_archetype_value.equipment_when(flag, binding);\n}",
+        example = "use sand::prelude::*; fn update<K: KnownEntityKind + MutableLivingEntityKind>(archetype: EntityArchetype<K>, flag: EntityFlag, binding: EquipmentBinding) { let _ = archetype.equipment_when(flag, binding); }",
     )]
     #[must_use]
     pub fn equipment_when(mut self, flag: EntityFlag, binding: EquipmentBinding) -> Self {
@@ -1255,7 +1276,7 @@ pub enum ArchetypeProperty {
         binding: Box<EquipmentBinding>,
     },
     /// Dynamic custom name.
-    Name(NameBinding),
+    Name(EntityName),
     /// Archetype-owned tag.
     Tag(TagBinding),
     /// Flag-driven tag membership.
@@ -1303,8 +1324,6 @@ pub struct ArchetypeDefinition {
     pub living: bool,
     /// Whether direct non-player living mutation is legal.
     pub mutable_living: bool,
-    /// State schema.
-    pub schema: StateSchema,
     /// Adoption configuration.
     pub adoption: Option<Adoption>,
     /// Reconciliation policy.
@@ -1330,8 +1349,19 @@ pub struct ArchetypeDefinition {
 #[derive(Debug, Clone)]
 pub struct ArchetypeComponent {
     identities: Vec<(String, u32)>,
+    schemas: Vec<StateSchema>,
+    auto_tick_objectives: Vec<String>,
     attach: fn(&'static str) -> Vec<String>,
     detach: fn(&'static str) -> Vec<String>,
+}
+
+impl ArchetypeComponent {
+    fn has_same_metadata(&self, other: &Self) -> bool {
+        self.schemas == other.schemas
+            && self.auto_tick_objectives == other.auto_tick_objectives
+            && std::ptr::fn_addr_eq(self.attach, other.attach)
+            && std::ptr::fn_addr_eq(self.detach, other.detach)
+    }
 }
 
 fn dedup_commands(commands: &mut Vec<String>) {
@@ -1344,15 +1374,14 @@ fn dedup_commands(commands: &mut Vec<String>) {
     path = "sand::entity::EntityDerivation",
     aliases = ["sand::prelude::EntityDerivation"],
     module = "sand::entity",
-    summary = "A named numeric derivation cached using its destination State field's representation.",
-    context = "A named numeric derivation whose destination determines storage: Score stores whole logical values and FixedScore stores scaled logical decimals. Curves use fixed-point working arithmetic internally and Sand performs cross-scale conversion at the destination boundary.",
+    summary = "Advanced lowering configuration for a typed State-field derivation.",
+    context = "The target field supplies the stable derivation identity and stored representation. Curves use fixed-point working arithmetic internally; this type is needed only when overriding its working precision, policies, or helper identity.",
     minecraft = "Sand evaluates the curve with scoreboard integer arithmetic, converts once to the destination field's declared scale, applies its bounds, and caches the result.",
-    use_when = ["Defining or using typed entity behavior in a Sand datapack"],
-    avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
+    use_when = ["A derivation needs advanced fixed-point or output configuration"],
+    avoid_when = ["The normal EntityArchetype::derive target-and-curve API is sufficient"],
     example = "use sand::entity::EntityDerivation;",
 )]
-/// A named numeric derivation cached using its destination State field's
-/// representation.
+/// Advanced lowering configuration for a typed State-field derivation.
 ///
 /// [`Score`](crate::entity::state::Score) destinations store whole logical
 /// values. [`FixedScore`](crate::entity::state::FixedScore) destinations store
@@ -1489,18 +1518,18 @@ pub enum EntityTransition {
 /// is generated from schema metadata, never accepted as a raw string.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct EntityTransitionField {
-    objective: String,
+    reference: StateFieldReference,
 }
 
 impl EntityTransitionField {
     fn typed<F: EntityStateField>(field: F) -> Self {
         Self {
-            objective: field.objective(),
+            reference: field.field_reference(),
         }
     }
 
     fn objective(&self) -> &str {
-        &self.objective
+        &self.reference.objective
     }
 }
 
@@ -1760,25 +1789,22 @@ impl EntityDerivation {
     /// destination State field.
     #[sand_macros::api(
         registry = sand_api_contract,
-        path = "sand::entity::EntityDerivation::new",
-        aliases = ["sand::prelude::EntityDerivation::new"],
+        path = "sand::entity::EntityDerivation::for_target",
+        aliases = ["sand::prelude::EntityDerivation::for_target"],
         module = "sand::entity",
         kind = "method",
-        summary = "Create a derivation whose numeric representation is inferred from the destination State field.",
-        context = "A Score target stores whole logical values. A FixedScore target stores values using its declared scale. Curves remain logical numeric expressions and Sand performs the conversion once at the destination boundary.",
+        summary = "Create an advanced derivation while inferring identity and stored representation from its target State field.",
+        context = "The ordinary path is EntityArchetype::derive; construct this value directly only to override working precision, policies, or the inferred identity. Score stores whole logical values and FixedScore stores values using its declared scale.",
         minecraft = "Sand validates this definition and lowers it to entity-scoped selectors, scoreboards, NBT operations, and generated lifecycle functions as required.",
         use_when = ["Defining or using typed entity behavior in a Sand datapack"],
         avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
-        params(name = "Stable derivation name used in diagnostics and generated resources.", target = "Numeric State field whose type and schema determine the stored representation.", curve = "Logical numeric expression evaluated for the destination."),
+        params(target = "The composed State score that receives the derived value.", curve = "The typed numeric expression used to compute the target."),
         returns = "An `EntityDerivation` using the destination field's canonical storage representation.",
-        example = "use sand::prelude::*;\n\nfn demonstrate(name: impl Into<String>, target: impl sand::entity::NumericStateField, curve: sand::entity::StatCurve) {\n    let entity_derivation = sand::entity::EntityDerivation::new(name, target, curve);\n}",
+        example = "use sand::prelude::*; fn advanced(target: impl NumericStateField, curve: StatCurve) { let _ = EntityDerivation::for_target(target, curve); }",
     )]
     #[must_use]
-    pub fn new<F: crate::entity::state::NumericStateField>(
-        name: impl Into<String>,
-        target: F,
-        curve: StatCurve,
-    ) -> Self {
+    pub fn for_target<F: NumericStateField>(target: F, curve: StatCurve) -> Self {
+        let name = format!("{}::{}", target.component_id(), target.descriptor().name);
         let target_scale = i64::from(target.numeric_scale());
         let fixed = if target_scale == 1 {
             FixedPoint::default()
@@ -1791,12 +1817,34 @@ impl EntityDerivation {
             .expect("NumericStateField scales are positive")
         };
         Self {
-            name: name.into(),
+            name,
             target: target.erase_numeric(),
             target_scale,
             curve,
             fixed,
         }
+    }
+
+    /// Override the inferred stable identity used in diagnostics and helpers.
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::entity::EntityDerivation::named",
+        aliases = ["sand::prelude::EntityDerivation::named"],
+        module = "sand::entity",
+        kind = "method",
+        summary = "Overrides the stable identity inferred from the target State field.",
+        context = "The identity appears in diagnostics and deterministic helper naming; most authors should keep the inferred component-and-field identity.",
+        minecraft = "Changing this identity can rename generated derivation helpers without changing State storage.",
+        use_when = ["Maintaining an intentional legacy helper identity"],
+        avoid_when = ["The target field identity is the desired stable name"],
+        params(name = "The explicit stable derivation identity."),
+        returns = "This derivation with an explicit identity.",
+        example = "use sand::prelude::*; fn rename(derivation: EntityDerivation) { let _ = derivation.named(\"legacy_health\"); }",
+    )]
+    #[must_use]
+    pub fn named(mut self, name: impl Into<String>) -> Self {
+        self.name = name.into();
+        self
     }
 
     /// Override the curve's internal working precision and policies.
@@ -1974,17 +2022,269 @@ pub(crate) fn compile_registered(
             });
         }
     }
+    let claims = component_claims(&definitions);
     definitions
         .iter()
-        .map(|definition| compile_definition(definition, profile))
+        .map(|definition| compile_definition_with_claims(definition, profile, &claims))
         .collect()
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
+struct ComponentClaim {
+    interval: u32,
+    marker: String,
+}
+
+type ComponentClaims = std::collections::BTreeMap<String, Vec<ComponentClaim>>;
+
+fn reconciliation_interval(definition: &ArchetypeDefinition) -> u32 {
+    match definition.reconcile {
+        ReconcilePolicy::Every(interval) => interval.get(),
+        _ => 1,
+    }
+}
+
+fn component_claims(definitions: &[ArchetypeDefinition]) -> ComponentClaims {
+    let mut claims = ComponentClaims::new();
+    for definition in definitions {
+        let claim = ComponentClaim {
+            interval: reconciliation_interval(definition),
+            marker: initialized_tag(&definition.id.to_string()),
+        };
+        for component in &definition.components {
+            for (identity, _) in &component.identities {
+                claims
+                    .entry(identity.clone())
+                    .or_default()
+                    .push(claim.clone());
+            }
+            for schema in &component.schemas {
+                claims.entry(schema.id()).or_default().push(claim.clone());
+            }
+        }
+    }
+    for markers in claims.values_mut() {
+        markers.sort();
+        markers.dedup();
+    }
+    claims
+}
+
+fn dirty_pending_name(dirty_objective: &str, marker: &str) -> String {
+    sand_commands::ObjectiveName::logical(format!("{dirty_objective}.{marker}.pending"))
+        .as_str()
+        .to_string()
+}
+
+fn dirty_distribution_commands(
+    fields: &ArchetypeFields,
+    claims: &ComponentClaims,
+    objectives: &mut BTreeSet<String>,
+) -> Vec<String> {
+    let mut commands = Vec::new();
+    for field in fields.values() {
+        let Some(claim_markers) = claims.get(&field.component) else {
+            continue;
+        };
+        for claim in claim_markers {
+            let pending = dirty_pending_name(&field.dirty_objective, &claim.marker);
+            objectives.insert(pending.clone());
+            commands.push(format!(
+                "execute if score @s {} matches 1 if entity @s[tag={}] run scoreboard players set @s {pending} 1",
+                field.dirty_objective,
+                claim.marker,
+            ));
+        }
+        commands.push(format!(
+            "execute if score @s {} matches 1 run scoreboard players set @s {} 0",
+            field.dirty_objective, field.dirty_objective
+        ));
+    }
+    commands
+}
+
+fn dirty_acknowledgement_commands(fields: &ArchetypeFields, marker: &str) -> Vec<String> {
+    fields
+        .values()
+        .map(|field| {
+            format!(
+                "scoreboard players set @s {} 0",
+                dirty_pending_name(&field.dirty_objective, marker)
+            )
+        })
+        .collect()
+}
+
+fn dirty_pending_reset_commands(fields: &ArchetypeFields, marker: &str) -> Vec<String> {
+    fields
+        .values()
+        .map(|field| {
+            format!(
+                "scoreboard players reset @s {}",
+                dirty_pending_name(&field.dirty_objective, marker)
+            )
+        })
+        .collect()
+}
+
+#[derive(Debug, Clone)]
+struct ResolvedArchetypeField {
+    component: String,
+    field: String,
+    objective: String,
+    dirty_objective: String,
+    component_dirty_objective: String,
+    descriptor: crate::entity::state::StateFieldDescriptor,
+}
+
+struct ArchetypeFields {
+    by_objective: std::collections::BTreeMap<String, ResolvedArchetypeField>,
+    components: BTreeSet<String>,
+}
+
+impl ArchetypeFields {
+    fn new(definition: &ArchetypeDefinition) -> Result<Self, EntityDiagnostic> {
+        let mut schemas = std::collections::BTreeMap::<String, StateSchema>::new();
+        for (index, component) in definition.components.iter().enumerate() {
+            if definition.components[..index].iter().any(|existing| {
+                existing.identities == component.identities
+                    && !existing.has_same_metadata(component)
+            }) {
+                return Err(EntityDiagnostic::DuplicateStateField {
+                    schema: definition.id.to_string(),
+                    field: component
+                        .identities
+                        .iter()
+                        .map(|(identity, version)| format!("{identity}@{version}"))
+                        .collect::<Vec<_>>()
+                        .join(", "),
+                    detail: "two composed components claim the same lifecycle identity with conflicting schemas, auto-tick metadata, or lifecycle hooks".into(),
+                });
+            }
+            for schema in &component.schemas {
+                schema.validate()?;
+                let id = schema.id();
+                if let Some(existing) = schemas.get(&id) {
+                    if existing != schema {
+                        return Err(EntityDiagnostic::DuplicateStateField {
+                            schema: id,
+                            field: "<component>".into(),
+                            detail: "the flattened composition contains conflicting metadata for one component identity".into(),
+                        });
+                    }
+                } else {
+                    schemas.insert(id, *schema);
+                }
+            }
+        }
+        let components = schemas.keys().cloned().collect();
+        let mut by_objective = std::collections::BTreeMap::new();
+        for (component, schema) in schemas {
+            for descriptor in schema.fields {
+                let objective = objective_name(schema.namespace, schema.name, descriptor.name);
+                let resolved = ResolvedArchetypeField {
+                    component: component.clone(),
+                    field: descriptor.name.to_owned(),
+                    dirty_objective: dirty_name(schema.namespace, schema.name, descriptor.name),
+                    component_dirty_objective: component_dirty_name(schema.namespace, schema.name),
+                    objective: objective.clone(),
+                    descriptor: *descriptor,
+                };
+                if let Some(previous) = by_objective.insert(objective.clone(), resolved) {
+                    return Err(EntityDiagnostic::DuplicateStateField {
+                        schema: definition.id.to_string(),
+                        field: objective,
+                        detail: format!(
+                            "flattened fields `{}::{}` and `{}::{}` resolve to the same objective",
+                            previous.component, previous.field, component, descriptor.name
+                        ),
+                    });
+                }
+            }
+        }
+        Ok(Self {
+            by_objective,
+            components,
+        })
+    }
+
+    fn values(&self) -> impl Iterator<Item = &ResolvedArchetypeField> {
+        self.by_objective.values()
+    }
+
+    fn field_for_dirty_objective(&self, dirty_objective: &str) -> Option<&ResolvedArchetypeField> {
+        self.by_objective
+            .values()
+            .find(|field| field.dirty_objective == dirty_objective)
+    }
+
+    fn resolve_reference<'a>(
+        &'a self,
+        definition: &ArchetypeDefinition,
+        property: impl Into<String>,
+        reference: &StateFieldReference,
+    ) -> Result<&'a ResolvedArchetypeField, EntityDiagnostic> {
+        let property = property.into();
+        if !self.components.contains(&reference.component) {
+            return Err(EntityDiagnostic::MissingArchetypeComponent {
+                archetype: definition.id.to_string(),
+                property,
+                component: reference.component.clone(),
+                field: reference.field.clone(),
+            });
+        }
+        self.by_objective
+            .get(&reference.objective)
+            .filter(|field| {
+                field.component == reference.component
+                    && field.field == reference.field
+                    && field.descriptor == reference.descriptor
+                    && field.dirty_objective == reference.dirty_objective
+            })
+            .ok_or_else(|| EntityDiagnostic::InvalidRawExtension {
+                archetype: definition.id.to_string(),
+                extension: property,
+                detail: format!(
+                    "typed field `{}::{}` does not match the composed component metadata",
+                    reference.component, reference.field
+                ),
+            })
+    }
+
+    fn resolve_objective<'a>(
+        &'a self,
+        definition: &ArchetypeDefinition,
+        property: impl Into<String>,
+        objective: &str,
+    ) -> Result<&'a ResolvedArchetypeField, EntityDiagnostic> {
+        let property = property.into();
+        self.by_objective
+            .get(objective)
+            .ok_or_else(|| EntityDiagnostic::InvalidRawExtension {
+                archetype: definition.id.to_string(),
+                extension: property,
+                detail: format!(
+                    "score objective `{objective}` is not a field in the flattened archetype composition"
+                ),
+            })
+    }
+}
+
+#[cfg(test)]
 fn compile_definition(
     definition: &ArchetypeDefinition,
-    _profile: &crate::version::VersionProfile,
+    profile: &crate::version::VersionProfile,
 ) -> Result<CompiledArchetype, EntityDiagnostic> {
-    definition.schema.validate()?;
+    let claims = component_claims(std::slice::from_ref(definition));
+    compile_definition_with_claims(definition, profile, &claims)
+}
+
+fn compile_definition_with_claims(
+    definition: &ArchetypeDefinition,
+    _profile: &crate::version::VersionProfile,
+    claims: &ComponentClaims,
+) -> Result<CompiledArchetype, EntityDiagnostic> {
+    let fields = ArchetypeFields::new(definition)?;
     validate_definition(definition)?;
 
     let id = definition.id.to_string();
@@ -1998,17 +2298,15 @@ fn compile_definition(
 
     let mut objectives = BTreeSet::new();
     objectives.insert(version_objective.clone());
-    for field in definition.schema.fields {
-        objectives.insert(objective_name(
-            definition.schema.namespace,
-            definition.schema.name,
-            field.name,
-        ));
-        objectives.insert(dirty_name(
-            definition.schema.namespace,
-            definition.schema.name,
-            field.name,
-        ));
+    for field in fields.values() {
+        objectives.insert(field.objective.clone());
+        objectives.insert(field.dirty_objective.clone());
+        objectives.insert(field.component_dirty_objective.clone());
+        if let Some(markers) = claims.get(&field.component) {
+            for claim in markers {
+                objectives.insert(dirty_pending_name(&field.dirty_objective, &claim.marker));
+            }
+        }
     }
 
     let mut records = Vec::new();
@@ -2024,69 +2322,46 @@ fn compile_definition(
             .collect(),
     ));
 
-    let mut provision_commands = Vec::new();
-    for (index, field) in definition.schema.fields.iter().enumerate() {
-        let objective = objective_name(
-            definition.schema.namespace,
-            definition.schema.name,
-            field.name,
-        );
-        let dirty = dirty_name(
-            definition.schema.namespace,
-            definition.schema.name,
-            field.name,
-        );
-        let helper = format!("{root}/initialize/field_{index}");
-        functions.insert(helper.clone());
-        records.push(function_record(
-            definition.id.namespace(),
-            &helper,
-            vec![
-                format!("scoreboard players set @s {objective} {}", field.default),
-                format!("scoreboard players set @s {dirty} 1"),
-            ],
-        ));
-        provision_commands.push(format!(
-            "execute unless score @s {objective} matches -2147483648.. run function {}:{helper}",
-            definition.id.namespace()
-        ));
-    }
-    let provision_path = format!("{root}/provision");
-    functions.insert(provision_path.clone());
-    records.push(function_record(
-        definition.id.namespace(),
-        &provision_path,
-        provision_commands,
-    ));
-    let mut initialize_commands = vec![format!(
-        "function {}:{provision_path}",
-        definition.id.namespace()
-    )];
     let mut component_attach = Vec::new();
     for component in &definition.components {
         component_attach.extend((component.attach)("@s"));
     }
     dedup_commands(&mut component_attach);
-    initialize_commands.extend(component_attach);
+    let provision_path = format!("{root}/provision");
+    functions.insert(provision_path.clone());
+    records.push(function_record(
+        definition.id.namespace(),
+        &provision_path,
+        component_attach,
+    ));
+    let mut initialize_commands = vec![format!(
+        "function {}:{provision_path}",
+        definition.id.namespace()
+    )];
+    let repair_objective = sand_commands::ObjectiveName::logical(format!("{id}.component_repair"))
+        .as_str()
+        .to_string();
+    objectives.insert(repair_objective.clone());
+    let mut repair_refresh_commands = Vec::new();
 
-    let derivations = compile_derivations(definition, &root)?;
+    let derivations = compile_derivations(definition, &fields, &root, &marker)?;
     objectives.extend(derivations.objectives);
     functions.extend(derivations.functions);
     records.extend(derivations.records);
-    if let Some(path) = &derivations.refresh_function {
-        initialize_commands.push(format!("function {path}"));
-    }
+    initialize_commands.extend(derivations.initialize_commands.iter().cloned());
+    repair_refresh_commands.extend(derivations.initialize_commands.iter().cloned());
 
     let mut refresh_sources: Vec<(String, String)> = Vec::new();
     let mut refresh_outputs: Vec<(String, String)> = Vec::new();
     let mut periodic_refreshes: Vec<(String, String, u32)> = Vec::new();
     for (index, property) in definition.properties.iter().enumerate() {
-        let compiled = compile_property(definition, property, index, &root, _profile)?;
+        let compiled = compile_property(definition, &fields, property, index, &root, _profile)?;
         objectives.extend(compiled.objectives);
         functions.extend(compiled.functions);
         records.extend(compiled.records);
         if let Some(function) = compiled.initialize_function {
             initialize_commands.push(format!("function {function}"));
+            repair_refresh_commands.push(format!("function {function}"));
         }
         for source in compiled.source_dirty {
             refresh_sources.push((source, compiled.output_dirty.clone()));
@@ -2117,16 +2392,17 @@ fn compile_definition(
             ));
         }
         for (source, output) in &refresh_sources {
+            let pending = fields
+                .field_for_dirty_objective(source)
+                .map(|field| dirty_pending_name(&field.dirty_objective, &marker));
+            if let Some(pending) = pending {
+                commands.push(format!(
+                    "execute if score @s {pending} matches 1 run scoreboard players set @s {output} 1"
+                ));
+            }
             commands.push(format!(
                 "execute if score @s {source} matches 1 run scoreboard players set @s {output} 1"
             ));
-        }
-        for source in refresh_sources
-            .iter()
-            .map(|(source, _)| source)
-            .collect::<BTreeSet<_>>()
-        {
-            commands.push(format!("scoreboard players set @s {source} 0"));
         }
         for (output, function) in &refresh_outputs {
             commands.push(format!(
@@ -2141,21 +2417,18 @@ fn compile_definition(
             commands,
         ));
     }
-    let transitions = compile_transitions(definition, &root)?;
+    let transitions = compile_transitions(definition, &fields, &root)?;
     objectives.extend(transitions.objectives);
     functions.extend(transitions.functions);
     records.extend(transitions.records);
-    initialize_commands.extend(transitions.initialize_commands);
-    for field in definition.schema.fields {
-        initialize_commands.push(format!(
-            "scoreboard players set @s {} 0",
-            dirty_name(
-                definition.schema.namespace,
-                definition.schema.name,
-                field.name
-            )
-        ));
-    }
+    initialize_commands.extend(transitions.initialize_commands.iter().cloned());
+    repair_refresh_commands.extend(transitions.initialize_commands);
+    initialize_commands.extend(dirty_distribution_commands(
+        &fields,
+        claims,
+        &mut objectives,
+    ));
+    initialize_commands.extend(dirty_acknowledgement_commands(&fields, &marker));
     if let Some(callback) = &definition.initialize {
         initialize_commands.push(format!("function {callback}"));
     }
@@ -2207,33 +2480,37 @@ fn compile_definition(
 
     let reconcile_path = format!("{root}/reconcile");
     functions.insert(reconcile_path.clone());
-    let mut reconcile_commands = vec![format!(
-        "function {}:{provision_path}",
-        definition.id.namespace()
-    )];
-    for field in definition.schema.fields {
-        if matches!(
-            field.kind,
-            crate::entity::state::StateFieldKind::Timer
-                | crate::entity::state::StateFieldKind::Cooldown
-        ) {
-            let objective = objective_name(
-                definition.schema.namespace,
-                definition.schema.name,
-                field.name,
-            );
-            let dirty = dirty_name(
-                definition.schema.namespace,
-                definition.schema.name,
-                field.name,
-            );
+    let mut reconcile_commands = vec![format!("scoreboard players set @s {repair_objective} 0")];
+    for component in &definition.components {
+        for (identity, version) in &component.identities {
             reconcile_commands.push(format!(
-                "execute if score @s {objective} matches 1.. run scoreboard players set @s {dirty} 1"
-            ));
-            reconcile_commands.push(format!(
-                "execute if score @s {objective} matches 1.. run scoreboard players remove @s {objective} 1"
+                "execute unless score @s {identity} matches {version} run scoreboard players set @s {repair_objective} 1"
             ));
         }
+    }
+    for field in fields.values() {
+        reconcile_commands.push(format!(
+            "execute unless score @s {} matches -2147483648.. run scoreboard players set @s {repair_objective} 1",
+            field.objective
+        ));
+    }
+    reconcile_commands.push(format!(
+        "function {}:{provision_path}",
+        definition.id.namespace()
+    ));
+    if !repair_refresh_commands.is_empty() {
+        let repair_path = format!("{root}/repair_refresh");
+        functions.insert(repair_path.clone());
+        records.push(function_record(
+            definition.id.namespace(),
+            &repair_path,
+            repair_refresh_commands,
+        ));
+        reconcile_commands.push(format!(
+            "execute if score @s {repair_objective} matches 1 if score @s {version_objective} matches {} run function {}:{repair_path}",
+            definition.version,
+            definition.id.namespace()
+        ));
     }
     if !definition.migrations.is_empty() {
         reconcile_commands.push(format!(
@@ -2247,6 +2524,54 @@ fn compile_definition(
         definition.version,
         definition.id.namespace()
     ));
+    let independently_ticked = definition
+        .components
+        .iter()
+        .flat_map(|component| component.auto_tick_objectives.iter().cloned())
+        .collect::<BTreeSet<_>>();
+    for field in fields.values().filter(|field| {
+        matches!(
+            field.descriptor.kind,
+            crate::entity::state::StateFieldKind::Timer
+                | crate::entity::state::StateFieldKind::Cooldown
+        ) && !independently_ticked.contains(&field.objective)
+    }) {
+        let tick_owner_guard = claims
+            .get(&field.component)
+            .into_iter()
+            .flatten()
+            .take_while(|claim| claim.marker != marker)
+            .map(|claim| format!("unless entity @s[tag={}]", claim.marker))
+            .collect::<Vec<_>>()
+            .join(" ");
+        let tick_owner_guard = if tick_owner_guard.is_empty() {
+            String::new()
+        } else {
+            format!("{tick_owner_guard} ")
+        };
+        reconcile_commands.push(format!(
+            "execute {tick_owner_guard}if score @s {} matches 1.. run scoreboard players set @s {} 1",
+            field.objective, field.dirty_objective,
+        ));
+        reconcile_commands.push(format!(
+            "execute {tick_owner_guard}if score @s {} matches 1.. run scoreboard players set @s {} 1",
+            field.objective, field.component_dirty_objective,
+        ));
+        reconcile_commands.push(format!(
+            "execute {tick_owner_guard}if score @s {} matches 1.. run scoreboard players remove @s {} 1",
+            field.objective, field.objective,
+        ));
+    }
+    reconcile_commands.extend(dirty_distribution_commands(
+        &fields,
+        claims,
+        &mut objectives,
+    ));
+    for acknowledgement in dirty_acknowledgement_commands(&fields, &marker) {
+        reconcile_commands.push(format!(
+            "execute if score @s {repair_objective} matches 1 run {acknowledgement}"
+        ));
+    }
     if !refresh_outputs.is_empty() {
         if let Some(path) = &derivations.refresh_function {
             reconcile_commands.push(format!("function {path}"));
@@ -2261,16 +2586,12 @@ fn compile_definition(
     if let Some(path) = &transitions.check_function {
         reconcile_commands.push(format!("function {path}"));
     }
-    for field in definition.schema.fields {
-        reconcile_commands.push(format!(
-            "scoreboard players set @s {} 0",
-            dirty_name(
-                definition.schema.namespace,
-                definition.schema.name,
-                field.name
-            )
-        ));
-    }
+    reconcile_commands.extend(dirty_distribution_commands(
+        &fields,
+        claims,
+        &mut objectives,
+    ));
+    reconcile_commands.extend(dirty_acknowledgement_commands(&fields, &marker));
     records.push(function_record(
         definition.id.namespace(),
         &reconcile_path,
@@ -2285,16 +2606,51 @@ fn compile_definition(
     }
     let mut component_cleanup = Vec::new();
     for component in definition.components.iter().rev() {
-        component_cleanup.extend((component.detach)("@s"));
+        let mut retaining_markers = component
+            .identities
+            .iter()
+            .flat_map(|(identity, _)| claims.get(identity).into_iter().flatten())
+            .filter(|claim| claim.marker != marker)
+            .map(|claim| claim.marker.clone())
+            .collect::<Vec<_>>();
+        retaining_markers.sort();
+        retaining_markers.dedup();
+        component_cleanup.extend(
+            (component.detach)("@s")
+                .into_iter()
+                .map(|command| guard_component_cleanup(&command, &retaining_markers)),
+        );
     }
     dedup_commands(&mut component_cleanup);
     cleanup_commands.extend(component_cleanup);
     for property in &definition.properties {
         cleanup_commands.extend(property_cleanup_commands(property));
     }
-    for objective in &objectives {
-        cleanup_commands.push(format!("scoreboard players reset @s {objective}"));
+    let mut component_objectives = fields
+        .values()
+        .flat_map(|field| {
+            [
+                field.objective.clone(),
+                field.dirty_objective.clone(),
+                field.component_dirty_objective.clone(),
+            ]
+        })
+        .collect::<BTreeSet<_>>();
+    for field in fields.values() {
+        if let Some(component_claims) = claims.get(&field.component) {
+            component_objectives.extend(
+                component_claims
+                    .iter()
+                    .map(|claim| dirty_pending_name(&field.dirty_objective, &claim.marker)),
+            );
+        }
     }
+    for objective in &objectives {
+        if !component_objectives.contains(objective) {
+            cleanup_commands.push(format!("scoreboard players reset @s {objective}"));
+        }
+    }
+    cleanup_commands.extend(dirty_pending_reset_commands(&fields, &marker));
     dedup_commands(&mut cleanup_commands);
     cleanup_commands.push(format!("tag @s remove {marker}"));
     cleanup_commands.push(format!("tag @s remove {external_marker}"));
@@ -2341,9 +2697,18 @@ fn compile_definition(
         predicates.sort_by_key(|predicate| predicate.objective());
         let mut seen_predicates = BTreeSet::new();
         for predicate in &predicates {
+            if let Some(field) = &predicate.field {
+                fields.resolve_reference(definition, "adoption predicate", field)?;
+            } else {
+                fields.resolve_objective(
+                    definition,
+                    "adoption predicate",
+                    predicate.objective(),
+                )?;
+            }
             if !seen_predicates.insert(predicate.objective()) {
                 return Err(EntityDiagnostic::DuplicateStateField {
-                    schema: definition.schema.id(),
+                    schema: definition.id.to_string(),
                     field: predicate.objective().into(),
                     detail: "adoption query contains two ranges for one state field".into(),
                 });
@@ -2426,14 +2791,19 @@ fn compile_definition(
         tick_functions.push(format!("{}:{coordinator_path}", definition.id.namespace()));
     }
 
-    let has_timers = definition.schema.fields.iter().any(|field| {
+    let has_timers = fields.values().any(|field| {
         matches!(
-            field.kind,
+            field.descriptor.kind,
             crate::entity::state::StateFieldKind::Timer
                 | crate::entity::state::StateFieldKind::Cooldown
-        )
+        ) && !independently_ticked.contains(&field.objective)
     });
     let property_schedules_scan = !refresh_outputs.is_empty() || has_timers;
+    let component_schedules_scan = !definition.components.is_empty()
+        && !matches!(
+            definition.reconcile,
+            ReconcilePolicy::InitializeOnly | ReconcilePolicy::Manual
+        );
     let needs_reconcile_scan = (!matches!(
         definition.reconcile,
         ReconcilePolicy::InitializeOnly | ReconcilePolicy::Manual
@@ -2442,7 +2812,8 @@ fn compile_definition(
         || !definition.transitions.is_empty()
         || !definition.migrations.is_empty()
         || definition.version > 1))
-        || property_schedules_scan;
+        || property_schedules_scan
+        || component_schedules_scan;
     if needs_reconcile_scan {
         let path = format!("{root}/reconcile_scan");
         functions.insert(path.clone());
@@ -2533,6 +2904,18 @@ fn compile_definition(
     })
 }
 
+fn guard_component_cleanup(command: &str, retaining_markers: &[String]) -> String {
+    if retaining_markers.is_empty() {
+        return command.to_owned();
+    }
+    let guards = retaining_markers
+        .iter()
+        .map(|marker| format!("unless entity @s[tag={marker}]"))
+        .collect::<Vec<_>>()
+        .join(" ");
+    format!("execute {guards} run {command}")
+}
+
 struct TransitionCompilation {
     records: Vec<crate::component::ComponentRecord>,
     functions: Vec<String>,
@@ -2543,6 +2926,7 @@ struct TransitionCompilation {
 
 fn compile_transitions(
     definition: &ArchetypeDefinition,
+    fields: &ArchetypeFields,
     root: &str,
 ) -> Result<TransitionCompilation, EntityDiagnostic> {
     let mut records = Vec::new();
@@ -2570,22 +2954,17 @@ fn compile_transitions(
         {
             if *basis_points > 10_000 {
                 return Err(EntityDiagnostic::InvalidRange {
-                    schema: definition.schema.id(),
+                    schema: definition.id.to_string(),
                     field: format!("transition[{index}]"),
                     range: format!("{basis_points} basis points"),
                 });
             }
             for field in [current, maximum] {
-                if dirty_for_objective(definition.schema, field.objective()).is_none() {
-                    return Err(EntityDiagnostic::InvalidRawExtension {
-                        archetype: definition.id.to_string(),
-                        extension: format!("transition[{index}]"),
-                        detail: format!(
-                            "health field objective `{}` is not in this schema",
-                            field.objective()
-                        ),
-                    });
-                }
+                fields.resolve_reference(
+                    definition,
+                    format!("transition[{index}]"),
+                    &field.reference,
+                )?;
             }
             let percentage = sand_commands::ObjectiveName::logical(format!(
                 "{}.transition.{index}.percentage",
@@ -2653,13 +3032,7 @@ fn compile_transitions(
             });
         };
         let objective = field.objective();
-        if dirty_for_objective(definition.schema, objective).is_none() {
-            return Err(EntityDiagnostic::InvalidRawExtension {
-                archetype: definition.id.to_string(),
-                extension: format!("transition[{index}]"),
-                detail: format!("state field objective `{objective}` is not in this schema"),
-            });
-        }
+        fields.resolve_reference(definition, format!("transition[{index}]"), &field.reference)?;
         let previous = sand_commands::ObjectiveName::logical(format!(
             "{}.transition.{index}.previous",
             definition.id
@@ -2786,12 +3159,15 @@ struct DerivationCompilation {
     records: Vec<crate::component::ComponentRecord>,
     functions: Vec<String>,
     objectives: Vec<String>,
+    initialize_commands: Vec<String>,
     refresh_function: Option<String>,
 }
 
 fn compile_derivations(
     definition: &ArchetypeDefinition,
+    fields: &ArchetypeFields,
     root: &str,
+    marker: &str,
 ) -> Result<DerivationCompilation, EntityDiagnostic> {
     use crate::entity::curve::DependencyGraph;
 
@@ -2800,13 +3176,11 @@ fn compile_derivations(
     let mut targets = BTreeSet::new();
     for derivation in &definition.derivations {
         let target = derivation.target.objective();
-        if dirty_for_objective(definition.schema, &target).is_none() {
-            return Err(EntityDiagnostic::InvalidRawExtension {
-                archetype: definition.id.to_string(),
-                extension: derivation.name.clone(),
-                detail: format!("derived target `{target}` is not a field in this entity schema"),
-            });
-        }
+        fields.resolve_reference(
+            definition,
+            format!("derivation `{}` target", derivation.name),
+            &derivation.target.field_reference(),
+        )?;
         if !targets.insert(target.clone()) {
             return Err(EntityDiagnostic::DuplicateStateField {
                 schema: id,
@@ -2840,6 +3214,7 @@ fn compile_derivations(
     let mut functions = Vec::new();
     let mut objectives = BTreeSet::new();
     let mut refresh_commands = Vec::new();
+    let mut initialize_commands = Vec::new();
     for (index, derivation) in derivations.into_iter().enumerate() {
         let target = derivation.target.objective();
         let target_dirty = derivation.target.dirty_objective();
@@ -2848,14 +3223,26 @@ fn compile_derivations(
                 .as_str()
                 .to_string();
         objectives.insert(derivation_dirty.clone());
+        let curve_references = derivation.curve.field_references();
         for input in derivation.curve.inputs() {
-            let source_dirty = dirty_for_objective(definition.schema, &input).ok_or_else(|| {
-                EntityDiagnostic::InvalidRawExtension {
-                    archetype: definition.id.to_string(),
-                    extension: derivation.name.clone(),
-                    detail: format!("curve input `{input}` is not a field in this entity schema"),
-                }
-            })?;
+            let source = if let Some(reference) = curve_references.get(&input) {
+                fields.resolve_reference(
+                    definition,
+                    format!("derivation `{}` input", derivation.name),
+                    reference,
+                )?
+            } else {
+                fields.resolve_objective(
+                    definition,
+                    format!("derivation `{}` input", derivation.name),
+                    &input,
+                )?
+            };
+            let source_dirty = &source.dirty_objective;
+            let pending = dirty_pending_name(source_dirty, marker);
+            refresh_commands.push(format!(
+                "execute if score @s {pending} matches 1 run scoreboard players set @s {derivation_dirty} 1"
+            ));
             refresh_commands.push(format!(
                 "execute if score @s {source_dirty} matches 1 run scoreboard players set @s {derivation_dirty} 1"
             ));
@@ -2894,6 +3281,7 @@ fn compile_derivations(
         );
         commands.push(format!("scoreboard players set @s {target_dirty} 1"));
         records.push(function_record(definition.id.namespace(), &path, commands));
+        initialize_commands.push(format!("function {}:{path}", definition.id.namespace()));
         refresh_commands.push(format!(
             "execute if score @s {derivation_dirty} matches 1 run function {}:{path}",
             definition.id.namespace()
@@ -2917,6 +3305,7 @@ fn compile_derivations(
         records,
         functions,
         objectives: objectives.into_iter().collect(),
+        initialize_commands,
         refresh_function,
     })
 }
@@ -2941,14 +3330,6 @@ fn append_destination_bounds(
         }
     }
 }
-
-fn dirty_for_objective(schema: StateSchema, objective: &str) -> Option<String> {
-    schema.fields.iter().find_map(|field| {
-        (objective_name(schema.namespace, schema.name, field.name) == objective)
-            .then(|| dirty_name(schema.namespace, schema.name, field.name))
-    })
-}
-
 struct RenderedCurve {
     commands: Vec<String>,
     records: Vec<crate::component::ComponentRecord>,
@@ -3652,6 +4033,7 @@ fn constant_objective(
 
 fn compile_property(
     definition: &ArchetypeDefinition,
+    fields: &ArchetypeFields,
     property: &ArchetypeProperty,
     index: usize,
     root: &str,
@@ -3671,8 +4053,18 @@ fn compile_property(
     let (commands, ownership, refresh) = match property {
         ArchetypeProperty::Health(binding) => {
             binding.validate(&id)?;
+            fields.resolve_reference(
+                definition,
+                format!("property[{index}] health maximum"),
+                &binding.max_health_field().field_reference(),
+            )?;
             sources.push(binding.max_health_field().dirty_objective());
             if let Some(current) = binding.current_health_field() {
+                fields.resolve_reference(
+                    definition,
+                    format!("property[{index}] health current"),
+                    &current.field_reference(),
+                )?;
                 sources.push(current.dirty_objective());
             }
             let lowered = lower_health(definition, binding, index, root, profile)?;
@@ -3688,9 +4080,16 @@ fn compile_property(
         ArchetypeProperty::Attribute(binding) => {
             binding.validate(&id)?;
             if let NumericPropertySource::StateScore {
-                dirty_objective, ..
+                dirty_objective,
+                field,
+                ..
             } = binding.source()
             {
+                fields.resolve_reference(
+                    definition,
+                    format!("property[{index}] attribute"),
+                    field,
+                )?;
                 sources.push(dirty_objective.clone());
             }
             let lowered = lower_attribute(definition, binding, index, root, profile)?;
@@ -3705,9 +4104,16 @@ fn compile_property(
         ArchetypeProperty::AttributeModifier(binding) => {
             binding.validate(&id)?;
             if let NumericPropertySource::StateScore {
-                dirty_objective, ..
+                dirty_objective,
+                field,
+                ..
             } = binding.source()
             {
+                fields.resolve_reference(
+                    definition,
+                    format!("property[{index}] attribute modifier"),
+                    field,
+                )?;
                 sources.push(dirty_objective.clone());
             }
             let lowered = lower_attribute_modifier(definition, binding, index, root, profile)?;
@@ -3734,6 +4140,11 @@ fn compile_property(
         }
         ArchetypeProperty::ConditionalEffect { flag, binding } => {
             binding.validate(&id)?;
+            fields.resolve_reference(
+                definition,
+                format!("property[{index}] conditional effect"),
+                &flag.field_reference(),
+            )?;
             sources.push(flag.dirty_objective());
             let seconds = binding.duration().get().div_ceil(20);
             (
@@ -3784,6 +4195,11 @@ fn compile_property(
         }
         ArchetypeProperty::ConditionalEquipment { flag, binding } => {
             binding.validate(&id)?;
+            fields.resolve_reference(
+                definition,
+                format!("property[{index}] conditional equipment"),
+                &flag.field_reference(),
+            )?;
             binding
                 .stack()
                 .validate()
@@ -3813,18 +4229,31 @@ fn compile_property(
         }
         ArchetypeProperty::Name(binding) => {
             binding.validate(&id)?;
-            for segment in binding.text().segments() {
+            for segment in binding.text_value().segments() {
                 match segment {
-                    EntityTextSegment::Literal { .. } => {}
+                    EntityTextSegment::Canonical { .. } | EntityTextSegment::Literal { .. } => {}
                     EntityTextSegment::Numeric {
-                        dirty_objective, ..
+                        dirty_objective,
+                        field,
+                        ..
                     }
                     | EntityTextSegment::Enum {
-                        dirty_objective, ..
+                        dirty_objective,
+                        field,
+                        ..
                     }
                     | EntityTextSegment::Flag {
-                        dirty_objective, ..
-                    } => sources.push(dirty_objective.clone()),
+                        dirty_objective,
+                        field,
+                        ..
+                    } => {
+                        fields.resolve_reference(
+                            definition,
+                            format!("property[{index}] name"),
+                            field,
+                        )?;
+                        sources.push(dirty_objective.clone());
+                    }
                 }
             }
             let lowered = lower_name(definition, binding, index, root, profile)?;
@@ -3846,6 +4275,11 @@ fn compile_property(
         }
         ArchetypeProperty::ConditionalTag { flag, binding } => {
             binding.validate(&id)?;
+            fields.resolve_reference(
+                definition,
+                format!("property[{index}] conditional tag"),
+                &flag.field_reference(),
+            )?;
             sources.push(flag.dirty_objective());
             (
                 vec![
@@ -3881,6 +4315,11 @@ fn compile_property(
         }
         ArchetypeProperty::ConditionalTeam { flag, binding } => {
             binding.validate(&id)?;
+            fields.resolve_reference(
+                definition,
+                format!("property[{index}] conditional team"),
+                &flag.field_reference(),
+            )?;
             sources.push(flag.dirty_objective());
             (
                 vec![
@@ -4207,7 +4646,7 @@ fn lower_health(
 
 fn lower_name(
     definition: &ArchetypeDefinition,
-    binding: &NameBinding,
+    binding: &EntityName,
     index: usize,
     root: &str,
     profile: &crate::version::VersionProfile,
@@ -4221,8 +4660,9 @@ fn lower_name(
     let mut setup = Vec::new();
     let mut rendered = Vec::new();
     let mut dynamic = false;
-    for (segment_index, segment) in binding.text().segments().iter().enumerate() {
+    for (segment_index, segment) in binding.text_value().segments().iter().enumerate() {
         let color = match segment {
+            EntityTextSegment::Canonical { .. } => String::new(),
             EntityTextSegment::Literal { color, .. }
             | EntityTextSegment::Numeric { color, .. }
             | EntityTextSegment::Enum { color, .. }
@@ -4232,6 +4672,7 @@ fn lower_name(
                 .unwrap_or_default(),
         };
         match segment {
+            EntityTextSegment::Canonical { component } => rendered.push(component.to_string()),
             EntityTextSegment::Literal { text, .. } => rendered.push(format!(
                 "{{text:{}{color}}}",
                 serde_json::to_string(text).expect("serializing a Rust string cannot fail")
@@ -4412,32 +4853,11 @@ fn property_cleanup_commands(property: &ArchetypeProperty) -> Vec<String> {
 
 fn validate_definition(definition: &ArchetypeDefinition) -> Result<(), EntityDiagnostic> {
     let id = definition.id.to_string();
-    if definition.version == 0 || definition.schema.version == 0 {
+    if definition.version == 0 {
         return Err(EntityDiagnostic::InvalidRawExtension {
             archetype: id,
             extension: "version".into(),
             detail: "version zero is reserved for uninitialized entities".into(),
-        });
-    }
-    let primary_presence = sand_commands::ObjectiveName::logical(format!(
-        "{}:{}.presence",
-        definition.schema.namespace, definition.schema.name
-    ))
-    .as_str()
-    .to_owned();
-    if definition.components.iter().any(|component| {
-        component
-            .identities
-            .iter()
-            .any(|(objective, _)| objective == &primary_presence)
-    }) {
-        return Err(EntityDiagnostic::InvalidRawExtension {
-            archetype: id,
-            extension: "components".into(),
-            detail: format!(
-                "the composition repeats primary State component `{}`; choose a distinct primary marker or remove the repeated bundle member",
-                definition.schema.id()
-            ),
         });
     }
     if let Some(adoption) = &definition.adoption {
@@ -4616,7 +5036,7 @@ mod tests {
     use super::*;
     use crate::entity::ZombieKind;
     use crate::entity::state::{
-        EntityFlag, EntityScore, FixedScore, NumericStateField, StateFieldDescriptor,
+        EntityFlag, EntityScore, EntityState, FixedScore, NumericStateField, StateFieldDescriptor,
         StateFieldKind,
     };
 
@@ -4637,10 +5057,97 @@ mod tests {
             }
         }
     }
+    impl StateComposition for MobState {
+        fn composition_identities() -> Vec<(String, u32)> {
+            vec![("rpg:mob.presence".into(), 2)]
+        }
+
+        fn composition_schemas() -> Vec<StateSchema> {
+            vec![Self::schema()]
+        }
+
+        fn composition_attach(_: &'static str) -> Vec<String> {
+            Vec::new()
+        }
+
+        fn composition_detach(_: &'static str) -> Vec<String> {
+            Vec::new()
+        }
+    }
+    struct ConflictingMobState;
+    static CONFLICTING_FIELDS: &[StateFieldDescriptor] = &[StateFieldDescriptor::new(
+        "other",
+        StateFieldKind::Score,
+        0,
+        None,
+    )];
+    impl EntityState for ConflictingMobState {
+        fn schema() -> StateSchema {
+            StateSchema {
+                namespace: "rpg",
+                name: "mob",
+                version: 2,
+                fields: CONFLICTING_FIELDS,
+            }
+        }
+    }
+    impl StateComposition for ConflictingMobState {
+        fn composition_identities() -> Vec<(String, u32)> {
+            vec![("rpg:mob.presence".into(), 2)]
+        }
+
+        fn composition_schemas() -> Vec<StateSchema> {
+            vec![Self::schema()]
+        }
+
+        fn composition_attach(_: &'static str) -> Vec<String> {
+            Vec::new()
+        }
+
+        fn composition_detach(_: &'static str) -> Vec<String> {
+            Vec::new()
+        }
+    }
     const LEVEL: EntityScore<i32> = EntityScore::new("rpg", "mob", "level", 1, Some((1, 100)));
     const HEALTH: EntityScore<i32> = EntityScore::new("rpg", "mob", "health", 20, Some((1, 2_000)));
     const SPEED: FixedScore = FixedScore::__new("rpg", "mob", "speed", 100, 125, Some((0, 1_000)));
     const SICK: EntityFlag = EntityFlag::new("rpg", "mob", "sick", false);
+    struct TimedState;
+    static TIMED_FIELDS: &[StateFieldDescriptor] = &[
+        StateFieldDescriptor::new("timer", StateFieldKind::Timer, 0, Some((0, i32::MAX))),
+        StateFieldDescriptor::new("cooldown", StateFieldKind::Cooldown, 0, Some((0, i32::MAX))),
+    ];
+    impl EntityState for TimedState {
+        fn schema() -> StateSchema {
+            StateSchema {
+                namespace: "rpg",
+                name: "timed",
+                version: 1,
+                fields: TIMED_FIELDS,
+            }
+        }
+    }
+    impl StateComposition for TimedState {
+        fn composition_identities() -> Vec<(String, u32)> {
+            vec![("rpg:timed.presence".into(), 1)]
+        }
+
+        fn composition_schemas() -> Vec<StateSchema> {
+            vec![Self::schema()]
+        }
+
+        fn composition_attach(_: &'static str) -> Vec<String> {
+            Vec::new()
+        }
+
+        fn composition_detach(_: &'static str) -> Vec<String> {
+            Vec::new()
+        }
+    }
+    const TIMER: crate::entity::state::EntityTimer =
+        crate::entity::state::EntityTimer::new("rpg", "timed", "timer", 0);
+    const COOLDOWN: crate::entity::state::EntityCooldown =
+        crate::entity::state::EntityCooldown::new("rpg", "timed", "cooldown");
 
     fn profile() -> crate::version::VersionProfile {
         crate::version::VersionProfile::resolve(
@@ -4651,9 +5158,10 @@ mod tests {
 
     #[test]
     fn compile_is_repeat_deterministic_and_initialization_marks_last() {
-        let archetype = EntityArchetype::<ZombieKind, MobState>::new(
+        let archetype = EntityArchetype::<ZombieKind>::new(
             ResourceLocation::new("rpg", "plagued_zombie").unwrap(),
         )
+        .components::<MobState>()
         .adopt(Adoption::natural_and_external());
         let first = compile_definition(&archetype.definition(), &profile()).unwrap();
         let second = compile_definition(&archetype.definition(), &profile()).unwrap();
@@ -4685,21 +5193,238 @@ mod tests {
 
     #[test]
     fn no_subscriptions_has_no_tick_runtime() {
-        let archetype = EntityArchetype::<ZombieKind, MobState>::new(
-            ResourceLocation::new("rpg", "manual").unwrap(),
-        )
-        .reconcile(ReconcilePolicy::Manual);
+        let archetype =
+            EntityArchetype::<ZombieKind>::new(ResourceLocation::new("rpg", "manual").unwrap())
+                .components::<MobState>()
+                .reconcile(ReconcilePolicy::Manual);
         let compiled = compile_definition(&archetype.definition(), &profile()).unwrap();
         assert!(compiled.tick_functions.is_empty());
         assert_eq!(compiled.report.outer_scans_per_cycle, 0);
     }
 
     #[test]
+    fn component_versions_schedule_default_reconciliation() {
+        let archetype = EntityArchetype::<ZombieKind>::new(
+            ResourceLocation::new("rpg", "component_upgrade").unwrap(),
+        )
+        .components::<MobState>();
+        let compiled = compile_definition(&archetype.definition(), &profile()).unwrap();
+        assert!(
+            compiled
+                .records
+                .iter()
+                .any(|record| record.path.ends_with("/reconcile_scan"))
+        );
+        assert_eq!(compiled.report.outer_scans_per_cycle, 1);
+    }
+
+    #[test]
+    fn shared_component_dirty_state_is_distributed_once_to_every_active_archetype() {
+        let first = EntityArchetype::<ZombieKind>::new(
+            ResourceLocation::new("rpg", "shared_first").unwrap(),
+        )
+        .components::<MobState>()
+        .derive(HEALTH, StatCurve::state(LEVEL))
+        .attribute(AttributeBinding::new(
+            sand_components::AttributeType::AttackDamage,
+            NumericPropertySource::state(LEVEL),
+        ))
+        .definition();
+        let second = EntityArchetype::<ZombieKind>::new(
+            ResourceLocation::new("rpg", "shared_second").unwrap(),
+        )
+        .components::<MobState>()
+        .attribute(AttributeBinding::new(
+            sand_components::AttributeType::AttackDamage,
+            NumericPropertySource::state(LEVEL),
+        ))
+        .definition();
+        let claims = component_claims(&[first.clone(), second.clone()]);
+        let compiled = compile_definition_with_claims(&first, &profile(), &claims).unwrap();
+        let reconcile = compiled
+            .records
+            .iter()
+            .find(|record| record.path.ends_with("/reconcile"))
+            .unwrap();
+        let second_marker = initialized_tag(&second.id.to_string());
+        let first_pending = dirty_pending_name(
+            &LEVEL.dirty_objective(),
+            &initialized_tag(&first.id.to_string()),
+        );
+        let second_pending = dirty_pending_name(&LEVEL.dirty_objective(), &second_marker);
+        assert!(reconcile.content.contains(&format!(
+            "tag={second_marker}] run scoreboard players set @s {second_pending} 1"
+        )));
+        assert!(
+            reconcile
+                .content
+                .contains(&format!("scoreboard players set @s {first_pending} 0"))
+        );
+        let derive_refresh = compiled
+            .records
+            .iter()
+            .find(|record| record.path.ends_with("/derive_refresh"))
+            .unwrap();
+        assert!(
+            derive_refresh
+                .content
+                .contains(&format!("{first_pending} matches 1"))
+        );
+        let property_refresh = compiled
+            .records
+            .iter()
+            .find(|record| record.path.ends_with("/refresh"))
+            .unwrap();
+        assert!(
+            property_refresh
+                .content
+                .contains(&format!("{first_pending} matches 1"))
+        );
+        assert!(!property_refresh.content.contains(&format!(
+            "scoreboard players set @s {} 0",
+            LEVEL.dirty_objective()
+        )));
+        assert!(!reconcile.content.lines().any(|line| {
+            line == format!("scoreboard players set @s {} 0", LEVEL.dirty_objective())
+        }));
+        let cleanup = compiled
+            .records
+            .iter()
+            .find(|record| record.path.ends_with("/cleanup"))
+            .unwrap();
+        assert!(
+            cleanup
+                .content
+                .contains(&format!("scoreboard players reset @s {first_pending}"))
+        );
+        assert!(
+            !cleanup
+                .content
+                .contains(&format!("scoreboard players reset @s {second_pending}"))
+        );
+    }
+
+    #[test]
+    fn repaired_components_refresh_derived_and_native_state() {
+        let archetype = EntityArchetype::<ZombieKind>::new(
+            ResourceLocation::new("rpg", "repair_refresh").unwrap(),
+        )
+        .components::<MobState>()
+        .derive(HEALTH, StatCurve::state(LEVEL))
+        .health(HealthBinding::new(HEALTH));
+        let compiled = compile_definition(&archetype.definition(), &profile()).unwrap();
+        let reconcile = compiled
+            .records
+            .iter()
+            .find(|record| record.path.ends_with("/reconcile"))
+            .unwrap();
+        let repair = compiled
+            .records
+            .iter()
+            .find(|record| record.path.ends_with("/repair_refresh"))
+            .unwrap();
+        let repair_objective = sand_commands::ObjectiveName::logical(format!(
+            "{}.component_repair",
+            archetype.definition().id
+        ))
+        .as_str()
+        .to_string();
+        assert!(reconcile.content.contains(&repair_objective));
+        assert!(reconcile.content.contains("/repair_refresh"));
+        assert!(reconcile.content.contains(&format!(
+            "unless score @s {} matches -2147483648..",
+            LEVEL.objective()
+        )));
+        assert!(repair.content.contains("/derive/0"));
+        assert!(repair.content.contains("/property/0"));
+    }
+
+    #[test]
+    fn composed_timers_and_cooldowns_tick_and_mark_dirty() {
+        let archetype =
+            EntityArchetype::<ZombieKind>::new(ResourceLocation::new("rpg", "timed").unwrap())
+                .components::<TimedState>();
+        let compiled = compile_definition(&archetype.definition(), &profile()).unwrap();
+        let reconcile = compiled
+            .records
+            .iter()
+            .find(|record| record.path.ends_with("/reconcile"))
+            .unwrap();
+        for field in [TIMER.objective(), COOLDOWN.objective()] {
+            assert!(reconcile.content.contains(&format!(
+                "execute if score @s {field} matches 1.. run scoreboard players remove @s {field} 1"
+            )));
+        }
+        assert!(reconcile.content.contains(&TIMER.dirty_objective()));
+        assert!(reconcile.content.contains(&COOLDOWN.dirty_objective()));
+
+        let mut independently_ticked = archetype;
+        independently_ticked.components[0].auto_tick_objectives =
+            vec![TIMER.objective(), COOLDOWN.objective()];
+        let compiled = compile_definition(&independently_ticked.definition(), &profile()).unwrap();
+        let reconcile = compiled
+            .records
+            .iter()
+            .find(|record| record.path.ends_with("/reconcile"))
+            .unwrap();
+        assert!(!reconcile.content.contains(&format!(
+            "scoreboard players remove @s {} 1",
+            TIMER.objective()
+        )));
+        assert!(!reconcile.content.contains(&format!(
+            "scoreboard players remove @s {} 1",
+            COOLDOWN.objective()
+        )));
+    }
+
+    #[test]
+    fn shared_component_timers_tick_once_per_entity() {
+        let first = EntityArchetype::<ZombieKind>::new(
+            ResourceLocation::new("rpg", "timed_first").unwrap(),
+        )
+        .components::<TimedState>()
+        .reconcile(ReconcilePolicy::Every(Ticks::new(20)))
+        .definition();
+        let second = EntityArchetype::<ZombieKind>::new(
+            ResourceLocation::new("rpg", "timed_second").unwrap(),
+        )
+        .components::<TimedState>()
+        .definition();
+        let claims = component_claims(&[first.clone(), second.clone()]);
+        let first_compiled = compile_definition_with_claims(&first, &profile(), &claims).unwrap();
+        let second_compiled = compile_definition_with_claims(&second, &profile(), &claims).unwrap();
+        let first_reconcile = first_compiled
+            .records
+            .iter()
+            .find(|record| record.path.ends_with("/reconcile"))
+            .unwrap();
+        let second_reconcile = second_compiled
+            .records
+            .iter()
+            .find(|record| record.path.ends_with("/reconcile"))
+            .unwrap();
+        let second_marker = initialized_tag(&second.id.to_string());
+        let decrement = format!("scoreboard players remove @s {} 1", TIMER.objective());
+        assert!(first_reconcile.content.contains(&decrement));
+        assert!(second_reconcile.content.contains(&decrement));
+        assert!(second_reconcile.content.contains(&format!(
+            "execute if score @s {} matches 1.. run {decrement}",
+            TIMER.objective()
+        )));
+        assert!(
+            first_reconcile
+                .content
+                .contains(&format!("unless entity @s[tag={second_marker}]"))
+        );
+    }
+
+    #[test]
     fn migration_gap_is_structured_error() {
         let function = "rpg:migrate".parse::<FunctionId>().unwrap();
-        let archetype = EntityArchetype::<ZombieKind, MobState>::new(
+        let archetype = EntityArchetype::<ZombieKind>::new(
             ResourceLocation::new("rpg", "bad_migration").unwrap(),
         )
+        .components::<MobState>()
         .migration(Migration::new(1, 2, function.clone()))
         .migration(Migration::new(3, 4, function));
         let error = compile_definition(&archetype.definition(), &profile()).unwrap_err();
@@ -4708,9 +5433,9 @@ mod tests {
 
     #[test]
     fn summon_uses_direct_typed_execute_summon_without_scratch_identity() {
-        let archetype = EntityArchetype::<ZombieKind, MobState>::new(
-            ResourceLocation::new("rpg", "summoned").unwrap(),
-        );
+        let archetype =
+            EntityArchetype::<ZombieKind>::new(ResourceLocation::new("rpg", "summoned").unwrap())
+                .components::<MobState>();
         let commands = archetype.summon();
         assert_eq!(
             commands,
@@ -4723,23 +5448,22 @@ mod tests {
 
     #[test]
     fn derivation_property_and_transition_form_one_dirty_pipeline() {
-        let archetype = EntityArchetype::<ZombieKind, MobState>::new(
-            ResourceLocation::new("rpg", "scaled").unwrap(),
-        )
-        .derive(EntityDerivation::new(
-            "level_health",
-            HEALTH,
-            StatCurve::linear(StatCurve::state(LEVEL), 2.0, 18.0),
-        ))
-        .health(
-            HealthBinding::new(HEALTH)
-                .resize(HealthResizePolicy::PreserveRatio)
-                .refresh(RefreshPolicy::WhenSourceChanges),
-        )
-        .on(
-            EntityTransition::threshold(LEVEL, 10, ThresholdDirection::Rising),
-            EntityAction::Run("rpg:on_level_ten".parse::<FunctionId>().unwrap()),
-        );
+        let archetype =
+            EntityArchetype::<ZombieKind>::new(ResourceLocation::new("rpg", "scaled").unwrap())
+                .components::<MobState>()
+                .derive(
+                    HEALTH,
+                    StatCurve::linear(StatCurve::state(LEVEL), 2.0, 18.0),
+                )
+                .health(
+                    HealthBinding::new(HEALTH)
+                        .resize(HealthResizePolicy::PreserveRatio)
+                        .refresh(RefreshPolicy::WhenSourceChanges),
+                )
+                .on(
+                    EntityTransition::threshold(LEVEL, 10, ThresholdDirection::Rising),
+                    EntityAction::Run("rpg:on_level_ten".parse::<FunctionId>().unwrap()),
+                );
         let compiled = compile_definition(&archetype.definition(), &profile()).unwrap();
         let reconcile = compiled
             .records
@@ -4769,14 +5493,11 @@ mod tests {
 
     #[test]
     fn derivations_infer_destination_and_input_scales() {
-        let fixed_target = EntityArchetype::<ZombieKind, MobState>::new(
+        let fixed_target = EntityArchetype::<ZombieKind>::new(
             ResourceLocation::new("rpg", "fixed_target").unwrap(),
         )
-        .derive(EntityDerivation::new(
-            "speed_from_health",
-            SPEED,
-            StatCurve::state(HEALTH),
-        ));
+        .components::<MobState>()
+        .derive(SPEED, StatCurve::state(HEALTH));
         let definition = fixed_target.definition();
         assert_eq!(definition.derivations[0].fixed().scale(), 100);
         assert_eq!(
@@ -4793,23 +5514,22 @@ mod tests {
         assert!(derive.content.contains("*="));
         assert!(derive.content.contains("matches 1001.."));
 
-        let whole_target =
-            EntityDerivation::new("health_from_speed", HEALTH, StatCurve::state(SPEED));
+        let whole_target = EntityDerivation::for_target(HEALTH, StatCurve::state(SPEED));
         assert_eq!(whole_target.fixed().scale(), 1_000);
         assert_eq!(whole_target.output_encoding(), DerivedScoreEncoding::Whole);
 
         let unit_fixed = FixedScore::__new("rpg", "mob", "unit_fixed", 1, 0, None);
-        let unit_fixed_target =
-            EntityDerivation::new("unit_fixed", unit_fixed, StatCurve::constant(1.0));
+        let unit_fixed_target = EntityDerivation::for_target(unit_fixed, StatCurve::constant(1.0));
         assert_eq!(
             unit_fixed_target.output_encoding(),
             DerivedScoreEncoding::FixedPoint
         );
 
-        let archetype = EntityArchetype::<ZombieKind, MobState>::new(
+        let archetype = EntityArchetype::<ZombieKind>::new(
             ResourceLocation::new("rpg", "whole_target").unwrap(),
         )
-        .derive(whole_target);
+        .components::<MobState>()
+        .derive_with(whole_target);
         let compiled = compile_definition(&archetype.definition(), &profile()).unwrap();
         let derive = compiled
             .records
@@ -4825,11 +5545,12 @@ mod tests {
     fn destination_conversion_uses_canonical_rounding() {
         let working =
             FixedPoint::new(1_000, RoundingPolicy::TowardZero, OverflowPolicy::Error).unwrap();
-        let archetype = EntityArchetype::<ZombieKind, MobState>::new(
+        let archetype = EntityArchetype::<ZombieKind>::new(
             ResourceLocation::new("rpg", "canonical_destination_rounding").unwrap(),
         )
-        .derive(
-            EntityDerivation::new("speed", SPEED, StatCurve::constant(1.239)).fixed_point(working),
+        .components::<MobState>()
+        .derive_with(
+            EntityDerivation::for_target(SPEED, StatCurve::constant(1.239)).fixed_point(working),
         );
         let compiled = compile_definition(&archetype.definition(), &profile()).unwrap();
         let derive = compiled
@@ -4847,7 +5568,7 @@ mod tests {
 
     #[test]
     fn erased_fixed_destination_retains_its_scale_when_reused() {
-        let derivation = EntityDerivation::new("speed", SPEED, StatCurve::constant(1.25));
+        let derivation = EntityDerivation::for_target(SPEED, StatCurve::constant(1.25));
         let target = derivation.target();
         assert_eq!(target.numeric_scale(), 100);
 
@@ -4890,28 +5611,38 @@ mod tests {
 
     #[test]
     fn duplicate_native_ownership_is_rejected() {
-        let archetype = EntityArchetype::<ZombieKind, MobState>::new(
-            ResourceLocation::new("rpg", "conflict").unwrap(),
-        )
-        .health(HealthBinding::new(HEALTH))
-        .health(HealthBinding::new(HEALTH));
+        let archetype =
+            EntityArchetype::<ZombieKind>::new(ResourceLocation::new("rpg", "conflict").unwrap())
+                .components::<MobState>()
+                .health(HealthBinding::new(HEALTH))
+                .health(HealthBinding::new(HEALTH));
         let error = compile_definition(&archetype.definition(), &profile()).unwrap_err();
         assert_eq!(error.code(), "SAND-ENTITY-OWNERSHIP");
     }
 
     #[test]
+    fn identity_equal_components_with_conflicting_metadata_are_rejected() {
+        let archetype =
+            EntityArchetype::<ZombieKind>::new(ResourceLocation::new("rpg", "conflict").unwrap())
+                .components::<MobState>()
+                .components::<ConflictingMobState>();
+        let error = compile_definition(&archetype.definition(), &profile()).unwrap_err();
+        assert_eq!(error.code(), "SAND-ENTITY-STATE-DUPLICATE");
+        assert!(error.to_string().contains("rpg:mob.presence@2"));
+        assert!(error.to_string().contains("lifecycle identity"));
+    }
+
+    #[test]
     fn many_properties_share_one_reconciliation_scan() {
-        let archetype = EntityArchetype::<ZombieKind, MobState>::new(
-            ResourceLocation::new("rpg", "dedup").unwrap(),
-        )
-        .health(HealthBinding::new(HEALTH))
-        .attribute(AttributeBinding::new(
-            sand_components::AttributeType::AttackDamage,
-            NumericPropertySource::state(LEVEL),
-        ))
-        .name(NameBinding::new(
-            crate::entity::property::EntityText::new().score(LEVEL),
-        ));
+        let archetype =
+            EntityArchetype::<ZombieKind>::new(ResourceLocation::new("rpg", "dedup").unwrap())
+                .components::<MobState>()
+                .health(HealthBinding::new(HEALTH))
+                .attribute(AttributeBinding::new(
+                    sand_components::AttributeType::AttackDamage,
+                    NumericPropertySource::state(LEVEL),
+                ))
+                .name(EntityName::new().state(LEVEL, sand_commands::ChatColor::Yellow));
         let compiled = compile_definition(&archetype.definition(), &profile()).unwrap();
         assert_eq!(
             compiled
@@ -4926,9 +5657,10 @@ mod tests {
 
     #[test]
     fn native_numeric_binding_consumes_fixed_score_in_logical_units() {
-        let archetype = EntityArchetype::<ZombieKind, MobState>::new(
+        let archetype = EntityArchetype::<ZombieKind>::new(
             ResourceLocation::new("rpg", "fixed_attribute").unwrap(),
         )
+        .components::<MobState>()
         .attribute(AttributeBinding::new(
             sand_components::AttributeType::MovementSpeed,
             NumericPropertySource::state(SPEED),
@@ -4945,18 +5677,18 @@ mod tests {
 
     #[test]
     fn invalid_health_percentage_is_a_structured_range_error() {
-        let archetype = EntityArchetype::<ZombieKind, MobState>::new(
-            ResourceLocation::new("rpg", "percentage").unwrap(),
-        )
-        .on(
-            EntityTransition::health_percentage(
-                HEALTH,
-                HEALTH,
-                10_001,
-                ThresholdDirection::Falling,
-            ),
-            EntityAction::Run("rpg:low_health".parse::<FunctionId>().unwrap()),
-        );
+        let archetype =
+            EntityArchetype::<ZombieKind>::new(ResourceLocation::new("rpg", "percentage").unwrap())
+                .components::<MobState>()
+                .on(
+                    EntityTransition::health_percentage(
+                        HEALTH,
+                        HEALTH,
+                        10_001,
+                        ThresholdDirection::Falling,
+                    ),
+                    EntityAction::Run("rpg:low_health".parse::<FunctionId>().unwrap()),
+                );
         let error = compile_definition(&archetype.definition(), &profile()).unwrap_err();
         assert_eq!(error.code(), "SAND-ENTITY-RANGE");
     }

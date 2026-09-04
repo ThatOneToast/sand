@@ -238,15 +238,13 @@ pub mod state {
 /// }
 ///
 /// #[entity_archetype]
-/// fn zombie() -> EntityArchetype<ZombieKind, Mob> {
+/// fn zombie() -> EntityArchetype<ZombieKind> {
 ///     EntityArchetype::new(ResourceLocation::new("demo", "zombie").unwrap())
+///         .components::<Mob>()
 ///         .adopt(Adoption::natural_and_external().every(Ticks::new(5)))
 ///         .derive(
-///             EntityDerivation::new(
-///                 "health",
-///                 Mob::max_health,
-///                 StatCurve::linear(StatCurve::state(Mob::level), 2.0, 18.0),
-///             ),
+///             Mob::max_health,
+///             StatCurve::linear(StatCurve::state(Mob::level), 2.0, 18.0),
 ///         )
 ///         .health(HealthBinding::new(Mob::max_health))
 /// }
@@ -268,7 +266,7 @@ pub mod entity {
         DerivedScoreEncoding, EffectBinding, EntityAction, EntityArchetype, EntityContext,
         EntityCooldown, EntityCooldownAccessor, EntityDerivation, EntityDiagnostic, EntityEnum,
         EntityEnumAccessor, EntityEnumValue, EntityEventId, EntityFlag, EntityFlagAccessor,
-        EntityKind, EntityNbtBinding, EntityNbtProperty, EntityNbtType, EntityNbtValue,
+        EntityKind, EntityName, EntityNbtBinding, EntityNbtProperty, EntityNbtType, EntityNbtValue,
         EntityScope, EntityScore, EntityScoreAccessor, EntityState, EntityStateField, EntityTag,
         EntityTeam, EntityText, EntityTextSegment, EntityTimer, EntityTimerAccessor,
         EntityTransition, EntityTransitionField, EnumEncoding, EquipmentBinding, FixedPoint,
@@ -706,13 +704,14 @@ pub mod __private {
     pub use sand_core::__private::{
         ArchetypeStateScope, EntityStateScope, GlobalStateBundleScope, GlobalStateScope,
         LivingStateScope, PlayerStateScope, QueryableStateScope, SameStateScope, StateBundleMember,
-        StateBundleTarget, StateBundleTree, StateDataFieldDescriptor, StateMigrationDescriptor,
-        StateQueryHandle, StateQueryScope, StateQuerySpec, StateScopeMarker, StateSystemDescriptor,
-        entity_score_new, event_dispatch_advancement, event_dispatch_chain, event_dispatch_tick,
-        event_dispatch_tick_condition, event_dispatch_tracked, fixed_score_new,
-        lower_state_query_current, lower_state_query_each, player_sneaking_tracked_source,
-        resolve_state_objective, state_attach_commands, state_attached_condition,
-        state_bundle_trees_overlap, state_detach_commands, state_presence_predicate,
+        StateBundleTarget, StateBundleTree, StateComponentLifecycle, StateDataFieldDescriptor,
+        StateMigrationDescriptor, StateQueryHandle, StateQueryScope, StateQuerySpec,
+        StateScopeMarker, StateSystemDescriptor, entity_score_new, event_dispatch_advancement,
+        event_dispatch_chain, event_dispatch_tick, event_dispatch_tick_condition,
+        event_dispatch_tracked, fixed_score_new, lower_state_query_current, lower_state_query_each,
+        player_sneaking_tracked_source, resolve_state_objective, state_attach_commands,
+        state_attached_condition, state_bundle_trees_overlap, state_detach_commands,
+        state_presence_predicate,
     };
     pub use sand_core::entity::*;
     pub use sand_core::*;

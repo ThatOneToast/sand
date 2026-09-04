@@ -206,7 +206,7 @@ impl StateFieldDescriptor {
     fields(fields = "Fields in source declaration order.", name = "Schema name within the namespace.", namespace = "Namespace used in generated logical names.", version = "Current version; zero is reserved for an uninitialized entity."),
 )]
 /// Complete metadata for a typed state schema.
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct StateSchema {
     /// Namespace used in generated logical names.
     pub namespace: &'static str,
@@ -418,6 +418,44 @@ pub trait StateBundleMember: 'static {
 
     /// Resolved presence objectives and accepted component versions for query filtering.
     fn presence_requirements() -> Vec<(String, u32)>;
+
+    /// Flattened component schemas in deterministic declaration order.
+    fn component_schemas() -> Vec<StateSchema>;
+
+    /// Flattened component lifecycle entries in deterministic declaration order.
+    fn component_lifecycles() -> Vec<StateComponentLifecycle>;
+}
+
+/// Type-erased canonical lifecycle for one independently owned State component.
+#[doc(hidden)]
+#[derive(Clone)]
+pub struct StateComponentLifecycle {
+    pub(crate) identities: Vec<(String, u32)>,
+    pub(crate) schemas: Vec<StateSchema>,
+    pub(crate) auto_tick_objectives: Vec<String>,
+    pub(crate) attach: fn(&'static str) -> Vec<String>,
+    pub(crate) detach: fn(&'static str) -> Vec<String>,
+}
+
+impl StateComponentLifecycle {
+    /// Construct compiler metadata for a generated State component.
+    #[doc(hidden)]
+    #[must_use]
+    pub fn __new(
+        identities: Vec<(String, u32)>,
+        schemas: Vec<StateSchema>,
+        auto_tick_objectives: Vec<String>,
+        attach: fn(&'static str) -> Vec<String>,
+        detach: fn(&'static str) -> Vec<String>,
+    ) -> Self {
+        Self {
+            identities,
+            schemas,
+            auto_tick_objectives,
+            attach,
+            detach,
+        }
+    }
 }
 
 /// A State component or nested bundle that can participate in archetype composition.
@@ -454,6 +492,23 @@ pub trait StateComposition: 'static {
         example = "use sand::prelude::*;\n\nfn demonstrate<T: sand::entity::StateComposition>()  {\n    let values = <T as sand::entity::StateComposition>::composition_identities();\n}",
     )]
     fn composition_identities() -> Vec<(String, u32)>;
+    /// Returns every independently owned State schema in the flattened composition.
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::entity::StateComposition::composition_schemas",
+        aliases = ["sand::prelude::StateComposition::composition_schemas"],
+        module = "sand::entity",
+        kind = "trait_method",
+        summary = "Returns canonical metadata for every flattened State component.",
+        context = "Archetype export uses this metadata to validate typed fields against component membership without merging or copying component schemas.",
+        minecraft = "Each returned schema retains its own objectives, presence, version, migrations, and lifecycle.",
+        use_when = ["Implementing generated State composition metadata"],
+        avoid_when = ["Inspecting runtime State values"],
+        returns = "The deterministically flattened component schemas.",
+        example = "use sand::prelude::*; fn schemas<T: StateComposition>() { let _ = T::composition_schemas(); }",
+    )]
+    #[doc(hidden)]
+    fn composition_schemas() -> Vec<StateSchema>;
     /// Lowers idempotent canonical attachment for this component composition.
     ///
     #[sand_macros::api(
@@ -488,6 +543,32 @@ pub trait StateComposition: 'static {
         example = "use sand::prelude::*;\n\nfn demonstrate<T: sand::entity::StateComposition>(holder: & 'static str)  {\n    let values = <T as sand::entity::StateComposition>::composition_detach(holder);\n}",
     )]
     fn composition_detach(holder: &'static str) -> Vec<String>;
+
+    /// Returns independently owned flattened component lifecycle entries.
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::entity::StateComposition::composition_lifecycles",
+        aliases = ["sand::prelude::StateComposition::composition_lifecycles"],
+        module = "sand::entity",
+        kind = "trait_method",
+        summary = "Returns canonical lifecycle metadata for each flattened State component.",
+        context = "Generated State and StateBundle implementations expose each independently owned component so archetype cleanup can preserve a component still claimed by another archetype.",
+        minecraft = "Each entry delegates to that component's canonical idempotent attach and ownership-safe detach commands.",
+        use_when = ["Implementing generated State composition metadata"],
+        avoid_when = ["Calling component lifecycle internals directly from datapack code"],
+        returns = "The deterministically flattened independent component lifecycle entries.",
+        example = "use sand::prelude::*; fn lifecycle_metadata<T: StateComposition>() { let _ = T::composition_lifecycles(); }",
+    )]
+    #[doc(hidden)]
+    fn composition_lifecycles() -> Vec<StateComponentLifecycle> {
+        vec![StateComponentLifecycle::__new(
+            Self::composition_identities(),
+            Self::composition_schemas(),
+            Vec::new(),
+            Self::composition_attach,
+            Self::composition_detach,
+        )]
+    }
 }
 
 impl<T> StateComposition for T
@@ -499,12 +580,20 @@ where
         T::presence_requirements()
     }
 
+    fn composition_schemas() -> Vec<StateSchema> {
+        T::component_schemas()
+    }
+
     fn composition_attach(holder: &'static str) -> Vec<String> {
         T::attach_member(holder)
     }
 
     fn composition_detach(holder: &'static str) -> Vec<String> {
         T::detach_member(holder)
+    }
+
+    fn composition_lifecycles() -> Vec<StateComponentLifecycle> {
+        T::component_lifecycles()
     }
 }
 
@@ -680,7 +769,7 @@ impl ArchetypeStateScope for LivingStateScope {}
 /// Construct the typed exact-version predicate used by generated State queries.
 #[doc(hidden)]
 pub fn state_presence_predicate(objective: String, version: u32) -> StatePredicate {
-    exact_predicate(objective, version as i32)
+    exact_predicate(objective, version as i32, None)
 }
 
 /// Build the canonical idempotent attachment sequence for a component.
@@ -856,6 +945,50 @@ pub trait EntityStateField: Copy + 'static {
     )]
     fn descriptor(self) -> StateFieldDescriptor;
 
+    /// Stable identity of the State component that owns this field.
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::entity::EntityStateField::component_id",
+        aliases = ["sand::prelude::EntityStateField::component_id"],
+        module = "sand::entity",
+        kind = "trait_method",
+        summary = "Returns the stable identity of the State component that owns this field.",
+        context = "Archetype export uses component identity to reject typed field references whose component is not composed into that archetype.",
+        minecraft = "The identity corresponds to the component's independently owned presence and version metadata.",
+        use_when = ["Implementing or inspecting typed State field metadata"],
+        avoid_when = ["Looking up a scoreboard objective; use objective instead"],
+        returns = "The namespace-qualified component identity.",
+        example = "use sand::prelude::*; fn id<T: EntityStateField>(field: T) { let _ = field.component_id(); }",
+    )]
+    #[doc(hidden)]
+    fn component_id(self) -> String;
+
+    /// Compiler metadata used to resolve this field against an archetype composition.
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::entity::EntityStateField::field_reference",
+        aliases = ["sand::prelude::EntityStateField::field_reference"],
+        module = "sand::entity",
+        kind = "trait_method",
+        summary = "Returns the stable component, field, objective, dirty objective, and capability metadata for this field.",
+        context = "Archetype properties retain this reference so one shared compiler resolver can validate flattened component membership.",
+        minecraft = "The reference is compile-time metadata and does not create State storage.",
+        use_when = ["Implementing typed archetype property integration"],
+        avoid_when = ["Reading or writing field values"],
+        returns = "A type-erased stable State field reference.",
+        example = "use sand::prelude::*; fn reference<T: EntityStateField>(field: T) { let _ = field.field_reference(); }",
+    )]
+    #[doc(hidden)]
+    fn field_reference(self) -> StateFieldReference {
+        StateFieldReference {
+            component: self.component_id(),
+            field: self.descriptor().name.to_owned(),
+            objective: self.objective(),
+            dirty_objective: self.dirty_objective(),
+            descriptor: self.descriptor(),
+        }
+    }
+
     /// Resolved scoreboard objective, at most 16 characters.
     #[sand_macros::api(
         registry = sand_api_contract,
@@ -928,12 +1061,23 @@ pub trait EntityStateField: Copy + 'static {
     fn bind_to(self, holder: &'static str, track_dirty: bool) -> Self::Accessor;
 }
 
+/// Type-erased identity and capabilities of one typed State field.
+#[doc(hidden)]
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct StateFieldReference {
+    pub(crate) component: String,
+    pub(crate) field: String,
+    pub(crate) objective: String,
+    pub(crate) dirty_objective: String,
+    pub(crate) descriptor: StateFieldDescriptor,
+}
+
 /// A State field whose value participates in logical numeric expressions.
 ///
 /// This is the common contract implemented by [`Score`] and [`FixedScore`].
 /// Authors normally do not name this trait: APIs such as
 /// [`crate::entity::StatCurve::state`] and
-/// [`crate::entity::EntityDerivation::new`] use it to read the field's storage
+/// [`crate::entity::EntityArchetype::derive`] use it to read the field's storage
 /// scale. A `Score` has scale `1`; a `FixedScore` uses the scale declared by
 /// `#[state(scale = ...)]` (or `1_000` when omitted).
 ///
@@ -1054,6 +1198,7 @@ pub struct StatePredicate {
     pub(crate) objective: String,
     pub(crate) selector_range: SelectorScoreRange,
     condition_range: ScoreRange,
+    pub(crate) field: Option<StateFieldReference>,
 }
 
 impl StatePredicate {
@@ -1262,6 +1407,7 @@ impl FixedScore {
             format!("{}:{}", self.namespace, self.schema),
             self.descriptor.name,
             (start, end),
+            Some(self.field_reference()),
         )
     }
 
@@ -1275,6 +1421,10 @@ impl EntityStateField for FixedScore {
 
     fn descriptor(self) -> StateFieldDescriptor {
         self.descriptor
+    }
+
+    fn component_id(self) -> String {
+        format!("{}:{}", self.namespace, self.schema)
     }
 
     fn objective(self) -> String {
@@ -1644,6 +1794,7 @@ impl<T: 'static> EntityScore<T> {
             format!("{}:{}", self.namespace, self.schema),
             self.descriptor.name,
             range,
+            Some(self.field_reference()),
         )
     }
 }
@@ -1652,6 +1803,9 @@ impl<T: 'static> EntityStateField for EntityScore<T> {
     type Accessor = EntityScoreAccessor<T>;
     fn descriptor(self) -> StateFieldDescriptor {
         self.descriptor
+    }
+    fn component_id(self) -> String {
+        format!("{}:{}", self.namespace, self.schema)
     }
     fn objective(self) -> String {
         objective_name(self.namespace, self.schema, self.descriptor.name)
@@ -1838,6 +1992,7 @@ impl<T: 'static> EntityScoreAccessor<T> {
             format!("{}:{}", self.field.namespace, self.field.schema),
             self.field.descriptor.name,
             range,
+            None,
         )?;
         Ok(Condition::score(
             self.holder.to_string(),
@@ -1941,7 +2096,7 @@ impl EntityFlag {
     )]
     #[must_use]
     pub fn is_enabled(self) -> StatePredicate {
-        exact_predicate(self.objective(), 1)
+        exact_predicate(self.objective(), 1, Some(self.field_reference()))
     }
 
     /// Predicate for a disabled flag.
@@ -1961,7 +2116,7 @@ impl EntityFlag {
     )]
     #[must_use]
     pub fn is_disabled(self) -> StatePredicate {
-        exact_predicate(self.objective(), 0)
+        exact_predicate(self.objective(), 0, Some(self.field_reference()))
     }
 }
 
@@ -1969,6 +2124,9 @@ impl EntityStateField for EntityFlag {
     type Accessor = EntityFlagAccessor;
     fn descriptor(self) -> StateFieldDescriptor {
         self.descriptor
+    }
+    fn component_id(self) -> String {
+        format!("{}:{}", self.namespace, self.schema)
     }
     fn objective(self) -> String {
         objective_name(self.namespace, self.schema, self.descriptor.name)
@@ -2574,7 +2732,11 @@ impl<T: EntityEnumValue> EntityEnum<T> {
     )]
     #[must_use]
     pub fn is(self, value: T) -> StatePredicate {
-        exact_predicate(self.objective(), value.encode())
+        exact_predicate(
+            self.objective(),
+            value.encode(),
+            Some(self.field_reference()),
+        )
     }
 }
 
@@ -2582,6 +2744,9 @@ impl<T: EntityEnumValue> EntityStateField for EntityEnum<T> {
     type Accessor = EntityEnumAccessor<T>;
     fn descriptor(self) -> StateFieldDescriptor {
         self.descriptor
+    }
+    fn component_id(self) -> String {
+        format!("{}:{}", self.namespace, self.schema)
     }
     fn objective(self) -> String {
         objective_name(self.namespace, self.schema, self.descriptor.name)
@@ -2751,7 +2916,7 @@ impl EntityTimer {
     )]
     #[must_use]
     pub fn elapsed(self) -> StatePredicate {
-        exact_predicate(self.objective(), 0)
+        exact_predicate(self.objective(), 0, Some(self.field_reference()))
     }
 }
 
@@ -2759,6 +2924,9 @@ impl EntityStateField for EntityTimer {
     type Accessor = EntityTimerAccessor;
     fn descriptor(self) -> StateFieldDescriptor {
         self.descriptor
+    }
+    fn component_id(self) -> String {
+        format!("{}:{}", self.namespace, self.schema)
     }
     fn objective(self) -> String {
         objective_name(self.namespace, self.schema, self.descriptor.name)
@@ -2955,7 +3123,7 @@ impl EntityCooldown {
     )]
     #[must_use]
     pub fn ready(self) -> StatePredicate {
-        exact_predicate(self.objective(), 0)
+        exact_predicate(self.objective(), 0, Some(self.field_reference()))
     }
 }
 
@@ -2963,6 +3131,9 @@ impl EntityStateField for EntityCooldown {
     type Accessor = EntityCooldownAccessor;
     fn descriptor(self) -> StateFieldDescriptor {
         self.0.descriptor
+    }
+    fn component_id(self) -> String {
+        format!("{}:{}", self.0.namespace, self.0.schema)
     }
     fn objective(self) -> String {
         self.0.objective()
@@ -3403,11 +3574,16 @@ pub(crate) fn numeric_scratch_name(namespace: &str, schema: &str) -> String {
         .to_string()
 }
 
-fn exact_predicate(objective: String, value: i32) -> StatePredicate {
+fn exact_predicate(
+    objective: String,
+    value: i32,
+    field: Option<StateFieldReference>,
+) -> StatePredicate {
     StatePredicate {
         objective,
         selector_range: SelectorScoreRange::exact(value),
         condition_range: ScoreRange::Eq(value),
+        field,
     }
 }
 
@@ -3416,6 +3592,7 @@ fn predicate_for_range(
     schema: String,
     field: &str,
     range: impl RangeBounds<i32>,
+    field_reference: Option<StateFieldReference>,
 ) -> Result<StatePredicate, EntityDiagnostic> {
     let min = match range.start_bound() {
         Bound::Included(value) => Some(*value),
@@ -3451,6 +3628,7 @@ fn predicate_for_range(
         objective,
         selector_range,
         condition_range,
+        field: field_reference,
     })
 }
 

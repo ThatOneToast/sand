@@ -8,8 +8,9 @@ struct MarkerState {
 }
 
 fn main() {
-    let archetype = EntityArchetype::<MarkerKind, MarkerState>::new(
+    let archetype = EntityArchetype::<MarkerKind>::new(
         ResourceLocation::new("test", "marker").unwrap(),
-    );
+    )
+    .components::<MarkerState>();
     let _ = archetype.health(HealthBinding::new(MarkerState::health));
 }

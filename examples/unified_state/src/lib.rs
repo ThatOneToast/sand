@@ -68,10 +68,6 @@ pub struct Dead;
 
 #[derive(State)]
 #[state(namespace = "rpg", scope = living)]
-pub struct ManagedZombie;
-
-#[derive(State)]
-#[state(namespace = "rpg", scope = living)]
 pub struct Health {
     #[state(default = 20, min = 0, max = 100)]
     pub current: Score,
@@ -197,7 +193,7 @@ pub fn detach_status() {
 }
 
 #[entity_archetype]
-pub fn armored_zombie() -> EntityArchetype<ZombieKind, ManagedZombie> {
+pub fn armored_zombie() -> EntityArchetype<ZombieKind> {
     EntityArchetype::new(ResourceLocation::new("rpg", "armored_zombie").unwrap())
         .components::<Character>()
         .adopt(Adoption::natural_and_external().every(Ticks::new(20)))

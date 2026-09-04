@@ -4867,6 +4867,17 @@ mod tests {
                 .iter()
                 .any(|command| command.contains("#divisor") && command.ends_with(" 100"))
         );
+
+        let commands = target.bind().add(1);
+        assert!(commands[0].starts_with("scoreboard players add @s "));
+        assert!(commands[0].ends_with(" 100"));
+
+        let commands = target.bind().subtract(health.bind());
+        assert!(
+            commands
+                .iter()
+                .any(|command| command.contains("#multiplier") && command.ends_with(" 100"))
+        );
     }
 
     #[test]

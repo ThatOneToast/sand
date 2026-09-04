@@ -1771,13 +1771,14 @@ impl<T: 'static> EntityScoreAccessor<T> {
     #[must_use]
     #[allow(clippy::should_implement_trait)]
     pub fn add(self, value: impl NumericStateSource) -> Vec<String> {
+        let destination_scale = self.field.numeric_scale();
         numeric_mutation(
             self.field,
             self.holder,
             self.track_dirty,
             "+=",
             value,
-            1,
+            destination_scale,
             numeric_scratch_name(self.field.namespace, self.field.schema),
         )
     }
@@ -1799,13 +1800,14 @@ impl<T: 'static> EntityScoreAccessor<T> {
     )]
     #[must_use]
     pub fn subtract(self, value: impl NumericStateSource) -> Vec<String> {
+        let destination_scale = self.field.numeric_scale();
         numeric_mutation(
             self.field,
             self.holder,
             self.track_dirty,
             "-=",
             value,
-            1,
+            destination_scale,
             numeric_scratch_name(self.field.namespace, self.field.schema),
         )
     }

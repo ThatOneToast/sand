@@ -12,8 +12,6 @@ ROOT = Path(__file__).resolve().parents[1]
 DOC_GLOBS = (
     "README.md",
     "CONTRIBUTING.md",
-    "CHANGELOG.md",
-    "ROADMAP.md",
     "RELEASE.md",
     "docs/**/*.md",
     "book/src/**/*.md",

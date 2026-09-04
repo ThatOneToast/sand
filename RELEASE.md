@@ -30,8 +30,6 @@ scripts/check.sh
 - [ ] mdBook builds
 - [ ] Scaffold generates attribute-first typed code
 - [ ] Examples compile and have golden tests
-- [ ] ROADMAP.md reflects current state
-- [ ] CHANGELOG.md has entry for this version
 - [ ] Escape hatches are documented and beginner docs remain attribute-first
 
 ## Stability levels
@@ -60,6 +58,5 @@ cargo install --path sand-cli
 
 ## Post-release
 
-- Update ROADMAP.md with next priorities
 - Tag the release in git
 - Announce in project channels

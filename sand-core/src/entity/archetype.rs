@@ -1942,10 +1942,9 @@ impl EntityDerivation {
     )]
     #[must_use]
     pub const fn output_encoding(&self) -> DerivedScoreEncoding {
-        if self.target_scale == 1 {
-            DerivedScoreEncoding::Whole
-        } else {
-            DerivedScoreEncoding::FixedPoint
+        match self.target.retained_kind() {
+            crate::entity::state::StateFieldKind::Fixed(_) => DerivedScoreEncoding::FixedPoint,
+            _ => DerivedScoreEncoding::Whole,
         }
     }
 }
@@ -4798,6 +4797,15 @@ mod tests {
             EntityDerivation::new("health_from_speed", HEALTH, StatCurve::state(SPEED));
         assert_eq!(whole_target.fixed().scale(), 1_000);
         assert_eq!(whole_target.output_encoding(), DerivedScoreEncoding::Whole);
+
+        let unit_fixed = FixedScore::__new("rpg", "mob", "unit_fixed", 1, 0, None);
+        let unit_fixed_target =
+            EntityDerivation::new("unit_fixed", unit_fixed, StatCurve::constant(1.0));
+        assert_eq!(
+            unit_fixed_target.output_encoding(),
+            DerivedScoreEncoding::FixedPoint
+        );
+
         let archetype = EntityArchetype::<ZombieKind, MobState>::new(
             ResourceLocation::new("rpg", "whole_target").unwrap(),
         )

@@ -1617,6 +1617,11 @@ impl<T: 'static> EntityScore<T> {
         }
     }
 
+    /// Return the retained schema kind after compiler-facing type erasure.
+    pub(crate) const fn retained_kind(self) -> StateFieldKind {
+        self.descriptor.kind
+    }
+
     /// Match an inclusive/open Rust range without handwritten selector maps.
     #[sand_macros::api(
         registry = sand_api_contract,

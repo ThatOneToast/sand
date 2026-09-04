@@ -1,4 +1,4 @@
-use sand_commands::Selector;
+use sand_commands::Target;
 use sand_core::condition::Condition;
 use sand_core::state::{GameState, StateFlow, Ticks, TypedGameState};
 
@@ -32,11 +32,11 @@ fn register_boss_flow() {
     StateFlow::players(&PHASE)
         .named("boss")
         .transition(BossPhase::Fighting, BossPhase::Enraged)
-        .when(Condition::entity(Selector::self_().tag("low_health")))
+        .when(Condition::entity(Target::self_().tag("low_health")))
         .priority(100)
         .done()
         .transition(BossPhase::Fighting, BossPhase::Defeated)
-        .when(Condition::entity(Selector::self_().tag("dead")))
+        .when(Condition::entity(Target::self_().tag("dead")))
         .priority(50)
         .done()
         .on_exit(BossPhase::Fighting, "function flowpack:stop_fighting")

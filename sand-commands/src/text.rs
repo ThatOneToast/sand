@@ -25,7 +25,7 @@ use std::{fmt, str::FromStr};
 use crate::Build;
 use crate::error::{CommandError, CommandResult};
 use crate::render::{CommandProfile, RenderCommand, Validate};
-use crate::selector::Selector;
+use crate::selector::{Selector, TargetArgument};
 
 // ── ChatColor ─────────────────────────────────────────────────────────────────
 
@@ -530,9 +530,9 @@ impl TextComponent {
         avoid_when = ["Passing an unvalidated JSON string when a typed text component can express the same value"],
         params(selector = "`selector` provides the Minecraft target selection used to create selector text from Sand's canonical typed selector."),
         returns = "A `TextComponent` representing selector text from Sand's canonical typed selector.",
-        example = "use sand::prelude::*;\n\nfn demonstrate(selector: sand::command::Selector)  {\n    let text_component = sand::text::TextComponent::selector_typed(selector);\n}",
+        example = "use sand::prelude::*;\n\nfn demonstrate(selector: sand::command::Target)  {\n    let text_component = sand::text::TextComponent::selector_typed(selector);\n}",
     )]
-    pub fn selector_typed(selector: Selector) -> Self {
+    pub fn selector_typed(selector: impl TargetArgument) -> Self {
         Self::selector(selector.to_string())
     }
 
@@ -1783,10 +1783,13 @@ impl TextCommand {
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
         params(target = "`target` provides the entity, block, or command target used to build a typed `tellraw` command for the selected entities and text component.", text = "`text` provides the author-visible text used to build a typed `tellraw` command for the selected entities and text component."),
         returns = "A `TextCommand` that builds a typed `tellraw` command for the selected entities and text component.",
-        example = "use sand::prelude::*;\n\nfn demonstrate(target: sand::command::Selector, text: sand::text::TextComponent)  {\n    let text_command = sand::command::TextCommand::tellraw(target, text);\n}",
+        example = "use sand::prelude::*;\n\nfn demonstrate(target: sand::command::Target, text: sand::text::TextComponent)  {\n    let text_command = sand::command::TextCommand::tellraw(target, text);\n}",
     )]
-    pub fn tellraw(target: Selector, text: TextComponent) -> Self {
-        Self { target, text }
+    pub fn tellraw(target: impl TargetArgument, text: TextComponent) -> Self {
+        Self {
+            target: target.into_target_selector(),
+            text,
+        }
     }
 }
 

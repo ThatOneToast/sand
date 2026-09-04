@@ -1,10 +1,10 @@
 use sand_macros::{function, run_fn};
-use sand_core::cmd::{self, Execute, Selector};
+use sand_core::cmd::{self, Execute, Target};
 
 #[function]
 fn my_fn() {
     Execute::new()
-        .as_(Selector::all_players())
+        .as_(Target::all_players())
         .run(run_fn!("test:valid_path" {
             cmd::say("from inline fn");
         }));

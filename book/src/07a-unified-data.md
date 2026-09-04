@@ -8,7 +8,7 @@ inventory snapshots.
 ```rust,ignore
 use sand::prelude::*;
 
-let health = Nbt::entity(Selector::self_()).path("Health");
+let health = Nbt::entity(Target::self_()).path("Health");
 let first_item = Nbt::block(BlockPos::here()).path("Items[0]");
 let cache = Nbt::storage("trail:cache").path("last_item");
 ```
@@ -56,7 +56,7 @@ factories cover selected/main hand, offhand, armor, hotbar, main inventory,
 ender chest, generic entity slots, and block-container slots.
 
 ```rust,ignore
-let player = ItemLocation::entity(Selector::self_());
+let player = ItemLocation::entity(Target::self_());
 let selected = player.mainhand();
 let helmet = player.helmet();
 let hotbar_three = player.hotbar(3)?;
@@ -69,7 +69,7 @@ for `/data`; copying from one live item location to another uses `/item
 replace`, which is the safe vanilla mutation family.
 
 ```rust,ignore
-let selected = ItemLocation::entity(Selector::self_()).mainhand();
+let selected = ItemLocation::entity(Target::self_()).mainhand();
 let cache = Nbt::storage("trail:cache").path("last_item");
 selected.copy_to(&cache);
 
@@ -77,7 +77,7 @@ ItemLocation::block(BlockPos::here())
     .slot(0)?
     .copy_to(&Nbt::storage("trail:cache").path("input"));
 
-let offhand = ItemLocation::entity(Selector::self_()).offhand();
+let offhand = ItemLocation::entity(Target::self_()).offhand();
 offhand.replace_from(&selected)?;
 ```
 

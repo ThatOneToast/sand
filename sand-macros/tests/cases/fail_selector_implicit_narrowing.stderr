@@ -1,14 +1,21 @@
-error[E0277]: the trait bound `EntityTarget<One>: std::convert::From<sand_core::cmd::Selector>` is not satisfied
- --> tests/cases/fail_selector_implicit_narrowing.rs:8:40
+error[E0277]: the trait bound `sand::prelude::Target: sand_commands::selector::SingleTargetArgument` is not satisfied
+ --> tests/cases/fail_selector_implicit_narrowing.rs:6:25
   |
-8 |     needs_one(Selector::all_entities().into());
-  |                                        ^^^^ the trait `std::convert::From<sand_core::cmd::Selector>` is not implemented for `EntityTarget<One>`
+6 |     let _ = cmd::damage(Target::entities(), 1.0);
+  |             ----------- ^^^^^^^^^^^^^^^^^^ the trait `sand_commands::selector::SingleTargetArgument` is not implemented for `sand::prelude::Target`
+  |             |
+  |             required by a bound introduced by this call
   |
-help: the trait `From<sand_core::cmd::Selector>` is not implemented for `EntityTarget<One>`
-      but trait `From<PlayerTarget<One>>` is implemented for it
+help: the following other types implement trait `sand_commands::selector::SingleTargetArgument`
  --> $WORKSPACE/sand-commands/src/selector.rs
   |
-  | impl From<SinglePlayer> for SingleEntity {
-  | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  = help: for that trait implementation, expected `PlayerTarget<One>`, found `sand_core::cmd::Selector`
-  = note: required for `sand_core::cmd::Selector` to implement `Into<EntityTarget<One>>`
+  | impl SingleTargetArgument for Target<AnyTarget, One> {}
+  | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ `sand::prelude::Target<sand_commands::selector::AnyTarget, sand_commands::selector::One>`
+...
+  | impl SingleTargetArgument for Target<PlayersOnly, One> {}
+  | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ `sand::prelude::Target<sand_commands::selector::PlayersOnly, sand_commands::selector::One>`
+note: required by a bound in `damage`
+ --> $OUT_DIR[sand-core]/commands.rs
+  |
+  | pub fn damage(target: impl SingleTargetArgument, amount: f32) -> Damage {
+  |                            ^^^^^^^^^^^^^^^^^^^^ required by this bound in `damage`

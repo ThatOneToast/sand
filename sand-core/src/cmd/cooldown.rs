@@ -7,7 +7,7 @@
 /// # Typical datapack setup
 ///
 /// ```rust,ignore
-/// use sand_core::cmd::{Cooldown, Objective, ScoreHolder, Selector};
+/// use sand_core::cmd::{Cooldown, Objective, ScoreHolder};
 ///
 /// // One objective per cooldown (registered in your load function):
 /// static FIREBALL_CD: Cooldown = Cooldown::new(&FIREBALL_COOLDOWN_OBJ, 60); // 3 s @ 20 tps

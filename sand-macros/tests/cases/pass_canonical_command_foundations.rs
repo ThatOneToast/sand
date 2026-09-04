@@ -2,11 +2,9 @@ use sand_core::prelude::*;
 
 fn main() {
     let profile = sand_core::cmd::CommandProfile::unprofiled();
-    let selector = Selector::all_players().limit(1);
-    let player = SinglePlayer::try_from(selector).expect("limit=1 is a single player");
-    let entity: SingleEntity = player.into();
+    let entity = Target::players().limit(1).expect("limit=1 is valid");
 
-    let holder = ScoreHolder::from(entity.selector().clone());
+    let holder = ScoreHolder::from(entity.clone());
     let objective = ObjectiveName::try_dynamic("mana").expect("valid objective");
     holder.validate(&profile).expect("valid holder");
     objective.validate(&profile).expect("valid objective");
@@ -19,8 +17,8 @@ fn main() {
         objective,
     );
     let rendered = Execute::new()
-        .as_(entity.selector().clone())
-        .at(Selector::self_())
+        .as_(entity)
+        .at(Target::self_())
         .try_run(&operation)
         .expect("typed execute chain is valid");
     assert_eq!(

@@ -77,7 +77,7 @@ fn ensure_reward_cooldown_score(selector: &str) -> String {
 pub fn on_level_up(event: Event<PlayerLevelsUp>) {
     let _ = event;
     // In an event handler the executing entity is always @s — the player whose
-    // level just increased. `event.player()` returns a Selector, but Cooldown
+    // level just increased. `event.player()` returns a Target, but Cooldown
     // guards take &str, so we use the "@s" literal directly.
     cmd::raw(ensure_reward_cooldown_score("@s"));
     when(REWARD_CD.ready("@s")).then_all([cmd::function(
@@ -93,9 +93,9 @@ pub fn on_level_up(event: Event<PlayerLevelsUp>) {
 /// pipeline directly via `function hello_world:lvl_grant_reward`.
 #[function("hello_world:lvl_grant_reward")]
 pub fn lvl_grant_reward() {
-    SOULS.add(Selector::self_(), 1);
-    REWARD_CD.start(Selector::self_());
-    Actionbar::show(Selector::self_(), Text::new("+1 soul").gold().bold(true));
+    SOULS.add(Target::self_(), 1);
+    REWARD_CD.start(Target::self_());
+    Actionbar::show(Target::self_(), Text::new("+1 soul").gold().bold(true));
 }
 
 // ── Tests ─────────────────────────────────────────────────────────────────────

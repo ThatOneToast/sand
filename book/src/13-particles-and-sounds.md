@@ -16,7 +16,7 @@ named effect rather than issuing two independent `particle` and
 at the call site (chapter 8's `trail:grapple/execute`):
 
 ```rust,ignore
-grapple_vfx().play_at(Selector::self_());
+grapple_vfx().play_at(Target::self_());
 ```
 
 One call plays the whole sequence at the target selector's position. If

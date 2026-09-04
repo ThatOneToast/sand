@@ -141,39 +141,39 @@ pub fn init() {
 /// attacker binding is observable from more than one handler.
 #[on_event]
 pub fn audit_on_hurt_by_entity_a(event: Event<EntityDamagePlayerEvent>) {
-    ATT1.add(Selector::self_(), 1);
+    ATT1.add(Target::self_(), 1);
     bump_sequence();
     let attacker = event.attacker();
     ParticipantAudit::attacker_present().set(true);
-    ParticipantAudit::subject_uuid().copy_from_entity(Selector::self_(), "UUID");
+    ParticipantAudit::subject_uuid().copy_from_entity(Target::self_(), "UUID");
     attacker.execute_at(
-        ParticipantAudit::attacker_uuid().copy_from_entity(Selector::self_(), "UUID"),
+        ParticipantAudit::attacker_uuid().copy_from_entity(Target::self_(), "UUID"),
     );
 }
 
 #[on_event]
 pub fn audit_on_hurt_by_entity_b(event: Event<EntityDamagePlayerEvent>) {
-    ATT2.add(Selector::self_(), 1);
+    ATT2.add(Target::self_(), 1);
     let attacker = event.attacker();
     attacker.execute_at(
-        ParticipantAudit::attacker_b_uuid().copy_from_entity(Selector::self_(), "UUID"),
+        ParticipantAudit::attacker_b_uuid().copy_from_entity(Target::self_(), "UUID"),
     );
 }
 
 /// `PlayerKillEvent` — correlated killer.
 #[on_event]
 pub fn audit_on_killed(event: Event<PlayerKillEvent>) {
-    KILL.add(Selector::self_(), 1);
+    KILL.add(Target::self_(), 1);
     bump_sequence();
     let killer = event.killer();
     ParticipantAudit::killer_present().set(true);
-    killer.execute_at(ParticipantAudit::killer_uuid().copy_from_entity(Selector::self_(), "UUID"));
+    killer.execute_at(ParticipantAudit::killer_uuid().copy_from_entity(Target::self_(), "UUID"));
 }
 
 /// `PlayerDamageEntityEvent` — weapon (mainhand) snapshot.
 #[on_event]
 pub fn audit_on_hurt_entity(event: Event<PlayerDamageEntityEvent>) {
-    WPN.add(Selector::self_(), 1);
+    WPN.add(Target::self_(), 1);
     bump_sequence();
     let weapon = event.weapon();
     if_(weapon.is_present())
@@ -187,7 +187,7 @@ pub fn audit_on_hurt_entity(event: Event<PlayerDamageEntityEvent>) {
 /// `EntityKillEvent` — weapon (mainhand) snapshot on a killing blow.
 #[on_event]
 pub fn audit_on_killed_entity(event: Event<EntityKillEvent>) {
-    KWPN.add(Selector::self_(), 1);
+    KWPN.add(Target::self_(), 1);
     bump_sequence();
     let weapon = event.weapon();
     if_(weapon.is_present())
@@ -252,10 +252,10 @@ impl SandEvent for ComposedAttackerSibling {
 
 #[on_event]
 pub fn audit_on_composed_parent(event: ComposedAttackerParent) {
-    COMPOSE_TRIGGER.set(Selector::self_(), 0);
+    COMPOSE_TRIGGER.set(Target::self_(), 0);
     let attacker = event.attacker();
     attacker.execute_at(
-        ParticipantAudit::compose_parent_uuid().copy_from_entity(Selector::self_(), "UUID"),
+        ParticipantAudit::compose_parent_uuid().copy_from_entity(Target::self_(), "UUID"),
     );
 }
 
@@ -263,7 +263,7 @@ pub fn audit_on_composed_parent(event: ComposedAttackerParent) {
 pub fn audit_on_composed_child(event: ComposedAttackerChild) {
     let attacker = event.attacker();
     attacker.execute_at(
-        ParticipantAudit::compose_child_uuid().copy_from_entity(Selector::self_(), "UUID"),
+        ParticipantAudit::compose_child_uuid().copy_from_entity(Target::self_(), "UUID"),
     );
 }
 
@@ -271,7 +271,7 @@ pub fn audit_on_composed_child(event: ComposedAttackerChild) {
 pub fn audit_on_composed_sibling(event: ComposedAttackerSibling) {
     let attacker = event.attacker();
     attacker.execute_at(
-        ParticipantAudit::compose_sibling_uuid().copy_from_entity(Selector::self_(), "UUID"),
+        ParticipantAudit::compose_sibling_uuid().copy_from_entity(Target::self_(), "UUID"),
     );
 }
 
@@ -309,7 +309,7 @@ impl SandEvent for SpecialKillEvent {
 pub fn audit_on_special_kill(event: SpecialKillEvent) {
     let killer = event.killer();
     killer.execute_at(
-        ParticipantAudit::bridge_killer_uuid().copy_from_entity(Selector::self_(), "UUID"),
+        ParticipantAudit::bridge_killer_uuid().copy_from_entity(Target::self_(), "UUID"),
     );
     let weapon = event.weapon();
     if_(weapon.is_present())

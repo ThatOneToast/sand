@@ -67,17 +67,17 @@ pub fn start_enrage() {
     Bossbar::set_max(bar.clone(), 100);
     Bossbar::set_value(bar.clone(), 50);
     Bossbar::set_color(bar.clone(), BossbarColor::Red);
-    Bossbar::set_players(bar, Selector::all_players());
-    Title::of(Selector::all_players())
+    Bossbar::set_players(bar, Target::all_players());
+    Title::of(Target::all_players())
         .title(Text::new("ENRAGED").dark_red().bold(true))
         .subtitle(Text::new("The guardian breaks its chains").gold())
         .times(10, 50, 20)
         .build();
     cmd::tellraw(
-        Selector::self_(),
+        Target::self_(),
         Text::new("The boss is enraged!").dark_red().bold(true),
     );
-    cmd::effect_give(Selector::self_(), EffectId::Strength)
+    cmd::effect_give(Target::self_(), EffectId::Strength)
         .seconds(10)
         .amplifier(1);
 }
@@ -85,20 +85,20 @@ pub fn start_enrage() {
 #[function("hello_world:stop_fighting")]
 pub fn stop_fighting() {
     cmd::tellraw(
-        Selector::self_(),
+        Target::self_(),
         Text::new("The fighting phase ended.").gray(),
     );
 }
 
 #[function("hello_world:enraged_tick")]
 pub fn enraged_tick() {
-    Actionbar::show(Selector::self_(), Text::new("[Enraged] berserk").dark_red());
+    Actionbar::show(Target::self_(), Text::new("[Enraged] berserk").dark_red());
     ParticleBuilder::new(Particle::dust_hex(0xCC2200, 1.2))
         .try_circle(2.0, 1.0, 16)
         .unwrap();
     Sound::play("minecraft:entity.warden.heartbeat")
         .source(SoundSource::Hostile)
-        .to(Selector::all_players())
+        .to(Target::all_players())
         .volume(0.7)
         .pitch(0.8)
         .build();
@@ -140,7 +140,7 @@ pub fn boss_load_and_flow() {
 /// is live; storage contains a copy made when this function runs.
 #[function("hello_world:cache_selected_item")]
 pub fn cache_selected_item() {
-    let selected = ItemLocation::entity(Selector::self_()).mainhand();
+    let selected = ItemLocation::entity(Target::self_()).mainhand();
     let cache = Nbt::storage("boss_phases:cache").path("last_item");
     selected.copy_to(&cache);
 }

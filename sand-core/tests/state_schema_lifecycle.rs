@@ -611,7 +611,7 @@ fn tick_system_uses_global_cadence_and_query_iteration() {
 
 #[test]
 fn bound_views_emit_complete_scope_aware_command_vectors() {
-    let player = PlayerState::on(PlayerContext::default());
+    let player = PlayerState::on(EntityContext::<PlayerKind>::default());
     let mana = PlayerState::mana.objective();
     assert_eq!(
         player.mana.set(25),
@@ -820,7 +820,7 @@ fn player_and_global_commands_reference_only_provisioned_objectives() {
         })
         .collect();
 
-    let player = PlayerState::on(PlayerContext::default());
+    let player = PlayerState::on(EntityContext::<PlayerKind>::default());
     let global = GlobalState::global();
     let commands = [
         player.mana.set(25),

@@ -5,7 +5,7 @@
 //! command text is produced, and must render byte-identically to its raw
 //! compatibility counterpart for equivalent valid input.
 
-use sand_commands::{ScoreHolder, Selector};
+use sand_commands::{ScoreHolder, Target};
 use sand_core::execute_when::when;
 use sand_core::state::{Cooldown, Flag, Ticks, Timer};
 
@@ -18,12 +18,12 @@ static DASH: Cooldown = Cooldown::new("dash_cd", Ticks::new(60));
 /// A multi-target selector — legal for `set`-style mutation, illegal wherever
 /// vanilla requires exactly one holder.
 fn multi_target() -> ScoreHolder {
-    ScoreHolder::entity(Selector::all_players())
+    ScoreHolder::entity(Target::all_players())
 }
 
 /// A selector statically narrowed to one entity.
 fn single_entity() -> ScoreHolder {
-    ScoreHolder::entity(Selector::all_entities().limit(1))
+    ScoreHolder::entity(Target::all_entities().limit(1).unwrap())
 }
 
 // ── Flag ─────────────────────────────────────────────────────────────────────
@@ -97,7 +97,9 @@ fn flag_rejects_whitespace_and_control_character_holders() {
 fn flag_rejects_malformed_selector_holders() {
     assert!(
         CASTING
-            .try_enable(ScoreHolder::entity(Selector::player("not a valid name")))
+            .try_enable(ScoreHolder::entity(Target::named_player(
+                "not a valid name"
+            )))
             .is_err()
     );
 }
@@ -176,6 +178,15 @@ fn timer_typed_holders_cover_player_fake_and_single_entity() {
         BLINK.start("#ticker")
     );
     assert!(BLINK.try_expired(single_entity()).is_ok());
+}
+
+#[test]
+fn timer_accepts_raw_single_target_after_score_holder_conversion() {
+    let holder = ScoreHolder::from(Target::raw_single("@e[tag=clock,limit=1]"));
+    assert_eq!(
+        BLINK.try_tick(holder).unwrap(),
+        BLINK.tick("@e[tag=clock,limit=1]")
+    );
 }
 
 #[test]

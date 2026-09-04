@@ -937,14 +937,14 @@ trait ComponentDirtyField: EntityStateField {
     path = "sand::entity::StatePredicate",
     aliases = ["sand::prelude::StatePredicate"],
     module = "sand::entity",
-    summary = "Typed score predicate consumable by [`sand::entity::EntityQuery`].",
-    context = "Typed score predicate consumable by [`sand::entity::EntityQuery`]. This declaration belongs to Sand's typed entity model. Semantic definitions are public; selector rendering, validation bookkeeping, and compiler lowering remain internal.",
+    summary = "Typed score predicate consumable by [`sand::command::Target`].",
+    context = "Typed score predicate consumable by [`sand::command::Target`]. This declaration belongs to Sand's typed entity model. Semantic definitions are public; selector rendering, validation bookkeeping, and compiler lowering remain internal.",
     minecraft = "Sand validates this definition and lowers it to entity-scoped selectors, scoreboards, NBT operations, and generated lifecycle functions as required.",
     use_when = ["Defining or using typed entity behavior in a Sand datapack"],
     avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
     example = "use sand::entity::StatePredicate;",
 )]
-/// Typed score predicate consumable by [`crate::entity::EntityQuery`].
+/// Typed score predicate consumable by [`sand_commands::Target`].
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct StatePredicate {
     pub(crate) objective: String,
@@ -974,19 +974,19 @@ impl StatePredicate {
     }
 
     /// Vanilla selector range used when this predicate constrains adoption or
-    /// an [`crate::entity::EntityQuery`].
+    /// a [`sand_commands::Target`].
     #[sand_macros::api(
         registry = sand_api_contract,
         path = "sand::entity::StatePredicate::selector_range",
         aliases = ["sand::prelude::StatePredicate::selector_range"],
         module = "sand::entity",
         kind = "method",
-        summary = "Vanilla selector range used when this predicate constrains adoption or an [`sand::entity::EntityQuery`].",
-        context = "Vanilla selector range used when this predicate constrains adoption or an [`sand::entity::EntityQuery`]. This declaration belongs to Sand's typed entity model. Semantic definitions are public; selector rendering, validation bookkeeping, and compiler lowering remain internal.",
+        summary = "Vanilla selector range used when this predicate constrains adoption or an [`sand::command::Target`].",
+        context = "Vanilla selector range used when this predicate constrains adoption or an [`sand::command::Target`]. This declaration belongs to Sand's typed entity model. Semantic definitions are public; selector rendering, validation bookkeeping, and compiler lowering remain internal.",
         minecraft = "Sand validates this definition and lowers it to entity-scoped selectors, scoreboards, NBT operations, and generated lifecycle functions as required.",
         use_when = ["Defining or using typed entity behavior in a Sand datapack"],
         avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
-        returns = "The string value produced to vanilla selector range used when this predicate constrains adoption or an [`sand::entity::EntityQuery`].",
+        returns = "The string value produced to vanilla selector range used when this predicate constrains adoption or an [`sand::command::Target`].",
         example = "use sand::prelude::*;\n\nfn demonstrate(state_predicate_value: &sand::entity::StatePredicate)  {\n    let selector_range = state_predicate_value.selector_range();\n}",
     )]
     #[must_use]

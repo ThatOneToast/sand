@@ -58,15 +58,15 @@ pub fn detect_join() -> sand_core::Advancement {
 #[function]
 pub fn on_player_join() {
     // Increment visit counter (persists in scoreboard.dat).
-    JOIN_COUNT.add(Selector::self_(), 1);
+    JOIN_COUNT.add(Target::self_(), 1);
 
     cmd::tellraw(
-        Selector::self_(),
+        Target::self_(),
         Text::new("Welcome back. Your visit counter was updated.").gold(),
     );
-    cmd::tellraw(Selector::all_players(), Text::new("A player joined.").gray());
+    cmd::tellraw(Target::players(), Text::new("A player joined.").gray());
 
     // Revoke the detection advancement so it fires again next login.
     // advancement_revoke_only is a generated typed builder from sand_core::cmd.
-    cmd::advancement_revoke_only(Selector::self_(), "my_pack:detect_join");
+    cmd::advancement_revoke_only(Target::self_(), "my_pack:detect_join");
 }

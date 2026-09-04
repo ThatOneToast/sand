@@ -39,7 +39,7 @@ struct AuditState {
 #[function]
 pub fn audit_command() {
     cmd::tellraw(
-        Selector::all_players(),
+        Target::players(),
         Text::new("Sand audit loaded").green(),
     );
 }
@@ -59,13 +59,13 @@ pub fn audit_command_media() {
         ResourceLocation::new("sand_audit", "guardian").unwrap(),
         BossbarColor::Red,
     );
-    Title::of(Selector::all_players())
+    Title::of(Target::players())
         .title(Text::new("Sand audit").gold())
         .subtitle(Text::new("Validated command media").yellow())
         .times(5, 20, 5)
         .build();
     Actionbar::show(
-        Selector::all_players(),
+        Target::players(),
         Text::new("Command media parser audit").green(),
     );
     ParticleBuilder::new(Particle::named(
@@ -75,11 +75,11 @@ pub fn audit_command_media() {
     .unwrap();
     Sound::play(ResourceLocation::new("minecraft", "block.note_block.pling").unwrap())
         .source(SoundSource::Master)
-        .to(Selector::all_players())
+        .to(Target::players())
         .volume(1.0)
         .pitch(1.0)
         .build();
-    cmd::effect_give(Selector::all_players(), EffectId::Speed)
+    cmd::effect_give(Target::players(), EffectId::Speed)
         .seconds(5)
         .particles(false);
 }

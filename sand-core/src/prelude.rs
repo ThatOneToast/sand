@@ -29,11 +29,11 @@ pub use crate::Damage;
 pub use crate::cmd::{
     Actionbar, BlockPos, BlockState, Bossbar, BossbarColor, BossbarId, BossbarStyle, Build,
     CloneBlocks, CloneMaskMode, CloneMode, Coord, DamageAmount, DamageBuilder, DamageKind,
-    DataCommand, EffectDuration, EntityTargets, Execute, Fill, FillMode, FunctionMacroArg,
-    FunctionMacroArgs, GameMode, Inventory, ItemSlot, Nbt, NbtCompound, NbtRef, NbtTarget,
-    Objective, ObjectiveName, Particle, ParticleBuilder, ParticleSpread, PlayerTargets, RawCommand,
-    RenderCommand, Rotation, ScoreHolder, Selector, SetBlock, SetBlockMode, SingleEntity,
-    SinglePlayer, Sound, SoundSource, Title, TitleTimes, UntypedNbt, Validate, Vec2, Vec3,
+    DataCommand, EffectDuration, Execute, Fill, FillMode, FunctionMacroArg, FunctionMacroArgs,
+    GameMode, Inventory, ItemSlot, Nbt, NbtCompound, NbtRef, NbtTarget, Objective, ObjectiveName,
+    Particle, ParticleBuilder, ParticleSpread, RawCommand, RenderCommand, Rotation, ScoreHolder,
+    SetBlock, SetBlockMode, SortOrder, Sound, SoundSource, Target, Title, TitleTimes, UntypedNbt,
+    Validate, Vec2, Vec3,
 };
 pub use crate::item::{
     BlockInventory, ContainerIndex, EnderChestIndex, EntityInventory, EntityInventorySlot,
@@ -79,17 +79,16 @@ pub use crate::entity::{
     DerivedScoreEncoding, EffectBinding, EntityAction, EntityArchetype, EntityContext,
     EntityCooldown, EntityDerivation, EntityDiagnostic, EntityEnum, EntityEnumValue, EntityEventId,
     EntityFlag, EntityKind, EntityNbtBinding, EntityNbtProperty, EntityNbtType, EntityNbtValue,
-    EntityQueries, EntityQuery, EntityScope, EntityScore, EntityState, EntityStateField, EntityTag,
-    EntityTeam, EntityText, EntityTextSegment, EntityTimer, EntityTransition, EnumEncoding,
-    EquipmentBinding, FixedPoint, FixedScore, FixedScoreAccessor, FixedScoreValue, FixedValue,
-    GlobalStateBundleOperations, HealthBinding, HealthResizePolicy, KeyedData, KnownEntityKind,
-    LivingEntityKind, MarkerKind, Migration, MutableLivingEntityKind, NameBinding,
-    NumericPropertySource, OverflowPolicy, OwnershipPolicy, PlayerContext, PlayerKind,
-    PlayerQueries, PlayerQuery, RawEntityProperty, RawEntityStateField, ReconcilePolicy,
-    RefreshPolicy, Relation, RelationQuery, RoundingPolicy, SafeEntityDataWriteKind,
-    ScopedEntityRef, Score, SingleEntityQuery, SinglePlayerQuery, SpecialEntityPolicy, StatCurve,
-    StateComposition, StateFieldDescriptor, StateFieldKind, StatePredicate, StateQueryOperations,
-    StateSchema, TagBinding, TeamBinding, ThresholdDirection, ZombieKind,
+    EntityScope, EntityScore, EntityState, EntityStateField, EntityTag, EntityTeam, EntityText,
+    EntityTextSegment, EntityTimer, EntityTransition, EnumEncoding, EquipmentBinding, FixedPoint,
+    FixedScore, FixedScoreAccessor, FixedScoreValue, FixedValue, GlobalStateBundleOperations,
+    HealthBinding, HealthResizePolicy, KeyedData, KnownEntityKind, LivingEntityKind, MarkerKind,
+    Migration, MutableLivingEntityKind, NameBinding, NumericPropertySource, OverflowPolicy,
+    OwnershipPolicy, PlayerKind, RawEntityProperty, RawEntityStateField, ReconcilePolicy,
+    RefreshPolicy, Relation, RelationTraversal, RoundingPolicy, SafeEntityDataWriteKind,
+    ScopedEntityRef, Score, SpecialEntityPolicy, StatCurve, StateComposition, StateFieldDescriptor,
+    StateFieldKind, StatePredicate, StateQueryOperations, StateSchema, TagBinding, TargetExecution,
+    TeamBinding, ThresholdDirection, ZombieKind,
 };
 
 // ── Function refs (IntoFunctionRef trait) ─────────────────────────────────────
@@ -218,7 +217,7 @@ mod tests {
     #[test]
     fn prelude_exports_typed_command_path() {
         let cmd = cmd::tellraw(
-            Selector::all_players(),
+            Target::players(),
             Text::new("Hello from Sand").gold().bold(true),
         )
         .to_string();
@@ -327,7 +326,7 @@ mod tests {
         let commands = Vfx::new("prelude")
             .particle(VfxParticle::happy_villager().count(2))
             .sound(VfxSound::new("minecraft:block.note_block.bell").source(SoundSource::Player))
-            .play_at(Selector::self_());
+            .play_at(Target::self_());
 
         assert_eq!(
             commands,
@@ -400,9 +399,9 @@ mod tests {
     /// into `sand_commands`/`sand_core` internals directly.
     #[test]
     fn prelude_only_command_argument_fixture_compiles_and_runs() {
-        // Selector construction.
-        let scan = Selector::all_entities().limit(5).distance_range(0.0, 16.0);
-        assert!(scan.try_build().is_ok());
+        // Canonical target construction.
+        let scan = Target::entities().distance_range(0.0, 16.0).nearest();
+        assert_eq!(scan.to_string(), "@e[distance=0..16,sort=nearest,limit=1]");
 
         // Score objective + holder.
         static SCORE: Objective = Objective::new("prelude_fixture");
@@ -424,14 +423,14 @@ mod tests {
         assert_eq!(fill, "fill 0 64 0 1 65 1 minecraft:glass");
 
         // Teleport (generated typed command builder — `cmd::teleport_4`).
-        let tp = cmd::teleport_4(Selector::self_(), Vec3::absolute(0.0, 64.0, 0.0)).to_string();
+        let tp = cmd::teleport_4(Target::self_(), Vec3::absolute(0.0, 64.0, 0.0)).to_string();
         assert_eq!(tp, "teleport @s 0 64 0");
 
         // Tag + gamemode (generated typed command builders).
-        let tag = cmd::tag_add(Selector::self_(), "prelude_fixture").to_string();
+        let tag = cmd::tag_add(Target::self_(), "prelude_fixture").to_string();
         assert_eq!(tag, "tag @s add prelude_fixture");
         let gamemode = cmd::gamemode(GameMode::Survival)
-            .target(Selector::self_())
+            .target(Target::self_())
             .to_string();
         assert_eq!(gamemode, "gamemode survival @s");
 

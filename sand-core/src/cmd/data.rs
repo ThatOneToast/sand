@@ -355,7 +355,7 @@ impl Storage {
     ///
     /// ```rust,ignore
     /// Execute::new()
-    ///     .store_result_score(ScoreHolder::entity(Selector::self_()), "my_obj")
+    ///     .store_result_score(ScoreHolder::entity(Target::self_()), "my_obj")
     ///     .run(WORLD.get("boss_phase"))
     /// ```
     #[sand_macros::api(
@@ -371,7 +371,7 @@ impl Storage {
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
         params(key = "Returns a `data get storage` command that reads `key`."),
         returns = "Returns a `data get storage` command that reads `key`.",
-        example = "Execute::new()\n.store_result_score(ScoreHolder::entity(Selector::self_()), \"my_obj\")\n.run(WORLD.get(\"boss_phase\"))",
+        example = "Execute::new()\n.store_result_score(ScoreHolder::entity(Target::self_()), \"my_obj\")\n.run(WORLD.get(\"boss_phase\"))",
     )]
     pub fn get(&self, key: impl Into<String>) -> String {
         format!("data get storage {} {}", self.id, key.into())
@@ -676,16 +676,18 @@ impl Storage {
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
         params(key = "`key` provides the key that identifies the setting or entry used to copy a value from entity NBT into this storage.", entity = "`entity` provides the entity participant or predicate used to copy a value from entity NBT into this storage.", src_path = "`src_path` is used to copy a value from entity NBT into this storage."),
         returns = "The string value produced to copy a value from entity NBT into this storage.",
-        example = "use sand::prelude::*;\n\nfn demonstrate(storage_value: &sand::command::Storage, key: impl Into < String >, entity: sand::command::Selector, src_path: impl Into < String >)  {\n    let copy_from_entity = storage_value.copy_from_entity(key, entity, src_path);\n}",
+        example = "use sand::prelude::*;\n\nfn demonstrate(storage_value: &sand::command::Storage, key: impl Into < String >, entity: sand::command::Target, src_path: impl Into < String >)  {\n    let copy_from_entity = storage_value.copy_from_entity(key, entity, src_path);\n}",
     )]
     pub fn copy_from_entity(
         &self,
         key: impl Into<String>,
-        entity: sand_commands::Selector,
+        entity: impl sand_commands::TargetArgument,
         src_path: impl Into<String>,
     ) -> String {
-        DataModify::new(self.target(), key.into())
-            .set_from(DataTarget::Entity(entity), src_path.into())
+        DataModify::new(self.target(), key.into()).set_from(
+            DataTarget::Entity(entity.into_target_selector()),
+            src_path.into(),
+        )
     }
 
     /// Copy a value from another storage namespace.

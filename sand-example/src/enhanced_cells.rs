@@ -91,16 +91,14 @@ pub fn ec_on_damaged(event: DamageEvent<EnhancedCellsDamagedEvent>) {
     when(AOE_DMG_COOLDOWN.ready("@s")).then_all([
         event
             .reflect_damage()
-            .to(EntityTargets::nearby(5.0)
-                .excluding_self()
-                .excluding_players())
+            .to(Target::nearby(5.0).excluding_self().excluding_players())
             .amount(DamageAmount::hearts(2.0))
             .damage_type(DamageKind::Magic)
             .run()
             .join("\n"),
-        AOE_DMG_COOLDOWN.start(Selector::self_()),
+        AOE_DMG_COOLDOWN.start(Target::self_()),
         cmd::tellraw(
-            Selector::self_(),
+            Target::self_(),
             Text::new("Enhanced Cells: AOE burst!").red(),
         )
         .to_string(),
@@ -115,12 +113,12 @@ pub fn ec_on_damaged_regen(event: DamageEvent<EnhancedCellsDamagedEvent>) {
     let _ = event;
     // unless(...).then_all(...) also registers a branch
     unless(REGEN_COOLDOWN.active("@s")).then_all([
-        cmd::effect_give(Selector::self_(), EffectId::Regeneration)
+        cmd::effect_give(Target::self_(), EffectId::Regeneration)
             .seconds(5)
             .amplifier(1)
             .particles(false)
             .to_string(),
-        REGEN_COOLDOWN.start(Selector::self_()),
+        REGEN_COOLDOWN.start(Target::self_()),
     ]);
 }
 

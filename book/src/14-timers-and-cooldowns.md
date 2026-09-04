@@ -18,11 +18,11 @@ own. Its lifecycle in Trailforge:
 2. **`GRAPPLE.ready("@s")`** — read in every gate that decides whether the
    dash may run (`tick`'s actionbar condition and `trail:grapple`'s
    dispatch condition both check this).
-3. **`GRAPPLE.start(Selector::self_())`** — written once, in
+3. **`GRAPPLE.start(Target::self_())`** — written once, in
    `trail:grapple/execute`, the moment the dash actually happens. This is
    what makes it a *cooldown* rather than a *timer*: nothing restarts it
    automatically on a schedule, only the triggering action does.
-4. **`GRAPPLE.stop(Selector::self_())`** — written on death (chapter 15),
+4. **`GRAPPLE.stop(Target::self_())`** — written on death (chapter 15),
    so a respawned player isn't stuck waiting out a cooldown against a dash
    they can no longer be mid-cooldown from meaningfully.
 
@@ -41,10 +41,10 @@ Compare that to the regen timer's tick-loop usage (chapter 3):
 ```rust,ignore
 TypedExecute::as_players()
     .when(all![REGEN.expired("@s"), STAMINA.of("@s").lt(100)])
-    .run(STAMINA.add(Selector::self_(), 10));
+    .run(STAMINA.add(Target::self_(), 10));
 TypedExecute::as_players()
     .when(REGEN.expired("@s"))
-    .run(REGEN.start(Selector::self_()));
+    .run(REGEN.start(Target::self_()));
 ```
 
 This is two separate guarded statements, not one — and that split is

@@ -3,27 +3,27 @@
 //! # Example
 //! ```rust,ignore
 //! use sand_core::systems::inventory::InventorySystem;
-//! use sand_core::cmd::{Selector, ItemSlot};
+//! use sand_core::cmd::{ItemSlot, Target};
 //!
 //! // Check mainhand then run a command:
-//! let cmd = InventorySystem::for_entity(Selector::self_())
+//! let cmd = InventorySystem::for_entity(Target::self_())
 //!     .has("minecraft:diamond_sword")
 //!     .in_mainhand()
 //!     .run("say has sword");
 //!
 //! // Replace a slot:
-//! let cmd = InventorySystem::for_entity(Selector::self_())
+//! let cmd = InventorySystem::for_entity(Target::self_())
 //!     .replace(ItemSlot::MainHand, "minecraft:iron_sword");
 //!
 //! // Clear items:
-//! let cmd = InventorySystem::for_entity(Selector::self_())
+//! let cmd = InventorySystem::for_entity(Target::self_())
 //!     .clear_item("minecraft:arrow")
 //!     .amount(64);
 //! ```
 
 use std::fmt;
 
-use sand_commands::selector::Selector;
+use sand_commands::selector::{Selector, TargetArgument};
 use sand_commands::{Execute, ItemSlot};
 
 #[sand_macros::api(
@@ -96,11 +96,13 @@ impl InventorySystem {
         avoid_when = ["Using the API outside its documented system scope or feature configuration"],
         params(selector = "`selector` provides the Minecraft target selection used to start an inventory operation for the given entity selector."),
         returns = "An `InventorySystem` initialized to an inventory operation for the given entity selector.",
-        example = "use sand::prelude::*;\n\nfn demonstrate(selector: sand::command::Selector)  {\n    let inventory_system = sand::systems::inventory::InventorySystem::for_entity(selector);\n}",
+        example = "use sand::prelude::*;\n\nfn demonstrate(selector: sand::command::Target)  {\n    let inventory_system = sand::systems::inventory::InventorySystem::for_entity(selector);\n}",
         availability = ["Cargo feature: systems-inventory"],
     )]
-    pub fn for_entity(selector: Selector) -> Self {
-        Self { selector }
+    pub fn for_entity(selector: impl TargetArgument) -> Self {
+        Self {
+            selector: selector.into_target_selector(),
+        }
     }
 
     /// Begin an item-presence check.

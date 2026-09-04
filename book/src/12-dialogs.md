@@ -31,7 +31,7 @@ compiler error, not a dialog button that silently does nothing at runtime.
 ```rust,ignore
 #[function("trail:menu")]
 pub fn open_menu() {
-    cmd::show_dialog(Selector::self_(), DialogId::local("trailhead"));
+    cmd::show_dialog(Target::self_(), DialogId::local("trailhead"));
 }
 ```
 

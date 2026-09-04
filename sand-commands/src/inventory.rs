@@ -7,9 +7,9 @@
 //! `impl Into<ItemSlot>` so you can pass an `ItemSlot` directly:
 //!
 //! ```rust,ignore
-//! use sand_commands::{Inventory, ItemSlot, Selector};
+//! use sand_commands::{Inventory, ItemSlot, Target};
 //!
-//! let inv = Inventory::of(Selector::self_());
+//! let inv = Inventory::of(Target::self_());
 //! inv.give("minecraft:diamond");
 //! inv.set(ItemSlot::MainHand, "minecraft:diamond_sword");
 //! inv.set(ItemSlot::Hotbar(3), "minecraft:torch");
@@ -63,7 +63,7 @@ use std::fmt;
 use crate::error::{CommandError, CommandResult};
 use crate::execute_args::ItemSlot;
 use crate::render::{CommandProfile, Validate};
-use crate::selector::Selector;
+use crate::selector::{Selector, TargetArgument};
 use crate::validate;
 
 // ── Pre-write export re-validation registry ─────────────────────────────────
@@ -289,10 +289,12 @@ impl Inventory {
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
         params(selector = "`selector` provides the Minecraft target selection used to create an inventory handle for the given entity selector."),
         returns = "An `Inventory` representing an inventory handle for the given entity selector.",
-        example = "use sand::prelude::*;\n\nfn demonstrate(selector: sand::command::Selector)  {\n    let inventory = sand::command::Inventory::of(selector);\n}",
+        example = "use sand::prelude::*;\n\nfn demonstrate(selector: sand::command::Target)  {\n    let inventory = sand::command::Inventory::of(selector);\n}",
     )]
-    pub fn of(selector: Selector) -> Self {
-        Self { selector }
+    pub fn of(selector: impl TargetArgument) -> Self {
+        Self {
+            selector: selector.into_target_selector(),
+        }
     }
 
     // ── Give / set ────────────────────────────────────────────────────────
@@ -719,14 +721,15 @@ impl Inventory {
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
         params(slot = "Copy the item in `source_slot` of another entity into `slot` of this entity.", source = "`source` provides the Minecraft target selection used to copy the item in `source_slot` of another entity into `slot` of this entity.", source_slot = "Copy the item in `source_slot` of another entity into `slot` of this entity."),
         returns = "The string value produced to copy the item in `source_slot` of another entity into `slot` of this entity.",
-        example = "use sand::prelude::*;\n\nfn demonstrate(inventory_value: &sand::command::Inventory, slot: impl Into < sand::command::ItemSlot >, source: sand::command::Selector, source_slot: impl Into < sand::command::ItemSlot >)  {\n    let copy_from = inventory_value.copy_from(slot, source, source_slot);\n}",
+        example = "use sand::prelude::*;\n\nfn demonstrate(inventory_value: &sand::command::Inventory, slot: impl Into < sand::command::ItemSlot >, source: sand::command::Target, source_slot: impl Into < sand::command::ItemSlot >)  {\n    let copy_from = inventory_value.copy_from(slot, source, source_slot);\n}",
     )]
     pub fn copy_from(
         &self,
         slot: impl Into<ItemSlot>,
-        source: Selector,
+        source: impl TargetArgument,
         source_slot: impl Into<ItemSlot>,
     ) -> String {
+        let source = source.into_target_selector();
         let slot = slot.into();
         let source_slot = source_slot.into();
         let line = format!(
@@ -753,12 +756,12 @@ impl Inventory {
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
         params(slot = "`slot` sets the slot for fallible [`Inventory::copy_from`] — validates both the destination and source slots (neither may be out-of-range or a wildcard: a single-item copy resolves to exactly one slot on each side).", source = "`source` provides the Minecraft target selection used to use fallible [`Inventory::copy_from`] — validates both the destination and source slots (neither may be out-of-range or a wildcard: a single-item copy resolves to exactly one slot on each side).", source_slot = "`source_slot` sets the source slot for fallible [`Inventory::copy_from`] — validates both the destination and source slots (neither may be out-of-range or a wildcard: a single-item copy resolves to exactly one slot on each side)."),
         returns = "On success, the value produced to use fallible [`Inventory::copy_from`] — validates both the destination and source slots (neither may be out-of-range or a wildcard: a single-item copy resolves to exactly one slot on each side); otherwise, the documented validation or export diagnostic.",
-        example = "use sand::prelude::*;\n\nfn demonstrate(inventory_value: &sand::command::Inventory, slot: impl Into < sand::command::ItemSlot >, source: sand::command::Selector, source_slot: impl Into < sand::command::ItemSlot >)  {\n    let try_copy_from = inventory_value.try_copy_from(slot, source, source_slot);\n}",
+        example = "use sand::prelude::*;\n\nfn demonstrate(inventory_value: &sand::command::Inventory, slot: impl Into < sand::command::ItemSlot >, source: sand::command::Target, source_slot: impl Into < sand::command::ItemSlot >)  {\n    let try_copy_from = inventory_value.try_copy_from(slot, source, source_slot);\n}",
     )]
     pub fn try_copy_from(
         &self,
         slot: impl Into<ItemSlot>,
-        source: Selector,
+        source: impl TargetArgument,
         source_slot: impl Into<ItemSlot>,
     ) -> CommandResult<String> {
         let slot = slot.into();

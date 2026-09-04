@@ -41,28 +41,40 @@ actually requires integer block coordinates.
 
 ## Selectors and typed targets
 
-`Selector` is the canonical entity/player target builder. It validates
+`Target` is the canonical entity/player target builder. It validates
 limits, distance/level ranges, score filters, tags, teams, and player-name
 tokens, and keeps output deterministic (arguments render in a stable order).
 
 ```rust,ignore
 use sand::prelude::*;
 
-let scan = Selector::all_entities()
-    .limit(5)
-    .distance_range(0.0, 16.0);
+let scan = Target::entities()
+    .distance_range(0.0, 16.0)
+    .nearest();
 
-assert!(scan.try_build().is_ok());
-assert!(Selector::all_entities().limit(0).try_build().is_err());
+assert_eq!(scan.to_string(), "@e[distance=0..16,sort=nearest,limit=1]");
+assert!(Target::entities().limit(2).is_err());
 ```
+
+Literal named targets can still be refined, but their literal already counts
+as the selector's one positive `name` filter. Validation rejects a second
+positive name while allowing multiple `.not_name(...)` exclusions.
 
 Opaque advanced syntax (arbitrary SNBT filters, modded selector arguments)
 has an explicit escape hatch rather than a best-effort parser:
-`Selector::nbt_raw(...)` and `Selector::argument_raw(...)`.
+`Target::nbt_raw(...)`, `Target::predicate_raw(...)`, and the explicitly named
+`Target::raw_many(...)` / `Target::raw_single(...)` constructors. A raw target
+is emitted verbatim until typed refinements are added; refinements such as
+`.sort(...)` and `.limit(1)` are incorporated into the selector text so the
+rendered command continues to match its typed cardinality.
 
-Typed target wrappers — `ScoreHolder`, display/sound audiences, execute
-targets — build on the same `Selector` validation path; none of them format
-a selector to a string before validating it.
+Reusable predicate filters use `.predicate(PredicateId)` and
+`.not_predicate(PredicateId)`. Other registry ID kinds do not compile at that
+boundary; arbitrary predicate text stays explicit through `.predicate_raw(...)`.
+
+`ScoreHolder` remains a distinct, broader scoreboard domain because it also
+models fake players and wildcards. Entity/player targets, display and sound
+audiences, and execute targets all consume `Target` directly.
 
 ## Scoreboard objectives and holders
 
@@ -150,13 +162,13 @@ use sand::prelude::*;
 
 static PROGRESS: ScoreVar<i32> = ScoreVar::new("trail_prog");
 
-let nearby_runners = Selector::all_players()
+let nearby_runners = Target::players()
     .distance_range(0.0, 24.0)
     .tag("trailforge_active");
 
 let bump_score = PROGRESS.try_clamp("@s", 0, 100)?;
-let teleport = cmd::try_tp(Selector::self_(), 120.5, 71.0, -31.5)?;
-let tag_done = cmd::try_tag_add(Selector::self_(), "checkpoint_1")?;
+let teleport = cmd::try_tp(Target::self_(), 120.5, 71.0, -31.5)?;
+let tag_done = cmd::try_tag_add(Target::self_(), "checkpoint_1")?;
 
 // Escape hatch for a mod command Sand does not model.
 let modded = RawCommand::new("mymod:pulse 5").to_string();

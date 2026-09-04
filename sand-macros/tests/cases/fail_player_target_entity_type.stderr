@@ -1,8 +1,8 @@
-error[E0599]: no method named `entity_type` found for struct `PlayerTarget<A>` in the current scope
- --> tests/cases/fail_player_target_entity_type.rs:7:34
+error[E0599]: no method named `entity_type` found for struct `sand::prelude::Target<sand_commands::selector::PlayersOnly>` in the current scope
+ --> tests/cases/fail_player_target_entity_type.rs:6:31
   |
-7 |     let _ = PlayerTargets::all().entity_type("minecraft:zombie");
-  |                                  ^^^^^^^^^^^ this is an associated function, not a method
+6 |     let _ = Target::players().entity_type("minecraft:zombie");
+  |                               ^^^^^^^^^^^ this is an associated function, not a method
   |
   = note: found the following associated functions; to be used as methods, functions must have a `self` parameter
 note: the candidate is defined in the trait `sand::prelude::KnownEntityKind`
@@ -12,6 +12,6 @@ note: the candidate is defined in the trait `sand::prelude::KnownEntityKind`
   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 help: use associated function syntax instead
   |
-7 -     let _ = PlayerTargets::all().entity_type("minecraft:zombie");
-7 +     let _ = PlayerTarget<Many>::entity_type("minecraft:zombie");
+6 -     let _ = Target::players().entity_type("minecraft:zombie");
+6 +     let _ = sand::prelude::Target<sand_commands::selector::PlayersOnly>::entity_type("minecraft:zombie");
   |

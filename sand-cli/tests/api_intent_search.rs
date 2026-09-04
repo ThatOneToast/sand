@@ -32,11 +32,11 @@ struct Case {
 const CORPUS: &[Case] = &[
     Case {
         query: "nearby entities",
-        expect: Expect::Exact("sand::entity::EntityQuery::nearby"),
+        expect: Expect::Exact("sand::command::Target::nearby"),
     },
     Case {
         query: "query players",
-        expect: Expect::Family("sand::entity"),
+        expect: Expect::Exact("sand::command::Target::players"),
     },
     Case {
         query: "detect equipped armor",

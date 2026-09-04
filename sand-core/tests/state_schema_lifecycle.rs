@@ -211,7 +211,9 @@ fn derived_state_lifecycle_is_scoped_deterministic_and_deduplicated() {
         .filter(|line| line.starts_with("scoreboard objectives add "))
         .collect();
     let unique: std::collections::BTreeSet<_> = objectives.iter().copied().collect();
-    assert_eq!(objectives.len(), 22);
+    // PlayerState, GlobalState, and EntityRuntimeState each own one numeric
+    // scratch objective in addition to their persistent lifecycle objectives.
+    assert_eq!(objectives.len(), 25);
     assert_eq!(unique.len(), objectives.len());
     assert!(load.contains("#sand_state_test_global_state"));
     assert!(load.contains("dummy \"Player mana\""));

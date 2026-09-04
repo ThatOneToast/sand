@@ -131,6 +131,8 @@ enum TargetBase {
     Player(#[doc = "Selects the player form of the target base Minecraft command value."] String),
     /// Explicit unchecked selector syntax for advanced/modded grammar.
     Raw(#[doc = "Explicit unchecked selector syntax for advanced/modded grammar."] String),
+    /// Unchecked selector syntax carrying an explicit single-target assertion.
+    RawSingle(String),
 }
 
 /// Marker for selector wrappers that are statically known to select one target.
@@ -406,9 +408,9 @@ impl Target<AnyTarget, One> {
     }
 
     /// Explicit unchecked single-entity selector syntax.
-    #[sand_macros::api(registry = sand_api_contract, path = "sand::command::Target::raw_single", aliases = ["sand::cmd::Target::raw_single", "sand::prelude::Target::raw_single", "sand::prelude::cmd::Target::raw_single"], module = "sand::command", summary = "Creates an unchecked target asserted to select at most one entity.", context = "Advanced escape hatch for modded or future selector grammar; the caller supplies the cardinality assertion.", minecraft = "Emits the supplied selector text verbatim.", use_when = ["Using single-target grammar Sand cannot model"], avoid_when = ["A typed narrowing method can prove cardinality"], params(selector = "The unchecked selector expression."), returns = "A target carrying a single-entity cardinality assertion.", example = "let target = sand::command::Target::raw_single(\"@e[modded=true,limit=1]\");")]
+    #[sand_macros::api(registry = sand_api_contract, path = "sand::command::Target::raw_single", aliases = ["sand::cmd::Target::raw_single", "sand::prelude::Target::raw_single", "sand::prelude::cmd::Target::raw_single"], module = "sand::command", summary = "Creates an unchecked target asserted to select at most one entity.", context = "Advanced escape hatch for modded or future selector grammar; the caller supplies the cardinality assertion, which remains preserved when the target crosses internal command and score-holder representation boundaries.", minecraft = "Emits the supplied selector text verbatim.", use_when = ["Using single-target grammar Sand cannot model"], avoid_when = ["A typed narrowing method can prove cardinality"], params(selector = "The unchecked selector expression."), returns = "A target carrying a single-entity cardinality assertion.", example = "let target = sand::command::Target::raw_single(\"@e[modded=true,limit=1]\");")]
     pub fn raw_single(selector: impl Into<String>) -> Self {
-        Self::from_selector(Selector::raw(selector))
+        Self::from_selector(Selector::raw_single(selector))
     }
 }
 
@@ -781,6 +783,15 @@ impl Selector {
             args: vec![],
         }
     }
+
+    /// Wrap unchecked selector syntax while preserving a higher-level
+    /// single-target assertion across internal representation boundaries.
+    fn raw_single(selector: impl Into<String>) -> Self {
+        Self {
+            base: TargetBase::RawSingle(selector.into()),
+            args: vec![],
+        }
+    }
 }
 
 // ── Builder methods ───────────────────────────────────────────────────────────
@@ -1072,7 +1083,7 @@ impl fmt::Display for Selector {
             TargetBase::Self_ => "@s",
             TargetBase::RandomPlayer => "@r",
             TargetBase::Player(n) => return write!(f, "{n}"),
-            TargetBase::Raw(raw) => return write!(f, "{raw}"),
+            TargetBase::Raw(raw) | TargetBase::RawSingle(raw) => return write!(f, "{raw}"),
         };
         if self.args.is_empty() {
             write!(f, "{base}")
@@ -1090,23 +1101,24 @@ impl fmt::Display for Selector {
 
 impl Selector {
     pub(crate) fn is_statically_single(&self) -> bool {
-        !matches!(self.base, TargetBase::Raw(_))
-            && (matches!(
-                self.base,
-                TargetBase::NearestPlayer
-                    | TargetBase::Self_
-                    | TargetBase::RandomPlayer
-                    | TargetBase::Player(_)
-            ) || self
-                .args
-                .iter()
-                .any(|arg| matches!(arg, SelectorArg::Limit(1))))
+        matches!(self.base, TargetBase::RawSingle(_))
+            || (!matches!(self.base, TargetBase::Raw(_))
+                && (matches!(
+                    self.base,
+                    TargetBase::NearestPlayer
+                        | TargetBase::Self_
+                        | TargetBase::RandomPlayer
+                        | TargetBase::Player(_)
+                ) || self
+                    .args
+                    .iter()
+                    .any(|arg| matches!(arg, SelectorArg::Limit(1)))))
     }
 }
 
 impl Validate for Selector {
     fn validate(&self, _profile: &CommandProfile) -> CommandResult<()> {
-        if let TargetBase::Raw(_) = self.base {
+        if matches!(self.base, TargetBase::Raw(_) | TargetBase::RawSingle(_)) {
             if !self.args.is_empty() {
                 return Err(CommandError::new(
                     "Selector",

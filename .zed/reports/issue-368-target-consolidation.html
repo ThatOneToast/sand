@@ -17,7 +17,7 @@
   </style>
 </head>
 <body><main>
-  <div class="eyebrow">Repository analysis · 3 September 2026</div>
+  <div class="eyebrow">Repository analysis · updated 4 September 2026</div>
   <h1>Issue #368: one target model, one authoring path</h1>
   <p class="lede">Sand’s selector, target, and query ladder has been consolidated behind <code>Target</code>. Category and cardinality remain statically enforced, while command use, filtering, iteration, and scoreboard conversion now share the same discoverable model.</p>
   <div class="meta"><span class="pill good">Implementation verified</span><span class="pill">Branch: agent/issue-368-target-consolidation</span><span class="pill"><a href="https://github.com/ThatOneToast/sand/pull/376">PR #376 · intentionally unmerged</a></span><span class="pill"><a href="https://github.com/ThatOneToast/sand/issues/368">Source issue #368</a></span></div>
@@ -50,7 +50,7 @@ cmd::damage(enemy, 4.0);</pre>
       <li><strong>Hidden type state:</strong> category (<code>AnyTarget</code>/<code>PlayersOnly</code>) and cardinality (<code>One</code>/<code>Many</code>) are inferred, preserving compile-time constraints without adding author vocabulary.</li>
       <li><strong>Capability boundaries:</strong> player-only filters exist only on player targets; single-target commands accept only statically single targets.</li>
       <li><strong>Execution stays honest:</strong> <code>TargetExecution</code> adds <code>state</code>/<code>each</code> to the same target value, while <code>EntityContext</code> remains the distinct bound-executor concept.</li>
-      <li><strong>Scoreboards stay broader:</strong> entity targets convert naturally to <code>ScoreHolder</code>; fake players and wildcard holders remain separate valid scoreboard concepts with centralized validation.</li>
+      <li><strong>Scoreboards stay broader:</strong> entity targets convert naturally to <code>ScoreHolder</code>; explicit <code>raw_single</code> cardinality survives that conversion, while fake players and wildcard holders remain separate valid scoreboard concepts with centralized validation.</li>
       <li><strong>No selector-era helper vocabulary:</strong> typed level bounds are scalar methods, multiple score filters are ordinary <code>(ObjectiveName, ScoreRange)</code> pairs, and raw syntax is explicitly named <code>_raw</code>.</li>
     </ul>
   </section>
@@ -62,7 +62,7 @@ cmd::damage(enemy, 4.0);</pre>
       <tr><td>Filtering and iteration together</td><td><code>TargetExecution</code> implements <code>state</code> and <code>each</code> for entity and player categories; old query wrapper implementation was removed.</td><td class="status">Met</td></tr>
       <tr><td>Category/cardinality safety</td><td>Inferred hidden markers control method availability and <code>SingleTargetArgument</code>; compile-fail cases cover many-to-single misuse and category-specific filters.</td><td class="status">Met</td></tr>
       <tr><td>Command convergence</td><td>Generated and handwritten command surfaces accept the sealed <code>TargetArgument</code> capability, including execute, effects, teleport, inventory, NBT, display, sound, text, VFX, and systems.</td><td class="status">Met</td></tr>
-      <tr><td>Score-holder integration</td><td><code>Target</code> converts into <code>ScoreHolder</code>; single-holder validation is reused for guarded timer/cooldown operations.</td><td class="status">Met</td></tr>
+      <tr><td>Score-holder integration</td><td><code>Target</code> converts into <code>ScoreHolder</code>; single-holder validation is reused for guarded timer/cooldown operations, including explicit cardinality carried by <code>Target::raw_single</code>.</td><td class="status">Met</td></tr>
       <tr><td>Documentation and API discovery</td><td>README, scaffold output, macro examples, rustdoc/API metadata, compile fixtures, and profile baselines now teach <code>Target</code>.</td><td class="status">Met</td></tr>
     </tbody></table>
   </section>
@@ -97,7 +97,7 @@ cmd::damage(enemy, 4.0);</pre>
       <tr><td><code>cargo check --workspace --all-targets</code></td><td>Every workspace crate, target, example, and test target</td><td class="status">Passed</td></tr>
       <tr><td><code>cargo test -p sand-core --doc</code></td><td>Generated and handwritten doctests plus compile-fail docs</td><td class="status">Passed</td></tr>
       <tr><td>Trybuild compile contracts</td><td>50 pass/fail cases, including target category and cardinality diagnostics</td><td class="status">Passed</td></tr>
-      <tr><td>Focused command/query/facade tests</td><td>Target filters, execution lowering, public facade, API enforcement, command mapping</td><td class="status">Passed</td></tr>
+      <tr><td>Focused command/query/facade tests</td><td>Target filters, raw-single score-holder conversion, guarded timer lowering, execution lowering, public facade, API enforcement, command mapping</td><td class="status">Passed</td></tr>
       <tr><td>API surface ratchet</td><td>Placeholder, Minecraft 1.21.4, and 26.2 profiles</td><td class="status">Passed</td></tr>
       <tr><td><code>git diff --check</code></td><td>Whitespace and patch integrity</td><td class="status">Passed</td></tr>
     </tbody></table>

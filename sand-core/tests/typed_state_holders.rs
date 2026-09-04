@@ -181,6 +181,15 @@ fn timer_typed_holders_cover_player_fake_and_single_entity() {
 }
 
 #[test]
+fn timer_accepts_raw_single_target_after_score_holder_conversion() {
+    let holder = ScoreHolder::from(Target::raw_single("@e[tag=clock,limit=1]"));
+    assert_eq!(
+        BLINK.try_tick(holder).unwrap(),
+        BLINK.tick("@e[tag=clock,limit=1]")
+    );
+}
+
+#[test]
 fn timer_conditions_generate_the_expected_commands() {
     let expired = BLINK.try_expired(ScoreHolder::self_()).unwrap();
     assert_eq!(

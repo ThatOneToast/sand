@@ -2232,4 +2232,18 @@ mod tests {
         );
         assert!(limit_ten.try_build().is_err());
     }
+
+    #[test]
+    fn raw_single_target_preserves_cardinality_as_a_score_holder() {
+        let holder = ScoreHolder::from(Target::raw_single("@e[tag=candidate,limit=1]"));
+        assert_eq!(holder.to_string(), "@e[tag=candidate,limit=1]");
+        assert!(
+            holder
+                .validate_single(&CommandProfile::unprofiled())
+                .is_ok()
+        );
+
+        let many = ScoreHolder::from(Target::raw_many("@e[tag=candidate]"));
+        assert!(many.validate_single(&CommandProfile::unprofiled()).is_err());
+    }
 }

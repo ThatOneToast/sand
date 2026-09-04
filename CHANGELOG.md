@@ -24,6 +24,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `execute on` traversal from target construction. Bound executor contexts,
   state queries, scoreboard holders, and JSON predicate schemas remain
   separate because they carry different behavior or serialized meaning.
+- Preserved the explicit cardinality assertion from `Target::raw_single`
+  when converting into a `ScoreHolder`, so guarded timer, cooldown, and score
+  operations continue to accept advanced single-target selector syntax.
 
 ### Added — version-aware world-build registry validation (#356)
 

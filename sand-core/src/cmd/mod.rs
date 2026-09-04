@@ -103,7 +103,7 @@ pub use sand_commands::{
 };
 // Entity/player targeting
 pub use sand_commands::{
-    Damage as DamageBuilder, DamageAmount, DamageKind, GameMode, ScoreRange, Target,
+    Damage as DamageBuilder, DamageAmount, DamageKind, GameMode, ScoreRange, SortOrder, Target,
 };
 // Sound
 pub use sand_commands::{IntoSoundEvent, Sound, SoundSource, StopSoundCommand};

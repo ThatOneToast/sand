@@ -402,7 +402,10 @@ impl Target<AnyTarget, One> {
     }
 
     /// A literal player name represented as a single entity target.
-    #[sand_macros::api(registry = sand_api_contract, path = "sand::command::Target::named", aliases = ["sand::cmd::Target::named", "sand::prelude::Target::named", "sand::prelude::cmd::Target::named"], module = "sand::command", summary = "Targets one literal player name as an entity.", context = "Creates a validated literal-name target with single cardinality.", minecraft = "Emits the player name token.", use_when = ["Targeting a known literal player name in an entity-capable command"], avoid_when = ["Selecting a filtered player set"], params(name = "The literal player name."), returns = "A statically single entity target.", example = "let target = sand::command::Target::named(\"Steve\");")]
+    ///
+    /// Applying selector filters converts the literal to an equivalent
+    /// `@a[name=<name>,...,limit=1]` selector so no filter is discarded.
+    #[sand_macros::api(registry = sand_api_contract, path = "sand::command::Target::named", aliases = ["sand::cmd::Target::named", "sand::prelude::Target::named", "sand::prelude::cmd::Target::named"], module = "sand::command", summary = "Targets one literal player name as an entity.", context = "Creates a validated literal-name target with single cardinality. Applying a filter lowers it to a name-constrained @a selector while preserving single cardinality.", minecraft = "Emits the player name token when unfiltered, or @a[name=<name>,...,limit=1] when filtered.", use_when = ["Targeting a known literal player name in an entity-capable command"], avoid_when = ["Selecting players without a known literal name; use players"], params(name = "The literal player name."), returns = "A statically single entity target.", example = "let target = sand::command::Target::named(\"Steve\").tag(\"ready\");")]
     pub fn named(name: impl Into<String>) -> Self {
         Self::from_selector(Selector::player(name))
     }
@@ -470,7 +473,10 @@ impl Target<PlayersOnly, One> {
     }
 
     /// A literal player name.
-    #[sand_macros::api(registry = sand_api_contract, path = "sand::command::Target::named_player", aliases = ["sand::cmd::Target::named_player", "sand::prelude::Target::named_player", "sand::prelude::cmd::Target::named_player"], module = "sand::command", summary = "Targets one literal player name with player-only capability.", context = "Creates a validated literal player token while retaining player-only method availability.", minecraft = "Emits the supplied player name.", use_when = ["Targeting a known player name in a player-only command"], avoid_when = ["Selecting a filtered player set"], params(name = "The literal player name."), returns = "A statically single, player-only target.", example = "let target = sand::command::Target::named_player(\"Steve\");")]
+    ///
+    /// Applying selector filters converts the literal to an equivalent
+    /// `@a[name=<name>,...,limit=1]` selector so no filter is discarded.
+    #[sand_macros::api(registry = sand_api_contract, path = "sand::command::Target::named_player", aliases = ["sand::cmd::Target::named_player", "sand::prelude::Target::named_player", "sand::prelude::cmd::Target::named_player"], module = "sand::command", summary = "Targets one literal player name with player-only capability.", context = "Creates a validated literal player token while retaining player-only method availability. Applying a filter lowers it to a name-constrained @a selector while preserving single cardinality.", minecraft = "Emits the player name token when unfiltered, or @a[name=<name>,...,limit=1] when filtered.", use_when = ["Targeting a known player name in a player-only command", "Filtering one known player by tags, scores, or player-only properties"], avoid_when = ["Selecting players without a known literal name; use players"], params(name = "The literal player name."), returns = "A statically single, player-only target.", example = "let target = sand::command::Target::named_player(\"Steve\").tag(\"ready\");")]
     pub fn named_player(name: impl Into<String>) -> Self {
         Self::from_selector(Selector::player(name))
     }
@@ -534,6 +540,13 @@ impl<A> Target<PlayersOnly, A> {
 }
 
 impl<K> Target<K, Many> {
+    /// Orders a many-target expression without changing its cardinality.
+    #[sand_macros::api(registry = sand_api_contract, path = "sand::command::Target::sort", aliases = ["sand::cmd::Target::sort", "sand::prelude::Target::sort", "sand::prelude::cmd::Target::sort"], module = "sand::command", summary = "Orders the matches of a many-target expression.", context = "Keeps ordering on the canonical Target API instead of requiring a parallel query or selector type. Cardinality remains many until limit(1) or nearest() narrows it.", minecraft = "Emits sort=nearest, furthest, random, or arbitrary.", use_when = ["Controlling which matches are processed first", "Choosing a random or furthest match before narrowing with limit(1)"], avoid_when = ["Selecting the nearest single match; nearest() is shorter"], params(order = "The Minecraft selector ordering to apply."), returns = "The same many-target category with the requested ordering.", example = "let target = sand::command::Target::entities().sort(sand::command::SortOrder::Random).limit(1)?;")]
+    pub fn sort(mut self, order: SortOrder) -> Self {
+        self.raw = self.raw.sort(order);
+        self
+    }
+
     /// Narrows a many-target expression to `limit=1`.
     #[sand_macros::api(registry = sand_api_contract, path = "sand::command::Target::limit", aliases = ["sand::cmd::Target::limit", "sand::prelude::Target::limit", "sand::prelude::cmd::Target::limit"], module = "sand::command", summary = "Narrows a many-target expression to one target.", context = "Changes the hidden cardinality state only when the requested limit is exactly one.", minecraft = "Emits limit=1.", use_when = ["Passing a filtered target to a command that requires one entity"], avoid_when = ["Keeping a many-target expression"], params(n = "The limit, which must be exactly one for static narrowing."), returns = "A statically single target or a validation error.", example = "let target = sand::command::Target::entities().limit(1)?;")]
     pub fn limit(mut self, n: i32) -> CommandResult<Target<K, One>> {
@@ -637,6 +650,19 @@ impl SingleTargetArgument for Target<PlayersOnly, One> {}
 /// Sort order for entity selection in `@a`/`@e` selectors.
 ///
 /// Determines the order entities are iterated when using commands like `execute as`.
+#[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::command::SortOrder",
+    aliases = ["sand::cmd::SortOrder", "sand::prelude::SortOrder", "sand::prelude::cmd::SortOrder"],
+    module = "sand::command",
+    summary = "The ordering applied to a canonical many-target expression.",
+    context = "Selects one of Minecraft's four selector sort modes for Target::sort without introducing a separate query wrapper.",
+    minecraft = "Renders nearest, furthest, random, or arbitrary as the value of a selector sort argument.",
+    use_when = ["Ordering Target matches before iteration or limit(1) narrowing"],
+    avoid_when = ["Selecting the nearest single match; Target::nearest is shorter"],
+    example = "use sand::command::SortOrder;\nlet order = SortOrder::Random;",
+    variants(Nearest = "Nearest matches first.", Furthest = "Furthest matches first.", Random = "Matches in randomized order.", Arbitrary = "Minecraft's unspecified optimized order."),
+)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum SortOrder {
     /// Sort by distance from executor (nearest first).
@@ -1082,7 +1108,16 @@ impl fmt::Display for Selector {
             TargetBase::NearestPlayer => "@p",
             TargetBase::Self_ => "@s",
             TargetBase::RandomPlayer => "@r",
-            TargetBase::Player(n) => return write!(f, "{n}"),
+            TargetBase::Player(n) if self.args.is_empty() => return write!(f, "{n}"),
+            TargetBase::Player(n) => {
+                let args = self
+                    .args
+                    .iter()
+                    .map(|a| a.to_string())
+                    .collect::<Vec<_>>()
+                    .join(",");
+                return write!(f, "@a[name={n},{args},limit=1]");
+            }
             TargetBase::Raw(raw) | TargetBase::RawSingle(raw) => return write!(f, "{raw}"),
         };
         if self.args.is_empty() {
@@ -1129,11 +1164,15 @@ impl Validate for Selector {
             return Ok(());
         }
         if let TargetBase::Player(ref name) = self.base {
-            if !self.args.is_empty() {
+            if self
+                .args
+                .iter()
+                .any(|arg| matches!(arg, SelectorArg::Limit(_) | SelectorArg::Sort(_)))
+            {
                 return Err(CommandError::new(
                     "Selector",
                     "arguments",
-                    "literal player names cannot be combined with selector arguments",
+                    "filtered literal player names carry implicit `limit=1` and cannot set `limit` or `sort`",
                 ));
             }
             if name.is_empty()

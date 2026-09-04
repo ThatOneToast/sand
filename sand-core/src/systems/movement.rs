@@ -849,6 +849,8 @@ fn fmt_rel_coord(v: f64) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use sand_commands::Target;
+
     #[test]
     fn push_away_defaults() {
         let cmds = PushAway::new()

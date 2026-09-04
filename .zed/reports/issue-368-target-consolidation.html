@@ -25,7 +25,7 @@
   <section>
     <h2>Outcome at a glance</h2>
     <div class="grid">
-      <div class="card"><div class="caption">Supported API items</div><div class="metric">−123</div><div class="good">11,258 → 11,135</div></div>
+      <div class="card"><div class="caption">Supported API items</div><div class="metric">−117</div><div class="good">11,258 → 11,141</div></div>
       <div class="card"><div class="caption">Author-facing target types</div><div class="metric">1</div><div class="good"><code>Target</code> is canonical</div></div>
       <div class="card"><div class="caption">Follow-up audits filed</div><div class="metric">4</div><div class="amber">NBT, resources, functions, state</div></div>
     </div>
@@ -36,7 +36,7 @@
     <h2>Canonical architecture</h2>
     <div class="flow">
       <div class="node"><strong>Construct &amp; filter</strong><span><code>Target::entities()</code>, <code>players()</code>, tags, scalar ranges, score pairs, canonical predicate IDs</span></div><div class="arrow">→</div>
-      <div class="node"><strong>Narrow or iterate</strong><span><code>.nearest()</code> encodes one; <code>.each(...)</code> binds an <code>EntityContext</code></span></div><div class="arrow">→</div>
+      <div class="node"><strong>Order, narrow, or iterate</strong><span><code>.sort(...)</code> preserves many; <code>.nearest()</code> encodes one; <code>.each(...)</code> binds an <code>EntityContext</code></span></div><div class="arrow">→</div>
       <div class="node"><strong>Consume directly</strong><span>Commands, execute chains, storage, VFX, participants, and score holders</span></div>
     </div>
     <pre>let enemy = Target::entities()
@@ -51,8 +51,21 @@ cmd::damage(enemy, 4.0);</pre>
       <li><strong>Capability boundaries:</strong> player-only filters exist only on player targets; single-target commands accept only statically single targets.</li>
       <li><strong>Execution stays honest:</strong> <code>TargetExecution</code> adds <code>state</code>/<code>each</code> to the same target value, while <code>EntityContext</code> remains the distinct bound-executor concept.</li>
       <li><strong>Scoreboards stay broader:</strong> entity targets convert naturally to <code>ScoreHolder</code>; explicit <code>raw_single</code> cardinality survives that conversion, while fake players and wildcard holders remain separate valid scoreboard concepts with centralized validation.</li>
+      <li><strong>Named filters stay observable:</strong> an unfiltered named target remains the literal player token, while adding filters lowers it to <code>@a[name=&lt;player&gt;,...,limit=1]</code> so filters cannot disappear and cardinality remains one.</li>
       <li><strong>No selector-era helper vocabulary:</strong> typed level bounds are scalar methods, multiple score filters are ordinary <code>(ObjectiveName, ScoreRange)</code> pairs, and raw syntax is explicitly named <code>_raw</code>.</li>
     </ul>
+  </section>
+
+  <section>
+    <h2>Review and CI follow-up</h2>
+    <table><thead><tr><th>Signal</th><th>Finding</th><th>Resolution</th></tr></thead><tbody>
+      <tr><td>Review: raw-single conversion</td><td>Converting through the selector IR erased the caller’s explicit one-target assertion.</td><td><code>RawSingle</code> now carries that assertion through <code>ScoreHolder</code>; guarded state operations have regression coverage.</td></tr>
+      <tr><td>Review: target ordering</td><td>The query wrappers were removed before their nearest, furthest, random, and arbitrary ordering capability had moved to <code>Target</code>.</td><td><code>Target&lt;_, Many&gt;::sort</code> restores the complete ordering vocabulary without introducing another wrapper.</td></tr>
+      <tr><td>Review: named-player filters</td><td>Literal-player display returned early and silently discarded appended tag, score, game-mode, and other selector filters.</td><td>Filtered names lower to a name-constrained, <code>limit=1</code> player selector; validation rejects conflicting low-level sort/limit arguments.</td></tr>
+      <tr><td>CI: generated API health</td><td>The 1.21.4 kind breakdown and profile ratchets did not reflect the consolidated public facade.</td><td>All three deterministic profiles were regenerated and classified; latest is 11,141 identities and compatibility is 10,231, including the documented <code>SortOrder</code> value API.</td></tr>
+      <tr><td>CI: vanilla audit pack</td><td>The external fixture still called removed <code>Selector::all_players()</code> constructors.</td><td>Every fixture call now uses <code>Target::players()</code>, and the stable-profile audit build passes.</td></tr>
+      <tr><td>CI: consumer contracts</td><td>Compile fixtures and catalog assertions retained query-wrapper vocabulary; generated trait examples expanded <code>Self::Kind</code> to an ambiguous trait path.</td><td>Fixtures and catalog signatures now use <code>Target</code>, callable coverage reflects intentional removals, and trait examples substitute the generic receiver as <code>T::Kind</code>.</td></tr>
+    </tbody></table>
   </section>
 
   <section>
@@ -97,7 +110,8 @@ cmd::damage(enemy, 4.0);</pre>
       <tr><td><code>cargo check --workspace --all-targets</code></td><td>Every workspace crate, target, example, and test target</td><td class="status">Passed</td></tr>
       <tr><td><code>cargo test -p sand-core --doc</code></td><td>Generated and handwritten doctests plus compile-fail docs</td><td class="status">Passed</td></tr>
       <tr><td>Trybuild compile contracts</td><td>50 pass/fail cases, including target category and cardinality diagnostics</td><td class="status">Passed</td></tr>
-      <tr><td>Focused command/query/facade tests</td><td>Target filters, raw-single score-holder conversion, guarded timer lowering, execution lowering, public facade, API enforcement, command mapping</td><td class="status">Passed</td></tr>
+      <tr><td>Focused command/query/facade tests</td><td>Target filters, all selector sort orders, filtered named players, raw-single score-holder conversion, guarded timer lowering, execution lowering, public facade, API enforcement, command mapping</td><td class="status">Passed</td></tr>
+      <tr><td>Stable vanilla audit build</td><td>Representative external pack against Minecraft 1.21.4 generated providers and the public <code>Target</code> facade</td><td class="status">Passed</td></tr>
       <tr><td>API surface ratchet</td><td>Placeholder, Minecraft 1.21.4, and 26.2 profiles</td><td class="status">Passed</td></tr>
       <tr><td><code>git diff --check</code></td><td>Whitespace and patch integrity</td><td class="status">Passed</td></tr>
     </tbody></table>

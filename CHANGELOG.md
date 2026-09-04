@@ -27,6 +27,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Preserved the explicit cardinality assertion from `Target::raw_single`
   when converting into a `ScoreHolder`, so guarded timer, cooldown, and score
   operations continue to accept advanced single-target selector syntax.
+- Restored every Minecraft selector ordering through `Target::sort`, keeping
+  nearest, furthest, random, and arbitrary ordering on the canonical many-target
+  API before optional `limit(1)` narrowing.
+- Named targets now lower to `@a[name=<player>,...,limit=1]` when filters are
+  applied, preserving both those filters and the target's single cardinality;
+  unfiltered named targets continue to render as literal player names.
+- Updated the representative vanilla audit pack and all version-keyed API
+  surface ratchets to the consolidated `Target` facade.
+- Updated public-facade compile fixtures and API catalog expectations for the
+  consolidated surface. Generated examples for extension traits now qualify
+  `Self`-associated types through their generic receiver, so those examples
+  compile as ordinary downstream code.
 
 ### Added — version-aware world-build registry validation (#356)
 

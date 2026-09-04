@@ -34,12 +34,7 @@ fn main() {
     let marker_query = Target::entities()
         .entity_type(vanilla::EntityType::Marker)
         .nearest();
-    assert!(
-        marker_query
-            .selector()
-            .to_string()
-            .contains("type=minecraft:marker")
-    );
+    assert!(marker_query.to_string().contains("type=minecraft:marker"));
 
     // Custom/typed entity type ID also works on the same normal path.
     let custom_type = EntityTypeId::custom(ResourceLocation::new("mymod", "boss").unwrap());

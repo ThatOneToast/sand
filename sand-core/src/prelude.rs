@@ -32,8 +32,8 @@ pub use crate::cmd::{
     DataCommand, EffectDuration, Execute, Fill, FillMode, FunctionMacroArg, FunctionMacroArgs,
     GameMode, Inventory, ItemSlot, Nbt, NbtCompound, NbtRef, NbtTarget, Objective, ObjectiveName,
     Particle, ParticleBuilder, ParticleSpread, RawCommand, RenderCommand, Rotation, ScoreHolder,
-    SetBlock, SetBlockMode, Sound, SoundSource, Target, Title, TitleTimes, UntypedNbt, Validate,
-    Vec2, Vec3,
+    SetBlock, SetBlockMode, SortOrder, Sound, SoundSource, Target, Title, TitleTimes, UntypedNbt,
+    Validate, Vec2, Vec3,
 };
 pub use crate::item::{
     BlockInventory, ContainerIndex, EnderChestIndex, EntityInventory, EntityInventorySlot,

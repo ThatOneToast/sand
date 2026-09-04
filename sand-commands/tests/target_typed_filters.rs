@@ -1,7 +1,9 @@
 //! Contract tests for the canonical `Target` API and its internal selector lowering.
 
 use sand_commands::selector::{AnyTarget, Many, One, PlayersOnly};
-use sand_commands::{GameMode, ObjectiveName, RenderCommand, ScoreRange, Target, Validate};
+use sand_commands::{
+    GameMode, ObjectiveName, RenderCommand, ScoreRange, SortOrder, Target, Validate,
+};
 
 fn takes_single_entity(_: Target<AnyTarget, One>) {}
 fn takes_many_entities(_: Target<AnyTarget, Many>) {}
@@ -98,6 +100,44 @@ fn narrowing_changes_only_cardinality() {
     takes_single_player(player);
 
     assert!(Target::entities().limit(2).is_err());
+}
+
+#[test]
+fn sorting_stays_on_the_canonical_many_target_api() {
+    assert_eq!(
+        Target::entities().sort(SortOrder::Furthest).to_string(),
+        "@e[sort=furthest]"
+    );
+    assert_eq!(
+        Target::players()
+            .sort(SortOrder::Random)
+            .limit(1)
+            .unwrap()
+            .to_string(),
+        "@a[sort=random,limit=1]"
+    );
+}
+
+#[test]
+fn named_target_filters_are_rendered_and_remain_single() {
+    let player = Target::named_player("Steve")
+        .tag("ready")
+        .gamemode(GameMode::Survival);
+    assert_eq!(
+        player.to_string(),
+        "@a[name=Steve,tag=ready,gamemode=survival,limit=1]"
+    );
+    assert_eq!(
+        player.try_build().unwrap(),
+        "@a[name=Steve,tag=ready,gamemode=survival,limit=1]"
+    );
+    takes_single_player(player);
+
+    let entity = Target::named("Alex").tag("builder");
+    assert_eq!(entity.to_string(), "@a[name=Alex,tag=builder,limit=1]");
+    takes_single_entity(entity);
+
+    assert_eq!(Target::named_player("Steve").to_string(), "Steve");
 }
 
 #[test]

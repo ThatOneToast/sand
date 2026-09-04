@@ -56,10 +56,10 @@ struct PlayerState {
 
 #[function]
 pub fn discover_oasis() {
-    let state = PlayerState::on(PlayerContext::default());
+    let state = PlayerState::on(EntityContext::<PlayerKind>::default());
     state.discoveries.add(1);
     cmd::tellraw(
-        Selector::self_(),
+        Target::self_(),
         Text::new("Oasis discovered!").gold().bold(true),
     );
 }

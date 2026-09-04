@@ -9,7 +9,7 @@ static MANA: ScoreVar<i32> = ScoreVar::new("facade_mana");
 #[function]
 fn facade_hello() {
     cmd::tellraw(
-        Selector::all_players(),
+        Target::players(),
         Text::new("facade check").gold().bold(true),
     );
 }
@@ -63,7 +63,7 @@ fn export_includes_facade_declarations() {
 // glob prelude — no explicit `sand_commands::inventory` import required.
 #[test]
 fn prelude_only_inventory_try_methods_compile_and_validate() {
-    let inv = Inventory::of(Selector::self_());
+    let inv = Inventory::of(Target::self_());
 
     // Valid input on the fallible path matches the infallible builder's
     // output exactly (regression: identical generated command text).
@@ -84,6 +84,21 @@ fn prelude_only_inventory_try_methods_compile_and_validate() {
             .is_err()
     );
     let _ = inv.set(ItemSlot::Hotbar(99), "minecraft:stone");
+}
+
+#[test]
+fn canonical_predicate_id_filters_the_canonical_target() {
+    let predicate = PredicateId::custom("facade_ns:is_ready".parse().unwrap());
+    assert_eq!(
+        Target::entities().predicate(predicate).to_string(),
+        "@e[predicate=facade_ns:is_ready]"
+    );
+
+    let predicate = PredicateId::custom("facade_ns:is_ready".parse().unwrap());
+    assert_eq!(
+        Target::players().not_predicate(predicate).to_string(),
+        "@a[predicate=!facade_ns:is_ready]"
+    );
 }
 
 #[test]

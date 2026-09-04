@@ -10,15 +10,15 @@ surfaces are not retained as aliases.
 | temporary objectives | separate function-like declaration DSL and export phase | fields in a scoped `State` schema | removed |
 | entity schemas | entity-specific derive with associated handles only | `#[derive(State)]` with a concrete bound view | removed and migrated |
 | manual objective lifecycle registry | register/drain helpers plus a parallel export phase | derive-emitted immutable lifecycle descriptors | removed |
-| function command references | strings, `Display`, and `IntoFunctionRef` | one typed function reference/resolution path | follow-up; #175 open |
-| selectors used as command targets | `Selector` and string-like parameters | `EntityTargets`, `PlayerTargets`, `SingleEntity`, `SinglePlayer`, `ScoreHolder` | follow-up |
-| resource and registry identifiers | mixed strings and typed IDs | existing typed refs/IDs backed by `ResourceLocation` | follow-up |
+| function command references | strings, `Display`, and `IntoFunctionRef` | one typed function reference/resolution path | follow-up; #373 (the closed #175 covered validation, not consolidation) |
+| entity/player selection | `Selector`, entity/player target aliases, entity/player query wrappers, selector-specific range/map inputs, and a command-local predicate ID | one inferred `Target` model with direct scalar/tuple filters and the canonical `PredicateId`; `ScoreHolder` remains distinct for fake players/wildcards | completed; #368 |
+| resource and registry identifiers | mixed strings and typed IDs | existing typed refs/IDs backed by `ResourceLocation` | follow-up; #372 |
 | trim materials and patterns | raw string/JSON IDs, items, text, and overrides | typed `ItemId`, `ResourceLocation`, `TextComponent`, `TrimAssetName`, and typed override maps | completed normal paths; #198 |
 | enchantment providers | whole-provider raw JSON only | `EnchantmentProvider`, typed IDs/tags, and typed constant/uniform integer providers | completed common vanilla shapes; #188 |
 | enchantment description/item-tag/slot/effect fields | raw JSON description, bare strings for item/tag refs, string slot names, whole-map raw effects | typed `TextComponent`, `ItemOrTag`/`EnchantmentOrTag` (`ItemId`/`EnchantmentId`/`TagId<T>`), reused `EquipmentSlotGroup`, and a typed `minecraft:damage`/`minecraft:knockback`/`minecraft:armor_effectiveness` value-effect slice with `EnchantmentEffectComponentId` | completed normal paths + small effect slice; #202 |
 | consumable/equippable sound and model IDs | `Display`/string fields | `SoundEventId` and `EquipmentModelId` | completed; #195 |
 | structure-generation registries (`worldgen/structure`, `worldgen/structure_set`, `worldgen/template_pool`, `worldgen/processor_list`) | no Sand module; `RawComponent`/raw JSON only | `Structure`, `StructureSet`, `TemplatePool`, `ProcessorList` with typed IDs (`StructureId`, `StructureSetId`, `TemplatePoolId`, `ProcessorListId`, `StructureTemplateId`, `StructureTypeId`) and a shared `worldgen::providers` module (`HeightProvider`, `VerticalAnchor`, `Heightmap`, `BlockState`, `BlockStateProvider`) | completed common vanilla jigsaw/random-spread/concentric-rings/processor shapes with named raw escape hatches; #187 |
-| storage and NBT paths | strings plus typed paths | `StorageLocation`, `NbtRef`, `NbtPath` | follow-up |
+| storage and NBT paths | strings plus typed paths | one canonical NBT root/reference/path model | follow-up; #371 |
 | loot table item/tag/reference/text/enchantment IDs | raw strings and `serde_json::Value` | `ItemId`, `TagId<ItemId>`, `LootTableId`, `TextComponent`-backed `LootText`, `EnchantmentSelector` (`EnchantmentId`/`TagId<EnchantmentId>`), `ResourceLocation` | completed normal paths; predicate/range/target payloads remain raw pending #137; #185 |
 | standalone predicate authoring | `Predicate` as a thin `LootCondition` wrapper | dedicated `PredicateRoot` typed condition tree (`AllOf`/`AnyOf`/`Inverted`, `EntityProperties` with `EntityPredicateTarget`, `LocationCheck`, `WeatherCheck`, `TimeCheck`, `RandomChance`, `Reference` via typed `PredicateId`) reusing the shared `sand_components::predicates` model, with an explicit `Raw` escape hatch and a `Predicate::from_loot_condition` compatibility path | completed; #204 |
 | chicken/cow/pig animal variant registries | absent (`RawComponent`/`RawJson` only) | `ChickenVariant`/`CowVariant`/`PigVariant`, shared `SpawnCondition` (`minecraft:biome` condition), `ChickenVariantId`/`CowVariantId`/`PigVariantId` | narrow first pass covering `asset_id` + biome `spawn_conditions`; other fields (e.g. `cow_variant` model selector) and non-biome condition types remain `raw_field`; #201 |
@@ -61,8 +61,21 @@ components, bundles, queries, systems, lifecycle, migrations, archetypes, and
 global resources. Low-level command primitives remain available for advanced
 work, but they are no longer a second state framework.
 
+## Selection boundaries retained deliberately
+
+The consolidation does not equate every type that eventually mentions an
+entity. `Target` owns selector-compatible construction, filtering, narrowing,
+command consumption, score-holder conversion, and `.each(...)` execution.
+`EntityContext` remains the currently bound executor inside generated command
+code. `StateQuery` remains component-presence composition. Relationship
+chaining returns `RelationTraversal` because it lowers to vanilla
+`execute on <relation>`, not to a selector expression. Likewise, the predicate
+JSON structs model distinct vanilla schemas; only the duplicate command-local
+predicate identifier was removed in favor of the generated canonical
+`PredicateId`.
+
 ## Ordered remaining slices
 
-1. Complete #175 around a single typed function-reference resolution path.
-2. Canonicalize score holders and player/entity target cardinality.
-3. Canonicalize storage/NBT and registry/resource identifiers.
+1. Consolidate function-reference resolution beyond the validation completed by #175 (#373).
+2. Canonicalize storage/NBT roots (#371) and registry/resource conversion traits (#372).
+3. Move retained low-level state primitives out of the beginner/default surface (#374).

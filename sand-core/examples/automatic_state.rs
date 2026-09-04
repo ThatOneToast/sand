@@ -19,7 +19,7 @@ struct PlayerState {
 }
 
 fn main() {
-    let state = PlayerState::on(PlayerContext::default());
+    let state = PlayerState::on(EntityContext::<PlayerKind>::default());
     let _commands = (
         state.mana.set(50),
         state.phase.set(Phase::Playing),

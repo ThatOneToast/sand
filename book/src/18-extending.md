@@ -25,7 +25,7 @@ DamageTracker::tick_players(); // in tick
 TypedExecute::as_players()
     .when(DamageTracker::hurt_within("@s", Ticks::seconds(3)))
     .run(Actionbar::show(
-        Selector::self_(),
+        Target::self_(),
         Text::new("Catch your breath...").red(),
     ));
 ```

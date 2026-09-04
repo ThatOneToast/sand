@@ -4,7 +4,7 @@
 //! All positions are relative to the executing entity (`~x ~y ~z`), so effects
 //! can be attached to players, mobs, or locations via `execute at @s ...`.
 
-use sand_core::cmd::{Execute, Particle, ParticleBuilder, ParticleSpread, Selector, TextComponent};
+use sand_core::cmd::{Execute, Particle, ParticleBuilder, ParticleSpread, Target, TextComponent};
 use sand_core::mcfunction;
 use sand_macros::{datapack_component, function, run_fn};
 
@@ -192,8 +192,8 @@ pub fn torus_gate() {
 pub fn rotating_ring_tick() {
     mcfunction! {
         Execute::new()
-            .as_(Selector::all_players())
-            .at(Selector::self_())
+            .as_(Target::players())
+            .at(Target::self_())
             .run(run_fn!({
                 for cmd in &ParticleBuilder::new(Particle::dust_hex(0xFF4400, 1.0))
                     .speed(0.0)

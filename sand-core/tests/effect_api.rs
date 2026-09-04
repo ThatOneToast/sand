@@ -1,4 +1,4 @@
-use sand_core::cmd::{self, Selector};
+use sand_core::cmd::{self, Target};
 use sand_core::{
     EffectId, IntRange, PotionContents, PotionId, PotionRegistryId, StatusEffectId,
     StatusEffectInstance, Ticks,
@@ -8,16 +8,16 @@ use serde_json::json;
 #[test]
 fn typed_effect_commands_use_public_core_api() {
     assert_eq!(
-        cmd::effect_give(Selector::self_(), EffectId::Speed)
+        cmd::effect_give(Target::self_(), EffectId::Speed)
             .duration(Ticks::seconds(10))
             .amplifier(1)
             .particles(false)
             .to_string(),
         "effect give @s minecraft:speed 10 1 true"
     );
-    assert_eq!(cmd::effect_clear(Selector::self_()), "effect clear @s");
+    assert_eq!(cmd::effect_clear(Target::self_()), "effect clear @s");
     assert_eq!(
-        cmd::effect_clear_effect(Selector::self_(), EffectId::Regeneration),
+        cmd::effect_clear_effect(Target::self_(), EffectId::Regeneration),
         "effect clear @s minecraft:regeneration"
     );
 }

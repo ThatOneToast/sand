@@ -34,7 +34,7 @@ stamina cost, starting the cooldown, applying vanilla effects
 (`Speed`/`SlowFalling` standing in for a grapple's momentum, since Sand
 commands can't grant arbitrary physics velocity — see
 [Vanilla Limitations](reference/vanilla-limitations.md)), and playing VFX
-(chapter 13). `Selector::self_()` (`@s`) is correct here because this
+(chapter 13). `Target::self_()` (`@s`) is correct here because this
 function is always reached from inside the `as @a` context `trail:grapple`
 already established — `@s` means "the player the outer execute is
 currently iterating," not "whoever ran this command directly."

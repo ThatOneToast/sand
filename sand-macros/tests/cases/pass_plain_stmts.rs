@@ -1,12 +1,12 @@
 use sand_macros::function;
-use sand_core::cmd::{self, Selector};
+use sand_core::cmd::{self, Target};
 
 // Plain expression statements — no mcfunction! needed.
 // Each semicolon-terminated expression becomes a command.
 // let bindings work for local variables.
 #[function]
 fn greet() {
-    let target = Selector::all_players();
+    let target = Target::all_players();
     cmd::say("Welcome to the server!");
     cmd::tellraw(target, sand_core::cmd::Text::new("Welcome").gold());
 }

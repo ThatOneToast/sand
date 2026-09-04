@@ -19,7 +19,7 @@ Use `Text`/`TextComponent` for normal content:
 
 ```rust,ignore
 cmd::tellraw(
-    Selector::self_(),
+    Target::self_(),
     Text::new("Inspect")
         .color_hex("#12ff00")
         .hover_item("minecraft:diamond"),
@@ -42,8 +42,8 @@ unchanged. Sand still validates typed children surrounding an opaque field.
 Use `TitleTimes` when timing is the whole command:
 
 ```rust,ignore
-TitleTimes::new(Selector::all_players(), 10, 70, 20).build();
-Actionbar::show(Selector::self_(), Text::new("Dash ready").aqua());
+TitleTimes::new(Target::players(), 10, 70, 20).build();
+Actionbar::show(Target::self_(), Text::new("Dash ready").aqua());
 ```
 
 Bossbars use `BossbarId`; IDs are resource locations and player audiences are
@@ -54,7 +54,7 @@ let id = BossbarId::parse("trail:guardian")?;
 Bossbar::add(id.clone(), Text::new("Guardian").red());
 Bossbar::set_max(id.clone(), 100);
 Bossbar::set_value(id.clone(), 40);
-Bossbar::set_players(id, Selector::all_players());
+Bossbar::set_players(id, Target::players());
 # Ok::<(), sand_commands::CommandError>(())
 ```
 
@@ -84,12 +84,12 @@ maximum volume or pitch:
 ```rust,ignore
 Sound::play("my_pack:boss.roar")
     .source(SoundSource::Hostile)
-    .to(Selector::all_players())
+    .to(Target::players())
     .volume(1.5)
     .pitch(0.8);
 
 Sound::stop_event(
-    Selector::all_players(),
+    Target::players(),
     SoundSource::Hostile,
     "my_pack:boss.roar",
 );
@@ -105,8 +105,8 @@ Minecraft's `effect give` command stores duration in whole seconds. Prefer
 only when the tick count is a positive multiple of 20; Sand never truncates:
 
 ```rust,ignore
-cmd::effect_give(Selector::self_(), EffectId::Speed).seconds(10);
-cmd::effect_give(Selector::self_(), EffectId::Strength).infinite();
+cmd::effect_give(Target::self_(), EffectId::Speed).seconds(10);
+cmd::effect_give(Target::self_(), EffectId::Strength).infinite();
 ```
 
 Typed seconds are limited to Minecraft's `1..=1_000_000` command domain.
@@ -116,8 +116,8 @@ when required by the command grammar. `effect_give_raw` remains the opt-out.
 
 ## Migrating broad string calls
 
-Prefer `Selector`, `BossbarId`, typed enums, `TextComponent`, and validated
+Prefer `Target`, `BossbarId`, typed enums, `TextComponent`, and validated
 resource IDs. Existing bossbar string IDs are checked at export for
 compatibility; new code should parse once into `BossbarId`. Replace raw
-actionbar selectors with `Selector`, and use explicit `_raw` constructors only
+actionbar selectors with `Target`, and use explicit `_raw` constructors only
 where Sand cannot model the syntax.

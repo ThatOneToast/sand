@@ -8,14 +8,14 @@
 //!
 //! let cmds = vec![
 //!     say("Hello, world!"),
-//!     tag_add(Selector::self_(), "has_sword"),
-//!     kill(Selector::all_entities().not_tag("immortal")),
+//!     tag_add(Target::self_(), "has_sword"),
+//!     kill(Target::entities().not_tag("immortal")),
 //! ];
 //! ```
 
 use crate::coord::{Rotation, Vec3};
 use crate::error::CommandResult;
-use crate::selector::{EntityTargets, IntoEntityType, Selector, SingleEntity};
+use crate::selector::{IntoEntityType, Selector, SingleTargetArgument, Target, TargetArgument};
 use crate::text::TextComponent;
 use crate::validate;
 
@@ -42,12 +42,12 @@ pub fn try_say(message: impl Into<String>) -> CommandResult<String> {
 /// `tell <target> <message>` / `msg` — send a private message to the target.
 ///
 /// Raw/unchecked: see [`say`]. Prefer [`try_tell`] on the validated path.
-pub fn tell(target: Selector, message: impl Into<String>) -> String {
+pub fn tell(target: impl TargetArgument, message: impl Into<String>) -> String {
     format!("tell {} {}", target, message.into())
 }
 
 /// Fallible [`tell`] — rejects an empty message or control characters.
-pub fn try_tell(target: Selector, message: impl Into<String>) -> CommandResult<String> {
+pub fn try_tell(target: impl TargetArgument, message: impl Into<String>) -> CommandResult<String> {
     let message = message.into();
     validate::no_control_characters(&message, "tell", "message")?;
     Ok(format!("tell {target} {message}"))
@@ -105,7 +105,7 @@ pub fn try_tellraw_raw(
 // ── Entity management ─────────────────────────────────────────────────────────
 
 /// `kill <selector>` — kill all entities matching the selector.
-pub fn kill(selector: Selector) -> String {
+pub fn kill(selector: impl TargetArgument) -> String {
     format!("kill {}", selector)
 }
 
@@ -154,7 +154,7 @@ pub fn summon_here(entity_type: impl IntoEntityType) -> String {
 }
 
 /// `tp <target> <destination>` — teleport the target to another entity's position.
-pub fn tp_to_entity(target: Selector, destination: Selector) -> String {
+pub fn tp_to_entity(target: impl TargetArgument, destination: impl TargetArgument) -> String {
     format!("tp {} {}", target, destination)
 }
 
@@ -162,12 +162,12 @@ pub fn tp_to_entity(target: Selector, destination: Selector) -> String {
 ///
 /// Raw/unchecked: accepts non-finite coordinates. Prefer [`try_tp`] on the
 /// validated path.
-pub fn tp(target: Selector, x: f64, y: f64, z: f64) -> String {
+pub fn tp(target: impl TargetArgument, x: f64, y: f64, z: f64) -> String {
     format!("tp {} {} {} {}", target, x, y, z)
 }
 
 /// Fallible [`tp`] — rejects non-finite coordinates before producing command text.
-pub fn try_tp(target: Selector, x: f64, y: f64, z: f64) -> CommandResult<String> {
+pub fn try_tp(target: impl TargetArgument, x: f64, y: f64, z: f64) -> CommandResult<String> {
     validate::finite(x, "tp", "x")?;
     validate::finite(y, "tp", "y")?;
     validate::finite(z, "tp", "z")?;
@@ -178,7 +178,7 @@ pub fn try_tp(target: Selector, x: f64, y: f64, z: f64) -> CommandResult<String>
 ///
 /// Raw/unchecked: accepts non-finite offsets. Prefer [`try_tp_relative`] on
 /// the validated path.
-pub fn tp_relative(target: Selector, dx: f64, dy: f64, dz: f64) -> String {
+pub fn tp_relative(target: impl TargetArgument, dx: f64, dy: f64, dz: f64) -> String {
     let fmt_r = |v: f64| -> String {
         if v == 0.0 {
             "~".to_string()
@@ -193,7 +193,12 @@ pub fn tp_relative(target: Selector, dx: f64, dy: f64, dz: f64) -> String {
 
 /// Fallible [`tp_relative`] — rejects non-finite offsets before producing
 /// command text.
-pub fn try_tp_relative(target: Selector, dx: f64, dy: f64, dz: f64) -> CommandResult<String> {
+pub fn try_tp_relative(
+    target: impl TargetArgument,
+    dx: f64,
+    dy: f64,
+    dz: f64,
+) -> CommandResult<String> {
     validate::finite(dx, "tp_relative", "dx")?;
     validate::finite(dy, "tp_relative", "dy")?;
     validate::finite(dz, "tp_relative", "dz")?;
@@ -206,17 +211,17 @@ pub fn try_tp_relative(target: Selector, dx: f64, dy: f64, dz: f64) -> CommandRe
 ///
 /// # Examples
 /// ```
-/// use sand_commands::{Selector, coord::{Vec3, Coord}};
+/// use sand_commands::{Target, coord::{Vec3, Coord}};
 /// use sand_commands::builtins::tp_vec3;
 ///
-/// assert_eq!(tp_vec3(Selector::self_(), Vec3::here()), "tp @s ~ ~ ~");
-/// assert_eq!(tp_vec3(Selector::self_(), Vec3::absolute(10.0, 64.0, -5.0)), "tp @s 10 64 -5");
+/// assert_eq!(tp_vec3(Target::self_(), Vec3::here()), "tp @s ~ ~ ~");
+/// assert_eq!(tp_vec3(Target::self_(), Vec3::absolute(10.0, 64.0, -5.0)), "tp @s 10 64 -5");
 /// assert_eq!(
-///     tp_vec3(Selector::self_(), Vec3::new(Coord::local_n(0.0), Coord::local_n(0.5), Coord::local_n(2.0))),
+///     tp_vec3(Target::self_(), Vec3::new(Coord::local_n(0.0), Coord::local_n(0.5), Coord::local_n(2.0))),
 ///     "tp @s ^ ^0.5 ^2",
 /// );
 /// ```
-pub fn tp_vec3(target: Selector, pos: Vec3) -> String {
+pub fn tp_vec3(target: impl TargetArgument, pos: Vec3) -> String {
     format!("tp {} {}", target, pos)
 }
 
@@ -224,13 +229,13 @@ pub fn tp_vec3(target: Selector, pos: Vec3) -> String {
 ///
 /// # Example
 /// ```
-/// use sand_commands::{Selector, coord::{Vec3, Rotation}};
+/// use sand_commands::{Target, coord::{Vec3, Rotation}};
 /// use sand_commands::builtins::tp_with_rotation;
 ///
-/// let cmd = tp_with_rotation(Selector::self_(), Vec3::here(), Rotation::absolute(90.0, 0.0));
+/// let cmd = tp_with_rotation(Target::self_(), Vec3::here(), Rotation::absolute(90.0, 0.0));
 /// assert_eq!(cmd, "tp @s ~ ~ ~ 90 0");
 /// ```
-pub fn tp_with_rotation(target: Selector, pos: Vec3, rotation: Rotation) -> String {
+pub fn tp_with_rotation(target: impl TargetArgument, pos: Vec3, rotation: Rotation) -> String {
     format!("tp {} {} {}", target, pos, rotation)
 }
 
@@ -287,13 +292,13 @@ pub fn summon_at_with_nbt(
 /// Raw/unchecked: accepts empty tags or tags containing whitespace/control
 /// characters, which Minecraft's command grammar splits on. Prefer
 /// [`try_tag_add`] on the validated path.
-pub fn tag_add(selector: Selector, tag: impl Into<String>) -> String {
+pub fn tag_add(selector: impl TargetArgument, tag: impl Into<String>) -> String {
     format!("tag {} add {}", selector, tag.into())
 }
 
 /// Fallible [`tag_add`] — rejects empty tags and tags containing
 /// whitespace/control characters.
-pub fn try_tag_add(selector: Selector, tag: impl Into<String>) -> CommandResult<String> {
+pub fn try_tag_add(selector: impl TargetArgument, tag: impl Into<String>) -> CommandResult<String> {
     let tag = tag.into();
     validate::no_whitespace_or_control(&tag, "tag_add", "tag")?;
     Ok(format!("tag {selector} add {tag}"))
@@ -302,13 +307,16 @@ pub fn try_tag_add(selector: Selector, tag: impl Into<String>) -> CommandResult<
 /// `tag <selector> remove <tag>` — remove a tag from matching entities.
 ///
 /// Raw/unchecked: see [`tag_add`]. Prefer [`try_tag_remove`] on the validated path.
-pub fn tag_remove(selector: Selector, tag: impl Into<String>) -> String {
+pub fn tag_remove(selector: impl TargetArgument, tag: impl Into<String>) -> String {
     format!("tag {} remove {}", selector, tag.into())
 }
 
 /// Fallible [`tag_remove`] — rejects empty tags and tags containing
 /// whitespace/control characters.
-pub fn try_tag_remove(selector: Selector, tag: impl Into<String>) -> CommandResult<String> {
+pub fn try_tag_remove(
+    selector: impl TargetArgument,
+    tag: impl Into<String>,
+) -> CommandResult<String> {
     let tag = tag.into();
     validate::no_whitespace_or_control(&tag, "tag_remove", "tag")?;
     Ok(format!("tag {selector} remove {tag}"))
@@ -317,22 +325,22 @@ pub fn try_tag_remove(selector: Selector, tag: impl Into<String>) -> CommandResu
 // ── Gamemode ──────────────────────────────────────────────────────────────────
 
 /// `gamemode survival <selector>`.
-pub fn gamemode_survival(selector: Selector) -> String {
+pub fn gamemode_survival(selector: impl TargetArgument) -> String {
     format!("gamemode survival {}", selector)
 }
 
 /// `gamemode creative <selector>`.
-pub fn gamemode_creative(selector: Selector) -> String {
+pub fn gamemode_creative(selector: impl TargetArgument) -> String {
     format!("gamemode creative {}", selector)
 }
 
 /// `gamemode adventure <selector>`.
-pub fn gamemode_adventure(selector: Selector) -> String {
+pub fn gamemode_adventure(selector: impl TargetArgument) -> String {
     format!("gamemode adventure {}", selector)
 }
 
 /// `gamemode spectator <selector>`.
-pub fn gamemode_spectator(selector: Selector) -> String {
+pub fn gamemode_spectator(selector: impl TargetArgument) -> String {
     format!("gamemode spectator {}", selector)
 }
 
@@ -341,7 +349,7 @@ pub fn gamemode_spectator(selector: Selector) -> String {
 /// Raw/unchecked: accepts any string, including modes vanilla doesn't
 /// recognize. Prefer the fixed-mode helpers above, or [`try_gamemode`] on the
 /// validated path.
-pub fn gamemode(mode: impl Into<String>, selector: Selector) -> String {
+pub fn gamemode(mode: impl Into<String>, selector: impl TargetArgument) -> String {
     format!("gamemode {} {}", mode.into(), selector)
 }
 
@@ -350,7 +358,10 @@ pub const VALID_GAMEMODES: &[&str] = &["survival", "creative", "adventure", "spe
 
 /// Fallible [`gamemode`] — rejects any mode string outside
 /// [`VALID_GAMEMODES`].
-pub fn try_gamemode(mode: impl Into<String>, selector: Selector) -> CommandResult<String> {
+pub fn try_gamemode(
+    mode: impl Into<String>,
+    selector: impl TargetArgument,
+) -> CommandResult<String> {
     let mode = mode.into();
     if !VALID_GAMEMODES.contains(&mode.as_str()) {
         return Err(crate::error::CommandError::new(
@@ -372,7 +383,7 @@ pub fn try_gamemode(mode: impl Into<String>, selector: Selector) -> CommandResul
 /// Raw/unchecked: accepts any string effect id. Prefer [`try_effect_give`] on
 /// the validated path.
 pub fn effect_give(
-    selector: Selector,
+    selector: impl TargetArgument,
     effect: impl Into<String>,
     duration: u32,
     amplifier: u8,
@@ -389,7 +400,7 @@ pub fn effect_give(
 /// Fallible [`effect_give`] — rejects an effect id that isn't a valid
 /// `namespace:path` resource location.
 pub fn try_effect_give(
-    selector: Selector,
+    selector: impl TargetArgument,
     effect: impl Into<String>,
     duration: u32,
     amplifier: u8,
@@ -406,7 +417,7 @@ pub fn try_effect_give(
 /// Raw/unchecked: accepts any string effect id. Prefer
 /// [`try_effect_give_hidden`] on the validated path.
 pub fn effect_give_hidden(
-    selector: Selector,
+    selector: impl TargetArgument,
     effect: impl Into<String>,
     duration: u32,
     amplifier: u8,
@@ -423,7 +434,7 @@ pub fn effect_give_hidden(
 /// Fallible [`effect_give_hidden`] — rejects an effect id that isn't a valid
 /// `namespace:path` resource location.
 pub fn try_effect_give_hidden(
-    selector: Selector,
+    selector: impl TargetArgument,
     effect: impl Into<String>,
     duration: u32,
     amplifier: u8,
@@ -436,7 +447,7 @@ pub fn try_effect_give_hidden(
 }
 
 /// `effect clear <selector>` — clear all status effects.
-pub fn effect_clear(selector: Selector) -> String {
+pub fn effect_clear(selector: impl TargetArgument) -> String {
     format!("effect clear {}", selector)
 }
 
@@ -444,14 +455,14 @@ pub fn effect_clear(selector: Selector) -> String {
 ///
 /// Raw/unchecked: accepts any string effect id. Prefer
 /// [`try_effect_clear_effect`] on the validated path.
-pub fn effect_clear_effect(selector: Selector, effect: impl Into<String>) -> String {
+pub fn effect_clear_effect(selector: impl TargetArgument, effect: impl Into<String>) -> String {
     format!("effect clear {} {}", selector, effect.into())
 }
 
 /// Fallible [`effect_clear_effect`] — rejects an effect id that isn't a
 /// valid `namespace:path` resource location.
 pub fn try_effect_clear_effect(
-    selector: Selector,
+    selector: impl TargetArgument,
     effect: impl Into<String>,
 ) -> CommandResult<String> {
     let effect = effect.into();
@@ -465,7 +476,7 @@ pub fn try_effect_clear_effect(
 ///
 /// A negative `amount` is valid vanilla syntax (it subtracts experience),
 /// so this stays infallible — there is no invalid-input shape to reject.
-pub fn xp_add_points(selector: Selector, amount: i32) -> String {
+pub fn xp_add_points(selector: impl TargetArgument, amount: i32) -> String {
     format!("experience add {} {} points", selector, amount)
 }
 
@@ -473,7 +484,7 @@ pub fn xp_add_points(selector: Selector, amount: i32) -> String {
 ///
 /// A negative `amount` is valid vanilla syntax (it subtracts levels), so
 /// this stays infallible — there is no invalid-input shape to reject.
-pub fn xp_add_levels(selector: Selector, amount: i32) -> String {
+pub fn xp_add_levels(selector: impl TargetArgument, amount: i32) -> String {
     format!("experience add {} {} levels", selector, amount)
 }
 
@@ -481,7 +492,7 @@ pub fn xp_add_levels(selector: Selector, amount: i32) -> String {
 ///
 /// `amount` is unsigned, so a negative value cannot reach this helper —
 /// there is no invalid-input shape to reject, so this stays infallible.
-pub fn xp_set_points(selector: Selector, amount: u32) -> String {
+pub fn xp_set_points(selector: impl TargetArgument, amount: u32) -> String {
     format!("experience set {} {} points", selector, amount)
 }
 
@@ -491,12 +502,12 @@ pub fn xp_set_points(selector: Selector, amount: u32) -> String {
 /// subcommand rejects (unlike `add`, which legitimately accepts negative
 /// amounts to subtract experience). Prefer [`try_xp_set_levels`] on the
 /// validated path.
-pub fn xp_set_levels(selector: Selector, amount: i32) -> String {
+pub fn xp_set_levels(selector: impl TargetArgument, amount: i32) -> String {
     format!("experience set {} {} levels", selector, amount)
 }
 
 /// Fallible [`xp_set_levels`] — rejects a negative level count.
-pub fn try_xp_set_levels(selector: Selector, amount: i32) -> CommandResult<String> {
+pub fn try_xp_set_levels(selector: impl TargetArgument, amount: i32) -> CommandResult<String> {
     if amount < 0 {
         return Err(crate::error::CommandError::new(
             "xp_set_levels",
@@ -543,20 +554,23 @@ pub fn try_team_remove(team: impl Into<String>) -> CommandResult<String> {
 /// `team join <team> <selector>` — add entities to a team.
 ///
 /// Raw/unchecked: see [`team_add`]. Prefer [`try_team_join`] on the validated path.
-pub fn team_join(team: impl Into<String>, selector: Selector) -> String {
+pub fn team_join(team: impl Into<String>, selector: impl TargetArgument) -> String {
     format!("team join {} {}", team.into(), selector)
 }
 
 /// Fallible [`team_join`] — rejects empty team names or names containing
 /// whitespace/control characters.
-pub fn try_team_join(team: impl Into<String>, selector: Selector) -> CommandResult<String> {
+pub fn try_team_join(
+    team: impl Into<String>,
+    selector: impl TargetArgument,
+) -> CommandResult<String> {
     let team = team.into();
     validate::no_whitespace_or_control(&team, "team_join", "team")?;
     Ok(format!("team join {team} {selector}"))
 }
 
 /// `team leave <selector>` — remove entities from their current team.
-pub fn team_leave(selector: Selector) -> String {
+pub fn team_leave(selector: impl TargetArgument) -> String {
     format!("team leave {}", selector)
 }
 
@@ -748,22 +762,22 @@ pub fn gamerule_fire_tick(enabled: bool) -> String {
 /// Vanilla accepts exactly one entity target. Use [`Damage`] for high-level
 /// damage that can safely target many entities.
 pub fn damage(
-    target: impl Into<SingleEntity>,
+    target: impl SingleTargetArgument,
     amount: f64,
     damage_type: impl Into<String>,
 ) -> String {
-    let target = target.into();
+    let target = target.into_single_target_selector();
     format!("damage {} {} {}", target, amount, damage_type.into())
 }
 
 /// Fallible [`damage`] — rejects a non-finite amount or a damage type that
 /// isn't a valid `namespace:path` resource location.
 pub fn try_damage(
-    target: impl Into<SingleEntity>,
+    target: impl SingleTargetArgument,
     amount: f64,
     damage_type: impl Into<String>,
 ) -> CommandResult<String> {
-    let target = target.into();
+    let target = target.into_single_target_selector();
     let damage_type = damage_type.into();
     validate::finite(amount, "damage", "amount")?;
     validate::resource_location_shape(&damage_type, "damage", "damage_type")?;
@@ -1001,14 +1015,14 @@ pub struct Damage {
     targets: DamageTargets,
     amount: DamageAmount,
     damage_type: String,
-    source: Option<SingleEntity>,
-    centered_at: Option<SingleEntity>,
+    source: Option<Selector>,
+    centered_at: Option<Selector>,
 }
 
 #[derive(Debug, Clone)]
-pub enum DamageTargets {
-    One(SingleEntity),
-    Many(EntityTargets),
+enum DamageTargets {
+    One(Selector),
+    Many(Selector),
 }
 
 impl Damage {
@@ -1029,7 +1043,7 @@ impl Damage {
     )]
     pub fn new() -> Self {
         Self {
-            targets: DamageTargets::One(SingleEntity::self_()),
+            targets: DamageTargets::One(Selector::self_()),
             amount: DamageAmount::Fixed(1.0),
             damage_type: DamageKind::Generic.as_str().to_string(),
             source: None,
@@ -1051,11 +1065,13 @@ impl Damage {
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
         params(source = "Start a reflected-damage builder centered on `source`."),
         returns = "A `DamageBuilder` initialized to a reflected-damage builder centered on `source`.",
-        example = "use sand::prelude::*;\n\nfn demonstrate(source: impl Into < sand::command::SingleEntity >)  {\n    let damage_builder = sand::command::DamageBuilder::reflect_from(source);\n}",
+        example = "use sand::prelude::*;\nlet damage_builder = DamageBuilder::reflect_from(Target::self_());",
     )]
-    pub fn reflect_from(source: impl Into<SingleEntity>) -> Self {
-        let source = source.into();
-        Self::new().centered_at(source)
+    pub fn reflect_from(source: impl SingleTargetArgument) -> Self {
+        let source = source.into_single_target_selector();
+        let mut damage = Self::new();
+        damage.centered_at = Some(source);
+        damage
     }
 
     /// Set target entity or entities.
@@ -1072,10 +1088,15 @@ impl Damage {
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
         params(targets = "`targets` provides the Minecraft target selection used to set target entity or entities."),
         returns = "The `DamageBuilder` value with the documented change applied to set target entity or entities.",
-        example = "use sand::prelude::*;\n\nfn demonstrate(damage_builder_value: sand::command::DamageBuilder, targets: impl sand::command::IntoDamageTargets)  {\n    let updated_damage_builder = damage_builder_value.to(targets);\n}",
+        example = "use sand::prelude::*;\nlet damage = DamageBuilder::new().to(Target::entities().tag(\"enemy\"));",
     )]
-    pub fn to(mut self, targets: impl IntoDamageTargets) -> Self {
-        self.targets = targets.into_damage_targets();
+    pub fn to<K, A>(mut self, targets: Target<K, A>) -> Self {
+        let selector = targets.into_target_selector();
+        self.targets = if selector.is_statically_single() {
+            DamageTargets::One(selector)
+        } else {
+            DamageTargets::Many(selector)
+        };
         self
     }
 
@@ -1155,10 +1176,10 @@ impl Damage {
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
         params(source = "`source` is used to attribute the damage source to a single entity."),
         returns = "The `DamageBuilder` value with the documented change applied to attribute the damage source to a single entity.",
-        example = "use sand::prelude::*;\n\nfn demonstrate(damage_builder_value: sand::command::DamageBuilder, source: impl Into < sand::command::SingleEntity >)  {\n    let updated_damage_builder = damage_builder_value.source(source);\n}",
+        example = "use sand::prelude::*;\nlet damage_builder = DamageBuilder::new().source(Target::self_());",
     )]
-    pub fn source(mut self, source: impl Into<SingleEntity>) -> Self {
-        self.source = Some(source.into());
+    pub fn source(mut self, source: impl SingleTargetArgument) -> Self {
+        self.source = Some(source.into_single_target_selector());
         self
     }
 
@@ -1196,10 +1217,10 @@ impl Damage {
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
         params(center = "`center` provides the center used when running target selection at another single entity's position."),
         returns = "The `DamageBuilder` value with the documented change applied to run target selection at another single entity's position.",
-        example = "use sand::prelude::*;\n\nfn demonstrate(damage_builder_value: sand::command::DamageBuilder, center: impl Into < sand::command::SingleEntity >)  {\n    let updated_damage_builder = damage_builder_value.centered_at(center);\n}",
+        example = "use sand::prelude::*;\nlet damage_builder = DamageBuilder::new().centered_at(Target::self_());",
     )]
-    pub fn centered_at(mut self, center: impl Into<SingleEntity>) -> Self {
-        self.centered_at = Some(center.into());
+    pub fn centered_at(mut self, center: impl SingleTargetArgument) -> Self {
+        self.centered_at = Some(center.into_single_target_selector());
         self
     }
 
@@ -1242,7 +1263,7 @@ impl Damage {
             }
             DamageTargets::Many(targets) => {
                 let inner =
-                    damage_command(SingleEntity::self_(), amount, &damage_type, source.as_ref());
+                    damage_command(Selector::self_(), amount, &damage_type, source.as_ref());
                 let prefix = match centered_at {
                     Some(center) => format!("execute at {center} as {targets}"),
                     None => format!("execute as {targets}"),
@@ -1277,10 +1298,10 @@ impl Damage {
 }
 
 fn damage_command(
-    target: SingleEntity,
+    target: Selector,
     amount: f64,
     damage_type: &str,
-    source: Option<&SingleEntity>,
+    source: Option<&Selector>,
 ) -> String {
     let base = format!("damage {target} {amount} {damage_type}");
     match source {
@@ -1295,63 +1316,22 @@ impl Default for Damage {
     }
 }
 
-/// Converts typed target wrappers into the damage builder's target model.
-#[sand_macros::api(
-    registry = sand_api_contract,
-    path = "sand::command::IntoDamageTargets",
-    aliases = ["sand::cmd::IntoDamageTargets", "sand::prelude::cmd::IntoDamageTargets"],
-    module = "sand::command",
-    summary = "Converts typed target wrappers into the damage builder's target model.",
-    context = "Converts typed target wrappers into the damage builder's target model. This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
-    minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
-    use_when = ["Constructing Minecraft commands through Sand's typed command model"],
-    avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-    example = "use sand::command::IntoDamageTargets;",
-)]
-pub trait IntoDamageTargets {
-    /// Converts the receiver into either one entity or a selector-backed set
-    /// of entities accepted by [`Damage::to`].
-    #[sand_macros::api(
-        registry = sand_api_contract,
-        path = "sand::command::IntoDamageTargets::into_damage_targets",
-        aliases = ["sand::cmd::IntoDamageTargets::into_damage_targets", "sand::prelude::cmd::IntoDamageTargets::into_damage_targets"],
-        module = "sand::command",
-        summary = "Converts the receiver into either one entity or a selector-backed set of entities accepted by [`Damage::to`].",
-        context = "Converts the receiver into either one entity or a selector-backed set of entities accepted by [`Damage::to`]. This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
-        minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
-        use_when = ["Constructing Minecraft commands through Sand's typed command model"],
-        avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        returns = "The `DamageTargets` value produced to convert the receiver into either one entity or a selector-backed set of entities accepted by [`Damage::to`].",
-        example = "use sand::prelude::*;\n\nfn demonstrate<T: sand::command::IntoDamageTargets>(into_damage_targets_value: T)  {\n    let into_damage_targets = into_damage_targets_value.into_damage_targets();\n}",
-    )]
-    fn into_damage_targets(self) -> DamageTargets;
-}
-
-impl IntoDamageTargets for SingleEntity {
-    fn into_damage_targets(self) -> DamageTargets {
-        DamageTargets::One(self)
-    }
-}
-
-impl IntoDamageTargets for EntityTargets {
-    fn into_damage_targets(self) -> DamageTargets {
-        DamageTargets::Many(self)
-    }
-}
-
 // ── Attributes ────────────────────────────────────────────────────────────────
 
 /// `attribute <target> <attribute> get` — get an attribute value.
 ///
 /// Raw/unchecked: accepts any string attribute id. Prefer
 /// [`try_attribute_get`] on the validated path.
-pub fn attribute_get(target: Selector, attribute: impl Into<String>) -> String {
+pub fn attribute_get(target: impl TargetArgument, attribute: impl Into<String>) -> String {
     format!("attribute {} {} get", target, attribute.into())
 }
 
 /// Fallible [`attribute_get`] — rejects an attribute id that isn't a valid
 /// `namespace:path` resource location.
-pub fn try_attribute_get(target: Selector, attribute: impl Into<String>) -> CommandResult<String> {
+pub fn try_attribute_get(
+    target: impl TargetArgument,
+    attribute: impl Into<String>,
+) -> CommandResult<String> {
     let attribute = attribute.into();
     validate::resource_location_shape(&attribute, "attribute_get", "attribute")?;
     Ok(format!("attribute {target} {attribute} get"))
@@ -1361,7 +1341,11 @@ pub fn try_attribute_get(target: Selector, attribute: impl Into<String>) -> Comm
 ///
 /// Raw/unchecked: accepts a non-finite value and any string attribute id.
 /// Prefer [`try_attribute_base_set`] on the validated path.
-pub fn attribute_base_set(target: Selector, attribute: impl Into<String>, value: f64) -> String {
+pub fn attribute_base_set(
+    target: impl TargetArgument,
+    attribute: impl Into<String>,
+    value: f64,
+) -> String {
     format!(
         "attribute {} {} base set {}",
         target,
@@ -1373,7 +1357,7 @@ pub fn attribute_base_set(target: Selector, attribute: impl Into<String>, value:
 /// Fallible [`attribute_base_set`] — rejects a non-finite value or an
 /// attribute id that isn't a valid `namespace:path` resource location.
 pub fn try_attribute_base_set(
-    target: Selector,
+    target: impl TargetArgument,
     attribute: impl Into<String>,
     value: f64,
 ) -> CommandResult<String> {
@@ -1386,7 +1370,7 @@ pub fn try_attribute_base_set(
 // ── Misc ──────────────────────────────────────────────────────────────────────
 
 /// `clear <selector>` — clear the entire inventory of matching entities.
-pub fn clear(selector: Selector) -> String {
+pub fn clear(selector: impl TargetArgument) -> String {
     format!("clear {}", selector)
 }
 
@@ -1394,7 +1378,7 @@ pub fn clear(selector: Selector) -> String {
 ///
 /// Raw/unchecked: accepts an empty item id/component string. Prefer
 /// [`try_clear_item`] on the validated path.
-pub fn clear_item(selector: Selector, item: impl Into<String>) -> String {
+pub fn clear_item(selector: impl TargetArgument, item: impl Into<String>) -> String {
     format!("clear {} {}", selector, item.into())
 }
 
@@ -1404,7 +1388,10 @@ pub fn clear_item(selector: Selector, item: impl Into<String>) -> String {
 /// string produced by `CustomItem` should be validated with
 /// `CustomItem::validate()`/`try_to_string()` (in `sand-components`) before
 /// it ever reaches this helper.
-pub fn try_clear_item(selector: Selector, item: impl Into<String>) -> CommandResult<String> {
+pub fn try_clear_item(
+    selector: impl TargetArgument,
+    item: impl Into<String>,
+) -> CommandResult<String> {
     let item = item.into();
     validate::non_empty(&item, "clear_item", "item")?;
     Ok(format!("clear {selector} {item}"))
@@ -1414,13 +1401,13 @@ pub fn try_clear_item(selector: Selector, item: impl Into<String>) -> CommandRes
 ///
 /// Raw/unchecked: accepts an empty item id/component string. Prefer
 /// [`try_give`] on the validated path.
-pub fn give(selector: Selector, item: impl Into<String>) -> String {
+pub fn give(selector: impl TargetArgument, item: impl Into<String>) -> String {
     format!("give {} {}", selector, item.into())
 }
 
 /// Fallible [`give`] — rejects an empty item string. See [`try_clear_item`]
 /// for the item-component validation boundary this helper does not duplicate.
-pub fn try_give(selector: Selector, item: impl Into<String>) -> CommandResult<String> {
+pub fn try_give(selector: impl TargetArgument, item: impl Into<String>) -> CommandResult<String> {
     let item = item.into();
     validate::non_empty(&item, "give", "item")?;
     Ok(format!("give {selector} {item}"))
@@ -1431,13 +1418,13 @@ pub fn try_give(selector: Selector, item: impl Into<String>) -> CommandResult<St
 /// Raw/unchecked: accepts an empty item id and a `count` of `0` (a no-op
 /// vanilla accepts but that likely indicates an authoring mistake). Prefer
 /// [`try_give_count`] on the validated path.
-pub fn give_count(selector: Selector, item: impl Into<String>, count: u32) -> String {
+pub fn give_count(selector: impl TargetArgument, item: impl Into<String>, count: u32) -> String {
     format!("give {} {} {}", selector, item.into(), count)
 }
 
 /// Fallible [`give_count`] — rejects an empty item string or a zero count.
 pub fn try_give_count(
-    selector: Selector,
+    selector: impl TargetArgument,
     item: impl Into<String>,
     count: u32,
 ) -> CommandResult<String> {
@@ -1585,7 +1572,7 @@ mod tests {
     #[test]
     fn damage_test() {
         assert_eq!(
-            damage(SingleEntity::self_(), 5.0, "minecraft:generic"),
+            damage(Target::self_(), 5.0, "minecraft:generic"),
             "damage @s 5 minecraft:generic"
         );
     }
@@ -1593,9 +1580,7 @@ mod tests {
     #[test]
     fn damage_many_lowers_through_execute_as() {
         let cmds = Damage::new()
-            .to(EntityTargets::nearby(5.0)
-                .excluding_players()
-                .excluding_self())
+            .to(Target::nearby(5.0).excluding_players().excluding_self())
             .amount(DamageAmount::fixed(4.0))
             .damage_type(DamageKind::Generic)
             .run();
@@ -1611,10 +1596,8 @@ mod tests {
 
     #[test]
     fn reflected_many_damage_centers_on_source_without_unsafe_attribution() {
-        let cmds = Damage::reflect_from(SingleEntity::self_())
-            .to(EntityTargets::nearby(5.0)
-                .excluding_players()
-                .excluding_self())
+        let cmds = Damage::reflect_from(Target::self_())
+            .to(Target::nearby(5.0).excluding_players().excluding_self())
             .amount(4.0)
             .damage_type(DamageKind::Generic)
             .run();
@@ -2024,9 +2007,9 @@ mod tests {
 
     #[test]
     fn try_damage_rejects_non_finite_amount_and_bad_type() {
-        assert!(try_damage(SingleEntity::self_(), f64::NAN, "minecraft:generic").is_err());
-        assert!(try_damage(SingleEntity::self_(), 5.0, "generic").is_err());
-        assert!(try_damage(SingleEntity::self_(), 5.0, "minecraft:generic").is_ok());
+        assert!(try_damage(Target::self_(), f64::NAN, "minecraft:generic").is_err());
+        assert!(try_damage(Target::self_(), 5.0, "generic").is_err());
+        assert!(try_damage(Target::self_(), 5.0, "minecraft:generic").is_ok());
     }
 
     #[test]

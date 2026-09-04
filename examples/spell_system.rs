@@ -11,7 +11,7 @@ static PLAYER_DATA: StorageVar<i32> = StorageVar::new("spells:data", "player.man
 pub fn load_spells() {
     MANA.define();
     FIREBALL.define();
-    MANA.set(Selector::all_players(), 100);
+    MANA.set(Target::players(), 100);
     PLAYER_DATA.set_int(100);
 }
 
@@ -34,7 +34,7 @@ pub fn show_spell_hint() {
     TypedExecute::as_players()
         .when(any![FIREBALL.ready("@s"), PLAYER_DATA.exists()])
         .run(Actionbar::show(
-            Selector::self_(),
+            Target::self_(),
             Text::new("Fireball ready").gold(),
         ));
 }

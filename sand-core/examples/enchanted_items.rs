@@ -31,15 +31,15 @@ fn sharp_book() -> CustomItem {
 }
 
 fn give_crossbow() -> String {
-    give(Selector::self_(), charged_crossbow())
+    give(Target::self_(), charged_crossbow())
 }
 
 fn give_sword() -> String {
-    give(Selector::self_(), inferno_sword())
+    give(Target::self_(), inferno_sword())
 }
 
 fn give_book() -> String {
-    give(Selector::self_(), sharp_book())
+    give(Target::self_(), sharp_book())
 }
 
 fn main() {

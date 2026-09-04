@@ -9,7 +9,7 @@ pub fn start() {
 
 #[function]
 pub fn open_welcome_menu() {
-    cmd::show_dialog(Selector::self_(), DialogId::local("welcome"));
+    cmd::show_dialog(Target::self_(), DialogId::local("welcome"));
 }
 
 #[datapack_component]

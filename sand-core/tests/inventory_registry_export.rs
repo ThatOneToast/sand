@@ -23,7 +23,7 @@
 //! passes because the export scope shadows the ambient layer the direct
 //! call wrote to, rather than because a reset ran.
 
-use sand_commands::{Inventory, ItemSlot, Selector};
+use sand_commands::{Inventory, ItemSlot, Target};
 use sand_core::component::try_export_components_json as export_components_json;
 use sand_core::function::FunctionDescriptor;
 use std::sync::Mutex;
@@ -63,7 +63,7 @@ fn stale_registry_entry_from_direct_inventory_use_does_not_leak_into_a_later_exp
     // same line text as `raw_line_pack_body` renders above, tagged as an
     // *invalid* wildcard-slot write.
     let contaminating_line =
-        Inventory::of(Selector::self_()).set(ItemSlot::AnyHotbar, "regtest:contaminate_marker");
+        Inventory::of(Target::self_()).set(ItemSlot::AnyHotbar, "regtest:contaminate_marker");
     assert_eq!(
         contaminating_line,
         contaminating_raw_line(),

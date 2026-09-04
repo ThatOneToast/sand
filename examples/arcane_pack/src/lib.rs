@@ -74,7 +74,7 @@ pub fn load() {
     );
 
     cmd::tellraw(
-        Selector::all_players(),
+        Target::players(),
         Text::new("[Arcane] Datapack loaded.").gold().bold(true),
     );
 }
@@ -95,7 +95,7 @@ pub fn tick() {
             SHIELD.of("@s").is_false(),
         ])
         .run(Actionbar::show(
-            Selector::self_(),
+            Target::self_(),
             Text::new("Dash ready").aqua().bold(true),
         ));
 
@@ -107,7 +107,7 @@ pub fn tick() {
             SHIELD.of("@s").is_false(),
         ])
         .run(Actionbar::show(
-            Selector::self_(),
+            Target::self_(),
             Text::new("Fireball ready").gold(),
         ));
 
@@ -115,7 +115,7 @@ pub fn tick() {
     TypedExecute::as_players()
         .when(SHIELD.of("@s").is_true())
         .run(Actionbar::show(
-            Selector::self_(),
+            Target::self_(),
             Text::new("Shield active").green().bold(true),
         ));
 }
@@ -139,13 +139,13 @@ pub fn cast_dash() {
 /// Internal: actually apply the dash effect (called by cast_dash via function ref).
 #[function("arcane:cast_dash/execute")]
 pub fn cast_dash_execute() {
-    MANA.remove(Selector::self_(), 25);
-    DASH.start(Selector::self_());
-    cmd::effect_give(Selector::self_(), EffectId::Speed)
+    MANA.remove(Target::self_(), 25);
+    DASH.start(Target::self_());
+    cmd::effect_give(Target::self_(), EffectId::Speed)
         .duration(Ticks::seconds(2))
         .amplifier(1)
         .particles(false);
-    cmd::tellraw(Selector::self_(), Text::new("Dash cast!").gold());
+    cmd::tellraw(Target::self_(), Text::new("Dash cast!").gold());
 }
 
 /// Cast the fireball ability — costs 30 mana, starts 5-second cooldown.
@@ -165,9 +165,9 @@ pub fn cast_fireball() {
 /// Internal: actually apply the fireball effect (called by cast_fireball via function ref).
 #[function("arcane:cast_fireball/execute")]
 pub fn cast_fireball_execute() {
-    MANA.remove(Selector::self_(), 30);
-    FIREBALL.start(Selector::self_());
-    cmd::tellraw(Selector::self_(), Text::new("Fireball cast!").red());
+    MANA.remove(Target::self_(), 30);
+    FIREBALL.start(Target::self_());
+    cmd::tellraw(Target::self_(), Text::new("Fireball cast!").red());
 }
 
 /// Toggle shield — costs 10 mana, sets shield flag.
@@ -189,18 +189,18 @@ pub fn toggle_shield() {
 /// Internal: turn shield on (called by toggle_shield via function ref).
 #[function("arcane:toggle_shield/on")]
 pub fn toggle_shield_on() {
-    MANA.remove(Selector::self_(), 10);
-    SHIELD.enable(Selector::self_());
-    cmd::effect_give(Selector::self_(), EffectId::Resistance).seconds(15);
-    cmd::tellraw(Selector::self_(), Text::new("Shield activated!").green());
+    MANA.remove(Target::self_(), 10);
+    SHIELD.enable(Target::self_());
+    cmd::effect_give(Target::self_(), EffectId::Resistance).seconds(15);
+    cmd::tellraw(Target::self_(), Text::new("Shield activated!").green());
 }
 
 /// Internal: turn shield off (called by toggle_shield via function ref).
 #[function("arcane:toggle_shield/off")]
 pub fn toggle_shield_off() {
-    SHIELD.disable(Selector::self_());
-    cmd::effect_clear_effect(Selector::self_(), EffectId::Resistance);
-    cmd::tellraw(Selector::self_(), Text::new("Shield deactivated.").red());
+    SHIELD.disable(Target::self_());
+    cmd::effect_clear_effect(Target::self_(), EffectId::Resistance);
+    cmd::tellraw(Target::self_(), Text::new("Shield deactivated.").red());
 }
 
 /// Show the current mana in chat (debug/info command).
@@ -212,7 +212,7 @@ pub fn show_mana() {
     TypedExecute::as_players()
         .when(MANA.of("@s").gte(0))
         .run(cmd::tellraw(
-            Selector::self_(),
+            Target::self_(),
             Text::new("Your mana is available.").green(),
         ));
 }
@@ -285,7 +285,7 @@ pub fn resonance_relic_item() -> CustomItem {
 /// Opens the local welcome dialog for the current player.
 #[function("arcane:open_welcome_menu")]
 pub fn open_welcome_menu() {
-    cmd::show_dialog(Selector::self_(), DialogId::local("welcome"));
+    cmd::show_dialog(Target::self_(), DialogId::local("welcome"));
 }
 
 // -- EventHandle: lifecycle control for advancement events -----------------
@@ -332,9 +332,9 @@ pub fn on_first_join(event: FirstJoin) {
 #[on_event]
 pub fn on_death(event: OnDeath) {
     GOLDEN_APPLE_HANDLE.disable("@s");
-    SHIELD.disable(Selector::self_());
+    SHIELD.disable(Target::self_());
     MAGIC_SCHOOL.remove();
-    cmd::effect_clear(Selector::self_());
+    cmd::effect_clear(Target::self_());
     Title::of(event.player())
         .title(Text::new("You died!").red())
         .subtitle(Text::new("Shield deactivated, cooldowns cleared").gray())
@@ -346,9 +346,9 @@ pub fn on_death(event: OnDeath) {
 #[on_event]
 pub fn on_respawn(event: OnRespawn) {
     GOLDEN_APPLE_HANDLE.enable("@s");
-    MANA.set(Selector::self_(), 50);
-    DASH.stop(Selector::self_());
-    FIREBALL.stop(Selector::self_());
+    MANA.set(Target::self_(), 50);
+    DASH.stop(Target::self_());
+    FIREBALL.stop(Target::self_());
     cmd::tellraw(
         event.player(),
         Text::new("You have been granted 50 mana on respawn.").aqua(),
@@ -385,11 +385,11 @@ pub fn on_used_dash_wand(event: Event<UsedDashWandEvent>) {
 /// Speed boost feedback — called via function pointer.
 #[function]
 pub fn dash_wand_effect() {
-    cmd::effect_give(Selector::self_(), EffectId::JumpBoost)
+    cmd::effect_give(Target::self_(), EffectId::JumpBoost)
         .seconds(3)
         .particles(false);
     cmd::effect_give(
-        Selector::self_(),
+        Target::self_(),
         EffectId::custom("arcane:dash_resonance").unwrap(),
     )
     .seconds(1)
@@ -412,19 +412,19 @@ pub fn grant_enhanced_cells() {
     if_(HAS_ENHANCED_CELLS.of("@s").is_true())
         .then_all(mcfunction![
             cmd::tellraw(
-                Selector::self_(),
+                Target::self_(),
                 Text::new("You already have enhanced cells").red(),
             );
             cmd::return_fail();
         ])
         .else_all(mcfunction![
             cmd::attribute_base_set(
-                Selector::self_(),
+                Target::self_(),
                 AttributeType::MaxHealth.as_str(),
                 40.0,
             );
             cmd::tellraw(
-                Selector::self_(),
+                Target::self_(),
                 Text::new("Granted enhanced cells!").green(),
             );
             HAS_ENHANCED_CELLS.enable("@s");
@@ -438,7 +438,7 @@ pub fn grant_enhanced_cells() {
 pub fn on_damaged_damage_nearby(event: DamageEvent<EnhancedCellsDamagedEvent>) {
     event
         .reflect_damage()
-        .to(EntityTargets::nearby(5.0)
+        .to(Target::nearby(5.0)
             .excluding_players()
             .excluding_self())
         .amount(DamageAmount::fixed(4.0))

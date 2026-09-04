@@ -31,37 +31,36 @@
 //! # Example
 //! ```rust,ignore
 //! use sand_core::systems::movement::{PushAway, Launch, SpeedBoost, Slow};
-//! use sand_core::cmd::Selector;
+//! use sand_core::cmd::Target;
 //! use sand_core::state::Ticks;
-//! use sand_commands::selector::EntityTargets;
 //!
 //! // Shockwave push: push all nearby non-player entities away from @s
 //! let cmds = PushAway::new()
-//!     .source(Selector::self_())
-//!     .targets(EntityTargets::nearby(6.0).excluding_players())
+//!     .source(Target::self_())
+//!     .targets(Target::nearby(6.0).excluding_players())
 //!     .strength(1.5)
 //!     .lift(0.25)
 //!     .build();
 //!
 //! // Launch all nearby entities upward
-//! let cmds = Launch::targets(EntityTargets::nearby(4.0))
+//! let cmds = Launch::targets(Target::nearby(4.0))
 //!     .amount(0.7)
 //!     .build();
 //!
 //! // Speed boost self for 5 seconds
-//! let cmd = SpeedBoost::target(Selector::self_())
+//! let cmd = SpeedBoost::target(Target::self_())
 //!     .amount(0.4)
 //!     .duration(Ticks::seconds(5))
 //!     .build();
 //!
 //! // Slow nearby entities for 3 seconds
-//! let cmd = Slow::targets(EntityTargets::nearby(5.0))
+//! let cmd = Slow::targets(Target::nearby(5.0))
 //!     .amount(0.3)
 //!     .duration(Ticks::seconds(3))
 //!     .build();
 //! ```
 
-use sand_commands::selector::{EntityTargets, Selector};
+use sand_commands::selector::{Selector, TargetArgument};
 use sand_components::{EffectId, Ticks};
 
 // ── PushAway ──────────────────────────────────────────────────────────────────
@@ -90,7 +89,7 @@ use sand_components::{EffectId, Ticks};
 #[derive(Debug, Clone)]
 pub struct PushAway {
     source: Option<Selector>,
-    targets: Option<EntityTargets>,
+    targets: Option<Selector>,
     strength: f64,
     lift: f64,
 }
@@ -139,11 +138,11 @@ impl PushAway {
         avoid_when = ["Using the API outside its documented system scope or feature configuration"],
         params(source = "`source` provides the Minecraft target selection used to set the source entity (the \"center\" of the push, typically `@s`)."),
         returns = "The `PushAway` value with the documented change applied to set the source entity (the \"center\" of the push, typically `@s`).",
-        example = "use sand::prelude::*;\n\nfn demonstrate(push_away_value: sand::systems::movement::PushAway, source: sand::command::Selector)  {\n    let updated_push_away = push_away_value.source(source);\n}",
+        example = "use sand::prelude::*;\n\nfn demonstrate(push_away_value: sand::systems::movement::PushAway, source: sand::command::Target)  {\n    let updated_push_away = push_away_value.source(source);\n}",
         availability = ["Cargo feature: systems-movement"],
     )]
-    pub fn source(mut self, source: Selector) -> Self {
-        self.source = Some(source);
+    pub fn source(mut self, source: impl TargetArgument) -> Self {
+        self.source = Some(source.into_target_selector());
         self
     }
 
@@ -160,11 +159,11 @@ impl PushAway {
         avoid_when = ["Using the API outside its documented system scope or feature configuration"],
         params(targets = "`targets` provides the Minecraft target selection used to set the entities to push."),
         returns = "The `PushAway` value with the documented change applied to set the entities to push.",
-        example = "use sand::prelude::*;\n\nfn demonstrate(push_away_value: sand::systems::movement::PushAway, targets: sand::command::EntityTargets)  {\n    let updated_push_away = push_away_value.targets(targets);\n}",
+        example = "use sand::prelude::*;\n\nfn demonstrate(push_away_value: sand::systems::movement::PushAway, targets: sand::command::Target)  {\n    let updated_push_away = push_away_value.targets(targets);\n}",
         availability = ["Cargo feature: systems-movement"],
     )]
-    pub fn targets(mut self, targets: EntityTargets) -> Self {
-        self.targets = Some(targets);
+    pub fn targets(mut self, targets: impl TargetArgument) -> Self {
+        self.targets = Some(targets.into_target_selector());
         self
     }
 
@@ -270,7 +269,7 @@ impl PushAway {
 /// ```
 #[derive(Debug, Clone)]
 pub struct Launch {
-    targets: Option<EntityTargets>,
+    targets: Option<Selector>,
     amount: f64,
 }
 
@@ -316,10 +315,10 @@ impl Launch {
         avoid_when = ["Using the API outside its documented system scope or feature configuration"],
         params(targets = "`targets` provides the Minecraft target selection used to use shorthand: create a builder with targets already set."),
         returns = "A `Launch` configured for shorthand: create a builder with targets already set.",
-        example = "use sand::prelude::*;\n\nfn demonstrate(targets: sand::command::EntityTargets)  {\n    let launch = sand::systems::movement::Launch::targets(targets);\n}",
+        example = "use sand::prelude::*;\n\nfn demonstrate(targets: sand::command::Target)  {\n    let launch = sand::systems::movement::Launch::targets(targets);\n}",
         availability = ["Cargo feature: systems-movement"],
     )]
-    pub fn targets(targets: EntityTargets) -> Self {
+    pub fn targets(targets: impl TargetArgument) -> Self {
         Self::new().with_targets(targets)
     }
 
@@ -336,11 +335,11 @@ impl Launch {
         avoid_when = ["Using the API outside its documented system scope or feature configuration"],
         params(targets = "`targets` provides the Minecraft target selection used to set the entities to launch."),
         returns = "The `Launch` value with the documented change applied to set the entities to launch.",
-        example = "use sand::prelude::*;\n\nfn demonstrate(launch_value: sand::systems::movement::Launch, targets: sand::command::EntityTargets)  {\n    let updated_launch = launch_value.with_targets(targets);\n}",
+        example = "use sand::prelude::*;\n\nfn demonstrate(launch_value: sand::systems::movement::Launch, targets: sand::command::Target)  {\n    let updated_launch = launch_value.with_targets(targets);\n}",
         availability = ["Cargo feature: systems-movement"],
     )]
-    pub fn with_targets(mut self, targets: EntityTargets) -> Self {
-        self.targets = Some(targets);
+    pub fn with_targets(mut self, targets: impl TargetArgument) -> Self {
+        self.targets = Some(targets.into_target_selector());
         self
     }
 
@@ -465,10 +464,10 @@ impl SpeedBoost {
         avoid_when = ["Using the API outside its documented system scope or feature configuration"],
         params(target = "`target` provides the entity, block, or command target used to use shorthand: create a builder for a single selector target."),
         returns = "A `SpeedBoost` configured for shorthand: create a builder for a single selector target.",
-        example = "use sand::prelude::*;\n\nfn demonstrate(target: sand::command::Selector)  {\n    let speed_boost = sand::systems::movement::SpeedBoost::target(target);\n}",
+        example = "use sand::prelude::*;\n\nfn demonstrate(target: sand::command::Target)  {\n    let speed_boost = sand::systems::movement::SpeedBoost::target(target);\n}",
         availability = ["Cargo feature: systems-movement"],
     )]
-    pub fn target(target: Selector) -> Self {
+    pub fn target(target: impl TargetArgument) -> Self {
         Self::new().with_target(target)
     }
 
@@ -485,10 +484,10 @@ impl SpeedBoost {
         avoid_when = ["Using the API outside its documented system scope or feature configuration"],
         params(targets = "`targets` provides the Minecraft target selection used to use shorthand: create a builder for an entity-targets set."),
         returns = "A `SpeedBoost` configured for shorthand: create a builder for an entity-targets set.",
-        example = "use sand::prelude::*;\n\nfn demonstrate(targets: sand::command::EntityTargets)  {\n    let speed_boost = sand::systems::movement::SpeedBoost::target_many(targets);\n}",
+        example = "use sand::prelude::*;\n\nfn demonstrate(targets: sand::command::Target)  {\n    let speed_boost = sand::systems::movement::SpeedBoost::target_many(targets);\n}",
         availability = ["Cargo feature: systems-movement"],
     )]
-    pub fn target_many(targets: EntityTargets) -> Self {
+    pub fn target_many(targets: impl TargetArgument) -> Self {
         let mut s = Self::new();
         s.targets = Some(targets.to_string());
         s
@@ -507,10 +506,10 @@ impl SpeedBoost {
         avoid_when = ["Using the API outside its documented system scope or feature configuration"],
         params(target = "`target` provides the entity, block, or command target used to set the target selector."),
         returns = "The `SpeedBoost` value with the documented change applied to set the target selector.",
-        example = "use sand::prelude::*;\n\nfn demonstrate(speed_boost_value: sand::systems::movement::SpeedBoost, target: sand::command::Selector)  {\n    let updated_speed_boost = speed_boost_value.with_target(target);\n}",
+        example = "use sand::prelude::*;\n\nfn demonstrate(speed_boost_value: sand::systems::movement::SpeedBoost, target: sand::command::Target)  {\n    let updated_speed_boost = speed_boost_value.with_target(target);\n}",
         availability = ["Cargo feature: systems-movement"],
     )]
-    pub fn with_target(mut self, target: Selector) -> Self {
+    pub fn with_target(mut self, target: impl TargetArgument) -> Self {
         self.targets = Some(target.to_string());
         self
     }
@@ -681,10 +680,10 @@ impl Slow {
         avoid_when = ["Using the API outside its documented system scope or feature configuration"],
         params(target = "`target` provides the entity, block, or command target used to use shorthand: create a builder for a single selector target."),
         returns = "A `Slow` configured for shorthand: create a builder for a single selector target.",
-        example = "use sand::prelude::*;\n\nfn demonstrate(target: sand::command::Selector)  {\n    let slow = sand::systems::movement::Slow::target(target);\n}",
+        example = "use sand::prelude::*;\n\nfn demonstrate(target: sand::command::Target)  {\n    let slow = sand::systems::movement::Slow::target(target);\n}",
         availability = ["Cargo feature: systems-movement"],
     )]
-    pub fn target(target: Selector) -> Self {
+    pub fn target(target: impl TargetArgument) -> Self {
         Self::new().with_target(target)
     }
 
@@ -701,10 +700,10 @@ impl Slow {
         avoid_when = ["Using the API outside its documented system scope or feature configuration"],
         params(targets = "`targets` provides the Minecraft target selection used to use shorthand: create a builder for an entity-targets set."),
         returns = "A `Slow` configured for shorthand: create a builder for an entity-targets set.",
-        example = "use sand::prelude::*;\n\nfn demonstrate(targets: sand::command::EntityTargets)  {\n    let slow = sand::systems::movement::Slow::targets(targets);\n}",
+        example = "use sand::prelude::*;\n\nfn demonstrate(targets: sand::command::Target)  {\n    let slow = sand::systems::movement::Slow::targets(targets);\n}",
         availability = ["Cargo feature: systems-movement"],
     )]
-    pub fn targets(targets: EntityTargets) -> Self {
+    pub fn targets(targets: impl TargetArgument) -> Self {
         let mut s = Self::new();
         s.targets = Some(targets.to_string());
         s
@@ -723,10 +722,10 @@ impl Slow {
         avoid_when = ["Using the API outside its documented system scope or feature configuration"],
         params(target = "`target` provides the entity, block, or command target used to set the target selector."),
         returns = "The `Slow` value with the documented change applied to set the target selector.",
-        example = "use sand::prelude::*;\n\nfn demonstrate(slow_value: sand::systems::movement::Slow, target: sand::command::Selector)  {\n    let updated_slow = slow_value.with_target(target);\n}",
+        example = "use sand::prelude::*;\n\nfn demonstrate(slow_value: sand::systems::movement::Slow, target: sand::command::Target)  {\n    let updated_slow = slow_value.with_target(target);\n}",
         availability = ["Cargo feature: systems-movement"],
     )]
-    pub fn with_target(mut self, target: Selector) -> Self {
+    pub fn with_target(mut self, target: impl TargetArgument) -> Self {
         self.targets = Some(target.to_string());
         self
     }
@@ -850,13 +849,13 @@ fn fmt_rel_coord(v: f64) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use sand_commands::selector::EntityTargets;
+    use sand_commands::Target;
 
     #[test]
     fn push_away_defaults() {
         let cmds = PushAway::new()
             .source(Selector::self_())
-            .targets(EntityTargets::nearby(6.0).excluding_players())
+            .targets(Target::nearby(6.0).excluding_players())
             .build();
         assert_eq!(cmds.len(), 1);
         assert!(cmds[0].starts_with("execute as "), "cmd: {}", cmds[0]);
@@ -872,7 +871,7 @@ mod tests {
     fn push_away_with_strength_and_lift() {
         let cmds = PushAway::new()
             .source(Selector::self_())
-            .targets(EntityTargets::nearby(6.0).excluding_players())
+            .targets(Target::nearby(6.0).excluding_players())
             .strength(1.5)
             .lift(0.25)
             .build();
@@ -888,7 +887,7 @@ mod tests {
     fn push_away_integer_lift() {
         let cmds = PushAway::new()
             .source(Selector::self_())
-            .targets(EntityTargets::nearby(4.0))
+            .targets(Target::nearby(4.0))
             .strength(2.0)
             .lift(1.0)
             .build();
@@ -903,9 +902,7 @@ mod tests {
 
     #[test]
     fn launch_with_targets_and_amount() {
-        let cmds = Launch::targets(EntityTargets::nearby(4.0))
-            .amount(0.7)
-            .build();
+        let cmds = Launch::targets(Target::nearby(4.0)).amount(0.7).build();
         assert_eq!(cmds.len(), 1);
         assert!(cmds[0].contains("~ ~0.7 ~"), "cmd: {}", cmds[0]);
     }
@@ -961,7 +958,7 @@ mod tests {
 
     #[test]
     fn slow_targets_many() {
-        let cmd = Slow::targets(EntityTargets::nearby(5.0))
+        let cmd = Slow::targets(Target::nearby(5.0))
             .amount(0.4)
             .duration(Ticks::seconds(3))
             .build();

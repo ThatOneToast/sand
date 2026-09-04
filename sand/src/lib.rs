@@ -114,8 +114,8 @@ pub mod prelude;
 
 // ── Topic modules ─────────────────────────────────────────────────────────────
 
-/// Typed command builders: `execute` chains, selectors (`Selector`,
-/// `EntityTargets`), scoreboard operations, effects, sounds, particles,
+/// Typed command builders: `execute` chains, canonical [`Target`](command::Target)
+/// values, scoreboard operations, effects, sounds, particles,
 /// block/NBT operations, and free functions like `cmd::say`/`cmd::tellraw`.
 /// Reach for this when the [`prelude`] doesn't already have the command
 /// builder you need, or when you want to name the module explicitly (e.g. in
@@ -168,7 +168,7 @@ pub use sand_core::item;
     minecraft = "Renders vanilla item-command locations and execute-if-items targets for entities and block containers.",
     use_when = ["Mutating or matching a live inventory slot", "Addressing bounded player, entity, or container slots"],
     avoid_when = ["Reading an offline snapshot or arbitrary NBT path"],
-    example = "use sand::prelude::*;\nlet inventory = ItemLocation::entity(Selector::self_());\nlet slot = inventory.hotbar(0).unwrap();"
+    example = "use sand::prelude::*;\nlet inventory = ItemLocation::entity(Target::self_());\nlet slot = inventory.hotbar(0).unwrap();"
 )]
 pub mod inventory {
     pub use sand_core::item::{
@@ -259,7 +259,7 @@ pub mod state {
     minecraft = "Generates selector-driven commands, scoreboard and NBT state operations, and optional entity-archetype lifecycle functions.",
     use_when = ["Querying or mutating Minecraft entities through typed APIs", "Declaring entity-specific state or an archetype"],
     avoid_when = ["Addressing a one-off command token already covered by the command module", "Representing a durable entity identity outside an execution context"],
-    example = "let entities = sand::entity::EntityQueries::entities();"
+    example = "let entities = sand::command::Target::entities();"
 )]
 pub mod entity {
     pub use sand_core::entity::{
@@ -269,19 +269,18 @@ pub mod entity {
         EntityCooldown, EntityCooldownAccessor, EntityDerivation, EntityDiagnostic, EntityEnum,
         EntityEnumAccessor, EntityEnumValue, EntityEventId, EntityFlag, EntityFlagAccessor,
         EntityKind, EntityNbtBinding, EntityNbtProperty, EntityNbtType, EntityNbtValue,
-        EntityQueries, EntityQuery, EntityScope, EntityScore, EntityScoreAccessor, EntityState,
-        EntityStateField, EntityTag, EntityTeam, EntityText, EntityTextSegment, EntityTimer,
-        EntityTimerAccessor, EntityTransition, EntityTransitionField, EnumEncoding,
-        EquipmentBinding, FixedPoint, FixedScore, FixedScoreAccessor, FixedScoreValue, FixedValue,
-        GlobalStateBundleOperations, HealthBinding, HealthResizePolicy, KeyedData, KnownEntityKind,
-        LivingEntityKind, MarkerKind, Migration, MutableLivingEntityKind, NameBinding,
-        NumericPropertySource, NumericStateField, NumericStateSource, OverflowPolicy,
-        OwnershipPolicy, PlayerContext, PlayerKind, PlayerQueries, PlayerQuery, PropertyNameError,
-        RawEntityProperty, RawEntityStateField, RawPropertyAccess, RawStateBackend,
-        ReconcilePolicy, RefreshPolicy, Relation, RelationQuery, RoundingPolicy,
-        SafeEntityDataWriteKind, ScopedEntityRef, Score, SingleEntityQuery, SinglePlayerQuery,
-        SpecialEntityPolicy, StatCurve, StateComposition, StateFieldDescriptor, StateFieldKind,
-        StatePredicate, StateQueryOperations, StateSchema, TagBinding, TeamBinding,
+        EntityScope, EntityScore, EntityScoreAccessor, EntityState, EntityStateField, EntityTag,
+        EntityTeam, EntityText, EntityTextSegment, EntityTimer, EntityTimerAccessor,
+        EntityTransition, EntityTransitionField, EnumEncoding, EquipmentBinding, FixedPoint,
+        FixedScore, FixedScoreAccessor, FixedScoreValue, FixedValue, GlobalStateBundleOperations,
+        HealthBinding, HealthResizePolicy, KeyedData, KnownEntityKind, LivingEntityKind,
+        MarkerKind, Migration, MutableLivingEntityKind, NameBinding, NumericPropertySource,
+        NumericStateField, NumericStateSource, OverflowPolicy, OwnershipPolicy, PlayerKind,
+        PropertyNameError, RawEntityProperty, RawEntityStateField, RawPropertyAccess,
+        RawStateBackend, ReconcilePolicy, RefreshPolicy, Relation, RelationTraversal,
+        RoundingPolicy, SafeEntityDataWriteKind, ScopedEntityRef, Score, SpecialEntityPolicy,
+        StatCurve, StateComposition, StateFieldDescriptor, StateFieldKind, StatePredicate,
+        StateQueryOperations, StateSchema, TagBinding, TargetExecution, TeamBinding,
         ThresholdDirection, ZombieKind,
     };
 }
@@ -369,7 +368,7 @@ pub mod component {
     minecraft = "Lowers condition trees into one or more execute-if or execute-unless clause plans, distributing nested alternatives when required.",
     use_when = ["Combining typed score, entity, predicate, NBT, or item checks", "Passing a reusable guard to execute or event APIs"],
     avoid_when = ["Choosing Rust generation-time control flow", "Hand-writing execute syntax that an existing typed condition represents"],
-    example = "use sand::prelude::*;\nlet ready = Condition::entity(Selector::self_().tag(\"ready\"));"
+    example = "use sand::prelude::*;\nlet ready = Condition::entity(Target::self_().tag(\"ready\"));"
 )]
 pub mod condition {
     pub use sand_core::condition::*;
@@ -388,7 +387,7 @@ pub mod condition {
     minecraft = "Emits execute-if or execute-unless commands and registers grouped arms as generated helper functions in the datapack.",
     use_when = ["Running commands under a typed Condition", "Expressing an if/else command branch"],
     avoid_when = ["A typed command builder already exposes the required conditional form", "Rust control flow is being used only to decide what code to generate"],
-    example = "use sand::prelude::*;\nlet ready = Condition::entity(Selector::self_().tag(\"ready\"));\nlet commands = when(ready).then_one(\"say ready\");"
+    example = "use sand::prelude::*;\nlet ready = Condition::entity(Target::self_().tag(\"ready\"));\nlet commands = when(ready).then_one(\"say ready\");"
 )]
 pub mod execute_when {
     pub use sand_core::execute_when::*;
@@ -620,8 +619,8 @@ pub mod data {
 ///
 /// Use these directly wherever Sand asks for a vanilla identifier or entity
 /// type — `vanilla::Item::Diamond`, `vanilla::Block::WhiteWool`,
-/// `vanilla::EntityType::Marker` — including in [`entity::EntityQuery`],
-/// `EntityTargets`/`Selector::entity_type`, and `cmd::summon`/`cmd::give`.
+/// `vanilla::EntityType::Marker` — including in [`entity::Target`],
+/// `Target`/`Target::entity_type`, and `cmd::summon`/`cmd::give`.
 /// They convert into Sand's typed IDs (`ItemId`, `BlockId`, `EntityTypeId`)
 /// via `From`/`Into` for cases that need the wrapper type directly (storage,
 /// serialization, mixing with custom/external IDs).
@@ -646,7 +645,7 @@ pub mod data {
 /// use sand::vanilla;
 ///
 /// let wool: BlockId = vanilla::Block::WhiteWool.into();
-/// let marker = EntityQuery::entities().entity_type(vanilla::EntityType::Marker);
+/// let marker = Target::entities().entity_type(vanilla::EntityType::Marker);
 /// ```
 #[api(
     path = "sand::vanilla",

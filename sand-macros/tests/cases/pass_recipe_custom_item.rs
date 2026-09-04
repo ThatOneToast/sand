@@ -18,9 +18,9 @@ fn enchanted_carrot() -> CustomItem {
 
 #[function]
 pub fn give_starter_kit() {
-    cmd::give(Selector::self_(), enchanted_carrot());
+    cmd::give(Target::self_(), enchanted_carrot());
     cmd::tellraw(
-        Selector::self_(),
+        Target::self_(),
         Text::new("Starter kit granted!").green(),
     );
 }

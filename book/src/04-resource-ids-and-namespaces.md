@@ -76,9 +76,9 @@ what Minecraft's data generator reports for your configured version:
 use sand::prelude::*;
 use sand::vanilla;
 
-cmd::give(Selector::self_(), vanilla::Item::Diamond);
+cmd::give(Target::self_(), vanilla::Item::Diamond);
 let wool: BlockId = vanilla::Block::WhiteWool.into();
-let marker_query = EntityQuery::entities().entity_type(vanilla::EntityType::Marker);
+let marker_query = Target::entities().entity_type(vanilla::EntityType::Marker);
 ```
 
 `sand::vanilla` currently exposes `Item`, `Block`, `EntityType`, and
@@ -86,8 +86,8 @@ let marker_query = EntityQuery::entities().entity_type(vanilla::EntityType::Mark
 data generator report for the configured Minecraft version. It converts
 into the matching typed ID (`ItemId`, `BlockId`, `EntityTypeId`) via
 `.into()` wherever you need the wrapper type directly, and is accepted
-directly by normal-path APIs like `cmd::give`, `EntityTargets::entity_type`,
-and `EntityQuery::entity_type` — you don't need to construct an `ItemId`
+directly by normal-path APIs like `cmd::give`, `Target::entity_type`,
+and `Target::entity_type` — you don't need to construct an `ItemId`
 or `EntityTypeId` just to reference `minecraft:diamond` or
 `minecraft:marker`.
 

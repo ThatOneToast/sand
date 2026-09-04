@@ -14,7 +14,7 @@ use crate::Build;
 use crate::coord::BlockPos;
 use crate::error::{CommandError, CommandResult};
 use crate::render::{CommandProfile, RenderCommand, Validate};
-use crate::selector::Selector;
+use crate::selector::{Selector, TargetArgument};
 
 // ── Values ───────────────────────────────────────────────────────────────────
 
@@ -665,10 +665,10 @@ impl DataTarget {
         avoid_when = ["A scoreboard-backed state field is simpler, or the input is untrusted raw SNBT"],
         params(selector = "`selector` provides the Minecraft target selection used to create an entity data-command target from a typed selector."),
         returns = "A `DataTarget` representing an entity data-command target from a typed selector.",
-        example = "use sand::prelude::*;\n\nfn demonstrate(selector: sand::command::Selector)  {\n    let data_target = sand::data::DataTarget::entity(selector);\n}",
+        example = "use sand::prelude::*;\n\nfn demonstrate(selector: sand::command::Target)  {\n    let data_target = sand::data::DataTarget::entity(selector);\n}",
     )]
-    pub fn entity(selector: Selector) -> Self {
-        Self::Entity(selector)
+    pub fn entity(selector: impl TargetArgument) -> Self {
+        Self::Entity(selector.into_target_selector())
     }
 
     /// Creates a block data-command target from typed coordinates.
@@ -864,9 +864,9 @@ impl Nbt {
         avoid_when = ["A scoreboard-backed state field is simpler, or the input is untrusted raw SNBT"],
         params(selector = "`selector` provides the Minecraft target selection used to start an entity-backed NBT target from a typed selector."),
         returns = "The `NbtTarget` value produced to start an entity-backed NBT target from a typed selector.",
-        example = "use sand::prelude::*;\n\nfn demonstrate(selector: sand::command::Selector)  {\n    let entity = sand::data::Nbt::entity(selector);\n}",
+        example = "use sand::prelude::*;\n\nfn demonstrate(selector: sand::command::Target)  {\n    let entity = sand::data::Nbt::entity(selector);\n}",
     )]
-    pub fn entity(selector: Selector) -> NbtTarget {
+    pub fn entity(selector: impl TargetArgument) -> NbtTarget {
         NbtTarget::new(DataTarget::entity(selector))
     }
 

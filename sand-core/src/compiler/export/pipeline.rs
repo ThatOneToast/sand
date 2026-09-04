@@ -2687,7 +2687,7 @@ pub(crate) fn try_export_components_impl(
     Ok(records)
 }
 
-/// Recognize only the exact scan shape produced by typed EntityQuery and
+/// Recognize only the exact scan shape produced by typed Target and
 /// StateQuery lowering. Returning `None` keeps arbitrary or mixed commands on
 /// the conservative standalone path.
 fn state_system_scan(body: &[String]) -> Option<(String, Vec<String>)> {

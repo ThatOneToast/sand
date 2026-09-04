@@ -36,7 +36,7 @@ fn stop_fighting() { cmd::say("Fight ended"); }
 
 #[function]
 fn enraged_tick() {
-    Actionbar::show(Selector::self_(), Text::new("ENRAGED").dark_red());
+    Actionbar::show(Target::self_(), Text::new("ENRAGED").dark_red());
 }
 
 #[datapack_component(Load)]

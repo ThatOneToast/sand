@@ -53,7 +53,7 @@
 //! #[on_event]
 //! pub fn on_join(event: Event<OnJoinEvent>) {
 //!     cmd::tellraw(
-//!         Selector::self_(),
+//!         Target::self_(),
 //!         Text::new("Welcome!").gold(),
 //!     );
 //! }
@@ -2361,7 +2361,7 @@ impl<T: SandEvent + Sized + 'static> SandEventParticipants for T {}
 /// #[on_event]
 /// pub fn on_join(event: Event<OnJoinEvent>) {
 ///     cmd::tellraw(
-///         Selector::self_(),
+///         Target::self_(),
 ///         Text::new("Welcome back!").gold(),
 ///     );
 /// }
@@ -2394,10 +2394,10 @@ pub struct OnJoinEvent;
 /// #[on_event]
 /// pub fn first_join(event: Event<FirstJoinEvent>) {
 ///     cmd::tellraw(
-///         Selector::self_(),
+///         Target::self_(),
 ///         Text::new("Welcome for the very first time!").aqua(),
 ///     );
-///     cmd::give(Selector::self_(), "minecraft:diamond").count(3);
+///     cmd::give(Target::self_(), "minecraft:diamond").count(3);
 /// }
 /// ```
 pub struct FirstJoinEvent;
@@ -2473,7 +2473,7 @@ pub struct OnDeathEvent;
 /// #[on_event]
 /// pub fn on_respawn(event: Event<OnRespawnEvent>) {
 ///     cmd::tellraw(
-///         Selector::self_(),
+///         Target::self_(),
 ///         Text::new("You respawned!").green(),
 ///     );
 /// }

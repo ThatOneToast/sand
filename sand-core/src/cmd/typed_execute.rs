@@ -9,13 +9,13 @@
 //! use sand_core::cmd::{ExecuteExt, TypedExecute};
 //! use sand_core::state::ScoreVar;
 //! use sand_core::{all, any};
-//! use sand_commands::Selector;
+//! use sand_commands::Target;
 //!
 //! static MANA: ScoreVar<i32> = ScoreVar::new("mana");
 //!
 //! // Single command
 //! let cmds: Vec<String> = TypedExecute::as_players()
-//!     .at(Selector::self_())
+//!     .at(Target::self_())
 //!     .when(MANA.of("@s").gte(25))
 //!     .run("say enough mana");
 //!
@@ -146,7 +146,7 @@ impl ConditionedExecute {
 /// use sand_commands::Execute;
 ///
 /// let cmds = Execute::new()
-///     .as_(Selector::all_players())
+///     .as_(Target::players())
 ///     .when(MANA.of("@s").gte(25))
 ///     .run("say enough");
 /// ```

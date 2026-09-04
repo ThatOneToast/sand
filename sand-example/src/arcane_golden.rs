@@ -20,7 +20,7 @@ pub fn arcane_tick() {
     TypedExecute::as_players()
         .when(all![ARCANE_MANA.of("@s").gte(25), ARCANE_DASH.ready("@s"),])
         .run(Actionbar::show(
-            Selector::self_(),
+            Target::self_(),
             Text::new("Dash ready").aqua().bold(true),
         ));
 }
@@ -36,9 +36,9 @@ pub fn arcane_cast() {
 
 #[function("arcane_dogfood:cast/execute")]
 pub fn arcane_cast_execute() {
-    ARCANE_MANA.remove(Selector::self_(), 25);
-    ARCANE_DASH.start(Selector::self_());
-    cmd::tellraw(Selector::self_(), Text::new("Dash cast!").gold());
+    ARCANE_MANA.remove(Target::self_(), 25);
+    ARCANE_DASH.start(Target::self_());
+    cmd::tellraw(Target::self_(), Text::new("Dash cast!").gold());
 }
 
 #[function("arcane_dogfood:interop")]

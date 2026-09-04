@@ -10,11 +10,11 @@ depleted resources into their new life:
 
 Three pieces of state would otherwise persist incorrectly across a death:
 
-- **`EXHAUSTED.disable(Selector::self_())`** — a player who died while
+- **`EXHAUSTED.disable(Target::self_())`** — a player who died while
   exhausted shouldn't respawn still slowed and stamina-locked; exhaustion
   is a *penalty state* tied to the life that just ended, not a punishment
   that should follow them into the next one.
-- **`GRAPPLE.stop(Selector::self_())`** — clears any in-progress cooldown,
+- **`GRAPPLE.stop(Target::self_())`** — clears any in-progress cooldown,
   so a respawned player isn't stuck waiting out a dash cooldown from a
   dash that (from their perspective, after respawning at the world spawn
   or their bed) has no continuity with their new position.

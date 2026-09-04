@@ -15,7 +15,7 @@
 //! # Example
 //! ```rust,ignore
 //! use sand_components::{CustomItem, ItemRarity, AttributeType, AttributeOperation, EquipmentSlotGroup};
-//! use sand_commands::{self, Selector, TextComponent, ChatColor};
+//! use sand_commands::{self, Target, TextComponent, ChatColor};
 //!
 //! fn inferno_blade() -> CustomItem {
 //!     CustomItem::new("minecraft:diamond_sword")
@@ -32,7 +32,7 @@
 //!
 //! #[function]
 //! fn give_inferno() {
-//!     sand::command::give(Selector::all_players(), inferno_blade());
+//!     sand::command::give(Target::players(), inferno_blade());
 //! }
 //! ```
 
@@ -80,9 +80,6 @@ pub enum ItemRarity {
     /// Pink/magenta text.
     Epic,
 }
-
-/// Alias for the public item component rarity model.
-pub type Rarity = ItemRarity;
 
 impl ItemRarity {
     /// Returns the canonical Minecraft representation of this component value.

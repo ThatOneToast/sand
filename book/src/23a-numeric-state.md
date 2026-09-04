@@ -103,7 +103,7 @@ objective names.
 
 ## Derivations infer their destination
 
-An `EntityDerivation` takes any numeric State field. The target chooses the
+An archetype derivation takes any numeric State field. The target chooses the
 stored representation:
 
 ```rust,ignore
@@ -112,8 +112,9 @@ let damage = StatCurve::multiply([
     StatCurve::state(Stats::damage_multiplier),
 ]);
 
-EntityArchetype::<ZombieKind, Stats>::new(id)
-    .derive(EntityDerivation::new("damage", Stats::damage, damage));
+EntityArchetype::<ZombieKind>::new(id)
+    .components::<Stats>()
+    .derive(Stats::damage, damage);
 ```
 
 If `damage` is a `Score`, Sand rounds the final logical result once and stores

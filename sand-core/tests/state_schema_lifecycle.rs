@@ -230,7 +230,9 @@ fn derived_state_lifecycle_is_scoped_deterministic_and_deduplicated() {
     let tick = function(&records, "__sand_lifecycle_tick");
     let generated = all_function_content(&records);
     assert!(tick.contains("execute as @a run function statepack:__sand_lifecycle_init"));
-    assert_eq!(generated.matches("scoreboard players remove @s").count(), 2);
+    // The two independently auto-ticked player fields and the composed living
+    // archetype timer each have exactly one decrement path.
+    assert_eq!(generated.matches("scoreboard players remove @s").count(), 3);
     assert!(!tick.contains("execute as @e run"));
     assert!(tick.contains("execute as @e[scores={"));
     for dirty in [

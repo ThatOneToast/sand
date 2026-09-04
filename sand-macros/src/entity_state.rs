@@ -44,6 +44,7 @@ pub(crate) fn derive_state(input: DeriveInput) -> syn::Result<proc_macro2::Token
     let mut bound_fields = Vec::new();
     let mut bound_values = Vec::new();
     let mut lifecycle_fields = Vec::new();
+    let mut auto_tick_objectives = Vec::new();
     let mut data_descriptors = Vec::new();
     let mut generated_contracts = Vec::new();
     for field in fields {
@@ -487,6 +488,9 @@ pub(crate) fn derive_state(input: DeriveInput) -> syn::Result<proc_macro2::Token
             .map(|value| quote!(.display_name(#value)))
             .unwrap_or_default();
         let auto_tick = if attrs.auto_tick {
+            auto_tick_objectives.push(quote!(
+                ::sand::__private::resolve_state_objective(#logical_objective)
+            ));
             quote!(.auto_tick())
         } else {
             quote!()
@@ -971,6 +975,7 @@ pub(crate) fn derive_state(input: DeriveInput) -> syn::Result<proc_macro2::Token
                 vec![::sand::__private::StateComponentLifecycle::__new(
                     <Self as ::sand::__private::StateBundleMember>::presence_requirements(),
                     <Self as ::sand::__private::StateBundleMember>::component_schemas(),
+                    vec![#(#auto_tick_objectives),*],
                     <Self as ::sand::__private::StateBundleMember>::attach_member,
                     <Self as ::sand::__private::StateBundleMember>::detach_member,
                 )]

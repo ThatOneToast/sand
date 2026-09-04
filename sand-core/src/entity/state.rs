@@ -432,6 +432,7 @@ pub trait StateBundleMember: 'static {
 pub struct StateComponentLifecycle {
     pub(crate) identities: Vec<(String, u32)>,
     pub(crate) schemas: Vec<StateSchema>,
+    pub(crate) auto_tick_objectives: Vec<String>,
     pub(crate) attach: fn(&'static str) -> Vec<String>,
     pub(crate) detach: fn(&'static str) -> Vec<String>,
 }
@@ -443,12 +444,14 @@ impl StateComponentLifecycle {
     pub fn __new(
         identities: Vec<(String, u32)>,
         schemas: Vec<StateSchema>,
+        auto_tick_objectives: Vec<String>,
         attach: fn(&'static str) -> Vec<String>,
         detach: fn(&'static str) -> Vec<String>,
     ) -> Self {
         Self {
             identities,
             schemas,
+            auto_tick_objectives,
             attach,
             detach,
         }
@@ -561,6 +564,7 @@ pub trait StateComposition: 'static {
         vec![StateComponentLifecycle::__new(
             Self::composition_identities(),
             Self::composition_schemas(),
+            Vec::new(),
             Self::composition_attach,
             Self::composition_detach,
         )]
@@ -1073,7 +1077,7 @@ pub struct StateFieldReference {
 /// This is the common contract implemented by [`Score`] and [`FixedScore`].
 /// Authors normally do not name this trait: APIs such as
 /// [`crate::entity::StatCurve::state`] and
-/// [`crate::entity::EntityDerivation::new`] use it to read the field's storage
+/// [`crate::entity::EntityArchetype::derive`] use it to read the field's storage
 /// scale. A `Score` has scale `1`; a `FixedScore` uses the scale declared by
 /// `#[state(scale = ...)]` (or `1_000` when omitted).
 ///

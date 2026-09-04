@@ -31,7 +31,7 @@ use crate::entity::property::{
 };
 use crate::entity::state::{
     EntityFlag, EntityStateField, NumericStateField, StateComposition, StateFieldReference,
-    StateSchema, dirty_name, objective_name,
+    StateSchema, component_dirty_name, dirty_name, objective_name,
 };
 use crate::resource_ref::FunctionId;
 use crate::state::Ticks;
@@ -706,6 +706,7 @@ where
                 self.components.push(ArchetypeComponent {
                     identities,
                     schemas: lifecycle.schemas,
+                    auto_tick_objectives: lifecycle.auto_tick_objectives,
                     attach: lifecycle.attach,
                     detach: lifecycle.detach,
                 });
@@ -1348,6 +1349,7 @@ pub struct ArchetypeDefinition {
 pub struct ArchetypeComponent {
     identities: Vec<(String, u32)>,
     schemas: Vec<StateSchema>,
+    auto_tick_objectives: Vec<String>,
     attach: fn(&'static str) -> Vec<String>,
     detach: fn(&'static str) -> Vec<String>,
 }
@@ -2030,6 +2032,9 @@ fn component_claims(definitions: &[ArchetypeDefinition]) -> ComponentClaims {
                     .or_default()
                     .push(marker.clone());
             }
+            for schema in &component.schemas {
+                claims.entry(schema.id()).or_default().push(marker.clone());
+            }
         }
     }
     for markers in claims.values_mut() {
@@ -2039,12 +2044,68 @@ fn component_claims(definitions: &[ArchetypeDefinition]) -> ComponentClaims {
     claims
 }
 
+fn dirty_consumption_name(dirty_objective: &str, marker: &str) -> String {
+    sand_commands::ObjectiveName::logical(format!("{dirty_objective}.{marker}.consumed"))
+        .as_str()
+        .to_string()
+}
+
+fn dirty_pending_name(dirty_objective: &str, marker: &str) -> String {
+    sand_commands::ObjectiveName::logical(format!("{dirty_objective}.{marker}.pending_consumers"))
+        .as_str()
+        .to_string()
+}
+
+fn dirty_consumption_commands(
+    fields: &ArchetypeFields,
+    claims: &ComponentClaims,
+    marker: &str,
+    objectives: &mut BTreeSet<String>,
+) -> Vec<String> {
+    let mut commands = Vec::new();
+    for field in fields.values() {
+        let Some(claim_markers) = claims.get(&field.component) else {
+            continue;
+        };
+        let own_consumed = dirty_consumption_name(&field.dirty_objective, marker);
+        objectives.insert(own_consumed.clone());
+        commands.push(format!(
+            "execute if score @s {} matches 1 run scoreboard players set @s {own_consumed} 1",
+            field.dirty_objective
+        ));
+
+        let pending = dirty_pending_name(&field.dirty_objective, marker);
+        objectives.insert(pending.clone());
+        commands.push(format!("scoreboard players set @s {pending} 0"));
+        for claim_marker in claim_markers {
+            let consumed = dirty_consumption_name(&field.dirty_objective, claim_marker);
+            objectives.insert(consumed.clone());
+            commands.push(format!(
+                "execute if entity @s[tag={claim_marker}] unless score @s {consumed} matches 1 run scoreboard players set @s {pending} 1"
+            ));
+        }
+        for claim_marker in claim_markers {
+            let consumed = dirty_consumption_name(&field.dirty_objective, claim_marker);
+            commands.push(format!(
+                "execute if score @s {} matches 1 if score @s {pending} matches 0 run scoreboard players set @s {consumed} 0",
+                field.dirty_objective
+            ));
+        }
+        commands.push(format!(
+            "execute if score @s {} matches 1 if score @s {pending} matches 0 run scoreboard players set @s {} 0",
+            field.dirty_objective, field.dirty_objective
+        ));
+    }
+    commands
+}
+
 #[derive(Debug, Clone)]
 struct ResolvedArchetypeField {
     component: String,
     field: String,
     objective: String,
     dirty_objective: String,
+    component_dirty_objective: String,
     descriptor: crate::entity::state::StateFieldDescriptor,
 }
 
@@ -2082,6 +2143,7 @@ impl ArchetypeFields {
                     component: component.clone(),
                     field: descriptor.name.to_owned(),
                     dirty_objective: dirty_name(schema.namespace, schema.name, descriptor.name),
+                    component_dirty_objective: component_dirty_name(schema.namespace, schema.name),
                     objective: objective.clone(),
                     descriptor: *descriptor,
                 };
@@ -2190,6 +2252,12 @@ fn compile_definition_with_claims(
     for field in fields.values() {
         objectives.insert(field.objective.clone());
         objectives.insert(field.dirty_objective.clone());
+        objectives.insert(field.component_dirty_objective.clone());
+        if let Some(markers) = claims.get(&field.component) {
+            for claim_marker in markers {
+                objectives.insert(dirty_consumption_name(&field.dirty_objective, claim_marker));
+            }
+        }
     }
 
     let mut records = Vec::new();
@@ -2221,12 +2289,18 @@ fn compile_definition_with_claims(
         "function {}:{provision_path}",
         definition.id.namespace()
     )];
+    let repair_objective = sand_commands::ObjectiveName::logical(format!("{id}.component_repair"))
+        .as_str()
+        .to_string();
+    objectives.insert(repair_objective.clone());
+    let mut repair_refresh_commands = Vec::new();
 
     let derivations = compile_derivations(definition, &fields, &root)?;
     objectives.extend(derivations.objectives);
     functions.extend(derivations.functions);
     records.extend(derivations.records);
     initialize_commands.extend(derivations.initialize_commands.iter().cloned());
+    repair_refresh_commands.extend(derivations.initialize_commands.iter().cloned());
 
     let mut refresh_sources: Vec<(String, String)> = Vec::new();
     let mut refresh_outputs: Vec<(String, String)> = Vec::new();
@@ -2238,6 +2312,7 @@ fn compile_definition_with_claims(
         records.extend(compiled.records);
         if let Some(function) = compiled.initialize_function {
             initialize_commands.push(format!("function {function}"));
+            repair_refresh_commands.push(format!("function {function}"));
         }
         for source in compiled.source_dirty {
             refresh_sources.push((source, compiled.output_dirty.clone()));
@@ -2296,13 +2371,14 @@ fn compile_definition_with_claims(
     objectives.extend(transitions.objectives);
     functions.extend(transitions.functions);
     records.extend(transitions.records);
-    initialize_commands.extend(transitions.initialize_commands);
-    for field in fields.values() {
-        initialize_commands.push(format!(
-            "scoreboard players set @s {} 0",
-            field.dirty_objective
-        ));
-    }
+    initialize_commands.extend(transitions.initialize_commands.iter().cloned());
+    repair_refresh_commands.extend(transitions.initialize_commands);
+    initialize_commands.extend(dirty_consumption_commands(
+        &fields,
+        claims,
+        &marker,
+        &mut objectives,
+    ));
     if let Some(callback) = &definition.initialize {
         initialize_commands.push(format!("function {callback}"));
     }
@@ -2354,10 +2430,32 @@ fn compile_definition_with_claims(
 
     let reconcile_path = format!("{root}/reconcile");
     functions.insert(reconcile_path.clone());
-    let mut reconcile_commands = vec![format!(
+    let mut reconcile_commands = vec![format!("scoreboard players set @s {repair_objective} 0")];
+    for component in &definition.components {
+        for (identity, version) in &component.identities {
+            reconcile_commands.push(format!(
+                "execute unless score @s {identity} matches {version} run scoreboard players set @s {repair_objective} 1"
+            ));
+        }
+    }
+    reconcile_commands.push(format!(
         "function {}:{provision_path}",
         definition.id.namespace()
-    )];
+    ));
+    if !repair_refresh_commands.is_empty() {
+        let repair_path = format!("{root}/repair_refresh");
+        functions.insert(repair_path.clone());
+        records.push(function_record(
+            definition.id.namespace(),
+            &repair_path,
+            repair_refresh_commands,
+        ));
+        reconcile_commands.push(format!(
+            "execute if score @s {repair_objective} matches 1 if score @s {version_objective} matches {} run function {}:{repair_path}",
+            definition.version,
+            definition.id.namespace()
+        ));
+    }
     if !definition.migrations.is_empty() {
         reconcile_commands.push(format!(
             "execute unless score @s {version_objective} matches {} run function {}:{migration_path}",
@@ -2370,6 +2468,44 @@ fn compile_definition_with_claims(
         definition.version,
         definition.id.namespace()
     ));
+    let independently_ticked = definition
+        .components
+        .iter()
+        .flat_map(|component| component.auto_tick_objectives.iter().cloned())
+        .collect::<BTreeSet<_>>();
+    for field in fields.values().filter(|field| {
+        matches!(
+            field.descriptor.kind,
+            crate::entity::state::StateFieldKind::Timer
+                | crate::entity::state::StateFieldKind::Cooldown
+        ) && !independently_ticked.contains(&field.objective)
+    }) {
+        let tick_owner_guard = claims
+            .get(&field.component)
+            .into_iter()
+            .flatten()
+            .take_while(|claim_marker| claim_marker.as_str() < marker.as_str())
+            .map(|claim_marker| format!("unless entity @s[tag={claim_marker}]"))
+            .collect::<Vec<_>>()
+            .join(" ");
+        let tick_owner_guard = if tick_owner_guard.is_empty() {
+            String::new()
+        } else {
+            format!("{tick_owner_guard} ")
+        };
+        reconcile_commands.push(format!(
+            "execute {tick_owner_guard}if score @s {} matches 1.. run scoreboard players set @s {} 1",
+            field.objective, field.dirty_objective,
+        ));
+        reconcile_commands.push(format!(
+            "execute {tick_owner_guard}if score @s {} matches 1.. run scoreboard players set @s {} 1",
+            field.objective, field.component_dirty_objective,
+        ));
+        reconcile_commands.push(format!(
+            "execute {tick_owner_guard}if score @s {} matches 1.. run scoreboard players remove @s {} 1",
+            field.objective, field.objective,
+        ));
+    }
     if !refresh_outputs.is_empty() {
         if let Some(path) = &derivations.refresh_function {
             reconcile_commands.push(format!("function {path}"));
@@ -2384,12 +2520,12 @@ fn compile_definition_with_claims(
     if let Some(path) = &transitions.check_function {
         reconcile_commands.push(format!("function {path}"));
     }
-    for field in fields.values() {
-        reconcile_commands.push(format!(
-            "scoreboard players set @s {} 0",
-            field.dirty_objective
-        ));
-    }
+    reconcile_commands.extend(dirty_consumption_commands(
+        &fields,
+        claims,
+        &marker,
+        &mut objectives,
+    ));
     records.push(function_record(
         definition.id.namespace(),
         &reconcile_path,
@@ -2578,7 +2714,7 @@ fn compile_definition_with_claims(
             field.descriptor.kind,
             crate::entity::state::StateFieldKind::Timer
                 | crate::entity::state::StateFieldKind::Cooldown
-        )
+        ) && !independently_ticked.contains(&field.objective)
     });
     let property_schedules_scan = !refresh_outputs.is_empty() || has_timers;
     let component_schedules_scan = !definition.components.is_empty()
@@ -4855,6 +4991,42 @@ mod tests {
     const HEALTH: EntityScore<i32> = EntityScore::new("rpg", "mob", "health", 20, Some((1, 2_000)));
     const SPEED: FixedScore = FixedScore::__new("rpg", "mob", "speed", 100, 125, Some((0, 1_000)));
     const SICK: EntityFlag = EntityFlag::new("rpg", "mob", "sick", false);
+    struct TimedState;
+    static TIMED_FIELDS: &[StateFieldDescriptor] = &[
+        StateFieldDescriptor::new("timer", StateFieldKind::Timer, 0, Some((0, i32::MAX))),
+        StateFieldDescriptor::new("cooldown", StateFieldKind::Cooldown, 0, Some((0, i32::MAX))),
+    ];
+    impl EntityState for TimedState {
+        fn schema() -> StateSchema {
+            StateSchema {
+                namespace: "rpg",
+                name: "timed",
+                version: 1,
+                fields: TIMED_FIELDS,
+            }
+        }
+    }
+    impl StateComposition for TimedState {
+        fn composition_identities() -> Vec<(String, u32)> {
+            vec![("rpg:timed.presence".into(), 1)]
+        }
+
+        fn composition_schemas() -> Vec<StateSchema> {
+            vec![Self::schema()]
+        }
+
+        fn composition_attach(_: &'static str) -> Vec<String> {
+            Vec::new()
+        }
+
+        fn composition_detach(_: &'static str) -> Vec<String> {
+            Vec::new()
+        }
+    }
+    const TIMER: crate::entity::state::EntityTimer =
+        crate::entity::state::EntityTimer::new("rpg", "timed", "timer", 0);
+    const COOLDOWN: crate::entity::state::EntityCooldown =
+        crate::entity::state::EntityCooldown::new("rpg", "timed", "cooldown");
 
     fn profile() -> crate::version::VersionProfile {
         crate::version::VersionProfile::resolve(
@@ -4923,6 +5095,157 @@ mod tests {
                 .any(|record| record.path.ends_with("/reconcile_scan"))
         );
         assert_eq!(compiled.report.outer_scans_per_cycle, 1);
+    }
+
+    #[test]
+    fn shared_component_dirty_state_waits_for_every_active_archetype() {
+        let first = EntityArchetype::<ZombieKind>::new(
+            ResourceLocation::new("rpg", "shared_first").unwrap(),
+        )
+        .components::<MobState>()
+        .derive(HEALTH, StatCurve::state(LEVEL))
+        .definition();
+        let second = EntityArchetype::<ZombieKind>::new(
+            ResourceLocation::new("rpg", "shared_second").unwrap(),
+        )
+        .components::<MobState>()
+        .attribute(AttributeBinding::new(
+            sand_components::AttributeType::AttackDamage,
+            NumericPropertySource::state(LEVEL),
+        ))
+        .definition();
+        let claims = component_claims(&[first.clone(), second.clone()]);
+        let compiled = compile_definition_with_claims(&first, &profile(), &claims).unwrap();
+        let reconcile = compiled
+            .records
+            .iter()
+            .find(|record| record.path.ends_with("/reconcile"))
+            .unwrap();
+        let second_marker = initialized_tag(&second.id.to_string());
+        assert!(reconcile.content.contains(&format!("tag={second_marker}")));
+        let pending = dirty_pending_name(
+            &LEVEL.dirty_objective(),
+            &initialized_tag(&first.id.to_string()),
+        );
+        assert!(reconcile.content.contains(&format!("{pending} matches 0")));
+        assert!(!reconcile.content.lines().any(|line| {
+            line == format!("scoreboard players set @s {} 0", LEVEL.dirty_objective())
+        }));
+    }
+
+    #[test]
+    fn repaired_components_refresh_derived_and_native_state() {
+        let archetype = EntityArchetype::<ZombieKind>::new(
+            ResourceLocation::new("rpg", "repair_refresh").unwrap(),
+        )
+        .components::<MobState>()
+        .derive(HEALTH, StatCurve::state(LEVEL))
+        .health(HealthBinding::new(HEALTH));
+        let compiled = compile_definition(&archetype.definition(), &profile()).unwrap();
+        let reconcile = compiled
+            .records
+            .iter()
+            .find(|record| record.path.ends_with("/reconcile"))
+            .unwrap();
+        let repair = compiled
+            .records
+            .iter()
+            .find(|record| record.path.ends_with("/repair_refresh"))
+            .unwrap();
+        let repair_objective = sand_commands::ObjectiveName::logical(format!(
+            "{}.component_repair",
+            archetype.definition().id
+        ))
+        .as_str()
+        .to_string();
+        assert!(reconcile.content.contains(&repair_objective));
+        assert!(reconcile.content.contains("/repair_refresh"));
+        assert!(repair.content.contains("/derive/0"));
+        assert!(repair.content.contains("/property/0"));
+    }
+
+    #[test]
+    fn composed_timers_and_cooldowns_tick_and_mark_dirty() {
+        let archetype =
+            EntityArchetype::<ZombieKind>::new(ResourceLocation::new("rpg", "timed").unwrap())
+                .components::<TimedState>();
+        let compiled = compile_definition(&archetype.definition(), &profile()).unwrap();
+        let reconcile = compiled
+            .records
+            .iter()
+            .find(|record| record.path.ends_with("/reconcile"))
+            .unwrap();
+        for field in [TIMER.objective(), COOLDOWN.objective()] {
+            assert!(reconcile.content.contains(&format!(
+                "execute if score @s {field} matches 1.. run scoreboard players remove @s {field} 1"
+            )));
+        }
+        assert!(reconcile.content.contains(&TIMER.dirty_objective()));
+        assert!(reconcile.content.contains(&COOLDOWN.dirty_objective()));
+
+        let mut independently_ticked = archetype;
+        independently_ticked.components[0].auto_tick_objectives =
+            vec![TIMER.objective(), COOLDOWN.objective()];
+        let compiled = compile_definition(&independently_ticked.definition(), &profile()).unwrap();
+        let reconcile = compiled
+            .records
+            .iter()
+            .find(|record| record.path.ends_with("/reconcile"))
+            .unwrap();
+        assert!(!reconcile.content.contains(&format!(
+            "scoreboard players remove @s {} 1",
+            TIMER.objective()
+        )));
+        assert!(!reconcile.content.contains(&format!(
+            "scoreboard players remove @s {} 1",
+            COOLDOWN.objective()
+        )));
+    }
+
+    #[test]
+    fn shared_component_timers_tick_once_per_entity() {
+        let first = EntityArchetype::<ZombieKind>::new(
+            ResourceLocation::new("rpg", "timed_first").unwrap(),
+        )
+        .components::<TimedState>()
+        .definition();
+        let second = EntityArchetype::<ZombieKind>::new(
+            ResourceLocation::new("rpg", "timed_second").unwrap(),
+        )
+        .components::<TimedState>()
+        .definition();
+        let claims = component_claims(&[first.clone(), second.clone()]);
+        let first_compiled = compile_definition_with_claims(&first, &profile(), &claims).unwrap();
+        let second_compiled = compile_definition_with_claims(&second, &profile(), &claims).unwrap();
+        let first_reconcile = first_compiled
+            .records
+            .iter()
+            .find(|record| record.path.ends_with("/reconcile"))
+            .unwrap();
+        let second_reconcile = second_compiled
+            .records
+            .iter()
+            .find(|record| record.path.ends_with("/reconcile"))
+            .unwrap();
+        let first_marker = initialized_tag(&first.id.to_string());
+        let second_marker = initialized_tag(&second.id.to_string());
+        let decrement = format!("scoreboard players remove @s {} 1", TIMER.objective());
+        assert!(first_reconcile.content.contains(&decrement));
+        assert!(second_reconcile.content.contains(&decrement));
+        let (owner, guarded, owner_marker) = if first_marker < second_marker {
+            (first_reconcile, second_reconcile, first_marker)
+        } else {
+            (second_reconcile, first_reconcile, second_marker)
+        };
+        assert!(owner.content.contains(&format!(
+            "execute if score @s {} matches 1.. run {decrement}",
+            TIMER.objective()
+        )));
+        assert!(
+            guarded
+                .content
+                .contains(&format!("unless entity @s[tag={owner_marker}]"))
+        );
     }
 
     #[test]

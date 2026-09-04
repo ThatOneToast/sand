@@ -1665,7 +1665,10 @@ impl<T: 'static> EntityStateField for EntityScore<T> {
 
 impl<T: 'static> NumericStateField for EntityScore<T> {
     fn numeric_scale(self) -> i32 {
-        1
+        match self.descriptor.kind {
+            StateFieldKind::Fixed(scale) => scale,
+            _ => 1,
+        }
     }
 
     fn erase_numeric(self) -> EntityScore<i32> {
@@ -3163,7 +3166,7 @@ impl<T: 'static> NumericStateSource for EntityScoreAccessor<T> {
             commands,
             self.holder,
             &self.field.objective(),
-            1,
+            self.field.numeric_scale(),
             destination_holder,
             destination_objective,
             destination_scale,

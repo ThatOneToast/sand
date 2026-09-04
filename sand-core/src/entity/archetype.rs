@@ -4617,7 +4617,8 @@ mod tests {
     use super::*;
     use crate::entity::ZombieKind;
     use crate::entity::state::{
-        EntityFlag, EntityScore, FixedScore, StateFieldDescriptor, StateFieldKind,
+        EntityFlag, EntityScore, FixedScore, NumericStateField, StateFieldDescriptor,
+        StateFieldKind,
     };
 
     struct MobState;
@@ -4834,6 +4835,38 @@ mod tests {
         assert!(!derive.content.lines().any(|line| {
             line.contains("matches ..-1") && line.contains("run scoreboard players add")
         }));
+    }
+
+    #[test]
+    fn erased_fixed_destination_retains_its_scale_when_reused() {
+        let derivation = EntityDerivation::new("speed", SPEED, StatCurve::constant(1.25));
+        let target = derivation.target();
+        assert_eq!(target.numeric_scale(), 100);
+
+        let source = NumericPropertySource::state(target);
+        assert!(matches!(
+            source,
+            NumericPropertySource::StateScore { scale: 100, .. }
+        ));
+
+        let lowered = StatCurve::state(target)
+            .lower_scoreboard("result", "rpg:mob.result", FixedPoint::default())
+            .unwrap();
+        assert!(lowered.operations().iter().any(|operation| matches!(
+            operation,
+            LoweredCurveOperation::ScoreToFixed {
+                source_scale: 100,
+                ..
+            }
+        )));
+
+        let health = EntityScore::<i32>::new("rpg", "mob", "health", 20, None);
+        let commands = health.bind().add(target.bind());
+        assert!(
+            commands
+                .iter()
+                .any(|command| command.contains("#divisor") && command.ends_with(" 100"))
+        );
     }
 
     #[test]

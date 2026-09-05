@@ -588,9 +588,9 @@ impl sand_commands::selector::IntoEntityType for generated::EntityType {
 pub mod __private {
     #[doc(hidden)]
     pub use crate::entity::query::{
-        QueryableStateScope, StateQueryScope, StateQuerySpec, SystemQueryParameter,
-        lower_state_query_current, lower_state_query_each, lower_system_query_current,
-        lower_system_query_each,
+        GeneratedSystemQueryParameter, QueryableStateScope, StateQueryScope, StateQuerySpec,
+        SystemQueryParameter, assert_system_query_parameter, lower_state_query_current,
+        lower_state_query_each, lower_system_query_current, lower_system_query_each,
     };
     #[doc(hidden)]
     pub use crate::entity::state::{

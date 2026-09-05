@@ -855,7 +855,7 @@ pub(crate) fn derive_state(input: DeriveInput) -> syn::Result<proc_macro2::Token
     generated_contracts.push(fields_contract);
     let system_query_parameter_impl = (!matches!(config.scope, Scope::Global)).then(|| {
         quote! {
-            impl ::sand::__private::SystemQueryParameter for #ident {}
+            impl ::sand::__private::GeneratedSystemQueryParameter for #ident {}
         }
     });
     let expanded = quote! {
@@ -1291,7 +1291,7 @@ pub(crate) fn derive_bundle(input: DeriveInput) -> syn::Result<proc_macro2::Toke
             }
         }
 
-        impl ::sand::__private::SystemQueryParameter for #ident {}
+        impl ::sand::__private::GeneratedSystemQueryParameter for #ident {}
 
     };
     if matches!(input.vis, syn::Visibility::Public(_)) {
@@ -1595,7 +1595,7 @@ pub(crate) fn derive_query(input: DeriveInput) -> syn::Result<proc_macro2::Token
             }
         }
 
-        impl ::sand::__private::SystemQueryParameter for #ident {}
+        impl ::sand::__private::GeneratedSystemQueryParameter for #ident {}
     };
     if matches!(input.vis, syn::Visibility::Public(_)) {
         validate_generated_expansion(

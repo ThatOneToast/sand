@@ -1,0 +1,5 @@
+error: [SAND-SYSTEM-PARAM] the system query parameter cannot be shadowed inside its body
+  --> tests/cases/fail_system_query_shadowing.rs:10:13
+   |
+10 |         let query = Target::players();
+   |             ^^^^^

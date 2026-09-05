@@ -50,6 +50,7 @@ use sand_api_contract::syntax::{
     GeneratedApiContract, GeneratedApiKind, render_generated_rustdoc, validate_generated_expansion,
 };
 use syn::fold::{self, Fold};
+use syn::visit::{self, Visit};
 use syn::{ItemFn, LitStr, parse_macro_input, token};
 
 mod api_contract;
@@ -472,7 +473,9 @@ pub fn state_lifecycle(attr: TokenStream, item: TokenStream) -> TokenStream {
 /// command-producing expressions as statements. The outer system body is
 /// declarative and returns nothing; an `each` or `current` closure returns the
 /// `Vec<String>` produced by typed State operations (or explicitly builds and
-/// returns one when it combines several operations).
+/// returns one when it combines several operations). The query parameter name
+/// cannot be shadowed inside the system body because it identifies the typed
+/// query lowered into the export adapter.
 ///
 /// # Grouped tick and event systems
 ///
@@ -626,12 +629,49 @@ fn state_system_body(function: &ItemFn) -> syn::Result<(syn::Ident, syn::Type, s
     };
     let query_ident = pattern.ident.clone();
     let query_ty = (*argument.ty).clone();
-    let block = StateSystemQueryLowering {
-        query_ident: query_ident.clone(),
-        query_ty: query_ty.clone(),
-    }
-    .fold_block((*function.block).clone());
+    let block = lower_state_system_block(
+        (*function.block).clone(),
+        query_ident.clone(),
+        query_ty.clone(),
+    )?;
     Ok((query_ident, query_ty, block))
+}
+
+fn lower_state_system_block(
+    block: syn::Block,
+    query_ident: syn::Ident,
+    query_ty: syn::Type,
+) -> syn::Result<syn::Block> {
+    let mut shadowing = StateSystemQueryShadowing {
+        query_ident: &query_ident,
+        shadow: None,
+    };
+    shadowing.visit_block(&block);
+    if let Some(shadow) = shadowing.shadow {
+        return Err(syn::Error::new_spanned(
+            shadow,
+            "[SAND-SYSTEM-PARAM] the system query parameter cannot be shadowed inside its body",
+        ));
+    }
+    Ok(StateSystemQueryLowering {
+        query_ident,
+        query_ty,
+    }
+    .fold_block(block))
+}
+
+struct StateSystemQueryShadowing<'a> {
+    query_ident: &'a syn::Ident,
+    shadow: Option<syn::Ident>,
+}
+
+impl<'ast> Visit<'ast> for StateSystemQueryShadowing<'_> {
+    fn visit_pat_ident(&mut self, pattern: &'ast syn::PatIdent) {
+        if self.shadow.is_none() && pattern.ident == *self.query_ident {
+            self.shadow = Some(pattern.ident.clone());
+        }
+        visit::visit_pat_ident(self, pattern);
+    }
 }
 
 /// Re-target the editor-visible query operations only in the private export
@@ -690,6 +730,8 @@ fn expand_state_system_function(
     let every = attr.every;
     Ok(quote! {
         #authored
+
+        const _: fn() = ::sand::__private::assert_system_query_parameter::<#query_ty>;
 
         #[doc(hidden)]
         fn #factory() -> Vec<String> {
@@ -769,6 +811,7 @@ fn expand_state_system_impl(
                     ));
                 }
                 let mut event_block = method.block.clone();
+                let mut event_query_ty = None;
                 if method.sig.inputs.len() == 2 {
                     let query_argument = method.sig.inputs.iter().nth(1).expect("two inputs");
                     let syn::FnArg::Typed(query_argument) = query_argument else {
@@ -783,11 +826,13 @@ fn expand_state_system_impl(
                             "[SAND-SYSTEM-PARAM] event query parameters must use a simple identifier",
                         ));
                     };
-                    event_block = StateSystemQueryLowering {
-                        query_ident: query_pattern.ident.clone(),
-                        query_ty: (*query_argument.ty).clone(),
-                    }
-                    .fold_block(event_block);
+                    let query_ty = (*query_argument.ty).clone();
+                    event_block = lower_state_system_block(
+                        event_block,
+                        query_pattern.ident.clone(),
+                        query_ty.clone(),
+                    )?;
+                    event_query_ty = Some(query_ty);
                 }
                 let mut signature = method.sig.clone();
                 while signature.inputs.len() > 1 {
@@ -804,7 +849,16 @@ fn expand_state_system_impl(
                     sig: signature,
                     block: Box::new(event_block),
                 };
-                registrations.push(expand_event(TokenStream::new(), function)?);
+                let event_adapter = expand_event(TokenStream::new(), function)?;
+                registrations.push(if let Some(query_ty) = event_query_ty {
+                    quote! {
+                        const _: fn() =
+                            ::sand::__private::assert_system_query_parameter::<#query_ty>;
+                        #event_adapter
+                    }
+                } else {
+                    event_adapter
+                });
             }
             continue;
         };
@@ -834,6 +888,8 @@ fn expand_state_system_impl(
         let factory = quote::format_ident!("__sand_system_{}_make", method_ident);
         let every = cadence.every;
         registrations.push(quote! {
+            const _: fn() = ::sand::__private::assert_system_query_parameter::<#query_ty>;
+
             #[doc(hidden)]
             fn #factory() -> Vec<String> {
                 let _: ::std::marker::PhantomData<#query_ty> = ::std::marker::PhantomData;

@@ -702,16 +702,18 @@ pub mod __private {
         pub use sand_core::entity::*;
     }
     pub use sand_core::__private::{
-        ArchetypeStateScope, EntityStateScope, GlobalStateBundleScope, GlobalStateScope,
-        LivingStateScope, PlayerStateScope, QueryableStateScope, SameStateScope, StateBundleMember,
-        StateBundleTarget, StateBundleTree, StateComponentLifecycle, StateDataFieldDescriptor,
-        StateMigrationDescriptor, StateQueryScope, StateQuerySpec, StateScopeMarker,
-        StateSystemDescriptor, SystemQueryParameter, entity_score_new, event_dispatch_advancement,
-        event_dispatch_chain, event_dispatch_tick, event_dispatch_tick_condition,
-        event_dispatch_tracked, fixed_score_new, lower_state_query_current, lower_state_query_each,
-        lower_system_query_current, lower_system_query_each, player_sneaking_tracked_source,
-        resolve_state_objective, state_attach_commands, state_attached_condition,
-        state_bundle_trees_overlap, state_detach_commands, state_presence_predicate,
+        ArchetypeStateScope, EntityStateScope, GeneratedSystemQueryParameter,
+        GlobalStateBundleScope, GlobalStateScope, LivingStateScope, PlayerStateScope,
+        QueryableStateScope, SameStateScope, StateBundleMember, StateBundleTarget, StateBundleTree,
+        StateComponentLifecycle, StateDataFieldDescriptor, StateMigrationDescriptor,
+        StateQueryScope, StateQuerySpec, StateScopeMarker, StateSystemDescriptor,
+        SystemQueryParameter, assert_system_query_parameter, entity_score_new,
+        event_dispatch_advancement, event_dispatch_chain, event_dispatch_tick,
+        event_dispatch_tick_condition, event_dispatch_tracked, fixed_score_new,
+        lower_state_query_current, lower_state_query_each, lower_system_query_current,
+        lower_system_query_each, player_sneaking_tracked_source, resolve_state_objective,
+        state_attach_commands, state_attached_condition, state_bundle_trees_overlap,
+        state_detach_commands, state_presence_predicate,
     };
     pub use sand_core::entity::*;
     pub use sand_core::*;

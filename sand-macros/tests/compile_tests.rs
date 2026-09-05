@@ -82,6 +82,8 @@ fn state_derive_compile_tests() {
     t.compile_fail("tests/cases/fail_global_state_query.rs");
     t.compile_fail("tests/cases/fail_system_parameter_count.rs");
     t.compile_fail("tests/cases/fail_system_parameter_kind.rs");
+    t.compile_fail("tests/cases/fail_system_grouped_parameter_kind.rs");
+    t.compile_fail("tests/cases/fail_system_query_shadowing.rs");
     t.compile_fail("tests/cases/fail_system_cadence.rs");
     t.compile_fail("tests/cases/fail_system_event_signature.rs");
     t.compile_fail("tests/cases/fail_system_return_type.rs");

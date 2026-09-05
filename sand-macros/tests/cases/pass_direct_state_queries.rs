@@ -1,4 +1,11 @@
+#![deny(deprecated)]
+
 use sand::prelude::*;
+
+#[deprecated]
+fn legacy_commands() -> Vec<String> {
+    Vec::new()
+}
 
 #[derive(State)]
 #[state(namespace = "direct", scope = entity)]
@@ -41,7 +48,9 @@ struct NestedEntityCombat {
 }
 
 #[system(tick, every = 10)]
+#[allow(deprecated)]
 fn free_tick(query: EntityHealth) {
+    legacy_commands();
     query.each(|health| health.health.add(1));
     query.each(|health| health.health.add(2));
 }
@@ -86,6 +95,7 @@ fn cfg_disabled_free_system(query: MissingFreeQuery) {
 struct DirectSystems;
 
 #[system]
+#[allow(deprecated)]
 impl DirectSystems {
     const MESSAGE: &'static str = "grouped Self context";
 
@@ -104,6 +114,8 @@ impl DirectSystems {
             }
         }
         let _ = Helper::value();
+        let _ = format!("{}", Self::MESSAGE);
+        legacy_commands();
         query.each(|health| {
             let mut commands = health.health.add(1);
             commands.extend(Self::commands());
@@ -115,6 +127,8 @@ impl DirectSystems {
     #[event(DirectPulse)]
     fn current(pulse: DirectPulse, query: PlayerHealth) {
         let _ = pulse;
+        let _ = vec![Self::MESSAGE];
+        legacy_commands();
         query.current(|health| {
             let mut commands = health.health.add(1);
             commands.extend(Self::commands());

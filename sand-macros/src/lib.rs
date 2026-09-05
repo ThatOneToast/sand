@@ -490,7 +490,8 @@ pub fn state_lifecycle(attr: TokenStream, item: TokenStream) -> TokenStream {
 /// `cfg` and `cfg_attr` on a free system, grouped impl, or grouped method gate
 /// both its authored endpoint and its generated registration. Attributes on a
 /// `query.each(...)` or `query.current(...)` statement are retained when Sand
-/// lowers that operation for export.
+/// lowers that operation for export. Lint-control attributes on an authored
+/// system or grouped impl also govern the copied export adapter body.
 ///
 /// # Grouped tick and event systems
 ///
@@ -769,6 +770,12 @@ impl Fold for StateSystemSelfQualification<'_> {
         item
     }
 
+    fn fold_macro(&mut self, item: syn::Macro) -> syn::Macro {
+        let mut item = fold::fold_macro(self, item);
+        item.tokens = qualify_self_tokens(item.tokens, self.self_ty);
+        item
+    }
+
     fn fold_expr_path(&mut self, expression: syn::ExprPath) -> syn::ExprPath {
         let expression = fold::fold_expr_path(self, expression);
         if expression.qself.is_none()
@@ -828,6 +835,31 @@ impl Fold for StateSystemSelfQualification<'_> {
         let self_ty = self.self_ty;
         syn::parse_quote_spanned!(span=> <#self_ty>::#rest)
     }
+}
+
+fn qualify_self_tokens(
+    tokens: proc_macro2::TokenStream,
+    self_ty: &syn::Type,
+) -> proc_macro2::TokenStream {
+    tokens
+        .into_iter()
+        .flat_map(|token| match token {
+            proc_macro2::TokenTree::Ident(ident) if ident == "Self" => {
+                quote::quote_spanned!(ident.span()=> <#self_ty>)
+                    .into_iter()
+                    .collect()
+            }
+            proc_macro2::TokenTree::Group(group) => {
+                let mut qualified = proc_macro2::Group::new(
+                    group.delimiter(),
+                    qualify_self_tokens(group.stream(), self_ty),
+                );
+                qualified.set_span(group.span());
+                vec![proc_macro2::TokenTree::Group(qualified)]
+            }
+            token => vec![token],
+        })
+        .collect()
 }
 
 fn qualify_state_system_self(block: syn::Block, self_ty: &syn::Type) -> syn::Block {
@@ -1037,6 +1069,48 @@ fn conditional_attrs(attrs: &[syn::Attribute]) -> syn::Result<Vec<syn::Attribute
     Ok(conditional)
 }
 
+fn lint_meta(meta: &syn::Meta) -> syn::Result<Option<syn::Meta>> {
+    if ["allow", "warn", "deny", "forbid", "expect"]
+        .iter()
+        .any(|name| meta.path().is_ident(name))
+    {
+        return Ok(Some(meta.clone()));
+    }
+    let syn::Meta::List(list) = meta else {
+        return Ok(None);
+    };
+    if !list.path.is_ident("cfg_attr") {
+        return Ok(None);
+    }
+    let args = syn::parse2::<CfgAttrArgs>(list.tokens.clone())?;
+    let mut attrs = Vec::new();
+    for attr in &args.attrs {
+        if let Some(attr) = lint_meta(attr)? {
+            attrs.push(attr);
+        }
+    }
+    if attrs.is_empty() {
+        return Ok(None);
+    }
+    let predicate = args.predicate;
+    let mut filtered = list.clone();
+    filtered.tokens = quote!(#predicate #(, #attrs)*);
+    Ok(Some(syn::Meta::List(filtered)))
+}
+
+fn lint_attrs(attrs: &[syn::Attribute]) -> syn::Result<Vec<syn::Attribute>> {
+    let mut lint_attrs = Vec::new();
+    for attr in attrs {
+        let Some(meta) = lint_meta(&attr.meta)? else {
+            continue;
+        };
+        let mut attr = attr.clone();
+        attr.meta = meta;
+        lint_attrs.push(attr);
+    }
+    Ok(lint_attrs)
+}
+
 fn gate_generated_items(
     tokens: proc_macro2::TokenStream,
     attrs: &[syn::Attribute],
@@ -1070,6 +1144,7 @@ fn expand_state_system_function(
     let body = build_cmd_body(&block)?;
     let every = attr.every;
     let registration_attrs = conditional_attrs(&function.attrs)?;
+    let factory_lint_attrs = lint_attrs(&function.attrs)?;
     Ok(quote! {
         #authored
 
@@ -1077,6 +1152,7 @@ fn expand_state_system_function(
         const _: fn() = ::sand::__private::assert_system_query_parameter::<#query_ty>;
 
         #(#registration_attrs)*
+        #(#factory_lint_attrs)*
         #[doc(hidden)]
         fn #factory() -> Vec<String> {
             let _: ::std::marker::PhantomData<#query_ty> = ::std::marker::PhantomData;
@@ -1105,6 +1181,7 @@ fn expand_state_system_impl(
     }
     let self_ty = &implementation.self_ty;
     let implementation_registration_attrs = conditional_attrs(&implementation.attrs)?;
+    let implementation_lint_attrs = lint_attrs(&implementation.attrs)?;
     let mut registrations = Vec::new();
     for item in &mut implementation.items {
         let syn::ImplItem::Fn(method) = item else {
@@ -1112,6 +1189,8 @@ fn expand_state_system_impl(
         };
         let mut registration_attrs = implementation_registration_attrs.clone();
         registration_attrs.extend(conditional_attrs(&method.attrs)?);
+        let mut body_lint_attrs = implementation_lint_attrs.clone();
+        body_lint_attrs.extend(lint_attrs(&method.attrs)?);
         let tick_index = method
             .attrs
             .iter()
@@ -1197,7 +1276,7 @@ fn expand_state_system_impl(
                 let original = &method.sig.ident;
                 signature.ident = quote::format_ident!("__sand_system_event_{}", original);
                 let function = ItemFn {
-                    attrs: method.attrs.clone(),
+                    attrs: body_lint_attrs.clone(),
                     vis: syn::Visibility::Inherited,
                     sig: signature,
                     block: Box::new(event_block),
@@ -1251,6 +1330,7 @@ fn expand_state_system_impl(
             const _: fn() = ::sand::__private::assert_system_query_parameter::<#query_ty>;
 
             #(#registration_attrs)*
+            #(#body_lint_attrs)*
             #[doc(hidden)]
             fn #factory() -> Vec<String> {
                 let _: ::std::marker::PhantomData<#query_ty> = ::std::marker::PhantomData;

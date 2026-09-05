@@ -163,6 +163,9 @@ rejected because Sand cannot prove which value bindings they introduce. Call
 the query identifier into a nested macro; nested macros expand only after Sand
 has performed this lowering:
 
+Conditional-compilation and lint-control attributes on systems are preserved
+on their generated export adapters as well as their authored endpoints.
+
 ```rust
 #[system]
 fn every_tick(query: Health) {

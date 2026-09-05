@@ -1030,13 +1030,8 @@ fn gate_generated_items(
     Ok(gated)
 }
 
-fn fnv1a_32_hex(input: &str) -> String {
-    let mut hash = 2_166_136_261_u32;
-    for byte in input.bytes() {
-        hash ^= u32::from(byte);
-        hash = hash.wrapping_mul(16_777_619);
-    }
-    format!("{hash:08x}")
+fn resource_identity_hex(input: &str) -> String {
+    input.bytes().map(|byte| format!("{byte:02x}")).collect()
 }
 
 fn expand_state_system_function(
@@ -1143,13 +1138,6 @@ fn expand_state_system_impl(
                 };
                 let event_argument = argument.clone();
                 let event_ty = (*argument.ty).clone();
-                let actual_ty = &event_ty;
-                if quote!(#expected_ty).to_string() != quote!(#actual_ty).to_string() {
-                    return Err(syn::Error::new_spanned(
-                        &argument.ty,
-                        "[SAND-SYSTEM-EVENT] #[event(EventType)] must match the first method parameter type",
-                    ));
-                }
                 let mut event_block = method.block.clone();
                 let mut event_query_ty = None;
                 if method.sig.inputs.len() == 2 {
@@ -1184,13 +1172,14 @@ fn expand_state_system_impl(
                 );
                 let original = &method.sig.ident;
                 // `#[on_event]` derives the exported Minecraft function path
-                // from this generated function's identifier. Include a stable
-                // owner fingerprint so equal method names on different system
-                // types cannot register the same resource path.
-                let owner_fingerprint = fnv1a_32_hex(&quote!(#self_ty).to_string());
+                // from this generated function's identifier. Encode every
+                // byte of the owner spelling so equal method names on distinct
+                // system types cannot collide (a fixed-width hash is not
+                // sufficient for resource identity).
+                let owner_identity = resource_identity_hex(&quote!(#self_ty).to_string());
                 let body_trait = quote::format_ident!("__SandSystemEventBody_{}", original);
                 let adapter =
-                    quote::format_ident!("__sand_system_event_{}_{}", original, owner_fingerprint);
+                    quote::format_ident!("__sand_system_event_{}_{}", original, owner_identity);
                 let adapter_event = quote::format_ident!("__sand_event_{}", original);
                 let event_body = build_cmd_body(&event_block)?;
                 let query_assertion = event_query_ty.as_ref().map(|query_ty| {
@@ -1199,7 +1188,7 @@ fn expand_state_system_impl(
                     }
                 });
                 let function: ItemFn = syn::parse_quote! {
-                    fn #adapter(#adapter_event: #event_ty) {
+                    fn #adapter(#adapter_event: #expected_ty) {
                         <#self_ty as #body_trait>::make(#adapter_event);
                     }
                 };

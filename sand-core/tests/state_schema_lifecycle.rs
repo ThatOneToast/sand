@@ -170,8 +170,11 @@ fn zz_recharge_players(query: PlayerState) {
     query.each(|player| player.mana.add(1));
 }
 
-struct GroupedStateSystems;
-struct OtherGroupedStateSystems;
+// These two valid Rust identifiers have the same 32-bit FNV-1a hash. Keeping
+// them as the grouped owners ensures resource identity never regresses to a
+// fixed-width hash.
+struct ShF9nHXYiX;
+struct SxOoyj5PdK;
 struct GroupedStatePulse;
 
 impl SandEvent for GroupedStatePulse {
@@ -181,7 +184,7 @@ impl SandEvent for GroupedStatePulse {
 }
 
 #[system]
-impl GroupedStateSystems {
+impl ShF9nHXYiX {
     #[tick(every = 20)]
     fn recharge(query: EntityRuntimeState) {
         query.each(|runtime| runtime.charge.add(1));
@@ -198,7 +201,7 @@ impl GroupedStateSystems {
 }
 
 #[system]
-impl OtherGroupedStateSystems {
+impl SxOoyj5PdK {
     #[event(GroupedStatePulse)]
     fn current(_event: GroupedStatePulse, query: PlayerState) {
         query.current(|player| {

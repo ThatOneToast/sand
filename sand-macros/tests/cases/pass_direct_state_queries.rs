@@ -65,6 +65,18 @@ fn statement_cfg_is_preserved(query: Dead) {
 }
 
 #[system]
+#[cfg_attr(debug_assertions, inline)]
+fn nongating_cfg_attr_stays_on_endpoint(query: Dead) {
+    query.each(|_dead| Vec::new());
+}
+
+#[system]
+#[cfg_attr(debug_assertions, cfg(any()), inline)]
+fn mixed_cfg_attr_keeps_only_gate(query: MissingCfgAttrQuery) {
+    query.each(|_| Vec::new());
+}
+
+#[system]
 #[cfg(any())]
 fn cfg_disabled_free_system(query: MissingFreeQuery) {
     query.each(|_| Vec::new());
@@ -74,15 +86,40 @@ struct DirectSystems;
 
 #[system]
 impl DirectSystems {
+    const MESSAGE: &'static str = "grouped Self context";
+
+    fn commands() -> Vec<String> {
+        vec![cmd::say(Self::MESSAGE).to_string()]
+    }
+
     #[tick(every = 10)]
     fn grouped_tick(query: LivingHealth) {
-        query.each(|health| health.health.add(1));
+        query.each(|health| {
+            let mut commands = health.health.add(1);
+            commands.extend(Self::commands());
+            commands
+        });
     }
 
     #[event(DirectPulse)]
     fn current(pulse: DirectPulse, query: PlayerHealth) {
         let _ = pulse;
-        query.current(|health| health.health.add(1));
+        query.current(|health| {
+            let mut commands = health.health.add(1);
+            commands.extend(Self::commands());
+            commands
+        });
+    }
+
+    #[event(DirectPulse)]
+    fn event_without_query(_pulse: DirectPulse) {
+        Self::commands();
+    }
+
+    #[tick]
+    #[cfg_attr(debug_assertions, inline)]
+    fn nongating_cfg_attr_method(query: Dead) {
+        query.each(|_dead| Vec::new());
     }
 }
 
@@ -123,8 +160,10 @@ fn main() {
     let _: fn(NestedEntityCombat) = bundle_tick;
     let _: fn(Dead) = inherent_name_collision;
     let _: fn(Dead) = statement_cfg_is_preserved;
+    let _: fn(Dead) = nongating_cfg_attr_stays_on_endpoint;
     let _: fn(LivingHealth) = DirectSystems::grouped_tick;
     let _: fn(DirectPulse, PlayerHealth) = DirectSystems::current;
+    let _: fn(DirectPulse) = DirectSystems::event_without_query;
     let _: Vec<String> = <EntityCombat as sand::__private::StateQuerySpec>::each(|combat| {
         combat.health.health.add(1)
     });

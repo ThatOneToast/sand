@@ -729,6 +729,78 @@ fn qualify_state_system_block(block: syn::Block, query_ident: syn::Ident) -> syn
     StateSystemQueryQualification { query_ident }.fold_block(block)
 }
 
+/// Preserve the inherent-impl context when a grouped system body is copied
+/// into a module-level export adapter.
+struct StateSystemSelfQualification<'a> {
+    self_ty: &'a syn::Type,
+}
+
+impl Fold for StateSystemSelfQualification<'_> {
+    fn fold_expr_path(&mut self, expression: syn::ExprPath) -> syn::ExprPath {
+        let expression = fold::fold_expr_path(self, expression);
+        if expression.qself.is_none()
+            && expression.path.is_ident("Self")
+            && let syn::Type::Path(self_ty) = self.self_ty
+        {
+            return syn::ExprPath {
+                attrs: expression.attrs,
+                qself: self_ty.qself.clone(),
+                path: self_ty.path.clone(),
+            };
+        }
+        if expression.qself.is_some()
+            || expression.path.leading_colon.is_some()
+            || expression.path.segments.len() < 2
+            || expression
+                .path
+                .segments
+                .first()
+                .is_none_or(|segment| segment.ident != "Self")
+        {
+            return expression;
+        }
+        let span = expression.path.segments[0].ident.span();
+        let rest = syn::Path {
+            leading_colon: None,
+            segments: expression.path.segments.into_iter().skip(1).collect(),
+        };
+        let self_ty = self.self_ty;
+        syn::parse_quote_spanned!(span=> <#self_ty>::#rest)
+    }
+
+    fn fold_type_path(&mut self, ty: syn::TypePath) -> syn::TypePath {
+        let ty = fold::fold_type_path(self, ty);
+        if ty.qself.is_none()
+            && ty.path.is_ident("Self")
+            && let syn::Type::Path(self_ty) = self.self_ty
+        {
+            return self_ty.clone();
+        }
+        if ty.qself.is_some()
+            || ty.path.leading_colon.is_some()
+            || ty.path.segments.len() < 2
+            || ty
+                .path
+                .segments
+                .first()
+                .is_none_or(|segment| segment.ident != "Self")
+        {
+            return ty;
+        }
+        let span = ty.path.segments[0].ident.span();
+        let rest = syn::Path {
+            leading_colon: None,
+            segments: ty.path.segments.into_iter().skip(1).collect(),
+        };
+        let self_ty = self.self_ty;
+        syn::parse_quote_spanned!(span=> <#self_ty>::#rest)
+    }
+}
+
+fn qualify_state_system_self(block: syn::Block, self_ty: &syn::Type) -> syn::Block {
+    StateSystemSelfQualification { self_ty }.fold_block(block)
+}
+
 impl<'ast> Visit<'ast> for StateSystemQueryShadowing<'_> {
     fn visit_pat_ident(&mut self, pattern: &'ast syn::PatIdent) {
         if self.shadow.is_none() && pattern.ident == *self.query_ident {
@@ -855,12 +927,57 @@ impl Fold for StateSystemQueryLowering {
     }
 }
 
-fn conditional_attrs(attrs: &[syn::Attribute]) -> Vec<syn::Attribute> {
-    attrs
-        .iter()
-        .filter(|attr| attr.path().is_ident("cfg") || attr.path().is_ident("cfg_attr"))
-        .cloned()
-        .collect()
+struct CfgAttrArgs {
+    predicate: syn::Meta,
+    attrs: syn::punctuated::Punctuated<syn::Meta, syn::Token![,]>,
+}
+
+impl syn::parse::Parse for CfgAttrArgs {
+    fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
+        let predicate = input.parse()?;
+        let _: syn::Token![,] = input.parse()?;
+        let attrs = syn::punctuated::Punctuated::parse_terminated(input)?;
+        Ok(Self { predicate, attrs })
+    }
+}
+
+fn gating_meta(meta: &syn::Meta) -> syn::Result<Option<syn::Meta>> {
+    if meta.path().is_ident("cfg") {
+        return Ok(Some(meta.clone()));
+    }
+    let syn::Meta::List(list) = meta else {
+        return Ok(None);
+    };
+    if !list.path.is_ident("cfg_attr") {
+        return Ok(None);
+    }
+    let args = syn::parse2::<CfgAttrArgs>(list.tokens.clone())?;
+    let mut attrs = Vec::new();
+    for attr in &args.attrs {
+        if let Some(attr) = gating_meta(attr)? {
+            attrs.push(attr);
+        }
+    }
+    if attrs.is_empty() {
+        return Ok(None);
+    }
+    let predicate = args.predicate;
+    let mut filtered = list.clone();
+    filtered.tokens = quote!(#predicate #(, #attrs)*);
+    Ok(Some(syn::Meta::List(filtered)))
+}
+
+fn conditional_attrs(attrs: &[syn::Attribute]) -> syn::Result<Vec<syn::Attribute>> {
+    let mut conditional = Vec::new();
+    for attr in attrs {
+        let Some(meta) = gating_meta(&attr.meta)? else {
+            continue;
+        };
+        let mut attr = attr.clone();
+        attr.meta = meta;
+        conditional.push(attr);
+    }
+    Ok(conditional)
 }
 
 fn gate_generated_items(
@@ -895,7 +1012,7 @@ fn expand_state_system_function(
     let factory = quote::format_ident!("__sand_system_{}_make", ident);
     let body = build_cmd_body(&block)?;
     let every = attr.every;
-    let registration_attrs = conditional_attrs(&function.attrs);
+    let registration_attrs = conditional_attrs(&function.attrs)?;
     Ok(quote! {
         #authored
 
@@ -930,14 +1047,14 @@ fn expand_state_system_impl(
         ));
     }
     let self_ty = &implementation.self_ty;
-    let implementation_registration_attrs = conditional_attrs(&implementation.attrs);
+    let implementation_registration_attrs = conditional_attrs(&implementation.attrs)?;
     let mut registrations = Vec::new();
     for item in &mut implementation.items {
         let syn::ImplItem::Fn(method) = item else {
             continue;
         };
         let mut registration_attrs = implementation_registration_attrs.clone();
-        registration_attrs.extend(conditional_attrs(&method.attrs));
+        registration_attrs.extend(conditional_attrs(&method.attrs)?);
         let tick_index = method
             .attrs
             .iter()
@@ -1012,6 +1129,7 @@ fn expand_state_system_impl(
                     );
                     event_query_ty = Some(query_ty);
                 }
+                event_block = qualify_state_system_self(event_block, self_ty);
                 let mut signature = method.sig.clone();
                 while signature.inputs.len() > 1 {
                     signature.inputs.pop();
@@ -1062,6 +1180,7 @@ fn expand_state_system_impl(
             block: Box::new(method.block.clone()),
         };
         let (query_ident, query_ty, block) = state_system_body(&function)?;
+        let block = qualify_state_system_self(block, self_ty);
         let body = build_cmd_body(&block)?;
         method.block = qualify_state_system_block(method.block.clone(), query_ident);
         method

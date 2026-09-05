@@ -64,6 +64,7 @@ fn state_derive_compile_tests() {
     t.pass("tests/cases/pass_state_visibility.rs");
     t.pass("tests/cases/pass_state_components_bundles.rs");
     t.pass("tests/cases/pass_direct_state_queries.rs");
+    t.pass("tests/cases/pass_system_strict_lints.rs");
     t.compile_fail("tests/cases/fail_entity_state_tuple.rs");
     t.compile_fail("tests/cases/fail_entity_state_unknown_wrapper.rs");
     t.compile_fail("tests/cases/fail_entity_state_bad_namespace.rs");

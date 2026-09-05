@@ -747,12 +747,12 @@ impl Fold for StateSystemQueryQualification {
         if call.method == "each" {
             syn::parse_quote_spanned! {call.method.span()=>
                 #(#attrs)*
-                <#query_ty as ::sand::prelude::StateQueryOperations>::each(&#receiver, #arguments)
+                { let _ = <#query_ty as ::sand::prelude::StateQueryOperations>::each(&#receiver, #arguments); }
             }
         } else {
             syn::parse_quote_spanned! {call.method.span()=>
                 #(#attrs)*
-                <#query_ty as ::sand::prelude::StateQueryOperations>::current(&#receiver, #arguments)
+                { let _ = <#query_ty as ::sand::prelude::StateQueryOperations>::current(&#receiver, #arguments); }
             }
         }
     }
@@ -974,7 +974,7 @@ fn conditional_attrs(attrs: &[syn::Attribute]) -> syn::Result<Vec<syn::Attribute
 }
 
 fn lint_meta(meta: &syn::Meta) -> syn::Result<Option<syn::Meta>> {
-    if ["allow", "warn", "deny", "forbid", "expect"]
+    if ["allow", "warn", "deny", "forbid"]
         .iter()
         .any(|name| meta.path().is_ident(name))
     {
@@ -1086,9 +1086,6 @@ fn expand_state_system_function(
     let mut authored = function.clone();
     *authored.block =
         qualify_state_system_block((*function.block).clone(), query_ident, query_ty.clone());
-    authored
-        .attrs
-        .push(syn::parse_quote!(#[allow(dead_code, unused_must_use, unused_variables)]));
     let ident = &function.sig.ident;
     let factory = quote::format_ident!("__sand_system_{}_make", ident);
     let body = build_cmd_body(&block)?;
@@ -1097,6 +1094,9 @@ fn expand_state_system_function(
     let factory_lint_attrs = lint_attrs(&function.attrs)?;
     Ok(quote! {
         #authored
+
+        #(#registration_attrs)*
+        const _: fn(#query_ty) = #ident;
 
         #(#registration_attrs)*
         const _: fn() = ::sand::__private::assert_system_query_parameter::<#query_ty>;
@@ -1219,9 +1219,6 @@ fn expand_state_system_impl(
                     );
                     event_query_ty = Some(query_ty);
                 }
-                method.attrs.push(
-                    syn::parse_quote!(#[allow(dead_code, unused_must_use, unused_variables)]),
-                );
                 let original = &method.sig.ident;
                 let body_trait = quote::format_ident!("__SandSystemEventBody_{}", original);
                 let adapter = quote::format_ident!("__sand_system_event_{}", original);
@@ -1308,6 +1305,7 @@ fn expand_state_system_impl(
                     #(#registration_attrs)*
                     #[allow(non_upper_case_globals)]
                     const _: () = {
+                        let _ = #self_ty::#original;
                         #body_context
                         #event_adapter
                     };
@@ -1336,9 +1334,6 @@ fn expand_state_system_impl(
         let body = build_cmd_body(&block)?;
         method.block =
             qualify_state_system_block(method.block.clone(), query_ident, query_ty.clone());
-        method
-            .attrs
-            .push(syn::parse_quote!(#[allow(dead_code, unused_must_use, unused_variables)]));
         let method_ident = &method.sig.ident;
         let factory = quote::format_ident!("__sand_system_{}_make", method_ident);
         let body_trait = quote::format_ident!("__SandSystemTickBody_{}", method_ident);
@@ -1348,6 +1343,7 @@ fn expand_state_system_impl(
         registrations.push(quote! {
             #(#registration_attrs)*
             const _: () = {
+                let _ = #self_ty::#method_ident;
                 #(#registration_attrs)*
                 #[doc(hidden)]
                 #[allow(non_camel_case_types)]
@@ -2513,14 +2509,12 @@ fn expand_event_with_path(
     // generated zero-argument Minecraft function.
     let preamble = quote! {
         #(#fn_attrs)*
-        #[allow(unused_variables)]
         #vis fn #fn_name() -> ::std::vec::Vec<::std::string::String> {
             let #event_binding_pattern = #event_binding_tokens;
             #body
         }
 
         #[doc(hidden)]
-        #[allow(dead_code)]
         fn #fn_make_ident() -> ::std::vec::Vec<::std::string::String> {
             #fn_name()
         }
@@ -2630,7 +2624,6 @@ fn expand_event_with_path(
                 #preamble
 
                 #[doc(hidden)]
-                #[allow(dead_code)]
                 fn #trigger_ident() -> ::sand::__private::AdvancementTrigger {
                     ::sand::__private::AdvancementTrigger::Tick
                 }
@@ -2798,7 +2791,6 @@ fn expand_event_with_path(
                 #preamble
 
                 #[doc(hidden)]
-                #[allow(dead_code)]
                 fn #cond_ident() -> ::std::string::String {
                     #condition.to_string()
                 }
@@ -2866,7 +2858,6 @@ fn expand_event_with_path(
                 #preamble
 
                 #[doc(hidden)]
-                #[allow(dead_code)]
                 fn #cond_ident() -> ::std::string::String {
                     #condition.to_string()
                 }
@@ -2923,25 +2914,21 @@ fn expand_event_with_path(
                 #preamble
 
                 #[doc(hidden)]
-                #[allow(dead_code)]
                 fn #trigger_ident() -> ::sand::__private::AdvancementTrigger {
                     <#dispatch_type_tokens as ::sand::__private::event::AdvancementEvent>::trigger().into()
                 }
 
                 #[doc(hidden)]
-                #[allow(dead_code)]
                 fn #revoke_ident() -> bool {
                     <#dispatch_type_tokens as ::sand::__private::event::AdvancementEvent>::reset().should_revoke()
                 }
 
                 #[doc(hidden)]
-                #[allow(dead_code)]
                 fn #guard_ident() -> ::std::option::Option<::sand::__private::condition::Condition> {
                     <#dispatch_type_tokens as ::sand::__private::event::AdvancementEvent>::guard()
                 }
 
                 #[doc(hidden)]
-                #[allow(dead_code)]
                 fn #participants_ident() -> ::sand::__private::participant::EventParticipantPlan {
                     <#dispatch_type_tokens as ::sand::__private::event::AdvancementEvent>::participants()
                 }
@@ -3015,7 +3002,6 @@ fn expand_event_with_path(
                 #preamble
 
                 #[doc(hidden)]
-                #[allow(dead_code)]
                 fn #trigger_ident() -> ::std::option::Option<::sand::__private::AdvancementTrigger> {
                     let dispatch: ::sand::__private::events::SandEventDispatch =
                         <#dispatch_type_tokens as ::sand::__private::events::SandEvent>::dispatch().into();
@@ -3023,7 +3009,6 @@ fn expand_event_with_path(
                 }
 
                 #[doc(hidden)]
-                #[allow(dead_code)]
                 fn #cond_ident() -> ::std::option::Option<::std::string::String> {
                     let dispatch: ::sand::__private::events::SandEventDispatch =
                         <#dispatch_type_tokens as ::sand::__private::events::SandEvent>::dispatch().into();
@@ -3031,7 +3016,6 @@ fn expand_event_with_path(
                 }
 
                 #[doc(hidden)]
-                #[allow(dead_code)]
                 fn #tick_ident() -> ::std::option::Option<::sand::__private::events::TickEventDispatch> {
                     let dispatch: ::sand::__private::events::SandEventDispatch =
                         <#dispatch_type_tokens as ::sand::__private::events::SandEvent>::dispatch().into();
@@ -3039,7 +3023,6 @@ fn expand_event_with_path(
                 }
 
                 #[doc(hidden)]
-                #[allow(dead_code)]
                 fn #chain_ident() -> ::std::option::Option<::sand::__private::events::ChainEventDispatch> {
                     let dispatch: ::sand::__private::events::SandEventDispatch =
                         <#dispatch_type_tokens as ::sand::__private::events::SandEvent>::dispatch().into();
@@ -3047,7 +3030,6 @@ fn expand_event_with_path(
                 }
 
                 #[doc(hidden)]
-                #[allow(dead_code)]
                 fn #tracked_ident() -> ::std::option::Option<::sand::__private::TrackedTransition> {
                     let dispatch: ::sand::__private::events::SandEventDispatch =
                         <#dispatch_type_tokens as ::sand::__private::events::SandEvent>::dispatch().into();
@@ -3055,31 +3037,26 @@ fn expand_event_with_path(
                 }
 
                 #[doc(hidden)]
-                #[allow(dead_code)]
                 fn #revoke_ident() -> bool {
                     <#dispatch_type_tokens as ::sand::__private::events::SandEvent>::revoke()
                 }
 
                 #[doc(hidden)]
-                #[allow(dead_code)]
                 fn #type_id_ident() -> ::std::any::TypeId {
                     ::std::any::TypeId::of::<#dispatch_type_tokens>()
                 }
 
                 #[doc(hidden)]
-                #[allow(dead_code)]
                 fn #type_name_ident() -> &'static str {
                     ::std::any::type_name::<#dispatch_type_tokens>()
                 }
 
                 #[doc(hidden)]
-                #[allow(dead_code)]
                 fn #setup_ident() -> ::sand::__private::events::EventSetup {
                     <#dispatch_type_tokens as ::sand::__private::events::SandEvent>::setup()
                 }
 
                 #[doc(hidden)]
-                #[allow(dead_code)]
                 fn #participants_ident() -> ::sand::__private::participant::EventParticipantPlan {
                     <#dispatch_type_tokens as ::sand::__private::events::SandEvent>::participants()
                 }

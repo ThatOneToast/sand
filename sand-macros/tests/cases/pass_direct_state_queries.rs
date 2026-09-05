@@ -72,9 +72,9 @@ fn inherent_name_collision(query: Dead) {
 }
 
 #[system]
-fn statement_cfg_is_preserved(query: Dead) {
+fn statement_cfg_is_preserved(_query: Dead) {
     #[cfg(any())]
-    query.each(|_dead| {
+    _query.each(|_dead| {
         compile_error!("cfg-disabled query call was emitted");
         Vec::new()
     });

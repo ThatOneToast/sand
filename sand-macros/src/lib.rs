@@ -479,6 +479,11 @@ pub fn state_lifecycle(attr: TokenStream, item: TokenStream) -> TokenStream {
 /// patterns and local value items such as constants, statics, functions, and
 /// unit or tuple structs.
 ///
+/// `cfg` and `cfg_attr` on a free system, grouped impl, or grouped method gate
+/// both its authored endpoint and its generated registration. Attributes on a
+/// `query.each(...)` or `query.current(...)` statement are retained when Sand
+/// lowers that operation for export.
+///
 /// # Grouped tick and event systems
 ///
 /// `#[system]` on an inherent impl is organization only and creates no runtime
@@ -688,6 +693,7 @@ impl Fold for StateSystemQueryQualification {
             return fold::fold_expr(self, expression);
         }
 
+        let attrs = &call.attrs;
         let receiver = receiver.clone();
         let arguments = call
             .args
@@ -697,10 +703,12 @@ impl Fold for StateSystemQueryQualification {
             .collect::<syn::punctuated::Punctuated<_, syn::Token![,]>>();
         if call.method == "each" {
             syn::parse_quote_spanned! {call.method.span()=>
+                #(#attrs)*
                 ::sand::prelude::StateQueryOperations::each(#receiver, #arguments)
             }
         } else {
             syn::parse_quote_spanned! {call.method.span()=>
+                #(#attrs)*
                 ::sand::prelude::StateQueryOperations::current(#receiver, #arguments)
             }
         }
@@ -791,6 +799,7 @@ impl Fold for StateSystemQueryLowering {
             return fold::fold_expr(self, expression);
         }
 
+        let attrs = &call.attrs;
         let arguments = call
             .args
             .clone()
@@ -800,14 +809,42 @@ impl Fold for StateSystemQueryLowering {
         let query_ty = &self.query_ty;
         if call.method == "each" {
             syn::parse_quote_spanned! {call.method.span()=>
+                #(#attrs)*
                 ::sand::__private::lower_system_query_each::<#query_ty, _>(#arguments)
             }
         } else {
             syn::parse_quote_spanned! {call.method.span()=>
+                #(#attrs)*
                 ::sand::__private::lower_system_query_current::<#query_ty, _>(#arguments)
             }
         }
     }
+}
+
+fn conditional_attrs(attrs: &[syn::Attribute]) -> Vec<syn::Attribute> {
+    attrs
+        .iter()
+        .filter(|attr| attr.path().is_ident("cfg") || attr.path().is_ident("cfg_attr"))
+        .cloned()
+        .collect()
+}
+
+fn gate_generated_items(
+    tokens: proc_macro2::TokenStream,
+    attrs: &[syn::Attribute],
+) -> syn::Result<proc_macro2::TokenStream> {
+    if attrs.is_empty() {
+        return Ok(tokens);
+    }
+    let file = syn::parse2::<syn::File>(tokens)?;
+    let mut gated = proc_macro2::TokenStream::new();
+    for item in file.items {
+        gated.extend(quote! {
+            #(#attrs)*
+            #item
+        });
+    }
+    Ok(gated)
 }
 
 fn expand_state_system_function(
@@ -824,17 +861,21 @@ fn expand_state_system_function(
     let factory = quote::format_ident!("__sand_system_{}_make", ident);
     let body = build_cmd_body(&block)?;
     let every = attr.every;
+    let registration_attrs = conditional_attrs(&function.attrs);
     Ok(quote! {
         #authored
 
+        #(#registration_attrs)*
         const _: fn() = ::sand::__private::assert_system_query_parameter::<#query_ty>;
 
+        #(#registration_attrs)*
         #[doc(hidden)]
         fn #factory() -> Vec<String> {
             let _: ::std::marker::PhantomData<#query_ty> = ::std::marker::PhantomData;
             #body
         }
 
+        #(#registration_attrs)*
         ::sand::__private::inventory::submit! {
             ::sand::__private::StateSystemDescriptor {
                 id: concat!(module_path!(), "::", stringify!(#ident)),
@@ -855,11 +896,14 @@ fn expand_state_system_impl(
         ));
     }
     let self_ty = &implementation.self_ty;
+    let implementation_registration_attrs = conditional_attrs(&implementation.attrs);
     let mut registrations = Vec::new();
     for item in &mut implementation.items {
         let syn::ImplItem::Fn(method) = item else {
             continue;
         };
+        let mut registration_attrs = implementation_registration_attrs.clone();
+        registration_attrs.extend(conditional_attrs(&method.attrs));
         let tick_index = method
             .attrs
             .iter()
@@ -949,9 +993,13 @@ fn expand_state_system_impl(
                     sig: signature,
                     block: Box::new(event_block),
                 };
-                let event_adapter = expand_event(TokenStream::new(), function)?;
+                let event_adapter = gate_generated_items(
+                    expand_event(TokenStream::new(), function)?,
+                    &registration_attrs,
+                )?;
                 registrations.push(if let Some(query_ty) = event_query_ty {
                     quote! {
+                        #(#registration_attrs)*
                         const _: fn() =
                             ::sand::__private::assert_system_query_parameter::<#query_ty>;
                         #event_adapter
@@ -989,13 +1037,16 @@ fn expand_state_system_impl(
         let factory = quote::format_ident!("__sand_system_{}_make", method_ident);
         let every = cadence.every;
         registrations.push(quote! {
+            #(#registration_attrs)*
             const _: fn() = ::sand::__private::assert_system_query_parameter::<#query_ty>;
 
+            #(#registration_attrs)*
             #[doc(hidden)]
             fn #factory() -> Vec<String> {
                 let _: ::std::marker::PhantomData<#query_ty> = ::std::marker::PhantomData;
                 #body
             }
+            #(#registration_attrs)*
             ::sand::__private::inventory::submit! {
                 ::sand::__private::StateSystemDescriptor {
                     id: concat!(module_path!(), "::", stringify!(#self_ty), "::", stringify!(#method_ident)),
@@ -1171,7 +1222,19 @@ fn build_cmd_body(block: &syn::Block) -> syn::Result<proc_macro2::TokenStream> {
             // Every expression (with or without `;`) goes through IntoCommands.
             // This handles String, &str, Vec<String>, and any custom type.
             syn::Stmt::Expr(expr, _semi) => {
-                pieces.push(command_body_expr(expr)?);
+                let mut expression = expr.clone();
+                let attrs = match &mut expression {
+                    syn::Expr::Call(call) => std::mem::take(&mut call.attrs),
+                    syn::Expr::MethodCall(call) => std::mem::take(&mut call.attrs),
+                    _ => Vec::new(),
+                };
+                let command = command_body_expr(&expression)?;
+                pieces.push(quote! {
+                    #(#attrs)*
+                    {
+                        #command
+                    }
+                });
             }
             // Every macro invocation goes through IntoCommands so that
             // `mcfunction![…]` (returns Vec<String>) extends the list and

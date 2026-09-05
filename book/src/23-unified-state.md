@@ -171,6 +171,10 @@ fn every_second(query: Health) {
 }
 ```
 
+`cfg` and `cfg_attr` gates on a free system, grouped impl, or grouped method
+also gate its generated registration. Statement attributes on `query.each(...)`
+and `query.current(...)` are preserved in the export adapter.
+
 An inherent impl groups related endpoints without constructing a Rust system
 object. Grouped methods do not take `self`. Tick methods use `#[tick]` or
 `#[tick(every = N)]`:

@@ -55,6 +55,21 @@ fn inherent_name_collision(query: Dead) {
     query.each(|_dead| vec![cmd::say("canonical query operation").to_string()]);
 }
 
+#[system]
+fn statement_cfg_is_preserved(query: Dead) {
+    #[cfg(any())]
+    query.each(|_dead| {
+        compile_error!("cfg-disabled query call was emitted");
+        Vec::new()
+    });
+}
+
+#[system]
+#[cfg(any())]
+fn cfg_disabled_free_system(query: MissingFreeQuery) {
+    query.each(|_| Vec::new());
+}
+
 struct DirectSystems;
 
 #[system]
@@ -71,6 +86,30 @@ impl DirectSystems {
     }
 }
 
+#[system]
+impl DirectSystems {
+    #[tick]
+    #[cfg(any())]
+    fn cfg_disabled_tick_method(query: MissingTickQuery) {
+        query.each(|_| Vec::new());
+    }
+
+    #[event(MissingEvent)]
+    #[cfg(any())]
+    fn cfg_disabled_event_method(_event: MissingEvent, query: MissingEventQuery) {
+        query.each(|_| Vec::new());
+    }
+}
+
+#[system]
+#[cfg(any())]
+impl MissingImplSystems {
+    #[tick]
+    fn cfg_disabled_impl(query: MissingImplQuery) {
+        query.each(|_| Vec::new());
+    }
+}
+
 struct DirectPulse;
 
 impl SandEvent for DirectPulse {
@@ -83,6 +122,7 @@ fn main() {
     let _: fn(EntityHealth) = free_tick;
     let _: fn(NestedEntityCombat) = bundle_tick;
     let _: fn(Dead) = inherent_name_collision;
+    let _: fn(Dead) = statement_cfg_is_preserved;
     let _: fn(LivingHealth) = DirectSystems::grouped_tick;
     let _: fn(DirectPulse, PlayerHealth) = DirectSystems::current;
     let _: Vec<String> = <EntityCombat as sand::__private::StateQuerySpec>::each(|combat| {

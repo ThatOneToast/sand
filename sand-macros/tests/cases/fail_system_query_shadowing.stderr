@@ -3,3 +3,33 @@ error: [SAND-SYSTEM-PARAM] the system query parameter cannot be shadowed inside 
    |
 10 |         let query = Target::players();
    |             ^^^^^
+
+error: [SAND-SYSTEM-PARAM] the system query parameter cannot be shadowed inside its body
+  --> tests/cases/fail_system_query_shadowing.rs:17:11
+   |
+17 |     const query: Mana = Mana;
+   |           ^^^^^
+
+error: [SAND-SYSTEM-PARAM] the system query parameter cannot be shadowed inside its body
+  --> tests/cases/fail_system_query_shadowing.rs:23:12
+   |
+23 |     static query: Mana = Mana;
+   |            ^^^^^
+
+error: [SAND-SYSTEM-PARAM] the system query parameter cannot be shadowed inside its body
+  --> tests/cases/fail_system_query_shadowing.rs:29:8
+   |
+29 |     fn query() {}
+   |        ^^^^^
+
+error: [SAND-SYSTEM-PARAM] the system query parameter cannot be shadowed inside its body
+  --> tests/cases/fail_system_query_shadowing.rs:35:12
+   |
+35 |     struct query;
+   |            ^^^^^
+
+error: [SAND-SYSTEM-PARAM] the system query parameter cannot be shadowed inside its body
+  --> tests/cases/fail_system_query_shadowing.rs:41:27
+   |
+41 |     use imported::mana as query;
+   |                           ^^^^^

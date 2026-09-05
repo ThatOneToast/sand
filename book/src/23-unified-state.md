@@ -155,8 +155,9 @@ signature.
 A free system is a tick system and takes exactly one simply named query
 parameter. Empty `#[system]` means every tick; spelling `tick` is optional but
 can make intent clearer. `every` is a positive tick count. Keep the query
-parameter name unshadowed within the body; Sand uses that binding to identify
-the typed query operations lowered into the export adapter:
+parameter name unshadowed within the body—including by local value items or
+imports; Sand uses that binding to identify the typed query operations lowered
+into the export adapter:
 
 ```rust
 #[system]

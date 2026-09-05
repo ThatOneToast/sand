@@ -475,7 +475,9 @@ pub fn state_lifecycle(attr: TokenStream, item: TokenStream) -> TokenStream {
 /// `Vec<String>` produced by typed State operations (or explicitly builds and
 /// returns one when it combines several operations). The query parameter name
 /// cannot be shadowed inside the system body because it identifies the typed
-/// query lowered into the export adapter.
+/// query lowered into the export adapter. This includes bindings introduced by
+/// patterns and local value items such as constants, statics, functions, and
+/// unit or tuple structs.
 ///
 /// # Grouped tick and event systems
 ///
@@ -715,6 +717,55 @@ impl<'ast> Visit<'ast> for StateSystemQueryShadowing<'_> {
             self.shadow = Some(pattern.ident.clone());
         }
         visit::visit_pat_ident(self, pattern);
+    }
+
+    fn visit_item_const(&mut self, item: &'ast syn::ItemConst) {
+        self.record_value_item(&item.ident);
+        visit::visit_item_const(self, item);
+    }
+
+    fn visit_item_static(&mut self, item: &'ast syn::ItemStatic) {
+        self.record_value_item(&item.ident);
+        visit::visit_item_static(self, item);
+    }
+
+    fn visit_item_fn(&mut self, item: &'ast syn::ItemFn) {
+        self.record_value_item(&item.sig.ident);
+        visit::visit_item_fn(self, item);
+    }
+
+    fn visit_item_struct(&mut self, item: &'ast syn::ItemStruct) {
+        if matches!(item.fields, syn::Fields::Unit | syn::Fields::Unnamed(_)) {
+            self.record_value_item(&item.ident);
+        }
+        visit::visit_item_struct(self, item);
+    }
+
+    fn visit_item_use(&mut self, item: &'ast syn::ItemUse) {
+        self.visit_use_binding(&item.tree);
+        visit::visit_item_use(self, item);
+    }
+}
+
+impl StateSystemQueryShadowing<'_> {
+    fn record_value_item(&mut self, ident: &syn::Ident) {
+        if self.shadow.is_none() && ident == self.query_ident {
+            self.shadow = Some(ident.clone());
+        }
+    }
+
+    fn visit_use_binding(&mut self, tree: &syn::UseTree) {
+        match tree {
+            syn::UseTree::Path(path) => self.visit_use_binding(&path.tree),
+            syn::UseTree::Name(name) => self.record_value_item(&name.ident),
+            syn::UseTree::Rename(rename) => self.record_value_item(&rename.rename),
+            syn::UseTree::Group(group) => {
+                for tree in &group.items {
+                    self.visit_use_binding(tree);
+                }
+            }
+            syn::UseTree::Glob(_) => {}
+        }
     }
 }
 

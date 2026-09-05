@@ -108,10 +108,12 @@ use events::QualifiedPulse;
 
 trait SystemTypes {
     type Query;
+    type Event;
 }
 
 impl SystemTypes for DirectSystems {
     type Query = LivingHealth;
+    type Event = DirectPulse;
 }
 
 #[system]
@@ -179,6 +181,9 @@ impl DirectSystems {
 
     #[event(events::QualifiedPulse)]
     fn qualified_event_type(_pulse: QualifiedPulse) {}
+
+    #[event(DirectPulse)]
+    fn self_event_type(_pulse: <Self as SystemTypes>::Event) {}
 
     #[tick]
     #[cfg_attr(debug_assertions, inline)]
@@ -252,6 +257,7 @@ fn main() {
     let _: fn(DirectPulse, LivingHealth) = DirectSystems::event_with_self_query;
     let _: fn(DirectPulse) = DirectSystems::event_without_query;
     let _: fn(QualifiedPulse) = DirectSystems::qualified_event_type;
+    let _: fn(DirectPulse) = DirectSystems::self_event_type;
     let _: fn(LivingHealth) = OtherDirectSystems::grouped_tick;
     let _: fn(DirectPulse, PlayerHealth) = OtherDirectSystems::current;
     let _: Vec<String> = <EntityCombat as sand::__private::StateQuerySpec>::each(|combat| {

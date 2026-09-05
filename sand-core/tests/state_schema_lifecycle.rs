@@ -212,6 +212,42 @@ impl SxOoyj5PdK {
     }
 }
 
+mod grouped_module_a {
+    use super::*;
+
+    struct Systems;
+
+    #[system]
+    impl Systems {
+        #[event(GroupedStatePulse)]
+        fn current(_event: GroupedStatePulse, query: PlayerState) {
+            query.current(|player| {
+                let mut commands = player.mana.add(3);
+                commands.push(cmd::say("module a grouped current").to_string());
+                commands
+            });
+        }
+    }
+}
+
+mod grouped_module_b {
+    use super::*;
+
+    struct Systems;
+
+    #[system]
+    impl Systems {
+        #[event(GroupedStatePulse)]
+        fn current(_event: GroupedStatePulse, query: PlayerState) {
+            query.current(|player| {
+                let mut commands = player.mana.add(4);
+                commands.push(cmd::say("module b grouped current").to_string());
+                commands
+            });
+        }
+    }
+}
+
 fn records() -> Vec<serde_json::Value> {
     serde_json::from_str(&sand_core::try_export_components_json("statepack").unwrap()).unwrap()
 }
@@ -501,12 +537,17 @@ fn grouped_event_current_registers_and_guards_without_a_second_scan() {
         .collect::<Vec<_>>();
     assert_eq!(
         grouped_handlers.len(),
-        2,
+        4,
         "same-named grouped event methods on distinct types should export separately"
     );
-    assert_ne!(
-        grouped_handlers[0]["path"], grouped_handlers[1]["path"],
-        "the owning system type must participate in the generated resource path"
+    let unique_paths = grouped_handlers
+        .iter()
+        .map(|handler| handler["path"].as_str().unwrap())
+        .collect::<std::collections::BTreeSet<_>>();
+    assert_eq!(
+        unique_paths.len(),
+        grouped_handlers.len(),
+        "the module and owning system type must participate losslessly in each generated resource path"
     );
     let requirement = <PlayerState as sand::__private::StateBundleMember>::presence_requirements();
 

@@ -523,8 +523,11 @@ pub fn state_lifecycle(attr: TokenStream, item: TokenStream) -> TokenStream {
 /// ```
 ///
 /// Event methods take the event first and optionally one query second. The
-/// type in `#[event(Type)]` must equal the first parameter type. Event dispatch
-/// has already selected its owner as `@s`; `current` checks required and
+/// concrete type in `#[event(Type)]` must resolve to the first parameter type;
+/// Rust checks that agreement, so the parameter may use an equivalent import,
+/// re-export, alias, or associated type. The attribute itself names a concrete
+/// marker path because Sand constructs that bare event marker during export.
+/// Event dispatch has already selected its owner as `@s`; `current` checks required and
 /// forbidden component presence on that executor without another scan, while
 /// `each` deliberately starts a new scope-wide scan.
 ///
@@ -1030,8 +1033,49 @@ fn gate_generated_items(
     Ok(gated)
 }
 
-fn resource_identity_hex(input: &str) -> String {
-    input.bytes().map(|byte| format!("{byte:02x}")).collect()
+struct ImplSelfTypeQualification<'a> {
+    self_ty: &'a syn::Type,
+}
+
+impl Fold for ImplSelfTypeQualification<'_> {
+    fn fold_type(&mut self, ty: syn::Type) -> syn::Type {
+        if let syn::Type::Path(path) = &ty
+            && path.qself.is_none()
+            && path.path.is_ident("Self")
+        {
+            return self.self_ty.clone();
+        }
+        fold::fold_type(self, ty)
+    }
+}
+
+fn qualify_impl_self_type(ty: syn::Type, self_ty: &syn::Type) -> syn::Type {
+    ImplSelfTypeQualification { self_ty }.fold_type(ty)
+}
+
+#[derive(Default)]
+struct ImplSelfTypeUse {
+    found: bool,
+}
+
+impl Visit<'_> for ImplSelfTypeUse {
+    fn visit_type_path(&mut self, path: &syn::TypePath) {
+        if path
+            .path
+            .segments
+            .iter()
+            .any(|segment| segment.ident == "Self")
+        {
+            self.found = true;
+        }
+        visit::visit_type_path(self, path);
+    }
+}
+
+fn uses_impl_self_type(ty: &syn::Type) -> bool {
+    let mut visitor = ImplSelfTypeUse::default();
+    visitor.visit_type(ty);
+    visitor.found
 }
 
 fn expand_state_system_function(
@@ -1123,6 +1167,12 @@ fn expand_state_system_impl(
                         ));
                     }
                 };
+                if uses_impl_self_type(&expected_ty) {
+                    return Err(syn::Error::new_spanned(
+                        &expected_ty,
+                        "[SAND-SYSTEM-EVENT] #[event(...)] requires a concrete event type path; an associated `Self` type names a type but cannot construct the bare SandEvent marker used during export. Name the concrete event in #[event(EventType)]; the method parameter may still use an equivalent associated type",
+                    ));
+                }
                 if !(1..=2).contains(&method.sig.inputs.len()) {
                     return Err(syn::Error::new_spanned(
                         &method.sig.inputs,
@@ -1138,6 +1188,8 @@ fn expand_state_system_impl(
                 };
                 let event_argument = argument.clone();
                 let event_ty = (*argument.ty).clone();
+                let lifted_event_ty = qualify_impl_self_type(event_ty.clone(), self_ty);
+                let lifted_expected_ty = qualify_impl_self_type(expected_ty.clone(), self_ty);
                 let mut event_block = method.block.clone();
                 let mut event_query_ty = None;
                 if method.sig.inputs.len() == 2 {
@@ -1171,16 +1223,16 @@ fn expand_state_system_impl(
                     syn::parse_quote!(#[allow(dead_code, unused_must_use, unused_variables)]),
                 );
                 let original = &method.sig.ident;
-                // `#[on_event]` derives the exported Minecraft function path
-                // from this generated function's identifier. Encode every
-                // byte of the owner spelling so equal method names on distinct
-                // system types cannot collide (a fixed-width hash is not
-                // sufficient for resource identity).
-                let owner_identity = resource_identity_hex(&quote!(#self_ty).to_string());
                 let body_trait = quote::format_ident!("__SandSystemEventBody_{}", original);
-                let adapter =
-                    quote::format_ident!("__sand_system_event_{}_{}", original, owner_identity);
+                let adapter = quote::format_ident!("__sand_system_event_{}", original);
                 let adapter_event = quote::format_ident!("__sand_event_{}", original);
+                let path_raw = quote::format_ident!("__SAND_SYSTEM_EVENT_PATH_RAW_{}", original);
+                let path_len = quote::format_ident!("__SAND_SYSTEM_EVENT_PATH_LEN_{}", original);
+                let path_encode =
+                    quote::format_ident!("__sand_system_event_path_encode_{}", original);
+                let path_bytes =
+                    quote::format_ident!("__SAND_SYSTEM_EVENT_PATH_BYTES_{}", original);
+                let path = quote::format_ident!("__SAND_SYSTEM_EVENT_PATH_{}", original);
                 let event_body = build_cmd_body(&event_block)?;
                 let query_assertion = event_query_ty.as_ref().map(|query_ty| {
                     quote! {
@@ -1188,20 +1240,57 @@ fn expand_state_system_impl(
                     }
                 });
                 let function: ItemFn = syn::parse_quote! {
-                    fn #adapter(#adapter_event: #expected_ty) {
+                    fn #adapter(#adapter_event: #lifted_expected_ty) {
                         <#self_ty as #body_trait>::make(#adapter_event);
                     }
                 };
                 let event_adapter = gate_generated_items(
-                    expand_event(TokenStream::new(), function)?,
+                    expand_event_with_path(TokenStream::new(), function, Some(quote!(#path)))?,
                     &registration_attrs,
                 )?;
                 let body_context = quote! {
+                    const #path_raw: &str = concat!(
+                        module_path!(), "\0", stringify!(#self_ty), "\0", stringify!(#original)
+                    );
+                    const #path_len: usize = #path_raw.len() * 2 + (#path_raw.len() * 2 - 1) / 64;
+                    const fn #path_encode(input: &str) -> [u8; #path_len] {
+                        const HEX: &[u8; 16] = b"0123456789abcdef";
+                        let input = input.as_bytes();
+                        let mut output = [0; #path_len];
+                        let mut source = 0;
+                        let mut target = 0;
+                        let mut hex_chars = 0;
+                        while source < input.len() {
+                            let byte = input[source];
+                            output[target] = HEX[(byte >> 4) as usize];
+                            target += 1;
+                            hex_chars += 1;
+                            if hex_chars % 64 == 0 && target < output.len() {
+                                output[target] = b'/';
+                                target += 1;
+                            }
+                            output[target] = HEX[(byte & 0x0f) as usize];
+                            target += 1;
+                            hex_chars += 1;
+                            if hex_chars % 64 == 0 && target < output.len() {
+                                output[target] = b'/';
+                                target += 1;
+                            }
+                            source += 1;
+                        }
+                        output
+                    }
+                    const #path_bytes: [u8; #path_len] = #path_encode(#path_raw);
+                    const #path: &str = match ::std::str::from_utf8(&#path_bytes) {
+                        Ok(path) => path,
+                        Err(_) => panic!("generated system event path was not UTF-8"),
+                    };
+
                     #(#registration_attrs)*
                     #[doc(hidden)]
                     #[allow(non_camel_case_types)]
                     trait #body_trait {
-                        fn make(__sand_event: #event_ty) -> Vec<String>;
+                        fn make(__sand_event: #lifted_event_ty) -> Vec<String>;
                     }
 
                     #(#registration_attrs)*
@@ -1217,6 +1306,7 @@ fn expand_state_system_impl(
                 // system types may reuse ordinary method names safely.
                 registrations.push(quote! {
                     #(#registration_attrs)*
+                    #[allow(non_upper_case_globals)]
                     const _: () = {
                         #body_context
                         #event_adapter
@@ -2206,8 +2296,17 @@ fn is_tracked_provider_event_type(name: &str) -> bool {
 }
 
 fn expand_event(attr: TokenStream, func: ItemFn) -> syn::Result<proc_macro2::TokenStream> {
+    expand_event_with_path(attr, func, None)
+}
+
+fn expand_event_with_path(
+    attr: TokenStream,
+    func: ItemFn,
+    descriptor_path: Option<proc_macro2::TokenStream>,
+) -> syn::Result<proc_macro2::TokenStream> {
     let fn_name = &func.sig.ident;
     let fn_name_str = fn_name.to_string();
+    let descriptor_path = descriptor_path.unwrap_or_else(|| quote!(#fn_name_str));
     let vis = &func.vis;
     let fn_attrs = &func.attrs;
 
@@ -2260,6 +2359,9 @@ fn expand_event(attr: TokenStream, func: ItemFn) -> syn::Result<proc_macro2::Tok
         ty: &syn::Type,
         tp: &syn::TypePath,
     ) -> syn::Result<Option<(String, proc_macro2::TokenStream, bool)>> {
+        if tp.qself.is_some() {
+            return Ok(None);
+        }
         let Some(segment) = tp.path.segments.last() else {
             return Ok(None);
         };
@@ -2466,7 +2568,7 @@ fn expand_event(attr: TokenStream, func: ItemFn) -> syn::Result<proc_macro2::Tok
                 #preamble
 
                 ::sand::__private::inventory::submit!(::sand::__private::EventDescriptor {
-                    path: #fn_name_str,
+                    path: #descriptor_path,
                     id_override: #id_override_tokens,
                     make: #fn_make_ident,
                     dispatch: ::sand::__private::EventDispatch::Tracked(
@@ -2485,7 +2587,7 @@ fn expand_event(attr: TokenStream, func: ItemFn) -> syn::Result<proc_macro2::Tok
                 #preamble
 
                 ::sand::__private::inventory::submit!(::sand::__private::EventDescriptor {
-                    path: #fn_name_str,
+                    path: #descriptor_path,
                     id_override: #id_override_tokens,
                     make: #fn_make_ident,
                     dispatch: ::sand::__private::EventDispatch::Tracked(
@@ -2510,7 +2612,7 @@ fn expand_event(attr: TokenStream, func: ItemFn) -> syn::Result<proc_macro2::Tok
                 #preamble
 
                 ::sand::__private::inventory::submit!(::sand::__private::EventDescriptor {
-                    path: #fn_name_str,
+                    path: #descriptor_path,
                     id_override: #id_override_tokens,
                     make: #fn_make_ident,
                     dispatch: ::sand::__private::EventDispatch::JoinTick,
@@ -2534,7 +2636,7 @@ fn expand_event(attr: TokenStream, func: ItemFn) -> syn::Result<proc_macro2::Tok
                 }
 
                 ::sand::__private::inventory::submit!(::sand::__private::EventDescriptor {
-                    path: #fn_name_str,
+                    path: #descriptor_path,
                     id_override: #id_override_tokens,
                     make: #fn_make_ident,
                     dispatch: ::sand::__private::EventDispatch::Advancement {
@@ -2561,7 +2663,7 @@ fn expand_event(attr: TokenStream, func: ItemFn) -> syn::Result<proc_macro2::Tok
                 #preamble
 
                 ::sand::__private::inventory::submit!(::sand::__private::EventDescriptor {
-                    path: #fn_name_str,
+                    path: #descriptor_path,
                     id_override: #id_override_tokens,
                     make: #fn_make_ident,
                     dispatch: ::sand::__private::EventDispatch::XpLevelUp,
@@ -2575,7 +2677,7 @@ fn expand_event(attr: TokenStream, func: ItemFn) -> syn::Result<proc_macro2::Tok
                 #preamble
 
                 ::sand::__private::inventory::submit!(::sand::__private::EventDescriptor {
-                    path: #fn_name_str,
+                    path: #descriptor_path,
                     id_override: #id_override_tokens,
                     make: #fn_make_ident,
                     dispatch: ::sand::__private::EventDispatch::DeathTick,
@@ -2589,7 +2691,7 @@ fn expand_event(attr: TokenStream, func: ItemFn) -> syn::Result<proc_macro2::Tok
                 #preamble
 
                 ::sand::__private::inventory::submit!(::sand::__private::EventDescriptor {
-                    path: #fn_name_str,
+                    path: #descriptor_path,
                     id_override: #id_override_tokens,
                     make: #fn_make_ident,
                     dispatch: ::sand::__private::EventDispatch::RespawnTick,
@@ -2613,7 +2715,7 @@ fn expand_event(attr: TokenStream, func: ItemFn) -> syn::Result<proc_macro2::Tok
                 #preamble
 
                 ::sand::__private::inventory::submit!(::sand::__private::EventDescriptor {
-                    path: #fn_name_str,
+                    path: #descriptor_path,
                     id_override: #id_override_tokens,
                     make: #fn_make_ident,
                     dispatch: ::sand::__private::EventDispatch::ArmorEquip {
@@ -2641,7 +2743,7 @@ fn expand_event(attr: TokenStream, func: ItemFn) -> syn::Result<proc_macro2::Tok
                 #preamble
 
                 ::sand::__private::inventory::submit!(::sand::__private::EventDescriptor {
-                    path: #fn_name_str,
+                    path: #descriptor_path,
                     id_override: #id_override_tokens,
                     make: #fn_make_ident,
                     dispatch: ::sand::__private::EventDispatch::ArmorUnequip {
@@ -2702,7 +2804,7 @@ fn expand_event(attr: TokenStream, func: ItemFn) -> syn::Result<proc_macro2::Tok
                 }
 
                 ::sand::__private::inventory::submit!(::sand::__private::EventDescriptor {
-                    path: #fn_name_str,
+                    path: #descriptor_path,
                     id_override: #id_override_tokens,
                     make: #fn_make_ident,
                     dispatch: ::sand::__private::EventDispatch::TickPoll {
@@ -2770,7 +2872,7 @@ fn expand_event(attr: TokenStream, func: ItemFn) -> syn::Result<proc_macro2::Tok
                 }
 
                 ::sand::__private::inventory::submit!(::sand::__private::EventDescriptor {
-                    path: #fn_name_str,
+                    path: #descriptor_path,
                     id_override: #id_override_tokens,
                     make: #fn_make_ident,
                     dispatch: ::sand::__private::EventDispatch::TickPoll {
@@ -2845,7 +2947,7 @@ fn expand_event(attr: TokenStream, func: ItemFn) -> syn::Result<proc_macro2::Tok
                 }
 
                 ::sand::__private::inventory::submit!(::sand::__private::EventDescriptor {
-                    path: #fn_name_str,
+                    path: #descriptor_path,
                     id_override: #id_override_tokens,
                     make: #fn_make_ident,
                     dispatch: ::sand::__private::EventDispatch::Advancement {
@@ -2861,7 +2963,7 @@ fn expand_event(attr: TokenStream, func: ItemFn) -> syn::Result<proc_macro2::Tok
                 // Register event type → handler path mapping for EventHandle<E>.revoke/grant.
                 ::sand::__private::inventory::submit!(::sand::__private::EventPathEntry {
                     type_id: ::std::any::TypeId::of::<#dispatch_type_tokens>(),
-                    path: #fn_name_str,
+                    path: #descriptor_path,
                 });
             }
         }
@@ -2983,7 +3085,7 @@ fn expand_event(attr: TokenStream, func: ItemFn) -> syn::Result<proc_macro2::Tok
                 }
 
                 ::sand::__private::inventory::submit!(::sand::__private::EventDescriptor {
-                    path: #fn_name_str,
+                    path: #descriptor_path,
                     id_override: #id_override_tokens,
                     make: #fn_make_ident,
                     dispatch: ::sand::__private::EventDispatch::Custom {

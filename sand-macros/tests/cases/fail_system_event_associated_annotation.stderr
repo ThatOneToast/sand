@@ -1,0 +1,5 @@
+error: [SAND-SYSTEM-EVENT] #[event(...)] requires a concrete event type path; an associated `Self` type names a type but cannot construct the bare SandEvent marker used during export. Name the concrete event in #[event(EventType)]; the method parameter may still use an equivalent associated type
+  --> tests/cases/fail_system_event_associated_annotation.rs:16:13
+   |
+16 |     #[event(<Self as SystemTypes>::Event)]
+   |             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^

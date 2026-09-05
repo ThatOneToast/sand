@@ -2352,6 +2352,7 @@ fn compile_definition_with_claims(
     repair_refresh_commands.extend(derivations.initialize_commands.iter().cloned());
 
     let mut refresh_sources: Vec<(String, String)> = Vec::new();
+    let mut refresh_source_causes: Vec<(String, String)> = Vec::new();
     let mut refresh_outputs: Vec<(String, String)> = Vec::new();
     let mut periodic_refreshes: Vec<(String, String, u32)> = Vec::new();
     for (index, property) in definition.properties.iter().enumerate() {
@@ -2366,6 +2367,7 @@ fn compile_definition_with_claims(
         for source in compiled.source_dirty {
             refresh_sources.push((source, compiled.output_dirty.clone()));
         }
+        refresh_source_causes.extend(compiled.source_causes);
         if let Some(function) = compiled.refresh_function {
             refresh_outputs.push((compiled.output_dirty, function));
         }
@@ -2379,6 +2381,8 @@ fn compile_definition_with_claims(
     if !refresh_outputs.is_empty() {
         refresh_sources.sort();
         refresh_sources.dedup();
+        refresh_source_causes.sort();
+        refresh_source_causes.dedup();
         refresh_outputs.sort();
         refresh_outputs.dedup();
         let mut commands = Vec::new();
@@ -2402,6 +2406,19 @@ fn compile_definition_with_claims(
             }
             commands.push(format!(
                 "execute if score @s {source} matches 1 run scoreboard players set @s {output} 1"
+            ));
+        }
+        for (source, cause) in &refresh_source_causes {
+            let pending = fields
+                .field_for_dirty_objective(source)
+                .map(|field| dirty_pending_name(&field.dirty_objective, &marker));
+            if let Some(pending) = pending {
+                commands.push(format!(
+                    "execute if score @s {pending} matches 1 run scoreboard players set @s {cause} 1"
+                ));
+            }
+            commands.push(format!(
+                "execute if score @s {source} matches 1 run scoreboard players set @s {cause} 1"
             ));
         }
         for (output, function) in &refresh_outputs {
@@ -2583,6 +2600,7 @@ fn compile_definition_with_claims(
     } else if let Some(path) = &derivations.refresh_function {
         reconcile_commands.push(format!("function {path}"));
     }
+    reconcile_commands.extend(dirty_acknowledgement_commands(&fields, &marker));
     if let Some(path) = &transitions.check_function {
         reconcile_commands.push(format!("function {path}"));
     }
@@ -2591,7 +2609,6 @@ fn compile_definition_with_claims(
         claims,
         &mut objectives,
     ));
-    reconcile_commands.extend(dirty_acknowledgement_commands(&fields, &marker));
     records.push(function_record(
         definition.id.namespace(),
         &reconcile_path,
@@ -3151,6 +3168,7 @@ struct PropertyCompilation {
     initialize_function: Option<String>,
     refresh_function: Option<String>,
     source_dirty: Vec<String>,
+    source_causes: Vec<(String, String)>,
     output_dirty: String,
     periodic: Option<(String, String, u32)>,
 }
@@ -4050,6 +4068,7 @@ fn compile_property(
     let mut functions = vec![path.clone()];
     let mut objectives = vec![output_dirty.clone()];
     let mut sources = Vec::new();
+    let mut source_causes = Vec::new();
     let (commands, ownership, refresh) = match property {
         ArchetypeProperty::Health(binding) => {
             binding.validate(&id)?;
@@ -4065,7 +4084,16 @@ fn compile_property(
                     format!("property[{index}] health current"),
                     &current.field_reference(),
                 )?;
-                sources.push(current.dirty_objective());
+                if matches!(
+                    binding.current_health_sync(),
+                    CurrentHealthSync::ApplyState | CurrentHealthSync::Bidirectional
+                ) {
+                    let source = current.dirty_objective();
+                    sources.push(source.clone());
+                    if binding.current_health_sync() == CurrentHealthSync::Bidirectional {
+                        source_causes.push((source, health_current_cause_name(&id, index)));
+                    }
+                }
             }
             let lowered = lower_health(definition, binding, index, root, profile)?;
             objectives.extend(lowered.objectives);
@@ -4391,6 +4419,11 @@ fn compile_property(
         } else {
             Vec::new()
         },
+        source_causes: if automatic_refresh {
+            source_causes
+        } else {
+            Vec::new()
+        },
         output_dirty,
         periodic,
     })
@@ -4610,23 +4643,46 @@ fn lower_health(
                 ));
             }
             CurrentHealthSync::Bidirectional => {
+                let state_current_changed = health_current_cause_name(&id, index);
                 commands.push(format!(
-                    "execute if score @s {} matches 1 run scoreboard players operation @s {new_current} = @s {}",
-                    current.dirty_objective(),
-                    current.objective()
-                ));
-                commands.push(format!(
-                    "execute unless score @s {} matches 1 run scoreboard players operation @s {} = @s {new_current}",
-                    current.dirty_objective(),
-                    current.objective()
-                ));
-                commands.push(format!(
-                    "execute unless score @s {} matches 1 run scoreboard players set @s {} 1",
-                    current.dirty_objective(),
+                    "execute if score @s {} matches 1 run scoreboard players set @s {state_current_changed} 1",
                     current.dirty_objective()
+                ));
+                commands.push(format!(
+                    "execute if score @s {state_current_changed} matches 1 run scoreboard players operation @s {new_current} = @s {}",
+                    current.objective()
+                ));
+                commands.push(format!(
+                    "execute unless score @s {state_current_changed} matches 1 run scoreboard players operation @s {} = @s {new_current}",
+                    current.objective()
+                ));
+                commands.push(format!(
+                    "execute unless score @s {state_current_changed} matches 1 run scoreboard players set @s {} 1",
+                    current.dirty_objective()
+                ));
+                commands.push(format!(
+                    "scoreboard players operation @s {new_current} < @s {max}"
+                ));
+                commands.push(format!(
+                    "execute if score @s {state_current_changed} matches 1 run scoreboard players operation @s {} = @s {new_current}",
+                    current.objective()
+                ));
+                commands.push(format!(
+                    "scoreboard players set @s {state_current_changed} 0"
                 ));
             }
             CurrentHealthSync::None => {}
+        }
+    }
+    if binding.current_health_sync() == CurrentHealthSync::ApplyState {
+        commands.push(format!(
+            "scoreboard players operation @s {new_current} < @s {max}"
+        ));
+        if let Some(current) = binding.current_health_field() {
+            commands.push(format!(
+                "scoreboard players operation @s {} = @s {new_current}",
+                current.objective()
+            ));
         }
     }
     commands.push(format!(
@@ -4640,8 +4696,20 @@ fn lower_health(
             vec!["$attribute @s minecraft:max_health base set $(value)".into()],
         )],
         functions: vec![helper],
-        objectives: vec![old_max, old_current, new_current],
+        objectives: {
+            let mut objectives = vec![old_max, old_current, new_current];
+            if binding.current_health_sync() == CurrentHealthSync::Bidirectional {
+                objectives.push(health_current_cause_name(&id, index));
+            }
+            objectives
+        },
     })
+}
+
+fn health_current_cause_name(id: &str, index: usize) -> String {
+    sand_commands::ObjectiveName::logical(format!("{id}.property.{index}.state_current_changed"))
+        .as_str()
+        .to_string()
 }
 
 fn lower_name(
@@ -5489,6 +5557,167 @@ mod tests {
         assert!(property_line < transition_line);
         assert!(compiled.report.objectives.contains(&HEALTH.objective()));
         assert_eq!(compiled.report.outer_scans_per_cycle, 1);
+    }
+
+    #[test]
+    fn health_sync_subscriptions_follow_direction_semantics() {
+        for (sync, subscribes_to_current) in [
+            (CurrentHealthSync::None, false),
+            (CurrentHealthSync::ObserveNative, false),
+            (CurrentHealthSync::ApplyState, true),
+            (CurrentHealthSync::Bidirectional, true),
+        ] {
+            let archetype = EntityArchetype::<ZombieKind>::new(
+                ResourceLocation::new("rpg", format!("health_{sync:?}").to_lowercase()).unwrap(),
+            )
+            .components::<MobState>()
+            .health(
+                HealthBinding::new(HEALTH)
+                    .current_health(LEVEL, sync)
+                    .observe_native_every(Ticks::new(20)),
+            );
+            let compiled = compile_definition(&archetype.definition(), &profile()).unwrap();
+            let refresh = compiled
+                .records
+                .iter()
+                .find(|record| record.path.ends_with("/refresh"))
+                .unwrap();
+            let current_pending = dirty_pending_name(
+                &LEVEL.dirty_objective(),
+                &initialized_tag(&archetype.definition().id.to_string()),
+            );
+            assert_eq!(
+                refresh.content.contains(&format!(
+                    "if score @s {current_pending} matches 1 run scoreboard players set"
+                )),
+                subscribes_to_current,
+                "unexpected current-health subscription for {sync:?}"
+            );
+            assert!(refresh.content.contains(&HEALTH.dirty_objective()));
+        }
+    }
+
+    #[test]
+    fn bidirectional_health_snapshots_state_write_cause_before_consuming_it() {
+        let archetype = EntityArchetype::<ZombieKind>::new(
+            ResourceLocation::new("rpg", "causal_health").unwrap(),
+        )
+        .components::<MobState>()
+        .health(
+            HealthBinding::new(HEALTH)
+                .current_health(LEVEL, CurrentHealthSync::Bidirectional)
+                .observe_native_every(Ticks::new(1)),
+        );
+        let definition = archetype.definition();
+        let compiled = compile_definition(&definition, &profile()).unwrap();
+        let cause = health_current_cause_name(&definition.id.to_string(), 0);
+        let pending = dirty_pending_name(
+            &LEVEL.dirty_objective(),
+            &initialized_tag(&definition.id.to_string()),
+        );
+        let refresh = compiled
+            .records
+            .iter()
+            .find(|record| record.path.ends_with("/refresh"))
+            .unwrap();
+        assert!(refresh.content.contains(&format!(
+            "if score @s {pending} matches 1 run scoreboard players set @s {cause} 1"
+        )));
+        let property = compiled
+            .records
+            .iter()
+            .find(|record| record.path.ends_with("/property/0"))
+            .unwrap();
+        assert!(property.content.contains(&format!(
+            "if score @s {cause} matches 1 run scoreboard players operation"
+        )));
+        assert!(property.content.contains(&format!(
+            "unless score @s {cause} matches 1 run scoreboard players operation"
+        )));
+        let cause_reset = property
+            .content
+            .find(&format!("scoreboard players set @s {cause} 0"))
+            .unwrap();
+        let native_write = property
+            .content
+            .find("execute store result entity @s Health float 1")
+            .unwrap();
+        assert!(cause_reset < native_write);
+    }
+
+    #[test]
+    fn reconciliation_acknowledges_old_causes_before_publishing_new_writes() {
+        let archetype = EntityArchetype::<ZombieKind>::new(
+            ResourceLocation::new("rpg", "causal_publish").unwrap(),
+        )
+        .components::<MobState>()
+        .health(
+            HealthBinding::new(HEALTH)
+                .current_health(LEVEL, CurrentHealthSync::ObserveNative)
+                .observe_native_every(Ticks::new(20)),
+        );
+        let definition = archetype.definition();
+        let compiled = compile_definition(&definition, &profile()).unwrap();
+        let pending = dirty_pending_name(
+            &LEVEL.dirty_objective(),
+            &initialized_tag(&definition.id.to_string()),
+        );
+        let reconcile = compiled
+            .records
+            .iter()
+            .find(|record| record.path.ends_with("/reconcile"))
+            .unwrap();
+        let acknowledge = reconcile
+            .content
+            .find(&format!("scoreboard players set @s {pending} 0"))
+            .unwrap();
+        let publish = reconcile
+            .content
+            .rfind(&format!("{} matches 1", LEVEL.dirty_objective()))
+            .unwrap();
+        assert!(acknowledge < publish);
+    }
+
+    #[test]
+    fn state_applied_health_is_clamped_and_resize_policies_remain_distinct() {
+        let compile_health = |name: &str, sync, resize| {
+            let archetype =
+                EntityArchetype::<ZombieKind>::new(ResourceLocation::new("rpg", name).unwrap())
+                    .components::<MobState>()
+                    .health(
+                        HealthBinding::new(HEALTH)
+                            .current_health(LEVEL, sync)
+                            .resize(resize),
+                    );
+            let compiled = compile_definition(&archetype.definition(), &profile()).unwrap();
+            compiled
+                .records
+                .iter()
+                .find(|record| record.path.ends_with("/property/0"))
+                .unwrap()
+                .content
+                .clone()
+        };
+
+        let apply = compile_health(
+            "apply_health",
+            CurrentHealthSync::ApplyState,
+            HealthResizePolicy::PreserveAbsolute,
+        );
+        assert!(apply.matches("scoreboard players operation @s").count() >= 4);
+        assert!(apply.contains(&format!("< @s {}", HEALTH.objective())));
+        assert!(apply.contains(&format!(
+            "scoreboard players operation @s {} = @s",
+            LEVEL.objective()
+        )));
+
+        let ratio = compile_health(
+            "ratio_health",
+            CurrentHealthSync::None,
+            HealthResizePolicy::PreserveRatio,
+        );
+        assert!(ratio.contains(&format!("*= @s {}", HEALTH.objective())));
+        assert!(ratio.contains("matches 1.. run scoreboard players operation"));
     }
 
     #[test]

@@ -474,12 +474,16 @@ pub fn state_lifecycle(attr: TokenStream, item: TokenStream) -> TokenStream {
 /// declarative and returns nothing; an `each` or `current` closure returns the
 /// `Vec<String>` produced by typed State operations (or explicitly builds and
 /// returns one when it combines several operations). The query parameter name
-/// cannot be shadowed inside the system body because it identifies the typed
+/// is a reusable marker: each direct `each` or `current` operation borrows it
+/// and accepts a fresh `FnOnce` closure, so a system can issue several operations.
+/// Its name cannot be shadowed inside the system body because it identifies the typed
 /// query lowered into the export adapter. This includes bindings introduced by
 /// patterns and local value items such as constants, statics, functions, and
 /// unit or tuple structs. The query identifier also cannot be passed into a
 /// nested macro because that expansion happens after Sand has identified and
 /// lowered direct query operations.
+/// Other uses of the query value are rejected because the generated export
+/// adapter has a query type but intentionally fabricates no runtime marker.
 ///
 /// `cfg` and `cfg_attr` on a free system, grouped impl, or grouped method gate
 /// both its authored endpoint and its generated registration. Attributes on a
@@ -655,6 +659,7 @@ fn lower_state_system_block(
         query_ident: &query_ident,
         shadow: None,
         macro_use: None,
+        unsupported_use: None,
     };
     shadowing.visit_block(&block);
     if let Some(shadow) = shadowing.shadow {
@@ -669,6 +674,12 @@ fn lower_state_system_block(
             "[SAND-SYSTEM-PARAM] the system query parameter cannot be passed into a nested macro; call each/current directly so Sand can lower it safely",
         ));
     }
+    if let Some(unsupported_use) = shadowing.unsupported_use {
+        return Err(syn::Error::new_spanned(
+            unsupported_use,
+            "[SAND-SYSTEM-PARAM] system query values may only be used as the direct receiver of each/current",
+        ));
+    }
     Ok(StateSystemQueryLowering {
         query_ident,
         query_ty,
@@ -680,6 +691,7 @@ struct StateSystemQueryShadowing<'a> {
     query_ident: &'a syn::Ident,
     shadow: Option<syn::Ident>,
     macro_use: Option<syn::Ident>,
+    unsupported_use: Option<syn::ExprPath>,
 }
 
 /// Make the preserved Rust endpoint resolve the same canonical trait method as
@@ -714,12 +726,12 @@ impl Fold for StateSystemQueryQualification {
         if call.method == "each" {
             syn::parse_quote_spanned! {call.method.span()=>
                 #(#attrs)*
-                ::sand::prelude::StateQueryOperations::each(#receiver, #arguments)
+                ::sand::prelude::StateQueryOperations::each(&#receiver, #arguments)
             }
         } else {
             syn::parse_quote_spanned! {call.method.span()=>
                 #(#attrs)*
-                ::sand::prelude::StateQueryOperations::current(#receiver, #arguments)
+                ::sand::prelude::StateQueryOperations::current(&#receiver, #arguments)
             }
         }
     }
@@ -736,6 +748,17 @@ struct StateSystemSelfQualification<'a> {
 }
 
 impl Fold for StateSystemSelfQualification<'_> {
+    fn fold_item_impl(&mut self, item: syn::ItemImpl) -> syn::ItemImpl {
+        // A nested impl establishes its own `Self`; only the surrounding
+        // grouped-system method inherits the outer inherent impl's `Self`.
+        item
+    }
+
+    fn fold_item_trait(&mut self, item: syn::ItemTrait) -> syn::ItemTrait {
+        // A block-local trait likewise establishes a new `Self` scope.
+        item
+    }
+
     fn fold_expr_path(&mut self, expression: syn::ExprPath) -> syn::ExprPath {
         let expression = fold::fold_expr_path(self, expression);
         if expression.qself.is_none()
@@ -802,6 +825,26 @@ fn qualify_state_system_self(block: syn::Block, self_ty: &syn::Type) -> syn::Blo
 }
 
 impl<'ast> Visit<'ast> for StateSystemQueryShadowing<'_> {
+    fn visit_expr_method_call(&mut self, expression: &'ast syn::ExprMethodCall) {
+        if let syn::Expr::Path(receiver) = expression.receiver.as_ref()
+            && receiver.path.is_ident(self.query_ident)
+            && (expression.method == "each" || expression.method == "current")
+        {
+            for argument in &expression.args {
+                self.visit_expr(argument);
+            }
+            return;
+        }
+        visit::visit_expr_method_call(self, expression);
+    }
+
+    fn visit_expr_path(&mut self, expression: &'ast syn::ExprPath) {
+        if self.unsupported_use.is_none() && expression.path.is_ident(self.query_ident) {
+            self.unsupported_use = Some(expression.clone());
+        }
+        visit::visit_expr_path(self, expression);
+    }
+
     fn visit_pat_ident(&mut self, pattern: &'ast syn::PatIdent) {
         if self.shadow.is_none() && pattern.ident == *self.query_ident {
             self.shadow = Some(pattern.ident.clone());

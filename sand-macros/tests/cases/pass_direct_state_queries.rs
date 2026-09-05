@@ -43,6 +43,7 @@ struct NestedEntityCombat {
 #[system(tick, every = 10)]
 fn free_tick(query: EntityHealth) {
     query.each(|health| health.health.add(1));
+    query.each(|health| health.health.add(2));
 }
 
 #[system(tick, every = 10)]
@@ -94,11 +95,21 @@ impl DirectSystems {
 
     #[tick(every = 10)]
     fn grouped_tick(query: LivingHealth) {
+        struct Helper;
+        impl Helper {
+            const VALUE: i32 = 1;
+
+            fn value() -> i32 {
+                Self::VALUE
+            }
+        }
+        let _ = Helper::value();
         query.each(|health| {
             let mut commands = health.health.add(1);
             commands.extend(Self::commands());
             commands
         });
+        query.each(|health| health.health.add(2));
     }
 
     #[event(DirectPulse)]
@@ -109,6 +120,7 @@ impl DirectSystems {
             commands.extend(Self::commands());
             commands
         });
+        query.each(|health| health.health.add(2));
     }
 
     #[event(DirectPulse)]
@@ -183,7 +195,7 @@ fn source_level_methods(
     let _: Vec<String> = entity.each(|health| health.health.add(1));
     let _: Vec<String> = living.current(|health| health.health.add(1));
     let _: Vec<String> = player.each(|health| health.health.add(1));
-    let _: Vec<String> = StateQueryOperations::each(marker, |_dead| vec!["say dead".into()]);
+    let _: Vec<String> = StateQueryOperations::each(&marker, |_dead| vec!["say dead".into()]);
 }
 
 #[allow(dead_code)]

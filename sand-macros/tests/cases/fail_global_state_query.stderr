@@ -11,8 +11,9 @@ error[E0277]: [SAND-SYSTEM-PARAM] `GameState` is not a scoped State, StateBundle
   --> tests/cases/fail_global_state_query.rs:11:5
    |
 11 |     query.each(|_| Vec::new());
-   |     ^^^^^ ---- required by a bound introduced by this call
-   |     |
+   |     ^^^^^^----
+   |     |     |
+   |     |     required by a bound introduced by this call
    |     #[system] query parameters must implement StateQueryOperations
    |
 help: the trait `sand::__private::GeneratedSystemQueryParameter` is not implemented for `GameState`

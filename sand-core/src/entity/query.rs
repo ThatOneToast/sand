@@ -126,6 +126,9 @@ where
 pub trait StateQueryOperations: StateQuerySpec + Sized {
     /// Iterate over owners matching this query and expose its concrete bound item.
     ///
+    /// The query marker is borrowed, so one system can issue multiple query
+    /// operations. Each operation accepts and invokes its own `FnOnce` body.
+    ///
     /// This creates the scope-appropriate outer scan (`@e` for entity/living
     /// State and `@a` for player State), filters by real component presence,
     /// and binds the closure argument to the matching owner.
@@ -144,11 +147,14 @@ pub trait StateQueryOperations: StateQuerySpec + Sized {
         returns = "The generated outer-scan command, or no commands when the body emits nothing.",
         example = "use sand::prelude::*;\n\n#[derive(State)]\n#[state(namespace = \"rpg\", scope = living)]\nstruct Health {\n    #[state(default = 20)]\n    current: Score,\n}\n\nfn regenerate(query: Health) -> Vec<String> {\n    query.each(|health| health.current.add(1))\n}",
     )]
-    fn each(self, body: impl FnOnce(Self::Item) -> Vec<String>) -> Vec<String> {
+    fn each(&self, body: impl FnOnce(Self::Item) -> Vec<String>) -> Vec<String> {
         <Self as StateQuerySpec>::each(body)
     }
 
     /// Apply this query to the already-current Minecraft executor without scanning.
+    ///
+    /// The query marker is borrowed and remains available for a later `current`
+    /// or `each` operation. This operation invokes its body at most once.
     ///
     /// Every emitted body command is guarded by this query's required and
     /// forbidden component-presence predicates against `@s`.
@@ -167,7 +173,7 @@ pub trait StateQueryOperations: StateQuerySpec + Sized {
         returns = "The body commands guarded by this query's presence predicates for the current executor.",
         example = "use sand::prelude::*;\n\n#[derive(State)]\n#[state(namespace = \"rpg\", scope = player)]\nstruct Health {\n    #[state(default = 20)]\n    current: Score,\n}\n\nfn heal_current(query: Health) -> Vec<String> {\n    query.current(|health| health.current.add(1))\n}",
     )]
-    fn current(self, body: impl FnOnce(Self::Item) -> Vec<String>) -> Vec<String> {
+    fn current(&self, body: impl FnOnce(Self::Item) -> Vec<String>) -> Vec<String> {
         <Self as StateQuerySpec>::current(body)
     }
 }

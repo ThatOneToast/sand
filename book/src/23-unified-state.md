@@ -161,7 +161,7 @@ into the export adapter. Use explicit imports inside the body: glob imports are
 rejected because Sand cannot prove which value bindings they introduce. Call
 `each` and `current` directly rather than passing
 the query identifier into a nested macro; nested macros expand only after Sand
-has performed this lowering:
+has performed this lowering.
 
 Sand qualifies direct query calls present in the system source with the
 declared parameter type. If a procedural macro synthesizes a same-named binding

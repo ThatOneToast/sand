@@ -7,6 +7,12 @@ fn legacy_commands() -> Vec<String> {
     Vec::new()
 }
 
+macro_rules! ident_only {
+    ($value:ident) => {
+        stringify!($value)
+    };
+}
+
 #[derive(State)]
 #[state(namespace = "direct", scope = entity)]
 struct EntityHealth {
@@ -115,6 +121,7 @@ impl DirectSystems {
         }
         let _ = Helper::value();
         let _ = format!("{}", Self::MESSAGE);
+        let _ = ident_only!(Self);
         legacy_commands();
         query.each(|health| {
             let mut commands = health.health.add(1);
@@ -128,6 +135,7 @@ impl DirectSystems {
     fn current(pulse: DirectPulse, query: PlayerHealth) {
         let _ = pulse;
         let _ = vec![Self::MESSAGE];
+        let _ = ident_only!(Self);
         legacy_commands();
         query.current(|health| {
             let mut commands = health.health.add(1);

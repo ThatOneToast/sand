@@ -752,120 +752,6 @@ fn qualify_state_system_block(block: syn::Block, query_ident: syn::Ident) -> syn
     StateSystemQueryQualification { query_ident }.fold_block(block)
 }
 
-/// Preserve the inherent-impl context when a grouped system body is copied
-/// into a module-level export adapter.
-struct StateSystemSelfQualification<'a> {
-    self_ty: &'a syn::Type,
-}
-
-impl Fold for StateSystemSelfQualification<'_> {
-    fn fold_item_impl(&mut self, item: syn::ItemImpl) -> syn::ItemImpl {
-        // A nested impl establishes its own `Self`; only the surrounding
-        // grouped-system method inherits the outer inherent impl's `Self`.
-        item
-    }
-
-    fn fold_item_trait(&mut self, item: syn::ItemTrait) -> syn::ItemTrait {
-        // A block-local trait likewise establishes a new `Self` scope.
-        item
-    }
-
-    fn fold_macro(&mut self, item: syn::Macro) -> syn::Macro {
-        let mut item = fold::fold_macro(self, item);
-        item.tokens = qualify_self_tokens(item.tokens, self.self_ty);
-        item
-    }
-
-    fn fold_expr_path(&mut self, expression: syn::ExprPath) -> syn::ExprPath {
-        let expression = fold::fold_expr_path(self, expression);
-        if expression.qself.is_none()
-            && expression.path.is_ident("Self")
-            && let syn::Type::Path(self_ty) = self.self_ty
-        {
-            return syn::ExprPath {
-                attrs: expression.attrs,
-                qself: self_ty.qself.clone(),
-                path: self_ty.path.clone(),
-            };
-        }
-        if expression.qself.is_some()
-            || expression.path.leading_colon.is_some()
-            || expression.path.segments.len() < 2
-            || expression
-                .path
-                .segments
-                .first()
-                .is_none_or(|segment| segment.ident != "Self")
-        {
-            return expression;
-        }
-        let span = expression.path.segments[0].ident.span();
-        let rest = syn::Path {
-            leading_colon: None,
-            segments: expression.path.segments.into_iter().skip(1).collect(),
-        };
-        let self_ty = self.self_ty;
-        syn::parse_quote_spanned!(span=> <#self_ty>::#rest)
-    }
-
-    fn fold_type_path(&mut self, ty: syn::TypePath) -> syn::TypePath {
-        let ty = fold::fold_type_path(self, ty);
-        if ty.qself.is_none()
-            && ty.path.is_ident("Self")
-            && let syn::Type::Path(self_ty) = self.self_ty
-        {
-            return self_ty.clone();
-        }
-        if ty.qself.is_some()
-            || ty.path.leading_colon.is_some()
-            || ty.path.segments.len() < 2
-            || ty
-                .path
-                .segments
-                .first()
-                .is_none_or(|segment| segment.ident != "Self")
-        {
-            return ty;
-        }
-        let span = ty.path.segments[0].ident.span();
-        let rest = syn::Path {
-            leading_colon: None,
-            segments: ty.path.segments.into_iter().skip(1).collect(),
-        };
-        let self_ty = self.self_ty;
-        syn::parse_quote_spanned!(span=> <#self_ty>::#rest)
-    }
-}
-
-fn qualify_self_tokens(
-    tokens: proc_macro2::TokenStream,
-    self_ty: &syn::Type,
-) -> proc_macro2::TokenStream {
-    tokens
-        .into_iter()
-        .flat_map(|token| match token {
-            proc_macro2::TokenTree::Ident(ident) if ident == "Self" => {
-                quote::quote_spanned!(ident.span()=> <#self_ty>)
-                    .into_iter()
-                    .collect()
-            }
-            proc_macro2::TokenTree::Group(group) => {
-                let mut qualified = proc_macro2::Group::new(
-                    group.delimiter(),
-                    qualify_self_tokens(group.stream(), self_ty),
-                );
-                qualified.set_span(group.span());
-                vec![proc_macro2::TokenTree::Group(qualified)]
-            }
-            token => vec![token],
-        })
-        .collect()
-}
-
-fn qualify_state_system_self(block: syn::Block, self_ty: &syn::Type) -> syn::Block {
-    StateSystemSelfQualification { self_ty }.fold_block(block)
-}
-
 impl<'ast> Visit<'ast> for StateSystemQueryShadowing<'_> {
     fn visit_expr_method_call(&mut self, expression: &'ast syn::ExprMethodCall) {
         if let syn::Expr::Path(receiver) = expression.receiver.as_ref()
@@ -1230,7 +1116,9 @@ fn expand_state_system_impl(
                         "[SAND-SYSTEM-EVENT] grouped event systems cannot use self",
                     ));
                 };
-                let actual_ty = &argument.ty;
+                let event_argument = argument.clone();
+                let event_ty = (*argument.ty).clone();
+                let actual_ty = &event_ty;
                 if quote!(#expected_ty).to_string() != quote!(#actual_ty).to_string() {
                     return Err(syn::Error::new_spanned(
                         &argument.ty,
@@ -1265,35 +1153,49 @@ fn expand_state_system_impl(
                     );
                     event_query_ty = Some(query_ty);
                 }
-                event_block = qualify_state_system_self(event_block, self_ty);
-                let mut signature = method.sig.clone();
-                while signature.inputs.len() > 1 {
-                    signature.inputs.pop();
-                }
                 method.attrs.push(
                     syn::parse_quote!(#[allow(dead_code, unused_must_use, unused_variables)]),
                 );
                 let original = &method.sig.ident;
-                signature.ident = quote::format_ident!("__sand_system_event_{}", original);
-                let function = ItemFn {
-                    attrs: body_lint_attrs.clone(),
-                    vis: syn::Visibility::Inherited,
-                    sig: signature,
-                    block: Box::new(event_block),
+                let body_trait = quote::format_ident!("__SandSystemEventBody_{}", original);
+                let adapter = quote::format_ident!("__sand_system_event_{}", original);
+                let adapter_event = quote::format_ident!("__sand_event_{}", original);
+                let event_body = build_cmd_body(&event_block)?;
+                let function: ItemFn = syn::parse_quote! {
+                    fn #adapter(#adapter_event: #event_ty) {
+                        <#self_ty as #body_trait>::make(#adapter_event);
+                    }
                 };
                 let event_adapter = gate_generated_items(
                     expand_event(TokenStream::new(), function)?,
                     &registration_attrs,
                 )?;
+                let body_context = quote! {
+                    #(#registration_attrs)*
+                    #[doc(hidden)]
+                    #[allow(non_camel_case_types)]
+                    trait #body_trait {
+                        fn make(__sand_event: #event_ty) -> Vec<String>;
+                    }
+
+                    #(#registration_attrs)*
+                    impl #body_trait for #self_ty {
+                        #(#body_lint_attrs)*
+                        fn make(#event_argument) -> Vec<String> {
+                            #event_body
+                        }
+                    }
+                };
                 registrations.push(if let Some(query_ty) = event_query_ty {
                     quote! {
+                        #body_context
                         #(#registration_attrs)*
                         const _: fn() =
                             ::sand::__private::assert_system_query_parameter::<#query_ty>;
                         #event_adapter
                     }
                 } else {
-                    event_adapter
+                    quote! { #body_context #event_adapter }
                 });
             }
             continue;
@@ -1316,7 +1218,6 @@ fn expand_state_system_impl(
             block: Box::new(method.block.clone()),
         };
         let (query_ident, query_ty, block) = state_system_body(&function)?;
-        let block = qualify_state_system_self(block, self_ty);
         let body = build_cmd_body(&block)?;
         method.block = qualify_state_system_block(method.block.clone(), query_ident);
         method
@@ -1324,17 +1225,32 @@ fn expand_state_system_impl(
             .push(syn::parse_quote!(#[allow(dead_code, unused_must_use, unused_variables)]));
         let method_ident = &method.sig.ident;
         let factory = quote::format_ident!("__sand_system_{}_make", method_ident);
+        let body_trait = quote::format_ident!("__SandSystemTickBody_{}", method_ident);
         let every = cadence.every;
         registrations.push(quote! {
             #(#registration_attrs)*
             const _: fn() = ::sand::__private::assert_system_query_parameter::<#query_ty>;
 
             #(#registration_attrs)*
-            #(#body_lint_attrs)*
+            #[doc(hidden)]
+            #[allow(non_camel_case_types)]
+            trait #body_trait {
+                fn make() -> Vec<String>;
+            }
+
+            #(#registration_attrs)*
+            impl #body_trait for #self_ty {
+                #(#body_lint_attrs)*
+                fn make() -> Vec<String> {
+                    let _: ::std::marker::PhantomData<#query_ty> = ::std::marker::PhantomData;
+                    #body
+                }
+            }
+
+            #(#registration_attrs)*
             #[doc(hidden)]
             fn #factory() -> Vec<String> {
-                let _: ::std::marker::PhantomData<#query_ty> = ::std::marker::PhantomData;
-                #body
+                <#self_ty as #body_trait>::make()
             }
             #(#registration_attrs)*
             ::sand::__private::inventory::submit! {

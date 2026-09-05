@@ -165,6 +165,8 @@ has performed this lowering:
 
 Conditional-compilation and lint-control attributes on systems are preserved
 on their generated export adapters as well as their authored endpoints.
+Grouped adapter bodies retain the enclosing implementation's `Self` context,
+including inside nested macro invocations.
 
 ```rust
 #[system]

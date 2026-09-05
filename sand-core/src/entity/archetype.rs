@@ -2106,6 +2106,10 @@ fn dirty_distribution_commands(
             objectives.insert(pending.clone());
             objectives.insert(cause_pending.clone());
             commands.push(format!(
+                "execute if score @s {} matches 1 if entity @s[tag={}] run scoreboard players set @s {cause_pending} 0",
+                field.dirty_objective, claim.marker,
+            ));
+            commands.push(format!(
                 "execute if score @s {} matches 1 unless score @s {internal} matches 1 if entity @s[tag={}] run scoreboard players set @s {cause_pending} 1",
                 field.dirty_objective, claim.marker,
             ));
@@ -2692,6 +2696,7 @@ fn compile_definition_with_claims(
                 field.objective.clone(),
                 field.dirty_objective.clone(),
                 field.component_dirty_objective.clone(),
+                dirty_internal_name(&field.dirty_objective),
             ]
         })
         .collect::<BTreeSet<_>>();
@@ -5392,6 +5397,25 @@ mod tests {
         assert!(reconcile.content.contains(&format!(
             "unless score @s {internal} matches 1 if entity @s[tag={second_marker}] run scoreboard players set @s {second_cause} 1"
         )));
+        let cause_clear = format!(
+            "if entity @s[tag={second_marker}] run scoreboard players set @s {second_cause} 0"
+        );
+        let cause_set = format!(
+            "unless score @s {internal} matches 1 if entity @s[tag={second_marker}] run scoreboard players set @s {second_cause} 1"
+        );
+        let cause_clears = reconcile
+            .content
+            .match_indices(&cause_clear)
+            .collect::<Vec<_>>();
+        let cause_sets = reconcile
+            .content
+            .match_indices(&cause_set)
+            .collect::<Vec<_>>();
+        assert_eq!(cause_clears.len(), 2);
+        assert_eq!(cause_sets.len(), 2);
+        assert!(cause_clears[0].0 < cause_sets[0].0);
+        assert!(cause_sets[0].0 < cause_clears[1].0);
+        assert!(cause_clears[1].0 < cause_sets[1].0);
         assert!(
             reconcile
                 .content
@@ -5443,6 +5467,11 @@ mod tests {
             !cleanup
                 .content
                 .contains(&format!("scoreboard players reset @s {second_cause}"))
+        );
+        assert!(
+            !cleanup
+                .content
+                .contains(&format!("scoreboard players reset @s {internal}"))
         );
     }
 

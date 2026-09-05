@@ -2076,6 +2076,18 @@ fn dirty_pending_name(dirty_objective: &str, marker: &str) -> String {
         .to_string()
 }
 
+fn dirty_cause_pending_name(dirty_objective: &str, marker: &str) -> String {
+    sand_commands::ObjectiveName::logical(format!("{dirty_objective}.{marker}.author_pending"))
+        .as_str()
+        .to_string()
+}
+
+fn dirty_internal_name(dirty_objective: &str) -> String {
+    sand_commands::ObjectiveName::logical(format!("{dirty_objective}.reconcile_write"))
+        .as_str()
+        .to_string()
+}
+
 fn dirty_distribution_commands(
     fields: &ArchetypeFields,
     claims: &ComponentClaims,
@@ -2083,12 +2095,20 @@ fn dirty_distribution_commands(
 ) -> Vec<String> {
     let mut commands = Vec::new();
     for field in fields.values() {
+        let internal = dirty_internal_name(&field.dirty_objective);
+        objectives.insert(internal.clone());
         let Some(claim_markers) = claims.get(&field.component) else {
             continue;
         };
         for claim in claim_markers {
             let pending = dirty_pending_name(&field.dirty_objective, &claim.marker);
+            let cause_pending = dirty_cause_pending_name(&field.dirty_objective, &claim.marker);
             objectives.insert(pending.clone());
+            objectives.insert(cause_pending.clone());
+            commands.push(format!(
+                "execute if score @s {} matches 1 unless score @s {internal} matches 1 if entity @s[tag={}] run scoreboard players set @s {cause_pending} 1",
+                field.dirty_objective, claim.marker,
+            ));
             commands.push(format!(
                 "execute if score @s {} matches 1 if entity @s[tag={}] run scoreboard players set @s {pending} 1",
                 field.dirty_objective,
@@ -2099,6 +2119,7 @@ fn dirty_distribution_commands(
             "execute if score @s {} matches 1 run scoreboard players set @s {} 0",
             field.dirty_objective, field.dirty_objective
         ));
+        commands.push(format!("scoreboard players set @s {internal} 0"));
     }
     commands
 }
@@ -2106,11 +2127,17 @@ fn dirty_distribution_commands(
 fn dirty_acknowledgement_commands(fields: &ArchetypeFields, marker: &str) -> Vec<String> {
     fields
         .values()
-        .map(|field| {
-            format!(
-                "scoreboard players set @s {} 0",
-                dirty_pending_name(&field.dirty_objective, marker)
-            )
+        .flat_map(|field| {
+            [
+                format!(
+                    "scoreboard players set @s {} 0",
+                    dirty_pending_name(&field.dirty_objective, marker)
+                ),
+                format!(
+                    "scoreboard players set @s {} 0",
+                    dirty_cause_pending_name(&field.dirty_objective, marker)
+                ),
+            ]
         })
         .collect()
 }
@@ -2118,11 +2145,17 @@ fn dirty_acknowledgement_commands(fields: &ArchetypeFields, marker: &str) -> Vec
 fn dirty_pending_reset_commands(fields: &ArchetypeFields, marker: &str) -> Vec<String> {
     fields
         .values()
-        .map(|field| {
-            format!(
-                "scoreboard players reset @s {}",
-                dirty_pending_name(&field.dirty_objective, marker)
-            )
+        .flat_map(|field| {
+            [
+                format!(
+                    "scoreboard players reset @s {}",
+                    dirty_pending_name(&field.dirty_objective, marker)
+                ),
+                format!(
+                    "scoreboard players reset @s {}",
+                    dirty_cause_pending_name(&field.dirty_objective, marker)
+                ),
+            ]
         })
         .collect()
 }
@@ -2352,8 +2385,7 @@ fn compile_definition_with_claims(
     repair_refresh_commands.extend(derivations.initialize_commands.iter().cloned());
 
     let mut refresh_sources: Vec<(String, String)> = Vec::new();
-    let mut refresh_source_causes: Vec<(String, String)> = Vec::new();
-    let mut refresh_source_suppressions: Vec<(String, String, String)> = Vec::new();
+    let mut refresh_source_causes: Vec<(String, String, String)> = Vec::new();
     let mut refresh_outputs: Vec<(String, String)> = Vec::new();
     let mut periodic_refreshes: Vec<(String, String, u32)> = Vec::new();
     for (index, property) in definition.properties.iter().enumerate() {
@@ -2368,12 +2400,11 @@ fn compile_definition_with_claims(
         for source in compiled.source_dirty {
             refresh_sources.push((source, compiled.output_dirty.clone()));
         }
-        refresh_source_causes.extend(compiled.source_causes);
-        refresh_source_suppressions.extend(
+        refresh_source_causes.extend(
             compiled
-                .source_suppressions
+                .source_causes
                 .into_iter()
-                .map(|(source, suppression)| (source, compiled.output_dirty.clone(), suppression)),
+                .map(|(source, cause)| (source, compiled.output_dirty.clone(), cause)),
         );
         if let Some(function) = compiled.refresh_function {
             refresh_outputs.push((compiled.output_dirty, function));
@@ -2390,8 +2421,6 @@ fn compile_definition_with_claims(
         refresh_sources.dedup();
         refresh_source_causes.sort();
         refresh_source_causes.dedup();
-        refresh_source_suppressions.sort();
-        refresh_source_suppressions.dedup();
         refresh_outputs.sort();
         refresh_outputs.dedup();
         let mut commands = Vec::new();
@@ -2409,13 +2438,15 @@ fn compile_definition_with_claims(
                 .field_for_dirty_objective(source)
                 .map(|field| dirty_pending_name(&field.dirty_objective, &marker));
             if let Some(pending) = pending {
-                if let Some((_, _, suppression)) = refresh_source_suppressions.iter().find(
-                    |(candidate_source, candidate_output, _)| {
-                        candidate_source == source && candidate_output == output
-                    },
-                ) {
+                if let Some((_, _, cause)) =
+                    refresh_source_causes
+                        .iter()
+                        .find(|(candidate_source, candidate_output, _)| {
+                            candidate_source == source && candidate_output == output
+                        })
+                {
                     commands.push(format!(
-                        "execute if score @s {pending} matches 1 unless score @s {suppression} matches 1 run scoreboard players set @s {output} 1"
+                        "execute if score @s {pending} matches 1 if score @s {cause} matches 1 run scoreboard players set @s {output} 1"
                     ));
                 } else {
                     commands.push(format!(
@@ -2427,13 +2458,10 @@ fn compile_definition_with_claims(
                 "execute if score @s {source} matches 1 run scoreboard players set @s {output} 1"
             ));
         }
-        for (source, cause) in &refresh_source_causes {
+        for (source, _, cause) in &refresh_source_causes {
             commands.push(format!(
                 "execute if score @s {source} matches 1 run scoreboard players set @s {cause} 1"
             ));
-        }
-        for (_, _, suppression) in &refresh_source_suppressions {
-            commands.push(format!("scoreboard players set @s {suppression} 0"));
         }
         for (output, function) in &refresh_outputs {
             commands.push(format!(
@@ -2592,22 +2620,6 @@ fn compile_definition_with_claims(
             "execute {tick_owner_guard}if score @s {} matches 1.. run scoreboard players remove @s {} 1",
             field.objective, field.objective,
         ));
-    }
-    // Snapshot raw writes before distribution consumes their dirty objectives.
-    // Pending dirtiness may have been produced by reconciliation itself, so it
-    // cannot establish author-write precedence for a bidirectional property.
-    for (source, cause) in &refresh_source_causes {
-        reconcile_commands.push(format!(
-            "execute if score @s {source} matches 1 run scoreboard players set @s {cause} 1"
-        ));
-        for (_, output) in refresh_sources
-            .iter()
-            .filter(|(candidate, _)| candidate == source)
-        {
-            reconcile_commands.push(format!(
-                "execute if score @s {source} matches 1 run scoreboard players set @s {output} 1"
-            ));
-        }
     }
     reconcile_commands.extend(dirty_distribution_commands(
         &fields,
@@ -3199,7 +3211,6 @@ struct PropertyCompilation {
     refresh_function: Option<String>,
     source_dirty: Vec<String>,
     source_causes: Vec<(String, String)>,
-    source_suppressions: Vec<(String, String)>,
     output_dirty: String,
     periodic: Option<(String, String, u32)>,
 }
@@ -4100,7 +4111,6 @@ fn compile_property(
     let mut objectives = vec![output_dirty.clone()];
     let mut sources = Vec::new();
     let mut source_causes = Vec::new();
-    let mut source_suppressions = Vec::new();
     let (commands, ownership, refresh) = match property {
         ArchetypeProperty::Health(binding) => {
             binding.validate(&id)?;
@@ -4122,11 +4132,10 @@ fn compile_property(
                 ) {
                     let source = current.dirty_objective();
                     sources.push(source.clone());
-                    source_suppressions
-                        .push((source.clone(), health_current_internal_name(&id, index)));
-                    if binding.current_health_sync() == CurrentHealthSync::Bidirectional {
-                        source_causes.push((source, health_current_cause_name(&id, index)));
-                    }
+                    source_causes.push((
+                        source.clone(),
+                        dirty_cause_pending_name(&source, &initialized_tag(&id)),
+                    ));
                 }
             }
             let lowered = lower_health(definition, binding, index, root, profile)?;
@@ -4458,11 +4467,6 @@ fn compile_property(
         } else {
             Vec::new()
         },
-        source_suppressions: if automatic_refresh {
-            source_suppressions
-        } else {
-            Vec::new()
-        },
         output_dirty,
         periodic,
     })
@@ -4683,8 +4687,9 @@ fn lower_health(
                 ));
             }
             CurrentHealthSync::Bidirectional => {
-                let state_current_changed = health_current_cause_name(&id, index);
-                let internal_current_changed = health_current_internal_name(&id, index);
+                let state_current_changed =
+                    dirty_cause_pending_name(&current.dirty_objective(), &initialized_tag(&id));
+                let internal_current_changed = dirty_internal_name(&current.dirty_objective());
                 commands.push(format!(
                     "execute if score @s {} matches 1 run scoreboard players set @s {state_current_changed} 1",
                     current.dirty_objective()
@@ -4734,7 +4739,7 @@ fn lower_health(
             "scoreboard players operation @s {new_current} < @s {max}"
         ));
         if let Some(current) = binding.current_health_field() {
-            let internal_current_changed = health_current_internal_name(&id, index);
+            let internal_current_changed = dirty_internal_name(&current.dirty_objective());
             commands.push(format!(
                 "execute unless score @s {} = @s {new_current} run scoreboard players set @s {} 1",
                 current.objective(),
@@ -4761,32 +4766,8 @@ fn lower_health(
             vec!["$attribute @s minecraft:max_health base set $(value)".into()],
         )],
         functions: vec![helper],
-        objectives: {
-            let mut objectives = vec![old_max, old_current, new_current];
-            if matches!(
-                binding.current_health_sync(),
-                CurrentHealthSync::ApplyState | CurrentHealthSync::Bidirectional
-            ) {
-                objectives.push(health_current_internal_name(&id, index));
-            }
-            if binding.current_health_sync() == CurrentHealthSync::Bidirectional {
-                objectives.push(health_current_cause_name(&id, index));
-            }
-            objectives
-        },
+        objectives: vec![old_max, old_current, new_current],
     })
-}
-
-fn health_current_cause_name(id: &str, index: usize) -> String {
-    sand_commands::ObjectiveName::logical(format!("{id}.property.{index}.state_current_changed"))
-        .as_str()
-        .to_string()
-}
-
-fn health_current_internal_name(id: &str, index: usize) -> String {
-    sand_commands::ObjectiveName::logical(format!("{id}.property.{index}.state_current_internal"))
-        .as_str()
-        .to_string()
 }
 
 fn lower_name(
@@ -5397,8 +5378,13 @@ mod tests {
             &initialized_tag(&first.id.to_string()),
         );
         let second_pending = dirty_pending_name(&LEVEL.dirty_objective(), &second_marker);
+        let second_cause = dirty_cause_pending_name(&LEVEL.dirty_objective(), &second_marker);
+        let internal = dirty_internal_name(&LEVEL.dirty_objective());
         assert!(reconcile.content.contains(&format!(
             "tag={second_marker}] run scoreboard players set @s {second_pending} 1"
+        )));
+        assert!(reconcile.content.contains(&format!(
+            "unless score @s {internal} matches 1 if entity @s[tag={second_marker}] run scoreboard players set @s {second_cause} 1"
         )));
         assert!(
             reconcile
@@ -5687,17 +5673,15 @@ mod tests {
         );
         let definition = archetype.definition();
         let compiled = compile_definition(&definition, &profile()).unwrap();
-        let cause = health_current_cause_name(&definition.id.to_string(), 0);
-        let suppression = health_current_internal_name(&definition.id.to_string(), 0);
+        let marker = initialized_tag(&definition.id.to_string());
+        let cause = dirty_cause_pending_name(&LEVEL.dirty_objective(), &marker);
+        let internal = dirty_internal_name(&LEVEL.dirty_objective());
         let refresh = compiled
             .records
             .iter()
             .find(|record| record.path.ends_with("/refresh"))
             .unwrap();
-        let pending = dirty_pending_name(
-            &LEVEL.dirty_objective(),
-            &initialized_tag(&definition.id.to_string()),
-        );
+        let pending = dirty_pending_name(&LEVEL.dirty_objective(), &marker);
         assert!(!refresh.content.contains(&format!(
             "if score @s {pending} matches 1 run scoreboard players set @s {cause} 1"
         )));
@@ -5706,13 +5690,8 @@ mod tests {
             LEVEL.dirty_objective()
         )));
         assert!(refresh.content.contains(&format!(
-            "if score @s {pending} matches 1 unless score @s {suppression} matches 1"
+            "if score @s {pending} matches 1 if score @s {cause} matches 1"
         )));
-        assert!(
-            refresh
-                .content
-                .contains(&format!("scoreboard players set @s {suppression} 0"))
-        );
         let reconcile = compiled
             .records
             .iter()
@@ -5720,7 +5699,9 @@ mod tests {
             .unwrap();
         let cause_snapshot = reconcile
             .content
-            .find(&format!("set @s {cause} 1"))
+            .find(&format!(
+                "unless score @s {internal} matches 1 if entity @s[tag={marker}] run scoreboard players set @s {cause} 1"
+            ))
             .unwrap();
         let dirty_consumption = reconcile
             .content

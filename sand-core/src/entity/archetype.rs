@@ -2697,11 +2697,12 @@ fn compile_definition_with_claims(
         .collect::<BTreeSet<_>>();
     for field in fields.values() {
         if let Some(component_claims) = claims.get(&field.component) {
-            component_objectives.extend(
-                component_claims
-                    .iter()
-                    .map(|claim| dirty_pending_name(&field.dirty_objective, &claim.marker)),
-            );
+            component_objectives.extend(component_claims.iter().flat_map(|claim| {
+                [
+                    dirty_pending_name(&field.dirty_objective, &claim.marker),
+                    dirty_cause_pending_name(&field.dirty_objective, &claim.marker),
+                ]
+            }));
         }
     }
     for objective in &objectives {
@@ -4676,6 +4677,11 @@ fn lower_health(
                 current.objective()
             )),
             CurrentHealthSync::ObserveNative => {
+                let internal_current_changed = dirty_internal_name(&current.dirty_objective());
+                commands.push(format!(
+                    "execute unless score @s {} = @s {new_current} run scoreboard players set @s {internal_current_changed} 1",
+                    current.objective()
+                ));
                 commands.push(format!(
                     "execute unless score @s {} = @s {new_current} run scoreboard players set @s {} 1",
                     current.objective(),
@@ -5433,6 +5439,11 @@ mod tests {
                 .content
                 .contains(&format!("scoreboard players reset @s {second_pending}"))
         );
+        assert!(
+            !cleanup
+                .content
+                .contains(&format!("scoreboard players reset @s {second_cause}"))
+        );
     }
 
     #[test]
@@ -5764,6 +5775,24 @@ mod tests {
             .rfind(&format!("{} matches 1", LEVEL.dirty_objective()))
             .unwrap();
         assert!(acknowledge < publish);
+        let property = compiled
+            .records
+            .iter()
+            .find(|record| record.path.ends_with("/property/0"))
+            .unwrap();
+        let internal = dirty_internal_name(&LEVEL.dirty_objective());
+        let internal_mark = property
+            .content
+            .find(&format!("scoreboard players set @s {internal} 1"))
+            .unwrap();
+        let dirty_mark = property
+            .content
+            .find(&format!(
+                "scoreboard players set @s {} 1",
+                LEVEL.dirty_objective()
+            ))
+            .unwrap();
+        assert!(internal_mark < dirty_mark);
     }
 
     #[test]

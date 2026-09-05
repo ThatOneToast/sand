@@ -49,6 +49,8 @@ use quote::quote;
 use sand_api_contract::syntax::{
     GeneratedApiContract, GeneratedApiKind, render_generated_rustdoc, validate_generated_expansion,
 };
+use syn::fold::{self, Fold};
+use syn::visit::{self, Visit};
 use syn::{ItemFn, LitStr, parse_macro_input, token};
 
 mod api_contract;
@@ -445,22 +447,105 @@ pub fn state_lifecycle(attr: TokenStream, item: TokenStream) -> TokenStream {
     .into()
 }
 
-/// Register a tick-driven State system from a function or grouped inherent impl.
+/// Register typed State systems from a free function or grouped inherent impl.
 ///
-/// A function system receives supported query/state inputs and returns command
-/// expressions; Sand generates and schedules the corresponding datapack
-/// function. `#[system(tick = N)]` selects the tick interval. An inherent impl
-/// groups system methods but does not change their ordinary Rust signatures.
-/// Unsupported parameters and malformed tick values are compile errors.
+/// The declared parameter remains its concrete source type: a scoped `State`,
+/// `StateBundle`, or derived `StateQuery`. With `sand::prelude::*` in scope,
+/// completion on `query.` exposes `StateQueryOperations::each` and
+/// `StateQueryOperations::current`, and the callback item is the generated
+/// concrete bound view rather than a generic ECS tuple.
 ///
-/// # Example
+/// # Free tick systems
+///
+/// Empty `#[system]` and `#[system(tick)]` both run every tick.
+/// `#[system(tick, every = 20)]` runs every twentieth server tick:
 ///
 /// ```rust,ignore
-/// #[sand::system(tick = 20)]
-/// fn regenerate(query: LivingPlayers) -> Vec<String> {
-///     query.each(|player| vec![player.health.add(1)])
+/// use sand::prelude::*;
+///
+/// #[system(tick, every = 20)]
+/// fn regenerate(query: Health) {
+///     query.each(|health| health.current.add(1));
 /// }
 /// ```
+///
+/// A free tick system has exactly one simply named query parameter. Write
+/// command-producing expressions as statements. The outer system body is
+/// declarative and returns nothing; an `each` or `current` closure returns the
+/// `Vec<String>` produced by typed State operations (or explicitly builds and
+/// returns one when it combines several operations). The query parameter name
+/// is a reusable marker: each direct `each` or `current` operation borrows it
+/// and accepts a fresh `FnOnce` closure, so a system can issue several operations.
+/// Its name cannot be shadowed inside the system body because it identifies the typed
+/// query lowered into the export adapter. This includes bindings introduced by
+/// patterns and local value items such as constants, statics, functions, and
+/// unit or tuple structs. Local imports must name their bindings explicitly;
+/// glob imports are rejected because their value bindings cannot be audited.
+/// The query identifier also cannot be passed into a
+/// nested macro because that expansion happens after Sand has identified and
+/// lowered direct query operations. Preserved direct endpoint calls are
+/// qualified by the declared query type, so a macro-generated binding of
+/// another type before one of those calls is a compile error rather than a
+/// different export-time query. A helper or macro that returns an independently
+/// queried command vector remains an opaque command and does not join the
+/// declared query's shared outer scan.
+/// Other uses of the query value are rejected because the generated export
+/// adapter has a query type but intentionally fabricates no runtime marker.
+///
+/// `cfg` and `cfg_attr` on a free system, grouped impl, or grouped method gate
+/// both its authored endpoint and its generated registration. Attributes on a
+/// `query.each(...)` or `query.current(...)` statement are retained when Sand
+/// lowers that operation for export. Lint-control attributes on an authored
+/// system or grouped impl also govern the copied export adapter body.
+///
+/// # Grouped tick and event systems
+///
+/// `#[system]` on an inherent impl is organization only and creates no runtime
+/// object. Methods cannot take `self`:
+///
+/// ```rust,ignore
+/// use sand::prelude::*;
+///
+/// struct CombatSystems;
+///
+/// #[system]
+/// impl CombatSystems {
+///     #[tick]
+///     fn update(query: Combatants) {
+///         query.each(|fighter| fighter.health.current.add(1));
+///     }
+///
+///     #[event(PlayerAttack)]
+///     fn attack(_event: PlayerAttack, query: Combatants) {
+///         query.current(|fighter| fighter.health.current.add(1));
+///     }
+/// }
+/// ```
+///
+/// Event methods take the event first and optionally one query second. The
+/// concrete type in `#[event(Type)]` must resolve to the first parameter type;
+/// Rust checks that agreement, so the parameter may use an equivalent import,
+/// re-export, alias, or associated type. The attribute itself names a concrete
+/// marker path because Sand constructs that bare event marker during export.
+/// Event dispatch has already selected its owner as `@s`; `current` checks required and
+/// forbidden component presence on that executor without another scan, while
+/// `each` deliberately starts a new scope-wide scan.
+///
+/// # Scheduling and Minecraft semantics
+///
+/// Systems run in deterministic registration identity order. Adjacent systems
+/// with the same cadence and compatible outer selector can share one scan;
+/// different cadence, scope, required filters, or intervening opaque work
+/// prevents sharing. Generated function identities are deterministic and
+/// identical command bodies are deduplicated. Queries see only loaded entities
+/// because Minecraft selectors do; Sand does not keep an in-memory world or a
+/// Rust borrowing/mutation model.
+///
+/// Required membership is selected when an `each` iteration starts. Optional
+/// and forbidden checks are emitted as ordered runtime command guards, so an
+/// earlier attach/detach can affect a later guarded command without retroactively
+/// changing the already-selected iteration. See the State chapter in the Sand
+/// book for the full lifecycle and scan-sharing model.
 #[proc_macro_attribute]
 pub fn system(attr: TokenStream, item: TokenStream) -> TokenStream {
     let attr = match parse_system_tick_attr(attr, true) {
@@ -524,15 +609,15 @@ fn parse_system_tick_attr(attr: TokenStream, allow_empty: bool) -> syn::Result<S
                 let _: syn::Token![=] = input.parse()?;
                 let value: syn::LitInt = input.parse()?;
                 every = value.base10_parse()?;
+                if every == 0 {
+                    return Err(syn::Error::new_spanned(
+                        value,
+                        "[SAND-SYSTEM-CADENCE] system tick cadence must be at least one",
+                    ));
+                }
             }
             if !input.is_empty() {
                 return Err(input.error("unexpected system cadence arguments"));
-            }
-            if every == 0 {
-                return Err(syn::Error::new(
-                    proc_macro2::Span::call_site(),
-                    "system tick cadence must be at least one",
-                ));
             }
             Ok(Self(SystemTickAttr { every }))
         }
@@ -541,56 +626,490 @@ fn parse_system_tick_attr(attr: TokenStream, allow_empty: bool) -> syn::Result<S
 }
 
 fn state_system_body(function: &ItemFn) -> syn::Result<(syn::Ident, syn::Type, syn::Block)> {
+    if !matches!(function.sig.output, syn::ReturnType::Default) {
+        return Err(syn::Error::new_spanned(
+            &function.sig.output,
+            "[SAND-SYSTEM-RETURN] systems do not declare a Rust return type; write command-producing expressions as statements and return Vec<String> only from query closures",
+        ));
+    }
     if function.sig.inputs.len() != 1 {
         return Err(syn::Error::new_spanned(
             &function.sig.inputs,
-            "#[system] functions require exactly one derived StateQuery parameter",
+            "[SAND-SYSTEM-PARAM] free #[system] functions require exactly one scoped State, StateBundle, or StateQuery parameter",
         ));
     }
     let argument = function.sig.inputs.first().expect("one argument");
     let syn::FnArg::Typed(argument) = argument else {
         return Err(syn::Error::new_spanned(
             argument,
-            "systems cannot use a self receiver",
+            "[SAND-SYSTEM-PARAM] free systems cannot use a self receiver",
         ));
     };
     let syn::Pat::Ident(pattern) = argument.pat.as_ref() else {
         return Err(syn::Error::new_spanned(
             &argument.pat,
-            "StateQuery system parameters must use a simple identifier",
+            "[SAND-SYSTEM-PARAM] system query parameters must use a simple identifier",
         ));
     };
     let query_ident = pattern.ident.clone();
     let query_ty = (*argument.ty).clone();
-    let mut block = (*function.block).clone();
-    block.stmts.insert(
-        0,
-        syn::parse_quote!(let #query_ident = ::sand::__private::StateQueryHandle::<#query_ty>::new();),
-    );
+    let block = lower_state_system_block(
+        (*function.block).clone(),
+        query_ident.clone(),
+        query_ty.clone(),
+    )?;
     Ok((query_ident, query_ty, block))
+}
+
+fn lower_state_system_block(
+    block: syn::Block,
+    query_ident: syn::Ident,
+    query_ty: syn::Type,
+) -> syn::Result<syn::Block> {
+    let mut shadowing = StateSystemQueryShadowing {
+        query_ident: &query_ident,
+        shadow: None,
+        glob_import: None,
+        macro_use: None,
+        unsupported_use: None,
+    };
+    shadowing.visit_block(&block);
+    if let Some(shadow) = shadowing.shadow {
+        return Err(syn::Error::new_spanned(
+            shadow,
+            "[SAND-SYSTEM-PARAM] the system query parameter cannot be shadowed inside its body",
+        ));
+    }
+    if let Some(glob_import) = shadowing.glob_import {
+        return Err(syn::Error::new(
+            glob_import,
+            "[SAND-SYSTEM-PARAM] glob imports are not supported inside a system body because they may shadow the query parameter; use explicit imports",
+        ));
+    }
+    if let Some(macro_use) = shadowing.macro_use {
+        return Err(syn::Error::new_spanned(
+            macro_use,
+            "[SAND-SYSTEM-PARAM] the system query parameter cannot be passed into a nested macro; call each/current directly so Sand can lower it safely",
+        ));
+    }
+    if let Some(unsupported_use) = shadowing.unsupported_use {
+        return Err(syn::Error::new_spanned(
+            unsupported_use,
+            "[SAND-SYSTEM-PARAM] system query values may only be used as the direct receiver of each/current",
+        ));
+    }
+    Ok(StateSystemQueryLowering {
+        query_ident,
+        query_ty,
+    }
+    .fold_block(block))
+}
+
+struct StateSystemQueryShadowing<'a> {
+    query_ident: &'a syn::Ident,
+    shadow: Option<syn::Ident>,
+    glob_import: Option<proc_macro2::Span>,
+    macro_use: Option<syn::Ident>,
+    unsupported_use: Option<syn::ExprPath>,
+}
+
+/// Make the preserved Rust endpoint resolve the same canonical trait method as
+/// its export adapter, even if the schema type declares an inherent method with
+/// the same name.
+struct StateSystemQueryQualification {
+    query_ident: syn::Ident,
+    query_ty: syn::Type,
+}
+
+impl Fold for StateSystemQueryQualification {
+    fn fold_expr(&mut self, expression: syn::Expr) -> syn::Expr {
+        let syn::Expr::MethodCall(call) = &expression else {
+            return fold::fold_expr(self, expression);
+        };
+        let syn::Expr::Path(receiver) = call.receiver.as_ref() else {
+            return fold::fold_expr(self, expression);
+        };
+        if !receiver.path.is_ident(&self.query_ident)
+            || (call.method != "each" && call.method != "current")
+        {
+            return fold::fold_expr(self, expression);
+        }
+
+        let attrs = &call.attrs;
+        let receiver = receiver.clone();
+        let arguments = call
+            .args
+            .clone()
+            .into_iter()
+            .map(|argument| self.fold_expr(argument))
+            .collect::<syn::punctuated::Punctuated<_, syn::Token![,]>>();
+        let query_ty = &self.query_ty;
+        if call.method == "each" {
+            syn::parse_quote_spanned! {call.method.span()=>
+                #(#attrs)*
+                <#query_ty as ::sand::prelude::StateQueryOperations>::each(&#receiver, #arguments)
+            }
+        } else {
+            syn::parse_quote_spanned! {call.method.span()=>
+                #(#attrs)*
+                <#query_ty as ::sand::prelude::StateQueryOperations>::current(&#receiver, #arguments)
+            }
+        }
+    }
+}
+
+fn qualify_state_system_block(
+    block: syn::Block,
+    query_ident: syn::Ident,
+    query_ty: syn::Type,
+) -> syn::Block {
+    StateSystemQueryQualification {
+        query_ident,
+        query_ty,
+    }
+    .fold_block(block)
+}
+
+impl<'ast> Visit<'ast> for StateSystemQueryShadowing<'_> {
+    fn visit_expr_method_call(&mut self, expression: &'ast syn::ExprMethodCall) {
+        if let syn::Expr::Path(receiver) = expression.receiver.as_ref()
+            && receiver.path.is_ident(self.query_ident)
+            && (expression.method == "each" || expression.method == "current")
+        {
+            for argument in &expression.args {
+                self.visit_expr(argument);
+            }
+            return;
+        }
+        visit::visit_expr_method_call(self, expression);
+    }
+
+    fn visit_expr_path(&mut self, expression: &'ast syn::ExprPath) {
+        if self.unsupported_use.is_none() && expression.path.is_ident(self.query_ident) {
+            self.unsupported_use = Some(expression.clone());
+        }
+        visit::visit_expr_path(self, expression);
+    }
+
+    fn visit_pat_ident(&mut self, pattern: &'ast syn::PatIdent) {
+        if self.shadow.is_none() && pattern.ident == *self.query_ident {
+            self.shadow = Some(pattern.ident.clone());
+        }
+        visit::visit_pat_ident(self, pattern);
+    }
+
+    fn visit_item_const(&mut self, item: &'ast syn::ItemConst) {
+        self.record_value_item(&item.ident);
+        visit::visit_item_const(self, item);
+    }
+
+    fn visit_item_static(&mut self, item: &'ast syn::ItemStatic) {
+        self.record_value_item(&item.ident);
+        visit::visit_item_static(self, item);
+    }
+
+    fn visit_item_fn(&mut self, item: &'ast syn::ItemFn) {
+        self.record_value_item(&item.sig.ident);
+        visit::visit_item_fn(self, item);
+    }
+
+    fn visit_item_struct(&mut self, item: &'ast syn::ItemStruct) {
+        if matches!(item.fields, syn::Fields::Unit | syn::Fields::Unnamed(_)) {
+            self.record_value_item(&item.ident);
+        }
+        visit::visit_item_struct(self, item);
+    }
+
+    fn visit_item_use(&mut self, item: &'ast syn::ItemUse) {
+        self.visit_use_binding(&item.tree);
+        visit::visit_item_use(self, item);
+    }
+
+    fn visit_macro(&mut self, item: &'ast syn::Macro) {
+        if self.macro_use.is_none() {
+            self.macro_use = self.query_ident_in_tokens(item.tokens.clone());
+        }
+        visit::visit_macro(self, item);
+    }
+}
+
+impl StateSystemQueryShadowing<'_> {
+    fn record_value_item(&mut self, ident: &syn::Ident) {
+        if self.shadow.is_none() && ident == self.query_ident {
+            self.shadow = Some(ident.clone());
+        }
+    }
+
+    fn visit_use_binding(&mut self, tree: &syn::UseTree) {
+        match tree {
+            syn::UseTree::Path(path) => self.visit_use_binding(&path.tree),
+            syn::UseTree::Name(name) => self.record_value_item(&name.ident),
+            syn::UseTree::Rename(rename) => self.record_value_item(&rename.rename),
+            syn::UseTree::Group(group) => {
+                for tree in &group.items {
+                    self.visit_use_binding(tree);
+                }
+            }
+            syn::UseTree::Glob(glob) => {
+                if self.glob_import.is_none() {
+                    self.glob_import = Some(glob.star_token.span);
+                }
+            }
+        }
+    }
+
+    fn query_ident_in_tokens(&self, tokens: proc_macro2::TokenStream) -> Option<syn::Ident> {
+        for token in tokens {
+            match token {
+                proc_macro2::TokenTree::Ident(ident) if ident == *self.query_ident => {
+                    return Some(ident);
+                }
+                proc_macro2::TokenTree::Group(group) => {
+                    if let Some(ident) = self.query_ident_in_tokens(group.stream()) {
+                        return Some(ident);
+                    }
+                }
+                _ => {}
+            }
+        }
+        None
+    }
+}
+
+/// Re-target the editor-visible query operations only in the private export
+/// adapter. The authored endpoint remains untouched and type-checks against
+/// `StateQueryOperations`; the adapter needs no fabricated runtime value.
+struct StateSystemQueryLowering {
+    query_ident: syn::Ident,
+    query_ty: syn::Type,
+}
+
+impl Fold for StateSystemQueryLowering {
+    fn fold_expr(&mut self, expression: syn::Expr) -> syn::Expr {
+        let syn::Expr::MethodCall(call) = &expression else {
+            return fold::fold_expr(self, expression);
+        };
+        let syn::Expr::Path(receiver) = call.receiver.as_ref() else {
+            return fold::fold_expr(self, expression);
+        };
+        if !receiver.path.is_ident(&self.query_ident)
+            || (call.method != "each" && call.method != "current")
+        {
+            return fold::fold_expr(self, expression);
+        }
+
+        let attrs = &call.attrs;
+        let arguments = call
+            .args
+            .clone()
+            .into_iter()
+            .map(|argument| self.fold_expr(argument))
+            .collect::<syn::punctuated::Punctuated<_, syn::Token![,]>>();
+        let query_ty = &self.query_ty;
+        if call.method == "each" {
+            syn::parse_quote_spanned! {call.method.span()=>
+                #(#attrs)*
+                ::sand::__private::lower_system_query_each::<#query_ty, _>(#arguments)
+            }
+        } else {
+            syn::parse_quote_spanned! {call.method.span()=>
+                #(#attrs)*
+                ::sand::__private::lower_system_query_current::<#query_ty, _>(#arguments)
+            }
+        }
+    }
+}
+
+struct CfgAttrArgs {
+    predicate: syn::Meta,
+    attrs: syn::punctuated::Punctuated<syn::Meta, syn::Token![,]>,
+}
+
+impl syn::parse::Parse for CfgAttrArgs {
+    fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
+        let predicate = input.parse()?;
+        let _: syn::Token![,] = input.parse()?;
+        let attrs = syn::punctuated::Punctuated::parse_terminated(input)?;
+        Ok(Self { predicate, attrs })
+    }
+}
+
+fn gating_meta(meta: &syn::Meta) -> syn::Result<Option<syn::Meta>> {
+    if meta.path().is_ident("cfg") {
+        return Ok(Some(meta.clone()));
+    }
+    let syn::Meta::List(list) = meta else {
+        return Ok(None);
+    };
+    if !list.path.is_ident("cfg_attr") {
+        return Ok(None);
+    }
+    let args = syn::parse2::<CfgAttrArgs>(list.tokens.clone())?;
+    let mut attrs = Vec::new();
+    for attr in &args.attrs {
+        if let Some(attr) = gating_meta(attr)? {
+            attrs.push(attr);
+        }
+    }
+    if attrs.is_empty() {
+        return Ok(None);
+    }
+    let predicate = args.predicate;
+    let mut filtered = list.clone();
+    filtered.tokens = quote!(#predicate #(, #attrs)*);
+    Ok(Some(syn::Meta::List(filtered)))
+}
+
+fn conditional_attrs(attrs: &[syn::Attribute]) -> syn::Result<Vec<syn::Attribute>> {
+    let mut conditional = Vec::new();
+    for attr in attrs {
+        let Some(meta) = gating_meta(&attr.meta)? else {
+            continue;
+        };
+        let mut attr = attr.clone();
+        attr.meta = meta;
+        conditional.push(attr);
+    }
+    Ok(conditional)
+}
+
+fn lint_meta(meta: &syn::Meta) -> syn::Result<Option<syn::Meta>> {
+    if ["allow", "warn", "deny", "forbid", "expect"]
+        .iter()
+        .any(|name| meta.path().is_ident(name))
+    {
+        return Ok(Some(meta.clone()));
+    }
+    let syn::Meta::List(list) = meta else {
+        return Ok(None);
+    };
+    if !list.path.is_ident("cfg_attr") {
+        return Ok(None);
+    }
+    let args = syn::parse2::<CfgAttrArgs>(list.tokens.clone())?;
+    let mut attrs = Vec::new();
+    for attr in &args.attrs {
+        if let Some(attr) = lint_meta(attr)? {
+            attrs.push(attr);
+        }
+    }
+    if attrs.is_empty() {
+        return Ok(None);
+    }
+    let predicate = args.predicate;
+    let mut filtered = list.clone();
+    filtered.tokens = quote!(#predicate #(, #attrs)*);
+    Ok(Some(syn::Meta::List(filtered)))
+}
+
+fn lint_attrs(attrs: &[syn::Attribute]) -> syn::Result<Vec<syn::Attribute>> {
+    let mut lint_attrs = Vec::new();
+    for attr in attrs {
+        let Some(meta) = lint_meta(&attr.meta)? else {
+            continue;
+        };
+        let mut attr = attr.clone();
+        attr.meta = meta;
+        lint_attrs.push(attr);
+    }
+    Ok(lint_attrs)
+}
+
+fn gate_generated_items(
+    tokens: proc_macro2::TokenStream,
+    attrs: &[syn::Attribute],
+) -> syn::Result<proc_macro2::TokenStream> {
+    if attrs.is_empty() {
+        return Ok(tokens);
+    }
+    let file = syn::parse2::<syn::File>(tokens)?;
+    let mut gated = proc_macro2::TokenStream::new();
+    for item in file.items {
+        gated.extend(quote! {
+            #(#attrs)*
+            #item
+        });
+    }
+    Ok(gated)
+}
+
+struct ImplSelfTypeQualification<'a> {
+    self_ty: &'a syn::Type,
+}
+
+impl Fold for ImplSelfTypeQualification<'_> {
+    fn fold_type(&mut self, ty: syn::Type) -> syn::Type {
+        if let syn::Type::Path(path) = &ty
+            && path.qself.is_none()
+            && path.path.is_ident("Self")
+        {
+            return self.self_ty.clone();
+        }
+        fold::fold_type(self, ty)
+    }
+}
+
+fn qualify_impl_self_type(ty: syn::Type, self_ty: &syn::Type) -> syn::Type {
+    ImplSelfTypeQualification { self_ty }.fold_type(ty)
+}
+
+#[derive(Default)]
+struct ImplSelfTypeUse {
+    found: bool,
+}
+
+impl Visit<'_> for ImplSelfTypeUse {
+    fn visit_type_path(&mut self, path: &syn::TypePath) {
+        if path
+            .path
+            .segments
+            .iter()
+            .any(|segment| segment.ident == "Self")
+        {
+            self.found = true;
+        }
+        visit::visit_type_path(self, path);
+    }
+}
+
+fn uses_impl_self_type(ty: &syn::Type) -> bool {
+    let mut visitor = ImplSelfTypeUse::default();
+    visitor.visit_type(ty);
+    visitor.found
 }
 
 fn expand_state_system_function(
     function: ItemFn,
     attr: SystemTickAttr,
 ) -> syn::Result<proc_macro2::TokenStream> {
-    let (_, query_ty, block) = state_system_body(&function)?;
+    let (query_ident, query_ty, block) = state_system_body(&function)?;
+    let mut authored = function.clone();
+    *authored.block =
+        qualify_state_system_block((*function.block).clone(), query_ident, query_ty.clone());
+    authored
+        .attrs
+        .push(syn::parse_quote!(#[allow(dead_code, unused_must_use, unused_variables)]));
     let ident = &function.sig.ident;
-    let visibility = &function.vis;
-    let attrs = &function.attrs;
     let factory = quote::format_ident!("__sand_system_{}_make", ident);
     let body = build_cmd_body(&block)?;
     let every = attr.every;
+    let registration_attrs = conditional_attrs(&function.attrs)?;
+    let factory_lint_attrs = lint_attrs(&function.attrs)?;
     Ok(quote! {
-        #(#attrs)*
-        #visibility fn #ident() -> Vec<String> {
+        #authored
+
+        #(#registration_attrs)*
+        const _: fn() = ::sand::__private::assert_system_query_parameter::<#query_ty>;
+
+        #(#registration_attrs)*
+        #(#factory_lint_attrs)*
+        #[doc(hidden)]
+        fn #factory() -> Vec<String> {
             let _: ::std::marker::PhantomData<#query_ty> = ::std::marker::PhantomData;
             #body
         }
 
-        #[doc(hidden)]
-        fn #factory() -> Vec<String> { #ident() }
-
+        #(#registration_attrs)*
         ::sand::__private::inventory::submit! {
             ::sand::__private::StateSystemDescriptor {
                 id: concat!(module_path!(), "::", stringify!(#ident)),
@@ -611,11 +1130,17 @@ fn expand_state_system_impl(
         ));
     }
     let self_ty = &implementation.self_ty;
+    let implementation_registration_attrs = conditional_attrs(&implementation.attrs)?;
+    let implementation_lint_attrs = lint_attrs(&implementation.attrs)?;
     let mut registrations = Vec::new();
     for item in &mut implementation.items {
         let syn::ImplItem::Fn(method) = item else {
             continue;
         };
+        let mut registration_attrs = implementation_registration_attrs.clone();
+        registration_attrs.extend(conditional_attrs(&method.attrs)?);
+        let mut body_lint_attrs = implementation_lint_attrs.clone();
+        body_lint_attrs.extend(lint_attrs(&method.attrs)?);
         let tick_index = method
             .attrs
             .iter()
@@ -627,6 +1152,12 @@ fn expand_state_system_impl(
                 .position(|attr| attr.path().is_ident("event"))
             {
                 let event_attr = method.attrs.remove(event_index);
+                if !matches!(method.sig.output, syn::ReturnType::Default) {
+                    return Err(syn::Error::new_spanned(
+                        &method.sig.output,
+                        "[SAND-SYSTEM-RETURN] event systems do not declare a Rust return type; write command-producing expressions as statements and return Vec<String> only from query closures",
+                    ));
+                }
                 let expected_ty: syn::Type = match event_attr.meta {
                     syn::Meta::List(list) => syn::parse2(list.tokens)?,
                     _ => {
@@ -636,68 +1167,151 @@ fn expand_state_system_impl(
                         ));
                     }
                 };
+                if uses_impl_self_type(&expected_ty) {
+                    return Err(syn::Error::new_spanned(
+                        &expected_ty,
+                        "[SAND-SYSTEM-EVENT] #[event(...)] requires a concrete event type path; an associated `Self` type names a type but cannot construct the bare SandEvent marker used during export. Name the concrete event in #[event(EventType)]; the method parameter may still use an equivalent associated type",
+                    ));
+                }
                 if !(1..=2).contains(&method.sig.inputs.len()) {
                     return Err(syn::Error::new_spanned(
                         &method.sig.inputs,
-                        "grouped event systems require an event parameter and may optionally take one StateQuery parameter",
+                        "[SAND-SYSTEM-EVENT] event systems accept `(event)` or `(event, query)`; found a different parameter count",
                     ));
                 }
                 let syn::FnArg::Typed(argument) = method.sig.inputs.first().expect("one argument")
                 else {
                     return Err(syn::Error::new_spanned(
                         &method.sig.inputs,
-                        "grouped event systems cannot use self",
+                        "[SAND-SYSTEM-EVENT] grouped event systems cannot use self",
                     ));
                 };
-                let actual_ty = &argument.ty;
-                if quote!(#expected_ty).to_string() != quote!(#actual_ty).to_string() {
-                    return Err(syn::Error::new_spanned(
-                        &argument.ty,
-                        "#[event(EventType)] must match the method parameter type",
-                    ));
-                }
+                let event_argument = argument.clone();
+                let event_ty = (*argument.ty).clone();
+                let lifted_event_ty = qualify_impl_self_type(event_ty.clone(), self_ty);
+                let lifted_expected_ty = qualify_impl_self_type(expected_ty.clone(), self_ty);
                 let mut event_block = method.block.clone();
+                let mut event_query_ty = None;
                 if method.sig.inputs.len() == 2 {
                     let query_argument = method.sig.inputs.iter().nth(1).expect("two inputs");
                     let syn::FnArg::Typed(query_argument) = query_argument else {
                         return Err(syn::Error::new_spanned(
                             query_argument,
-                            "grouped event systems cannot use self",
+                            "[SAND-SYSTEM-EVENT] grouped event systems cannot use self",
                         ));
                     };
                     let syn::Pat::Ident(query_pattern) = query_argument.pat.as_ref() else {
                         return Err(syn::Error::new_spanned(
                             &query_argument.pat,
-                            "StateQuery event parameters must use a simple identifier",
+                            "[SAND-SYSTEM-PARAM] event query parameters must use a simple identifier",
                         ));
                     };
-                    let query_ident = &query_pattern.ident;
-                    let query_ty = query_argument.ty.as_ref();
-                    event_block.stmts.insert(
-                        0,
-                        syn::parse_quote!(let #query_ident = ::sand::__private::StateQueryHandle::<#query_ty>::new();),
+                    let query_ty = (*query_argument.ty).clone();
+                    event_block = lower_state_system_block(
+                        event_block,
+                        query_pattern.ident.clone(),
+                        query_ty.clone(),
+                    )?;
+                    method.block = qualify_state_system_block(
+                        method.block.clone(),
+                        query_pattern.ident.clone(),
+                        query_ty.clone(),
                     );
+                    event_query_ty = Some(query_ty);
                 }
-                let mut signature = method.sig.clone();
-                while signature.inputs.len() > 1 {
-                    signature.inputs.pop();
-                }
-                // Keep the grouped impl itself valid and directly testable:
-                // shadow the declarative query marker with the same generated
-                // handle used by the exported event adapter.
-                method
-                    .attrs
-                    .push(syn::parse_quote!(#[allow(unused_variables)]));
-                method.block = event_block.clone();
+                method.attrs.push(
+                    syn::parse_quote!(#[allow(dead_code, unused_must_use, unused_variables)]),
+                );
                 let original = &method.sig.ident;
-                signature.ident = quote::format_ident!("__sand_system_event_{}", original);
-                let function = ItemFn {
-                    attrs: method.attrs.clone(),
-                    vis: syn::Visibility::Inherited,
-                    sig: signature,
-                    block: Box::new(event_block),
+                let body_trait = quote::format_ident!("__SandSystemEventBody_{}", original);
+                let adapter = quote::format_ident!("__sand_system_event_{}", original);
+                let adapter_event = quote::format_ident!("__sand_event_{}", original);
+                let path_raw = quote::format_ident!("__SAND_SYSTEM_EVENT_PATH_RAW_{}", original);
+                let path_len = quote::format_ident!("__SAND_SYSTEM_EVENT_PATH_LEN_{}", original);
+                let path_encode =
+                    quote::format_ident!("__sand_system_event_path_encode_{}", original);
+                let path_bytes =
+                    quote::format_ident!("__SAND_SYSTEM_EVENT_PATH_BYTES_{}", original);
+                let path = quote::format_ident!("__SAND_SYSTEM_EVENT_PATH_{}", original);
+                let event_body = build_cmd_body(&event_block)?;
+                let query_assertion = event_query_ty.as_ref().map(|query_ty| {
+                    quote! {
+                        ::sand::__private::assert_system_query_parameter::<#query_ty>();
+                    }
+                });
+                let function: ItemFn = syn::parse_quote! {
+                    fn #adapter(#adapter_event: #lifted_expected_ty) {
+                        <#self_ty as #body_trait>::make(#adapter_event);
+                    }
                 };
-                registrations.push(expand_event(TokenStream::new(), function)?);
+                let event_adapter = gate_generated_items(
+                    expand_event_with_path(TokenStream::new(), function, Some(quote!(#path)))?,
+                    &registration_attrs,
+                )?;
+                let body_context = quote! {
+                    const #path_raw: &str = concat!(
+                        module_path!(), "\0", stringify!(#self_ty), "\0", stringify!(#original)
+                    );
+                    const #path_len: usize = #path_raw.len() * 2 + (#path_raw.len() * 2 - 1) / 64;
+                    const fn #path_encode(input: &str) -> [u8; #path_len] {
+                        const HEX: &[u8; 16] = b"0123456789abcdef";
+                        let input = input.as_bytes();
+                        let mut output = [0; #path_len];
+                        let mut source = 0;
+                        let mut target = 0;
+                        let mut hex_chars = 0;
+                        while source < input.len() {
+                            let byte = input[source];
+                            output[target] = HEX[(byte >> 4) as usize];
+                            target += 1;
+                            hex_chars += 1;
+                            if hex_chars % 64 == 0 && target < output.len() {
+                                output[target] = b'/';
+                                target += 1;
+                            }
+                            output[target] = HEX[(byte & 0x0f) as usize];
+                            target += 1;
+                            hex_chars += 1;
+                            if hex_chars % 64 == 0 && target < output.len() {
+                                output[target] = b'/';
+                                target += 1;
+                            }
+                            source += 1;
+                        }
+                        output
+                    }
+                    const #path_bytes: [u8; #path_len] = #path_encode(#path_raw);
+                    const #path: &str = match ::std::str::from_utf8(&#path_bytes) {
+                        Ok(path) => path,
+                        Err(_) => panic!("generated system event path was not UTF-8"),
+                    };
+
+                    #(#registration_attrs)*
+                    #[doc(hidden)]
+                    #[allow(non_camel_case_types)]
+                    trait #body_trait {
+                        fn make(__sand_event: #lifted_event_ty) -> Vec<String>;
+                    }
+
+                    #(#registration_attrs)*
+                    impl #body_trait for #self_ty {
+                        #(#body_lint_attrs)*
+                        fn make(#event_argument) -> Vec<String> {
+                            #query_assertion
+                            #event_body
+                        }
+                    }
+                };
+                // Each grouped endpoint gets an anonymous item scope so two
+                // system types may reuse ordinary method names safely.
+                registrations.push(quote! {
+                    #(#registration_attrs)*
+                    #[allow(non_upper_case_globals)]
+                    const _: () = {
+                        #body_context
+                        #event_adapter
+                    };
+                });
             }
             continue;
         };
@@ -706,7 +1320,10 @@ fn expand_state_system_impl(
             syn::Meta::Path(_) => SystemTickAttr { every: 1 },
             syn::Meta::List(list) => parse_system_tick_attr(list.tokens.clone().into(), true)?,
             syn::Meta::NameValue(_) => {
-                return Err(syn::Error::new_spanned(tick_attr, "use #[tick(every = N)]"));
+                return Err(syn::Error::new_spanned(
+                    tick_attr,
+                    "[SAND-SYSTEM-CADENCE] use #[tick] or #[tick(every = N)]",
+                ));
             }
         };
         let function = ItemFn {
@@ -715,27 +1332,52 @@ fn expand_state_system_impl(
             sig: method.sig.clone(),
             block: Box::new(method.block.clone()),
         };
-        let (_, query_ty, block) = state_system_body(&function)?;
+        let (query_ident, query_ty, block) = state_system_body(&function)?;
         let body = build_cmd_body(&block)?;
-        method.sig.inputs.clear();
-        method.sig.output = syn::parse_quote!(-> Vec<String>);
-        method.block = syn::parse_quote!({
-            let _: ::std::marker::PhantomData<#query_ty> = ::std::marker::PhantomData;
-            #body
-        });
+        method.block =
+            qualify_state_system_block(method.block.clone(), query_ident, query_ty.clone());
+        method
+            .attrs
+            .push(syn::parse_quote!(#[allow(dead_code, unused_must_use, unused_variables)]));
         let method_ident = &method.sig.ident;
         let factory = quote::format_ident!("__sand_system_{}_make", method_ident);
+        let body_trait = quote::format_ident!("__SandSystemTickBody_{}", method_ident);
         let every = cadence.every;
+        // Keep helper names local to this endpoint. Rust method names need
+        // only be unique on their owning type, not across the source module.
         registrations.push(quote! {
-            #[doc(hidden)]
-            fn #factory() -> Vec<String> { <#self_ty>::#method_ident() }
-            ::sand::__private::inventory::submit! {
-                ::sand::__private::StateSystemDescriptor {
-                    id: concat!(module_path!(), "::", stringify!(#self_ty), "::", stringify!(#method_ident)),
-                    every: #every,
-                    make: #factory,
+            #(#registration_attrs)*
+            const _: () = {
+                #(#registration_attrs)*
+                #[doc(hidden)]
+                #[allow(non_camel_case_types)]
+                trait #body_trait {
+                    fn make() -> Vec<String>;
                 }
-            }
+
+                #(#registration_attrs)*
+                impl #body_trait for #self_ty {
+                    #(#body_lint_attrs)*
+                    fn make() -> Vec<String> {
+                        ::sand::__private::assert_system_query_parameter::<#query_ty>();
+                        #body
+                    }
+                }
+
+                #(#registration_attrs)*
+                #[doc(hidden)]
+                fn #factory() -> Vec<String> {
+                    <#self_ty as #body_trait>::make()
+                }
+                #(#registration_attrs)*
+                ::sand::__private::inventory::submit! {
+                    ::sand::__private::StateSystemDescriptor {
+                        id: concat!(module_path!(), "::", stringify!(#self_ty), "::", stringify!(#method_ident)),
+                        every: #every,
+                        make: #factory,
+                    }
+                }
+            };
         });
     }
     Ok(quote! { #implementation #(#registrations)* })
@@ -904,7 +1546,19 @@ fn build_cmd_body(block: &syn::Block) -> syn::Result<proc_macro2::TokenStream> {
             // Every expression (with or without `;`) goes through IntoCommands.
             // This handles String, &str, Vec<String>, and any custom type.
             syn::Stmt::Expr(expr, _semi) => {
-                pieces.push(command_body_expr(expr)?);
+                let mut expression = expr.clone();
+                let attrs = match &mut expression {
+                    syn::Expr::Call(call) => std::mem::take(&mut call.attrs),
+                    syn::Expr::MethodCall(call) => std::mem::take(&mut call.attrs),
+                    _ => Vec::new(),
+                };
+                let command = command_body_expr(&expression)?;
+                pieces.push(quote! {
+                    #(#attrs)*
+                    {
+                        #command
+                    }
+                });
             }
             // Every macro invocation goes through IntoCommands so that
             // `mcfunction![…]` (returns Vec<String>) extends the list and
@@ -1642,8 +2296,17 @@ fn is_tracked_provider_event_type(name: &str) -> bool {
 }
 
 fn expand_event(attr: TokenStream, func: ItemFn) -> syn::Result<proc_macro2::TokenStream> {
+    expand_event_with_path(attr, func, None)
+}
+
+fn expand_event_with_path(
+    attr: TokenStream,
+    func: ItemFn,
+    descriptor_path: Option<proc_macro2::TokenStream>,
+) -> syn::Result<proc_macro2::TokenStream> {
     let fn_name = &func.sig.ident;
     let fn_name_str = fn_name.to_string();
+    let descriptor_path = descriptor_path.unwrap_or_else(|| quote!(#fn_name_str));
     let vis = &func.vis;
     let fn_attrs = &func.attrs;
 
@@ -1669,6 +2332,15 @@ fn expand_event(attr: TokenStream, func: ItemFn) -> syn::Result<proc_macro2::Tok
              (e.g. `event: OnJoinEvent`)",
         ));
     }
+    let event_binding_pattern = match func.sig.inputs.first().expect("one event parameter") {
+        syn::FnArg::Typed(parameter) => parameter.pat.as_ref(),
+        syn::FnArg::Receiver(receiver) => {
+            return Err(syn::Error::new_spanned(
+                receiver,
+                "#[on_event] cannot be a method",
+            ));
+        }
+    };
 
     enum EventParam {
         Context {
@@ -1687,6 +2359,9 @@ fn expand_event(attr: TokenStream, func: ItemFn) -> syn::Result<proc_macro2::Tok
         ty: &syn::Type,
         tp: &syn::TypePath,
     ) -> syn::Result<Option<(String, proc_macro2::TokenStream, bool)>> {
+        if tp.qself.is_some() {
+            return Ok(None);
+        }
         let Some(segment) = tp.path.segments.last() else {
             return Ok(None);
         };
@@ -1834,11 +2509,13 @@ fn expand_event(attr: TokenStream, func: ItemFn) -> syn::Result<proc_macro2::Tok
     };
 
     // ── Shared preamble: emit the body function + hidden factory ──────────────
-    // The `let event` binding enables `event.player()` inside handler bodies.
+    // Preserve the author's parameter binding while removing it from the
+    // generated zero-argument Minecraft function.
     let preamble = quote! {
         #(#fn_attrs)*
+        #[allow(unused_variables)]
         #vis fn #fn_name() -> ::std::vec::Vec<::std::string::String> {
-            let event = #event_binding_tokens;
+            let #event_binding_pattern = #event_binding_tokens;
             #body
         }
 
@@ -1891,7 +2568,7 @@ fn expand_event(attr: TokenStream, func: ItemFn) -> syn::Result<proc_macro2::Tok
                 #preamble
 
                 ::sand::__private::inventory::submit!(::sand::__private::EventDescriptor {
-                    path: #fn_name_str,
+                    path: #descriptor_path,
                     id_override: #id_override_tokens,
                     make: #fn_make_ident,
                     dispatch: ::sand::__private::EventDispatch::Tracked(
@@ -1910,7 +2587,7 @@ fn expand_event(attr: TokenStream, func: ItemFn) -> syn::Result<proc_macro2::Tok
                 #preamble
 
                 ::sand::__private::inventory::submit!(::sand::__private::EventDescriptor {
-                    path: #fn_name_str,
+                    path: #descriptor_path,
                     id_override: #id_override_tokens,
                     make: #fn_make_ident,
                     dispatch: ::sand::__private::EventDispatch::Tracked(
@@ -1935,7 +2612,7 @@ fn expand_event(attr: TokenStream, func: ItemFn) -> syn::Result<proc_macro2::Tok
                 #preamble
 
                 ::sand::__private::inventory::submit!(::sand::__private::EventDescriptor {
-                    path: #fn_name_str,
+                    path: #descriptor_path,
                     id_override: #id_override_tokens,
                     make: #fn_make_ident,
                     dispatch: ::sand::__private::EventDispatch::JoinTick,
@@ -1959,7 +2636,7 @@ fn expand_event(attr: TokenStream, func: ItemFn) -> syn::Result<proc_macro2::Tok
                 }
 
                 ::sand::__private::inventory::submit!(::sand::__private::EventDescriptor {
-                    path: #fn_name_str,
+                    path: #descriptor_path,
                     id_override: #id_override_tokens,
                     make: #fn_make_ident,
                     dispatch: ::sand::__private::EventDispatch::Advancement {
@@ -1986,7 +2663,7 @@ fn expand_event(attr: TokenStream, func: ItemFn) -> syn::Result<proc_macro2::Tok
                 #preamble
 
                 ::sand::__private::inventory::submit!(::sand::__private::EventDescriptor {
-                    path: #fn_name_str,
+                    path: #descriptor_path,
                     id_override: #id_override_tokens,
                     make: #fn_make_ident,
                     dispatch: ::sand::__private::EventDispatch::XpLevelUp,
@@ -2000,7 +2677,7 @@ fn expand_event(attr: TokenStream, func: ItemFn) -> syn::Result<proc_macro2::Tok
                 #preamble
 
                 ::sand::__private::inventory::submit!(::sand::__private::EventDescriptor {
-                    path: #fn_name_str,
+                    path: #descriptor_path,
                     id_override: #id_override_tokens,
                     make: #fn_make_ident,
                     dispatch: ::sand::__private::EventDispatch::DeathTick,
@@ -2014,7 +2691,7 @@ fn expand_event(attr: TokenStream, func: ItemFn) -> syn::Result<proc_macro2::Tok
                 #preamble
 
                 ::sand::__private::inventory::submit!(::sand::__private::EventDescriptor {
-                    path: #fn_name_str,
+                    path: #descriptor_path,
                     id_override: #id_override_tokens,
                     make: #fn_make_ident,
                     dispatch: ::sand::__private::EventDispatch::RespawnTick,
@@ -2038,7 +2715,7 @@ fn expand_event(attr: TokenStream, func: ItemFn) -> syn::Result<proc_macro2::Tok
                 #preamble
 
                 ::sand::__private::inventory::submit!(::sand::__private::EventDescriptor {
-                    path: #fn_name_str,
+                    path: #descriptor_path,
                     id_override: #id_override_tokens,
                     make: #fn_make_ident,
                     dispatch: ::sand::__private::EventDispatch::ArmorEquip {
@@ -2066,7 +2743,7 @@ fn expand_event(attr: TokenStream, func: ItemFn) -> syn::Result<proc_macro2::Tok
                 #preamble
 
                 ::sand::__private::inventory::submit!(::sand::__private::EventDescriptor {
-                    path: #fn_name_str,
+                    path: #descriptor_path,
                     id_override: #id_override_tokens,
                     make: #fn_make_ident,
                     dispatch: ::sand::__private::EventDispatch::ArmorUnequip {
@@ -2127,7 +2804,7 @@ fn expand_event(attr: TokenStream, func: ItemFn) -> syn::Result<proc_macro2::Tok
                 }
 
                 ::sand::__private::inventory::submit!(::sand::__private::EventDescriptor {
-                    path: #fn_name_str,
+                    path: #descriptor_path,
                     id_override: #id_override_tokens,
                     make: #fn_make_ident,
                     dispatch: ::sand::__private::EventDispatch::TickPoll {
@@ -2195,7 +2872,7 @@ fn expand_event(attr: TokenStream, func: ItemFn) -> syn::Result<proc_macro2::Tok
                 }
 
                 ::sand::__private::inventory::submit!(::sand::__private::EventDescriptor {
-                    path: #fn_name_str,
+                    path: #descriptor_path,
                     id_override: #id_override_tokens,
                     make: #fn_make_ident,
                     dispatch: ::sand::__private::EventDispatch::TickPoll {
@@ -2270,7 +2947,7 @@ fn expand_event(attr: TokenStream, func: ItemFn) -> syn::Result<proc_macro2::Tok
                 }
 
                 ::sand::__private::inventory::submit!(::sand::__private::EventDescriptor {
-                    path: #fn_name_str,
+                    path: #descriptor_path,
                     id_override: #id_override_tokens,
                     make: #fn_make_ident,
                     dispatch: ::sand::__private::EventDispatch::Advancement {
@@ -2286,7 +2963,7 @@ fn expand_event(attr: TokenStream, func: ItemFn) -> syn::Result<proc_macro2::Tok
                 // Register event type → handler path mapping for EventHandle<E>.revoke/grant.
                 ::sand::__private::inventory::submit!(::sand::__private::EventPathEntry {
                     type_id: ::std::any::TypeId::of::<#dispatch_type_tokens>(),
-                    path: #fn_name_str,
+                    path: #descriptor_path,
                 });
             }
         }
@@ -2408,7 +3085,7 @@ fn expand_event(attr: TokenStream, func: ItemFn) -> syn::Result<proc_macro2::Tok
                 }
 
                 ::sand::__private::inventory::submit!(::sand::__private::EventDescriptor {
-                    path: #fn_name_str,
+                    path: #descriptor_path,
                     id_override: #id_override_tokens,
                     make: #fn_make_ident,
                     dispatch: ::sand::__private::EventDispatch::Custom {

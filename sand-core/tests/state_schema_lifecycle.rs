@@ -165,6 +165,89 @@ fn recharge_direct(query: EntityRuntimeState) {
     query.each(|runtime| runtime.charge.add(1));
 }
 
+#[system(tick, every = 20)]
+fn zz_recharge_players(query: PlayerState) {
+    query.each(|player| player.mana.add(1));
+}
+
+// These two valid Rust identifiers have the same 32-bit FNV-1a hash. Keeping
+// them as the grouped owners ensures resource identity never regresses to a
+// fixed-width hash.
+struct ShF9nHXYiX;
+struct SxOoyj5PdK;
+struct GroupedStatePulse;
+
+impl SandEvent for GroupedStatePulse {
+    fn dispatch() -> impl Into<SandEventDispatch> {
+        SandEventDispatch::tick().as_players()
+    }
+}
+
+#[system]
+impl ShF9nHXYiX {
+    #[tick(every = 20)]
+    fn recharge(query: EntityRuntimeState) {
+        query.each(|runtime| runtime.charge.add(1));
+    }
+
+    #[event(GroupedStatePulse)]
+    fn current(_event: GroupedStatePulse, query: PlayerState) {
+        query.current(|player| {
+            let mut commands = player.mana.add(1);
+            commands.push(cmd::say("grouped current").to_string());
+            commands
+        });
+    }
+}
+
+#[system]
+impl SxOoyj5PdK {
+    #[event(GroupedStatePulse)]
+    fn current(_event: GroupedStatePulse, query: PlayerState) {
+        query.current(|player| {
+            let mut commands = player.mana.add(2);
+            commands.push(cmd::say("other grouped current").to_string());
+            commands
+        });
+    }
+}
+
+mod grouped_module_a {
+    use super::*;
+
+    struct Systems;
+
+    #[system]
+    impl Systems {
+        #[event(GroupedStatePulse)]
+        fn current(_event: GroupedStatePulse, query: PlayerState) {
+            query.current(|player| {
+                let mut commands = player.mana.add(3);
+                commands.push(cmd::say("module a grouped current").to_string());
+                commands
+            });
+        }
+    }
+}
+
+mod grouped_module_b {
+    use super::*;
+
+    struct Systems;
+
+    #[system]
+    impl Systems {
+        #[event(GroupedStatePulse)]
+        fn current(_event: GroupedStatePulse, query: PlayerState) {
+            query.current(|player| {
+                let mut commands = player.mana.add(4);
+                commands.push(cmd::say("module b grouped current").to_string());
+                commands
+            });
+        }
+    }
+}
+
 fn records() -> Vec<serde_json::Value> {
     serde_json::from_str(&sand_core::try_export_components_json("statepack").unwrap()).unwrap()
 }
@@ -435,8 +518,78 @@ fn direct_and_composed_systems_share_the_compatible_outer_scan() {
             .lines()
             .filter(|line| line.starts_with("function "))
             .count(),
-        2,
-        "the shared scan group should invoke both compatible systems"
+        3,
+        "the shared scan group should invoke free and grouped compatible systems"
+    );
+}
+
+#[test]
+fn grouped_event_current_registers_and_guards_without_a_second_scan() {
+    let records = records();
+    let grouped_handlers = records
+        .iter()
+        .filter(|record| record["dir"] == "function")
+        .filter(|record| {
+            record["content"]
+                .as_str()
+                .is_some_and(|content| content.contains("grouped current"))
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(
+        grouped_handlers.len(),
+        4,
+        "same-named grouped event methods on distinct types should export separately"
+    );
+    let unique_paths = grouped_handlers
+        .iter()
+        .map(|handler| handler["path"].as_str().unwrap())
+        .collect::<std::collections::BTreeSet<_>>();
+    assert_eq!(
+        unique_paths.len(),
+        grouped_handlers.len(),
+        "the module and owning system type must participate losslessly in each generated resource path"
+    );
+    let requirement = <PlayerState as sand::__private::StateBundleMember>::presence_requirements();
+
+    for handler in grouped_handlers {
+        let event_body = handler["content"].as_str().unwrap();
+        assert!(event_body.contains(&format!(
+            "execute if score @s {} matches {}",
+            requirement[0].0, requirement[0].1
+        )));
+        assert!(!event_body.contains("execute as @a"));
+        assert!(!event_body.contains("execute as @e"));
+    }
+}
+
+#[test]
+fn incompatible_player_system_keeps_a_separate_outer_scan() {
+    let records = records();
+    let tick = function(&records, "__sand_system_tick");
+    let entity_requirement =
+        <EntityRuntimeState as sand::__private::StateBundleMember>::presence_requirements();
+    let player_requirement =
+        <PlayerState as sand::__private::StateBundleMember>::presence_requirements();
+    let entity_selector = format!(
+        "execute as @e[scores={{{}={}}}] at @s",
+        entity_requirement[0].0, entity_requirement[0].1
+    );
+    let player_selector = format!(
+        "execute as @a[scores={{{}={}}}] at @s",
+        player_requirement[0].0, player_requirement[0].1
+    );
+
+    assert_eq!(
+        tick.lines()
+            .filter(|line| line.contains(&entity_selector))
+            .count(),
+        1
+    );
+    assert_eq!(
+        tick.lines()
+            .filter(|line| line.contains(&player_selector))
+            .count(),
+        1
     );
 }
 

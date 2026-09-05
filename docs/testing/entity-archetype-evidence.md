@@ -1,6 +1,6 @@
-# Entity archetype runtime evidence (issue #295)
+# Entity archetype runtime evidence (issues #295 and #362)
 
-Validation date: 2026-07-26.
+Validation date: 2026-09-05.
 
 Environment:
 
@@ -18,7 +18,9 @@ python3 scripts/mc_validation/run_entity_archetype_audit.py \
   --evidence /tmp/entity-archetype-evidence.json
 ```
 
-The final run passed all 16 live checks:
+The final run passed all 24 live checks. The server was frozen while the
+reconciliation function was invoked directly for the health-causality cases,
+making observation cadence and simultaneous-write ordering deterministic.
 
 | Check | Live result |
 |---|---|
@@ -28,6 +30,14 @@ The final run passed all 16 live checks:
 | Two Zombies received independent initial state | PASS |
 | Initial max health 20 and attack damage 3 | PASS |
 | Initial colored `Lv. 1 Plagued Zombie` name | PASS |
+| Native damage observed into State | PASS |
+| Explicit State heal applied to native health | PASS |
+| Explicit State damage applied to native health | PASS |
+| State heal clamped to maximum health | PASS |
+| Simultaneous native damage and dirty State write: State wins | PASS |
+| Interval 20 does not observe before its cadence | PASS |
+| Interval 20 observes when due | PASS |
+| Native observation does not become a self-sustaining refresh loop | PASS |
 | Level mutation isolated to one Zombie | PASS |
 | Dirty refresh produced max health 22 and attack damage 4 | PASS |
 | Current health preserved from 10/20 to 11/22 | PASS |
@@ -40,7 +50,9 @@ The final run passed all 16 live checks:
 | Both audit Zombies were cleanly removed | PASS |
 
 The server log contained no `ERROR`, `Exception`, or `Failed to load`
-entries. Live RCON output included:
+entries. Live RCON output included State-to-native healing from 17 to 19,
+clamping a 999-point State write to 20, deterministic State precedence at 18,
+and:
 
 ```text
 The value of attribute Max Health for entity Lv. 2 Plagued Zombie is 22.0
@@ -49,12 +61,8 @@ Lv. 2 Plagued Zombie has the following entity data: 11.0f
 Storage rpg:__sand_entity has the following contents: {}
 ```
 
-Two independent 26.2 component exports were byte-identical at
-`b431d77e8eefd6baae491e0156635b77492a7410a36c2727079eb1c0f35a1d9c`
-(SHA-256). Two complete `sand build` runs produced the same 46-file pack-tree
-hash,
-`99f9d16efb6862a21a5d28f7ab3f4b340a7740c51ba63afa8c2e64639bee7d97`.
-The resulting unpacked datapack occupied 188 KiB on the validation host.
+The checked-in `examples/rpg_entity` export test separately verifies that two
+independent 26.2 component exports are byte-identical.
 
 ## Spawn-provenance boundary
 

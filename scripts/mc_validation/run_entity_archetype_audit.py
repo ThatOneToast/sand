@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Run issue #295's entity-archetype pack on a real Minecraft 26.2 server.
+"""Run the #295/#362 entity-archetype audit on a real Minecraft 26.2 server.
 
 The harness uses two unmarked command-summoned Zombies to exercise the same
 type-constrained adoption scan used for natural Zombies. It proves adoption
@@ -81,13 +81,25 @@ def main() -> int:
     )
     root = initialize_path.removesuffix("/initialize")
     marker = re.search(r"tag @s add ([^\s]+)", initialize).group(1)
-    field_objectives: list[str] = []
-    for index in range(4):
-        content = functions[f"{root}/initialize/field_{index}"]
-        field_objectives.append(
-            re.search(r"scoreboard players set @s ([^\s]+)", content).group(1)
-        )
-    level, health, max_health, attack_damage = field_objectives
+    provision = functions[f"{root}/provision"]
+    field_objectives = re.findall(
+        r"execute unless score @s ([^\s]+) matches [^\s]+ run scoreboard players set @s \1 -?\d+",
+        provision,
+    )
+    if len(field_objectives) < 6:
+        raise RuntimeError("could not resolve flattened State fields from provision function")
+    level = field_objectives[0]
+    health, max_health, attack_damage = field_objectives[3:6]
+    health_property = functions[f"{root}/property/0"]
+    current_dirty = re.search(
+        r"execute unless score @s [^\s]+ matches 1 run scoreboard players set @s ([^\s]+) 1",
+        health_property,
+    ).group(1)
+    refresh = functions[f"{root}/refresh"]
+    health_clock = re.search(
+        r"scoreboard players add @s ([^\s]+) 1\nexecute if score @s \1 matches 20\.\. run",
+        refresh,
+    ).group(1)
     version_objective = re.search(
         r"scoreboard players set @s ([^\s]+) 2\n"
         + rf"tag @s add {re.escape(marker)}",
@@ -173,6 +185,11 @@ def main() -> int:
         match = re.search(r"has (-?\d+) \[", output)
         return (int(match.group(1)) if match else None, output)
 
+    def native_health(tag: str) -> tuple[float | None, str]:
+        output = command(f"data get entity @e[tag={tag},limit=1] Health")
+        match = re.search(r"(-?\d+(?:\.\d+)?)f", output)
+        return (float(match.group(1)) if match else None, output)
+
     try:
         deadline = time.monotonic() + args.timeout
         ready = False
@@ -241,17 +258,99 @@ def main() -> int:
             initial_name,
         )
 
+        reconcile = f"execute as @e[tag=audit_a] run function rpg:{root}/reconcile"
+        command("tick freeze")
+
+        command(
+            "data modify entity @e[tag=audit_a,limit=1] Health set value 17f",
+            f"scoreboard players set @e[tag=audit_a,limit=1] {health_clock} 19",
+            reconcile,
+        )
+        observed_health, observed_out = score("audit_a", health)
+        check(
+            "native_damage_observed_into_state",
+            observed_health == 17,
+            observed_out,
+        )
+
+        command(
+            f"scoreboard players add @e[tag=audit_a,limit=1] {health} 2",
+            f"scoreboard players set @e[tag=audit_a,limit=1] {current_dirty} 1",
+            reconcile,
+        )
+        healed_native, healed_out = native_health("audit_a")
+        check("state_heal_applied_to_native", healed_native == 19, healed_out)
+
+        command(
+            f"scoreboard players set @e[tag=audit_a,limit=1] {health} 10",
+            f"scoreboard players set @e[tag=audit_a,limit=1] {current_dirty} 1",
+            reconcile,
+        )
+        damaged_native, damaged_out = native_health("audit_a")
+        check("state_damage_applied_to_native", damaged_native == 10, damaged_out)
+
+        command(
+            f"scoreboard players set @e[tag=audit_a,limit=1] {health} 999",
+            f"scoreboard players set @e[tag=audit_a,limit=1] {current_dirty} 1",
+            reconcile,
+        )
+        clamped_state, clamped_state_out = score("audit_a", health)
+        clamped_native, clamped_native_out = native_health("audit_a")
+        check(
+            "state_heal_clamped_by_max_health",
+            clamped_state == 20 and clamped_native == 20,
+            clamped_state_out + clamped_native_out,
+        )
+
+        command(
+            "data modify entity @e[tag=audit_a,limit=1] Health set value 12f",
+            f"scoreboard players set @e[tag=audit_a,limit=1] {health} 18",
+            f"scoreboard players set @e[tag=audit_a,limit=1] {current_dirty} 1",
+            f"scoreboard players set @e[tag=audit_a,limit=1] {health_clock} 19",
+            reconcile,
+        )
+        simultaneous_state, simultaneous_state_out = score("audit_a", health)
+        simultaneous_native, simultaneous_native_out = native_health("audit_a")
+        check(
+            "simultaneous_state_write_wins",
+            simultaneous_state == 18 and simultaneous_native == 18,
+            simultaneous_state_out + simultaneous_native_out,
+        )
+
+        command(
+            "data modify entity @e[tag=audit_a,limit=1] Health set value 11f",
+            reconcile,
+        )
+        before_interval, before_interval_out = score("audit_a", health)
+        check(
+            "interval_20_does_not_observe_early",
+            before_interval == 18,
+            before_interval_out,
+        )
+        command(*([reconcile] * 19))
+        at_interval, at_interval_out = score("audit_a", health)
+        check("interval_20_observes_on_cadence", at_interval == 11, at_interval_out)
+        command(reconcile)
+        command(
+            "data modify entity @e[tag=audit_a,limit=1] Health set value 10f",
+            reconcile,
+        )
+        bounded_state, bounded_state_out = score("audit_a", health)
+        check(
+            "periodic_observer_does_not_self_trigger_forever",
+            bounded_state == 11,
+            bounded_state_out,
+        )
+
         command("data modify entity @e[tag=audit_a,limit=1] Health set value 10f")
-        time.sleep(1.25)
-        command("execute as @e[tag=audit_a] run function rpg:level_up")
-        time.sleep(0.75)
+        command("execute as @e[tag=audit_a] run function rpg:level_up", reconcile)
         a_level2, level2_out = score("audit_a", level)
         b_level2, b_level2_out = score("audit_b", level)
         max2 = command("attribute @e[tag=audit_a,limit=1] minecraft:max_health get 1")
         attack2 = command(
             "attribute @e[tag=audit_a,limit=1] minecraft:attack_damage get 1"
         )
-        native_health = command("data get entity @e[tag=audit_a,limit=1] Health")
+        ratio_health, ratio_health_out = native_health("audit_a")
         check(
             "dirty_refresh_isolated_between_entities",
             (a_level2, b_level2) == (2, 1) and "22" in max2 and "4" in attack2,
@@ -259,16 +358,16 @@ def main() -> int:
         )
         check(
             "health_preserve_ratio",
-            re.search(r"11(?:\.0)?f", native_health) is not None,
-            native_health,
+            ratio_health == 11,
+            ratio_health_out,
         )
         name2 = command("data get entity @e[tag=audit_a,limit=1] CustomName")
         check("dynamic_name_refreshed", "Lv. " in name2 and '"2"' in name2, name2)
 
         command(
-            f"scoreboard players set @e[tag=audit_a,limit=1] {version_objective} 1"
+            f"scoreboard players set @e[tag=audit_a,limit=1] {version_objective} 1",
+            reconcile,
         )
-        time.sleep(0.5)
         version, version_out = score("audit_a", version_objective)
         check("ordered_migration_reaches_v2", version == 2, version_out)
 
@@ -287,7 +386,7 @@ def main() -> int:
             storage,
         )
 
-        command("forceload remove 0 0")
+        command("tick unfreeze", "forceload remove 0 0")
         time.sleep(0.5)
         command("forceload add 0 0")
         time.sleep(1.0)
@@ -298,6 +397,7 @@ def main() -> int:
             after_load_out,
         )
 
+        command("tick freeze")
         cleanup = command(
             f"execute as @e[tag=audit_a] run function rpg:{root}/cleanup"
         )
@@ -339,6 +439,8 @@ def main() -> int:
             "objectives": {
                 "level": level,
                 "health": health,
+                "health_dirty": current_dirty,
+                "health_observation_clock": health_clock,
                 "max_health": max_health,
                 "attack_damage": attack_damage,
                 "archetype_version": version_objective,

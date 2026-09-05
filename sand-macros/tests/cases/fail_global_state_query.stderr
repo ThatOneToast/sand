@@ -8,13 +8,10 @@ error[E0277]: global State is a singleton resource and cannot be used as an enti
    = note: required for `GameState` to implement `sand::__private::StateQuerySpec`
 
 error[E0277]: [SAND-SYSTEM-PARAM] `GameState` is not a scoped State, StateBundle, or StateQuery
-  --> tests/cases/fail_global_state_query.rs:11:5
+  --> tests/cases/fail_global_state_query.rs:10:17
    |
-11 |     query.each(|_| Vec::new());
-   |     ^^^^^^----
-   |     |     |
-   |     |     required by a bound introduced by this call
-   |     #[system] query parameters must implement StateQueryOperations
+10 | fn wrong(query: GameState) {
+   |                 ^^^^^^^^^ #[system] query parameters must implement StateQueryOperations
    |
 help: the trait `sand::__private::GeneratedSystemQueryParameter` is not implemented for `GameState`
   --> tests/cases/fail_global_state_query.rs:5:1

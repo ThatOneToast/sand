@@ -483,7 +483,9 @@ pub fn state_lifecycle(attr: TokenStream, item: TokenStream) -> TokenStream {
 /// glob imports are rejected because their value bindings cannot be audited.
 /// The query identifier also cannot be passed into a
 /// nested macro because that expansion happens after Sand has identified and
-/// lowered direct query operations.
+/// lowered direct query operations. Preserved endpoint calls are qualified by
+/// the declared query type, so a macro-generated binding of another type is a
+/// compile error rather than a different export-time query.
 /// Other uses of the query value are rejected because the generated export
 /// adapter has a query type but intentionally fabricates no runtime marker.
 ///
@@ -710,6 +712,7 @@ struct StateSystemQueryShadowing<'a> {
 /// the same name.
 struct StateSystemQueryQualification {
     query_ident: syn::Ident,
+    query_ty: syn::Type,
 }
 
 impl Fold for StateSystemQueryQualification {
@@ -734,22 +737,31 @@ impl Fold for StateSystemQueryQualification {
             .into_iter()
             .map(|argument| self.fold_expr(argument))
             .collect::<syn::punctuated::Punctuated<_, syn::Token![,]>>();
+        let query_ty = &self.query_ty;
         if call.method == "each" {
             syn::parse_quote_spanned! {call.method.span()=>
                 #(#attrs)*
-                ::sand::prelude::StateQueryOperations::each(&#receiver, #arguments)
+                <#query_ty as ::sand::prelude::StateQueryOperations>::each(&#receiver, #arguments)
             }
         } else {
             syn::parse_quote_spanned! {call.method.span()=>
                 #(#attrs)*
-                ::sand::prelude::StateQueryOperations::current(&#receiver, #arguments)
+                <#query_ty as ::sand::prelude::StateQueryOperations>::current(&#receiver, #arguments)
             }
         }
     }
 }
 
-fn qualify_state_system_block(block: syn::Block, query_ident: syn::Ident) -> syn::Block {
-    StateSystemQueryQualification { query_ident }.fold_block(block)
+fn qualify_state_system_block(
+    block: syn::Block,
+    query_ident: syn::Ident,
+    query_ty: syn::Type,
+) -> syn::Block {
+    StateSystemQueryQualification {
+        query_ident,
+        query_ty,
+    }
+    .fold_block(block)
 }
 
 impl<'ast> Visit<'ast> for StateSystemQueryShadowing<'_> {
@@ -1021,7 +1033,8 @@ fn expand_state_system_function(
 ) -> syn::Result<proc_macro2::TokenStream> {
     let (query_ident, query_ty, block) = state_system_body(&function)?;
     let mut authored = function.clone();
-    *authored.block = qualify_state_system_block((*function.block).clone(), query_ident);
+    *authored.block =
+        qualify_state_system_block((*function.block).clone(), query_ident, query_ty.clone());
     authored
         .attrs
         .push(syn::parse_quote!(#[allow(dead_code, unused_must_use, unused_variables)]));
@@ -1150,6 +1163,7 @@ fn expand_state_system_impl(
                     method.block = qualify_state_system_block(
                         method.block.clone(),
                         query_pattern.ident.clone(),
+                        query_ty.clone(),
                     );
                     event_query_ty = Some(query_ty);
                 }
@@ -1219,7 +1233,8 @@ fn expand_state_system_impl(
         };
         let (query_ident, query_ty, block) = state_system_body(&function)?;
         let body = build_cmd_body(&block)?;
-        method.block = qualify_state_system_block(method.block.clone(), query_ident);
+        method.block =
+            qualify_state_system_block(method.block.clone(), query_ident, query_ty.clone());
         method
             .attrs
             .push(syn::parse_quote!(#[allow(dead_code, unused_must_use, unused_variables)]));

@@ -163,6 +163,10 @@ rejected because Sand cannot prove which value bindings they introduce. Call
 the query identifier into a nested macro; nested macros expand only after Sand
 has performed this lowering:
 
+Sand qualifies preserved query calls with the declared parameter type. If a
+procedural macro synthesizes a same-named binding of another type, compilation
+fails instead of exporting a different query from the one the endpoint uses.
+
 Conditional-compilation and lint-control attributes on systems are preserved
 on their generated export adapters as well as their authored endpoints.
 Grouped adapter bodies retain the enclosing implementation's `Self` context,

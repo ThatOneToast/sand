@@ -1175,6 +1175,11 @@ fn expand_state_system_impl(
                 let adapter = quote::format_ident!("__sand_system_event_{}", original);
                 let adapter_event = quote::format_ident!("__sand_event_{}", original);
                 let event_body = build_cmd_body(&event_block)?;
+                let query_assertion = event_query_ty.as_ref().map(|query_ty| {
+                    quote! {
+                        ::sand::__private::assert_system_query_parameter::<#query_ty>();
+                    }
+                });
                 let function: ItemFn = syn::parse_quote! {
                     fn #adapter(#adapter_event: #event_ty) {
                         <#self_ty as #body_trait>::make(#adapter_event);
@@ -1196,21 +1201,12 @@ fn expand_state_system_impl(
                     impl #body_trait for #self_ty {
                         #(#body_lint_attrs)*
                         fn make(#event_argument) -> Vec<String> {
+                            #query_assertion
                             #event_body
                         }
                     }
                 };
-                registrations.push(if let Some(query_ty) = event_query_ty {
-                    quote! {
-                        #body_context
-                        #(#registration_attrs)*
-                        const _: fn() =
-                            ::sand::__private::assert_system_query_parameter::<#query_ty>;
-                        #event_adapter
-                    }
-                } else {
-                    quote! { #body_context #event_adapter }
-                });
+                registrations.push(quote! { #body_context #event_adapter });
             }
             continue;
         };
@@ -1244,9 +1240,6 @@ fn expand_state_system_impl(
         let every = cadence.every;
         registrations.push(quote! {
             #(#registration_attrs)*
-            const _: fn() = ::sand::__private::assert_system_query_parameter::<#query_ty>;
-
-            #(#registration_attrs)*
             #[doc(hidden)]
             #[allow(non_camel_case_types)]
             trait #body_trait {
@@ -1257,7 +1250,7 @@ fn expand_state_system_impl(
             impl #body_trait for #self_ty {
                 #(#body_lint_attrs)*
                 fn make() -> Vec<String> {
-                    let _: ::std::marker::PhantomData<#query_ty> = ::std::marker::PhantomData;
+                    ::sand::__private::assert_system_query_parameter::<#query_ty>();
                     #body
                 }
             }

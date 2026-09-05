@@ -100,6 +100,14 @@ fn cfg_disabled_free_system(query: MissingFreeQuery) {
 
 struct DirectSystems;
 
+trait SystemTypes {
+    type Query;
+}
+
+impl SystemTypes for DirectSystems {
+    type Query = LivingHealth;
+}
+
 #[system]
 #[allow(deprecated)]
 impl DirectSystems {
@@ -131,6 +139,11 @@ impl DirectSystems {
         query.each(|health| health.health.add(2));
     }
 
+    #[tick]
+    fn grouped_tick_with_self_query(query: <Self as SystemTypes>::Query) {
+        query.each(|health| health.health.add(1));
+    }
+
     #[event(DirectPulse)]
     fn current(pulse: DirectPulse, query: PlayerHealth) {
         let _ = pulse;
@@ -143,6 +156,14 @@ impl DirectSystems {
             commands
         });
         query.each(|health| health.health.add(2));
+    }
+
+    #[event(DirectPulse)]
+    fn event_with_self_query(
+        _pulse: DirectPulse,
+        query: <Self as SystemTypes>::Query,
+    ) {
+        query.current(|health| health.health.add(1));
     }
 
     #[event(DirectPulse)]
@@ -196,7 +217,9 @@ fn main() {
     let _: fn(Dead) = statement_cfg_is_preserved;
     let _: fn(Dead) = nongating_cfg_attr_stays_on_endpoint;
     let _: fn(LivingHealth) = DirectSystems::grouped_tick;
+    let _: fn(LivingHealth) = DirectSystems::grouped_tick_with_self_query;
     let _: fn(DirectPulse, PlayerHealth) = DirectSystems::current;
+    let _: fn(DirectPulse, LivingHealth) = DirectSystems::event_with_self_query;
     let _: fn(DirectPulse) = DirectSystems::event_without_query;
     let _: Vec<String> = <EntityCombat as sand::__private::StateQuerySpec>::each(|combat| {
         combat.health.health.add(1)

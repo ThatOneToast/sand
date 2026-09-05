@@ -190,6 +190,22 @@ def main() -> int:
         match = re.search(r"(-?\d+(?:\.\d+)?)f", output)
         return (float(match.group(1)) if match else None, output)
 
+    def wait_for_entity(tag: str, required_tag: str | None = None) -> str:
+        selector = f"@e[tag={tag}"
+        if required_tag:
+            selector += f",tag={required_tag}"
+        selector += ",limit=1]"
+        deadline = time.monotonic() + min(args.timeout, 10)
+        output = ""
+        while time.monotonic() < deadline:
+            output = command(
+                f"execute if entity {selector} run data get entity @e[tag={tag},limit=1] UUID"
+            )
+            if "following entity data" in response(output):
+                return output
+            time.sleep(0.25)
+        return output
+
     try:
         deadline = time.monotonic() + args.timeout
         ready = False
@@ -220,11 +236,7 @@ def main() -> int:
             'summon minecraft:zombie 0 200 0 {Tags:["audit_a","external_keep"],NoAI:1b,NoGravity:1b,Invulnerable:1b,PersistenceRequired:1b}',
             'summon minecraft:zombie 2 200 0 {Tags:["audit_b"],NoAI:1b,NoGravity:1b,Invulnerable:1b,PersistenceRequired:1b}',
         )
-        time.sleep(1.5)
-
-        adopted = command(
-            f"execute if entity @e[tag=audit_a,tag={marker}] run data get entity @e[tag=audit_a,limit=1] UUID"
-        )
+        adopted = wait_for_entity("audit_a", marker)
         check(
             "unmarked_zombie_adopted_once",
             "following entity data" in response(adopted),
@@ -390,7 +402,7 @@ def main() -> int:
         command("tick unfreeze", "forceload remove 0 0")
         time.sleep(0.5)
         command("forceload add 0 0")
-        time.sleep(1.0)
+        wait_for_entity("audit_a")
         command(
             "tick freeze",
             "data modify entity @e[tag=audit_a,limit=1] Health set value 9f",

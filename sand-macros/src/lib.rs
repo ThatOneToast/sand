@@ -1030,6 +1030,15 @@ fn gate_generated_items(
     Ok(gated)
 }
 
+fn fnv1a_32_hex(input: &str) -> String {
+    let mut hash = 2_166_136_261_u32;
+    for byte in input.bytes() {
+        hash ^= u32::from(byte);
+        hash = hash.wrapping_mul(16_777_619);
+    }
+    format!("{hash:08x}")
+}
+
 fn expand_state_system_function(
     function: ItemFn,
     attr: SystemTickAttr,
@@ -1174,8 +1183,14 @@ fn expand_state_system_impl(
                     syn::parse_quote!(#[allow(dead_code, unused_must_use, unused_variables)]),
                 );
                 let original = &method.sig.ident;
+                // `#[on_event]` derives the exported Minecraft function path
+                // from this generated function's identifier. Include a stable
+                // owner fingerprint so equal method names on different system
+                // types cannot register the same resource path.
+                let owner_fingerprint = fnv1a_32_hex(&quote!(#self_ty).to_string());
                 let body_trait = quote::format_ident!("__SandSystemEventBody_{}", original);
-                let adapter = quote::format_ident!("__sand_system_event_{}", original);
+                let adapter =
+                    quote::format_ident!("__sand_system_event_{}_{}", original, owner_fingerprint);
                 let adapter_event = quote::format_ident!("__sand_event_{}", original);
                 let event_body = build_cmd_body(&event_block)?;
                 let query_assertion = event_query_ty.as_ref().map(|query_ty| {

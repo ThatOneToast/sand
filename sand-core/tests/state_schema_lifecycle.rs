@@ -171,6 +171,7 @@ fn zz_recharge_players(query: PlayerState) {
 }
 
 struct GroupedStateSystems;
+struct OtherGroupedStateSystems;
 struct GroupedStatePulse;
 
 impl SandEvent for GroupedStatePulse {
@@ -191,6 +192,18 @@ impl GroupedStateSystems {
         query.current(|player| {
             let mut commands = player.mana.add(1);
             commands.push(cmd::say("grouped current").to_string());
+            commands
+        });
+    }
+}
+
+#[system]
+impl OtherGroupedStateSystems {
+    #[event(GroupedStatePulse)]
+    fn current(_event: GroupedStatePulse, query: PlayerState) {
+        query.current(|player| {
+            let mut commands = player.mana.add(2);
+            commands.push(cmd::say("other grouped current").to_string());
             commands
         });
     }
@@ -474,20 +487,35 @@ fn direct_and_composed_systems_share_the_compatible_outer_scan() {
 #[test]
 fn grouped_event_current_registers_and_guards_without_a_second_scan() {
     let records = records();
-    let event_body = records
+    let grouped_handlers = records
         .iter()
         .filter(|record| record["dir"] == "function")
-        .filter_map(|record| record["content"].as_str())
-        .find(|content| content.contains("say grouped current"))
-        .expect("the grouped event adapter should register its command body");
+        .filter(|record| {
+            record["content"]
+                .as_str()
+                .is_some_and(|content| content.contains("grouped current"))
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(
+        grouped_handlers.len(),
+        2,
+        "same-named grouped event methods on distinct types should export separately"
+    );
+    assert_ne!(
+        grouped_handlers[0]["path"], grouped_handlers[1]["path"],
+        "the owning system type must participate in the generated resource path"
+    );
     let requirement = <PlayerState as sand::__private::StateBundleMember>::presence_requirements();
 
-    assert!(event_body.contains(&format!(
-        "execute if score @s {} matches {}",
-        requirement[0].0, requirement[0].1
-    )));
-    assert!(!event_body.contains("execute as @a"));
-    assert!(!event_body.contains("execute as @e"));
+    for handler in grouped_handlers {
+        let event_body = handler["content"].as_str().unwrap();
+        assert!(event_body.contains(&format!(
+            "execute if score @s {} matches {}",
+            requirement[0].0, requirement[0].1
+        )));
+        assert!(!event_body.contains("execute as @a"));
+        assert!(!event_body.contains("execute as @e"));
+    }
 }
 
 #[test]

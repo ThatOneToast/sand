@@ -25,6 +25,10 @@ struct PlayerHealth {
 #[state(namespace = "direct", scope = entity)]
 struct Dead;
 
+impl Dead {
+    fn each(&self) {}
+}
+
 #[derive(StateBundle)]
 struct EntityCombat {
     health: EntityHealth,
@@ -44,6 +48,11 @@ fn free_tick(query: EntityHealth) {
 #[system(tick, every = 10)]
 fn bundle_tick(query: NestedEntityCombat) {
     query.each(|nested| nested.combat.health.health.add(1));
+}
+
+#[system]
+fn inherent_name_collision(query: Dead) {
+    query.each(|_dead| vec![cmd::say("canonical query operation").to_string()]);
 }
 
 struct DirectSystems;
@@ -73,6 +82,7 @@ impl SandEvent for DirectPulse {
 fn main() {
     let _: fn(EntityHealth) = free_tick;
     let _: fn(NestedEntityCombat) = bundle_tick;
+    let _: fn(Dead) = inherent_name_collision;
     let _: fn(LivingHealth) = DirectSystems::grouped_tick;
     let _: fn(DirectPulse, PlayerHealth) = DirectSystems::current;
     let _: Vec<String> = <EntityCombat as sand::__private::StateQuerySpec>::each(|combat| {
@@ -94,7 +104,7 @@ fn source_level_methods(
     let _: Vec<String> = entity.each(|health| health.health.add(1));
     let _: Vec<String> = living.current(|health| health.health.add(1));
     let _: Vec<String> = player.each(|health| health.health.add(1));
-    let _: Vec<String> = marker.each(|_dead| vec!["say dead".into()]);
+    let _: Vec<String> = StateQueryOperations::each(marker, |_dead| vec!["say dead".into()]);
 }
 
 #[allow(dead_code)]

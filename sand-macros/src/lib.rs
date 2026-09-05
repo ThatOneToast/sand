@@ -665,6 +665,50 @@ struct StateSystemQueryShadowing<'a> {
     shadow: Option<syn::Ident>,
 }
 
+/// Make the preserved Rust endpoint resolve the same canonical trait method as
+/// its export adapter, even if the schema type declares an inherent method with
+/// the same name.
+struct StateSystemQueryQualification {
+    query_ident: syn::Ident,
+}
+
+impl Fold for StateSystemQueryQualification {
+    fn fold_expr(&mut self, expression: syn::Expr) -> syn::Expr {
+        let syn::Expr::MethodCall(call) = &expression else {
+            return fold::fold_expr(self, expression);
+        };
+        let syn::Expr::Path(receiver) = call.receiver.as_ref() else {
+            return fold::fold_expr(self, expression);
+        };
+        if !receiver.path.is_ident(&self.query_ident)
+            || (call.method != "each" && call.method != "current")
+        {
+            return fold::fold_expr(self, expression);
+        }
+
+        let receiver = receiver.clone();
+        let arguments = call
+            .args
+            .clone()
+            .into_iter()
+            .map(|argument| self.fold_expr(argument))
+            .collect::<syn::punctuated::Punctuated<_, syn::Token![,]>>();
+        if call.method == "each" {
+            syn::parse_quote_spanned! {call.method.span()=>
+                ::sand::prelude::StateQueryOperations::each(#receiver, #arguments)
+            }
+        } else {
+            syn::parse_quote_spanned! {call.method.span()=>
+                ::sand::prelude::StateQueryOperations::current(#receiver, #arguments)
+            }
+        }
+    }
+}
+
+fn qualify_state_system_block(block: syn::Block, query_ident: syn::Ident) -> syn::Block {
+    StateSystemQueryQualification { query_ident }.fold_block(block)
+}
+
 impl<'ast> Visit<'ast> for StateSystemQueryShadowing<'_> {
     fn visit_pat_ident(&mut self, pattern: &'ast syn::PatIdent) {
         if self.shadow.is_none() && pattern.ident == *self.query_ident {
@@ -719,8 +763,9 @@ fn expand_state_system_function(
     function: ItemFn,
     attr: SystemTickAttr,
 ) -> syn::Result<proc_macro2::TokenStream> {
-    let (_, query_ty, block) = state_system_body(&function)?;
+    let (query_ident, query_ty, block) = state_system_body(&function)?;
     let mut authored = function.clone();
+    *authored.block = qualify_state_system_block((*function.block).clone(), query_ident);
     authored
         .attrs
         .push(syn::parse_quote!(#[allow(dead_code, unused_must_use, unused_variables)]));
@@ -832,6 +877,10 @@ fn expand_state_system_impl(
                         query_pattern.ident.clone(),
                         query_ty.clone(),
                     )?;
+                    method.block = qualify_state_system_block(
+                        method.block.clone(),
+                        query_pattern.ident.clone(),
+                    );
                     event_query_ty = Some(query_ty);
                 }
                 let mut signature = method.sig.clone();
@@ -879,8 +928,9 @@ fn expand_state_system_impl(
             sig: method.sig.clone(),
             block: Box::new(method.block.clone()),
         };
-        let (_, query_ty, block) = state_system_body(&function)?;
+        let (query_ident, query_ty, block) = state_system_body(&function)?;
         let body = build_cmd_body(&block)?;
+        method.block = qualify_state_system_block(method.block.clone(), query_ident);
         method
             .attrs
             .push(syn::parse_quote!(#[allow(dead_code, unused_must_use, unused_variables)]));

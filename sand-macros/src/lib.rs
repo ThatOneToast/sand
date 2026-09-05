@@ -479,7 +479,9 @@ pub fn state_lifecycle(attr: TokenStream, item: TokenStream) -> TokenStream {
 /// Its name cannot be shadowed inside the system body because it identifies the typed
 /// query lowered into the export adapter. This includes bindings introduced by
 /// patterns and local value items such as constants, statics, functions, and
-/// unit or tuple structs. The query identifier also cannot be passed into a
+/// unit or tuple structs. Local imports must name their bindings explicitly;
+/// glob imports are rejected because their value bindings cannot be audited.
+/// The query identifier also cannot be passed into a
 /// nested macro because that expansion happens after Sand has identified and
 /// lowered direct query operations.
 /// Other uses of the query value are rejected because the generated export
@@ -658,6 +660,7 @@ fn lower_state_system_block(
     let mut shadowing = StateSystemQueryShadowing {
         query_ident: &query_ident,
         shadow: None,
+        glob_import: None,
         macro_use: None,
         unsupported_use: None,
     };
@@ -666,6 +669,12 @@ fn lower_state_system_block(
         return Err(syn::Error::new_spanned(
             shadow,
             "[SAND-SYSTEM-PARAM] the system query parameter cannot be shadowed inside its body",
+        ));
+    }
+    if let Some(glob_import) = shadowing.glob_import {
+        return Err(syn::Error::new(
+            glob_import,
+            "[SAND-SYSTEM-PARAM] glob imports are not supported inside a system body because they may shadow the query parameter; use explicit imports",
         ));
     }
     if let Some(macro_use) = shadowing.macro_use {
@@ -690,6 +699,7 @@ fn lower_state_system_block(
 struct StateSystemQueryShadowing<'a> {
     query_ident: &'a syn::Ident,
     shadow: Option<syn::Ident>,
+    glob_import: Option<proc_macro2::Span>,
     macro_use: Option<syn::Ident>,
     unsupported_use: Option<syn::ExprPath>,
 }
@@ -904,7 +914,11 @@ impl StateSystemQueryShadowing<'_> {
                     self.visit_use_binding(tree);
                 }
             }
-            syn::UseTree::Glob(_) => {}
+            syn::UseTree::Glob(glob) => {
+                if self.glob_import.is_none() {
+                    self.glob_import = Some(glob.star_token.span);
+                }
+            }
         }
     }
 

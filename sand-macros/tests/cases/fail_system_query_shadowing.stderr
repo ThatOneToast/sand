@@ -34,8 +34,14 @@ error: [SAND-SYSTEM-PARAM] the system query parameter cannot be shadowed inside 
 41 |     use imported::mana as query;
    |                           ^^^^^
 
-error: [SAND-SYSTEM-PARAM] the system query parameter cannot be passed into a nested macro; call each/current directly so Sand can lower it safely
-  --> tests/cases/fail_system_query_shadowing.rs:55:28
+error: [SAND-SYSTEM-PARAM] glob imports are not supported inside a system body because they may shadow the query parameter; use explicit imports
+  --> tests/cases/fail_system_query_shadowing.rs:47:18
    |
-55 |         introduce_binding!(query);
+47 |     use globbed::*;
+   |                  ^
+
+error: [SAND-SYSTEM-PARAM] the system query parameter cannot be passed into a nested macro; call each/current directly so Sand can lower it safely
+  --> tests/cases/fail_system_query_shadowing.rs:61:28
+   |
+61 |         introduce_binding!(query);
    |                            ^^^^^

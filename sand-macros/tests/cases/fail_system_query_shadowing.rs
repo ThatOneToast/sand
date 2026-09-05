@@ -42,6 +42,12 @@ fn shadowed_by_import(query: Mana) {
     query.each(|_mana| Vec::new());
 }
 
+#[system]
+fn shadowed_by_glob_import(query: Mana) {
+    use globbed::*;
+    query.each(|_mana| Vec::new());
+}
+
 #[allow(unused_macros)]
 macro_rules! introduce_binding {
     ($binding:ident) => {
@@ -59,6 +65,10 @@ fn shadowed_by_macro_expansion(query: Mana) {
 
 mod imported {
     pub const mana: crate::Mana = crate::Mana;
+}
+
+mod globbed {
+    pub const query: crate::Mana = crate::Mana;
 }
 
 fn main() {}

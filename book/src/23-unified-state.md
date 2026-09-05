@@ -157,7 +157,9 @@ parameter. Empty `#[system]` means every tick; spelling `tick` is optional but
 can make intent clearer. `every` is a positive tick count. Keep the query
 parameter name unshadowed within the body—including by local value items or
 imports; Sand uses that binding to identify the typed query operations lowered
-into the export adapter. Call `each` and `current` directly rather than passing
+into the export adapter. Use explicit imports inside the body: glob imports are
+rejected because Sand cannot prove which value bindings they introduce. Call
+`each` and `current` directly rather than passing
 the query identifier into a nested macro; nested macros expand only after Sand
 has performed this lowering:
 

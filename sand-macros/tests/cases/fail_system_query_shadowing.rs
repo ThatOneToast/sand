@@ -42,6 +42,21 @@ fn shadowed_by_import(query: Mana) {
     query.each(|_mana| Vec::new());
 }
 
+#[allow(unused_macros)]
+macro_rules! introduce_binding {
+    ($binding:ident) => {
+        let $binding = Target::players();
+    };
+}
+
+#[system]
+fn shadowed_by_macro_expansion(query: Mana) {
+    let _commands = {
+        introduce_binding!(query);
+        query.each(|_mana| Vec::new())
+    };
+}
+
 mod imported {
     pub const mana: crate::Mana = crate::Mana;
 }

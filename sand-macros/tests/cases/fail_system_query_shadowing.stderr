@@ -33,3 +33,9 @@ error: [SAND-SYSTEM-PARAM] the system query parameter cannot be shadowed inside 
    |
 41 |     use imported::mana as query;
    |                           ^^^^^
+
+error: [SAND-SYSTEM-PARAM] the system query parameter cannot be passed into a nested macro; call each/current directly so Sand can lower it safely
+  --> tests/cases/fail_system_query_shadowing.rs:55:28
+   |
+55 |         introduce_binding!(query);
+   |                            ^^^^^

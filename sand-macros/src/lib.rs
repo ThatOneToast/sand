@@ -477,7 +477,9 @@ pub fn state_lifecycle(attr: TokenStream, item: TokenStream) -> TokenStream {
 /// cannot be shadowed inside the system body because it identifies the typed
 /// query lowered into the export adapter. This includes bindings introduced by
 /// patterns and local value items such as constants, statics, functions, and
-/// unit or tuple structs.
+/// unit or tuple structs. The query identifier also cannot be passed into a
+/// nested macro because that expansion happens after Sand has identified and
+/// lowered direct query operations.
 ///
 /// `cfg` and `cfg_attr` on a free system, grouped impl, or grouped method gate
 /// both its authored endpoint and its generated registration. Attributes on a
@@ -652,12 +654,19 @@ fn lower_state_system_block(
     let mut shadowing = StateSystemQueryShadowing {
         query_ident: &query_ident,
         shadow: None,
+        macro_use: None,
     };
     shadowing.visit_block(&block);
     if let Some(shadow) = shadowing.shadow {
         return Err(syn::Error::new_spanned(
             shadow,
             "[SAND-SYSTEM-PARAM] the system query parameter cannot be shadowed inside its body",
+        ));
+    }
+    if let Some(macro_use) = shadowing.macro_use {
+        return Err(syn::Error::new_spanned(
+            macro_use,
+            "[SAND-SYSTEM-PARAM] the system query parameter cannot be passed into a nested macro; call each/current directly so Sand can lower it safely",
         ));
     }
     Ok(StateSystemQueryLowering {
@@ -670,6 +679,7 @@ fn lower_state_system_block(
 struct StateSystemQueryShadowing<'a> {
     query_ident: &'a syn::Ident,
     shadow: Option<syn::Ident>,
+    macro_use: Option<syn::Ident>,
 }
 
 /// Make the preserved Rust endpoint resolve the same canonical trait method as
@@ -753,6 +763,13 @@ impl<'ast> Visit<'ast> for StateSystemQueryShadowing<'_> {
         self.visit_use_binding(&item.tree);
         visit::visit_item_use(self, item);
     }
+
+    fn visit_macro(&mut self, item: &'ast syn::Macro) {
+        if self.macro_use.is_none() {
+            self.macro_use = self.query_ident_in_tokens(item.tokens.clone());
+        }
+        visit::visit_macro(self, item);
+    }
 }
 
 impl StateSystemQueryShadowing<'_> {
@@ -774,6 +791,23 @@ impl StateSystemQueryShadowing<'_> {
             }
             syn::UseTree::Glob(_) => {}
         }
+    }
+
+    fn query_ident_in_tokens(&self, tokens: proc_macro2::TokenStream) -> Option<syn::Ident> {
+        for token in tokens {
+            match token {
+                proc_macro2::TokenTree::Ident(ident) if ident == *self.query_ident => {
+                    return Some(ident);
+                }
+                proc_macro2::TokenTree::Group(group) => {
+                    if let Some(ident) = self.query_ident_in_tokens(group.stream()) {
+                        return Some(ident);
+                    }
+                }
+                _ => {}
+            }
+        }
+        None
     }
 }
 

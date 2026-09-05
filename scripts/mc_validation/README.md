@@ -11,10 +11,12 @@ python3 scripts/mc_validation/run_entity_archetype_audit.py \
 ```
 
 It checks adoption, provisioning, derived max health/attack damage, isolated
-dirty refresh, ratio-preserved current health, colored dynamic names,
-migration, macro-storage cleanup, unload/re-observation, explicit cleanup,
-and removal. See `docs/testing/entity-archetype-evidence.md` for the latest
-results and the explicit boundary around natural-spawn provenance.
+dirty refresh, native-to-State damage observation, State-to-native healing and
+damage, max-health clamping, simultaneous-write precedence, bounded
+observation cadence, ratio-preserved current health, colored dynamic names,
+migration, macro-storage cleanup, unload/re-observation, explicit cleanup, and
+removal. See `docs/testing/entity-archetype-evidence.md` for the latest results
+and the explicit boundary around natural-spawn provenance.
 
 ## Unified State validation (#298)
 

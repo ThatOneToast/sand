@@ -271,7 +271,7 @@ pub enum HealthResizePolicy {
     use_when = ["Defining or using typed entity behavior in a Sand datapack"],
     avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
     example = "use sand::entity::CurrentHealthSync;",
-    variants(ApplyState = "Materialize the configured state score into native `Health`.", Bidirectional = "Observe native changes and apply explicit dirty state changes.", None = "Do not synchronize native current health.", ObserveNative = "Read native `Health` into the configured state score."),
+    variants(ApplyState = "Materialize the configured state score into native `Health`.", Bidirectional = "Observe native changes and apply explicit dirty state changes; an explicit pending state write wins when both happen in one reconciliation cycle.", None = "Do not synchronize native current health.", ObserveNative = "Read native `Health` into the configured state score."),
 )]
 /// Direction in which current health is synchronized.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -284,6 +284,10 @@ pub enum CurrentHealthSync {
     /// Materialize the configured state score into native `Health`.
     ApplyState,
     /// Observe native changes and apply explicit dirty state changes.
+    ///
+    /// If native health and the State score both change before the same
+    /// reconciliation pass, the explicit dirty State write wins for that
+    /// pass. Native observation resumes at the configured cadence afterward.
     Bidirectional,
 }
 
@@ -354,7 +358,7 @@ impl HealthBinding {
         kind = "method",
         summary = "Bind a State score to the entity's native current health.",
         context = "The definition-owned score remains the typed gameplay-state handle; this binding tells an EntityArchetype how that score and the living entity's native Health NBT value relate.",
-        minecraft = "ObserveNative reads native Health into the score, ApplyState writes dirty score changes to native Health, and Bidirectional does both. Source-dirty reconciliation happens when State changes; observe_native_every adds bounded periodic observation for native changes that Sand did not initiate.",
+        minecraft = "ObserveNative reads native Health into the score without subscribing to score dirtiness. ApplyState subscribes to dirty score changes and writes them to native Health. Bidirectional does both, snapshots an explicit State-write cause before shared dirtiness is consumed, and gives that write precedence over native observation in the same pass. observe_native_every schedules bounded native observation for ObserveNative and Bidirectional; with ApplyState or None it schedules periodic reconciliation without reading native Health into State.",
         use_when = ["Gameplay logic needs typed reads or writes of a living entity's current health", "Native damage or healing must be reconciled with a State field"],
         avoid_when = ["Only max-health scaling is required", "Another system is the authoritative owner of native Health synchronization"],
         params(field = "The definition-owned i32 State field that stores current health in health points.", sync = "The direction in which native Health and the State field are synchronized."),

@@ -92,7 +92,7 @@ def main() -> int:
     health, max_health, attack_damage = field_objectives[3:6]
     health_property = functions[f"{root}/property/0"]
     current_dirty = re.search(
-        r"execute unless score @s [^\s]+ matches 1 run scoreboard players set @s ([^\s]+) 1",
+        r"execute if score @s ([^\s]+) matches 1 run scoreboard players set @s [^\s]+ 1",
         health_property,
     ).group(1)
     refresh = functions[f"{root}/refresh"]
@@ -336,10 +336,11 @@ def main() -> int:
             reconcile,
         )
         bounded_state, bounded_state_out = score("audit_a", health)
+        bounded_native, bounded_native_out = native_health("audit_a")
         check(
             "periodic_observer_does_not_self_trigger_forever",
-            bounded_state == 11,
-            bounded_state_out,
+            bounded_state == 11 and bounded_native == 10,
+            bounded_state_out + bounded_native_out,
         )
 
         command("data modify entity @e[tag=audit_a,limit=1] Health set value 10f")
@@ -390,14 +391,19 @@ def main() -> int:
         time.sleep(0.5)
         command("forceload add 0 0")
         time.sleep(1.0)
+        command(
+            "tick freeze",
+            "data modify entity @e[tag=audit_a,limit=1] Health set value 9f",
+            f"scoreboard players set @e[tag=audit_a,limit=1] {health_clock} 19",
+            reconcile,
+        )
         observed_after_load, after_load_out = score("audit_a", health)
         check(
             "unload_reload_reobservation",
-            observed_after_load is not None,
+            observed_after_load == 9,
             after_load_out,
         )
 
-        command("tick freeze")
         cleanup = command(
             f"execute as @e[tag=audit_a] run function rpg:{root}/cleanup"
         )

@@ -4138,10 +4138,12 @@ fn compile_property(
                 ) {
                     let source = current.dirty_objective();
                     sources.push(source.clone());
-                    source_causes.push((
-                        source.clone(),
-                        dirty_cause_pending_name(&source, &initialized_tag(&id)),
-                    ));
+                    if binding.current_health_sync() == CurrentHealthSync::Bidirectional {
+                        source_causes.push((
+                            source.clone(),
+                            dirty_cause_pending_name(&source, &initialized_tag(&id)),
+                        ));
+                    }
                 }
             }
             let lowered = lower_health(definition, binding, index, root, profile)?;
@@ -5771,6 +5773,42 @@ mod tests {
             .find("execute store result entity @s Health float 1")
             .unwrap();
         assert!(cause_reset < native_write);
+    }
+
+    #[test]
+    fn apply_state_consumes_internal_writes_from_a_shared_observer() {
+        let observer = EntityArchetype::<ZombieKind>::new(
+            ResourceLocation::new("rpg", "health_observer").unwrap(),
+        )
+        .components::<MobState>()
+        .health(
+            HealthBinding::new(HEALTH)
+                .current_health(LEVEL, CurrentHealthSync::ObserveNative)
+                .observe_native_every(Ticks::new(1)),
+        )
+        .definition();
+        let applier = EntityArchetype::<ZombieKind>::new(
+            ResourceLocation::new("rpg", "health_applier").unwrap(),
+        )
+        .components::<MobState>()
+        .health(HealthBinding::new(HEALTH).current_health(LEVEL, CurrentHealthSync::ApplyState))
+        .definition();
+        let claims = component_claims(&[observer, applier.clone()]);
+        let compiled = compile_definition_with_claims(&applier, &profile(), &claims).unwrap();
+        let marker = initialized_tag(&applier.id.to_string());
+        let pending = dirty_pending_name(&LEVEL.dirty_objective(), &marker);
+        let cause = dirty_cause_pending_name(&LEVEL.dirty_objective(), &marker);
+        let refresh = compiled
+            .records
+            .iter()
+            .find(|record| record.path.ends_with("/refresh"))
+            .unwrap();
+        assert!(refresh.content.contains(&format!(
+            "if score @s {pending} matches 1 run scoreboard players set @s"
+        )));
+        assert!(!refresh.content.contains(&format!(
+            "if score @s {pending} matches 1 if score @s {cause} matches 1"
+        )));
     }
 
     #[test]

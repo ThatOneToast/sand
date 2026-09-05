@@ -170,6 +170,32 @@ fn zz_recharge_players(query: PlayerState) {
     query.each(|player| player.mana.add(1));
 }
 
+struct GroupedStateSystems;
+struct GroupedStatePulse;
+
+impl SandEvent for GroupedStatePulse {
+    fn dispatch() -> impl Into<SandEventDispatch> {
+        SandEventDispatch::tick().as_players()
+    }
+}
+
+#[system]
+impl GroupedStateSystems {
+    #[tick(every = 20)]
+    fn recharge(query: EntityRuntimeState) {
+        query.each(|runtime| runtime.charge.add(1));
+    }
+
+    #[event(GroupedStatePulse)]
+    fn current(_event: GroupedStatePulse, query: PlayerState) {
+        query.current(|player| {
+            let mut commands = player.mana.add(1);
+            commands.push(cmd::say("grouped current").to_string());
+            commands
+        });
+    }
+}
+
 fn records() -> Vec<serde_json::Value> {
     serde_json::from_str(&sand_core::try_export_components_json("statepack").unwrap()).unwrap()
 }
@@ -440,9 +466,28 @@ fn direct_and_composed_systems_share_the_compatible_outer_scan() {
             .lines()
             .filter(|line| line.starts_with("function "))
             .count(),
-        2,
-        "the shared scan group should invoke both compatible systems"
+        3,
+        "the shared scan group should invoke free and grouped compatible systems"
     );
+}
+
+#[test]
+fn grouped_event_current_registers_and_guards_without_a_second_scan() {
+    let records = records();
+    let event_body = records
+        .iter()
+        .filter(|record| record["dir"] == "function")
+        .filter_map(|record| record["content"].as_str())
+        .find(|content| content.contains("say grouped current"))
+        .expect("the grouped event adapter should register its command body");
+    let requirement = <PlayerState as sand::__private::StateBundleMember>::presence_requirements();
+
+    assert!(event_body.contains(&format!(
+        "execute if score @s {} matches {}",
+        requirement[0].0, requirement[0].1
+    )));
+    assert!(!event_body.contains("execute as @a"));
+    assert!(!event_body.contains("execute as @e"));
 }
 
 #[test]

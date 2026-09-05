@@ -178,6 +178,21 @@ impl DirectSystems {
     }
 }
 
+struct OtherDirectSystems;
+
+#[system]
+impl OtherDirectSystems {
+    #[tick]
+    fn grouped_tick(query: LivingHealth) {
+        query.each(|health| health.health.add(1));
+    }
+
+    #[event(DirectPulse)]
+    fn current(_pulse: DirectPulse, query: PlayerHealth) {
+        query.current(|health| health.health.add(1));
+    }
+}
+
 #[system]
 impl DirectSystems {
     #[tick]
@@ -221,6 +236,8 @@ fn main() {
     let _: fn(DirectPulse, PlayerHealth) = DirectSystems::current;
     let _: fn(DirectPulse, LivingHealth) = DirectSystems::event_with_self_query;
     let _: fn(DirectPulse) = DirectSystems::event_without_query;
+    let _: fn(LivingHealth) = OtherDirectSystems::grouped_tick;
+    let _: fn(DirectPulse, PlayerHealth) = OtherDirectSystems::current;
     let _: Vec<String> = <EntityCombat as sand::__private::StateQuerySpec>::each(|combat| {
         combat.health.health.add(1)
     });

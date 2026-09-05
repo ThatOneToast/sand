@@ -483,9 +483,12 @@ pub fn state_lifecycle(attr: TokenStream, item: TokenStream) -> TokenStream {
 /// glob imports are rejected because their value bindings cannot be audited.
 /// The query identifier also cannot be passed into a
 /// nested macro because that expansion happens after Sand has identified and
-/// lowered direct query operations. Preserved endpoint calls are qualified by
-/// the declared query type, so a macro-generated binding of another type is a
-/// compile error rather than a different export-time query.
+/// lowered direct query operations. Preserved direct endpoint calls are
+/// qualified by the declared query type, so a macro-generated binding of
+/// another type before one of those calls is a compile error rather than a
+/// different export-time query. A helper or macro that returns an independently
+/// queried command vector remains an opaque command and does not join the
+/// declared query's shared outer scan.
 /// Other uses of the query value are rejected because the generated export
 /// adapter has a query type but intentionally fabricates no runtime marker.
 ///
@@ -1206,7 +1209,15 @@ fn expand_state_system_impl(
                         }
                     }
                 };
-                registrations.push(quote! { #body_context #event_adapter });
+                // Each grouped endpoint gets an anonymous item scope so two
+                // system types may reuse ordinary method names safely.
+                registrations.push(quote! {
+                    #(#registration_attrs)*
+                    const _: () = {
+                        #body_context
+                        #event_adapter
+                    };
+                });
             }
             continue;
         };
@@ -1238,36 +1249,41 @@ fn expand_state_system_impl(
         let factory = quote::format_ident!("__sand_system_{}_make", method_ident);
         let body_trait = quote::format_ident!("__SandSystemTickBody_{}", method_ident);
         let every = cadence.every;
+        // Keep helper names local to this endpoint. Rust method names need
+        // only be unique on their owning type, not across the source module.
         registrations.push(quote! {
             #(#registration_attrs)*
-            #[doc(hidden)]
-            #[allow(non_camel_case_types)]
-            trait #body_trait {
-                fn make() -> Vec<String>;
-            }
-
-            #(#registration_attrs)*
-            impl #body_trait for #self_ty {
-                #(#body_lint_attrs)*
-                fn make() -> Vec<String> {
-                    ::sand::__private::assert_system_query_parameter::<#query_ty>();
-                    #body
+            const _: () = {
+                #(#registration_attrs)*
+                #[doc(hidden)]
+                #[allow(non_camel_case_types)]
+                trait #body_trait {
+                    fn make() -> Vec<String>;
                 }
-            }
 
-            #(#registration_attrs)*
-            #[doc(hidden)]
-            fn #factory() -> Vec<String> {
-                <#self_ty as #body_trait>::make()
-            }
-            #(#registration_attrs)*
-            ::sand::__private::inventory::submit! {
-                ::sand::__private::StateSystemDescriptor {
-                    id: concat!(module_path!(), "::", stringify!(#self_ty), "::", stringify!(#method_ident)),
-                    every: #every,
-                    make: #factory,
+                #(#registration_attrs)*
+                impl #body_trait for #self_ty {
+                    #(#body_lint_attrs)*
+                    fn make() -> Vec<String> {
+                        ::sand::__private::assert_system_query_parameter::<#query_ty>();
+                        #body
+                    }
                 }
-            }
+
+                #(#registration_attrs)*
+                #[doc(hidden)]
+                fn #factory() -> Vec<String> {
+                    <#self_ty as #body_trait>::make()
+                }
+                #(#registration_attrs)*
+                ::sand::__private::inventory::submit! {
+                    ::sand::__private::StateSystemDescriptor {
+                        id: concat!(module_path!(), "::", stringify!(#self_ty), "::", stringify!(#method_ident)),
+                        every: #every,
+                        make: #factory,
+                    }
+                }
+            };
         });
     }
     Ok(quote! { #implementation #(#registrations)* })

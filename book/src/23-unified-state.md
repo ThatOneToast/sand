@@ -163,9 +163,13 @@ rejected because Sand cannot prove which value bindings they introduce. Call
 the query identifier into a nested macro; nested macros expand only after Sand
 has performed this lowering:
 
-Sand qualifies preserved query calls with the declared parameter type. If a
-procedural macro synthesizes a same-named binding of another type, compilation
-fails instead of exporting a different query from the one the endpoint uses.
+Sand qualifies direct query calls present in the system source with the
+declared parameter type. If a procedural macro synthesizes a same-named binding
+before one of those direct calls, compilation fails instead of exporting a
+different query from the one the endpoint uses. A helper or macro that returns
+its own independently queried command vector is an opaque command: it remains
+typed and source/export consistent, but it is not part of the declared query's
+shared outer scan.
 
 Conditional-compilation and lint-control attributes on systems are preserved
 on their generated export adapters as well as their authored endpoints.

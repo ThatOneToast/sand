@@ -1,0 +1,5 @@
+error: [SAND-SYSTEM-RETURN] systems do not declare a Rust return type; write command-producing expressions as statements and return Vec<String> only from query closures
+ --> tests/cases/fail_system_return_type.rs:8:34
+  |
+8 | fn invalid_return(query: Health) -> Vec<String> {
+  |                                  ^^^^^^^^^^^^^^

@@ -49,6 +49,7 @@ use quote::quote;
 use sand_api_contract::syntax::{
     GeneratedApiContract, GeneratedApiKind, render_generated_rustdoc, validate_generated_expansion,
 };
+use syn::fold::{self, Fold};
 use syn::{ItemFn, LitStr, parse_macro_input, token};
 
 mod api_contract;
@@ -445,22 +446,79 @@ pub fn state_lifecycle(attr: TokenStream, item: TokenStream) -> TokenStream {
     .into()
 }
 
-/// Register a tick-driven State system from a function or grouped inherent impl.
+/// Register typed State systems from a free function or grouped inherent impl.
 ///
-/// A function system receives supported query/state inputs and returns command
-/// expressions; Sand generates and schedules the corresponding datapack
-/// function. `#[system(tick = N)]` selects the tick interval. An inherent impl
-/// groups system methods but does not change their ordinary Rust signatures.
-/// Unsupported parameters and malformed tick values are compile errors.
+/// The declared parameter remains its concrete source type: a scoped `State`,
+/// `StateBundle`, or derived `StateQuery`. With `sand::prelude::*` in scope,
+/// completion on `query.` exposes `StateQueryOperations::each` and
+/// `StateQueryOperations::current`, and the callback item is the generated
+/// concrete bound view rather than a generic ECS tuple.
 ///
-/// # Example
+/// # Free tick systems
+///
+/// Empty `#[system]` and `#[system(tick)]` both run every tick.
+/// `#[system(tick, every = 20)]` runs every twentieth server tick:
 ///
 /// ```rust,ignore
-/// #[sand::system(tick = 20)]
-/// fn regenerate(query: LivingPlayers) -> Vec<String> {
-///     query.each(|player| vec![player.health.add(1)])
+/// use sand::prelude::*;
+///
+/// #[system(tick, every = 20)]
+/// fn regenerate(query: Health) {
+///     query.each(|health| health.current.add(1));
 /// }
 /// ```
+///
+/// A free tick system has exactly one simply named query parameter. Write
+/// command-producing expressions as statements. The outer system body is
+/// declarative and returns nothing; an `each` or `current` closure returns the
+/// `Vec<String>` produced by typed State operations (or explicitly builds and
+/// returns one when it combines several operations).
+///
+/// # Grouped tick and event systems
+///
+/// `#[system]` on an inherent impl is organization only and creates no runtime
+/// object. Methods cannot take `self`:
+///
+/// ```rust,ignore
+/// use sand::prelude::*;
+///
+/// struct CombatSystems;
+///
+/// #[system]
+/// impl CombatSystems {
+///     #[tick]
+///     fn update(query: Combatants) {
+///         query.each(|fighter| fighter.health.current.add(1));
+///     }
+///
+///     #[event(PlayerAttack)]
+///     fn attack(_event: PlayerAttack, query: Combatants) {
+///         query.current(|fighter| fighter.health.current.add(1));
+///     }
+/// }
+/// ```
+///
+/// Event methods take the event first and optionally one query second. The
+/// type in `#[event(Type)]` must equal the first parameter type. Event dispatch
+/// has already selected its owner as `@s`; `current` checks required and
+/// forbidden component presence on that executor without another scan, while
+/// `each` deliberately starts a new scope-wide scan.
+///
+/// # Scheduling and Minecraft semantics
+///
+/// Systems run in deterministic registration identity order. Adjacent systems
+/// with the same cadence and compatible outer selector can share one scan;
+/// different cadence, scope, required filters, or intervening opaque work
+/// prevents sharing. Generated function identities are deterministic and
+/// identical command bodies are deduplicated. Queries see only loaded entities
+/// because Minecraft selectors do; Sand does not keep an in-memory world or a
+/// Rust borrowing/mutation model.
+///
+/// Required membership is selected when an `each` iteration starts. Optional
+/// and forbidden checks are emitted as ordered runtime command guards, so an
+/// earlier attach/detach can affect a later guarded command without retroactively
+/// changing the already-selected iteration. See the State chapter in the Sand
+/// book for the full lifecycle and scan-sharing model.
 #[proc_macro_attribute]
 pub fn system(attr: TokenStream, item: TokenStream) -> TokenStream {
     let attr = match parse_system_tick_attr(attr, true) {
@@ -524,15 +582,15 @@ fn parse_system_tick_attr(attr: TokenStream, allow_empty: bool) -> syn::Result<S
                 let _: syn::Token![=] = input.parse()?;
                 let value: syn::LitInt = input.parse()?;
                 every = value.base10_parse()?;
+                if every == 0 {
+                    return Err(syn::Error::new_spanned(
+                        value,
+                        "[SAND-SYSTEM-CADENCE] system tick cadence must be at least one",
+                    ));
+                }
             }
             if !input.is_empty() {
                 return Err(input.error("unexpected system cadence arguments"));
-            }
-            if every == 0 {
-                return Err(syn::Error::new(
-                    proc_macro2::Span::call_site(),
-                    "system tick cadence must be at least one",
-                ));
             }
             Ok(Self(SystemTickAttr { every }))
         }
@@ -541,33 +599,80 @@ fn parse_system_tick_attr(attr: TokenStream, allow_empty: bool) -> syn::Result<S
 }
 
 fn state_system_body(function: &ItemFn) -> syn::Result<(syn::Ident, syn::Type, syn::Block)> {
+    if !matches!(function.sig.output, syn::ReturnType::Default) {
+        return Err(syn::Error::new_spanned(
+            &function.sig.output,
+            "[SAND-SYSTEM-RETURN] systems do not declare a Rust return type; write command-producing expressions as statements and return Vec<String> only from query closures",
+        ));
+    }
     if function.sig.inputs.len() != 1 {
         return Err(syn::Error::new_spanned(
             &function.sig.inputs,
-            "#[system] functions require exactly one derived StateQuery parameter",
+            "[SAND-SYSTEM-PARAM] free #[system] functions require exactly one scoped State, StateBundle, or StateQuery parameter",
         ));
     }
     let argument = function.sig.inputs.first().expect("one argument");
     let syn::FnArg::Typed(argument) = argument else {
         return Err(syn::Error::new_spanned(
             argument,
-            "systems cannot use a self receiver",
+            "[SAND-SYSTEM-PARAM] free systems cannot use a self receiver",
         ));
     };
     let syn::Pat::Ident(pattern) = argument.pat.as_ref() else {
         return Err(syn::Error::new_spanned(
             &argument.pat,
-            "StateQuery system parameters must use a simple identifier",
+            "[SAND-SYSTEM-PARAM] system query parameters must use a simple identifier",
         ));
     };
     let query_ident = pattern.ident.clone();
     let query_ty = (*argument.ty).clone();
-    let mut block = (*function.block).clone();
-    block.stmts.insert(
-        0,
-        syn::parse_quote!(let #query_ident = ::sand::__private::StateQueryHandle::<#query_ty>::new();),
-    );
+    let block = StateSystemQueryLowering {
+        query_ident: query_ident.clone(),
+        query_ty: query_ty.clone(),
+    }
+    .fold_block((*function.block).clone());
     Ok((query_ident, query_ty, block))
+}
+
+/// Re-target the editor-visible query operations only in the private export
+/// adapter. The authored endpoint remains untouched and type-checks against
+/// `StateQueryOperations`; the adapter needs no fabricated runtime value.
+struct StateSystemQueryLowering {
+    query_ident: syn::Ident,
+    query_ty: syn::Type,
+}
+
+impl Fold for StateSystemQueryLowering {
+    fn fold_expr(&mut self, expression: syn::Expr) -> syn::Expr {
+        let syn::Expr::MethodCall(call) = &expression else {
+            return fold::fold_expr(self, expression);
+        };
+        let syn::Expr::Path(receiver) = call.receiver.as_ref() else {
+            return fold::fold_expr(self, expression);
+        };
+        if !receiver.path.is_ident(&self.query_ident)
+            || (call.method != "each" && call.method != "current")
+        {
+            return fold::fold_expr(self, expression);
+        }
+
+        let arguments = call
+            .args
+            .clone()
+            .into_iter()
+            .map(|argument| self.fold_expr(argument))
+            .collect::<syn::punctuated::Punctuated<_, syn::Token![,]>>();
+        let query_ty = &self.query_ty;
+        if call.method == "each" {
+            syn::parse_quote_spanned! {call.method.span()=>
+                ::sand::__private::lower_system_query_each::<#query_ty, _>(#arguments)
+            }
+        } else {
+            syn::parse_quote_spanned! {call.method.span()=>
+                ::sand::__private::lower_system_query_current::<#query_ty, _>(#arguments)
+            }
+        }
+    }
 }
 
 fn expand_state_system_function(
@@ -575,21 +680,22 @@ fn expand_state_system_function(
     attr: SystemTickAttr,
 ) -> syn::Result<proc_macro2::TokenStream> {
     let (_, query_ty, block) = state_system_body(&function)?;
+    let mut authored = function.clone();
+    authored
+        .attrs
+        .push(syn::parse_quote!(#[allow(dead_code, unused_must_use, unused_variables)]));
     let ident = &function.sig.ident;
-    let visibility = &function.vis;
-    let attrs = &function.attrs;
     let factory = quote::format_ident!("__sand_system_{}_make", ident);
     let body = build_cmd_body(&block)?;
     let every = attr.every;
     Ok(quote! {
-        #(#attrs)*
-        #visibility fn #ident() -> Vec<String> {
+        #authored
+
+        #[doc(hidden)]
+        fn #factory() -> Vec<String> {
             let _: ::std::marker::PhantomData<#query_ty> = ::std::marker::PhantomData;
             #body
         }
-
-        #[doc(hidden)]
-        fn #factory() -> Vec<String> { #ident() }
 
         ::sand::__private::inventory::submit! {
             ::sand::__private::StateSystemDescriptor {
@@ -627,6 +733,12 @@ fn expand_state_system_impl(
                 .position(|attr| attr.path().is_ident("event"))
             {
                 let event_attr = method.attrs.remove(event_index);
+                if !matches!(method.sig.output, syn::ReturnType::Default) {
+                    return Err(syn::Error::new_spanned(
+                        &method.sig.output,
+                        "[SAND-SYSTEM-RETURN] event systems do not declare a Rust return type; write command-producing expressions as statements and return Vec<String> only from query closures",
+                    ));
+                }
                 let expected_ty: syn::Type = match event_attr.meta {
                     syn::Meta::List(list) => syn::parse2(list.tokens)?,
                     _ => {
@@ -639,21 +751,21 @@ fn expand_state_system_impl(
                 if !(1..=2).contains(&method.sig.inputs.len()) {
                     return Err(syn::Error::new_spanned(
                         &method.sig.inputs,
-                        "grouped event systems require an event parameter and may optionally take one StateQuery parameter",
+                        "[SAND-SYSTEM-EVENT] event systems accept `(event)` or `(event, query)`; found a different parameter count",
                     ));
                 }
                 let syn::FnArg::Typed(argument) = method.sig.inputs.first().expect("one argument")
                 else {
                     return Err(syn::Error::new_spanned(
                         &method.sig.inputs,
-                        "grouped event systems cannot use self",
+                        "[SAND-SYSTEM-EVENT] grouped event systems cannot use self",
                     ));
                 };
                 let actual_ty = &argument.ty;
                 if quote!(#expected_ty).to_string() != quote!(#actual_ty).to_string() {
                     return Err(syn::Error::new_spanned(
                         &argument.ty,
-                        "#[event(EventType)] must match the method parameter type",
+                        "[SAND-SYSTEM-EVENT] #[event(EventType)] must match the first method parameter type",
                     ));
                 }
                 let mut event_block = method.block.clone();
@@ -662,33 +774,28 @@ fn expand_state_system_impl(
                     let syn::FnArg::Typed(query_argument) = query_argument else {
                         return Err(syn::Error::new_spanned(
                             query_argument,
-                            "grouped event systems cannot use self",
+                            "[SAND-SYSTEM-EVENT] grouped event systems cannot use self",
                         ));
                     };
                     let syn::Pat::Ident(query_pattern) = query_argument.pat.as_ref() else {
                         return Err(syn::Error::new_spanned(
                             &query_argument.pat,
-                            "StateQuery event parameters must use a simple identifier",
+                            "[SAND-SYSTEM-PARAM] event query parameters must use a simple identifier",
                         ));
                     };
-                    let query_ident = &query_pattern.ident;
-                    let query_ty = query_argument.ty.as_ref();
-                    event_block.stmts.insert(
-                        0,
-                        syn::parse_quote!(let #query_ident = ::sand::__private::StateQueryHandle::<#query_ty>::new();),
-                    );
+                    event_block = StateSystemQueryLowering {
+                        query_ident: query_pattern.ident.clone(),
+                        query_ty: (*query_argument.ty).clone(),
+                    }
+                    .fold_block(event_block);
                 }
                 let mut signature = method.sig.clone();
                 while signature.inputs.len() > 1 {
                     signature.inputs.pop();
                 }
-                // Keep the grouped impl itself valid and directly testable:
-                // shadow the declarative query marker with the same generated
-                // handle used by the exported event adapter.
-                method
-                    .attrs
-                    .push(syn::parse_quote!(#[allow(unused_variables)]));
-                method.block = event_block.clone();
+                method.attrs.push(
+                    syn::parse_quote!(#[allow(dead_code, unused_must_use, unused_variables)]),
+                );
                 let original = &method.sig.ident;
                 signature.ident = quote::format_ident!("__sand_system_event_{}", original);
                 let function = ItemFn {
@@ -706,7 +813,10 @@ fn expand_state_system_impl(
             syn::Meta::Path(_) => SystemTickAttr { every: 1 },
             syn::Meta::List(list) => parse_system_tick_attr(list.tokens.clone().into(), true)?,
             syn::Meta::NameValue(_) => {
-                return Err(syn::Error::new_spanned(tick_attr, "use #[tick(every = N)]"));
+                return Err(syn::Error::new_spanned(
+                    tick_attr,
+                    "[SAND-SYSTEM-CADENCE] use #[tick] or #[tick(every = N)]",
+                ));
             }
         };
         let function = ItemFn {
@@ -717,18 +827,18 @@ fn expand_state_system_impl(
         };
         let (_, query_ty, block) = state_system_body(&function)?;
         let body = build_cmd_body(&block)?;
-        method.sig.inputs.clear();
-        method.sig.output = syn::parse_quote!(-> Vec<String>);
-        method.block = syn::parse_quote!({
-            let _: ::std::marker::PhantomData<#query_ty> = ::std::marker::PhantomData;
-            #body
-        });
+        method
+            .attrs
+            .push(syn::parse_quote!(#[allow(dead_code, unused_must_use, unused_variables)]));
         let method_ident = &method.sig.ident;
         let factory = quote::format_ident!("__sand_system_{}_make", method_ident);
         let every = cadence.every;
         registrations.push(quote! {
             #[doc(hidden)]
-            fn #factory() -> Vec<String> { <#self_ty>::#method_ident() }
+            fn #factory() -> Vec<String> {
+                let _: ::std::marker::PhantomData<#query_ty> = ::std::marker::PhantomData;
+                #body
+            }
             ::sand::__private::inventory::submit! {
                 ::sand::__private::StateSystemDescriptor {
                     id: concat!(module_path!(), "::", stringify!(#self_ty), "::", stringify!(#method_ident)),
@@ -1669,6 +1779,15 @@ fn expand_event(attr: TokenStream, func: ItemFn) -> syn::Result<proc_macro2::Tok
              (e.g. `event: OnJoinEvent`)",
         ));
     }
+    let event_binding_pattern = match func.sig.inputs.first().expect("one event parameter") {
+        syn::FnArg::Typed(parameter) => parameter.pat.as_ref(),
+        syn::FnArg::Receiver(receiver) => {
+            return Err(syn::Error::new_spanned(
+                receiver,
+                "#[on_event] cannot be a method",
+            ));
+        }
+    };
 
     enum EventParam {
         Context {
@@ -1834,11 +1953,13 @@ fn expand_event(attr: TokenStream, func: ItemFn) -> syn::Result<proc_macro2::Tok
     };
 
     // ── Shared preamble: emit the body function + hidden factory ──────────────
-    // The `let event` binding enables `event.player()` inside handler bodies.
+    // Preserve the author's parameter binding while removing it from the
+    // generated zero-argument Minecraft function.
     let preamble = quote! {
         #(#fn_attrs)*
+        #[allow(unused_variables)]
         #vis fn #fn_name() -> ::std::vec::Vec<::std::string::String> {
-            let event = #event_binding_tokens;
+            let #event_binding_pattern = #event_binding_tokens;
             #body
         }
 

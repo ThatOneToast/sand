@@ -23,7 +23,7 @@ proc-macro = true
 sand-api-contract = { path = "../sand-api-contract", features = ["syntax"] }
 proc-macro2 = "1"
 quote = "1"
-syn = { version = "2", features = ["full"] }
+syn = { version = "2", features = ["fold", "full"] }
 
 [dev-dependencies]
 trybuild = { version = "1", features = ["diff"] }

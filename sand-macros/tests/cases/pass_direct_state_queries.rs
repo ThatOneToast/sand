@@ -56,7 +56,8 @@ impl DirectSystems {
     }
 
     #[event(DirectPulse)]
-    fn current(_event: DirectPulse, query: PlayerHealth) {
+    fn current(pulse: DirectPulse, query: PlayerHealth) {
+        let _ = pulse;
         query.current(|health| health.health.add(1));
     }
 }
@@ -70,6 +71,10 @@ impl SandEvent for DirectPulse {
 }
 
 fn main() {
+    let _: fn(EntityHealth) = free_tick;
+    let _: fn(NestedEntityCombat) = bundle_tick;
+    let _: fn(LivingHealth) = DirectSystems::grouped_tick;
+    let _: fn(DirectPulse, PlayerHealth) = DirectSystems::current;
     let _: Vec<String> = <EntityCombat as sand::__private::StateQuerySpec>::each(|combat| {
         combat.health.health.add(1)
     });

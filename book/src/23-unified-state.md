@@ -143,18 +143,100 @@ impl CombatSystems {
 }
 ```
 
-Event systems can take the query after the event and call `current`. The event
-dispatcher has already made the owner `@s`, so Sand checks the component
-filters without scanning the world again. Tick systems with the same cadence
-and selector share a scan when they are next to each other in deterministic
-system order; opaque command bodies stay separate.
+## Typed system authoring
 
-```rust,ignore
-#[event(PlayerAttack)]
-fn attack(event: PlayerAttack, query: Fighters) {
-    query.current(|owner| owner.combat.attack.damage.add(1));
+System parameters are the concrete types written in source. With
+`sand::prelude::*` imported, `query.` completes to `each` and `current` on a
+direct scoped `State`, a `StateBundle`, or a composed `StateQuery`. Completion
+inside the callback sees the generated bound State fields or the named query
+item fields. There is no generic tuple or hidden handle to write in an author
+signature.
+
+A free system is a tick system and takes exactly one simply named query
+parameter. Empty `#[system]` means every tick; spelling `tick` is optional but
+can make intent clearer. `every` is a positive tick count:
+
+```rust
+#[system]
+fn every_tick(query: Health) {
+    query.each(|health| health.current.add(1));
+}
+
+#[system(tick, every = 20)]
+fn every_second(query: Health) {
+    query.each(|health| health.current.add(1));
 }
 ```
+
+An inherent impl groups related endpoints without constructing a Rust system
+object. Grouped methods do not take `self`. Tick methods use `#[tick]` or
+`#[tick(every = N)]`:
+
+```rust
+pub struct HealthSystems;
+
+#[system]
+impl HealthSystems {
+    #[tick]
+    fn update(query: Fighters) {
+        query.each(|fighter| fighter.combat.defense.armor.add(1));
+    }
+
+    #[tick(every = 20)]
+    fn regenerate(query: Health) {
+        query.each(|health| health.current.add(1));
+    }
+}
+```
+
+Event endpoints exist in the grouped form. Their first parameter must have the
+same type named by `#[event(...)]`; an optional query is second. Dispatch has
+already bound the event owner as `@s`, so `current` guards commands with the
+query's required and forbidden presence checks without selecting entities a
+second time. Calling `each` is valid when the event really needs a new
+scope-wide search, but it creates that second scan.
+
+```rust,ignore
+#[system]
+impl CombatSystems {
+    #[event(PlayerAttack)]
+    fn attack(_event: PlayerAttack, query: Fighters) {
+        query.current(|owner| owner.combat.attack.damage.add(1));
+    }
+}
+```
+
+System and query closures run in Rust while Sand builds the datapack. Their
+result is an ordered `Vec<String>` of Minecraft commands, not an in-memory
+mutation of an entity. A single typed State operation already returns that
+vector. To combine operations, collect or extend their vectors and return the
+combined value from the closure:
+
+```rust
+query.each(|fighter| {
+    let mut commands = fighter.combat.attack.damage.add(1);
+    commands.extend(fighter.status(|status| status.poison_time.tick()));
+    commands
+});
+```
+
+At export, Sand sorts systems by their stable Rust module/type/function
+identity. That order determines command order. Consecutive systems in that
+order share a scan only when they have the same cadence and the complete body
+of each is the exact typed query scan with the same selector. A different
+scope, presence filter, cadence, mixed selector, or opaque command keeps a
+separate system body. Generated objective and function names derive from the
+stable identities, collision-check deterministically, and identical dynamic
+callback bodies are deduplicated.
+
+Minecraft selectors visit loaded entities only. Sand does not load chunks and
+does not maintain an in-memory Rust ECS between ticks. Required component
+membership is captured by the outer selector when an `each` scan begins.
+Optional and forbidden membership is checked by generated commands in their
+emitted order. Therefore detaching a required component during a callback does
+not remove the owner from the scan already in progress, while attaching or
+detaching a component can change a later optional/forbidden guard in that same
+ordered command sequence.
 
 Archetypes compose independent components and nested bundles with
 `.components::<Combat>()`. Composition uses the same idempotent attachment,

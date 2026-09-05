@@ -165,6 +165,11 @@ fn recharge_direct(query: EntityRuntimeState) {
     query.each(|runtime| runtime.charge.add(1));
 }
 
+#[system(tick, every = 20)]
+fn zz_recharge_players(query: PlayerState) {
+    query.each(|player| player.mana.add(1));
+}
+
 fn records() -> Vec<serde_json::Value> {
     serde_json::from_str(&sand_core::try_export_components_json("statepack").unwrap()).unwrap()
 }
@@ -437,6 +442,37 @@ fn direct_and_composed_systems_share_the_compatible_outer_scan() {
             .count(),
         2,
         "the shared scan group should invoke both compatible systems"
+    );
+}
+
+#[test]
+fn incompatible_player_system_keeps_a_separate_outer_scan() {
+    let records = records();
+    let tick = function(&records, "__sand_system_tick");
+    let entity_requirement =
+        <EntityRuntimeState as sand::__private::StateBundleMember>::presence_requirements();
+    let player_requirement =
+        <PlayerState as sand::__private::StateBundleMember>::presence_requirements();
+    let entity_selector = format!(
+        "execute as @e[scores={{{}={}}}] at @s",
+        entity_requirement[0].0, entity_requirement[0].1
+    );
+    let player_selector = format!(
+        "execute as @a[scores={{{}={}}}] at @s",
+        player_requirement[0].0, player_requirement[0].1
+    );
+
+    assert_eq!(
+        tick.lines()
+            .filter(|line| line.contains(&entity_selector))
+            .count(),
+        1
+    );
+    assert_eq!(
+        tick.lines()
+            .filter(|line| line.contains(&player_selector))
+            .count(),
+        1
     );
 }
 

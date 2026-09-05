@@ -206,6 +206,16 @@ def main() -> int:
             time.sleep(0.25)
         return output
 
+    def wait_for_entity_absent(tag: str) -> None:
+        deadline = time.monotonic() + min(args.timeout, 10)
+        output = ""
+        while time.monotonic() < deadline:
+            output = command(f"data get entity @e[tag={tag},limit=1] UUID")
+            if "following entity data" not in response(output):
+                return
+            time.sleep(0.25)
+        raise RuntimeError(f"entity tagged {tag} did not unload: {response(output)}")
+
     try:
         deadline = time.monotonic() + args.timeout
         ready = False
@@ -400,9 +410,9 @@ def main() -> int:
         )
 
         command("tick unfreeze", "forceload remove 0 0")
-        time.sleep(0.5)
+        wait_for_entity_absent("audit_a")
         command("forceload add 0 0")
-        wait_for_entity("audit_a")
+        wait_for_entity("audit_a", marker)
         command(
             "tick freeze",
             "data modify entity @e[tag=audit_a,limit=1] Health set value 9f",

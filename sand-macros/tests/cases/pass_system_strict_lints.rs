@@ -15,6 +15,11 @@ impl SandEvent for Pulse {
     }
 }
 
+#[on_event]
+fn strict_event(event @ _: Pulse) {
+    cmd::say("strict event");
+}
+
 #[system]
 fn free(query: Health) {
     query.each(|_health| Vec::new());

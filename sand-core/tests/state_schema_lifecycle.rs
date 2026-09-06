@@ -170,6 +170,12 @@ fn zz_recharge_players(query: PlayerState) {
     query.each(|player| player.mana.add(1));
 }
 
+#[system(tick, every = 7)]
+fn repeated_query_operations_reselect_membership(query: EntityRuntimeState) {
+    query.each(|_runtime| EntityRuntimeState::detach(EntityContext::<AnyEntity>::default()));
+    query.each(|runtime| runtime.charge.add(1));
+}
+
 // These two valid Rust identifiers have the same 32-bit FNV-1a hash. Keeping
 // them as the grouped owners ensures resource identity never regresses to a
 // fixed-width hash.
@@ -590,6 +596,33 @@ fn incompatible_player_system_keeps_a_separate_outer_scan() {
             .filter(|line| line.contains(&player_selector))
             .count(),
         1
+    );
+}
+
+#[test]
+fn repeated_query_operations_keep_independent_outer_scans() {
+    let records = records();
+    let tick = function(&records, "__sand_system_tick");
+    let invocation = tick
+        .lines()
+        .find(|line| line.contains("matches 7.. run function statepack:"))
+        .expect("the repeated-query system keeps its distinct cadence");
+    assert!(
+        !invocation.contains(" run execute as "),
+        "multiple each operations must not be hoisted into one shared selector: {invocation}"
+    );
+    let (_, system_path) = invocation
+        .split_once(" run function statepack:")
+        .expect("the cadence invokes the generated system function");
+    let body = function(&records, system_path);
+    assert_eq!(
+        body.lines()
+            .filter(
+                |line| line.starts_with("execute as @e[") && line.contains(" at @s run function ")
+            )
+            .count(),
+        2,
+        "each authored query operation must select membership independently: {body}"
     );
 }
 

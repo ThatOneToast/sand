@@ -171,8 +171,11 @@ its own independently queried command vector is an opaque command: it remains
 typed and source/export consistent, but it is not part of the declared query's
 shared outer scan.
 
-Conditional-compilation and lint-control attributes on systems are preserved
-on their generated export adapters as well as their authored endpoints.
+Conditional-compilation attributes and `allow`, `warn`, `deny`, and `forbid`
+lint controls on systems are preserved on their generated export adapters as
+well as their authored endpoints. An `expect` attribute remains on the
+authored endpoint instead of being copied to helpers where its lint site does
+not exist.
 Grouped adapter bodies retain the enclosing implementation's `Self` context,
 including inside nested macro invocations.
 

@@ -495,8 +495,10 @@ pub fn state_lifecycle(attr: TokenStream, item: TokenStream) -> TokenStream {
 /// `cfg` and `cfg_attr` on a free system, grouped impl, or grouped method gate
 /// both its authored endpoint and its generated registration. Attributes on a
 /// `query.each(...)` or `query.current(...)` statement are retained when Sand
-/// lowers that operation for export. Lint-control attributes on an authored
-/// system or grouped impl also govern the copied export adapter body.
+/// lowers that operation for export. `allow`, `warn`, `deny`, and `forbid`
+/// attributes on an authored system or grouped impl also govern the copied
+/// export adapter body. An `expect` attribute remains on the authored endpoint,
+/// where its lint site exists, and is not copied onto compiler-generated helpers.
 ///
 /// # Grouped tick and event systems
 ///
@@ -626,6 +628,12 @@ fn parse_system_tick_attr(attr: TokenStream, allow_empty: bool) -> syn::Result<S
 }
 
 fn state_system_body(function: &ItemFn) -> syn::Result<(syn::Ident, syn::Type, syn::Block)> {
+    if !function.sig.generics.params.is_empty() || function.sig.generics.where_clause.is_some() {
+        return Err(syn::Error::new_spanned(
+            &function.sig.generics,
+            "[SAND-SYSTEM-PARAM] systems require a concrete generated State, StateBundle, or StateQuery parameter and cannot declare generics",
+        ));
+    }
     if !matches!(function.sig.output, syn::ReturnType::Default) {
         return Err(syn::Error::new_spanned(
             &function.sig.output,
@@ -1015,6 +1023,25 @@ fn lint_attrs(attrs: &[syn::Attribute]) -> syn::Result<Vec<syn::Attribute>> {
     Ok(lint_attrs)
 }
 
+fn expects_unused_variables(attrs: &[syn::Attribute]) -> bool {
+    attrs.iter().any(|attr| {
+        if !attr.path().is_ident("expect") {
+            return false;
+        }
+        let mut expects_unused = false;
+        let parsed = attr.parse_nested_meta(|meta| {
+            if meta.path.is_ident("unused") || meta.path.is_ident("unused_variables") {
+                expects_unused = true;
+            }
+            if meta.input.peek(syn::Token![=]) {
+                let _: syn::Expr = meta.value()?.parse()?;
+            }
+            Ok(())
+        });
+        parsed.is_ok() && expects_unused
+    })
+}
+
 fn gate_generated_items(
     tokens: proc_macro2::TokenStream,
     attrs: &[syn::Attribute],
@@ -1127,6 +1154,13 @@ fn expand_state_system_impl(
         return Err(syn::Error::new_spanned(
             implementation.impl_token,
             "#[system] grouped form requires an inherent impl",
+        ));
+    }
+    if !implementation.generics.params.is_empty() || implementation.generics.where_clause.is_some()
+    {
+        return Err(syn::Error::new_spanned(
+            &implementation.generics,
+            "[SAND-SYSTEM-PARAM] grouped systems require a concrete owning type and cannot declare impl generics",
         ));
     }
     let self_ty = &implementation.self_ty;
@@ -2351,10 +2385,15 @@ fn expand_event_with_path(
 
     let mut event_binding_identifiers = EventBindingIdentifiers::default();
     event_binding_identifiers.visit_pat(event_binding_pattern);
-    let event_binding_uses = event_binding_identifiers
-        .identifiers
-        .iter()
-        .map(|identifier| quote! { let _ = &#identifier; });
+    let event_binding_uses = if expects_unused_variables(fn_attrs) {
+        Vec::new()
+    } else {
+        event_binding_identifiers
+            .identifiers
+            .iter()
+            .map(|identifier| quote! { let _ = &#identifier; })
+            .collect::<Vec<_>>()
+    };
 
     enum EventParam {
         Context {

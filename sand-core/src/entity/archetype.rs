@@ -2646,6 +2646,11 @@ fn compile_definition_with_claims(
     } else if let Some(path) = &derivations.refresh_function {
         reconcile_commands.push(format!("function {path}"));
     }
+    reconcile_commands.extend(dirty_distribution_commands(
+        &fields,
+        claims,
+        &mut objectives,
+    ));
     reconcile_commands.extend(dirty_acknowledgement_commands(&fields, &marker));
     if let Some(path) = &transitions.check_function {
         reconcile_commands.push(format!("function {path}"));
@@ -5413,11 +5418,14 @@ mod tests {
             .content
             .match_indices(&cause_set)
             .collect::<Vec<_>>();
-        assert_eq!(cause_clears.len(), 2);
-        assert_eq!(cause_sets.len(), 2);
-        assert!(cause_clears[0].0 < cause_sets[0].0);
-        assert!(cause_sets[0].0 < cause_clears[1].0);
-        assert!(cause_clears[1].0 < cause_sets[1].0);
+        assert_eq!(cause_clears.len(), 3);
+        assert_eq!(cause_sets.len(), 3);
+        for (clear, set) in cause_clears.iter().zip(&cause_sets) {
+            assert!(clear.0 < set.0);
+        }
+        for (set, next_clear) in cause_sets.iter().zip(cause_clears.iter().skip(1)) {
+            assert!(set.0 < next_clear.0);
+        }
         assert!(
             reconcile
                 .content
@@ -5809,6 +5817,51 @@ mod tests {
         assert!(!refresh.content.contains(&format!(
             "if score @s {pending} matches 1 if score @s {cause} matches 1"
         )));
+    }
+
+    #[test]
+    fn generated_health_writes_are_published_before_transition_callbacks() {
+        let archetype = EntityArchetype::<ZombieKind>::new(
+            ResourceLocation::new("rpg", "health_transition_causality").unwrap(),
+        )
+        .components::<MobState>()
+        .health(HealthBinding::new(HEALTH).current_health(LEVEL, CurrentHealthSync::Bidirectional))
+        .on(
+            EntityTransition::threshold(LEVEL, 10, ThresholdDirection::Rising),
+            EntityAction::Run("rpg:heal_from_transition".parse::<FunctionId>().unwrap()),
+        );
+        let definition = archetype.definition();
+        let root = generated_root(&definition.id.to_string());
+        let compiled = compile_definition(&definition, &profile()).unwrap();
+        let reconcile = compiled
+            .records
+            .iter()
+            .find(|record| record.path.ends_with("/reconcile"))
+            .unwrap();
+        let refresh = reconcile
+            .content
+            .find(&format!("function rpg:{root}/refresh"))
+            .unwrap();
+        let transition = reconcile
+            .content
+            .find(&format!("function rpg:{root}/transitions"))
+            .unwrap();
+        let distribution = format!("{} matches 1", LEVEL.dirty_objective());
+        let between = reconcile
+            .content
+            .match_indices(&distribution)
+            .map(|(position, _)| position)
+            .find(|position| *position > refresh && *position < transition)
+            .unwrap();
+        let after = reconcile
+            .content
+            .match_indices(&distribution)
+            .map(|(position, _)| position)
+            .find(|position| *position > transition)
+            .unwrap();
+        assert!(refresh < between);
+        assert!(between < transition);
+        assert!(transition < after);
     }
 
     #[test]

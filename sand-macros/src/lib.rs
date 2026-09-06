@@ -2337,6 +2337,24 @@ fn expand_event_with_path(
             ));
         }
     };
+    #[derive(Default)]
+    struct EventBindingIdentifiers {
+        identifiers: Vec<syn::Ident>,
+    }
+
+    impl<'ast> Visit<'ast> for EventBindingIdentifiers {
+        fn visit_pat_ident(&mut self, pattern: &'ast syn::PatIdent) {
+            self.identifiers.push(pattern.ident.clone());
+            visit::visit_pat_ident(self, pattern);
+        }
+    }
+
+    let mut event_binding_identifiers = EventBindingIdentifiers::default();
+    event_binding_identifiers.visit_pat(event_binding_pattern);
+    let event_binding_uses = event_binding_identifiers
+        .identifiers
+        .iter()
+        .map(|identifier| quote! { let _ = &#identifier; });
 
     enum EventParam {
         Context {
@@ -2511,6 +2529,7 @@ fn expand_event_with_path(
         #(#fn_attrs)*
         #vis fn #fn_name() -> ::std::vec::Vec<::std::string::String> {
             let #event_binding_pattern = #event_binding_tokens;
+            #(#event_binding_uses)*
             #body
         }
 

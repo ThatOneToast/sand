@@ -98,14 +98,33 @@ pub fn project_has_worldbuild(project_root: &Path) -> bool {
 }
 
 /// Compiles the `sand_build_world` binary.
-pub(super) fn compile(project_root: &Path, mc_version: &str) -> Result<()> {
+pub(super) fn compile(project_root: &Path, mc_version: &str, quiet: bool) -> Result<()> {
     let _ = project_root;
-    let status = std::process::Command::new("cargo")
+    let mut command = std::process::Command::new("cargo");
+    command
         .args(["build", "--bin", WORLDBUILD_BIN_NAME])
-        .env("SAND_MC_VERSION", mc_version)
+        .env("SAND_MC_VERSION", mc_version);
+    if quiet {
+        command.arg("--message-format=json");
+        let output = command
+            .output()
+            .context("failed to invoke `cargo build --bin sand_build_world`")?;
+        if !output.status.success() {
+            bail!(
+                "`cargo build --bin sand_build_world` failed:\n{}",
+                format!(
+                    "{}\n{}",
+                    String::from_utf8_lossy(&output.stdout),
+                    String::from_utf8_lossy(&output.stderr)
+                )
+                .trim()
+            );
+        }
+    } else if !command
         .status()
-        .context("failed to invoke `cargo build --bin sand_build_world`")?;
-    if !status.success() {
+        .context("failed to invoke `cargo build --bin sand_build_world`")?
+        .success()
+    {
         bail!("`cargo build --bin sand_build_world` failed");
     }
     Ok(())

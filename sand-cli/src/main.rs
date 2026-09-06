@@ -4,8 +4,10 @@ use anyhow::{Context, Result, bail};
 use clap::{Parser, Subcommand};
 use colored::Colorize;
 
+use sand_cli::output::OutputFormat;
+use sand_cli::project_context::{ProjectContext, render_human as render_context_human};
 use sand_cli::scaffold::{ScaffoldOptions, name_to_namespace, validate_name};
-use sand_cli::{add_cmd, api_cmd, build, join_cmd, run_cmd, scaffold};
+use sand_cli::{add_cmd, agent_check, api_cmd, build, join_cmd, run_cmd, scaffold};
 
 // ── CLI definition ────────────────────────────────────────────────────────────
 
@@ -24,6 +26,27 @@ struct Cli {
 enum Commands {
     /// Inspect Sand's supported public API contracts
     Api(api_cmd::ApiArgs),
+    /// Report the current project and installed API identity for tools and agents
+    Context {
+        /// Active sand.build.rs profile to report
+        #[arg(long, default_value = "dev")]
+        profile: String,
+        /// Output format (human or schema-versioned JSON)
+        #[arg(long, value_enum, default_value_t)]
+        format: OutputFormat,
+    },
+    /// Run Sand-specific project validation
+    Check {
+        /// Enable agent-oriented validation (reserved for future policy levels)
+        #[arg(long)]
+        agent: bool,
+        /// Active sand.build.rs profile to validate
+        #[arg(long, default_value = "dev")]
+        profile: String,
+        /// Output format (human or schema-versioned JSON)
+        #[arg(long, value_enum, default_value_t)]
+        format: OutputFormat,
+    },
     /// Create a new Sand datapack project in a new directory
     New(NewArgs),
     /// Initialize a Sand project in the current directory
@@ -57,6 +80,9 @@ enum Commands {
         /// projects without a `sand.build.rs`.
         #[arg(long)]
         profile: Option<String>,
+        /// Output format (human or schema-versioned JSON)
+        #[arg(long, value_enum, default_value_t)]
+        format: OutputFormat,
     },
     /// Build the datapack, download the server jar, and start a local server
     Run {
@@ -218,6 +244,41 @@ fn run() -> Result<()> {
     let cli = Cli::parse();
     match cli.command {
         Commands::Api(args) => api_cmd::run(args),
+        Commands::Context { profile, format } => {
+            let catalog = api_cmd::installed_catalog()?;
+            let context = match ProjectContext::discover(&catalog, &profile) {
+                Ok(context) => context,
+                Err(error) if format.is_json() => {
+                    println!(
+                        "{}",
+                        serde_json::to_string_pretty(&serde_json::json!({
+                            "schema_version": sand_cli::project_context::CONTEXT_SCHEMA_VERSION,
+                            "success": false,
+                            "error": {
+                                "code": "SAND_CONTEXT_FAILED",
+                                "message": format!("{error:#}"),
+                            }
+                        }))?
+                    );
+                    return Err(error);
+                }
+                Err(error) => return Err(error),
+            };
+            if format.is_json() {
+                println!("{}", serde_json::to_string_pretty(&context)?);
+            } else {
+                print!("{}", render_context_human(&context));
+            }
+            Ok(())
+        }
+        Commands::Check {
+            agent: _,
+            profile,
+            format,
+        } => {
+            let catalog = api_cmd::installed_catalog()?;
+            agent_check::run(&catalog, &profile, format)
+        }
         Commands::New(args) => cmd_new(args),
         Commands::Init(args) => cmd_init(args),
         Commands::Build {
@@ -226,6 +287,7 @@ fn run() -> Result<()> {
             timings,
             explain_rebuild,
             profile,
+            format,
         } => {
             let profile = profile.unwrap_or_else(|| {
                 if release {
@@ -234,13 +296,20 @@ fn run() -> Result<()> {
                     "dev".to_string()
                 }
             });
-            build::run_with_options(build::BuildOptions {
+            let result = build::run_with_options(build::BuildOptions {
                 release,
                 resourcepack,
                 print_timings: timings,
                 explain_rebuild,
-                profile,
-            })
+                profile: profile.clone(),
+                output_format: format,
+            });
+            if format.is_json()
+                && let Err(error) = &result
+            {
+                println!("{}", build::error_json(error, &profile)?);
+            }
+            result
         }
         Commands::Run {
             ram,

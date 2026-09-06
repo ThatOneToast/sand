@@ -16,14 +16,16 @@ use std::path::{Component, Path, PathBuf};
 
 use anyhow::{Context, Result, bail};
 use colored::Colorize;
+use serde::Serialize;
 
 use crate::config::SandConfig;
+use crate::output::OutputFormat;
 use crate::pack_format::pack_format_for;
 
 use config::{cargo_target_dir, resolve_mc_version};
 use explain::{RebuildExplanation, observe_exporter_rebuild};
 use export::{ExportBuildPlan, Exporter, run_exporter};
-use output_manifest::OutputManifest;
+use output_manifest::{ChangeSummary, OutputManifest};
 use package::zip_dir;
 use records::ComponentRecord;
 use resourcepack::{build_resourcepack, ensure_resource_export_source};
@@ -36,6 +38,161 @@ use write::{component_output, pack_mcmeta_output};
 /// `ServerConfig`. 🖥️ Server (host) only — never part of the datapack;
 /// `sand run` reads this file to apply local dev-server settings.
 pub const SERVER_CONFIG_FILE_NAME: &str = ".sand-server-config.json";
+pub const BUILD_DIAGNOSTIC_SCHEMA_VERSION: u32 = 1;
+
+#[derive(Serialize)]
+struct BuildJsonOutput<'a> {
+    schema_version: u32,
+    success: bool,
+    namespace: &'a str,
+    minecraft_version: &'a str,
+    profile: &'a str,
+    component_count: usize,
+    datapack_output: String,
+    datapack_changes: ChangeSummary,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    resourcepack_changes: Option<ChangeSummary>,
+    diagnostics: Vec<BuildJsonDiagnostic>,
+}
+
+#[derive(Serialize)]
+pub struct BuildJsonDiagnostic {
+    severity: String,
+    code: String,
+    category: String,
+    message: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    file: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    line: Option<usize>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    column: Option<usize>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    api_path: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    minecraft_version: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    profile: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    suggested_action: Option<String>,
+    source: String,
+}
+
+pub fn error_json(error: &anyhow::Error, profile: &str) -> Result<String> {
+    let message = format!("{error:#}");
+    let mut diagnostics = cargo_diagnostics(&message, profile);
+    let (code, category, source) = if message.contains("cargo build") {
+        ("SAND_BUILD_CARGO", "cargo", "cargo_rustc")
+    } else if message.contains("export") {
+        ("SAND_BUILD_EXPORTER", "exporter", "exporter")
+    } else if message.contains("Minecraft") || message.contains("version") {
+        (
+            "SAND_BUILD_PROFILE",
+            "minecraft_profile",
+            "minecraft_profile",
+        )
+    } else if message.contains("sand.toml") {
+        ("SAND_BUILD_CONFIG", "configuration", "sand_validation")
+    } else {
+        ("SAND_BUILD_FAILED", "build", "sand_validation")
+    };
+    if diagnostics.is_empty() {
+        diagnostics.push(BuildJsonDiagnostic {
+            severity: "error".into(),
+            code: code.into(),
+            category: category.into(),
+            message,
+            file: None,
+            line: None,
+            column: None,
+            api_path: None,
+            minecraft_version: None,
+            profile: Some(profile.to_owned()),
+            suggested_action: None,
+            source: source.into(),
+        });
+    }
+    serde_json::to_string_pretty(&serde_json::json!({
+        "schema_version": BUILD_DIAGNOSTIC_SCHEMA_VERSION,
+        "success": false,
+        "diagnostics": diagnostics,
+    }))
+    .context("failed to serialize build diagnostic")
+}
+
+fn cargo_diagnostics(message: &str, profile: &str) -> Vec<BuildJsonDiagnostic> {
+    let mut diagnostics = Vec::new();
+    for line in message.lines() {
+        let Ok(value) = serde_json::from_str::<serde_json::Value>(line) else {
+            continue;
+        };
+        if value.get("reason").and_then(serde_json::Value::as_str) != Some("compiler-message") {
+            continue;
+        }
+        let Some(diagnostic) = value.get("message") else {
+            continue;
+        };
+        let level = diagnostic
+            .get("level")
+            .and_then(serde_json::Value::as_str)
+            .unwrap_or("error");
+        if !matches!(level, "error" | "warning") {
+            continue;
+        }
+        let primary = diagnostic
+            .get("spans")
+            .and_then(serde_json::Value::as_array)
+            .and_then(|spans| {
+                spans.iter().find(|span| {
+                    span.get("is_primary").and_then(serde_json::Value::as_bool) == Some(true)
+                })
+            });
+        let suggested_action = diagnostic
+            .get("children")
+            .and_then(serde_json::Value::as_array)
+            .and_then(|children| {
+                children.iter().find(|child| {
+                    child.get("level").and_then(serde_json::Value::as_str) == Some("help")
+                })
+            })
+            .and_then(|child| child.get("message"))
+            .and_then(serde_json::Value::as_str)
+            .map(ToOwned::to_owned);
+        diagnostics.push(BuildJsonDiagnostic {
+            severity: level.into(),
+            code: diagnostic
+                .get("code")
+                .and_then(|code| code.get("code"))
+                .and_then(serde_json::Value::as_str)
+                .unwrap_or("SAND_BUILD_RUSTC")
+                .to_owned(),
+            category: "cargo".into(),
+            message: diagnostic
+                .get("message")
+                .and_then(serde_json::Value::as_str)
+                .unwrap_or("Cargo compilation failed")
+                .to_owned(),
+            file: primary
+                .and_then(|span| span.get("file_name"))
+                .and_then(serde_json::Value::as_str)
+                .map(ToOwned::to_owned),
+            line: primary
+                .and_then(|span| span.get("line_start"))
+                .and_then(serde_json::Value::as_u64)
+                .and_then(|line| usize::try_from(line).ok()),
+            column: primary
+                .and_then(|span| span.get("column_start"))
+                .and_then(serde_json::Value::as_u64)
+                .and_then(|column| usize::try_from(column).ok()),
+            api_path: None,
+            minecraft_version: None,
+            profile: Some(profile.to_owned()),
+            suggested_action,
+            source: "cargo_rustc".into(),
+        });
+    }
+    diagnostics
+}
 
 pub fn run(release: bool, resourcepack: bool) -> Result<()> {
     run_with_timings(release, resourcepack, false)
@@ -52,6 +209,7 @@ pub fn run_with_timings(release: bool, resourcepack: bool, print_timings: bool) 
         print_timings,
         explain_rebuild: false,
         profile: "dev".to_string(),
+        output_format: OutputFormat::Human,
     })
 }
 
@@ -68,6 +226,7 @@ pub struct BuildOptions {
     pub print_timings: bool,
     pub explain_rebuild: bool,
     pub profile: String,
+    pub output_format: OutputFormat,
 }
 
 pub fn run_with_options(options: BuildOptions) -> Result<()> {
@@ -77,7 +236,9 @@ pub fn run_with_options(options: BuildOptions) -> Result<()> {
         print_timings,
         explain_rebuild,
         profile,
+        output_format,
     } = options;
+    let machine = output_format.is_json();
     let mut timings = Timings::new();
 
     // 1. Read sand.toml
@@ -118,7 +279,7 @@ pub fn run_with_options(options: BuildOptions) -> Result<()> {
         }
     };
 
-    if format_is_fallback {
+    if format_is_fallback && !machine {
         eprintln!(
             "{} Minecraft version '{}' is not in Sand's known version table. \
              Using pack_format {} as a conservative fallback. \
@@ -130,13 +291,15 @@ pub fn run_with_options(options: BuildOptions) -> Result<()> {
         );
     }
 
-    println!(
-        "{} {} (Minecraft {}, pack_format {})...",
-        "Building".cyan().bold(),
-        config.pack.namespace.as_str().white().bold(),
-        mc_version.yellow(),
-        pack_format.to_string().yellow()
-    );
+    if !machine {
+        println!(
+            "{} {} (Minecraft {}, pack_format {})...",
+            "Building".cyan().bold(),
+            config.pack.namespace.as_str().white().bold(),
+            mc_version.yellow(),
+            pack_format.to_string().yellow()
+        );
+    }
 
     // 2. Compile the export binaries.  A datapack-only build compiles just
     //    `sand_export`; `--resourcepack` adds `sand_resource_export` to the
@@ -157,7 +320,7 @@ pub fn run_with_options(options: BuildOptions) -> Result<()> {
                     // Cargo target error.
                     ensure_resource_export_source(&config, &project_root)?;
                 }
-                plan.compile(&mc_version)
+                plan.compile(&mc_version, machine)
             },
         )
     })?;
@@ -201,7 +364,7 @@ pub fn run_with_options(options: BuildOptions) -> Result<()> {
     // one transaction: a broken sand.build.rs cannot leave a half-updated
     // datapack behind.
     let worldbuild_output = timings.record(Phase::WorldBuild, || {
-        prepare_worldbuild(&project_root, &mc_version, &profile)
+        prepare_worldbuild(&project_root, &mc_version, &profile, machine)
     })?;
 
     // 5. Validate every record before creating the output directory.  A build
@@ -238,43 +401,49 @@ pub fn run_with_options(options: BuildOptions) -> Result<()> {
 
     write_server_config(&dist, worldbuild_output.as_ref())?;
 
-    println!(
-        "{} {} component(s) written to {} ({} written, {} unchanged, {} removed)",
-        "Done!".green().bold(),
-        records.len().to_string().white().bold(),
-        format!("dist/{}/", config.pack.namespace.as_str())
-            .white()
-            .bold(),
-        change_summary.written,
-        change_summary.unchanged,
-        change_summary.removed
-    );
+    if !machine {
+        println!(
+            "{} {} component(s) written to {} ({} written, {} unchanged, {} removed)",
+            "Done!".green().bold(),
+            records.len().to_string().white().bold(),
+            format!("dist/{}/", config.pack.namespace.as_str())
+                .white()
+                .bold(),
+            change_summary.written,
+            change_summary.unchanged,
+            change_summary.removed
+        );
+    }
 
     // 8. Zip if --release, otherwise hint how to install manually.
     timings.record(Phase::Packaging, || {
         if release {
             let zip_path = zip_dir(&dist, config.pack.namespace.as_str())?;
-            println!(
-                "  {} {}",
-                "zip:".dimmed(),
-                zip_path.display().to_string().white().bold()
-            );
-            println!(
-                "  {} drop {} into your world's datapacks/ folder",
-                "install:".dimmed(),
-                format!("dist/{}.zip", config.pack.namespace.as_str())
-                    .white()
-                    .bold()
-            );
+            if !machine {
+                println!(
+                    "  {} {}",
+                    "zip:".dimmed(),
+                    zip_path.display().to_string().white().bold()
+                );
+                println!(
+                    "  {} drop {} into your world's datapacks/ folder",
+                    "install:".dimmed(),
+                    format!("dist/{}.zip", config.pack.namespace.as_str())
+                        .white()
+                        .bold()
+                );
+            }
         } else {
-            println!(
-                "  {} copy the {} folder into your world's datapacks/ folder, \
+            if !machine {
+                println!(
+                    "  {} copy the {} folder into your world's datapacks/ folder, \
                  or run `sand build --release` to produce a zip",
-                "install:".dimmed(),
-                format!("dist/{}/", config.pack.namespace.as_str())
-                    .white()
-                    .bold()
-            );
+                    "install:".dimmed(),
+                    format!("dist/{}/", config.pack.namespace.as_str())
+                        .white()
+                        .bold()
+                );
+            }
         }
         Ok(())
     })?;
@@ -284,13 +453,20 @@ pub fn run_with_options(options: BuildOptions) -> Result<()> {
     //    into its own output root.
     let resourcepack_summary = if let Some(rp_binary) = binaries.resource_pack.as_deref() {
         Some(timings.record(Phase::ResourcePackExport, || {
-            build_resourcepack(&config, &project_root, &mc_version, release, rp_binary)
+            build_resourcepack(
+                &config,
+                &project_root,
+                &mc_version,
+                release,
+                rp_binary,
+                machine,
+            )
         })?)
     } else {
         None
     };
 
-    if explain_rebuild {
+    if explain_rebuild && !machine {
         RebuildExplanation {
             exporter: exporter_outcome,
             datapack: change_summary,
@@ -299,10 +475,49 @@ pub fn run_with_options(options: BuildOptions) -> Result<()> {
         .print();
     }
 
-    if print_timings {
+    if print_timings && !machine {
         timings.print();
     }
 
+    if machine {
+        let diagnostics = if format_is_fallback {
+            vec![BuildJsonDiagnostic {
+                severity: "warning".into(),
+                code: "SAND_BUILD_PACK_FORMAT_FALLBACK".into(),
+                category: "minecraft_profile".into(),
+                message: format!(
+                    "Minecraft version '{mc_version}' is not in Sand's known version table; using pack_format {pack_format}."
+                ),
+                file: Some(project_root.join("sand.toml").display().to_string()),
+                line: None,
+                column: None,
+                api_path: None,
+                minecraft_version: Some(mc_version.clone()),
+                profile: Some(profile.clone()),
+                suggested_action: Some(format!(
+                    "Set pack_format = {pack_format} explicitly or use a supported Minecraft version."
+                )),
+                source: "minecraft_profile".into(),
+            }]
+        } else {
+            Vec::new()
+        };
+        println!(
+            "{}",
+            serde_json::to_string_pretty(&BuildJsonOutput {
+                schema_version: BUILD_DIAGNOSTIC_SCHEMA_VERSION,
+                success: true,
+                namespace: config.pack.namespace.as_str(),
+                minecraft_version: &mc_version,
+                profile: &profile,
+                component_count: records.len(),
+                datapack_output: dist.display().to_string(),
+                datapack_changes: change_summary,
+                resourcepack_changes: resourcepack_summary,
+                diagnostics,
+            })?
+        );
+    }
     Ok(())
 }
 
@@ -313,18 +528,21 @@ fn prepare_worldbuild(
     project_root: &Path,
     mc_version: &str,
     profile: &str,
+    quiet: bool,
 ) -> Result<Option<worldbuild::WorldBuildOutput>> {
     if !worldbuild::project_has_worldbuild(project_root) {
         return Ok(None);
     }
 
-    println!(
-        "{} sand.build.rs (profile: {})...",
-        "Building".cyan().bold(),
-        profile.yellow()
-    );
+    if !quiet {
+        println!(
+            "{} sand.build.rs (profile: {})...",
+            "Building".cyan().bold(),
+            profile.yellow()
+        );
+    }
 
-    worldbuild::compile(project_root, mc_version)?;
+    worldbuild::compile(project_root, mc_version, quiet)?;
     let target_dir = cargo_target_dir()?;
     let binary = worldbuild::binary_path(&target_dir);
     let output = worldbuild::run(&binary, profile, mc_version)?;
@@ -487,7 +705,7 @@ mod tests {
     use super::write::{
         write_component, write_pack_mcmeta, write_resourcepack_mcmeta, write_rp_record,
     };
-    use super::{prepare_datapack_outputs, world_resource_output, write_server_config};
+    use super::{error_json, prepare_datapack_outputs, world_resource_output, write_server_config};
     use sand_components::registry_coverage::{REGISTRY_COVERAGE, TAG_COVERAGE};
 
     /// Construct a valid ComponentRecord from parts via JSON deserialization.
@@ -512,6 +730,35 @@ mod tests {
             "content": content,
         }))
         .unwrap_or_else(|e| panic!("invalid resource-pack test record ({path}): {e}"))
+    }
+
+    #[test]
+    fn machine_build_errors_preserve_rustc_codes_and_primary_spans() {
+        let cargo = serde_json::json!({
+            "reason": "compiler-message",
+            "message": {
+                "level": "error",
+                "message": "cannot find function `missing`",
+                "code": { "code": "E0425" },
+                "spans": [{
+                    "file_name": "src/lib.rs",
+                    "line_start": 7,
+                    "column_start": 5,
+                    "is_primary": true
+                }],
+                "children": [{ "level": "help", "message": "import the function" }]
+            }
+        });
+        let error = anyhow::anyhow!("`cargo build` failed:\n{cargo}");
+        let rendered: serde_json::Value =
+            serde_json::from_str(&error_json(&error, "dev").unwrap()).unwrap();
+        let diagnostic = &rendered["diagnostics"][0];
+        assert_eq!(diagnostic["code"], "E0425");
+        assert_eq!(diagnostic["file"], "src/lib.rs");
+        assert_eq!(diagnostic["line"], 7);
+        assert_eq!(diagnostic["column"], 5);
+        assert_eq!(diagnostic["source"], "cargo_rustc");
+        assert_eq!(diagnostic["suggested_action"], "import the function");
     }
 
     // ── sand.toml namespace validation at config parse time ───────────────────

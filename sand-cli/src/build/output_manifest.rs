@@ -43,7 +43,7 @@ struct ManifestFile {
 
 /// Write/unchanged/removed counts for one build, surfaced to `--timings`
 /// and future `sand run` reload logic.
-#[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq, Serialize)]
 pub struct ChangeSummary {
     pub written: usize,
     pub unchanged: usize,

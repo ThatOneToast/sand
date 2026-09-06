@@ -185,6 +185,7 @@ pub fn run(args: RunArgs) -> Result<()> {
             print_timings: false,
             explain_rebuild: false,
             profile: args.profile.clone(),
+            output_format: crate::output::OutputFormat::Human,
         })?;
     }
 

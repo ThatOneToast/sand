@@ -2146,6 +2146,31 @@ fn dirty_acknowledgement_commands(fields: &ArchetypeFields, marker: &str) -> Vec
         .collect()
 }
 
+fn dirty_pending_capture_commands(fields: &ArchetypeFields, marker: &str) -> Vec<String> {
+    fields
+        .values()
+        .flat_map(|field| {
+            let pending = dirty_pending_name(&field.dirty_objective, marker);
+            let cause_pending = dirty_cause_pending_name(&field.dirty_objective, marker);
+            let internal = dirty_internal_name(&field.dirty_objective);
+            [
+                format!(
+                    "execute if score @s {} matches 1 run scoreboard players set @s {cause_pending} 0",
+                    field.dirty_objective
+                ),
+                format!(
+                    "execute if score @s {} matches 1 unless score @s {internal} matches 1 run scoreboard players set @s {cause_pending} 1",
+                    field.dirty_objective
+                ),
+                format!(
+                    "execute if score @s {} matches 1 run scoreboard players set @s {pending} 1",
+                    field.dirty_objective
+                ),
+            ]
+        })
+        .collect()
+}
+
 fn dirty_pending_reset_commands(fields: &ArchetypeFields, marker: &str) -> Vec<String> {
     fields
         .values()
@@ -2486,12 +2511,12 @@ fn compile_definition_with_claims(
     records.extend(transitions.records);
     initialize_commands.extend(transitions.initialize_commands.iter().cloned());
     repair_refresh_commands.extend(transitions.initialize_commands);
+    initialize_commands.extend(dirty_pending_capture_commands(&fields, &marker));
     initialize_commands.extend(dirty_distribution_commands(
         &fields,
         claims,
         &mut objectives,
     ));
-    initialize_commands.extend(dirty_acknowledgement_commands(&fields, &marker));
     if let Some(callback) = &definition.initialize {
         initialize_commands.push(format!("function {callback}"));
     }
@@ -2564,10 +2589,13 @@ fn compile_definition_with_claims(
     if !repair_refresh_commands.is_empty() {
         let repair_path = format!("{root}/repair_refresh");
         functions.insert(repair_path.clone());
+        let mut commands = dirty_distribution_commands(&fields, claims, &mut objectives);
+        commands.extend(dirty_acknowledgement_commands(&fields, &marker));
+        commands.extend(repair_refresh_commands);
         records.push(function_record(
             definition.id.namespace(),
             &repair_path,
-            repair_refresh_commands,
+            commands,
         ));
         reconcile_commands.push(format!(
             "execute if score @s {repair_objective} matches 1 if score @s {version_objective} matches {} run function {}:{repair_path}",
@@ -2630,11 +2658,6 @@ fn compile_definition_with_claims(
         claims,
         &mut objectives,
     ));
-    for acknowledgement in dirty_acknowledgement_commands(&fields, &marker) {
-        reconcile_commands.push(format!(
-            "execute if score @s {repair_objective} matches 1 run {acknowledgement}"
-        ));
-    }
     if !refresh_outputs.is_empty() {
         if let Some(path) = &derivations.refresh_function {
             reconcile_commands.push(format!("function {path}"));
@@ -5547,6 +5570,58 @@ mod tests {
         )));
         assert!(repair.content.contains("/derive/0"));
         assert!(repair.content.contains("/property/0"));
+    }
+
+    #[test]
+    fn health_clamp_dirtiness_survives_initialization_and_repair() {
+        let archetype = EntityArchetype::<ZombieKind>::new(
+            ResourceLocation::new("rpg", "clamp_refresh").unwrap(),
+        )
+        .components::<MobState>()
+        .derive(SPEED, StatCurve::state(LEVEL))
+        .health(HealthBinding::new(HEALTH).current_health(LEVEL, CurrentHealthSync::ApplyState));
+        let definition = archetype.definition();
+        let compiled = compile_definition(&definition, &profile()).unwrap();
+        let marker = initialized_tag(&definition.id.to_string());
+        let pending = dirty_pending_name(&LEVEL.dirty_objective(), &marker);
+        let pending_set = format!("scoreboard players set @s {pending} 1");
+        let pending_clear = format!("scoreboard players set @s {pending} 0");
+
+        let initialize = compiled
+            .records
+            .iter()
+            .find(|record| record.path.ends_with("/initialize"))
+            .unwrap();
+        let property = initialize.content.find("/property/0").unwrap();
+        let capture = initialize.content.find(&pending_set).unwrap();
+        let dirty_reset = initialize
+            .content
+            .find(&format!(
+                "scoreboard players set @s {} 0",
+                LEVEL.dirty_objective()
+            ))
+            .unwrap();
+        assert!(property < capture && capture < dirty_reset);
+        assert!(!initialize.content.lines().any(|line| line == pending_clear));
+
+        let repair = compiled
+            .records
+            .iter()
+            .find(|record| record.path.ends_with("/repair_refresh"))
+            .unwrap();
+        let repair_ack = repair.content.find(&pending_clear).unwrap();
+        let repair_derive = repair.content.find("/derive/0").unwrap();
+        let repair_property = repair.content.find("/property/0").unwrap();
+        assert!(repair_ack < repair_derive && repair_derive < repair_property);
+
+        let reconcile = compiled
+            .records
+            .iter()
+            .find(|record| record.path.ends_with("/reconcile"))
+            .unwrap();
+        let repair_call = reconcile.content.find("/repair_refresh").unwrap();
+        let republish = reconcile.content[repair_call..].find(&pending_set).unwrap();
+        assert!(republish > 0);
     }
 
     #[test]

@@ -12,11 +12,17 @@ use std::path::PathBuf;
 use std::sync::OnceLock;
 
 use anyhow::{Context, Result, bail};
-use clap::{Args, Subcommand};
+use clap::{Args, Subcommand, ValueEnum};
 // Force the author-facing facade into the final binary so its distributed
 // contract registrations are present in the installed catalog.
 use sand as _;
 use sand_api_contract::{ApiCatalog, ApiEntry, ApiKind, ApiParameter, CoverageStatus};
+use serde::Serialize;
+
+use crate::output::OutputFormat;
+use crate::project_context::ProjectContext;
+
+const QUERY_SCHEMA_VERSION: u32 = 1;
 
 /// Inspect the supported public API bundled with this Sand installation.
 #[derive(Debug, Args)]
@@ -31,6 +37,9 @@ enum ApiCommand {
     Show {
         /// Canonical API path or a registered re-export alias
         path: String,
+        /// Output format (human or schema-versioned JSON)
+        #[arg(long, value_enum, default_value_t)]
+        format: OutputFormat,
     },
     /// Search API contracts using stable, local keyword matching
     Search {
@@ -49,11 +58,35 @@ enum ApiCommand {
         /// Restrict results to one API kind (for example method or struct)
         #[arg(long)]
         kind: Option<String>,
+        /// Require every meaningful query term to match
+        #[arg(long)]
+        all_terms: bool,
+        /// Restrict matching to one or more contract fields
+        #[arg(long, value_enum)]
+        field: Vec<SearchField>,
+        /// Output format (human or schema-versioned JSON)
+        #[arg(long, value_enum, default_value_t)]
+        format: OutputFormat,
     },
     /// List the direct API contents and nested modules of a module
     Module {
         /// Canonical module path, for example `sand::predicate`
         module_path: String,
+        /// Output format (human or schema-versioned JSON)
+        #[arg(long, value_enum, default_value_t)]
+        format: OutputFormat,
+    },
+    /// Find contract-proven typed alternatives to raw Minecraft behavior
+    Alternatives {
+        /// Raw command or Minecraft behavior to replace
+        #[arg(required = true, num_args = 1..)]
+        query: Vec<String>,
+        /// Maximum alternatives to return (defaults to 10)
+        #[arg(long, value_parser = parse_positive_usize, default_value_t = 10)]
+        limit: usize,
+        /// Output format (human or schema-versioned JSON)
+        #[arg(long, value_enum, default_value_t)]
+        format: OutputFormat,
     },
     /// Export the installed machine-readable API catalog as JSON
     Export {
@@ -61,6 +94,17 @@ enum ApiCommand {
         #[arg(long, short)]
         output: Option<PathBuf>,
     },
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq, ValueEnum)]
+enum SearchField {
+    Path,
+    Summary,
+    Minecraft,
+    UseWhen,
+    AvoidWhen,
+    Parameter,
+    Context,
 }
 
 fn parse_positive_usize(value: &str) -> std::result::Result<usize, String> {
@@ -76,11 +120,51 @@ fn parse_positive_usize(value: &str) -> std::result::Result<usize, String> {
 
 /// Run an `api` command against the contracts linked into the installed CLI.
 pub fn run(args: ApiArgs) -> Result<()> {
+    let json = args.is_json();
+    let result = run_inner(args);
+    if json && let Err(error) = &result {
+        println!(
+            "{}",
+            serde_json::to_string_pretty(&serde_json::json!({
+                "schema_version": QUERY_SCHEMA_VERSION,
+                "success": false,
+                "error": {
+                    "code": "SAND_API_QUERY_FAILED",
+                    "message": format!("{error:#}"),
+                }
+            }))?
+        );
+    }
+    result
+}
+
+impl ApiArgs {
+    fn is_json(&self) -> bool {
+        match &self.command {
+            ApiCommand::Show { format, .. }
+            | ApiCommand::Search { format, .. }
+            | ApiCommand::Module { format, .. }
+            | ApiCommand::Alternatives { format, .. } => format.is_json(),
+            ApiCommand::Export { .. } => true,
+        }
+    }
+}
+
+fn run_inner(args: ApiArgs) -> Result<()> {
     let catalog = installed_catalog()?;
 
     match args.command {
-        ApiCommand::Show { path } => {
-            let output = show(&catalog, &path)?;
+        ApiCommand::Show { path, format } => {
+            let context = ProjectContext::discover(&catalog, "dev")?;
+            let output = if format.is_json() {
+                show_json(&catalog, &context, &path)?
+            } else {
+                format!(
+                    "{}{}",
+                    compatibility_notice(&context),
+                    show(&catalog, &path)?
+                )
+            };
             print!("{output}");
         }
         ApiCommand::Search {
@@ -89,18 +173,54 @@ pub fn run(args: ApiArgs) -> Result<()> {
             all,
             module,
             kind,
+            all_terms,
+            field,
+            format,
         } => {
-            let output = search_with_options(
+            let context = ProjectContext::discover(&catalog, "dev")?;
+            let matches = search_matches(
                 &catalog,
                 &query.join(" "),
                 if all { None } else { Some(limit.unwrap_or(20)) },
                 module.as_deref(),
                 kind.as_deref(),
+                all_terms,
+                &field,
             )?;
+            let output = if format.is_json() {
+                search_json(&context, &query.join(" "), &matches)?
+            } else {
+                format!(
+                    "{}{}",
+                    compatibility_notice(&context),
+                    render_search(&catalog, &query.join(" "), &matches)
+                )
+            };
             print!("{output}");
         }
-        ApiCommand::Module { module_path } => {
-            let output = module(&catalog, &module_path)?;
+        ApiCommand::Module {
+            module_path,
+            format,
+        } => {
+            let context = ProjectContext::discover(&catalog, "dev")?;
+            let output = if format.is_json() {
+                module_json(&catalog, &context, &module_path)?
+            } else {
+                format!(
+                    "{}{}",
+                    compatibility_notice(&context),
+                    module(&catalog, &module_path)?
+                )
+            };
+            print!("{output}");
+        }
+        ApiCommand::Alternatives {
+            query,
+            limit,
+            format,
+        } => {
+            let context = ProjectContext::discover(&catalog, "dev")?;
+            let output = alternatives(&catalog, &context, &query.join(" "), limit, format)?;
             print!("{output}");
         }
         ApiCommand::Export { output } => {
@@ -113,7 +233,7 @@ pub fn run(args: ApiArgs) -> Result<()> {
     Ok(())
 }
 
-fn installed_catalog() -> Result<ApiCatalog> {
+pub fn installed_catalog() -> Result<ApiCatalog> {
     let coverage = sand::__private::api_contract::installed_coverage();
     let configuration = sand::__private::api_contract::installed_configuration();
     let mut entries = sand_api_contract::inventory::iter::<sand_api_contract::ApiRegistration>
@@ -2234,6 +2354,7 @@ fn search(catalog: &ApiCatalog, query: &str) -> Result<String> {
     search_with_options(catalog, query, Some(20), None, None)
 }
 
+#[cfg(test)]
 fn search_with_options(
     catalog: &ApiCatalog,
     query: &str,
@@ -2241,13 +2362,202 @@ fn search_with_options(
     module_filter: Option<&str>,
     kind_filter: Option<&str>,
 ) -> Result<String> {
+    let matches = search_matches(
+        catalog,
+        query,
+        limit,
+        module_filter,
+        kind_filter,
+        false,
+        &[],
+    )?;
+    Ok(render_search(catalog, query, &matches))
+}
+
+#[derive(Clone, Debug)]
+struct SearchResults<'a> {
+    total: usize,
+    limit: Option<usize>,
+    hits: Vec<SearchHit<'a>>,
+}
+
+#[derive(Clone, Debug)]
+struct SearchHit<'a> {
+    entry: &'a ApiEntry,
+    score: u32,
+    rank: usize,
+    matched_field: &'static str,
+    snippet: String,
+}
+
+const SEARCH_STOPWORDS: &[&str] = &[
+    "a", "an", "the", "to", "of", "on", "in", "for", "with", "and", "or", "at", "is", "it", "by",
+    "as", "from", "into", "your", "this", "that", "these", "those",
+];
+
+fn normalized_query(query: &str) -> Vec<String> {
+    query
+        .split_whitespace()
+        .map(|word| {
+            let word = word
+                .trim_matches(|character: char| !character.is_ascii_alphanumeric())
+                .to_ascii_lowercase();
+            if let Some(stem) = word.strip_suffix("ies")
+                && !stem.is_empty()
+            {
+                format!("{stem}y")
+            } else if let Some(stem) = word.strip_suffix('s')
+                && stem.len() > 2
+            {
+                stem.to_owned()
+            } else {
+                word
+            }
+        })
+        .filter(|word| !word.is_empty() && !SEARCH_STOPWORDS.contains(&word.as_str()))
+        .collect()
+}
+
+fn selected(field: SearchField, fields: &[SearchField]) -> bool {
+    fields.is_empty() || fields.contains(&field)
+}
+
+fn score_entry(
+    entry: &ApiEntry,
+    query: &str,
+    words: &[String],
+    all_terms: bool,
+    fields: &[SearchField],
+) -> Option<(u32, &'static str, String)> {
+    let path = entry.canonical_path.to_ascii_lowercase();
+    let aliases = entry
+        .aliases
+        .iter()
+        .map(|alias| alias.to_ascii_lowercase())
+        .collect::<Vec<_>>();
+    if selected(SearchField::Path, fields) && path == query {
+        return Some((10_000, "path", entry.canonical_path.clone()));
+    }
+    if selected(SearchField::Path, fields)
+        && let Some(alias) = entry
+            .aliases
+            .iter()
+            .zip(&aliases)
+            .find_map(|(original, lower)| (lower == query).then_some(original))
+    {
+        return Some((9_000, "alias", alias.clone()));
+    }
+
+    let parameter_text = entry
+        .parameters
+        .iter()
+        .map(|parameter| {
+            format!(
+                "{} {} {}",
+                parameter.name,
+                parameter.rust_type.as_deref().unwrap_or_default(),
+                parameter.description
+            )
+        })
+        .collect::<Vec<_>>()
+        .join(" ");
+    let use_when = entry.use_when.join("; ");
+    let avoid_when = entry.avoid_when.join("; ");
+    let values = [
+        (
+            SearchField::Summary,
+            "summary",
+            entry.summary.as_str(),
+            120_u32,
+        ),
+        (
+            SearchField::Minecraft,
+            "minecraft",
+            entry.minecraft.as_str(),
+            20,
+        ),
+        (SearchField::UseWhen, "use_when", use_when.as_str(), 20),
+        (
+            SearchField::AvoidWhen,
+            "avoid_when",
+            avoid_when.as_str(),
+            20,
+        ),
+        (SearchField::Parameter, "parameter", &parameter_text, 20),
+        (SearchField::Context, "context", entry.context.as_str(), 20),
+    ];
+    let mut matched = 0_u32;
+    let mut score = 0_u32;
+    let mut evidence: Option<(&'static str, String)> = None;
+    for word in words {
+        let found = if selected(SearchField::Path, fields)
+            && path.rsplit("::").next() == Some(word.as_str())
+        {
+            Some((500, "path", entry.canonical_path.clone()))
+        } else if selected(SearchField::Path, fields)
+            && path.split("::").any(|segment| segment == word)
+        {
+            Some((350, "path", entry.canonical_path.clone()))
+        } else if selected(SearchField::Path, fields) && path.contains(word) {
+            Some((300, "path", entry.canonical_path.clone()))
+        } else if selected(SearchField::Path, fields)
+            && let Some(alias) = entry
+                .aliases
+                .iter()
+                .zip(&aliases)
+                .find_map(|(original, lower)| lower.contains(word).then_some(original))
+        {
+            Some((250, "alias", alias.clone()))
+        } else {
+            values.iter().find_map(|(field, label, text, weight)| {
+                if !selected(*field, fields) {
+                    return None;
+                }
+                let lower = text.to_ascii_lowercase();
+                lower
+                    .contains(word)
+                    .then(|| (*weight, *label, snippet_around(text, &lower, word)))
+            })
+        };
+        if let Some((weight, field, snippet)) = found {
+            matched += 1;
+            score += weight;
+            if evidence.is_none() {
+                evidence = Some((field, snippet));
+            }
+        } else if all_terms {
+            return None;
+        }
+    }
+    let (field, snippet) = evidence?;
+    Some((matched * 1_000 + score, field, snippet))
+}
+
+fn search_matches<'a>(
+    catalog: &'a ApiCatalog,
+    query: &str,
+    limit: Option<usize>,
+    module_filter: Option<&str>,
+    kind_filter: Option<&str>,
+    all_terms: bool,
+    fields: &[SearchField],
+) -> Result<SearchResults<'a>> {
     if query.trim().is_empty() {
         bail!("search query cannot be empty");
     }
+    let normalized = query.trim().to_ascii_lowercase();
+    let words = normalized_query(query);
+    if words.is_empty() {
+        return Ok(SearchResults {
+            total: 0,
+            limit,
+            hits: Vec::new(),
+        });
+    }
     let requested_kind = kind_filter.map(parse_kind).transpose()?;
-    let hits = catalog
-        .search(query)
-        .into_iter()
+    let mut hits = catalog
+        .entries
+        .iter()
         .filter(|entry| {
             module_filter.is_none_or(|module| {
                 entry.canonical_module == module
@@ -2257,23 +2567,53 @@ fn search_with_options(
                         .is_some_and(|suffix| suffix.starts_with("::"))
             }) && requested_kind.is_none_or(|kind| entry.kind == kind)
         })
+        .filter_map(|entry| {
+            score_entry(entry, &normalized, &words, all_terms, fields)
+                .map(|(score, matched_field, snippet)| (entry, score, matched_field, snippet))
+        })
         .collect::<Vec<_>>();
-
-    let mut output = coverage_notice(catalog);
-    if hits.is_empty() {
-        writeln!(output, "No APIs matched `{}`.", query.trim()).unwrap();
-        return Ok(output);
-    }
-
+    hits.sort_by(|left, right| {
+        right
+            .1
+            .cmp(&left.1)
+            .then_with(|| left.0.canonical_path.cmp(&right.0.canonical_path))
+    });
     let total = hits.len();
     let shown = limit.map_or(total, |limit| total.min(limit));
+    let hits = hits
+        .into_iter()
+        .take(shown)
+        .enumerate()
+        .map(
+            |(index, (entry, score, matched_field, snippet))| SearchHit {
+                entry,
+                score,
+                rank: index + 1,
+                matched_field,
+                snippet,
+            },
+        )
+        .collect();
+    Ok(SearchResults { total, limit, hits })
+}
+
+fn render_search(catalog: &ApiCatalog, query: &str, matches: &SearchResults<'_>) -> String {
+    let mut output = coverage_notice(catalog);
+    if matches.hits.is_empty() {
+        writeln!(output, "No APIs matched `{}`.", query.trim()).unwrap();
+        return output;
+    }
+
+    let shown = matches.hits.len();
     writeln!(
         output,
-        "API matches for `{}` (showing {shown} of {total}):",
-        query.trim()
+        "API matches for `{}` (showing {shown} of {}):",
+        query.trim(),
+        matches.total,
     )
     .unwrap();
-    for entry in hits.into_iter().take(shown) {
+    for hit in &matches.hits {
+        let entry = hit.entry;
         write!(
             output,
             "  {}  [{}]\n    {}",
@@ -2282,58 +2622,15 @@ fn search_with_options(
             entry.summary
         )
         .unwrap();
-        if let Some(reason) = match_reason(entry, query) {
-            write!(output, "\n    matched: {reason}").unwrap();
-        }
+        write!(
+            output,
+            "\n    matched: {} / \"{}\" (score {}, rank {})",
+            hit.matched_field, hit.snippet, hit.score, hit.rank
+        )
+        .unwrap();
         writeln!(output, "\n    sand api show {}", entry.canonical_path).unwrap();
     }
-    Ok(output)
-}
-
-/// Best-effort, presentation-only explanation of why an entry matched a
-/// search query: the first field (in the same priority order the ranking
-/// itself uses) containing one of the query's non-trivial words, plus a
-/// short snippet of that field. This never affects ranking -- it only helps
-/// a developer see why a result showed up, per the "matched: field /
-/// snippet" guidance for search output.
-fn match_reason(entry: &ApiEntry, query: &str) -> Option<String> {
-    let words = query
-        .split_whitespace()
-        .map(|word| {
-            word.trim_matches(|c: char| !c.is_ascii_alphanumeric())
-                .to_ascii_lowercase()
-        })
-        .filter(|word| word.len() > 2)
-        .collect::<Vec<_>>();
-    if words.is_empty() {
-        return None;
-    }
-    let path_lower = entry.canonical_path.to_ascii_lowercase();
-    if let Some(word) = words.iter().find(|word| path_lower.contains(word.as_str())) {
-        return Some(format!("path / \"{word}\""));
-    }
-    if let Some(alias) = entry.aliases.iter().find(|alias| {
-        words
-            .iter()
-            .any(|word| alias.to_ascii_lowercase().contains(word.as_str()))
-    }) {
-        return Some(format!("alias / \"{alias}\""));
-    }
-    let fields: &[(&str, &str)] = &[
-        ("summary", &entry.summary),
-        ("use-when", &entry.use_when.join("; ")),
-        ("avoid-when", &entry.avoid_when.join("; ")),
-        ("context", &entry.context),
-        ("minecraft behavior", &entry.minecraft),
-    ];
-    for (label, text) in fields {
-        let lower = text.to_ascii_lowercase();
-        if let Some(word) = words.iter().find(|word| lower.contains(word.as_str())) {
-            let snippet = snippet_around(text, &lower, word);
-            return Some(format!("{label} / \"{snippet}\""));
-        }
-    }
-    None
+    output
 }
 
 /// Returns a short (<=80 char), whole-word-boundary-respecting excerpt of
@@ -2365,6 +2662,130 @@ fn snippet_around(text: &str, lower: &str, word: &str) -> String {
     format!("{prefix}{before_str}{after_str}{suffix}")
         .trim()
         .to_owned()
+}
+
+fn compatibility_notice(context: &ProjectContext) -> String {
+    if context.compatibility.compatible == Some(false) {
+        format!(
+            "warning [SAND_API_CATALOG_INCOMPATIBLE]: {}\n\n",
+            context.compatibility.reasons.join("; ")
+        )
+    } else {
+        String::new()
+    }
+}
+
+#[derive(Serialize)]
+struct ShowJson<'a> {
+    schema_version: u32,
+    project_context: &'a ProjectContext,
+    compatible_with_project: bool,
+    api: &'a ApiEntry,
+    related_apis: Vec<String>,
+}
+
+fn show_json(catalog: &ApiCatalog, context: &ProjectContext, path: &str) -> Result<String> {
+    let entry = catalog
+        .find(path)
+        .ok_or_else(|| anyhow::anyhow!(unknown_path(catalog, path)))?;
+    let output = ShowJson {
+        schema_version: QUERY_SCHEMA_VERSION,
+        project_context: context,
+        compatible_with_project: context.catalog_is_compatible(),
+        api: entry,
+        related_apis: related_apis(catalog, entry),
+    };
+    serde_json::to_string_pretty(&output)
+        .map(|json| format!("{json}\n"))
+        .context("failed to serialize API show result")
+}
+
+fn unknown_path(catalog: &ApiCatalog, requested: &str) -> String {
+    let candidates = catalog.entries.iter().flat_map(|entry| {
+        std::iter::once(entry.canonical_path.as_str())
+            .chain(entry.aliases.iter().map(String::as_str))
+    });
+    let suggestions = nearest_strings(candidates, requested, 3);
+    if suggestions.is_empty() {
+        format!("unknown API path `{requested}`")
+    } else {
+        format!(
+            "unknown API path `{requested}`; nearby APIs: {}",
+            suggestions.join(", ")
+        )
+    }
+}
+
+#[derive(Serialize)]
+struct SearchJson<'a> {
+    schema_version: u32,
+    query: &'a str,
+    project_context: &'a ProjectContext,
+    result_count: usize,
+    total_matches: usize,
+    truncated: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    limit: Option<usize>,
+    results: Vec<SearchJsonHit<'a>>,
+}
+
+#[derive(Serialize)]
+struct SearchJsonHit<'a> {
+    canonical_path: &'a str,
+    kind: ApiKind,
+    module: &'a str,
+    signature: &'a str,
+    summary: &'a str,
+    match_reason: SearchJsonMatch<'a>,
+    availability: &'a [String],
+    compatible_with_project: bool,
+}
+
+#[derive(Serialize)]
+struct SearchJsonMatch<'a> {
+    field: &'a str,
+    snippet: &'a str,
+    score: u32,
+    rank: usize,
+}
+
+fn search_json(
+    context: &ProjectContext,
+    query: &str,
+    matches: &SearchResults<'_>,
+) -> Result<String> {
+    let compatible = context.catalog_is_compatible();
+    let results = matches
+        .hits
+        .iter()
+        .map(|hit| SearchJsonHit {
+            canonical_path: &hit.entry.canonical_path,
+            kind: hit.entry.kind,
+            module: &hit.entry.canonical_module,
+            signature: &hit.entry.signature,
+            summary: &hit.entry.summary,
+            match_reason: SearchJsonMatch {
+                field: hit.matched_field,
+                snippet: &hit.snippet,
+                score: hit.score,
+                rank: hit.rank,
+            },
+            availability: &hit.entry.availability,
+            compatible_with_project: compatible,
+        })
+        .collect::<Vec<_>>();
+    serde_json::to_string_pretty(&SearchJson {
+        schema_version: QUERY_SCHEMA_VERSION,
+        query,
+        project_context: context,
+        result_count: results.len(),
+        total_matches: matches.total,
+        truncated: results.len() < matches.total,
+        limit: matches.limit,
+        results,
+    })
+    .map(|json| format!("{json}\n"))
+    .context("failed to serialize API search result")
 }
 
 fn parse_kind(value: &str) -> Result<ApiKind> {
@@ -2457,6 +2878,231 @@ fn module(catalog: &ApiCatalog, requested_module: &str) -> Result<String> {
         }
     }
     Ok(output)
+}
+
+#[derive(Serialize)]
+struct ModuleJson<'a> {
+    schema_version: u32,
+    module: &'a str,
+    project_context: &'a ProjectContext,
+    compatible_with_project: bool,
+    result_count: usize,
+    results: Vec<&'a ApiEntry>,
+    nested_modules: Vec<NestedModule>,
+}
+
+#[derive(Serialize)]
+struct NestedModule {
+    path: String,
+    api_count: usize,
+}
+
+fn module_json<'a>(
+    catalog: &'a ApiCatalog,
+    context: &'a ProjectContext,
+    requested_module: &'a str,
+) -> Result<String> {
+    let requested_module = requested_module.trim().trim_end_matches("::");
+    if requested_module.is_empty() {
+        bail!("module path cannot be empty");
+    }
+    let mut results = catalog
+        .entries
+        .iter()
+        .filter(|entry| entry.canonical_module == requested_module)
+        .collect::<Vec<_>>();
+    results.sort_by(|left, right| left.canonical_path.cmp(&right.canonical_path));
+    let prefix = format!("{requested_module}::");
+    let mut nested = BTreeMap::<String, usize>::new();
+    for entry in &catalog.entries {
+        if entry.canonical_module != requested_module
+            && let Some(remainder) = entry.canonical_module.strip_prefix(&prefix)
+            && let Some(segment) = remainder.split("::").next()
+        {
+            *nested
+                .entry(format!("{requested_module}::{segment}"))
+                .or_default() += 1;
+        }
+    }
+    let contracted = catalog
+        .find(requested_module)
+        .is_some_and(|entry| entry.kind == ApiKind::Module);
+    if results.is_empty() && nested.is_empty() && !contracted {
+        let modules = catalog
+            .entries
+            .iter()
+            .map(|entry| entry.canonical_module.as_str())
+            .collect::<BTreeSet<_>>();
+        let suggestions = nearest_strings(modules.into_iter(), requested_module, 3);
+        bail!(
+            "unknown API module `{requested_module}`{}",
+            if suggestions.is_empty() {
+                String::new()
+            } else {
+                format!("; nearby modules: {}", suggestions.join(", "))
+            }
+        );
+    }
+    let nested_modules = nested
+        .into_iter()
+        .map(|(path, api_count)| NestedModule { path, api_count })
+        .collect();
+    let result_count = results.len();
+    serde_json::to_string_pretty(&ModuleJson {
+        schema_version: QUERY_SCHEMA_VERSION,
+        module: requested_module,
+        project_context: context,
+        compatible_with_project: context.catalog_is_compatible(),
+        result_count,
+        results,
+        nested_modules,
+    })
+    .map(|json| format!("{json}\n"))
+    .context("failed to serialize API module result")
+}
+
+fn is_advanced_escape_hatch(entry: &ApiEntry) -> bool {
+    let path = entry.canonical_path.to_ascii_lowercase();
+    let prose = format!(
+        "{} {} {} {}",
+        entry.summary,
+        entry.context,
+        entry.use_when.join(" "),
+        entry.avoid_when.join(" ")
+    )
+    .to_ascii_lowercase();
+    path.contains("::raw")
+        || path.contains("raw_command")
+        || prose.contains("escape hatch")
+        || prose.contains("raw minecraft command")
+}
+
+fn is_typed_authoring_api(entry: &ApiEntry) -> bool {
+    matches!(
+        entry.kind,
+        ApiKind::Struct
+            | ApiKind::Enum
+            | ApiKind::Trait
+            | ApiKind::Function
+            | ApiKind::Method
+            | ApiKind::TraitMethod
+            | ApiKind::Macro
+    )
+}
+
+#[derive(Serialize)]
+struct AlternativesJson<'a> {
+    schema_version: u32,
+    query: &'a str,
+    project_context: &'a ProjectContext,
+    compatible_with_project: bool,
+    result_count: usize,
+    typed_alternatives: Vec<SearchJsonHit<'a>>,
+    advanced_escape_hatches: Vec<SearchJsonHit<'a>>,
+}
+
+fn alternatives(
+    catalog: &ApiCatalog,
+    context: &ProjectContext,
+    query: &str,
+    limit: usize,
+    format: OutputFormat,
+) -> Result<String> {
+    if context.compatibility.compatible == Some(false) {
+        bail!(
+            "cannot prove typed alternatives for this project because the installed catalog is incompatible: {}",
+            context.compatibility.reasons.join("; ")
+        );
+    }
+    let matches = search_matches(catalog, query, None, None, None, false, &[])?;
+    fn to_json_hit<'a>(hit: &'a SearchHit<'a>) -> SearchJsonHit<'a> {
+        SearchJsonHit {
+            canonical_path: &hit.entry.canonical_path,
+            kind: hit.entry.kind,
+            module: &hit.entry.canonical_module,
+            signature: &hit.entry.signature,
+            summary: &hit.entry.summary,
+            match_reason: SearchJsonMatch {
+                field: hit.matched_field,
+                snippet: &hit.snippet,
+                score: hit.score,
+                rank: hit.rank,
+            },
+            availability: &hit.entry.availability,
+            compatible_with_project: true,
+        }
+    }
+    let typed = matches
+        .hits
+        .iter()
+        .filter(|hit| is_typed_authoring_api(hit.entry) && !is_advanced_escape_hatch(hit.entry))
+        .take(limit)
+        .collect::<Vec<_>>();
+    let escape_hatches = matches
+        .hits
+        .iter()
+        .filter(|hit| is_advanced_escape_hatch(hit.entry))
+        .take(limit)
+        .collect::<Vec<_>>();
+    if format.is_json() {
+        let typed_alternatives = typed.iter().map(|hit| to_json_hit(hit)).collect::<Vec<_>>();
+        let advanced_escape_hatches = escape_hatches
+            .iter()
+            .map(|hit| to_json_hit(hit))
+            .collect::<Vec<_>>();
+        let result_count = typed_alternatives.len();
+        return serde_json::to_string_pretty(&AlternativesJson {
+            schema_version: QUERY_SCHEMA_VERSION,
+            query,
+            project_context: context,
+            compatible_with_project: true,
+            result_count,
+            typed_alternatives,
+            advanced_escape_hatches,
+        })
+        .map(|json| format!("{json}\n"))
+        .context("failed to serialize typed alternatives");
+    }
+    let mut output = format!("Typed alternatives for `{query}`:\n");
+    if typed.is_empty() {
+        output.push_str("  No contract-proven typed alternative found.\n");
+    }
+    for hit in typed {
+        writeln!(
+            output,
+            "  {} [{}]\n    {}\n    rationale: {} / \"{}\"",
+            hit.entry.canonical_path,
+            kind_name(hit.entry.kind),
+            hit.entry.summary,
+            hit.matched_field,
+            hit.snippet
+        )
+        .unwrap();
+    }
+    if !escape_hatches.is_empty() {
+        output.push_str("\nAdvanced/raw escape hatches:\n");
+        for hit in escape_hatches {
+            writeln!(output, "  {}", hit.entry.canonical_path).unwrap();
+        }
+    }
+    Ok(output)
+}
+
+/// Returns only contract-proven, non-raw authoring paths for agent linting.
+pub fn typed_alternative_paths(catalog: &ApiCatalog, query: &str, limit: usize) -> Vec<String> {
+    search_matches(catalog, query, None, None, None, false, &[])
+        .map(|matches| {
+            matches
+                .hits
+                .into_iter()
+                .filter(|hit| {
+                    is_typed_authoring_api(hit.entry) && !is_advanced_escape_hatch(hit.entry)
+                })
+                .take(limit)
+                .map(|hit| hit.entry.canonical_path.clone())
+                .collect()
+        })
+        .unwrap_or_default()
 }
 
 fn kind_name(kind: ApiKind) -> &'static str {

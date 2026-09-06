@@ -8,6 +8,8 @@
 #[doc(hidden)]
 pub mod add_cmd;
 #[doc(hidden)]
+pub mod agent_check;
+#[doc(hidden)]
 pub mod api_cmd;
 #[doc(hidden)]
 pub mod build;
@@ -18,7 +20,11 @@ pub mod console;
 #[doc(hidden)]
 pub mod join_cmd;
 #[doc(hidden)]
+pub mod output;
+#[doc(hidden)]
 pub mod pack_format;
+#[doc(hidden)]
+pub mod project_context;
 #[doc(hidden)]
 pub mod run_cmd;
 #[doc(hidden)]

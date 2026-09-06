@@ -77,6 +77,7 @@ pub(super) fn build_resourcepack(
     mc_version: &str,
     release: bool,
     binary: &Path,
+    quiet: bool,
 ) -> Result<super::output_manifest::ChangeSummary> {
     use sand_core::version::{MinecraftVersion, VersionProfile};
 
@@ -105,7 +106,7 @@ pub(super) fn build_resourcepack(
             )
         };
 
-    if rp_format_is_fallback {
+    if rp_format_is_fallback && !quiet {
         eprintln!(
             "{} Minecraft version '{}' is not in Sand's known version table. \
              Using resource_pack_format {} as a conservative fallback. \
@@ -117,12 +118,14 @@ pub(super) fn build_resourcepack(
         );
     }
 
-    println!(
-        "{} {} (resource_pack_format {})...",
-        "Building resourcepack".cyan().bold(),
-        rp_namespace.white().bold(),
-        rp_format.to_string().yellow()
-    );
+    if !quiet {
+        println!(
+            "{} {} (resource_pack_format {})...",
+            "Building resourcepack".cyan().bold(),
+            rp_namespace.white().bold(),
+            rp_format.to_string().yellow()
+        );
+    }
 
     // Run the resource export binary (compiled alongside the datapack exporter).
     let stdout = run_exporter(Exporter::ResourcePack, binary, &[])?;
@@ -153,17 +156,19 @@ pub(super) fn build_resourcepack(
     }
     let change_summary = manifest.finish()?;
 
-    println!(
-        "{} {} asset(s) written to {} ({} written, {} unchanged, {} removed)",
-        "Done!".green().bold(),
-        records.len().to_string().white().bold(),
-        format!("dist/{}/", rp_dist_name).white().bold(),
-        change_summary.written,
-        change_summary.unchanged,
-        change_summary.removed
-    );
+    if !quiet {
+        println!(
+            "{} {} asset(s) written to {} ({} written, {} unchanged, {} removed)",
+            "Done!".green().bold(),
+            records.len().to_string().white().bold(),
+            format!("dist/{}/", rp_dist_name).white().bold(),
+            change_summary.written,
+            change_summary.unchanged,
+            change_summary.removed
+        );
+    }
 
-    if release {
+    if release && !quiet {
         let zip_path = zip_dir(&rp_dist, &rp_dist_name)?;
         println!(
             "  {} {}",
@@ -175,7 +180,7 @@ pub(super) fn build_resourcepack(
             "install:".dimmed(),
             format!("dist/{}.zip", rp_dist_name).white().bold()
         );
-    } else {
+    } else if !quiet {
         println!(
             "  {} copy the {} folder into your world's resourcepacks/ folder",
             "install:".dimmed(),

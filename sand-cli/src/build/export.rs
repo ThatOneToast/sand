@@ -122,15 +122,34 @@ impl ExportBuildPlan {
     /// doing so used to split the artifact cache between `cargo
     /// build`/`cargo check` run directly and exporter compilation triggered
     /// by `sand build`, so equivalent work was paid for twice.
-    pub(super) fn compile(&self, mc_version: &str) -> Result<()> {
+    pub(super) fn compile(&self, mc_version: &str, quiet: bool) -> Result<()> {
         let mut cmd = std::process::Command::new("cargo");
         cmd.args(self.cargo_args())
             .env("SAND_MC_VERSION", mc_version);
-        let status = cmd
-            .status()
-            .with_context(|| format!("failed to invoke `{}`", self.command_line()))?;
-        if !status.success() {
-            bail!("`{}` failed", self.command_line());
+        if quiet {
+            cmd.arg("--message-format=json");
+            let output = cmd
+                .output()
+                .with_context(|| format!("failed to invoke `{}`", self.command_line()))?;
+            if !output.status.success() {
+                bail!(
+                    "`{}` failed:\n{}",
+                    self.command_line(),
+                    format!(
+                        "{}\n{}",
+                        String::from_utf8_lossy(&output.stdout),
+                        String::from_utf8_lossy(&output.stderr)
+                    )
+                    .trim()
+                );
+            }
+        } else {
+            let status = cmd
+                .status()
+                .with_context(|| format!("failed to invoke `{}`", self.command_line()))?;
+            if !status.success() {
+                bail!("`{}` failed", self.command_line());
+            }
         }
         Ok(())
     }

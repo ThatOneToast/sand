@@ -171,6 +171,20 @@ sand-build = { git = "https://github.com/ThatOneToast/sand.git", branch = "main"
 Because `main` moves quickly, pin both dependencies to the same Git revision
 when you need a reproducible project.
 
+Coding agents can discover that resolved project identity and query the exact
+installed API contract surface without scraping terminal prose:
+
+```sh
+sand context --format json
+sand api search "player damage" --format json
+sand api alternatives "damage entity" --format json
+sand build --format json
+sand check --agent --format json
+```
+
+See [CLI For Coding Agents](book/src/reference/agent-cli.md) for compatibility
+rules, structured search controls, and the recommended validation loop.
+
 ## Minecraft versions
 
 - **26.2** is the canonical export profile and the target used by current

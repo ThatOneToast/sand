@@ -2646,12 +2646,12 @@ fn compile_definition_with_claims(
     } else if let Some(path) = &derivations.refresh_function {
         reconcile_commands.push(format!("function {path}"));
     }
+    reconcile_commands.extend(dirty_acknowledgement_commands(&fields, &marker));
     reconcile_commands.extend(dirty_distribution_commands(
         &fields,
         claims,
         &mut objectives,
     ));
-    reconcile_commands.extend(dirty_acknowledgement_commands(&fields, &marker));
     if let Some(path) = &transitions.check_function {
         reconcile_commands.push(format!("function {path}"));
     }
@@ -5846,6 +5846,14 @@ mod tests {
             .content
             .find(&format!("function rpg:{root}/transitions"))
             .unwrap();
+        let acknowledgement = format!(
+            "scoreboard players set @s {} 0",
+            dirty_pending_name(
+                &LEVEL.dirty_objective(),
+                &initialized_tag(&definition.id.to_string())
+            )
+        );
+        let acknowledgement = reconcile.content.rfind(&acknowledgement).unwrap();
         let distribution = format!("{} matches 1", LEVEL.dirty_objective());
         let between = reconcile
             .content
@@ -5859,7 +5867,8 @@ mod tests {
             .map(|(position, _)| position)
             .find(|position| *position > transition)
             .unwrap();
-        assert!(refresh < between);
+        assert!(refresh < acknowledgement);
+        assert!(acknowledgement < between);
         assert!(between < transition);
         assert!(transition < after);
     }

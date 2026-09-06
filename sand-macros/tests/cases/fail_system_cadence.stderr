@@ -1,0 +1,5 @@
+error: [SAND-SYSTEM-CADENCE] system tick cadence must be at least one
+ --> tests/cases/fail_system_cadence.rs:7:24
+  |
+7 | #[system(tick, every = 0)]
+  |                        ^

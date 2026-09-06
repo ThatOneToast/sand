@@ -1,0 +1,11 @@
+error: [SAND-SYSTEM-PARAM] systems require a concrete generated State, StateBundle, or StateQuery parameter and cannot declare generics
+ --> tests/cases/fail_system_generics.rs:8:16
+  |
+8 | fn generic_free<Q>(query: Q) {
+  |                ^^^
+
+error: [SAND-SYSTEM-PARAM] grouped systems require a concrete owning type and cannot declare impl generics
+  --> tests/cases/fail_system_generics.rs:15:5
+   |
+15 | impl<T> GenericSystems<T> {
+   |     ^^^

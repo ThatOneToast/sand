@@ -270,14 +270,14 @@ register! {
     module: "sand",
     kind: Macro,
     signature: "#[system(tick, every = N)]",
-    summary: "Registers a deterministic tick system over a concrete StateQuery.",
-    context: "Function and grouped-impl forms lower query callbacks through Sand's existing function, tick-tag, and dynamic-function machinery.",
-    minecraft: "Emits one globally scheduled system function at the requested cadence; the StateQuery performs entity iteration with the correct executor and position.",
-    use_when: ["Running component-filtered behavior every server tick or at a fixed cadence"],
-    avoid_when: ["Dispatching an existing typed event directly; use on_event"],
+    summary: "Registers source-level typed tick and event systems over concrete State, StateBundle, or StateQuery parameters.",
+    context: "A free function is a tick system with one query parameter; empty #[system] means every tick. An inherent impl groups #[tick] methods and #[event(EventType)] methods while preserving their concrete author signatures for completion and diagnostics. Query callbacks return ordered command vectors; they do not borrow or mutate an in-memory Rust world.",
+    minecraft: "Tick systems run in deterministic Rust identity order at a positive cadence. Adjacent exact typed scans with the same cadence and selector share one outer scan; event current() uses the dispatcher-bound @s and adds presence guards without scanning again. Selectors only observe loaded entities, and generated identities and callback deduplication are deterministic.",
+    use_when: ["Running component-filtered behavior every server tick or at a fixed cadence", "Handling a typed event with an optional current-owner State query", "Keeping query and closure item operations discoverable from their declared source types"],
+    avoid_when: ["Registering an unrelated standalone function; use function", "Accessing global singleton State; use its global accessor"],
     params: [],
     returns: None,
-    example: "#[sand::system(tick, every = 20)]\nfn regenerate(query: Combatants) { query.each(|item| item.defense.armor.add(1)); }"
+    example: "use sand::prelude::*;\n#[sand::system(tick, every = 20)]\nfn regenerate(query: Combatants) { query.each(|item| item.defense.armor.add(1)); }"
 }
 
 register! {

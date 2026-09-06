@@ -2105,8 +2105,8 @@ pub(crate) fn try_export_components_impl(
         unique_systems.push((system.id, system.every, body));
     }
 
-    // A derived StateQuery lowers to one or more exact
-    // `execute as <selector> at @s run function ...` commands. Adjacent
+    // A system containing exactly one derived StateQuery operation lowers to
+    // an `execute as <selector> at @s run function ...` command. Adjacent
     // systems with the same selector and cadence can safely share that scan:
     // their generated callback functions still run in stable system-id order
     // with the selected owner bound to @s and its position available through
@@ -2692,6 +2692,13 @@ pub(crate) fn try_export_components_impl(
 /// the conservative standalone path.
 fn state_system_scan(body: &[String]) -> Option<(String, Vec<String>)> {
     const MIDDLE: &str = " at @s run function ";
+    // Multiple commands can represent multiple authored `query.each(...)`
+    // operations. Keep those scans independent so commands in an earlier
+    // callback can attach or detach State before the later operation selects
+    // its membership.
+    if body.len() != 1 {
+        return None;
+    }
     let mut selector = None::<String>;
     let mut callbacks = Vec::with_capacity(body.len());
     if body.is_empty() {
@@ -2745,16 +2752,17 @@ mod state_system_planning_tests {
 
     #[test]
     fn recognizes_only_one_typed_selector_scan() {
-        let body = vec![
-            "execute as @e[tag=fighter] at @s run function __sand_local:first".into(),
-            "execute as @e[tag=fighter] at @s run function __sand_local:second".into(),
-        ];
+        let body = vec!["execute as @e[tag=fighter] at @s run function __sand_local:first".into()];
         assert_eq!(
             state_system_scan(&body),
-            Some((
-                "@e[tag=fighter]".into(),
-                vec!["__sand_local:first".into(), "__sand_local:second".into()]
-            ))
+            Some(("@e[tag=fighter]".into(), vec!["__sand_local:first".into()]))
+        );
+        assert!(
+            state_system_scan(&[
+                "execute as @e[tag=fighter] at @s run function __sand_local:first".into(),
+                "execute as @e[tag=fighter] at @s run function __sand_local:second".into(),
+            ])
+            .is_none()
         );
         assert!(state_system_scan(&["say opaque".into()]).is_none());
         assert!(

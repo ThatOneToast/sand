@@ -1,0 +1,5 @@
+error: [SAND-SYSTEM-PARAM] system query values may only be used as the direct receiver of each/current
+ --> tests/cases/fail_system_query_value_use.rs:9:20
+  |
+9 |     let _marker = &query;
+  |                    ^^^^^

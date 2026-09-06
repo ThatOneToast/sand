@@ -853,6 +853,11 @@ pub(crate) fn derive_state(input: DeriveInput) -> syn::Result<proc_macro2::Token
     );
     let fields_docs = generated_contract_docs(&fields_contract);
     generated_contracts.push(fields_contract);
+    let system_query_parameter_impl = (!matches!(config.scope, Scope::Global)).then(|| {
+        quote! {
+            impl ::sand::__private::GeneratedSystemQueryParameter for #ident {}
+        }
+    });
     let expanded = quote! {
         #bound_type_docs
         #[doc = concat!("Typed bound view generated for `", module_path!(), "::", stringify!(#ident), "`.")]
@@ -981,6 +986,8 @@ pub(crate) fn derive_state(input: DeriveInput) -> syn::Result<proc_macro2::Token
                 )]
             }
         }
+
+        #system_query_parameter_impl
 
         #lifecycle_registration
     };
@@ -1159,12 +1166,16 @@ pub(crate) fn derive_bundle(input: DeriveInput) -> syn::Result<proc_macro2::Toke
     let attach_docs = &method_docs[1];
     let detach_docs = &method_docs[2];
     let first_ty = member_types[0];
-    let scope_bounds = member_types.iter().skip(1).map(|ty| {
-        quote! {
-            <#first_ty as ::sand::__private::StateBundleMember>::Scope:
-                ::sand::__private::SameStateScope<<#ty as ::sand::__private::StateBundleMember>::Scope>
-        }
-    });
+    let scope_bounds = member_types
+        .iter()
+        .skip(1)
+        .map(|ty| {
+            quote! {
+                <#first_ty as ::sand::__private::StateBundleMember>::Scope:
+                    ::sand::__private::SameStateScope<<#ty as ::sand::__private::StateBundleMember>::Scope>
+            }
+        })
+        .collect::<Vec<_>>();
     let expanded = quote! {
         #type_docs
         #[derive(Debug, Clone, Copy)]
@@ -1279,6 +1290,8 @@ pub(crate) fn derive_bundle(input: DeriveInput) -> syn::Result<proc_macro2::Toke
                 lifecycles
             }
         }
+
+        impl ::sand::__private::GeneratedSystemQueryParameter for #ident {}
 
     };
     if matches!(input.vis, syn::Visibility::Public(_)) {
@@ -1581,6 +1594,8 @@ pub(crate) fn derive_query(input: DeriveInput) -> syn::Result<proc_macro2::Token
                 Self::current(body)
             }
         }
+
+        impl ::sand::__private::GeneratedSystemQueryParameter for #ident {}
     };
     if matches!(input.vis, syn::Visibility::Public(_)) {
         validate_generated_expansion(

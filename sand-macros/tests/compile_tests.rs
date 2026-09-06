@@ -14,6 +14,7 @@ fn compile_tests() {
     t.pass("tests/cases/pass_event_level_up.rs");
     t.pass("tests/cases/pass_damage_event.rs");
     t.pass("tests/cases/pass_event_generic_used_dash_wand.rs");
+    t.pass("tests/cases/pass_event_lint_expectations.rs");
     t.pass("tests/cases/pass_canonical_event_docs.rs");
     t.pass("tests/cases/pass_sand_event_tick_dispatch.rs");
     t.pass("tests/cases/pass_sand_event_generic_family.rs");
@@ -64,6 +65,7 @@ fn state_derive_compile_tests() {
     t.pass("tests/cases/pass_state_visibility.rs");
     t.pass("tests/cases/pass_state_components_bundles.rs");
     t.pass("tests/cases/pass_direct_state_queries.rs");
+    t.pass("tests/cases/pass_system_strict_lints.rs");
     t.compile_fail("tests/cases/fail_entity_state_tuple.rs");
     t.compile_fail("tests/cases/fail_entity_state_unknown_wrapper.rs");
     t.compile_fail("tests/cases/fail_entity_state_bad_namespace.rs");
@@ -80,6 +82,16 @@ fn state_derive_compile_tests() {
     t.compile_fail("tests/cases/fail_state_query_scope_mismatch.rs");
     t.compile_fail("tests/cases/fail_state_bundle_target_scope.rs");
     t.compile_fail("tests/cases/fail_global_state_query.rs");
+    t.compile_fail("tests/cases/fail_system_parameter_count.rs");
+    t.compile_fail("tests/cases/fail_system_parameter_kind.rs");
+    t.compile_fail("tests/cases/fail_system_generics.rs");
+    t.compile_fail("tests/cases/fail_system_grouped_parameter_kind.rs");
+    t.compile_fail("tests/cases/fail_system_query_shadowing.rs");
+    t.compile_fail("tests/cases/fail_system_query_value_use.rs");
+    t.compile_fail("tests/cases/fail_system_cadence.rs");
+    t.compile_fail("tests/cases/fail_system_event_signature.rs");
+    t.compile_fail("tests/cases/fail_system_event_associated_annotation.rs");
+    t.compile_fail("tests/cases/fail_system_return_type.rs");
     t.pass("tests/cases/pass_state_data_entity_scope.rs");
     t.compile_fail("tests/cases/fail_entity_state_enum_duplicate.rs");
     t.compile_fail("tests/cases/fail_entity_state_enum_payload.rs");

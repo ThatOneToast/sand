@@ -1,0 +1,5 @@
+error: [SAND-SYSTEM-EVENT] event systems accept `(event)` or `(event, query)`; found a different parameter count
+  --> tests/cases/fail_system_event_signature.rs:14:16
+   |
+14 |     fn invalid(_event: Pulse, _query: Health, _extra: Health) {}
+   |                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^

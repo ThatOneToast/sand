@@ -2714,6 +2714,22 @@ fn compile_definition_with_claims(
                 ]
             }));
         }
+        let mut retaining_markers = claims
+            .get(&field.component)
+            .into_iter()
+            .flatten()
+            .filter(|claim| claim.marker != marker)
+            .map(|claim| claim.marker.clone())
+            .collect::<Vec<_>>();
+        retaining_markers.sort();
+        retaining_markers.dedup();
+        cleanup_commands.push(guard_component_cleanup(
+            &format!(
+                "scoreboard players reset @s {}",
+                dirty_internal_name(&field.dirty_objective)
+            ),
+            &retaining_markers,
+        ));
     }
     for objective in &objectives {
         if !component_objectives.contains(objective) {
@@ -5478,10 +5494,23 @@ mod tests {
                 .content
                 .contains(&format!("scoreboard players reset @s {second_cause}"))
         );
+        let internal_reset = format!("scoreboard players reset @s {internal}");
+        assert!(cleanup.content.lines().any(|line| {
+            line == format!("execute unless entity @s[tag={second_marker}] run {internal_reset}")
+        }));
+        assert!(!cleanup.content.lines().any(|line| line == internal_reset));
+
+        let singly_compiled = compile_definition(&first, &profile()).unwrap();
+        let single_cleanup = singly_compiled
+            .records
+            .iter()
+            .find(|record| record.path.ends_with("/cleanup"))
+            .unwrap();
         assert!(
-            !cleanup
+            single_cleanup
                 .content
-                .contains(&format!("scoreboard players reset @s {internal}"))
+                .lines()
+                .any(|line| line == internal_reset)
         );
     }
 

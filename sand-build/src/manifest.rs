@@ -52,7 +52,7 @@ pub struct VersionEntry {
 impl VersionManifest {
     /// Load the version manifest, choosing a cache policy based on `version_str`.
     ///
-    /// - Pinned versions (e.g. `"1.21.4"`) use `PreferCache` for deterministic
+    /// - Pinned versions (e.g. `"26.2"`) use `PreferCache` for deterministic
     ///   builds: the cached manifest is returned as-is if it contains the version.
     /// - `"latest"` uses `RefreshLatest`: a network refresh is attempted first so
     ///   the cached `latest.release` is never returned stale indefinitely. If the
@@ -87,7 +87,7 @@ impl VersionManifest {
     /// Resolve a version string to a `VersionEntry`.
     ///
     /// Accepts `"latest"` (maps to latest release) or an explicit version id
-    /// such as `"1.21.4"`. Returns an error for unknown versions.
+    /// such as `"26.2"`. Returns an error for unknown versions.
     pub fn resolve(&self, version_str: &str) -> Result<&VersionEntry> {
         let target = if version_str == "latest" {
             self.latest.release.as_str()
@@ -228,21 +228,21 @@ mod tests {
 
     #[test]
     fn resolve_explicit_version() {
-        let m = make_manifest("1.21.4", &[("1.21.4", "http://example.com/1.21.4.json")]);
-        let entry = m.resolve("1.21.4").unwrap();
-        assert_eq!(entry.id, "1.21.4");
+        let m = make_manifest("26.2", &[("26.2", "http://example.com/26.2.json")]);
+        let entry = m.resolve("26.2").unwrap();
+        assert_eq!(entry.id, "26.2");
     }
 
     #[test]
     fn resolve_latest() {
-        let m = make_manifest("1.21.11", &[("1.21.11", "http://example.com/1.21.11.json")]);
+        let m = make_manifest("26.2", &[("26.2", "http://example.com/26.2.json")]);
         let entry = m.resolve("latest").unwrap();
-        assert_eq!(entry.id, "1.21.11");
+        assert_eq!(entry.id, "26.2");
     }
 
     #[test]
     fn resolve_unknown_errors() {
-        let m = make_manifest("1.21.4", &[("1.21.4", "http://example.com/1.21.4.json")]);
+        let m = make_manifest("26.2", &[("26.2", "http://example.com/26.2.json")]);
         let err = m.resolve("9.99.99").unwrap_err();
         assert!(matches!(err, Error::UnknownVersion(_)));
     }
@@ -258,7 +258,7 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         let cache_path = dir.path().join("version_manifest_v2.json");
 
-        let cached = make_manifest("1.21.4", &[("1.21.4", "http://example.com/1.21.4.json")]);
+        let cached = make_manifest("26.2", &[("26.2", "http://example.com/26.2.json")]);
         write_manifest_to(dir.path(), &cached);
 
         let fetcher_called = std::sync::atomic::AtomicBool::new(false);
@@ -268,13 +268,13 @@ mod tests {
         };
 
         let manifest = fetch_or_cached_impl(
-            "1.21.4",
+            "26.2",
             ManifestCachePolicy::PreferCache,
             &cache_path,
             fetcher,
         )
         .unwrap();
-        assert_eq!(manifest.latest.release, "1.21.4");
+        assert_eq!(manifest.latest.release, "26.2");
         assert!(!fetcher_called.load(std::sync::atomic::Ordering::SeqCst));
     }
 
@@ -285,14 +285,14 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         let cache_path = dir.path().join("version_manifest_v2.json");
 
-        let stale = make_manifest("1.20.0", &[("1.20.0", "http://example.com/1.20.0.json")]);
+        let stale = make_manifest("26.1", &[("26.1", "http://example.com/26.1.json")]);
         write_manifest_to(dir.path(), &stale);
 
         let fresh = make_manifest(
-            "1.21.4",
+            "26.2",
             &[
-                ("1.21.4", "http://example.com/1.21.4.json"),
-                ("1.20.0", "http://example.com/1.20.0.json"),
+                ("26.2", "http://example.com/26.2.json"),
+                ("26.1", "http://example.com/26.1.json"),
             ],
         );
         let fetcher = move |_: &std::path::Path| -> Result<VersionManifest> { Ok(fresh.clone()) };
@@ -304,9 +304,9 @@ mod tests {
             fetcher,
         )
         .unwrap();
-        assert_eq!(manifest.latest.release, "1.21.4");
+        assert_eq!(manifest.latest.release, "26.2");
         let entry = manifest.resolve("latest").unwrap();
-        assert_eq!(entry.id, "1.21.4");
+        assert_eq!(entry.id, "26.2");
     }
 
     /// RefreshLatest fallback: fetcher fails but cache exists → use cache with
@@ -316,7 +316,7 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         let cache_path = dir.path().join("version_manifest_v2.json");
 
-        let cached = make_manifest("1.20.0", &[("1.20.0", "http://example.com/1.20.0.json")]);
+        let cached = make_manifest("26.1", &[("26.1", "http://example.com/26.1.json")]);
         write_manifest_to(dir.path(), &cached);
 
         let fetcher = |_: &std::path::Path| -> Result<VersionManifest> {
@@ -334,7 +334,7 @@ mod tests {
         )
         .unwrap();
         // Fell back to cached manifest.
-        assert_eq!(manifest.latest.release, "1.20.0");
+        assert_eq!(manifest.latest.release, "26.1");
     }
 
     /// Regression: if the fetcher writes invalid content to the cache file before
@@ -346,7 +346,7 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         let cache_path = dir.path().join("version_manifest_v2.json");
 
-        let valid = make_manifest("1.20.0", &[("1.20.0", "http://example.com/1.20.0.json")]);
+        let valid = make_manifest("26.1", &[("26.1", "http://example.com/26.1.json")]);
         write_manifest_to(dir.path(), &valid);
 
         // Simulate a fetcher that corrupts the cache file (e.g. writes an HTTP
@@ -368,7 +368,7 @@ mod tests {
         .unwrap();
 
         // The pre-loaded in-memory manifest is returned despite the corrupted file.
-        assert_eq!(result.latest.release, "1.20.0");
+        assert_eq!(result.latest.release, "26.1");
 
         // Confirm the disk file was actually corrupted — this proves the test
         // exercises the in-memory fallback, not a re-read of the (now bad) file.
@@ -408,7 +408,7 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         let cache_path = dir.path().join("version_manifest_v2.json");
 
-        let cached = make_manifest("1.21.4", &[("1.21.4", "http://example.com/1.21.4.json")]);
+        let cached = make_manifest("26.2", &[("26.2", "http://example.com/26.2.json")]);
         write_manifest_to(dir.path(), &cached);
 
         let fetcher = |_: &std::path::Path| -> Result<VersionManifest> {
@@ -416,13 +416,13 @@ mod tests {
         };
 
         let manifest = fetch_or_cached_impl(
-            "1.21.4",
+            "26.2",
             ManifestCachePolicy::OfflineOnly,
             &cache_path,
             fetcher,
         )
         .unwrap();
-        assert_eq!(manifest.latest.release, "1.21.4");
+        assert_eq!(manifest.latest.release, "26.2");
     }
 
     /// OfflineOnly: errors clearly when no cached manifest exists.
@@ -437,7 +437,7 @@ mod tests {
         };
 
         let result = fetch_or_cached_impl(
-            "1.21.4",
+            "26.2",
             ManifestCachePolicy::OfflineOnly,
             &cache_path,
             fetcher,
@@ -452,14 +452,14 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         let cache_path = dir.path().join("version_manifest_v2.json");
 
-        let stale = make_manifest("1.19.0", &[("1.19.0", "http://example.com/1.19.0.json")]);
+        let stale = make_manifest("26.1", &[("26.1", "http://example.com/26.1.json")]);
         write_manifest_to(dir.path(), &stale);
 
         let fresh = make_manifest(
-            "1.21.4",
+            "26.2",
             &[
-                ("1.21.4", "http://example.com/1.21.4.json"),
-                ("1.19.0", "http://example.com/1.19.0.json"),
+                ("26.2", "http://example.com/26.2.json"),
+                ("26.1", "http://example.com/26.1.json"),
             ],
         );
         let fetcher = move |_: &std::path::Path| -> Result<VersionManifest> { Ok(fresh.clone()) };
@@ -473,8 +473,8 @@ mod tests {
         .unwrap();
         let release = manifest.resolve("latest").unwrap().id.clone();
         assert_eq!(
-            release, "1.21.4",
-            "stale cached release 1.19.0 should not be returned"
+            release, "26.2",
+            "stale cached release 26.1 should not be returned"
         );
     }
 }

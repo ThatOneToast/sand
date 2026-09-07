@@ -1,4 +1,4 @@
-//! Builders for `data/<namespace>/damage_type/` JSON files (Minecraft 1.19.4+).
+//! Builders for `data/<namespace>/damage_type/` JSON files in Sand's 26+ baseline.
 //!
 //! # Validation
 //!

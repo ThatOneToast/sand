@@ -1,4 +1,4 @@
-//! Builder for `data/<namespace>/chat_type/` JSON files (Minecraft 1.21+).
+//! Builder for `data/<namespace>/chat_type/` JSON files in Sand's 26+ baseline.
 //!
 //! Chat types define how chat messages are decorated and displayed in-game.
 //! Each chat type has a `chat` decoration (shown in chat) and an optional

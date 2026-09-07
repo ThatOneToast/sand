@@ -20,7 +20,6 @@ use sand_core::events::{EventSetup, SandEvent, SandEventDispatch};
 use sand_core::participant::{
     EntityParticipantRole, ObservationSchema, observe_correlated_attacker,
 };
-use sand_core::version::{MinecraftVersion, VersionProfile};
 use sand_core::{EventDescriptor, EventDispatch};
 use std::any::TypeId;
 
@@ -34,19 +33,16 @@ impl SandEvent for OnPlayerHurtCheck {
     }
 
     fn setup() -> EventSetup {
-        let profile = VersionProfile::resolve(&MinecraftVersion::parse("1.21.4").unwrap()).unwrap();
         let ctx: EntityContext<PlayerKind> = EntityContext::default();
         let commands = observe_correlated_attacker(
             &ctx,
-            &profile,
             ObservationSchema::new(
                 "attackerpack:observations",
                 std::any::type_name::<OnPlayerHurtCheck>(),
             ),
             EntityParticipantRole::Attacker,
             |_observation| vec!["say attacker observed".to_string()],
-        )
-        .expect("1.21.4 supports execute on attacker");
+        );
         EventSetup {
             objectives: vec!["scoreboard objectives add p9_trigger dummy".into()],
             pre_observation: commands,

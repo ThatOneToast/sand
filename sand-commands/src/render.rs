@@ -11,7 +11,6 @@ pub use sand_version::CommandProfile;
 /// validation; unknown, macro, and modded commands remain verbatim.
 pub fn validate_collected_line(line: &str, profile: &CommandProfile) -> CommandResult<String> {
     validate_line_integrity(line)?;
-    crate::execute_ir::validate_registered_line(line, profile)?;
     crate::nbt::validate_registered_line(line, profile)?;
     crate::blocks::validate_registered_line(line, profile)?;
     crate::inventory::validate_registered_line(line, profile)?;
@@ -22,17 +21,6 @@ pub fn validate_collected_line(line: &str, profile: &CommandProfile) -> CommandR
     crate::effect::validate_registered_line(line, profile)?;
     let trimmed = line.trim_start();
     if trimmed.starts_with('$') {
-        if !profile.is_at_least(1, 20, 2) {
-            return Err(CommandError::new(
-                "function_macro",
-                "line",
-                format!(
-                    "function macro lines require Minecraft 1.20.2+; selected {}",
-                    profile.requested_version()
-                ),
-            )
-            .with_code("SAND-COMMAND-VERSION"));
-        }
         return Ok(line.to_string());
     }
     if trimmed.is_empty() || trimmed.starts_with('#') {
@@ -586,7 +574,7 @@ mod tests {
 
     #[test]
     fn collected_validation_preserves_literal_raw_and_modded_content() {
-        let profile = CommandProfile::new("1.21.11", false);
+        let profile = CommandProfile::new("26.2", false);
         let valid = [
             r#"tellraw @a {"text":"example @e[limit=-1]"}"#,
             r#"tellraw @a {"text":"function not_a_resource_location"}"#,
@@ -613,22 +601,8 @@ mod tests {
     }
 
     #[test]
-    fn collected_function_macros_are_version_gated() {
-        let line = "$say $(message)";
-        let error = validate_collected_line(line, &CommandProfile::new("1.20.1", false))
-            .expect_err("function macros were added in 1.20.2");
-        assert_eq!(error.code, "SAND-COMMAND-VERSION");
-        assert!(error.message.contains("Minecraft 1.20.2+"), "{error}");
-        assert_eq!(
-            validate_collected_line(line, &CommandProfile::new("1.20.2", false)).unwrap(),
-            line
-        );
-        assert!(validate_collected_line(line, &CommandProfile::new("future", true)).is_err());
-    }
-
-    #[test]
     fn collected_validation_rejects_confidently_recognized_malformed_output() {
-        let profile = CommandProfile::new("1.21.11", false);
+        let profile = CommandProfile::new("26.2", false);
         assert!(validate_collected_line("/kill @s", &profile).is_err());
         assert!(validate_collected_line("kill @e[limit=-1]", &profile).is_err());
         assert!(validate_collected_line("scoreboard objectives add \"\"", &profile).is_err());

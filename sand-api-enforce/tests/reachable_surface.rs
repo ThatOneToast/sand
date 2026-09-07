@@ -552,41 +552,6 @@ fn external_inert_bindings_structurally_audit_every_invocation_payload() {
 }
 
 #[test]
-fn texture_only_resourcepack_bindings_are_audited_without_generated_api() {
-    let (_directory, graph) = item_macro_graph(
-        r#"texture!(id = "fixture:item/icon", path = "assets/icon.png");"#,
-        [],
-    );
-    let reachable = graph
-        .bind_inert_item_macro(
-            "facade",
-            "texture",
-            InertItemMacroClassification::ResourcepackTextureRegistration,
-        )
-        .unwrap()
-        .reachable_from("facade")
-        .unwrap();
-    assert!(reachable.is_empty());
-
-    for source in [
-        r#"texture!(id = "missing-namespace", path = "assets/icon.png");"#,
-        r#"texture!(id = "fixture:item/icon");"#,
-    ] {
-        let (_directory, graph) = item_macro_graph(source, []);
-        let error = graph
-            .bind_inert_item_macro(
-                "facade",
-                "texture",
-                InertItemMacroClassification::ResourcepackTextureRegistration,
-            )
-            .err()
-            .unwrap()
-            .to_string();
-        assert!(error.contains("texture!"), "{error}");
-    }
-}
-
-#[test]
 fn associated_item_macros_fail_closed_and_require_exact_owner_output() {
     for source in [
         "pub struct Subject; impl Subject { generated_members!(); }",
@@ -1756,20 +1721,20 @@ fn crate_paths_inside_reexported_external_modules_use_the_defining_crate() {
 #[test]
 fn loaded_external_crate_root_can_be_reexported_without_extern_crate_declaration() {
     let directory = tempfile::tempdir().unwrap();
-    let resourcepack = directory.path().join("resourcepack.rs");
+    let support = directory.path().join("support.rs");
     let facade = directory.path().join("facade.rs");
-    fs::write(&resourcepack, "pub struct ResourcePack;").unwrap();
+    fs::write(&support, "pub struct Support;").unwrap();
     fs::write(
         &facade,
-        "pub use sand_resourcepack as resourcepack; pub use ::sand_resourcepack as absolute_resourcepack;",
+        "pub use support_crate as support; pub use ::support_crate as absolute_support;",
     )
     .unwrap();
 
     let graph = SurfaceGraph::load(
         [
             SourceCrate {
-                name: "sand_resourcepack".into(),
-                root: resourcepack,
+                name: "support_crate".into(),
+                root: support,
             },
             SourceCrate {
                 name: "sand".into(),
@@ -1782,17 +1747,14 @@ fn loaded_external_crate_root_can_be_reexported_without_extern_crate_declaration
     .unwrap();
     let reachable = graph.reachable_from("sand").unwrap();
     assert_eq!(
-        item(&reachable, "sand_resourcepack").paths,
-        BTreeSet::from([
-            "sand::absolute_resourcepack".into(),
-            "sand::resourcepack".into(),
-        ])
+        item(&reachable, "support_crate").paths,
+        BTreeSet::from(["sand::absolute_support".into(), "sand::support".into(),])
     );
     assert_eq!(
-        item(&reachable, "sand_resourcepack::ResourcePack").paths,
+        item(&reachable, "support_crate::Support").paths,
         BTreeSet::from([
-            "sand::absolute_resourcepack::ResourcePack".into(),
-            "sand::resourcepack::ResourcePack".into(),
+            "sand::absolute_support::Support".into(),
+            "sand::support::Support".into(),
         ])
     );
     assert!(!reachable.iter().any(|api| api.identity.contains("::::")));
@@ -2824,27 +2786,6 @@ fn consumer_macro_providers_traverse_inline_modules() {
         "facade::nested::shard_blade"
     );
 
-    let resourcepack = directory.path().join("resourcepack.rs");
-    fs::write(
-        &resourcepack,
-        r#"
-            pub mod nested {
-                hud_bar!(
-                    name = "health",
-                    texture = "health.png",
-                    steps = 10,
-                    height = 8,
-                    ascent = 8,
-                );
-            }
-        "#,
-    )
-    .unwrap();
-    let generated =
-        sand_api_enforce::resourcepack_macro_provider(&resourcepack, "facade", &CfgSet::default())
-            .unwrap();
-    assert_eq!(generated[0].identity, "facade::nested::HEALTH");
-
     let derives = directory.path().join("derives.rs");
     fs::write(
         &derives,
@@ -2901,44 +2842,6 @@ fn consumer_macro_providers_traverse_inline_modules() {
 }
 
 #[test]
-fn resourcepack_provider_accepts_unicode_rust_handle_identifiers() {
-    let directory = tempfile::tempdir().unwrap();
-    let resourcepack = directory.path().join("resourcepack.rs");
-    fs::write(
-        &resourcepack,
-        r#"
-            hud_bar!(
-                name = "énergie",
-                texture = "energy.png",
-                steps = 10,
-                height = 8,
-                ascent = 8,
-            );
-        "#,
-    )
-    .unwrap();
-    let generated =
-        sand_api_enforce::resourcepack_macro_provider(&resourcepack, "facade", &CfgSet::default())
-            .unwrap();
-    assert_eq!(generated[0].identity, "facade::ÉNERGIE");
-}
-
-#[test]
-fn resourcepack_provider_uses_the_last_duplicate_name_like_the_macro() {
-    let directory = tempfile::tempdir().unwrap();
-    let resourcepack = directory.path().join("resourcepack.rs");
-    fs::write(
-        &resourcepack,
-        r#"hud_element!(name = "old", name = "current", texture = "status.png", height = 8, ascent = 8);"#,
-    )
-    .unwrap();
-    let generated =
-        sand_api_enforce::resourcepack_macro_provider(&resourcepack, "facade", &CfgSet::default())
-            .unwrap();
-    assert_eq!(generated[0].identity, "facade::CURRENT");
-}
-
-#[test]
 fn custom_item_provider_normalizes_raw_data_constant_identifiers() {
     let directory = tempfile::tempdir().unwrap();
     let facade = directory.path().join("facade.rs");
@@ -2984,12 +2887,6 @@ fn consumer_macro_providers_traverse_out_of_line_and_path_modules() {
             #[sand::function]
             pub fn tick() {}
 
-            hud_element!(
-                name = "status",
-                texture = "status.png",
-                height = 8,
-                ascent = 8,
-            );
         "#,
     )
     .unwrap();
@@ -3015,10 +2912,6 @@ fn consumer_macro_providers_traverse_out_of_line_and_path_modules() {
     );
     sand_api_enforce::shape_preserving_consumer_provider(&facade, "function", &CfgSet::default())
         .unwrap();
-    let resourcepack =
-        sand_api_enforce::resourcepack_macro_provider(&facade, "facade", &CfgSet::default())
-            .unwrap();
-    assert_eq!(resourcepack[0].identity, "facade::schemas::STATUS");
     let items =
         sand_api_enforce::custom_item_provider(&facade, "facade", &CfgSet::default()).unwrap();
     assert_eq!(items[0].identity, "facade::items::TypedItem");
@@ -3060,11 +2953,9 @@ fn nested_path_modules_resolve_from_the_containing_file_directory() {
             #[sand::function]
             pub fn tick() {}
 
-            hud_element!(
+            inert_schema_marker!(
                 name = "status",
-                texture = "status.png",
-                height = 8,
-                ascent = 8,
+                value = 8,
             );
         "#,
     )
@@ -3117,10 +3008,6 @@ fn nested_path_modules_resolve_from_the_containing_file_directory() {
     assert_eq!(items[0].identity, "facade::outer::schema::TypedItem");
     sand_api_enforce::shape_preserving_consumer_provider(&facade, "function", &CfgSet::default())
         .unwrap();
-    let resourcepack =
-        sand_api_enforce::resourcepack_macro_provider(&facade, "facade", &CfgSet::default())
-            .unwrap();
-    assert_eq!(resourcepack[0].identity, "facade::outer::schema::STATUS");
 }
 
 #[test]
@@ -3149,7 +3036,6 @@ fn inline_modules_preserve_their_child_file_search_directory() {
             #[sand::function]
             pub fn tick() {}
 
-            hud_element!(name = "status", texture = "status.png", height = 8, ascent = 8);
         "#,
     )
     .unwrap();
@@ -3179,10 +3065,6 @@ fn inline_modules_preserve_their_child_file_search_directory() {
     assert_eq!(items[0].identity, "facade::outer::schema::TypedItem");
     sand_api_enforce::shape_preserving_consumer_provider(&facade, "function", &CfgSet::default())
         .unwrap();
-    let resourcepack =
-        sand_api_enforce::resourcepack_macro_provider(&facade, "facade", &CfgSet::default())
-            .unwrap();
-    assert_eq!(resourcepack[0].identity, "facade::outer::schema::STATUS");
 
     let surface_directory = directory.path().join("surface");
     fs::create_dir(&surface_directory).unwrap();
@@ -3246,7 +3128,6 @@ fn consumer_macro_providers_follow_literal_includes() {
             #[sand::function]
             pub fn tick() {}
 
-            hud_element!(name = "status", texture = "status.png", height = 8, ascent = 8);
         "#,
     )
     .unwrap();
@@ -3254,8 +3135,6 @@ fn consumer_macro_providers_follow_literal_includes() {
     let state = sand_api_enforce::state_derive_provider(&facade, "facade", &cfg).unwrap();
     let storage = sand_api_enforce::sand_storage_derive_provider(&facade, "facade", &cfg).unwrap();
     let items = sand_api_enforce::custom_item_provider(&facade, "facade", &cfg).unwrap();
-    let resourcepack =
-        sand_api_enforce::resourcepack_macro_provider(&facade, "facade", &cfg).unwrap();
     sand_api_enforce::shape_preserving_consumer_provider(&facade, "function", &cfg).unwrap();
     assert!(
         state
@@ -3268,7 +3147,6 @@ fn consumer_macro_providers_follow_literal_includes() {
             .any(|api| api.identity == "facade::PlayerStorage::value")
     );
     assert_eq!(items[0].identity, "facade::TypedItem");
-    assert_eq!(resourcepack[0].identity, "facade::STATUS");
 
     SurfaceGraph::load(
         [SourceCrate {
@@ -3276,11 +3154,7 @@ fn consumer_macro_providers_follow_literal_includes() {
             root: facade,
         }],
         [],
-        state
-            .into_iter()
-            .chain(storage)
-            .chain(items)
-            .chain(resourcepack),
+        state.into_iter().chain(storage).chain(items),
     )
     .unwrap()
     .bind_api_producer("facade::PlayerState", "State", "state_derive")
@@ -3333,9 +3207,9 @@ fn consumer_macro_providers_use_the_surface_cfg_set() {
             pub fn inactive_item() -> CustomItem { todo!() }
 
             #[cfg(feature = "active")]
-            hud_bar!(name = "active", texture = "active.png", steps = 1, height = 1, ascent = 1);
+            active_marker!(name = "active");
             #[cfg(feature = "inactive")]
-            hud_bar!(name = "inactive", texture = "inactive.png", steps = 1, height = 1, ascent = 1);
+            inactive_marker!(name = "inactive");
 
             #[cfg(feature = "disabled")]
             pub mod absent;
@@ -3387,10 +3261,6 @@ fn consumer_macro_providers_use_the_surface_cfg_set() {
     .unwrap()
     .bind_api_producer("facade::active_item", "custom_item", "item_macro")
     .unwrap();
-    let resourcepack =
-        sand_api_enforce::resourcepack_macro_provider(&facade, "facade", &cfg).unwrap();
-    assert_eq!(resourcepack[0].identity, "facade::ACTIVE");
-
     let shape = directory.path().join("shape.rs");
     fs::write(
         &shape,

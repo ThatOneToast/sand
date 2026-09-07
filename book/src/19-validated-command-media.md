@@ -110,7 +110,7 @@ cmd::effect_give(Target::self_(), EffectId::Strength).infinite();
 ```
 
 Typed seconds are limited to Minecraft's `1..=1_000_000` command domain.
-`infinite` is version-gated to 1.19.4+. Positional defaults remain stable:
+`infinite` is the 26+ baseline representation. Positional defaults remain stable:
 amplifier or hidden-particle options insert Minecraft's 30-second default only
 when required by the command grammar. `effect_give_raw` remains the opt-out.
 

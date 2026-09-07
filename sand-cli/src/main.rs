@@ -56,22 +56,14 @@ enum Commands {
         /// Package the output as a zip file for distribution
         #[arg(long)]
         release: bool,
-        /// Also build the resource pack and write output to dist/<namespace>-resources/
-        ///
-        /// Requires a [resourcepack] section in sand.toml and a
-        /// src/bin/sand_resource_export.rs binary in your project.
-        /// Run `sand add resourcepack` to add these automatically.
-        #[arg(long)]
-        resourcepack: bool,
         /// Print a phase-by-phase timing breakdown after the build
         /// (Configuration, Cargo/exporter compile, exporter execution,
-        /// record parsing, validation, datapack writing, resource-pack
-        /// export, packaging, total).
+        /// record parsing, validation, datapack writing, packaging, total).
         #[arg(long)]
         timings: bool,
         /// Print why each expensive step did or didn't redo work: whether
-        /// Cargo rebuilt the exporter, and how many datapack/resource-pack
-        /// output files were written, left unchanged, or removed.
+        /// Cargo rebuilt the exporter, and how many datapack output files
+        /// were written, left unchanged, or removed.
         #[arg(long)]
         explain_rebuild: bool,
         /// Build profile passed to `sand.build.rs` (dev, test, bench,
@@ -113,7 +105,7 @@ enum Commands {
         profile: String,
     },
     /// **Requires Prism Launcher**
-    /// Either join the local dev server started by `sand run` or join the sand-dev world with the datapack + optional resource pack
+    /// Either join the local dev server started by `sand run` or join the sand-dev world with the datapack
     Join {
         /// Join the local dev server started by `sand run`
         #[arg(long)]
@@ -156,14 +148,6 @@ struct NewArgs {
     #[arg(long, default_value = "A Minecraft datapack built with Sand")]
     description: String,
 
-    /// Scaffold with resource pack support enabled from the start
-    ///
-    /// Adds sand-resourcepack dependency, a sand_resource_export binary,
-    /// a [resourcepack] section in sand.toml, and the __sand_resource_export
-    /// hook in src/lib.rs.
-    #[arg(long)]
-    resourcepack: bool,
-
     /// Use local path dependencies pointing into a Sand workspace checkout
     ///
     /// By default, git dependencies against this repo's `main` branch are
@@ -185,14 +169,6 @@ struct InitArgs {
     #[arg(long, default_value = "A Minecraft datapack built with Sand")]
     description: String,
 
-    /// Scaffold with resource pack support enabled from the start
-    ///
-    /// Adds sand-resourcepack dependency, a sand_resource_export binary,
-    /// a [resourcepack] section in sand.toml, and the __sand_resource_export
-    /// hook in src/lib.rs.
-    #[arg(long)]
-    resourcepack: bool,
-
     /// Use local path dependencies pointing into a Sand workspace checkout
     ///
     /// By default, git dependencies against this repo's `main` branch are
@@ -212,15 +188,7 @@ struct AddArgs {
 
 #[derive(Subcommand)]
 enum AddFeature {
-    /// Add resource pack support to an existing Sand project
-    ///
-    /// Modifies the project in-place:
-    ///   - Cargo.toml: adds sand-resourcepack dep, resourcepack feature on
-    ///     sand-macros, and a [[bin]] sand_resource_export target
-    ///   - sand.toml: adds a [resourcepack] section
-    ///   - src/bin/sand_resource_export.rs: created if absent
-    ///   - src/lib.rs: appends __sand_resource_export hook if absent
-    ///   - src/assets/: created if absent
+    /// Reserved for Sand's future resource-pack implementation
     Resourcepack,
     /// Add a typed `sand.build.rs` world/server-configuration script to an
     /// existing Sand project (issue #317)
@@ -283,7 +251,6 @@ fn run() -> Result<()> {
         Commands::Init(args) => cmd_init(args),
         Commands::Build {
             release,
-            resourcepack,
             timings,
             explain_rebuild,
             profile,
@@ -298,7 +265,6 @@ fn run() -> Result<()> {
             });
             let result = build::run_with_options(build::BuildOptions {
                 release,
-                resourcepack,
                 print_timings: timings,
                 explain_rebuild,
                 profile: profile.clone(),
@@ -363,15 +329,10 @@ fn cmd_new(args: NewArgs) -> Result<()> {
     }
 
     println!(
-        "{} {} (Minecraft {}{})...",
+        "{} {} (Minecraft {})...",
         "Creating".cyan().bold(),
         args.name.white().bold(),
         mc_version.yellow(),
-        if args.resourcepack {
-            " + resourcepack".cyan().to_string()
-        } else {
-            String::new()
-        }
     );
 
     scaffold::scaffold(&ScaffoldOptions {
@@ -380,7 +341,6 @@ fn cmd_new(args: NewArgs) -> Result<()> {
         description: args.description,
         mc_version,
         dir,
-        resourcepack: args.resourcepack,
         use_path_deps: args.path_deps,
     })?;
 
@@ -388,14 +348,7 @@ fn cmd_new(args: NewArgs) -> Result<()> {
     println!("{} Your datapack project is ready.", "Done!".green().bold());
     println!();
     println!("  cd {}", args.name.white().bold());
-    if args.resourcepack {
-        println!(
-            "  {} edit src/lib.rs, add assets to src/assets/, then run `sand build --resourcepack`",
-            "#".dimmed()
-        );
-    } else {
-        println!("  {} edit src/lib.rs, then run `sand build`", "#".dimmed());
-    }
+    println!("  {} edit src/lib.rs, then run `sand build`", "#".dimmed());
     Ok(())
 }
 
@@ -425,15 +378,10 @@ fn cmd_init(args: InitArgs) -> Result<()> {
     let mc_version = resolve_mc_version(args.mc_version)?;
 
     println!(
-        "{} {} (Minecraft {}{})...",
+        "{} {} (Minecraft {})...",
         "Initializing".cyan().bold(),
         name.white().bold(),
         mc_version.yellow(),
-        if args.resourcepack {
-            " + resourcepack".cyan().to_string()
-        } else {
-            String::new()
-        }
     );
 
     scaffold::scaffold(&ScaffoldOptions {
@@ -442,7 +390,6 @@ fn cmd_init(args: InitArgs) -> Result<()> {
         description: args.description,
         mc_version,
         dir,
-        resourcepack: args.resourcepack,
         use_path_deps: args.path_deps,
     })?;
 

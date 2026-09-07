@@ -6,7 +6,6 @@
 use sand_core::condition::Condition;
 use sand_core::events::{EventSetup, SandEvent, SandEventDispatch};
 use sand_core::participant::EventParticipantPlan;
-use sand_core::version::{MinecraftVersion, VersionProfile};
 use sand_core::{EventDescriptor, EventDispatch};
 use std::any::TypeId;
 
@@ -24,14 +23,13 @@ impl SandEvent for OnPlayerHurtViaPlan {
     }
 
     fn setup() -> EventSetup {
-        let profile = VersionProfile::resolve(&MinecraftVersion::parse("1.21.4").unwrap()).unwrap();
         EventSetup {
             objectives: vec!["scoreboard objectives add p10_plan_trigger dummy".into()],
             pre_observation: Vec::new(),
             post_observation: vec!["scoreboard players set @s p10_plan_trigger 0".into()],
         }
-        .with_participants::<Self>(Self::participants(), &profile)
-        .expect("1.21.4 supports the declared attacker observation")
+        .with_participants::<Self>(Self::participants())
+        .expect("the declared attacker observation is valid")
     }
 }
 

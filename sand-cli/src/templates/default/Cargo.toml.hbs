@@ -11,25 +11,11 @@ path = "src/lib.rs"
 name = "sand_export"
 path = "src/bin/sand_export.rs"
 
-{{#if resourcepack}}
-[[bin]]
-name = "sand_resource_export"
-path = "src/bin/sand_resource_export.rs"
-
-{{/if}}
 [dependencies]
 {{#if use_path_deps}}
-{{#if resourcepack}}
-sand = { path = "{{sand_path}}", features = ["resourcepack"] }
-{{else}}
 sand = { path = "{{sand_path}}" }
-{{/if}}
-{{else}}
-{{#if resourcepack}}
-sand = { git = "{{sand_git_url}}", branch = "main", features = ["resourcepack"] }
 {{else}}
 sand = { git = "{{sand_git_url}}", branch = "main" }
-{{/if}}
 {{/if}}
 
 [build-dependencies]

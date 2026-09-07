@@ -28,7 +28,7 @@ use crate::error::Result;
     avoid_when = ["Building an ordinary project with sand build", "Manually selecting capability flags or component records"],
     params(
         namespace = "The datapack namespace whose local resources are being exported.",
-        mc_version = "The project configuration's Minecraft version text, such as 1.21.4 or 26.2."
+        mc_version = "The project configuration's Minecraft version text, such as 26.1 or 26.2."
     ),
     returns = "Pretty JSON component records, or a validation and version-resolution error.",
     example = "let json = sand::advanced::try_export_components_json(\"example\", \"26.2\")?;"

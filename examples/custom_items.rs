@@ -1,6 +1,6 @@
-//! # Custom items (1.21+)
+//! # Custom items (Minecraft 26+)
 //!
-//! Demonstrates Minecraft 1.21's item component system for defining custom
+//! Demonstrates Minecraft 26.1's item component system for defining custom
 //! items with food, tools, equipment, and other properties.
 
 use sand_core::{

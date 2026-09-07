@@ -4,7 +4,6 @@ mod export;
 pub mod output_manifest;
 pub mod package;
 pub mod records;
-mod resourcepack;
 pub mod timing;
 pub mod validate;
 pub mod validate_output;
@@ -28,7 +27,6 @@ use export::{ExportBuildPlan, Exporter, run_exporter};
 use output_manifest::{ChangeSummary, OutputManifest};
 use package::zip_dir;
 use records::ComponentRecord;
-use resourcepack::{build_resourcepack, ensure_resource_export_source};
 use timing::{Phase, Timings};
 use validate::validate_component_records_for_project;
 use write::{component_output, pack_mcmeta_output};
@@ -50,8 +48,6 @@ struct BuildJsonOutput<'a> {
     component_count: usize,
     datapack_output: String,
     datapack_changes: ChangeSummary,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    resourcepack_changes: Option<ChangeSummary>,
     diagnostics: Vec<BuildJsonDiagnostic>,
 }
 
@@ -194,18 +190,17 @@ fn cargo_diagnostics(message: &str, profile: &str) -> Vec<BuildJsonDiagnostic> {
     diagnostics
 }
 
-pub fn run(release: bool, resourcepack: bool) -> Result<()> {
-    run_with_timings(release, resourcepack, false)
+pub fn run(release: bool) -> Result<()> {
+    run_with_timings(release, false)
 }
 
 /// Same as [`run`], but prints a `Sand build timings` phase breakdown
 /// (`sand build --timings`) when `print_timings` is set. Phase collection
 /// itself always runs — only the printing is conditional — see
 /// `timing.rs`.
-pub fn run_with_timings(release: bool, resourcepack: bool, print_timings: bool) -> Result<()> {
+pub fn run_with_timings(release: bool, print_timings: bool) -> Result<()> {
     run_with_options(BuildOptions {
         release,
-        resourcepack,
         print_timings,
         explain_rebuild: false,
         profile: "dev".to_string(),
@@ -214,7 +209,7 @@ pub fn run_with_timings(release: bool, resourcepack: bool, print_timings: bool) 
 }
 
 /// Flags controlling one `sand build` invocation's diagnostics. `release`
-/// and `resourcepack` control build semantics; `print_timings` and
+/// controls packaging semantics; `print_timings` and
 /// `explain_rebuild` are purely additive reporting (issue #347 Phases 0/8)
 /// and never change what gets built or written. `profile` selects the
 /// `BuildProfile` a project's optional `sand.build.rs` receives (issue
@@ -222,7 +217,6 @@ pub fn run_with_timings(release: bool, resourcepack: bool, print_timings: bool) 
 #[derive(Debug, Clone, Default)]
 pub struct BuildOptions {
     pub release: bool,
-    pub resourcepack: bool,
     pub print_timings: bool,
     pub explain_rebuild: bool,
     pub profile: String,
@@ -232,7 +226,6 @@ pub struct BuildOptions {
 pub fn run_with_options(options: BuildOptions) -> Result<()> {
     let BuildOptions {
         release,
-        resourcepack,
         print_timings,
         explain_rebuild,
         profile,
@@ -275,7 +268,7 @@ pub fn run_with_options(options: BuildOptions) -> Result<()> {
             let meta = p.datapack_metadata();
             (meta.pack_format(), meta.is_fallback())
         } else {
-            (pack_format_for(&mc_version), false)
+            (pack_format_for(&mc_version)?, false)
         }
     };
 
@@ -301,28 +294,12 @@ pub fn run_with_options(options: BuildOptions) -> Result<()> {
         );
     }
 
-    // 2. Compile the export binaries.  A datapack-only build compiles just
-    //    `sand_export`; `--resourcepack` adds `sand_resource_export` to the
-    //    *same* `cargo build` so Cargo resolves and analyses the project once.
-    //    The exporters still run as separate processes with separate record
-    //    streams — only compilation is coordinated.
+    // 2. Compile the datapack exporter.
     let target_dir = cargo_target_dir()?;
-    let plan = ExportBuildPlan::new(resourcepack);
+    let plan = ExportBuildPlan::new();
     let binaries = plan.binaries(&target_dir);
     let (_, exporter_outcome) = timings.record(Phase::ExporterCompile, || {
-        observe_exporter_rebuild(
-            &binaries.datapack,
-            binaries.resource_pack.as_deref(),
-            || {
-                if resourcepack {
-                    // Checked before compiling so a missing resource exporter
-                    // reports the scaffolding instructions instead of a raw
-                    // Cargo target error.
-                    ensure_resource_export_source(&config, &project_root)?;
-                }
-                plan.compile(&mc_version, machine)
-            },
-        )
+        observe_exporter_rebuild(&binaries.datapack, || plan.compile(&mc_version, machine))
     })?;
 
     // 3. Run the datapack export binary — pass the target mc_version via env
@@ -340,18 +317,10 @@ pub fn run_with_options(options: BuildOptions) -> Result<()> {
     let records: Vec<ComponentRecord> = timings.record(Phase::RecordParsing, || {
         serde_json::from_slice(&stdout).map_err(|e| {
             let stdout = String::from_utf8_lossy(&stdout);
-            let hint = if stdout.contains("export_resourcepack_json") {
-                "\n\nHint: it looks like __sand_export is calling \
-                 export_resourcepack_json. Resource pack output must go in \
-                 __sand_resource_export (src/bin/sand_resource_export.rs), \
-                 not in the datapack export. Remove the \
-                 sand_resourcepack::export_resourcepack_json call from \
-                 __sand_export in src/lib.rs."
-            } else if stdout.trim_start().starts_with('[') && stdout.matches('[').count() > 1 {
+            let hint = if stdout.trim_start().starts_with('[') && stdout.matches('[').count() > 1 {
                 "\n\nHint: the export binary printed more than one JSON value. \
                  __sand_export must print exactly one JSON array \
-                 (from sand_core::export_components_json). Resource pack \
-                 output belongs in __sand_resource_export instead."
+                 (from sand_core::export_components_json)."
             } else {
                 ""
             };
@@ -448,29 +417,10 @@ pub fn run_with_options(options: BuildOptions) -> Result<()> {
         Ok(())
     })?;
 
-    // 9. Resource pack build (optional, --resourcepack flag).  The binary was
-    //    already compiled in step 2; it runs and is validated independently,
-    //    into its own output root.
-    let resourcepack_summary = if let Some(rp_binary) = binaries.resource_pack.as_deref() {
-        Some(timings.record(Phase::ResourcePackExport, || {
-            build_resourcepack(
-                &config,
-                &project_root,
-                &mc_version,
-                release,
-                rp_binary,
-                machine,
-            )
-        })?)
-    } else {
-        None
-    };
-
     if explain_rebuild && !machine {
         RebuildExplanation {
             exporter: exporter_outcome,
             datapack: change_summary,
-            resourcepack: resourcepack_summary,
         }
         .print();
     }
@@ -513,7 +463,6 @@ pub fn run_with_options(options: BuildOptions) -> Result<()> {
                 component_count: records.len(),
                 datapack_output: dist.display().to_string(),
                 datapack_changes: change_summary,
-                resourcepack_changes: resourcepack_summary,
                 diagnostics,
             })?
         );
@@ -693,18 +642,13 @@ mod tests {
 
     use super::output_manifest::OutputManifest;
     use super::package::zip_dir;
-    use super::records::{
-        ComponentContentType, ComponentRecord, ContentType, OutputExt, ResourcePackRecord,
-    };
+    use super::records::{ComponentContentType, ComponentRecord, OutputExt};
     use super::validate::{
         component_output_path, validate_component_records, validate_component_records_for_project,
-        validate_function_tag, validate_resourcepack_records,
-        validate_resourcepack_records_for_project,
+        validate_function_tag,
     };
     use super::worldbuild::{WorldBuildOutput, WorldResourceRecord};
-    use super::write::{
-        write_component, write_pack_mcmeta, write_resourcepack_mcmeta, write_rp_record,
-    };
+    use super::write::{write_component, write_pack_mcmeta};
     use super::{error_json, prepare_datapack_outputs, world_resource_output, write_server_config};
     use sand_components::registry_coverage::{REGISTRY_COVERAGE, TAG_COVERAGE};
 
@@ -721,15 +665,6 @@ mod tests {
             "content": content,
         }))
         .unwrap_or_else(|e| panic!("invalid test record ({dir}/{path}.{ext}): {e}"))
-    }
-
-    fn resourcepack_record(path: &str, content_type: &str, content: &str) -> ResourcePackRecord {
-        serde_json::from_value(serde_json::json!({
-            "path": path,
-            "content_type": content_type,
-            "content": content,
-        }))
-        .unwrap_or_else(|e| panic!("invalid resource-pack test record ({path}): {e}"))
     }
 
     #[test]
@@ -765,7 +700,7 @@ mod tests {
 
     fn parse_config(namespace: &str) -> Result<crate::config::SandConfig, toml::de::Error> {
         let toml = format!(
-            "[pack]\nnamespace = {namespace:?}\ndescription = \"test\"\nmc_version = \"1.21\"\n"
+            "[pack]\nnamespace = {namespace:?}\ndescription = \"test\"\nmc_version = \"26.1\"\n"
         );
         toml::from_str(&toml)
     }
@@ -1007,178 +942,29 @@ mod tests {
         assert!(validate_component_records(dist, &[record]).is_ok());
     }
 
-    // ── Datapack / resource-pack separation ───────────────────────────────────
-
-    #[test]
-    fn separates_datapack_and_resourcepack_roots() {
-        // 'assets' is not a valid ComponentDirectory — caught at deserialization
-        let bad_dir: Result<ComponentRecord, _> = serde_json::from_value(serde_json::json!({
-            "namespace": "audit",
-            "dir": "assets",
-            "path": "escaped",
-            "ext": "json",
-            "content": "{}",
-        }));
-        assert!(
-            bad_dir.is_err(),
-            "'assets' dir must be rejected at deserialization"
-        );
-
-        let rp_ok: ResourcePackRecord = serde_json::from_value(serde_json::json!({
-            "path": "assets/audit/models/item/test.json",
-            "content_type": "json",
-            "content": "{}",
-        }))
-        .unwrap();
-        assert!(validate_resourcepack_records(&[rp_ok]).is_ok());
-
-        let rp_bad: ResourcePackRecord = serde_json::from_value(serde_json::json!({
-            "path": "data/audit/recipe/test.json",
-            "content_type": "json",
-            "content": "{}",
-        }))
-        .unwrap();
-        assert!(
-            validate_resourcepack_records(&[rp_bad]).is_err(),
-            "data/ paths must be rejected for resource pack records"
-        );
-    }
-
-    #[test]
-    fn validates_resourcepack_copy_source_paths_before_writing() {
-        for bad_source in ["", "../escape.png", "/tmp/escape.png", "assets\0bad.png"] {
-            let record =
-                resourcepack_record("assets/audit/textures/item/test.png", "copy", bad_source);
-            let err = validate_resourcepack_records(&[record]).unwrap_err();
-            assert!(
-                err.to_string()
-                    .contains("unsafe resource-pack copy source path"),
-                "error should identify unsafe source path: {err}"
-            );
-        }
-    }
-
-    #[test]
-    fn validates_resourcepack_copy_source_files_before_writing() {
-        let temp = tempfile::tempdir().unwrap();
-        let project_root = temp.path();
-
-        let missing = resourcepack_record(
-            "assets/audit/textures/item/missing.png",
-            "copy",
-            "assets/src/missing.png",
-        );
-        let err = validate_resourcepack_records_for_project(project_root, &[missing]).unwrap_err();
-        assert!(
-            err.to_string().contains("resource-pack asset not found"),
-            "missing source should be reported before writing: {err}"
-        );
-
-        std::fs::create_dir_all(project_root.join("assets/src/dir.png")).unwrap();
-        let directory = resourcepack_record(
-            "assets/audit/textures/item/dir.png",
-            "copy",
-            "assets/src/dir.png",
-        );
-        let err =
-            validate_resourcepack_records_for_project(project_root, &[directory]).unwrap_err();
-        assert!(
-            err.to_string()
-                .contains("resource-pack asset is not a file"),
-            "directory source should be rejected before writing: {err}"
-        );
-
-        std::fs::create_dir_all(project_root.join("assets/src")).unwrap();
-        std::fs::write(project_root.join("assets/src/ok.png"), b"png").unwrap();
-        let valid = resourcepack_record(
-            "assets/audit/textures/item/ok.png",
-            "copy",
-            "assets/src/ok.png",
-        );
-        assert!(validate_resourcepack_records_for_project(project_root, &[valid]).is_ok());
-    }
-
-    #[cfg(unix)]
-    #[test]
-    fn rejects_resourcepack_copy_source_symlink_escape_before_writing() {
-        let temp = tempfile::tempdir().unwrap();
-        let project_root = temp.path().join("project");
-        let outside_root = temp.path().join("outside");
-        std::fs::create_dir_all(project_root.join("assets/src")).unwrap();
-        std::fs::create_dir_all(&outside_root).unwrap();
-        std::fs::write(outside_root.join("leak.png"), b"secret").unwrap();
-
-        let link_path = project_root.join("assets/src/leak.png");
-        if std::os::unix::fs::symlink(outside_root.join("leak.png"), &link_path).is_err() {
-            return;
-        }
-
-        let record = resourcepack_record(
-            "assets/audit/textures/item/leak.png",
-            "copy",
-            "assets/src/leak.png",
-        );
-        let err = validate_resourcepack_records_for_project(&project_root, &[record]).unwrap_err();
-        assert!(
-            err.to_string().contains("escapes the project root"),
-            "symlink escapes should be rejected before writing: {err}"
-        );
-    }
-
-    #[test]
-    fn validates_resourcepack_bytes_before_writing() {
-        let invalid = resourcepack_record(
-            "assets/audit/textures/item/bad.bin",
-            "bytes",
-            "not valid base64",
-        );
-        let err = validate_resourcepack_records(&[invalid]).unwrap_err();
-        assert!(
-            err.to_string().contains("invalid base64 bytes"),
-            "invalid bytes should fail during validation: {err}"
-        );
-
-        let valid = resourcepack_record("assets/audit/textures/item/ok.bin", "bytes", "cG5n");
-        assert!(validate_resourcepack_records(&[valid]).is_ok());
-    }
-
     // ── Pack metadata and zip ─────────────────────────────────────────────────
 
     #[test]
-    fn pack_metadata_and_release_zip_stay_with_their_pack_root() {
+    fn pack_metadata_and_release_zip_stay_with_the_datapack_root() {
         let temp = tempfile::tempdir().unwrap();
         let datapack = temp.path().join("audit");
-        let resourcepack = temp.path().join("audit-resources");
         std::fs::create_dir_all(datapack.join("data/audit/function")).unwrap();
-        std::fs::create_dir_all(resourcepack.join("assets/audit/models/item")).unwrap();
         write_pack_mcmeta(&datapack, "audit", "data", 71, None, &[]).unwrap();
-        write_resourcepack_mcmeta(&resourcepack, "resources", 48, None, &[]).unwrap();
         std::fs::write(
             datapack.join("data/audit/function/load.mcfunction"),
             "say loaded",
-        )
-        .unwrap();
-        std::fs::write(
-            resourcepack.join("assets/audit/models/item/test.json"),
-            "{}",
         )
         .unwrap();
 
         let data_meta: serde_json::Value =
             serde_json::from_str(&std::fs::read_to_string(datapack.join("pack.mcmeta")).unwrap())
                 .unwrap();
-        let resource_meta: serde_json::Value = serde_json::from_str(
-            &std::fs::read_to_string(resourcepack.join("pack.mcmeta")).unwrap(),
-        )
-        .unwrap();
         assert_eq!(data_meta["pack"]["pack_format"], 71);
-        assert_eq!(resource_meta["pack"]["pack_format"], 48);
 
         let zip_path = zip_dir(&datapack, "audit").unwrap();
         let mut zip = zip::ZipArchive::new(std::fs::File::open(zip_path).unwrap()).unwrap();
         assert!(zip.by_name("pack.mcmeta").is_ok());
         assert!(zip.by_name("data/audit/function/load.mcfunction").is_ok());
-        assert!(zip.by_name("assets/audit/models/item/test.json").is_err());
     }
 
     #[test]
@@ -1289,33 +1075,12 @@ mod tests {
         assert_eq!(entries[0]["formats"]["max_inclusive"], 72);
     }
 
-    #[test]
-    fn resourcepack_mcmeta_supports_the_same_compatibility_fields() {
-        use super::records::PackSupportedFormats;
-
-        let temp = tempfile::tempdir().unwrap();
-        write_resourcepack_mcmeta(
-            temp.path(),
-            "resources",
-            48,
-            Some(PackSupportedFormats::Range { min: 46, max: 48 }),
-            &[],
-        )
-        .unwrap();
-        let metadata: serde_json::Value = serde_json::from_str(
-            &std::fs::read_to_string(temp.path().join("pack.mcmeta")).unwrap(),
-        )
-        .unwrap();
-        assert_eq!(metadata["pack"]["supported_formats"]["min_inclusive"], 46);
-        assert_eq!(metadata["pack"]["supported_formats"]["max_inclusive"], 48);
-    }
-
     // ── sand.toml supported_formats / overlays parsing (#149) ──────────────────
 
     #[test]
     fn config_parses_single_supported_format() {
         let toml = "[pack]\nnamespace = \"audit\"\ndescription = \"test\"\n\
-                     mc_version = \"1.21\"\nsupported_formats = 71\n";
+                     mc_version = \"26.1\"\nsupported_formats = 71\n";
         let config: crate::config::SandConfig = toml::from_str(toml).unwrap();
         assert_eq!(
             config.pack.supported_formats,
@@ -1326,7 +1091,7 @@ mod tests {
     #[test]
     fn config_parses_supported_format_range() {
         let toml = "[pack]\nnamespace = \"audit\"\ndescription = \"test\"\n\
-                     mc_version = \"1.21\"\nsupported_formats = { min = 71, max = 72 }\n";
+                     mc_version = \"26.1\"\nsupported_formats = { min = 71, max = 72 }\n";
         let config: crate::config::SandConfig = toml::from_str(toml).unwrap();
         assert_eq!(
             config.pack.supported_formats,
@@ -1337,7 +1102,7 @@ mod tests {
     #[test]
     fn config_rejects_inverted_supported_format_range() {
         let toml = "[pack]\nnamespace = \"audit\"\ndescription = \"test\"\n\
-                     mc_version = \"1.21\"\nsupported_formats = { min = 72, max = 71 }\n";
+                     mc_version = \"26.1\"\nsupported_formats = { min = 72, max = 71 }\n";
         let err = toml::from_str::<crate::config::SandConfig>(toml).unwrap_err();
         assert!(
             err.to_string().contains("min") && err.to_string().contains("max"),
@@ -1349,9 +1114,9 @@ mod tests {
     fn config_rejects_zero_supported_format() {
         for toml in [
             "[pack]\nnamespace = \"audit\"\ndescription = \"test\"\n\
-             mc_version = \"1.21\"\nsupported_formats = 0\n",
+             mc_version = \"26.1\"\nsupported_formats = 0\n",
             "[pack]\nnamespace = \"audit\"\ndescription = \"test\"\n\
-             mc_version = \"1.21\"\nsupported_formats = { min = 0, max = 71 }\n",
+             mc_version = \"26.1\"\nsupported_formats = { min = 0, max = 71 }\n",
         ] {
             assert!(
                 toml::from_str::<crate::config::SandConfig>(toml).is_err(),
@@ -1363,7 +1128,7 @@ mod tests {
     #[test]
     fn config_parses_pack_overlays() {
         let toml = "[pack]\nnamespace = \"audit\"\ndescription = \"test\"\n\
-                     mc_version = \"1.21\"\nsupported_formats = { min = 71, max = 72 }\n\
+                     mc_version = \"26.1\"\nsupported_formats = { min = 71, max = 72 }\n\
                      [[pack.overlays]]\ndirectory = \"overlays/26_2\"\n\
                      formats = { min = 72, max = 72 }\n";
         let config: crate::config::SandConfig = toml::from_str(toml).unwrap();
@@ -1378,7 +1143,7 @@ mod tests {
     #[test]
     fn config_rejects_absolute_overlay_directory() {
         let toml = "[pack]\nnamespace = \"audit\"\ndescription = \"test\"\n\
-                     mc_version = \"1.21\"\n\
+                     mc_version = \"26.1\"\n\
                      [[pack.overlays]]\ndirectory = \"/etc/overlays\"\n\
                      formats = { min = 72, max = 72 }\n";
         assert!(toml::from_str::<crate::config::SandConfig>(toml).is_err());
@@ -1387,33 +1152,15 @@ mod tests {
     #[test]
     fn config_rejects_path_traversing_overlay_directory() {
         let toml = "[pack]\nnamespace = \"audit\"\ndescription = \"test\"\n\
-                     mc_version = \"1.21\"\n\
+                     mc_version = \"26.1\"\n\
                      [[pack.overlays]]\ndirectory = \"../escape\"\n\
                      formats = { min = 72, max = 72 }\n";
         assert!(toml::from_str::<crate::config::SandConfig>(toml).is_err());
     }
 
     #[test]
-    fn config_parses_resourcepack_supported_formats_and_overlays() {
-        let toml = "[pack]\nnamespace = \"audit\"\ndescription = \"test\"\n\
-                     mc_version = \"1.21\"\n\
-                     [resourcepack]\ndescription = \"rp\"\n\
-                     supported_formats = { min = 46, max = 48 }\n\
-                     [[resourcepack.overlays]]\ndirectory = \"overlays/rp_26_2\"\n\
-                     formats = 48\n";
-        let config: crate::config::SandConfig = toml::from_str(toml).unwrap();
-        let rp = config.resourcepack.unwrap();
-        assert_eq!(
-            rp.supported_formats,
-            Some(super::records::PackSupportedFormats::Range { min: 46, max: 48 })
-        );
-        assert_eq!(rp.overlays.len(), 1);
-        assert_eq!(rp.overlays[0].directory.as_str(), "overlays/rp_26_2");
-    }
-
-    #[test]
     fn config_without_compatibility_fields_defaults_to_backward_compatible_shape() {
-        let toml = "[pack]\nnamespace = \"audit\"\ndescription = \"test\"\nmc_version = \"1.21\"\n";
+        let toml = "[pack]\nnamespace = \"audit\"\ndescription = \"test\"\nmc_version = \"26.1\"\n";
         let config: crate::config::SandConfig = toml::from_str(toml).unwrap();
         assert_eq!(config.pack.supported_formats, None);
         assert!(config.pack.overlays.is_empty());
@@ -1589,29 +1336,6 @@ mod tests {
     }
 
     #[test]
-    fn typed_content_type_deserializes_from_json() {
-        let json = r#"{"path":"assets/ns/font/hud.json","content_type":"json","content":"{}"}"#;
-        let rec: ResourcePackRecord = serde_json::from_str(json).unwrap();
-        assert_eq!(rec.content_type, ContentType::Json);
-
-        let json2 =
-            r#"{"path":"assets/ns/textures/a.png","content_type":"copy","content":"src/a.png"}"#;
-        let rec2: ResourcePackRecord = serde_json::from_str(json2).unwrap();
-        assert_eq!(rec2.content_type, ContentType::Copy);
-
-        let json3 =
-            r#"{"path":"assets/ns/textures/b.png","content_type":"bytes","content":"AAAA"}"#;
-        let rec3: ResourcePackRecord = serde_json::from_str(json3).unwrap();
-        assert_eq!(rec3.content_type, ContentType::Bytes);
-    }
-
-    #[test]
-    fn unknown_content_type_rejected_at_deserialize() {
-        let json = r#"{"path":"assets/ns/a.png","content_type":"binary","content":""}"#;
-        assert!(serde_json::from_str::<ResourcePackRecord>(json).is_err());
-    }
-
-    #[test]
     fn validates_structure_template_copy_records() {
         let temp = tempfile::tempdir().unwrap();
         let project_root = temp.path().join("project");
@@ -1684,96 +1408,6 @@ mod tests {
         }))
         .unwrap();
         assert!(validate_component_records_for_project(&dist, &project_root, &[text_nbt]).is_err());
-    }
-
-    // ── Coordinated export compilation (#35) ──────────────────────────────────
-
-    /// The two record families are parsed, validated, and written independently
-    /// even though their exporters are now compiled together.  Nothing from one
-    /// stream may reach the other artifact root.
-    #[test]
-    fn datapack_and_resourcepack_records_stay_in_separate_roots() {
-        let temp = tempfile::tempdir().unwrap();
-        let project_root = temp.path().join("project");
-        let dist = temp.path().join("dist/audit");
-        let rp_dist = temp.path().join("dist/audit-resources");
-        std::fs::create_dir_all(&project_root).unwrap();
-
-        let component_records: Vec<ComponentRecord> = serde_json::from_value(serde_json::json!([
-            {
-                "namespace": "audit",
-                "dir": "function",
-                "path": "load",
-                "ext": "mcfunction",
-                "content": "say loaded",
-            },
-            {
-                "namespace": "audit",
-                "dir": "recipe",
-                "path": "test",
-                "ext": "json",
-                "content": "{\"type\":\"minecraft:crafting_shaped\"}",
-            },
-        ]))
-        .unwrap();
-        let rp_records: Vec<ResourcePackRecord> = serde_json::from_value(serde_json::json!([
-            {
-                "path": "assets/audit/models/item/test.json",
-                "content_type": "json",
-                "content": "{\"parent\":\"minecraft:item/generated\"}",
-            },
-        ]))
-        .unwrap();
-
-        validate_component_records_for_project(&dist, &project_root, &component_records).unwrap();
-        validate_resourcepack_records_for_project(&project_root, &rp_records).unwrap();
-
-        std::fs::create_dir_all(&dist).unwrap();
-        write_pack_mcmeta(&dist, "audit", "data", 71, None, &[]).unwrap();
-        for record in &component_records {
-            write_component(&dist, &project_root, record).unwrap();
-        }
-        std::fs::create_dir_all(&rp_dist).unwrap();
-        write_resourcepack_mcmeta(&rp_dist, "resources", 48, None, &[]).unwrap();
-        for record in &rp_records {
-            write_rp_record(&rp_dist, &project_root, record).unwrap();
-        }
-
-        assert!(dist.join("data/audit/function/load.mcfunction").exists());
-        assert!(
-            !dist.join("assets").exists(),
-            "resource-pack assets must never appear in the datapack root"
-        );
-        assert!(rp_dist.join("assets/audit/models/item/test.json").exists());
-        assert!(
-            !rp_dist.join("data").exists(),
-            "datapack components must never appear in the resource-pack root"
-        );
-    }
-
-    /// Record families cannot be routed into the wrong validator, so a mixed-up
-    /// export stream fails instead of silently writing to the wrong root.
-    #[test]
-    fn record_families_are_not_interchangeable() {
-        // A resource-pack asset path is not a legal ComponentRecord at all.
-        let as_component: Result<ComponentRecord, _> = serde_json::from_value(serde_json::json!({
-            "namespace": "audit",
-            "dir": "assets",
-            "path": "audit/models/item/test",
-            "ext": "json",
-            "content": "{}",
-        }));
-        assert!(
-            as_component.is_err(),
-            "resource-pack records must not deserialize as datapack components"
-        );
-
-        // A datapack output path is rejected by the resource-pack validator.
-        let as_rp = resourcepack_record("data/audit/recipe/test.json", "json", "{}");
-        assert!(
-            validate_resourcepack_records(&[as_rp]).is_err(),
-            "datapack records must not validate as resource-pack assets"
-        );
     }
 
     /// The generated bytes depend only on the records, not on how many times or
@@ -1999,8 +1633,7 @@ mod tests {
         let record = structure_record("rooms/start", "src/structures/start.nbt");
         assert!(
             validate_component_records_for_project(&dist, &project_root, &[record]).is_ok(),
-            "a symlink resolving inside the project root is allowed, \
-             matching the resource-pack copy policy"
+            "a symlink resolving inside the project root is allowed"
         );
     }
 
@@ -2061,35 +1694,6 @@ mod tests {
             "broken links need their own diagnostic: {rendered}"
         );
         assert!(!dist.exists(), "validation must not create output");
-    }
-
-    #[cfg(unix)]
-    #[test]
-    fn rejects_resourcepack_copy_source_through_symlinked_directory() {
-        let temp = tempfile::tempdir().unwrap();
-        let project_root = temp.path().join("project");
-        let outside_root = temp.path().join("outside");
-        std::fs::create_dir_all(project_root.join("assets")).unwrap();
-        std::fs::create_dir_all(&outside_root).unwrap();
-        std::fs::write(outside_root.join("leak.png"), b"secret").unwrap();
-
-        let link_path = project_root.join("assets/src");
-        if std::os::unix::fs::symlink(&outside_root, &link_path).is_err() {
-            eprintln!("skipping: symlink creation not permitted in this environment");
-            return;
-        }
-
-        let record = resourcepack_record(
-            "assets/audit/textures/item/leak.png",
-            "copy",
-            "assets/src/leak.png",
-        );
-        let err = validate_resourcepack_records_for_project(&project_root, &[record]).unwrap_err();
-        assert!(
-            err.to_string()
-                .contains("resource-pack asset escapes the project root"),
-            "intermediate directory symlink escapes should be rejected: {err}"
-        );
     }
 
     #[test]

@@ -1,4 +1,4 @@
-//! Builders for `data/<namespace>/jukebox_song/` JSON files (Minecraft 1.21+).
+//! Builders for `data/<namespace>/jukebox_song/` JSON files in Sand's 26+ baseline.
 //!
 //! Jukebox songs define custom music disc tracks.
 //!

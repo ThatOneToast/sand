@@ -89,7 +89,7 @@ impl std::fmt::Display for RelativePackPath {
 
 // ── PackSupportedFormats / PackOverlay ─────────────────────────────────────────
 
-/// Datapack/resource-pack format compatibility, matching vanilla's
+/// Datapack format compatibility, matching vanilla's
 /// `pack.mcmeta` `pack.supported_formats` field.
 ///
 /// Accepts either a single format number in `sand.toml`:
@@ -303,44 +303,5 @@ pub struct ComponentRecord {
     pub ext: OutputExt,
     #[serde(default)]
     pub content_type: ComponentContentType,
-    pub content: String,
-}
-
-// ── Content type for resource pack assets ─────────────────────────────────────
-
-/// How the `content` field of a [`ResourcePackRecord`] should be interpreted.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum ContentType {
-    /// Write `content` as UTF-8 text (JSON).
-    Json,
-    /// Copy the file at the project-root-relative path in `content`.
-    Copy,
-    /// Decode `content` as base64 and write raw bytes.
-    Bytes,
-}
-
-impl<'de> Deserialize<'de> for ContentType {
-    fn deserialize<D: serde::Deserializer<'de>>(d: D) -> Result<Self, D::Error> {
-        let s = String::deserialize(d)?;
-        match s.as_str() {
-            "json" => Ok(ContentType::Json),
-            "copy" => Ok(ContentType::Copy),
-            "bytes" => Ok(ContentType::Bytes),
-            other => Err(serde::de::Error::custom(format!(
-                "unknown resource-pack content_type '{other}'; expected 'json', 'copy', or 'bytes'"
-            ))),
-        }
-    }
-}
-
-// ── Resource pack record (from sand_resource_export) ─────────────────────────
-
-#[derive(Deserialize)]
-pub struct ResourcePackRecord {
-    /// Full path from the pack root, e.g. `"assets/ns/font/hud.json"`.
-    pub path: RelativePackPath,
-    /// How to interpret the `content` field.
-    pub content_type: ContentType,
-    /// JSON string, project-root-relative source path, or base64-encoded bytes.
     pub content: String,
 }

@@ -434,20 +434,20 @@ impl Execute {
         self
     }
 
-    /// `positioned over <heightmap>` — snap y-coordinate to the top of the given heightmap (1.19.4+).
+    /// `positioned over <heightmap>` — snap y-coordinate to the top of the given heightmap.
     #[sand_macros::api(
         registry = sand_api_contract,
         path = "sand::command::Execute::positioned_over",
         aliases = ["sand::cmd::Execute::positioned_over", "sand::prelude::Execute::positioned_over", "sand::prelude::cmd::Execute::positioned_over"],
         module = "sand::command",
         kind = "method",
-        summary = "`positioned over <heightmap>` — snap y-coordinate to the top of the given heightmap (1.19.4+).",
-        context = "`positioned over <heightmap>` — snap y-coordinate to the top of the given heightmap (1.19.4+). This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
+        summary = "`positioned over <heightmap>` — snap y-coordinate to the top of the given heightmap.",
+        context = "`positioned over <heightmap>` — snap y-coordinate to the top of the given heightmap. This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
         minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        params(heightmap = "`heightmap` supplies the documented `positioned over <heightmap>` — snap y-coordinate to the top of the given heightmap (1.19.4+) form."),
-        returns = "The `Execute` value with the documented change applied to emit the documented `positioned over <heightmap>` — snap y-coordinate to the top of the given heightmap (1.19.4+) form.",
+        params(heightmap = "`heightmap` supplies the heightmap used by `positioned over <heightmap>`."),
+        returns = "The updated `Execute` chain.",
         example = "use sand::prelude::*;\n\nfn demonstrate(execute_value: sand::command::Execute, heightmap: impl Into < String >)  {\n    let updated_execute = execute_value.positioned_over(heightmap);\n}",
     )]
     pub fn positioned_over(mut self, heightmap: impl Into<String>) -> Self {
@@ -1365,20 +1365,20 @@ impl Execute {
 
     // ── World conditions ──────────────────────────────────────────────────────
 
-    /// `if biome <pos> <biome>` — continue if the biome at `pos` matches (1.19.4+).
+    /// `if biome <pos> <biome>` — continue if the biome at `pos` matches.
     #[sand_macros::api(
         registry = sand_api_contract,
         path = "sand::command::Execute::if_biome",
         aliases = ["sand::cmd::Execute::if_biome", "sand::prelude::Execute::if_biome", "sand::prelude::cmd::Execute::if_biome"],
         module = "sand::command",
         kind = "method",
-        summary = "`if biome <pos> <biome>` — continue if the biome at `pos` matches (1.19.4+).",
-        context = "`if biome <pos> <biome>` — continue if the biome at `pos` matches (1.19.4+). This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
+        summary = "`if biome <pos> <biome>` — continue if the biome at `pos` matches.",
+        context = "`if biome <pos> <biome>` — continue if the biome at `pos` matches. This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
         minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        params(pos = "`if biome <pos> <biome>` — continue if the biome at `pos` matches (1.19.4+).", biome = "`biome` supplies the documented `if biome <pos> <biome>` — continue if the biome at `pos` matches (1.19.4+) form."),
-        returns = "The `Execute` value with the documented change applied to emit the documented `if biome <pos> <biome>` — continue if the biome at `pos` matches (1.19.4+) form.",
+        params(pos = "The position whose biome is tested.", biome = "The biome identifier to match."),
+        returns = "The updated `Execute` chain.",
         example = "use sand::prelude::*;\n\nfn demonstrate(execute_value: sand::command::Execute, pos: sand::command::BlockPos, biome: impl Into < String >)  {\n    let updated_execute = execute_value.if_biome(pos, biome);\n}",
     )]
     pub fn if_biome(mut self, pos: BlockPos, biome: impl Into<String>) -> Self {
@@ -1419,20 +1419,20 @@ impl Execute {
         self
     }
 
-    /// `if dimension <dimension>` — continue if executing in the given dimension (1.21+).
+    /// `if dimension <dimension>` — continue if executing in the given dimension.
     #[sand_macros::api(
         registry = sand_api_contract,
         path = "sand::command::Execute::if_dimension",
         aliases = ["sand::cmd::Execute::if_dimension", "sand::prelude::Execute::if_dimension", "sand::prelude::cmd::Execute::if_dimension"],
         module = "sand::command",
         kind = "method",
-        summary = "`if dimension <dimension>` — continue if executing in the given dimension (1.21+).",
-        context = "`if dimension <dimension>` — continue if executing in the given dimension (1.21+). This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
+        summary = "`if dimension <dimension>` — continue if executing in the given dimension.",
+        context = "`if dimension <dimension>` — continue if executing in the given dimension. This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
         minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        params(dimension = "`dimension` supplies the documented `if dimension <dimension>` — continue if executing in the given dimension (1.21+) form."),
-        returns = "The `Execute` value with the documented change applied to emit the documented `if dimension <dimension>` — continue if executing in the given dimension (1.21+) form.",
+        params(dimension = "The dimension identifier to match."),
+        returns = "The updated `Execute` chain.",
         example = "use sand::prelude::*;\n\nfn demonstrate(execute_value: sand::command::Execute, dimension: impl Into < String >)  {\n    let updated_execute = execute_value.if_dimension(dimension);\n}",
     )]
     pub fn if_dimension(mut self, dimension: impl Into<String>) -> Self {
@@ -1443,20 +1443,20 @@ impl Execute {
         self
     }
 
-    /// `unless dimension <dimension>` — skip if executing in the given dimension (1.21+).
+    /// `unless dimension <dimension>` — skip if executing in the given dimension.
     #[sand_macros::api(
         registry = sand_api_contract,
         path = "sand::command::Execute::unless_dimension",
         aliases = ["sand::cmd::Execute::unless_dimension", "sand::prelude::Execute::unless_dimension", "sand::prelude::cmd::Execute::unless_dimension"],
         module = "sand::command",
         kind = "method",
-        summary = "`unless dimension <dimension>` — skip if executing in the given dimension (1.21+).",
-        context = "`unless dimension <dimension>` — skip if executing in the given dimension (1.21+). This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
+        summary = "`unless dimension <dimension>` — skip if executing in the given dimension.",
+        context = "`unless dimension <dimension>` — skip if executing in the given dimension. This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
         minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        params(dimension = "`dimension` supplies the documented `unless dimension <dimension>` — skip if executing in the given dimension (1.21+) form."),
-        returns = "The `Execute` value with the documented change applied to emit the documented `unless dimension <dimension>` — skip if executing in the given dimension (1.21+) form.",
+        params(dimension = "The dimension identifier whose match should skip execution."),
+        returns = "The updated `Execute` chain.",
         example = "use sand::prelude::*;\n\nfn demonstrate(execute_value: sand::command::Execute, dimension: impl Into < String >)  {\n    let updated_execute = execute_value.unless_dimension(dimension);\n}",
     )]
     pub fn unless_dimension(mut self, dimension: impl Into<String>) -> Self {
@@ -1734,7 +1734,7 @@ impl Execute {
         self
     }
 
-    // ── Items conditions (1.20.5+) ────────────────────────────────────────────
+    // ── Item conditions ─────────────────────────────────────────────────────
 
     /// `if items entity <selector> <slot> <item>` — execute if the slot holds a matching item.
     ///
@@ -2081,7 +2081,6 @@ impl Execute {
             .render(&profile)
             .map_err(|e| e.with_context("Execute::run command"))?;
         let line = format!("{} run {cmd}", self.build());
-        crate::execute_ir::register_line(&line, &self.operations);
         Ok(line)
     }
 
@@ -2135,7 +2134,6 @@ impl Execute {
             ));
         }
         let line = format!("{} run {cmd}", self.build());
-        crate::execute_ir::register_line(&line, &self.operations);
         Ok(line)
     }
 
@@ -2186,7 +2184,6 @@ impl Execute {
 
     fn finish(self, command: impl fmt::Display) -> String {
         let line = format!("{} run {command}", self.build());
-        crate::execute_ir::register_line(&line, &self.operations);
         line
     }
 }
@@ -2199,9 +2196,6 @@ impl Validate for Execute {
                 "subcommands",
                 "execute chains require at least one subcommand",
             ));
-        }
-        for (index, operation) in self.operations.iter().enumerate() {
-            operation.validate_version(index, profile)?;
         }
         for check in &self.checks {
             let (index, kind, result) = match check {
@@ -2423,29 +2417,12 @@ mod tests {
     }
 
     #[test]
-    fn item_condition_capability_is_profile_aware_at_export_boundary() {
-        let line = Execute::new()
-            .if_items(Selector::self_(), ItemSlot::MainHand, "minecraft:diamond")
-            .run_raw("say found");
-
-        crate::render::validate_collected_line(&line, &CommandProfile::new("1.20.5", false))
-            .unwrap();
-        let error =
-            crate::render::validate_collected_line(&line, &CommandProfile::new("1.20.4", false))
-                .unwrap_err();
-        assert_eq!(error.code, "SAND-COMMAND-VERSION");
-        assert_eq!(error.field, "operation");
-        assert!(error.message.contains("ExecuteItemCondition"), "{error}");
-        assert!(error.message.contains("Minecraft 1.20.5+"), "{error}");
-    }
-
-    #[test]
-    fn raw_item_condition_keeps_user_owned_version_semantics() {
+    fn raw_item_condition_remains_verbatim() {
         let line = Execute::new()
             .raw_operation("if items entity @s weapon.mainhand minecraft:diamond")
             .run_raw("say opaque");
         assert_eq!(
-            crate::render::validate_collected_line(&line, &CommandProfile::new("1.20.4", false),)
+            crate::render::validate_collected_line(&line, &CommandProfile::new("26.2", false),)
                 .unwrap(),
             line
         );

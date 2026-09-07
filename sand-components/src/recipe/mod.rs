@@ -1,4 +1,4 @@
-//! Recipe builders for `data/<namespace>/recipe/` JSON files (Minecraft 1.21+).
+//! Recipe builders for `data/<namespace>/recipe/` JSON files in Sand's 26+ baseline.
 //!
 //! Each recipe type lives in its own submodule:
 //!

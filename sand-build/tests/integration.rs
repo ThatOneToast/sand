@@ -1,14 +1,13 @@
 /// Full pipeline integration test.
 ///
-/// Requires network access and Java 21+ on PATH.
+/// Requires network access and a Java runtime compatible with the target on PATH.
 /// Run with: `cargo test -p sand-build --features integration-tests`
 #[cfg(feature = "integration-tests")]
 mod pipeline {
     #[test]
-    fn full_pipeline_1_21_4() {
+    fn full_pipeline_26_2() {
         let out_dir = tempfile::tempdir().unwrap();
-        sand_build::generate_to_dir("1.21.4", out_dir.path())
-            .expect("full pipeline should succeed");
+        sand_build::generate_to_dir("26.2", out_dir.path()).expect("full pipeline should succeed");
 
         let registries_rs = out_dir.path().join("registries.rs");
         let block_states_rs = out_dir.path().join("block_states.rs");
@@ -38,7 +37,8 @@ mod pipeline {
     /// the jar, runs the data generator, and asserts non-placeholder output.
     ///
     /// **Maintenance-only — `#[ignore]` so it is NOT part of deterministic
-    /// workspace tests.** Requires network access and Java 21+ on PATH. Run
+    /// workspace tests.** Requires network access and a Java runtime compatible
+    /// with the target on PATH. Run
     /// the explicit maintenance command:
     /// `cargo test -p sand-build --features integration-tests \
     ///     default_codegen_target_is_codegen_available -- --ignored`

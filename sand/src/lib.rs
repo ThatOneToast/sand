@@ -92,14 +92,6 @@ pub use sand_macros::api;
 /// docs for the generated API and `#[sand(path = "...")]` field overrides.
 pub use sand_macros::SandStorage;
 
-/// `hud_bar!`, `hud_element!`, and `texture!` — declarative resource-pack
-/// authoring macros for custom HUD bars/elements and referenced textures.
-/// Only available with the `resourcepack` feature, and only useful alongside
-/// [`resourcepack`] (the `sand-resourcepack` crate), which provides the types
-/// these macros construct.
-#[cfg(feature = "resourcepack")]
-pub use sand_macros::{hud_bar, hud_element, texture};
-
 // ── Declarative macros (defined in the implementation crate) ─────────────────
 
 /// `all!`/`any!` compose typed [`condition::Condition`]s (all-of / any-of);
@@ -318,10 +310,9 @@ pub mod participant {
         BoundedItemSnapshot, CorrelatedEntityObservation, CorrelationEvidence, CorrelationSource,
         DuplicateParticipantRole, EntityParticipant, EntityParticipantRole, EventParticipantPlan,
         EventParticipantPlanError, ItemEvidenceQualifier, ItemParticipantRole,
-        LocationParticipantRole, ObservationError, ObservationSchema, ParticipantAvailability,
-        ParticipantBuilder, ParticipantHand, ParticipantLifetime, ParticipantReliability,
-        ParticipantReliabilityError, ParticipantUnavailableReason, PlayerParticipant,
-        observe_correlated_attacker,
+        LocationParticipantRole, ObservationSchema, ParticipantAvailability, ParticipantBuilder,
+        ParticipantHand, ParticipantLifetime, ParticipantReliability, ParticipantReliabilityError,
+        ParticipantUnavailableReason, PlayerParticipant, observe_correlated_attacker,
     };
 }
 
@@ -446,7 +437,7 @@ pub mod registry {
     minecraft = "Selects the pack metadata and data-driven features valid for the target Minecraft Java Edition release.",
     use_when = ["Checking whether authored content needs a Minecraft capability", "Inspecting the pack formats selected for a target release"],
     avoid_when = ["Driving Sand's generated export wiring directly", "Passing an unvalidated version string between APIs"],
-    example = "let version = sand::version::MinecraftVersion::parse(\"1.21.4\").unwrap();"
+    example = "let version = sand::version::MinecraftVersion::parse(\"26.1\").unwrap();"
 )]
 pub mod version {
     pub use sand_core::component::{ComponentFeature, VersionCaps};
@@ -499,60 +490,6 @@ pub mod build {
         TimeConfig, VanillaNoiseSettings, WeatherConfig, World, WorldBorder, WorldPreset,
         WorldResetPolicy, WorldResource, lower_world, run_and_print,
     };
-}
-
-/// Optional higher-level gameplay systems built from Sand's typed state,
-/// event, entity, and inventory primitives.
-///
-/// Export registries, lifecycle bookkeeping, and generated tick-command
-/// drains stay internal; each feature exposes only the semantic builder or
-/// registration API a datapack author uses.
-#[api(path = "sand::systems", module = "sand", summary = "Groups optional higher-level gameplay systems built from Sand's typed primitives.", context = "Each child module is feature-gated and exposes semantic authoring APIs rather than exporter bookkeeping.", minecraft = "Enabled systems emit their documented resources, lifecycle functions, and commands.", use_when = ["A built-in system matches the gameplay behavior the pack needs"], avoid_when = ["The pack needs different semantics from the documented system"], example = "use sand::systems;")]
-pub mod systems {
-    #[cfg(feature = "systems-damage")]
-    #[sand_macros::api(path = "sand::systems::damage", module = "sand::systems", summary = "Provides the feature-gated damage gameplay system.", context = "This opt-in system composes State and events into typed damage tracking.", minecraft = "Emits damage scoreboards and tick reconciliation.", use_when = ["Tracking typed damage state"], avoid_when = ["Vanilla health alone is sufficient"], example = "use sand::systems::damage::*;", availability = ["Cargo feature: systems-damage"])]
-    pub mod damage {
-        pub use sand_core::systems::damage::{DamageThreshold, DamageTracker, recently_damaged};
-    }
-
-    #[cfg(feature = "systems-cooldowns")]
-    #[sand_macros::api(path = "sand::systems::cooldowns", module = "sand::systems", summary = "Provides the feature-gated cooldown gameplay system.", context = "This opt-in system ticks registered typed cooldown fields.", minecraft = "Emits a tick path that decrements active scoreboard cooldowns.", use_when = ["Several cooldowns need shared ticking"], avoid_when = ["Another system owns cooldown timing"], example = "use sand::systems::cooldowns::*;", availability = ["Cargo feature: systems-cooldowns"])]
-    pub mod cooldowns {
-        pub use sand_core::systems::cooldowns::register_cooldown;
-    }
-
-    #[cfg(feature = "systems-lifecycle")]
-    #[sand_macros::api(path = "sand::systems::lifecycle", module = "sand::systems", summary = "Provides feature-gated first-join and respawn helpers.", context = "These helpers package common player lifecycle transitions as typed command fragments.", minecraft = "Tests and updates lifecycle scoreboards around join and respawn behavior.", use_when = ["Building first-join or respawn flows"], avoid_when = ["A custom event already owns the lifecycle"], example = "use sand::systems::lifecycle::*;", availability = ["Cargo feature: systems-lifecycle"])]
-    pub mod lifecycle {
-        pub use sand_core::systems::lifecycle::{FirstJoinCommands, RespawnCommands};
-    }
-
-    #[cfg(feature = "systems-player-data")]
-    #[sand_macros::api(path = "sand::systems::player_data", module = "sand::systems", summary = "Provides the feature-gated typed player-data schema system.", context = "Groups score, flag, timer, cooldown, and storage fields under a player schema.", minecraft = "Provisions backing scoreboards and storage paths for declared fields.", use_when = ["Modeling cohesive persistent player data"], avoid_when = ["A derived State schema already models the data"], example = "use sand::systems::player_data::*;", availability = ["Cargo feature: systems-player-data"])]
-    pub mod player_data {
-        pub use sand_core::systems::player_data::{
-            CooldownField, CooldownFieldRef, FlagField, GameStateField, GlobalStorageField,
-            PlayerDataSchema, PlayerSchema, ScoreField, TimerField, TimerFieldRef,
-        };
-    }
-
-    #[cfg(feature = "systems-movement")]
-    #[sand_macros::api(path = "sand::systems::movement", module = "sand::systems", summary = "Provides feature-gated typed movement effects.", context = "Builders describe pushes, launches, speed boosts, and slowing behavior.", minecraft = "Lowers movement intent to version-appropriate motion and effect commands.", use_when = ["Applying a built-in movement effect"], avoid_when = ["Direct teleportation is intended"], example = "use sand::systems::movement::*;", availability = ["Cargo feature: systems-movement"])]
-    pub mod movement {
-        pub use sand_core::systems::movement::{Launch, PushAway, Slow, SpeedBoost};
-    }
-
-    #[cfg(feature = "systems-inventory")]
-    #[sand_macros::api(path = "sand::systems::inventory", module = "sand::systems", summary = "Provides the feature-gated inventory gameplay system.", context = "Exposes typed inventory checks and mutation builders.", minecraft = "Emits validated item predicates and inventory commands.", use_when = ["Checking or changing inventories through typed builders"], avoid_when = ["Manipulating unrelated entity NBT"], example = "use sand::systems::inventory::*;", availability = ["Cargo feature: systems-inventory"])]
-    pub mod inventory {
-        pub use sand_core::systems::inventory::{ClearBuilder, HasItemCheck, InventorySystem};
-    }
-
-    #[cfg(feature = "systems-entities")]
-    #[sand_macros::api(path = "sand::systems::entities", module = "sand::systems", summary = "Provides the feature-gated interactable entity system.", context = "Packages entity setup for typed interaction targets.", minecraft = "Emits entity summon and interaction configuration commands.", use_when = ["Creating a built-in interactable entity"], avoid_when = ["A vanilla entity already has the required interaction"], example = "use sand::systems::entities::*;", availability = ["Cargo feature: systems-entities"])]
-    pub mod entities {
-        pub use sand_core::systems::entities::{InteractSize, Interactable};
-    }
 }
 
 /// A validated `namespace:path` resource identifier, used throughout Sand
@@ -667,23 +604,6 @@ pub mod vanilla {
 /// their canonical topic-module paths rather than being duplicated here.
 pub use sand_core::advanced;
 
-/// Resource-pack authoring (HUD bars/elements, textures), re-exporting the
-/// `sand-resourcepack` crate. Only available with the `resourcepack`
-/// feature; pair with the [`hud_bar!`](crate::hud_bar),
-/// [`hud_element!`](crate::hud_element), and [`texture!`](crate::texture)
-/// macros, also feature-gated.
-#[cfg(feature = "resourcepack")]
-#[api(path = "sand::resourcepack", module = "sand", summary = "Provides optional typed resource-pack authoring APIs.", context = "The feature-gated module accompanies HUD and texture macros with typed asset registrations.", minecraft = "Writes resource-pack GUI textures, bitmap fonts, HUD definitions, and pack metadata.", use_when = ["Authoring client assets with a Sand datapack"], avoid_when = ["Building a datapack-only project"], example = "use sand::resourcepack::*;", availability = ["Cargo feature: resourcepack"])]
-pub mod resourcepack {
-    pub use sand_resourcepack::{
-        AssetContent, AssetOutput, BarHandle, BarStat, BitmapFont, BitmapProvider, Color,
-        ElementHandle, FontProvider, GenHudBar, GenHudElement, HudBar, HudElement, HudLayout,
-        RawTexture, ResourcePackComponent, ResourcePackDescriptor, ResourcePackRecord, advance_x,
-        bar_char, bar_text_json, element_char, element_text_json, export_resourcepack_json,
-        resource_pack_format_for,
-    };
-}
-
 // ── Macro/compiler wiring. Not public API. ────────────────────────────────────
 
 #[doc(hidden)]
@@ -718,7 +638,4 @@ pub mod __private {
     pub use sand_core::entity::*;
     pub use sand_core::*;
     pub use sand_core::{cmd, condition, event, events, state};
-
-    #[cfg(feature = "resourcepack")]
-    pub use sand_resourcepack as rp;
 }

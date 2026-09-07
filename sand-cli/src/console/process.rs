@@ -51,7 +51,9 @@ pub fn run_server(mut command: Command, mode: OutputMode, mc_version: &str) -> R
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
         .spawn()
-        .context("failed to start Java — make sure Java 21+ is on your PATH (`java -version`)")?;
+        .context(
+            "failed to start Java — ensure a runtime compatible with the selected Minecraft version is on your PATH (`java -version`)",
+        )?;
 
     let stdin = child.stdin.take().expect("stdin was piped");
     let stdout = child.stdout.take().expect("stdout was piped");
@@ -292,7 +294,7 @@ mod tests {
             let _ = tx.send(Event::InputClosed);
         });
 
-        let result = drive(&mut child, stdin, &rx, OutputMode::Classified, "1.21.1");
+        let result = drive(&mut child, stdin, &rx, OutputMode::Classified, "26.2");
         // The fixture script isn't a real Minecraft server, so we only
         // assert the loop terminates cleanly with a status, proving no
         // deadlock — not any particular exit code.

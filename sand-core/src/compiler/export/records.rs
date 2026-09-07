@@ -611,7 +611,7 @@ mod tests {
         let caps = VersionCaps::all_enabled();
         let ctx = ExportCtx {
             caps: &caps,
-            requested_version: "1.21.6",
+            requested_version: "26.2",
             is_fallback: false,
         };
         let record = component_to_record(&comp, Some(&ctx))
@@ -627,8 +627,8 @@ mod tests {
         let caps = VersionCaps::all_disabled();
         let ctx = ExportCtx {
             caps: &caps,
-            requested_version: "1.19.4",
-            is_fallback: false,
+            requested_version: "27.0",
+            is_fallback: true,
         };
         let err = component_to_record(&comp, Some(&ctx))
             .expect_err("dialog should fail when dialogs feature is not supported");
@@ -636,7 +636,7 @@ mod tests {
         assert!(msg.contains("dialog"), "must include kind: {msg}");
         assert!(msg.contains("dialogs"), "must include feature name: {msg}");
         assert!(
-            msg.contains("1.19.4"),
+            msg.contains("27.0"),
             "must include requested version: {msg}"
         );
     }
@@ -685,8 +685,8 @@ mod tests {
         let caps = VersionCaps::all_disabled();
         let ctx = ExportCtx {
             caps: &caps,
-            requested_version: "1.21.4",
-            is_fallback: false,
+            requested_version: "27.0",
+            is_fallback: true,
         };
         let err = component_to_record(&trade, Some(&ctx))
             .expect_err("villager trades require the villager_trades feature");
@@ -746,33 +746,6 @@ mod tests {
     }
 
     #[test]
-    fn resolve_export_caps_known_version_gates_correctly() {
-        // 1.19.4 supports damage_types and trim_assets but not dialogs or jukebox_songs.
-        let resolved = crate::version::resolve_export_caps("1.19.4").unwrap();
-        assert!(!resolved.is_fallback, "1.19.4 should be a known profile");
-        assert!(
-            resolved
-                .caps
-                .supports(sand_version::ComponentFeature::DamageTypes)
-        );
-        assert!(
-            resolved
-                .caps
-                .supports(sand_version::ComponentFeature::TrimAssets)
-        );
-        assert!(
-            !resolved
-                .caps
-                .supports(sand_version::ComponentFeature::Dialogs)
-        );
-        assert!(
-            !resolved
-                .caps
-                .supports(sand_version::ComponentFeature::JukeboxSongs)
-        );
-    }
-
-    #[test]
     fn resolve_export_caps_rejects_malformed_version() {
         let err = crate::version::resolve_export_caps("not-a-version")
             .expect_err("malformed export version must not silently use a fallback");
@@ -806,14 +779,14 @@ mod tests {
         let caps = VersionCaps::all_disabled();
         let ctx = ExportCtx {
             caps: &caps,
-            requested_version: "1.19.4",
-            is_fallback: false,
+            requested_version: "27.0",
+            is_fallback: true,
         };
         let err = component_to_record(&recipe, Some(&ctx))
             .expect_err("component-bearing recipe result must be gated on item_components");
         let msg = err.to_string();
         assert!(msg.contains("item_components"), "err: {msg}");
-        assert!(msg.contains("1.19.4"), "err: {msg}");
+        assert!(msg.contains("27.0"), "err: {msg}");
     }
 
     #[test]
@@ -822,7 +795,7 @@ mod tests {
         let caps = VersionCaps::all_enabled();
         let ctx = ExportCtx {
             caps: &caps,
-            requested_version: "1.21.4",
+            requested_version: "26.2",
             is_fallback: false,
         };
         let record = component_to_record(&recipe, Some(&ctx))
@@ -846,8 +819,8 @@ mod tests {
         let caps = VersionCaps::all_disabled();
         let ctx = ExportCtx {
             caps: &caps,
-            requested_version: "1.18.1",
-            is_fallback: false,
+            requested_version: "27.0",
+            is_fallback: true,
         };
         component_to_record(&recipe, Some(&ctx))
             .expect("component-free recipe results must never be version-gated");
@@ -868,15 +841,20 @@ mod tests {
                 ),
             );
 
-        let stable = crate::version::resolve_export_caps("1.21.4").unwrap();
-        let stable_ctx = ExportCtx {
-            caps: &stable.caps,
-            requested_version: "1.21.4",
-            is_fallback: stable.is_fallback,
+        let profile_26_1 = crate::version::resolve_export_caps("26.1").unwrap();
+        let profile_26_1_ctx = ExportCtx {
+            caps: &profile_26_1.caps,
+            requested_version: "26.1",
+            is_fallback: profile_26_1.is_fallback,
         };
-        let stable_record = component_to_record(&advancement, Some(&stable_ctx)).unwrap();
-        assert!(stable_record.content.contains("\"type\""));
-        assert!(!stable_record.content.contains("minecraft:entity_type"));
+        let profile_26_1_record =
+            component_to_record(&advancement, Some(&profile_26_1_ctx)).unwrap();
+        assert!(profile_26_1_record.content.contains("\"type\""));
+        assert!(
+            !profile_26_1_record
+                .content
+                .contains("minecraft:entity_type")
+        );
 
         let latest = crate::version::resolve_export_caps("26.2").unwrap();
         let latest_ctx = ExportCtx {
@@ -886,7 +864,7 @@ mod tests {
         };
         let latest_record = component_to_record(&advancement, Some(&latest_ctx)).unwrap();
         assert!(latest_record.content.contains("minecraft:entity_type"));
-        assert_ne!(stable_record.content, latest_record.content);
+        assert_ne!(profile_26_1_record.content, latest_record.content);
     }
 
     // ── Structured validation export integration (#138, #139, #140) ──────────
@@ -988,21 +966,20 @@ mod tests {
     fn typed_trim_components_export_to_their_registry_directories() {
         let material = sand_components::TrimMaterial::new(test_rl("test", "quartz"))
             .asset_name(sand_components::TrimAssetName::new("quartz").unwrap())
-            .ingredient(sand_components::ItemId::minecraft("quartz").unwrap())
-            .item_model_index(0.1)
             .description(sand_commands::TextComponent::translate(
                 "trim_material.test.quartz",
             ));
         let material_record = component_to_record(&material, None).unwrap();
         assert_eq!(material_record.dir, "trim_material");
         assert_eq!(material_record.path, "quartz");
-        assert!(material_record.content.contains("\"minecraft:quartz\""));
+        assert!(
+            material_record
+                .content
+                .contains("\"asset_name\": \"quartz\"")
+        );
 
         let pattern = sand_components::TrimPattern::new(test_rl("test", "bolt"))
             .asset_id(test_rl("test", "bolt"))
-            .template_item(
-                sand_components::ItemId::minecraft("bolt_armor_trim_smithing_template").unwrap(),
-            )
             .description(sand_commands::TextComponent::translate(
                 "trim_pattern.test.bolt",
             ));
@@ -1037,13 +1014,13 @@ mod tests {
         let caps = VersionCaps::all_disabled();
         let ctx = ExportCtx {
             caps: &caps,
-            requested_version: "1.20.6",
-            is_fallback: false,
+            requested_version: "27.0",
+            is_fallback: true,
         };
         let err = component_to_record(&provider, Some(&ctx)).unwrap_err();
         let message = err.to_string();
         assert!(message.contains("enchantments"), "{message}");
-        assert!(message.contains("1.20.6"), "{message}");
+        assert!(message.contains("27.0"), "{message}");
     }
 
     #[test]
@@ -1114,13 +1091,13 @@ mod tests {
         let caps = VersionCaps::all_disabled();
         let ctx = ExportCtx {
             caps: &caps,
-            requested_version: "1.21.4",
-            is_fallback: false,
+            requested_version: "27.0",
+            is_fallback: true,
         };
         let err = component_to_record(&variant, Some(&ctx)).unwrap_err();
         let message = err.to_string();
         assert!(message.contains("animal_variants"), "{message}");
-        assert!(message.contains("1.21.4"), "{message}");
+        assert!(message.contains("27.0"), "{message}");
     }
 
     #[test]
@@ -1130,7 +1107,7 @@ mod tests {
         let caps = VersionCaps::all_enabled();
         let ctx = ExportCtx {
             caps: &caps,
-            requested_version: "1.21.5",
+            requested_version: "26.1",
             is_fallback: false,
         };
         let record = component_to_record(&variant, Some(&ctx))

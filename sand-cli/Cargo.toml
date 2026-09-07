@@ -17,7 +17,6 @@ sand-api-contract = { path = "../sand-api-contract" }
 sand-build = { path = "../sand-build" }
 sand-components = { path = "../sand-components" }
 sand-core = { path = "../sand-core" }
-sand-resourcepack = { path = "../sand-resourcepack" }
 clap = { version = "4", features = ["derive"] }
 # default-features off: handlebars 6.4.3+ enables `preserve_json_order` by
 # default, which flips serde_json to insertion-ordered maps workspace-wide and
@@ -30,7 +29,6 @@ toml = "0.8"
 zip = "2"
 walkdir = "2"
 colored = "2"
-base64 = "0.22"
 # Cross-platform Ctrl-C trapping: the standard library has no portable
 # SIGINT/Ctrl+C handling API, and this is required to shut the managed
 # Minecraft server down cleanly (send `stop`, wait for exit) instead of
@@ -39,15 +37,6 @@ ctrlc = "3"
 
 [features]
 integration-tests = []
-resourcepack = ["sand/resourcepack"]
-systems-damage = ["sand/systems-damage"]
-systems-cooldowns = ["sand/systems-cooldowns"]
-systems-lifecycle = ["sand/systems-lifecycle"]
-systems-player-data = ["sand/systems-player-data"]
-systems-movement = ["sand/systems-movement"]
-systems-inventory = ["sand/systems-inventory"]
-systems-entities = ["sand/systems-entities"]
-systems-all = ["sand/systems-all"]
 
 [dev-dependencies]
 criterion = "0.5"

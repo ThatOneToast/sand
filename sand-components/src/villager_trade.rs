@@ -1,5 +1,5 @@
 //! Typed authoring for Minecraft's data-driven Villager/Wandering Trader
-//! trades (Minecraft Java 26.1+ / data pack version 95+).
+//! trades in Sand's Minecraft Java 26+ baseline.
 //!
 //! Minecraft models this as two registries, which this module keeps typed
 //! and separate while presenting one cohesive authoring workflow:

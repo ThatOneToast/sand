@@ -1,7 +1,7 @@
 //! # hello_world
 //!
 //! A minimal example datapack built with [Sand](https://crates.io/crates/sand),
-//! targeting Minecraft 1.21.11.
+//! targeting Minecraft 26.2.
 //!
 //! This crate also serves as the primary integration test for the Sand
 //! workspace — every module exercises a different part of the pipeline.
@@ -12,9 +12,6 @@ pub mod attribute_golden;
 pub use attribute_golden::*;
 pub mod arcane_golden;
 pub use arcane_golden::*;
-pub mod enhanced_cells;
-pub mod gameplay_state_example;
-pub use gameplay_state_example::*;
 pub mod level_up_reward;
 pub mod participant_context_example;
 pub mod player_state_transitions_example;
@@ -127,7 +124,7 @@ pub fn __sand_export(namespace: &str, mc_version: &str) {
 mod tests {
     use super::*;
     use sand_core::inventory;
-    use sand_core::{DatapackComponent, FunctionDescriptor, McVersion, PackNamespace};
+    use sand_core::{DatapackComponent, FunctionDescriptor, PackNamespace};
 
     // ── mcfunction! macro ─────────────────────────────────────────────────────
 
@@ -298,16 +295,6 @@ mod tests {
         assert_eq!(json, r#""minecraft:stone""#);
         let back: ResourceLocation = serde_json::from_str(&json).unwrap();
         assert_eq!(loc, back);
-    }
-
-    // ── McVersion ─────────────────────────────────────────────────────────────
-
-    #[test]
-    fn mc_version_parse_and_order() {
-        let v1: McVersion = "1.20.1".parse().unwrap();
-        let v2: McVersion = "1.21.4".parse().unwrap();
-        assert!(v1 < v2);
-        assert_eq!(v2.to_string(), "1.21.4");
     }
 
     // ── PackNamespace ─────────────────────────────────────────────────────────

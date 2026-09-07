@@ -1,6 +1,6 @@
 //! Shared spawn-condition model for the biome-scoped animal variant
 //! registries introduced alongside `chicken_variant`, `cow_variant`, and
-//! `pig_variant` (Minecraft 1.21.5+).
+//! `pig_variant` resources for Sand's Minecraft 26+ baseline.
 //!
 //! Each of these registries selects a variant for a freshly spawned animal
 //! using an ordered, prioritized list of spawn conditions. Sand only models

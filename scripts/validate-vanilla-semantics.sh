@@ -11,12 +11,12 @@ if [[ $# -lt 1 ]]; then
 fi
 
 PACK="$1"
-OUTPUT="${2:-$REPO_ROOT/target/vanilla-reload/semantic-1.21.4}"
+OUTPUT="${2:-$REPO_ROOT/target/vanilla-reload/semantic-26.2}"
 
 npm ci --prefix "$CLIENT_ROOT" --no-audit --no-fund
 
 exec "$SCRIPT_DIR/validate-vanilla-reload.sh" \
-    --version 1.21.4 \
+    --version 26.2 \
     --pack "$PACK" \
     --output "$OUTPUT" \
     --op-player SandAuditBot \

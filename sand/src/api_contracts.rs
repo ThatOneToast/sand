@@ -312,57 +312,6 @@ register! {
     example: "let delayed = sand::run_fn! { sand::command::raw(\"say Later\") };"
 }
 
-register! {
-    path: "sand::hud_bar",
-    aliases: [],
-    module: "sand",
-    kind: Macro,
-    signature: "hud_bar!(...)",
-    summary: "Declares a custom resource-pack HUD bar.",
-    context: "The macro packages HUD frame, fill, and layout metadata into Sand's resource-pack registry so gameplay code can address the resulting handle.",
-    minecraft: "Writes the GUI textures and resource-pack metadata used to render the configured HUD bar on clients.",
-    use_when: ["Adding a reusable custom status bar to a Sand resource pack"],
-    avoid_when: ["Displaying a one-off chat or actionbar message"],
-    params: [],
-    returns: None,
-    example: "let health = sand::hud_bar!(/* resource-pack HUD fields */);",
-    availability: ["Cargo feature: resourcepack"]
-}
-
-register! {
-    path: "sand::hud_element",
-    aliases: [],
-    module: "sand",
-    kind: Macro,
-    signature: "hud_element!(...)",
-    summary: "Declares a custom resource-pack HUD element.",
-    context: "The macro registers a positioned UI element and its asset metadata as a typed handle that Sand's resource-pack runtime can update.",
-    minecraft: "Writes client resource-pack assets and metadata for the configured HUD element.",
-    use_when: ["Showing a reusable texture-backed HUD indicator"],
-    avoid_when: ["Rendering structured text through tellraw or an ordinary title"],
-    params: [],
-    returns: None,
-    example: "let indicator = sand::hud_element!(/* resource-pack HUD fields */);",
-    availability: ["Cargo feature: resourcepack"]
-}
-
-register! {
-    path: "sand::texture",
-    aliases: [],
-    module: "sand",
-    kind: Macro,
-    signature: "texture!(...)",
-    summary: "Registers a texture asset for Sand resource-pack output.",
-    context: "The macro associates a source texture and its destination identity with the resource-pack registry so HUD and GUI declarations can refer to it consistently.",
-    minecraft: "Copies or emits the declared texture into the matching assets/<namespace>/textures resource-pack path.",
-    use_when: ["Bundling a named texture used by Sand's resource-pack APIs"],
-    avoid_when: ["Referencing a vanilla texture that does not need to be packaged"],
-    params: [],
-    returns: None,
-    example: "let icon = sand::texture!(/* texture source and destination */);",
-    availability: ["Cargo feature: resourcepack"]
-}
-
 // BEGIN ENTITY API CONTRACTS
 // END ENTITY API CONTRACTS
 
@@ -371,8 +320,6 @@ register! {
 // END PARTICIPANT API CONTRACTS
 // END TEXT API CONTRACTS
 // END DATA API CONTRACTS
-// END SYSTEMS API CONTRACTS
 // END COMMAND API CONTRACTS
 // END COMPONENT API CONTRACTS
-// END RESOURCEPACK API CONTRACTS
 // END RESOLVED PRELUDE OWNERSHIP CONTRACTS

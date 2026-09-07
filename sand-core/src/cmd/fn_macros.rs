@@ -1,4 +1,4 @@
-//! Minecraft function macro utilities (requires Minecraft 1.20.2+).
+//! Minecraft function macro utilities for Sand's 26+ baseline.
 //!
 //! Minecraft **function macros** let you inject runtime NBT values into command
 //! lines. Any line in a `.mcfunction` file prefixed with `$` is a *macro line*;

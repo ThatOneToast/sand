@@ -22,7 +22,7 @@ this environment — see "What has and has not been runtime-verified" below.
 | Role | Event families | Backend | Reliability | Evidence |
 |---|---|---|---|---|
 | Subject player | all advancement/tick-backed events | direct (`Event::player`) | `Exact` | The triggering/polled mechanism hands `@s` over directly. |
-| Attacker | `EntityDamagePlayerEvent` | `execute on attacker` (`observe_correlated_attacker`) | `Correlated` | `Relation::Attacker`, vanilla 1.20.2+ relation query, single-valued. |
+| Attacker | `EntityDamagePlayerEvent` | `execute on attacker` (`observe_correlated_attacker`) | `Correlated` | `Relation::Attacker`, a baseline 26+ relation query, single-valued. |
 | Killer | `PlayerKillEvent` | same mechanism, `Killer` role | `Correlated` | Same relation; `PlayerKillEvent`'s `@s` is the victim, so the killer is reached identically to `EntityDamagePlayerEvent`'s attacker. |
 | Weapon | `EntityKillEvent`, `PlayerDamageEntityEvent` | mainhand item snapshot (`observe_weapon`) | `ExactSnapshot` | `@s` is the player who dealt the damage/kill for these two events — their own mainhand is directly addressable, no relation traversal needed. |
 | Direct attacker | none | **Unavailable** (`NotSuppliedByTrigger`) | — | No `execute on <relation>` distinguishes "direct causing entity" (e.g. an arrow) from the credited attacker — vanilla's damage-source direct/causing distinction is not exposed as a queryable relation, only as NBT on a `DamageSource` compound Sand has no verified read path for. |
@@ -31,7 +31,7 @@ this environment — see "What has and has not been runtime-verified" below.
 | Hand (main/off) | any player-subject event | `ItemLocation::PlayerMainHand`/`PlayerOffHand` (exact NBT paths) | `Exact` (addressing), `ExactSnapshot` (captured item) | Always-valid, version-independent NBT paths on `@s` — see `sand-core/src/item/location.rs`'s module doc. Not correlation-dependent at all. |
 | Held item | any player-subject event | `EventParticipantPlan::observe_held_item` | `ExactSnapshot` | Same as Hand — a specific hand slot's item snapshot. |
 | Projectile | none | **Unavailable** (`NotSuppliedByTrigger`) | — | No player-subject advancement event binds `@s` to a projectile entity; `execute on origin` (see below) requires `@s` to already be the projectile. |
-| Projectile origin/shooter | none (not wired to any current event) | investigated, not implemented | — | `Relation::Origin` (`execute on origin`, 1.21.2+) is a real, already-implemented Sand relation — "the entity that fired/summoned this entity." It answers this role correctly **if** `@s` is already the projectile. No current Sand event family scopes `@s` to a projectile entity (all combat/interaction events are player-subject), so there is nothing to wire it into today. Adding an entity-scoped tick-polled projectile event family is a concrete, scoped future improvement (see follow-up issue), not something to fake from a player-subject event. |
+| Projectile origin/shooter | none (not wired to any current event) | investigated, not implemented | — | `Relation::Origin` (`execute on origin`) is a real, already-implemented Sand relation — "the entity that fired/summoned this entity." It answers this role correctly **if** `@s` is already the projectile. No current Sand event family scopes `@s` to a projectile entity (all combat/interaction events are player-subject), so there is nothing to wire it into today. Adding an entity-scoped tick-polled projectile event family is a concrete, scoped future improvement (see follow-up issue), not something to fake from a player-subject event. |
 | Ammunition | none | **Unavailable** (`NotSuppliedByTrigger`) | — | No relation or NBT read path from a player-subject event to "the ammunition item consumed to fire a projectile" was identified with credible evidence. |
 
 Any role not listed with a backend resolves `Unavailable(NotApplicable)` via
@@ -159,7 +159,7 @@ not a mock), re-run after the `execute_at` fix above:
   Handshake → Login → Configuration → Play sequence, confirmed by the
   server's own log (`<name> logged in with entity id N`, `<name> joined
   the game`) across multiple independent runs.
-- `execute on attacker` relation existence and 1.20.2+ version gate
+- `execute on attacker` relation existence and exact command output
   (`sand-core/src/entity/relation.rs`, pre-existing, structurally tested).
 - Item location NBT paths (`SelectedItem`, `Inventory[{Slot:-106b}]`, etc.)
   — long-documented, structurally stable vanilla tags (#229).

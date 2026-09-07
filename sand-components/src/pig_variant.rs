@@ -1,5 +1,5 @@
 //! Builder for `data/<namespace>/pig_variant/` JSON files (Minecraft
-//! 1.21.5+).
+//! 26+ baseline).
 //!
 //! # Validation
 //!

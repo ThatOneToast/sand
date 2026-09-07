@@ -17,8 +17,7 @@ use syn::spanned::Spanned;
 
 use crate::macro_provider::{
     audit_inert_macro_transcriber, audit_inventory_collection_invocation,
-    audit_resourcepack_texture_invocation, audit_thread_local_invocation, provider_derive_input,
-    provider_effective_attributes,
+    audit_thread_local_invocation, provider_derive_input, provider_effective_attributes,
 };
 
 /// Explicit cfg environment used while parsing the selected Cargo target.
@@ -663,9 +662,6 @@ pub enum InertItemMacroClassification {
     /// `thread_local!` declares internal storage. This classification is only
     /// valid for the exact `thread_local` or `std::thread_local` macro path.
     ThreadLocalStorageWiring,
-    /// `texture!` registers a raw resource-pack asset and emits only private
-    /// factory/linker wiring, never a facade-visible Rust declaration.
-    ResourcepackTextureRegistration,
 }
 
 impl InertItemMacroClassification {
@@ -679,9 +675,6 @@ impl InertItemMacroClassification {
             }
             Self::ThreadLocalStorageWiring => {
                 "internal thread-local compiler wiring with no facade identity"
-            }
-            Self::ResourcepackTextureRegistration => {
-                "resource-pack texture registration with no facade identity"
             }
         }
     }
@@ -1159,26 +1152,6 @@ impl SurfaceGraph {
                     .filter(|site| site.macro_path == macro_path)
                 {
                     audit_thread_local_invocation(&site.tokens)
-                        .map_err(|error| invalid(error.to_string()))?;
-                }
-            }
-            InertItemMacroClassification::ResourcepackTextureRegistration => {
-                if !matches!(
-                    macro_path.as_str(),
-                    "texture" | "sand::texture" | "sand_macros::texture"
-                ) {
-                    return Err(invalid(
-                        "resource-pack texture registration is valid only for `texture!`, `sand::texture!`, or `sand_macros::texture!`"
-                            .into(),
-                    ));
-                }
-                for site in self
-                    .module(&module)
-                    .into_iter()
-                    .flat_map(|parsed| &parsed.item_macros)
-                    .filter(|site| site.macro_path == macro_path)
-                {
-                    audit_resourcepack_texture_invocation(&site.tokens)
                         .map_err(|error| invalid(error.to_string()))?;
                 }
             }

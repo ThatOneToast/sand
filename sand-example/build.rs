@@ -6,7 +6,7 @@ fn main() {
         .map(|v| matches!(v.trim(), "1" | "true" | "yes"))
         .unwrap_or(false);
 
-    if let Err(err) = sand_build::generate("1.21.11") {
+    if let Err(err) = sand_build::generate("26.2") {
         if strict {
             panic!("sand-example codegen failed: {err}");
         }

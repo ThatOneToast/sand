@@ -1,6 +1,6 @@
 //! Typed dialog datapack component builders.
 //!
-//! Dialogs are a Minecraft 1.21.6+ / 26.x feature for displaying data-driven
+//! Dialogs are part of Sand's Minecraft 26+ baseline for displaying data-driven
 //! UI panels to players. They live at `data/<namespace>/dialog/<path>.json`.
 //!
 //! Always gate dialog usage with `VersionProfile::supports(VersionFeature::Dialogs)`:
@@ -1153,9 +1153,9 @@ impl DialogKind {
     path = "sand::component::Dialog",
     aliases = ["sand::prelude::Dialog"],
     module = "sand::component",
-    summary = "A typed dialog datapack component builder. Dialogs live at `data/<namespace>/dialog/<path>.json` and require Minecraft 1.21.6+ / 26.x. Always check `VersionProfile::supports(VersionFeature::Dialogs)` before generating dialog output.",
-    context = "A typed dialog datapack component builder. Dialogs live at `data/<namespace>/dialog/<path>.json` and require Minecraft 1.21.6+ / 26.x. Always check `VersionProfile::supports(VersionFeature::Dialogs)` before generating dialog output. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
-    minecraft = "Dialogs live at `data/<namespace>/dialog/<path>.json` and require Minecraft 1.21.6+ / 26.x. Always check `VersionProfile::supports(VersionFeature::Dialogs)` before generating dialog output.",
+    summary = "A typed dialog datapack component builder for Sand's Minecraft 26+ baseline.",
+    context = "Dialogs live at `data/<namespace>/dialog/<path>.json`. Exact-profile export validation checks this resource against the selected verified 26.x schema.",
+    minecraft = "Serializes a data-driven dialog resource under `data/<namespace>/dialog/<path>.json`.",
     use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
     avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
     example = "use sand::component::Dialog;",
@@ -1164,7 +1164,7 @@ impl DialogKind {
 /// A typed dialog datapack component builder.
 ///
 /// Dialogs live at `data/<namespace>/dialog/<path>.json` and require
-/// Minecraft 1.21.6+ / 26.x. Always check `VersionProfile::supports(VersionFeature::Dialogs)`
+/// Minecraft 26+. Export validation checks `VersionFeature::Dialogs`
 /// before generating dialog output.
 ///
 /// # Example

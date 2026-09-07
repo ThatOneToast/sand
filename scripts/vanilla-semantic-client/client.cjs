@@ -10,8 +10,8 @@ const username = "SandAuditBot";
 const baseX = 0;
 const baseZ = 0;
 
-if (!port || version !== "1.21.4") {
-  throw new Error(`semantic client requires a 1.21.4 server port; got ${version}:${port}`);
+if (!port || version !== "26.2") {
+  throw new Error(`semantic client requires a 26.2 server port; got ${version}:${port}`);
 }
 
 const bot = mineflayer.createBot({
@@ -188,7 +188,7 @@ async function tightCommand(commandText, ticks) {
 }
 
 function setSneaking(state) {
-  // Send the exact 1.21.4 client action packet. Using a raw packet here keeps
+  // Send the exact 26.1 client action packet. Using a raw packet here keeps
   // the semantic stimulus unambiguous and independent of Mineflayer physics.
   bot._client.write("entity_action", {
     entityId: bot.entity.id,

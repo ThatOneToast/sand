@@ -28,7 +28,6 @@ pub enum Phase {
     Validation,
     DatapackWriting,
     WorldBuild,
-    ResourcePackExport,
     Packaging,
 }
 
@@ -42,7 +41,6 @@ impl Phase {
             Phase::Validation => "Validation",
             Phase::DatapackWriting => "Datapack writing",
             Phase::WorldBuild => "Typed world build (sand.build.rs)",
-            Phase::ResourcePackExport => "Resource-pack export",
             Phase::Packaging => "Packaging",
         }
     }
@@ -69,9 +67,8 @@ impl Timings {
     }
 
     /// Times `f` and records its duration under `phase`, returning `f`'s
-    /// result unchanged. A phase recorded more than once (e.g. datapack and
-    /// resource-pack writing both charging `DatapackWriting`-adjacent work
-    /// in the same build) accumulates rather than overwrites.
+    /// result unchanged. A phase recorded more than once accumulates rather
+    /// than overwrites.
     pub fn record<T>(
         &mut self,
         phase: Phase,

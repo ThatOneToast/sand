@@ -82,7 +82,7 @@ done
 log "7. clean cargo check --workspace"
 "$BENCH" "clean-check" "$CLEAN" -- bash -c '
   cargo clean -p sand -p sand-cli -p sand-core -p sand-components -p sand-commands \
-    -p sand-macros -p sand-resourcepack -p sand-version -p sand-api-contract \
+    -p sand-macros -p sand-version -p sand-api-contract \
     -p sand-api-enforce -p sand-build -p sand-example >/dev/null 2>&1
   cargo check --workspace
 ' >>"$OUT"
@@ -117,7 +117,7 @@ log "10. sand build then sand build --release"
 log "11. warm sand cache, cold cargo target"
 "$BENCH" "warm-sandcache-cold-cargo-target" 1 -- bash -c "
   cargo clean -p sand -p sand-cli -p sand-core -p sand-components -p sand-commands \
-    -p sand-macros -p sand-resourcepack -p sand-version -p sand-api-contract \
+    -p sand-macros -p sand-version -p sand-api-contract \
     -p sand-api-enforce -p sand-build -p sand-example >/dev/null 2>&1
   cargo build -q -p sand-cli --bin sand
   cd sand-example && '$SAND_BIN' build

@@ -3,44 +3,11 @@
 //! Public builders create these nodes; datapack authors are not expected to
 //! author this IR directly. Rendering is deliberately the last step.
 
-use std::collections::BTreeMap;
-
 use crate::coord::{BlockPos, Rotation, Vec3};
-use crate::error::{CommandError, CommandResult};
 use crate::execute_args::{Anchor, ItemSlot, NbtStoreKind, Swizzle};
 use crate::nbt::DataTarget;
-use crate::render::CommandProfile;
 use crate::scoreboard::{ScoreCmp, ScoreHolder};
 use crate::selector::Selector;
-
-/// A capability required by a typed execute operation or condition.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
-pub enum ExecuteCapability {
-    /// `execute if/unless items`, introduced in Java 1.20.5.
-    ItemConditions,
-}
-
-impl ExecuteCapability {
-    /// Stable capability name used by diagnostics and tooling.
-    pub const fn name(self) -> &'static str {
-        match self {
-            Self::ItemConditions => "ExecuteItemCondition",
-        }
-    }
-
-    /// First Java Edition version supporting this capability.
-    pub const fn minimum_version(self) -> &'static str {
-        match self {
-            Self::ItemConditions => "1.20.5",
-        }
-    }
-
-    pub(crate) fn is_supported(self, profile: &CommandProfile) -> bool {
-        match self {
-            Self::ItemConditions => profile.is_at_least(1, 20, 5),
-        }
-    }
-}
 
 /// One typed condition body used after `execute if` or `execute unless`.
 ///
@@ -126,15 +93,6 @@ impl ConditionIr {
             Self::Raw(fragment) => fragment.clone(),
         }
     }
-
-    pub(crate) fn required_capability(&self) -> Option<ExecuteCapability> {
-        match self {
-            Self::ItemsEntity { .. } | Self::ItemsBlock { .. } => {
-                Some(ExecuteCapability::ItemConditions)
-            }
-            _ => None,
-        }
-    }
 }
 
 /// Destination for `execute store result/success`.
@@ -213,36 +171,6 @@ impl ExecuteOp {
             Self::Raw(fragment) => fragment.clone(),
         }
     }
-
-    pub(crate) fn required_capability(&self) -> Option<ExecuteCapability> {
-        match self {
-            Self::If(condition) | Self::Unless(condition) => condition.required_capability(),
-            _ => None,
-        }
-    }
-
-    #[doc(hidden)]
-    pub fn validate_version(&self, index: usize, profile: &CommandProfile) -> CommandResult<()> {
-        let Some(capability) = self.required_capability() else {
-            return Ok(());
-        };
-        if capability.is_supported(profile) {
-            return Ok(());
-        }
-        Err(CommandError::new(
-            "Execute",
-            "operation",
-            format!(
-                "unsupported execute operation `{}` for Minecraft {}; required capability {} (Minecraft {}+). Use a predicate-backed check on older versions",
-                self.render(),
-                profile.requested_version(),
-                capability.name(),
-                capability.minimum_version(),
-            ),
-        )
-        .with_code("SAND-COMMAND-VERSION")
-        .with_context(format!("Execute operation {index}")))
-    }
 }
 
 fn render_store(target: &ExecuteStoreTarget) -> String {
@@ -260,79 +188,4 @@ fn render_store(target: &ExecuteStoreTarget) -> String {
             format!("bossbar {id} {attribute}")
         }
     }
-}
-
-#[derive(Debug, Clone)]
-pub(crate) struct Requirement {
-    capability: ExecuteCapability,
-    operation: String,
-}
-
-type Requirements = BTreeMap<String, Vec<Requirement>>;
-
-/// Export-scoped registry family holding the capability requirements of
-/// each `execute` line typed IR rendered.
-///
-/// Unlike the other eight families this is not a `line -> typed node` map
-/// but a `line -> required capabilities` side table; sharing
-/// [`crate::export_registry`] rather than its own storage is exactly why
-/// that module's state type is free-form.
-pub(crate) struct ExecuteRequirements;
-
-impl crate::export_registry::RegistryFamily for ExecuteRequirements {
-    type State = Requirements;
-}
-
-/// Record capability metadata for a line produced by typed execute IR.
-///
-/// This side table preserves the historical `String` terminal API while the
-/// export pipeline still stores function bodies as strings. Entries are
-/// scoped to the active [`crate::export_registry::ExportRegistryGuard`].
-#[doc(hidden)]
-pub fn register_line(line: &str, operations: &[ExecuteOp]) {
-    let required: Vec<_> = operations
-        .iter()
-        .filter_map(|operation| {
-            operation
-                .required_capability()
-                .map(|capability| Requirement {
-                    capability,
-                    operation: operation.render(),
-                })
-        })
-        .collect();
-    if !required.is_empty() {
-        crate::export_registry::register_line::<ExecuteRequirements, _>(line, required);
-    }
-}
-
-/// Re-validate a typed-IR `execute` line's recorded capability
-/// requirements against `profile`.
-///
-/// Lines this crate did not render during the active export scope carry no
-/// requirements and pass through untouched.
-pub(crate) fn validate_registered_line(line: &str, profile: &CommandProfile) -> CommandResult<()> {
-    let required = crate::export_registry::read_state::<ExecuteRequirements, _>(|state| {
-        state.and_then(|state| state.get(line).cloned())
-    });
-    let Some(required) = required else {
-        return Ok(());
-    };
-    for requirement in required {
-        if !requirement.capability.is_supported(profile) {
-            return Err(CommandError::new(
-                "Execute",
-                "operation",
-                format!(
-                    "unsupported execute operation `{}` for Minecraft {}; required capability {} (Minecraft {}+). Use a predicate-backed check on older versions",
-                    requirement.operation,
-                    profile.requested_version(),
-                    requirement.capability.name(),
-                    requirement.capability.minimum_version(),
-                ),
-            )
-            .with_code("SAND-COMMAND-VERSION"));
-        }
-    }
-    Ok(())
 }

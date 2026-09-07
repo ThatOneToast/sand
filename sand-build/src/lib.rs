@@ -23,13 +23,13 @@
 //! ```rust,ignore
 //! fn main() {
 //!     let mc_version = std::env::var("SAND_MC_VERSION")
-//!         .unwrap_or_else(|_| "1.21.4".to_string());
+//!         .unwrap_or_else(|_| "26.1".to_string());
 //!     sand_build::generate(&mc_version).expect("sand-build codegen failed");
 //! }
 //! ```
 //!
-//! Requires a Java runtime new enough for the selected server on `PATH`
-//! (Java 21 for the stable baseline; Java 25 for Minecraft 26.2).
+//! Requires a Java runtime new enough for the selected server on `PATH`.
+//! Sand's current Minecraft 26.2 validation target uses Java 25.
 
 mod api_provider;
 mod cache;
@@ -128,7 +128,7 @@ fn latest_known_version() -> &'static str {
 /// generated reports and `sand-core::VersionProfile` metadata resolve to the
 /// same concrete version.
 ///
-/// For pinned versions (e.g. `"1.21.4"`), uses the normal `PreferCache`
+/// For pinned versions (e.g. `"26.1"`), uses the normal `PreferCache`
 /// policy (network only when the version is absent from cache).
 fn resolve_version(mc_version: &str) -> Result<(String, String)> {
     resolve_version_with(mc_version, manifest::VersionManifest::fetch_fresh, |v| {
@@ -165,7 +165,7 @@ where
 
 /// Entry point for user `build.rs` scripts.
 ///
-/// Given a Minecraft version string (e.g. `"1.21.4"` or `"latest"`), this
+/// Given a Minecraft version string (e.g. `"26.1"` or `"latest"`), this
 /// function:
 ///
 /// 1. Resolves the version via Mojang's version manifest.
@@ -249,9 +249,9 @@ mod tests {
     /// latest.release.
     #[test]
     fn resolve_version_latest_uses_bundled_anchor_not_cached_latest() {
-        let stale_release = "1.19.0"; // what the old code would have returned
+        let stale_release = "26.1"; // what the old code would have returned
 
-        // The stale manifest says the latest is "1.19.0"; the "cache" is able to
+        // The stale manifest says the latest is "26.1"; the "cache" is able to
         // look up LATEST_KNOWN if asked, but must NOT be asked for latest.release.
         let stale_manifest = {
             let mut m = make_manifest(stale_release);
@@ -289,7 +289,7 @@ mod tests {
     /// Regression: stale cached latest.release does not override LATEST_KNOWN.
     #[test]
     fn stale_cached_latest_does_not_override_bundled_anchor() {
-        let stale_release = "1.19.0"; // older than LATEST_KNOWN
+        let stale_release = "26.1"; // older than LATEST_KNOWN
         let mut stale_manifest = make_manifest(stale_release);
         stale_manifest.versions.push(crate::manifest::VersionEntry {
             id: sand_version::LATEST_KNOWN.to_string(),
@@ -354,7 +354,7 @@ mod tests {
     /// Explicit versions still resolve normally (via PreferCache path).
     #[test]
     fn resolve_version_explicit_resolves_normally() {
-        let pinned = "1.21.4";
+        let pinned = "26.1";
         let manifest = make_manifest(pinned);
 
         let (version_id, url) = super::resolve_version_with(

@@ -133,7 +133,7 @@ mod cached_generation_tests {
         write_fixture_reports(reports.path());
 
         let uncached_out = tempfile::tempdir().unwrap();
-        generate_all(reports.path(), uncached_out.path(), "1.21.4").unwrap();
+        generate_all(reports.path(), uncached_out.path(), "26.1").unwrap();
 
         let cache_root = tempfile::tempdir().unwrap();
         let cached_out_miss = tempfile::tempdir().unwrap();
@@ -141,7 +141,7 @@ mod cached_generation_tests {
             cache_root.path(),
             reports.path(),
             cached_out_miss.path(),
-            "1.21.4",
+            "26.1",
         )
         .unwrap();
 
@@ -168,24 +168,14 @@ mod cached_generation_tests {
         let cache_root = tempfile::tempdir().unwrap();
 
         let first_out = tempfile::tempdir().unwrap();
-        generate_all_cached_with_root(
-            cache_root.path(),
-            reports.path(),
-            first_out.path(),
-            "1.21.4",
-        )
-        .unwrap();
+        generate_all_cached_with_root(cache_root.path(), reports.path(), first_out.path(), "26.1")
+            .unwrap();
 
         // Second call, fresh out_dir, same cache_root/reports/version: must
         // be served from cache and produce identical bytes.
         let second_out = tempfile::tempdir().unwrap();
-        generate_all_cached_with_root(
-            cache_root.path(),
-            reports.path(),
-            second_out.path(),
-            "1.21.4",
-        )
-        .unwrap();
+        generate_all_cached_with_root(cache_root.path(), reports.path(), second_out.path(), "26.1")
+            .unwrap();
 
         for file in [
             "registries.rs",
@@ -207,13 +197,8 @@ mod cached_generation_tests {
         write_fixture_reports(reports.path());
 
         let first_out = tempfile::tempdir().unwrap();
-        generate_all_cached_with_root(
-            cache_root.path(),
-            reports.path(),
-            first_out.path(),
-            "1.21.4",
-        )
-        .unwrap();
+        generate_all_cached_with_root(cache_root.path(), reports.path(), first_out.path(), "26.1")
+            .unwrap();
 
         // A different item registry -> different fingerprint -> cache miss
         // -> freshly generated (not stale-cached) output.
@@ -231,13 +216,8 @@ mod cached_generation_tests {
         )
         .unwrap();
         let second_out = tempfile::tempdir().unwrap();
-        generate_all_cached_with_root(
-            cache_root.path(),
-            reports.path(),
-            second_out.path(),
-            "1.21.4",
-        )
-        .unwrap();
+        generate_all_cached_with_root(cache_root.path(), reports.path(), second_out.path(), "26.1")
+            .unwrap();
 
         assert_ne!(
             std::fs::read_to_string(first_out.path().join("registries.rs")).unwrap(),

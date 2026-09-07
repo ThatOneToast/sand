@@ -60,7 +60,6 @@ pub fn load() {
     HAS_STRIDERS.define();
     EXHAUSTED.define();
     REGEN.define();
-    DamageTracker::define();
     GRAPPLE_RANGE.set_int(8);
     cmd::tellraw(
         Target::players(),
@@ -75,7 +74,6 @@ pub fn load() {
 pub fn tick() {
     GRAPPLE.tick_all_players();
     REGEN.tick_all_players();
-    DamageTracker::tick_players();
 
     // Stamina regen pulse: when the regen timer expires, restore 10 stamina
     // to every player below the cap, then restart the timer.
@@ -106,14 +104,6 @@ pub fn tick() {
             Text::new("Grapple ready").aqua().bold(true),
         ));
 
-    // Actionbar: warn players who were hurt within the last 3 seconds
-    // (systems-damage feature).
-    TypedExecute::as_players()
-        .when(DamageTracker::hurt_within("@s", Ticks::seconds(3)))
-        .run(Actionbar::show(
-            Target::self_(),
-            Text::new("Catch your breath...").red(),
-        ));
 }
 // ANCHOR_END: tick
 

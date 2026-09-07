@@ -16,7 +16,7 @@
 //! 1. **Load**: defines scoreboards, initializes storage, broadcasts a welcome.
 //! 2. **Tick**: decrements cooldowns, shows actionbar status.
 //! 3. **cast_dash**: the player-facing ability — costs mana, triggers cooldown.
-//! 4. **welcome_dialog**: a typed dialog component (1.21.6+ / 26.x).
+//! 4. **welcome_dialog**: a typed dialog component for Minecraft 26+.
 //!
 //! ## Build
 //!
@@ -107,7 +107,7 @@ pub fn show_mana() {
         ));
 }
 
-// -- Dialog (1.21.6+ / 26.x) ----------------------------------------------
+// -- Dialog (Minecraft 26+) ---------------------------------------------
 
 /// A welcome dialog presented to players.
 #[datapack_component]

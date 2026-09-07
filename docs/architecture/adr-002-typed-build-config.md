@@ -47,7 +47,7 @@ Instead of adding the new types to `sand-build`:
   export pipeline (`sand_export`). Concretely: `sand.build.rs` is wired in
   as an ordinary Cargo `[[bin]] name = "sand_build_world"` target (added by
   the new `sand add worldbuild` subcommand, mirroring the existing
-  `sand add resourcepack` pattern for `sand_resource_export`), compiled the
+  `sand add worldbuild` pattern), compiled the
   same way (`cargo build --bin sand_build_world`), and run with
   `SAND_BUILD_PROFILE`/`SAND_EXPORT_MC_VERSION` environment variables. Its
   JSON stdout (world resources + optional server config) is parsed and
@@ -66,7 +66,7 @@ Instead of adding the new types to `sand-build`:
   `sand` is still the only crate dependency, consistent with ADR-001's
   "one dependency, one import" goal.
 - `sand-cli`'s relationship to `sand.build.rs` mirrors its relationship to
-  `sand_export`/`sand_resource_export` exactly: compile via Cargo, run the
+  `sand_export` exactly: compile via Cargo, run the
   binary, parse one JSON value from stdout. No new build-system concepts
   were introduced.
 - `ServerConfig` is a structurally separate type from `World`, reinforced

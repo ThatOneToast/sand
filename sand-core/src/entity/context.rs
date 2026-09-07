@@ -530,7 +530,7 @@ impl EntityScope {
     /// let cmds = EntityScope::bind(&ctx, |arrow_ref| {
     ///     arrow_ref
     ///         .owner()
-    ///         .if_player(&profile, |owner| vec![owner.add_tag("shot_by_owner")])
+    ///         .if_player(|owner| vec![owner.add_tag("shot_by_owner")])
     ///         .unwrap()
     /// });
     /// assert!(cmds[0].starts_with("tag @s add __sand_scope_"));
@@ -549,7 +549,7 @@ impl EntityScope {
         avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
         params(_ctx = "`ctx` is used to tag the entity currently bound to `@s` with a unique, collision-safe temporary tag, run `body` with a [`ScopedEntityRef`] that can reach that entity again by tag (even after `@s` has changed via relation traversal inside `body`), then remove the tag.", body = "Tag the entity currently bound to `@s` with a unique, collision-safe temporary tag, run `body` with a [`ScopedEntityRef`] that can reach that entity again by tag (even after `@s` has changed via relation traversal inside `body`), then remove the tag."),
         returns = "The ordered values produced to tag the entity currently bound to `@s` with a unique, collision-safe temporary tag, run `body` with a [`ScopedEntityRef`] that can reach that entity again by tag (even after `@s` has changed via relation traversal inside `body`), then remove the tag.",
-        example = "use {sand::entity::EntityContext, sand::entity::EntityScope, sand::entity::AnyEntity};\nuse {sand::version::MinecraftVersion, sand::version::VersionProfile};\nlet profile = VersionProfile::resolve(&MinecraftVersion::parse(\"latest\").unwrap()).unwrap();\nlet ctx: EntityContext<AnyEntity> = EntityContext::default();\nlet cmds = EntityScope::bind(&ctx, |arrow_ref| {\narrow_ref\n.owner()\n.if_player(&profile, |owner| vec![owner.add_tag(\"shot_by_owner\")])\n.unwrap()\n});\nassert!(cmds[0].starts_with(\"tag @s add __sand_scope_\"));\nassert!(cmds.last().unwrap().starts_with(\"tag @e[tag=__sand_scope_\"));",
+        example = "use {sand::entity::EntityContext, sand::entity::EntityScope, sand::entity::AnyEntity};\nlet ctx: EntityContext<AnyEntity> = EntityContext::default();\nlet cmds = EntityScope::bind(&ctx, |arrow_ref| {\narrow_ref.owner().if_player(|owner| vec![owner.add_tag(\"shot_by_owner\")]).unwrap()\n});\nassert!(cmds[0].starts_with(\"tag @s add __sand_scope_\"));",
     )]
     #[track_caller]
     pub fn bind<K: EntityKind>(

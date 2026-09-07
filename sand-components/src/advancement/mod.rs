@@ -537,7 +537,7 @@ impl Serialize for AdvancementDisplay {
     use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
     avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
     example = "use sand::component::AdvancementTrigger;",
-    variants(AllayDropItemOnBlock = "Player causes an allay to drop an item on a block (1.19+).", AvoidVibration = "Player avoids triggering a sculk sensor vibration (1.19+).", BeeNestDestroyed = "Player destroys a bee nest or beehive.", BredAnimals = "Matches Minecraft's bred animals advancement trigger.", BrewedPotion = "Player brews a potion.", ChangedDimension = "Matches Minecraft's changed dimension advancement trigger.", ChanneledLightning = "A lightning bolt hits an entity the player summoned with a trident.", ConstructBeacon = "Matches Minecraft's construct beacon advancement trigger.", ConsumeItem = "Matches Minecraft's consume item advancement trigger.", CraftedItem = "Player crafts an item.", CuredZombieVillager = "Matches Minecraft's cured zombie villager advancement trigger.", Custom = "Any trigger not covered by the typed variants. Use this to target triggers that were added to or removed from Minecraft after a given version, or for modded triggers.", EffectsChanged = "Matches Minecraft's effects changed advancement trigger.", EmptiedBucket = "Player empties a bucket.", EnchantedItem = "Player enchants an item.", EnterBlock = "Matches Minecraft's enter block advancement trigger.", EntityHurtPlayer = "Entity deals damage to the player.", EntityKilledPlayer = "Matches Minecraft's entity killed player advancement trigger.", FallFromHeight = "Matches Minecraft's fall from height advancement trigger.", FilledBucket = "Player fills a bucket.", FishingRodHooked = "Player uses a fishing rod and it hooks something.", HeroOfTheVillage = "Matches Minecraft's hero of the village advancement trigger.", Impossible = "Matches Minecraft's impossible advancement trigger.", InventoryChanged = "Matches Minecraft's inventory changed advancement trigger.", ItemDurabilityChanged = "An item in the player's inventory loses durability.", ItemUsedOnBlock = "Player right-clicks on a block while holding an item (1.19.4+).", KillMobNearSculkCatalyst = "Player kills a mob near a sculk catalyst (1.19+).", KilledByArrow = "Player kills one or more entities with a projectile weapon.", KilledByCrossbow = "Player kills an entity using a crossbow.", LeveledUp = "Matches Minecraft's leveled up advancement trigger.", LightningStrike = "A lightning bolt strikes near the player.", Location = "Matches Minecraft's location advancement trigger.", NetherTravel = "Matches Minecraft's nether travel advancement trigger.", PlacedBlock = "Matches Minecraft's placed block advancement trigger.", PlayerGeneratesContainerLoot = "Matches Minecraft's player generates container loot advancement trigger.", PlayerHurtEntity = "Player deals damage to an entity.", PlayerInteractedWithEntity = "Matches Minecraft's player interacted with entity advancement trigger.", PlayerKilledEntity = "Matches Minecraft's player killed entity advancement trigger.", RecipeCrafted = "Player completes a recipe. Vanilla exposes recipe and ingredient predicates, not the crafted result item.", RecipeUnlocked = "Matches Minecraft's recipe unlocked advancement trigger.", RideEntityInLava = "Player rides an entity in lava (1.16+).", ShotCrossbow = "Player shoots a crossbow.", SleptInBed = "Matches Minecraft's slept in bed advancement trigger.", SlideDownBlock = "Matches Minecraft's slide down block advancement trigger.", StartedRiding = "Matches Minecraft's started riding advancement trigger.", SummonedEntity = "Matches Minecraft's summoned entity advancement trigger.", TamedAnimal = "Matches Minecraft's tamed animal advancement trigger.", TamedAnimalInteracted = "Matches Minecraft's tamed animal interacted advancement trigger.", TargetHit = "Matches Minecraft's target hit advancement trigger.", ThrownItemPickedUp = "A thrown item is picked up by an entity.", ThrownItemPickedUpByEntity = "A thrown item is picked up by a non-player entity.", ThrownItemPickedUpByPlayer = "A thrown item is picked up by the player.", Tick = "Matches Minecraft's tick advancement trigger.", UsedEnderEye = "Matches Minecraft's used ender eye advancement trigger.", UsedItem = "Matches Minecraft's used item advancement trigger.", UsedTotem = "Player activates a totem of undying.", UsingItem = "Matches Minecraft's using item advancement trigger.", VillagerTrade = "Matches Minecraft's villager trade advancement trigger."),
+    variants(AllayDropItemOnBlock = "Player causes an allay to drop an item on a block.", AvoidVibration = "Player avoids triggering a sculk sensor vibration.", BeeNestDestroyed = "Player destroys a bee nest or beehive.", BredAnimals = "Matches Minecraft's bred animals advancement trigger.", BrewedPotion = "Player brews a potion.", ChangedDimension = "Matches Minecraft's changed dimension advancement trigger.", ChanneledLightning = "A lightning bolt hits an entity the player summoned with a trident.", ConstructBeacon = "Matches Minecraft's construct beacon advancement trigger.", ConsumeItem = "Matches Minecraft's consume item advancement trigger.", CraftedItem = "Player crafts an item.", CuredZombieVillager = "Matches Minecraft's cured zombie villager advancement trigger.", Custom = "Any trigger not covered by the typed variants. Use this to target triggers that were added to or removed from Minecraft after a given version, or for modded triggers.", EffectsChanged = "Matches Minecraft's effects changed advancement trigger.", EmptiedBucket = "Player empties a bucket.", EnchantedItem = "Player enchants an item.", EnterBlock = "Matches Minecraft's enter block advancement trigger.", EntityHurtPlayer = "Entity deals damage to the player.", EntityKilledPlayer = "Matches Minecraft's entity killed player advancement trigger.", FallFromHeight = "Matches Minecraft's fall from height advancement trigger.", FilledBucket = "Player fills a bucket.", FishingRodHooked = "Player uses a fishing rod and it hooks something.", HeroOfTheVillage = "Matches Minecraft's hero of the village advancement trigger.", Impossible = "Matches Minecraft's impossible advancement trigger.", InventoryChanged = "Matches Minecraft's inventory changed advancement trigger.", ItemDurabilityChanged = "An item in the player's inventory loses durability.", ItemUsedOnBlock = "Player right-clicks on a block while holding an item.", KillMobNearSculkCatalyst = "Player kills a mob near a sculk catalyst.", KilledByArrow = "Player kills one or more entities with a projectile weapon.", KilledByCrossbow = "Player kills an entity using a crossbow.", LeveledUp = "Matches Minecraft's leveled up advancement trigger.", LightningStrike = "A lightning bolt strikes near the player.", Location = "Matches Minecraft's location advancement trigger.", NetherTravel = "Matches Minecraft's nether travel advancement trigger.", PlacedBlock = "Matches Minecraft's placed block advancement trigger.", PlayerGeneratesContainerLoot = "Matches Minecraft's player generates container loot advancement trigger.", PlayerHurtEntity = "Player deals damage to an entity.", PlayerInteractedWithEntity = "Matches Minecraft's player interacted with entity advancement trigger.", PlayerKilledEntity = "Matches Minecraft's player killed entity advancement trigger.", RecipeCrafted = "Player completes a recipe. Vanilla exposes recipe and ingredient predicates, not the crafted result item.", RecipeUnlocked = "Matches Minecraft's recipe unlocked advancement trigger.", RideEntityInLava = "Player rides an entity in lava.", ShotCrossbow = "Player shoots a crossbow.", SleptInBed = "Matches Minecraft's slept in bed advancement trigger.", SlideDownBlock = "Matches Minecraft's slide down block advancement trigger.", StartedRiding = "Matches Minecraft's started riding advancement trigger.", SummonedEntity = "Matches Minecraft's summoned entity advancement trigger.", TamedAnimal = "Matches Minecraft's tamed animal advancement trigger.", TamedAnimalInteracted = "Matches Minecraft's tamed animal interacted advancement trigger.", TargetHit = "Matches Minecraft's target hit advancement trigger.", ThrownItemPickedUp = "A thrown item is picked up by an entity.", ThrownItemPickedUpByEntity = "A thrown item is picked up by a non-player entity.", ThrownItemPickedUpByPlayer = "A thrown item is picked up by the player.", Tick = "Matches Minecraft's tick advancement trigger.", UsedEnderEye = "Matches Minecraft's used ender eye advancement trigger.", UsedItem = "Matches Minecraft's used item advancement trigger.", UsedTotem = "Player activates a totem of undying.", UsingItem = "Matches Minecraft's using item advancement trigger.", VillagerTrade = "Matches Minecraft's villager trade advancement trigger."),
     variant_fields(AllayDropItemOnBlock(item = "`item` optionally restricts the dropped item that satisfies this trigger.", location = "`location` optionally narrows the location predicate matched when a player causes an allay to drop an item on a block."), BeeNestDestroyed(block = "`block` optionally narrows the block matched when a player destroys a bee nest or beehive.", item = "`item` optionally narrows the item predicate matched when a player destroys a bee nest or beehive.", num_bees_inside = "`num_bees_inside` optionally provides the num bees inside when a player destroys a bee nest or beehive."), BredAnimals(child = "`child` optionally narrows the child predicate matched for Minecraft's bred animals advancement trigger.", parent = "`parent` optionally narrows the parent predicate matched for Minecraft's bred animals advancement trigger.", partner = "`partner` optionally narrows the partner predicate matched for Minecraft's bred animals advancement trigger."), BrewedPotion(potion = "`potion` optionally provides the potion when a player brews a potion."), ChangedDimension(from = "`from` optionally narrows the source value matched for Minecraft's changed dimension advancement trigger.", to = "`to` optionally narrows the destination value matched for Minecraft's changed dimension advancement trigger."), ChanneledLightning(victims = "`victims` optionally narrows the victims predicate matched when a lightning bolt hits an entity the player summoned with a trident."), ConstructBeacon(level = "`level` optionally narrows the level range matched for Minecraft's construct beacon advancement trigger."), ConsumeItem(item = "`item` optionally narrows the item predicate matched for Minecraft's consume item advancement trigger."), CraftedItem(item = "`item` optionally narrows the item predicate matched when a player crafts an item."), CuredZombieVillager(villager = "`villager` optionally narrows the villager predicate matched for Minecraft's cured zombie villager advancement trigger.", zombie = "`zombie` optionally narrows the zombie predicate matched for Minecraft's cured zombie villager advancement trigger."), Custom(conditions = "Raw JSON conditions block.  Use [`RawJson`] to signal intentional opt-out of the typed predicate API.", trigger = "`trigger` provides the trigger when any trigger not covered by the typed variants. Use this to target triggers that were added to or removed from Minecraft after a given version, or for modded triggers."), EffectsChanged(effects = "`effects` optionally narrows the effects predicate matched for Minecraft's effects changed advancement trigger.", source = "`source` optionally narrows the source predicate matched for Minecraft's effects changed advancement trigger."), EmptiedBucket(item = "`item` optionally narrows the item predicate matched when a player empties a bucket.", location = "`location` optionally narrows the location predicate matched when a player empties a bucket."), EnchantedItem(item = "`item` optionally narrows the item predicate matched when a player enchants an item.", levels = "`levels` optionally narrows the level range matched when a player enchants an item."), EnterBlock(block = "`block` optionally narrows the block matched for Minecraft's enter block advancement trigger.", state = "`state` optionally provides the state for Minecraft's enter block advancement trigger."), EntityHurtPlayer(damage = "`damage` optionally narrows the damage predicate matched when entity deals damage to the player.", entity = "`entity` optionally narrows the entity predicate matched when entity deals damage to the player."), EntityKilledPlayer(entity = "`entity` optionally narrows the entity predicate matched for Minecraft's entity killed player advancement trigger.", killing_blow = "`killing_blow` optionally narrows the killing blow predicate matched for Minecraft's entity killed player advancement trigger."), FallFromHeight(distance = "`distance` optionally narrows the distance predicate matched for Minecraft's fall from height advancement trigger.", start_position = "`start_position` optionally narrows the start position predicate matched for Minecraft's fall from height advancement trigger."), FilledBucket(item = "`item` optionally narrows the item predicate matched when a player fills a bucket."), FishingRodHooked(entity = "`entity` optionally narrows the entity predicate matched when a player uses a fishing rod and it hooks something.", item = "`item` optionally narrows the item predicate matched when a player uses a fishing rod and it hooks something.", rod = "`rod` optionally narrows the rod predicate matched when a player uses a fishing rod and it hooks something."), HeroOfTheVillage(location = "`location` optionally narrows the location predicate matched for Minecraft's hero of the village advancement trigger."), InventoryChanged(items = "`items` provides the items predicate for Minecraft's inventory changed advancement trigger.", slots = "`slots` optionally narrows the slots predicate matched for Minecraft's inventory changed advancement trigger."), ItemDurabilityChanged(delta = "`delta` optionally provides the delta when an item in the player's inventory loses durability.", durability = "`durability` optionally provides the durability when an item in the player's inventory loses durability.", item = "`item` optionally narrows the item predicate matched when an item in the player's inventory loses durability."), ItemUsedOnBlock(item = "`item` optionally narrows the item predicate matched when a player right-clicks on a block while holding an item.", location = "`location` optionally narrows the location predicate matched when a player right-clicks on a block while holding an item."), KillMobNearSculkCatalyst(entity = "`entity` optionally narrows the entity predicate matched when a player kills a mob near a sculk catalyst.", killing_blow = "`killing_blow` optionally narrows the killing blow predicate matched when a player kills a mob near a sculk catalyst."), KilledByArrow(fired_from_weapon = "`fired_from_weapon` optionally narrows the fired from weapon predicate matched when a player kills one or more entities with a projectile weapon.", unique_entity_types = "`unique_entity_types` optionally provides the unique entity types when a player kills one or more entities with a projectile weapon.", victims = "`victims` optionally narrows the victims predicate matched when a player kills one or more entities with a projectile weapon."), KilledByCrossbow(unique_entity_types = "`unique_entity_types` optionally provides the unique entity types when a player kills an entity using a crossbow.", victims = "`victims` optionally narrows the victims predicate matched when a player kills an entity using a crossbow."), LeveledUp(level = "`level` optionally narrows the level range matched for Minecraft's leveled up advancement trigger."), LightningStrike(bystander = "`bystander` optionally narrows the bystander predicate matched when a lightning bolt strikes near the player.", lightning = "`lightning` optionally narrows the lightning predicate matched when a lightning bolt strikes near the player."), Location(location = "`location` optionally narrows the location predicate matched for Minecraft's location advancement trigger."), NetherTravel(distance = "`distance` optionally narrows the distance predicate matched for Minecraft's nether travel advancement trigger.", entered = "`entered` optionally narrows the entered predicate matched for Minecraft's nether travel advancement trigger.", exited = "`exited` optionally narrows the exited predicate matched for Minecraft's nether travel advancement trigger."), PlacedBlock(block = "`block` optionally narrows the block matched for Minecraft's placed block advancement trigger.", item = "`item` optionally narrows the item predicate matched for Minecraft's placed block advancement trigger.", location = "`location` optionally narrows the location predicate matched for Minecraft's placed block advancement trigger.", state = "`state` optionally provides the state for Minecraft's placed block advancement trigger."), PlayerGeneratesContainerLoot(loot_table = "`loot_table` optionally provides the loot table for Minecraft's player generates container loot advancement trigger."), PlayerHurtEntity(damage = "`damage` optionally narrows the damage predicate matched when a player deals damage to an entity.", entity = "`entity` optionally narrows the entity predicate matched when a player deals damage to an entity."), PlayerInteractedWithEntity(entity = "`entity` optionally narrows the entity predicate matched for Minecraft's player interacted with entity advancement trigger.", item = "`item` optionally narrows the item predicate matched for Minecraft's player interacted with entity advancement trigger."), PlayerKilledEntity(entity = "`entity` optionally narrows the entity predicate matched for Minecraft's player killed entity advancement trigger.", killing_blow = "`killing_blow` optionally narrows the killing blow predicate matched for Minecraft's player killed entity advancement trigger."), RecipeCrafted(ingredients = "`ingredients` provides the ingredients predicate when a player completes a recipe. Vanilla exposes recipe and ingredient predicates, not the crafted result item.", recipe_id = "`recipe_id` provides the recipe id when a player completes a recipe. Vanilla exposes recipe and ingredient predicates, not the crafted result item."), RecipeUnlocked(recipe = "`recipe` provides the recipe for Minecraft's recipe unlocked advancement trigger."), RideEntityInLava(distance = "`distance` optionally narrows the distance predicate matched when a player rides an entity in lava.", start_position = "`start_position` optionally narrows the start position predicate matched when a player rides an entity in lava."), ShotCrossbow(item = "`item` optionally narrows the item predicate matched when a player shoots a crossbow."), SleptInBed(location = "`location` optionally narrows the location predicate matched for Minecraft's slept in bed advancement trigger."), SlideDownBlock(block = "`block` optionally narrows the block matched for Minecraft's slide down block advancement trigger."), SummonedEntity(entity = "`entity` optionally narrows the entity predicate matched for Minecraft's summoned entity advancement trigger."), TamedAnimal(entity = "`entity` optionally narrows the entity predicate matched for Minecraft's tamed animal advancement trigger."), TamedAnimalInteracted(entity = "`entity` optionally narrows the entity predicate matched for Minecraft's tamed animal interacted advancement trigger.", item = "`item` optionally narrows the item predicate matched for Minecraft's tamed animal interacted advancement trigger."), TargetHit(projectile = "`projectile` optionally narrows the projectile predicate matched for Minecraft's target hit advancement trigger.", signal_strength = "`signal_strength` optionally provides the signal strength for Minecraft's target hit advancement trigger."), ThrownItemPickedUp(entity = "`entity` optionally narrows the entity predicate matched when a thrown item is picked up by an entity.", item = "`item` optionally narrows the item predicate matched when a thrown item is picked up by an entity."), ThrownItemPickedUpByEntity(entity = "`entity` optionally narrows the entity predicate matched when a thrown item is picked up by a non-player entity.", item = "`item` optionally narrows the item predicate matched when a thrown item is picked up by a non-player entity."), ThrownItemPickedUpByPlayer(entity = "`entity` optionally narrows the entity predicate matched when a thrown item is picked up by the player.", item = "`item` optionally narrows the item predicate matched when a thrown item is picked up by the player."), UsedEnderEye(distance = "`distance` optionally narrows the distance matched for Minecraft's used ender eye advancement trigger."), UsedItem(item = "`item` optionally narrows the item predicate matched for Minecraft's used item advancement trigger."), UsedTotem(item = "`item` optionally narrows the item predicate matched when a player activates a totem of undying."), UsingItem(item = "`item` optionally narrows the item predicate matched for Minecraft's using item advancement trigger."), VillagerTrade(item = "`item` optionally narrows the item predicate matched for Minecraft's villager trade advancement trigger.", villager = "`villager` optionally narrows the villager predicate matched for Minecraft's villager trade advancement trigger.")),
 )]
 /// Represents a trigger condition for an advancement criterion.
@@ -900,8 +900,8 @@ pub enum AdvancementTrigger {
         distance: Option<FloatRange>,
     },
 
-    // ── 1.19+ triggers ───────────────────────────────────────────────────────
-    /// Player causes an allay to drop an item on a block (1.19+).
+    // ── Additional triggers ───────────────────────────────────────────────────────
+    /// Player causes an allay to drop an item on a block.
     AllayDropItemOnBlock {
         /// `item` optionally restricts the dropped item that satisfies this trigger.
         ///
@@ -917,16 +917,16 @@ pub enum AdvancementTrigger {
         /// `location` optionally narrows the location predicate matched when a player causes an allay to drop an item on a block.
         location: Option<LocationPredicate>,
     },
-    /// Player avoids triggering a sculk sensor vibration (1.19+).
+    /// Player avoids triggering a sculk sensor vibration.
     AvoidVibration,
-    /// Player kills a mob near a sculk catalyst (1.19+).
+    /// Player kills a mob near a sculk catalyst.
     KillMobNearSculkCatalyst {
         /// `entity` optionally narrows the entity predicate matched when a player kills a mob near a sculk catalyst.
         entity: Option<EntityPredicate>,
         /// `killing_blow` optionally narrows the killing blow predicate matched when a player kills a mob near a sculk catalyst.
         killing_blow: Option<DamagePredicate>,
     },
-    /// Player right-clicks on a block while holding an item (1.19.4+).
+    /// Player right-clicks on a block while holding an item.
     ItemUsedOnBlock {
         /// `item` optionally narrows the item predicate matched when a player right-clicks on a block while holding an item.
         item: Option<ItemPredicate>,
@@ -934,8 +934,8 @@ pub enum AdvancementTrigger {
         location: Option<LocationPredicate>,
     },
 
-    // ── 1.16+ triggers ───────────────────────────────────────────────────────
-    /// Player rides an entity in lava (1.16+).
+    // ── Additional triggers ───────────────────────────────────────────────────────
+    /// Player rides an entity in lava.
     RideEntityInLava {
         /// `start_position` optionally narrows the start position predicate matched when a player rides an entity in lava.
         start_position: Option<LocationPredicate>,
@@ -1901,27 +1901,6 @@ impl AdvancementTrigger {
                 caps.requested_version()
             ));
         }
-        if let Some((major, minor, patch)) = parse_trigger_version(coverage.since)
-            && !caps.is_at_least(major, minor, patch)
-        {
-            return Err(format!(
-                "advancement trigger `{}` is available since Minecraft {}, but the selected target is {}",
-                self.trigger_id(),
-                coverage.since,
-                caps.requested_version()
-            ));
-        }
-        if let Some(removed_in) = coverage.removed_in
-            && let Some((major, minor, patch)) = parse_trigger_version(removed_in)
-            && caps.is_at_least(major, minor, patch)
-        {
-            return Err(format!(
-                "advancement trigger `{}` was removed in Minecraft {}, but the selected target is {}",
-                self.trigger_id(),
-                removed_in,
-                caps.requested_version()
-            ));
-        }
         Ok(())
     }
 
@@ -1953,27 +1932,17 @@ impl AdvancementTrigger {
     }
 }
 
-fn parse_trigger_version(value: &str) -> Option<(u32, u32, u32)> {
-    let mut parts = value.split('.');
-    let major = parts.next()?.parse().ok()?;
-    let minor = parts.next().unwrap_or("0").parse().ok()?;
-    let patch = parts.next().unwrap_or("0").parse().ok()?;
-    Some((major, minor, patch))
-}
-
 // ── Serialize ─────────────────────────────────────────────────────────────────
 
 impl Serialize for AdvancementTrigger {
     fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
-        // `PlacedBlock` and `ItemUsedOnBlock` render through the same modern
+        // `PlacedBlock` and `ItemUsedOnBlock` render through the same 26.x
         // `location_check`/`match_tool` lowering used by `render_for(None)` —
         // see #232/#233. This compatibility `Serialize` impl (used directly by
         // tests, `Criterion`, and any caller that doesn't route through
         // `render_for`) must never fall back to the old unfiltered flat
         // `conditions.block`/`conditions.item` shape, or it would silently
-        // reintroduce the bug those issues fixed. The pre-item-component
-        // legacy shape remains reachable only through the explicit
-        // `render_for(Some(&caps))` profile-gated path.
+        // reintroduce the bug those issues fixed.
         match self {
             AdvancementTrigger::PlacedBlock {
                 block,
@@ -2523,35 +2492,10 @@ impl Serialize for AdvancementTrigger {
 /// [`AdvancementTrigger::render_for`].
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum AdvancementSchemaFamily {
-    /// Pre item-component era (pre-1.20.5). [`AdvancementTrigger::PlacedBlock`]
-    /// and [`AdvancementTrigger::ItemUsedOnBlock`] render through the
-    /// historical flat `conditions.block`/`conditions.item` shape here.
-    ///
-    /// **Known limitation:** unlike the modern family below, this flat shape
-    /// has *not* been verified against a real pre-1.20.5 vanilla server.
-    /// Historical research for #231/#232 found no authoritative evidence
-    /// that `placed_block`/`item_used_on_block` ever accepted flat
-    /// `conditions.block`/`conditions.item` fields at any version — the
-    /// `location`/`location_check`/`match_tool` composition these triggers
-    /// use predates the 1.20.5 item-component overhaul by years. It is
-    /// possible this family has the same "filter silently ignored" defect
-    /// #231 fixed for the modern family. This PR does not change legacy
-    /// output without verified proof (existing supported-profile output is
-    /// preserved per project policy), and does not implement the
-    /// pre-component item-predicate schema (`tag`/`nbt`-based matching) that
-    /// would be needed to correctly filter `item` on this family — that is
-    /// full item-model work owned by #229. Filed as a follow-up: verify
-    /// `placed_block`/`item_used_on_block` semantics on a real pre-1.20.5
-    /// server and, if broken, apply the same `location`/`match_tool` fix
-    /// used for the modern family here.
-    Legacy,
-    /// 1.20.5+ item-component era (includes every currently-supported 26.x
-    /// profile). `PlacedBlock`/`ItemUsedOnBlock` render through
+    /// Minecraft 26.1. `PlacedBlock`/`ItemUsedOnBlock` render through
     /// `conditions.location` wrapping `minecraft:location_check` (block) and
     /// `minecraft:match_tool` (item), with item predicates using the
-    /// `components` (exact)/`predicates` (partial) keys. Verified against a
-    /// real Minecraft 1.21.4 and 26.2 servers. A protocol-client fixture also
-    /// verifies placement/item-use match and non-match semantics on 1.21.4.
+    /// `components` (exact)/`predicates` (partial) keys.
     LocationConditionItemComponents,
     /// Minecraft 26.2+ retains the modern location-condition/item-component
     /// trigger shape and additionally namespaces entity sub-predicate keys.
@@ -2568,17 +2512,11 @@ impl AdvancementSchemaFamily {
         let Some(caps) = caps else {
             return Self::NamespacedEntityPredicates;
         };
-        if !caps.supports(sand_version::ComponentFeature::ItemComponents) {
-            Self::Legacy
-        } else if caps.is_at_least(26, 2, 0) {
+        if caps.is_at_least(26, 2, 0) {
             Self::NamespacedEntityPredicates
         } else {
             Self::LocationConditionItemComponents
         }
-    }
-
-    fn uses_modern_location_conditions(self) -> bool {
-        !matches!(self, Self::Legacy)
     }
 }
 
@@ -2643,11 +2581,8 @@ impl AdvancementTrigger {
     /// Every typed trigger is validated and lowered through the selected
     /// [`AdvancementSchemaFamily`]. Variants that consume item, entity,
     /// location, or damage predicates use consumer-aware conversion so nested
-    /// schemas follow the target profile too. In particular,
-    /// [`AdvancementTrigger::PlacedBlock`] and
-    /// [`AdvancementTrigger::ItemUsedOnBlock`] render differently across the
-    /// legacy and modern families. Minecraft's modern
-    /// (1.20.5+ item-component era) schema expresses that filter as a
+    /// schemas follow the target profile too. Minecraft 26.x expresses
+    /// placement and item-use filters as a
     /// `conditions.location` array of `minecraft:location_check` /
     /// `minecraft:match_tool` loot conditions, not the direct `block`/`item`
     /// fields this crate used to emit. Emitting the direct fields makes the
@@ -2657,10 +2592,6 @@ impl AdvancementTrigger {
     /// trigger-level `block`/`state` shorthand *and* a `location` predicate
     /// that already sets `block`, rendering fails with an actionable
     /// [`SandError`](crate::error::SandError) instead of picking one silently.
-    /// Likewise, requesting an item filter on [`AdvancementSchemaFamily::Legacy`]
-    /// fails with an actionable error instead of emitting an item-component-era
-    /// JSON shape (`components`/`predicates`) that legacy profiles don't
-    /// recognize — see [`AdvancementSchemaFamily::Legacy`]'s docs.
     #[sand_macros::api(
         registry = sand_api_contract,
         path = "sand::component::AdvancementTrigger::render_for",
@@ -2668,8 +2599,8 @@ impl AdvancementTrigger {
         module = "sand::component",
         kind = "method",
         summary = "Render this trigger's `{\"trigger\": ..., \"conditions\": ...}` JSON for a specific Minecraft version's predicate schema.",
-        context = "Render this trigger's `{\"trigger\": ..., \"conditions\": ...}` JSON for a specific Minecraft version's predicate schema. Every typed trigger is validated and lowered through the selected [`AdvancementSchemaFamily`]. Variants that consume item, entity, location, or damage predicates use consumer-aware conversion so nested schemas follow the target profile too. In particular, [`AdvancementTrigger::PlacedBlock`] and [`AdvancementTrigger::ItemUsedOnBlock`] render differently across the legacy and modern families. Minecraft's modern (1.20.5+ item-component era) schema expresses that filter as a `conditions.location` array of `minecraft:location_check` / `minecraft:match_tool` loot conditions, not the direct `block`/`item` fields this crate used to emit. Emitting the direct fields makes the generated advancement fire unconditionally in-game — see #231/#233. This never silently drops a filter: if a caller supplies both the trigger-level `block`/`state` shorthand *and* a `location` predicate that already sets `block`, rendering fails with an actionable [`SandError`](sand::component::SandError) instead of picking one silently. Likewise, requesting an item filter on [`AdvancementSchemaFamily::L...",
-        minecraft = "Every typed trigger is validated and lowered through the selected [`AdvancementSchemaFamily`]. Variants that consume item, entity, location, or damage predicates use consumer-aware conversion so nested schemas follow the target profile too. In particular, [`AdvancementTrigger::PlacedBlock`] and [`AdvancementTrigger::ItemUsedOnBlock`] render differently across the legacy and modern families. Minecraft's modern (1.20.5+ item-component era) schema expresses that filter as a `conditions.location` array of `minecraft:location_check` / `minecraft:match_tool` loot conditions, not the direct `block`/`item` fields this crate used to emit. Emitting the direct fields makes the generated advancement fire unconditionally in-game — see #231/#233.",
+        context = "Render this trigger's `{\"trigger\": ..., \"conditions\": ...}` JSON for a verified Minecraft 26.x predicate schema. Nested item, entity, location, and damage predicates are lowered for the selected schema family.",
+        minecraft = "Minecraft 26.x placement and item-use filters use `conditions.location` with `minecraft:location_check` and `minecraft:match_tool`; Minecraft 26.2 additionally namespaces entity sub-predicate keys.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
         params(caps = "`caps` provides the caps rendered when this trigger's `{\"trigger\": ..., \"conditions\": ...}` JSON for a specific Minecraft version's predicate schema."),
@@ -2689,76 +2620,19 @@ impl AdvancementTrigger {
         if matches!(self, Self::Custom { .. }) {
             return serde_json::to_value(self).map_err(crate::error::SandError::Serialization);
         }
-        let family = AdvancementSchemaFamily::for_caps(caps);
         match self {
             AdvancementTrigger::PlacedBlock {
                 block,
                 item,
                 location,
                 state,
-            } if family.uses_modern_location_conditions() => {
-                render_placed_block_modern(block, item, location, state, caps)
-            }
-            AdvancementTrigger::ItemUsedOnBlock { item, location }
-                if family.uses_modern_location_conditions() =>
-            {
+            } => render_placed_block_modern(block, item, location, state, caps),
+            AdvancementTrigger::ItemUsedOnBlock { item, location } => {
                 render_item_used_on_block_modern(item, location, caps)
-            }
-            AdvancementTrigger::PlacedBlock { item: Some(_), .. }
-                if matches!(family, AdvancementSchemaFamily::Legacy) =>
-            {
-                Err(unsupported_legacy_item_filter(
-                    AdvancementItemConsumer::PlacedBlockTool,
-                ))
-            }
-            AdvancementTrigger::ItemUsedOnBlock { item: Some(_), .. }
-                if matches!(family, AdvancementSchemaFamily::Legacy) =>
-            {
-                Err(unsupported_legacy_item_filter(
-                    AdvancementItemConsumer::ItemUsedOnBlockTool,
-                ))
-            }
-            AdvancementTrigger::PlacedBlock {
-                block,
-                location,
-                state,
-                ..
-            } => {
-                if location.as_ref().is_some_and(|location| !location.is_raw()) {
-                    return Err(predicate_render_error(
-                        AdvancementPredicateConsumer::new("minecraft:placed_block", "location"),
-                        "typed location filters have no verified lowering for this legacy advancement schema; use direct block/state fields, target Minecraft 1.21.4+, or use LocationPredicate::raw(...) with profile-verified JSON",
-                    ));
-                }
-                Ok(render_placed_block_legacy(block, location, state))
-            }
-            AdvancementTrigger::ItemUsedOnBlock { location, .. } => {
-                if location.as_ref().is_some_and(|location| !location.is_raw()) {
-                    return Err(predicate_render_error(
-                        AdvancementPredicateConsumer::new(
-                            "minecraft:item_used_on_block",
-                            "location",
-                        ),
-                        "typed location filters have no verified lowering for this legacy advancement schema; target Minecraft 1.21.4+ or use LocationPredicate::raw(...) with profile-verified JSON",
-                    ));
-                }
-                Ok(render_item_used_on_block_legacy(location))
             }
             _ => render_profiled_trigger(self, caps),
         }
     }
-}
-
-/// Build the actionable diagnostic for requesting an item filter on
-/// [`AdvancementSchemaFamily::Legacy`], where this crate has no verified,
-/// correct representation.
-///
-/// Delegates to the shared [`crate::item::matcher::ItemMatcher`] conversion
-/// diagnostic (#229) rather than maintaining a second, advancement-only copy
-/// of the same capability check and message — this is the seam
-/// [`AdvancementItemConsumer`]'s doc comment describes #229 integrating with.
-fn unsupported_legacy_item_filter(consumer: AdvancementItemConsumer) -> crate::error::SandError {
-    crate::item::matcher::unsupported_legacy_item_filter(consumer.into())
 }
 
 fn predicate_render_error(
@@ -3137,69 +3011,9 @@ fn render_profiled_trigger(
     Ok(value)
 }
 
-/// Pre-item-component-era flat rendering for [`AdvancementTrigger::PlacedBlock`],
-/// preserved only for targets where `render_for` determines the modern
-/// `location_check`/`match_tool` schema is unsupported. Not used by the
-/// compatibility `Serialize` impl, which always renders the modern (correct)
-/// shape — see the `Serialize for AdvancementTrigger` impl's doc comment.
-fn render_placed_block_legacy(
-    block: &Option<String>,
-    location: &Option<LocationPredicate>,
-    state: &Option<HashMap<String, String>>,
-) -> Value {
-    let mut cond = serde_json::Map::new();
-    if let Some(b) = block {
-        cond.insert("block".to_string(), Value::String(b.clone()));
-    }
-    if let Some(l) = location {
-        cond.insert(
-            "location".to_string(),
-            serde_json::to_value(l).unwrap_or(Value::Null),
-        );
-    }
-    if let Some(s) = state {
-        cond.insert(
-            "state".to_string(),
-            serde_json::to_value(s).unwrap_or(Value::Null),
-        );
-    }
-
-    let mut map = serde_json::Map::new();
-    map.insert(
-        "trigger".to_string(),
-        Value::String("minecraft:placed_block".to_string()),
-    );
-    if !cond.is_empty() {
-        map.insert("conditions".to_string(), Value::Object(cond));
-    }
-    Value::Object(map)
-}
-
-/// Pre-item-component-era flat rendering for [`AdvancementTrigger::ItemUsedOnBlock`].
-/// See [`render_placed_block_legacy`] for when this is used.
-fn render_item_used_on_block_legacy(location: &Option<LocationPredicate>) -> Value {
-    let mut cond = serde_json::Map::new();
-    if let Some(l) = location {
-        cond.insert(
-            "location".to_string(),
-            serde_json::to_value(l).unwrap_or(Value::Null),
-        );
-    }
-
-    let mut map = serde_json::Map::new();
-    map.insert(
-        "trigger".to_string(),
-        Value::String("minecraft:item_used_on_block".to_string()),
-    );
-    if !cond.is_empty() {
-        map.insert("conditions".to_string(), Value::Object(cond));
-    }
-    Value::Object(map)
-}
-
 /// Build the `minecraft:location_check` / `minecraft:match_tool` condition
 /// array shared by [`AdvancementTrigger::PlacedBlock`] and
-/// [`AdvancementTrigger::ItemUsedOnBlock`]'s modern rendering.
+/// [`AdvancementTrigger::ItemUsedOnBlock`]'s 26.x rendering.
 fn render_location_and_item_conditions(
     consumer: AdvancementItemConsumer,
     location: &Option<LocationPredicate>,
@@ -4640,7 +4454,7 @@ mod tests {
         AdvancementTrigger::UsedEnderEye { distance: None },
         "minecraft:used_ender_eye"
     );
-    // New 1.19+ triggers
+    // Additional triggers
     trigger_id_test!(
         allay_drop_item_on_block_id,
         AdvancementTrigger::AllayDropItemOnBlock {
@@ -5049,21 +4863,9 @@ mod tests {
         ItemPredicate::id(item_id("minecraft:white_wool")).custom_data_key("elevator")
     }
 
-    fn caps_1_21_4() -> sand_version::VersionCaps {
+    fn caps_26_1() -> sand_version::VersionCaps {
         sand_version::VersionCaps::from_profile_flags(
-            "1.21.4", false, false, true, true, true, true, true, true,
-        )
-    }
-
-    fn caps_1_18_2() -> sand_version::VersionCaps {
-        sand_version::VersionCaps::from_profile_flags(
-            "1.18.2", false, false, false, false, false, false, false, false,
-        )
-    }
-
-    fn caps_1_20_4() -> sand_version::VersionCaps {
-        sand_version::VersionCaps::from_profile_flags(
-            "1.20.4", false, false, false, true, true, false, true, false,
+            "26.1", false, false, true, true, true, true, true, true,
         )
     }
 
@@ -5157,35 +4959,6 @@ mod tests {
     }
 
     #[test]
-    fn item_matcher_on_legacy_profile_fails_with_the_same_diagnostic_as_placed_block() {
-        use crate::item::matcher::ItemMatcher;
-
-        let matcher = ItemMatcher::item(crate::registry::ItemId::minecraft("white_wool").unwrap())
-            .custom_data_partial("elevator");
-        let matcher_err = matcher
-            .try_into_advancement_predicate(
-                AdvancementItemConsumer::PlacedBlockTool,
-                Some(&caps_1_18_2()),
-            )
-            .unwrap_err()
-            .to_string();
-
-        let trigger_err = AdvancementTrigger::placed_block(
-            Some(BlockId::minecraft("white_wool").unwrap()),
-            Some(elevator_wool_item_predicate()),
-            None,
-            None,
-        )
-        .render_for(Some(&caps_1_18_2()))
-        .unwrap_err()
-        .to_string();
-
-        assert!(matcher_err.contains("pre-item-component"));
-        assert!(trigger_err.contains("pre-item-component"));
-        assert!(trigger_err.contains("minecraft:placed_block"));
-    }
-
-    #[test]
     fn placed_block_modern_render_block_only_has_no_match_tool_condition() {
         let trigger = AdvancementTrigger::placed_block(
             Some(BlockId::minecraft("white_wool").unwrap()),
@@ -5247,66 +5020,9 @@ mod tests {
             AdvancementSchemaFamily::NamespacedEntityPredicates,
         );
         assert_eq!(
-            AdvancementSchemaFamily::for_caps(Some(&caps_1_21_4())),
+            AdvancementSchemaFamily::for_caps(Some(&caps_26_1())),
             AdvancementSchemaFamily::LocationConditionItemComponents,
         );
-        assert_eq!(
-            AdvancementSchemaFamily::for_caps(Some(&caps_1_18_2())),
-            AdvancementSchemaFamily::Legacy,
-        );
-    }
-
-    #[test]
-    fn placed_block_render_for_legacy_profile_keeps_flat_shape_for_block_only() {
-        let trigger = AdvancementTrigger::placed_block(
-            Some(BlockId::minecraft("white_wool").unwrap()),
-            None,
-            None,
-            None,
-        );
-        let v = trigger.render_for(Some(&caps_1_18_2())).unwrap();
-        // Pre-item-component targets never had `location_check`/`match_tool`
-        // wrapping for this trigger — output must keep the historical flat shape.
-        // Note this intentionally diverges from `Serialize`/`render_for(None)`,
-        // which always render the modern (correct) shape by default; the legacy
-        // shape is reachable only by explicitly passing pre-item-component caps.
-        assert_eq!(v["conditions"]["block"], "minecraft:white_wool");
-        assert!(v["conditions"].get("item").is_none());
-        assert!(v["conditions"].get("location").is_none());
-    }
-
-    #[test]
-    fn placed_block_render_for_legacy_profile_rejects_item_filter() {
-        // Sand has no verified pre-item-component item-predicate schema (#229
-        // territory), so requesting an item filter on a legacy profile must fail
-        // with an actionable diagnostic instead of emitting a modern-era
-        // `components`/`predicates` shape the target version won't recognize.
-        let trigger = AdvancementTrigger::placed_block(
-            Some(BlockId::minecraft("white_wool").unwrap()),
-            Some(elevator_wool_item_predicate()),
-            None,
-            None,
-        );
-        let error = trigger
-            .render_for(Some(&caps_1_20_4()))
-            .unwrap_err()
-            .to_string();
-        assert!(error.contains("minecraft:placed_block"));
-        assert!(error.contains("pre-item-component"));
-    }
-
-    #[test]
-    fn item_used_on_block_render_for_legacy_profile_rejects_item_filter() {
-        let trigger = AdvancementTrigger::ItemUsedOnBlock {
-            item: Some(elevator_wool_item_predicate()),
-            location: None,
-        };
-        let error = trigger
-            .render_for(Some(&caps_1_20_4()))
-            .unwrap_err()
-            .to_string();
-        assert!(error.contains("minecraft:item_used_on_block"));
-        assert!(error.contains("pre-item-component"));
     }
 
     #[test]
@@ -5362,7 +5078,7 @@ mod tests {
             entity: Some(EntityPredicate::type_(entity_type_id("ender_dragon"))),
             killing_blow: None,
         };
-        let stable = trigger.render_for(Some(&caps_1_21_4())).unwrap();
+        let stable = trigger.render_for(Some(&caps_26_1())).unwrap();
         assert_eq!(
             stable["conditions"]["entity"][0]["predicate"]["type"],
             "minecraft:ender_dragon"
@@ -5395,7 +5111,7 @@ mod tests {
                     .y(FloatRange::at_least(64.0)),
             ),
         };
-        let stable = trigger.render_for(Some(&caps_1_21_4())).unwrap();
+        let stable = trigger.render_for(Some(&caps_26_1())).unwrap();
         let predicate = &stable["conditions"]["player"][0]["predicate"]["location"];
         assert_eq!(predicate["biomes"], "minecraft:plains");
         assert_eq!(predicate["position"]["y"]["min"], 64.0);
@@ -5416,40 +5132,11 @@ mod tests {
                 crate::predicates::BlockPredicate::new().blocks(vec![block_id("note_block")]),
             )),
         };
-        let value = trigger.render_for(Some(&caps_1_21_4())).unwrap();
+        let value = trigger.render_for(Some(&caps_26_1())).unwrap();
         let conditions = value["conditions"]["location"].as_array().unwrap();
         assert_eq!(conditions[0]["condition"], "minecraft:location_check");
         assert_eq!(conditions[1]["condition"], "minecraft:match_tool");
         assert!(value["conditions"].get("item").is_none());
-    }
-
-    #[test]
-    fn non_placement_component_item_filter_rejects_legacy_profile() {
-        let trigger = AdvancementTrigger::ConsumeItem {
-            item: Some(elevator_wool_item_predicate()),
-        };
-        let error = trigger
-            .render_for(Some(&caps_1_18_2()))
-            .unwrap_err()
-            .to_string();
-        assert!(error.contains("minecraft:consume_item"), "{error}");
-        assert!(error.contains("item-component"), "{error}");
-    }
-
-    #[test]
-    fn nested_equipment_component_filter_rejects_legacy_profile() {
-        let trigger = AdvancementTrigger::PlayerKilledEntity {
-            entity: Some(EntityPredicate::type_(entity_type_id("zombie")).equipment(
-                crate::predicates::EntityEquipment::new().head(elevator_wool_item_predicate()),
-            )),
-            killing_blow: None,
-        };
-        let error = trigger
-            .render_for(Some(&caps_1_18_2()))
-            .unwrap_err()
-            .to_string();
-        assert!(error.contains("minecraft:player_killed_entity"), "{error}");
-        assert!(error.contains("item-component"), "{error}");
     }
 
     #[test]
@@ -5467,7 +5154,7 @@ mod tests {
                 ),
             ),
         };
-        let rendered = trigger.render_for(Some(&caps_1_21_4())).unwrap();
+        let rendered = trigger.render_for(Some(&caps_26_1())).unwrap();
         assert_eq!(
             rendered["conditions"]["damage"]["type"]["tags"][0],
             serde_json::json!({"id": "minecraft:is_projectile", "expected": true})
@@ -5480,7 +5167,7 @@ mod tests {
         let trigger = AdvancementTrigger::ConsumeItem {
             item: Some(ItemPredicate::raw(RawJson::new(raw_predicate.clone()))),
         };
-        let rendered = trigger.render_for(Some(&caps_1_21_4())).unwrap();
+        let rendered = trigger.render_for(Some(&caps_26_1())).unwrap();
         assert_eq!(rendered["conditions"]["item"], raw_predicate);
     }
 
@@ -5510,7 +5197,7 @@ mod tests {
             killing_blow: None,
         };
         assert_eq!(
-            entity_trigger.render_for(Some(&caps_1_21_4())).unwrap()["conditions"]["entity"][0]["predicate"],
+            entity_trigger.render_for(Some(&caps_26_1())).unwrap()["conditions"]["entity"][0]["predicate"],
             raw_entity
         );
 
@@ -5519,7 +5206,7 @@ mod tests {
             location: Some(LocationPredicate::raw(RawJson::new(raw_location.clone()))),
         };
         assert_eq!(
-            location_trigger.render_for(Some(&caps_1_21_4())).unwrap()["conditions"]["player"][0]["predicate"]
+            location_trigger.render_for(Some(&caps_26_1())).unwrap()["conditions"]["player"][0]["predicate"]
                 ["location"],
             raw_location
         );
@@ -5530,28 +5217,9 @@ mod tests {
             damage: Some(DamagePredicate::raw(RawJson::new(raw_damage.clone()))),
         };
         assert_eq!(
-            damage_trigger.render_for(Some(&caps_1_21_4())).unwrap()["conditions"]["damage"],
+            damage_trigger.render_for(Some(&caps_26_1())).unwrap()["conditions"]["damage"],
             raw_damage
         );
-    }
-
-    #[test]
-    fn legacy_typed_location_filters_fail_but_raw_remains_user_owned() {
-        let typed = AdvancementTrigger::Location {
-            location: Some(LocationPredicate::new().biome(biome_id("plains"))),
-        };
-        let error = typed
-            .render_for(Some(&caps_1_18_2()))
-            .unwrap_err()
-            .to_string();
-        assert!(error.contains("no verified"), "{error}");
-
-        let raw = AdvancementTrigger::Location {
-            location: Some(LocationPredicate::raw(RawJson::new(
-                serde_json::json!({"biome": "minecraft:plains"}),
-            ))),
-        };
-        assert!(raw.render_for(Some(&caps_1_18_2())).is_ok());
     }
 
     #[test]
@@ -5566,13 +5234,13 @@ mod tests {
                 location: None,
             },
         ] {
-            let rendered = trigger.render_for(Some(&caps_1_21_4())).unwrap();
+            let rendered = trigger.render_for(Some(&caps_26_1())).unwrap();
             assert!(rendered.get("conditions").is_none(), "{rendered}");
         }
     }
 
     #[test]
-    fn current_replacement_triggers_render_deterministically_for_both_profiles() {
+    fn current_triggers_render_deterministically_for_known_26_profiles() {
         let triggers = [
             AdvancementTrigger::KilledByArrow {
                 unique_entity_types: Some(IntRange::at_least(2)),
@@ -5592,7 +5260,7 @@ mod tests {
                 entity: Some(EntityPredicate::type_(entity_type_id("allay"))),
             },
         ];
-        for caps in [caps_1_21_4(), sand_version::VersionCaps::all_enabled()] {
+        for caps in [caps_26_1(), sand_version::VersionCaps::all_enabled()] {
             for trigger in &triggers {
                 let first = trigger.render_for(Some(&caps)).unwrap();
                 let second = trigger.render_for(Some(&caps)).unwrap();
@@ -5603,42 +5271,16 @@ mod tests {
     }
 
     #[test]
-    fn trigger_version_ranges_apply_to_components_and_preserve_custom_escape_hatch() {
-        let too_new = AdvancementTrigger::AllayDropItemOnBlock {
-            item: None,
-            location: None,
-        };
-        assert!(too_new.render_for(Some(&caps_1_18_2())).is_err());
-
-        let legacy_crossbow = AdvancementTrigger::KilledByCrossbow {
-            unique_entity_types: None,
-            victims: None,
-        };
-        assert!(legacy_crossbow.render_for(Some(&caps_1_18_2())).is_ok());
-        assert!(legacy_crossbow.render_for(Some(&caps_1_21_4())).is_err());
-
-        let custom_known_id = AdvancementTrigger::Custom {
-            trigger: "minecraft:tick".into(),
-            conditions: None,
-        };
-        assert!(
-            custom_known_id
-                .render_for(Some(&sand_version::VersionCaps::all_disabled()))
-                .is_ok()
-        );
-    }
-
-    #[test]
     fn invalid_typed_trigger_is_rejected_but_custom_escape_hatch_is_preserved() {
         let typed = AdvancementTrigger::CraftedItem { item: None };
-        assert!(typed.render_for(Some(&caps_1_21_4())).is_err());
+        assert!(typed.render_for(Some(&caps_26_1())).is_err());
 
         let raw = AdvancementTrigger::Custom {
             trigger: "minecraft:crafted_item".into(),
             conditions: Some(RawJson::new(serde_json::json!({"future": true}))),
         };
         assert_eq!(
-            raw.render_for(Some(&caps_1_21_4())).unwrap(),
+            raw.render_for(Some(&caps_26_1())).unwrap(),
             serde_json::json!({
                 "trigger": "minecraft:crafted_item",
                 "conditions": {"future": true}

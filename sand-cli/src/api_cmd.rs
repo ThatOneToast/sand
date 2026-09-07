@@ -1426,7 +1426,7 @@ fn source_minecraft_behavior(documentation: &str) -> Option<String> {
                     "scoreboard",
                     "nbt",
                     "datapack",
-                    "resource pack",
+                    "generated resource",
                     "json",
                     "export",
                 ]
@@ -3655,7 +3655,6 @@ mod tests {
                     && !compact_signature.contains("sand_core::")
                     && !compact_signature.contains("sand_commands::")
                     && !compact_signature.contains("sand_components::")
-                    && !compact_signature.contains("sand_resourcepack::")
                     && !compact_signature.contains("sand_version::")
                     && !compact_signature.contains("crate::"),
                 "signature leaks attributes or implementation paths: {} => {}",
@@ -3726,14 +3725,6 @@ mod tests {
                 .unwrap()
                 .signature
                 .starts_with("pub fn get")
-        );
-        #[cfg(feature = "resourcepack")]
-        assert_eq!(
-            catalog
-                .find("sand::resourcepack::AssetOutput::path")
-                .unwrap()
-                .signature,
-            "pub path: String"
         );
         assert_eq!(
             catalog
@@ -4150,7 +4141,7 @@ mod tests {
 
         let local = show(catalog, "sand::resource_ref::DialogId::local").unwrap();
         assert!(local.contains("trusted literal path"));
-        assert!(local.contains("Minecraft Java 1.21.6+"));
+        assert!(local.contains("Minecraft Java 26.x and newer"));
 
         let search_results = search(catalog, "dialog namespace sentinel").unwrap();
         assert!(search_results.contains("sand::resource_ref::DialogId::local"));
@@ -4199,7 +4190,7 @@ mod tests {
 
         let grouped = module(catalog, "sand::version").unwrap();
         assert!(grouped.contains("sand::version::VersionFeature"));
-        assert!(grouped.contains("sand::version::VersionFeature (14 APIs)"));
+        assert!(grouped.contains("sand::version::VersionFeature (13 APIs)"));
         assert!(grouped.contains("sand::version::VersionProfile"));
     }
 
@@ -4213,14 +4204,14 @@ mod tests {
                     || entry.canonical_path.starts_with("sand::version::")
             })
             .collect::<Vec<_>>();
-        assert_eq!(entries.len(), 66);
+        assert_eq!(entries.len(), 63);
         assert_eq!(
             entries
                 .iter()
                 .map(|entry| entry.canonical_path.as_str())
                 .collect::<BTreeSet<_>>()
                 .len(),
-            66
+            63
         );
     }
 
@@ -4290,144 +4281,13 @@ mod tests {
     }
 
     #[test]
-    #[cfg(not(any(
-        feature = "resourcepack",
-        feature = "systems-damage",
-        feature = "systems-cooldowns",
-        feature = "systems-lifecycle",
-        feature = "systems-player-data",
-        feature = "systems-movement",
-        feature = "systems-inventory",
-        feature = "systems-entities"
-    )))]
-    fn default_catalog_contains_only_the_compiled_feature_surface() {
+    fn catalog_matches_the_unconditional_framework_surface() {
         let catalog = generated_catalog();
-        assert!(
-            catalog
-                .find("sand::systems::damage::DamageTracker")
-                .is_none()
-        );
-        assert!(
-            catalog
-                .entries
-                .iter()
-                .all(|entry| { !entry.canonical_path.starts_with("sand::resourcepack::") })
-        );
         assert!(catalog.configuration.cargo_features.is_empty());
         assert_eq!(
             catalog.configuration.compiled_surface_items,
             catalog.entries.len()
         );
-    }
-
-    #[test]
-    #[cfg(feature = "systems-damage")]
-    fn damage_feature_catalog_contains_damage_apis_and_declares_the_feature() {
-        let catalog = generated_catalog();
-        assert!(
-            catalog
-                .find("sand::systems::damage::DamageTracker")
-                .is_some()
-        );
-        assert!(
-            catalog
-                .configuration
-                .cargo_features
-                .contains(&"systems-damage".to_owned())
-        );
-    }
-
-    #[test]
-    #[cfg(feature = "resourcepack")]
-    fn resourcepack_feature_catalog_contains_resourcepack_apis() {
-        let catalog = generated_catalog();
-        assert!(
-            catalog
-                .entries
-                .iter()
-                .any(|entry| entry.canonical_path.starts_with("sand::resourcepack::"))
-        );
-        assert!(
-            catalog
-                .configuration
-                .cargo_features
-                .contains(&"resourcepack".to_owned())
-        );
-    }
-
-    #[test]
-    fn installed_system_feature_matrix_matches_the_compiled_surface() {
-        let catalog = generated_catalog();
-        let systems_all = cfg!(feature = "systems-all");
-        let expectations = [
-            (
-                "systems-cooldowns",
-                "sand::systems::cooldowns::",
-                cfg!(feature = "systems-cooldowns") || systems_all,
-            ),
-            (
-                "systems-damage",
-                "sand::systems::damage::",
-                cfg!(feature = "systems-damage") || systems_all,
-            ),
-            (
-                "systems-entities",
-                "sand::systems::entities::",
-                cfg!(feature = "systems-entities") || systems_all,
-            ),
-            (
-                "systems-inventory",
-                "sand::systems::inventory::",
-                cfg!(feature = "systems-inventory") || systems_all,
-            ),
-            (
-                "systems-lifecycle",
-                "sand::systems::lifecycle::",
-                cfg!(feature = "systems-lifecycle") || systems_all,
-            ),
-            (
-                "systems-movement",
-                "sand::systems::movement::",
-                cfg!(feature = "systems-movement") || systems_all,
-            ),
-            (
-                "systems-player-data",
-                "sand::systems::player_data::",
-                cfg!(feature = "systems-player-data") || systems_all,
-            ),
-        ];
-
-        for (feature, prefix, expected) in expectations {
-            assert_eq!(
-                catalog
-                    .configuration
-                    .cargo_features
-                    .iter()
-                    .any(|item| item == feature),
-                expected,
-                "configuration mismatch for {feature}"
-            );
-            assert_eq!(
-                catalog
-                    .entries
-                    .iter()
-                    .any(|entry| entry.canonical_path.starts_with(prefix)),
-                expected,
-                "compiled surface mismatch for {feature}"
-            );
-            for entry in catalog
-                .entries
-                .iter()
-                .filter(|entry| entry.canonical_path.starts_with(prefix))
-            {
-                assert_eq!(
-                    entry.availability,
-                    vec![format!("Cargo feature: {feature}")],
-                    "availability mismatch for {}",
-                    entry.canonical_path
-                );
-            }
-        }
     }
 
     #[test]
@@ -4485,7 +4345,7 @@ mod tests {
     }
 
     #[test]
-    fn all_generated_callable_examples_compile_in_a_downstream_crate() {
+    fn generated_callable_and_event_examples_compile_in_one_downstream_crate() {
         use std::fs;
         use std::process::Command;
 
@@ -4535,6 +4395,28 @@ mod tests {
             ));
         }
 
+        let event_examples = catalog
+            .entries
+            .iter()
+            .filter(|entry| {
+                let example = entry.example.trim_start();
+                entry.canonical_path.starts_with("sand::events::")
+                    && example.starts_with("#[sand::on_event")
+                    && example.contains('\n')
+            })
+            .collect::<Vec<_>>();
+        assert!(
+            event_examples.len() >= 60,
+            "expected repository-wide event-marker example coverage, found {}",
+            event_examples.len()
+        );
+        for (index, entry) in event_examples.iter().enumerate() {
+            source.push_str(&format!(
+                "#[allow(dead_code, unused_imports, unused_variables, unreachable_code)]\nmod event_example_{index} {{\nuse sand::prelude::*;\n{}\n}}\n",
+                entry.example
+            ));
+        }
+
         let project = tempfile::tempdir().expect("create downstream example crate");
         let workspace = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
             .parent()
@@ -4543,7 +4425,7 @@ mod tests {
         fs::write(
             project.path().join("Cargo.toml"),
             format!(
-                "[package]\nname = \"sand-contract-example-check\"\nversion = \"0.0.0\"\nedition = \"2024\"\n\n[dependencies]\nsand = {{ path = {:?}, features = [\"systems-all\", \"resourcepack\"] }}\nserde_json = \"1\"\n",
+                "[package]\nname = \"sand-contract-example-check\"\nversion = \"0.0.0\"\nedition = \"2024\"\n\n[dependencies]\nsand = {{ path = {:?} }}\nserde_json = \"1\"\n",
                 workspace.join("sand")
             ),
         )
@@ -4558,83 +4440,10 @@ mod tests {
             .expect("run downstream cargo check");
         assert!(
             output.status.success(),
-            "all {} generated callable examples must compile:\n{}",
+            "all {} callable and {} event-marker examples must compile:\n{}",
             generated.len(),
+            event_examples.len(),
             String::from_utf8_lossy(&output.stderr)
         );
-    }
-
-    #[test]
-    fn all_exported_event_marker_examples_compile_in_a_downstream_crate() {
-        use std::fs;
-        use std::process::Command;
-
-        let catalog = generated_catalog();
-        let item_examples = catalog
-            .entries
-            .iter()
-            .filter(|entry| {
-                let example = entry.example.trim_start();
-                entry.canonical_path.starts_with("sand::events::")
-                    && example.starts_with("#[sand::on_event")
-                    && example.contains('\n')
-            })
-            .collect::<Vec<_>>();
-        assert!(
-            item_examples.len() >= 60,
-            "expected repository-wide event-marker example coverage, found {}",
-            item_examples.len()
-        );
-
-        let mut source = String::new();
-        for (index, entry) in item_examples.iter().enumerate() {
-            source.push_str(&format!(
-                "#[allow(dead_code, unused_imports, unused_variables, unreachable_code)]\nmod example_{index} {{\nuse sand::prelude::*;\n{}\n}}\n",
-                entry.example
-            ));
-        }
-
-        let project = tempfile::tempdir().expect("create downstream event-example crate");
-        let workspace = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
-            .parent()
-            .expect("sand-cli is inside the workspace");
-        fs::create_dir(project.path().join("src")).expect("create source directory");
-        fs::write(
-            project.path().join("Cargo.toml"),
-            format!(
-                "[package]\nname = \"sand-contract-event-example-check\"\nversion = \"0.0.0\"\nedition = \"2024\"\n\n[dependencies]\nsand = {{ path = {:?}, features = [\"systems-all\", \"resourcepack\"] }}\nserde_json = \"1\"\n",
-                workspace.join("sand")
-            ),
-        )
-        .expect("write downstream manifest");
-        fs::write(project.path().join("src/lib.rs"), source)
-            .expect("write downstream event examples");
-        let target = workspace.join("target/exported-api-event-example-check");
-        let output = Command::new(env!("CARGO"))
-            .current_dir(project.path())
-            .env("CARGO_TARGET_DIR", &target)
-            .args(["check", "--offline", "--quiet"])
-            .output()
-            .expect("run downstream cargo check");
-        assert!(
-            output.status.success(),
-            "all {} exported event-marker examples must compile:\n{}",
-            item_examples.len(),
-            String::from_utf8_lossy(&output.stderr)
-        );
-    }
-
-    #[cfg(any(feature = "systems-player-data", feature = "systems-all"))]
-    #[test]
-    fn family_contracts_use_item_specific_source_documentation() {
-        let contract = show(
-            generated_catalog(),
-            "sand::systems::player_data::PlayerDataSchema::define_all",
-        )
-        .unwrap();
-        assert!(contract.contains("scoreboard objectives add"));
-        assert!(contract.contains("Storage schemas do not generate commands"));
-        assert!(contract.contains("idempotent"));
-        assert!(!contract.contains("typed systems API"));
     }
 }

@@ -19,13 +19,13 @@ use crate::selector::{Selector, TargetArgument};
     use_when = ["Constructing Minecraft commands through Sand's typed command model"],
     avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
     example = "use sand::command::EffectDuration;",
-    variants(Infinite = "Persist until explicitly cleared. Supported by Java 1.19.4+.", Seconds = "An explicit whole-second duration.", Ticks = "Compatibility input expressed in ticks; validation requires exact divisibility by 20."),
+    variants(Infinite = "Persist until explicitly cleared.", Seconds = "An explicit whole-second duration.", Ticks = "Compatibility input expressed in ticks; validation requires exact divisibility by 20."),
     variant_fields(Seconds = ["An explicit whole-second duration."], Ticks = ["Compatibility input expressed in ticks; validation requires exact divisibility by 20."]),
 )]
 /// Minecraft's effect duration representation.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum EffectDuration {
-    /// Persist until explicitly cleared. Supported by Java 1.19.4+.
+    /// Persist until explicitly cleared.
     Infinite,
     /// An explicit whole-second duration.
     Seconds(#[doc = "An explicit whole-second duration."] u32),
@@ -236,16 +236,7 @@ impl Validate for EffectCommand {
         }
         if let Some(duration) = self.duration {
             match duration {
-                EffectDuration::Infinite if !profile.is_at_least(1, 19, 4) => {
-                    return Err(effect_error(
-                        "SAND-EFFECT-VERSION",
-                        "duration",
-                        format!(
-                            "`infinite` effect duration requires Minecraft 1.19.4+; selected {}",
-                            profile.requested_version()
-                        ),
-                    ));
-                }
+                EffectDuration::Infinite => {}
                 EffectDuration::Seconds(seconds) => validate_seconds(seconds)?,
                 EffectDuration::Ticks(ticks) => {
                     if ticks == 0 || ticks % 20 != 0 {
@@ -259,7 +250,6 @@ impl Validate for EffectCommand {
                     }
                     validate_seconds(ticks / 20)?;
                 }
-                EffectDuration::Infinite => {}
             }
         }
         Ok(())

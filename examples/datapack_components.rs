@@ -67,8 +67,6 @@ pub fn ashen_shrub_placement() -> PlacedFeature {
 pub fn quartz_trim_material() -> TrimMaterial {
     TrimMaterial::new(ResourceLocation::new("example", "quartz").unwrap())
         .asset_name(TrimAssetName::new("quartz").unwrap())
-        .ingredient(ItemId::minecraft("quartz").unwrap())
-        .item_model_index(0.1)
         .description(TextComponent::translate(
             "trim_material.example.quartz",
         ))
@@ -78,11 +76,10 @@ pub fn quartz_trim_material() -> TrimMaterial {
 pub fn bolt_trim_pattern() -> TrimPattern {
     TrimPattern::new(ResourceLocation::new("example", "bolt").unwrap())
         .asset_id(ResourceLocation::new("example", "bolt").unwrap())
-        .template_item(ItemId::minecraft("bolt_armor_trim_smithing_template").unwrap())
         .description(TextComponent::translate("trim_pattern.example.bolt"))
 }
 
-/// A typed 1.21+ enchantment: typed description, item-tag references, a
+/// A typed 26+ enchantment: typed description, item-tag references, a
 /// typed active slot, and a typed `minecraft:knockback` value effect.
 #[datapack_component]
 pub fn swift_step_enchantment() -> Enchantment {
@@ -110,7 +107,7 @@ pub fn mob_enchantments() -> EnchantmentProvider {
     )
 }
 
-/// A custom biome-specific pig variant (Minecraft 1.21.5+), spawning only in
+/// A custom biome-specific pig variant (Minecraft 26+), spawning only in
 /// snowy biomes with a higher priority than the vanilla default.
 #[datapack_component]
 pub fn frostback_pig() -> PigVariant {

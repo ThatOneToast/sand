@@ -805,7 +805,6 @@ fn validate_resolved_quality(entries: &[ApiEntry]) -> Result<(), CatalogError> {
                 "sand_core::",
                 "sand_commands::",
                 "sand_components::",
-                "sand_resourcepack::",
                 "sand_version::",
                 "crate::",
             ]
@@ -1469,7 +1468,7 @@ mod tests {
                 "generic family filler",
             ),
             (
-                "Configures to json for this typed resource-pack definition.",
+                "Configures to json for this typed generated definition.",
                 "The selected equipment slot.",
                 "A predicate builder.",
                 "generic family filler",

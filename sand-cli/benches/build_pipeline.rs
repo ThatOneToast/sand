@@ -1,9 +1,9 @@
 use criterion::{BatchSize, Criterion, criterion_group, criterion_main};
 
 use sand_cli::build::package::zip_dir;
-use sand_cli::build::records::{ComponentRecord, ResourcePackRecord};
-use sand_cli::build::validate::{validate_component_records, validate_resourcepack_records};
-use sand_cli::build::write::{write_component, write_rp_record};
+use sand_cli::build::records::ComponentRecord;
+use sand_cli::build::validate::validate_component_records;
+use sand_cli::build::write::write_component;
 use sand_cli::run_cmd;
 
 fn component_records(count: usize) -> Vec<ComponentRecord> {
@@ -15,20 +15,6 @@ fn component_records(count: usize) -> Vec<ComponentRecord> {
                 "path": format!("generated/fn_{i}"),
                 "ext": "mcfunction",
                 "content": format!("say function {i}\n"),
-            })
-        })
-        .collect::<Vec<_>>();
-
-    serde_json::from_value(serde_json::Value::Array(records)).unwrap()
-}
-
-fn resource_records(count: usize) -> Vec<ResourcePackRecord> {
-    let records = (0..count)
-        .map(|i| {
-            serde_json::json!({
-                "path": format!("assets/bench/models/item/item_{i}.json"),
-                "content_type": "json",
-                "content": format!(r#"{{"parent":"minecraft:item/generated","bench":{i}}}"#),
             })
         })
         .collect::<Vec<_>>();
@@ -81,24 +67,6 @@ fn bench_component_writing(c: &mut Criterion) {
                 let dist = temp.path().join("bench");
                 for record in &records {
                     write_component(&dist, temp.path(), record).unwrap();
-                }
-            },
-            BatchSize::SmallInput,
-        );
-    });
-}
-
-fn bench_resource_record_writing(c: &mut Criterion) {
-    let records = resource_records(64);
-
-    c.bench_function("resource-pack writing/64 json assets", |b| {
-        b.iter_batched(
-            || tempfile::tempdir().unwrap(),
-            |temp| {
-                validate_resourcepack_records(&records).unwrap();
-                let dist = temp.path().join("bench-resources");
-                for record in &records {
-                    write_rp_record(&dist, temp.path(), record).unwrap();
                 }
             },
             BatchSize::SmallInput,
@@ -168,7 +136,6 @@ criterion_group!(
     bench_validation,
     bench_generated_json_parsing,
     bench_component_writing,
-    bench_resource_record_writing,
     bench_zip_packaging,
     bench_server_sync
 );

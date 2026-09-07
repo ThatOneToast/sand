@@ -88,19 +88,19 @@ impl EffectGive {
         self
     }
 
-    /// Persist until explicitly cleared (Minecraft 1.19.4+).
+    /// Persist until explicitly cleared using the Minecraft 26+ syntax.
     #[sand_macros::api(
         registry = sand_api_contract,
         path = "sand::command::EffectGive::infinite",
         aliases = ["sand::cmd::EffectGive::infinite", "sand::prelude::cmd::EffectGive::infinite"],
         module = "sand::command",
         kind = "method",
-        summary = "Persist until explicitly cleared (Minecraft 1.19.4+).",
-        context = "Persist until explicitly cleared (Minecraft 1.19.4+). This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
+        summary = "Persist until explicitly cleared using the Minecraft 26+ syntax.",
+        context = "Persist until explicitly cleared using the Minecraft 26+ syntax. This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
         minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        returns = "The `EffectGive` value with the documented change applied to persist until explicitly cleared (Minecraft 1.19.4+).",
+        returns = "The `EffectGive` value configured with an infinite duration.",
         example = "use sand::prelude::*;\n\nfn demonstrate(effect_give_value: sand::command::EffectGive)  {\n    let updated_effect_give = effect_give_value.infinite();\n}",
     )]
     pub fn infinite(mut self) -> Self {

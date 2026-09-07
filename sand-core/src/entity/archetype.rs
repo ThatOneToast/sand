@@ -2418,7 +2418,7 @@ fn compile_definition_with_claims(
     let mut refresh_outputs: Vec<(String, String)> = Vec::new();
     let mut periodic_refreshes: Vec<(String, String, u32)> = Vec::new();
     for (index, property) in definition.properties.iter().enumerate() {
-        let compiled = compile_property(definition, &fields, property, index, &root, _profile)?;
+        let compiled = compile_property(definition, &fields, property, index, &root)?;
         objectives.extend(compiled.objectives);
         functions.extend(compiled.functions);
         records.extend(compiled.records);
@@ -4147,7 +4147,6 @@ fn compile_property(
     property: &ArchetypeProperty,
     index: usize,
     root: &str,
-    profile: &crate::version::VersionProfile,
 ) -> Result<PropertyCompilation, EntityDiagnostic> {
     let id = definition.id.to_string();
     let path = format!("{root}/property/{index}");
@@ -4190,7 +4189,7 @@ fn compile_property(
                     }
                 }
             }
-            let lowered = lower_health(definition, binding, index, root, profile)?;
+            let lowered = lower_health(definition, binding, index, root)?;
             objectives.extend(lowered.objectives);
             functions.extend(lowered.functions);
             records.extend(lowered.records);
@@ -4215,7 +4214,7 @@ fn compile_property(
                 )?;
                 sources.push(dirty_objective.clone());
             }
-            let lowered = lower_attribute(definition, binding, index, root, profile)?;
+            let lowered = lower_attribute(definition, binding, index, root)?;
             functions.extend(lowered.functions);
             records.extend(lowered.records);
             (
@@ -4239,7 +4238,7 @@ fn compile_property(
                 )?;
                 sources.push(dirty_objective.clone());
             }
-            let lowered = lower_attribute_modifier(definition, binding, index, root, profile)?;
+            let lowered = lower_attribute_modifier(definition, binding, index, root)?;
             functions.extend(lowered.functions);
             records.extend(lowered.records);
             (
@@ -4379,7 +4378,7 @@ fn compile_property(
                     }
                 }
             }
-            let lowered = lower_name(definition, binding, index, root, profile)?;
+            let lowered = lower_name(definition, binding, index, root)?;
             functions.extend(lowered.functions);
             records.extend(lowered.records);
             (
@@ -4536,7 +4535,6 @@ fn lower_attribute(
     binding: &AttributeBinding,
     index: usize,
     root: &str,
-    profile: &crate::version::VersionProfile,
 ) -> Result<NativeLowering, EntityDiagnostic> {
     match binding.source() {
         NumericPropertySource::Fixed { units, scale } => Ok(NativeLowering {
@@ -4552,11 +4550,6 @@ fn lower_attribute(
         NumericPropertySource::StateScore {
             objective, scale, ..
         } => {
-            require_macros(
-                definition,
-                profile,
-                &format!("{root}/property/{index}/macro"),
-            )?;
             let helper = format!("{root}/property/{index}/macro");
             let storage = format!("{}:__sand_entity", definition.id.namespace());
             let args = format!(
@@ -4596,7 +4589,6 @@ fn lower_attribute_modifier(
     binding: &AttributeModifierBinding,
     index: usize,
     root: &str,
-    profile: &crate::version::VersionProfile,
 ) -> Result<NativeLowering, EntityDiagnostic> {
     let remove = format!(
         "attribute @s {} modifier remove {}",
@@ -4623,7 +4615,6 @@ fn lower_attribute_modifier(
             objective, scale, ..
         } => {
             let helper = format!("{root}/property/{index}/modifier_macro");
-            require_macros(definition, profile, &helper)?;
             let storage = format!("{}:__sand_entity", definition.id.namespace());
             let args = format!(
                 "args.m{:012x}.{index}",
@@ -4665,10 +4656,8 @@ fn lower_health(
     binding: &HealthBinding,
     index: usize,
     root: &str,
-    profile: &crate::version::VersionProfile,
 ) -> Result<NativeLowering, EntityDiagnostic> {
     let helper = format!("{root}/property/{index}/max_health_macro");
-    require_macros(definition, profile, &helper)?;
     let id = definition.id.to_string();
     let old_max = sand_commands::ObjectiveName::logical(format!("{id}.health.old_max"))
         .as_str()
@@ -4832,7 +4821,6 @@ fn lower_name(
     binding: &EntityName,
     index: usize,
     root: &str,
-    profile: &crate::version::VersionProfile,
 ) -> Result<NativeLowering, EntityDiagnostic> {
     let helper = format!("{root}/property/{index}/name_macro");
     let storage = format!("{}:__sand_entity", definition.id.namespace());
@@ -4906,7 +4894,6 @@ fn lower_name(
     let value = format!("{{text:\"\",extra:[{}]}}", rendered.join(","));
     let visible = i32::from(binding.is_visible());
     if dynamic {
-        require_macros(definition, profile, &helper)?;
         setup.push(format!(
             "function {}:{helper} with storage {storage} {args}",
             definition.id.namespace()
@@ -4937,22 +4924,6 @@ fn lower_name(
             records: Vec::new(),
             functions: Vec::new(),
             objectives: Vec::new(),
-        })
-    }
-}
-
-fn require_macros(
-    definition: &ArchetypeDefinition,
-    profile: &crate::version::VersionProfile,
-    resource: &str,
-) -> Result<(), EntityDiagnostic> {
-    if profile.supports(crate::version::VersionFeature::FunctionMacros) {
-        Ok(())
-    } else {
-        Err(EntityDiagnostic::UnsupportedFunctionMacro {
-            archetype: definition.id.to_string(),
-            resource: format!("{}:{resource}", definition.id.namespace()),
-            profile: profile.resolved_name().to_owned(),
         })
     }
 }

@@ -145,22 +145,6 @@ pub fn validate(catalog: &ApiCatalog, context: &ProjectContext) -> Result<Vec<Di
             Some("Use a CLI with complete API contract coverage.".into()),
         ));
     }
-    if project.resource_pack_enabled
-        && !project
-            .root
-            .join("src/bin/sand_resource_export.rs")
-            .is_file()
-    {
-        diagnostics.push(diagnostic(
-            Severity::Error,
-            "SAND_CHECK_RESOURCE_EXPORTER_MISSING",
-            "configuration",
-            "sand.toml enables a resource pack but src/bin/sand_resource_export.rs is missing.",
-            Some(project.root.join("sand.toml")),
-            Some(project),
-            Some("Run `sand add resourcepack` or restore the resource exporter binary.".into()),
-        ));
-    }
     if output_is_stale(&project.root, &project.namespace)? {
         diagnostics.push(diagnostic(
             Severity::Error,

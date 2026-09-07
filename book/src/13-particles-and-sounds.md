@@ -53,8 +53,7 @@ VfxSound::new("minecraft:entity.ender_pearl.throw")
     .pitch(1.4)
 ```
 
-Reusing the vanilla ender pearl throw sound (rather than needing a custom
-resource-pack sound) keeps Trailforge's audio grounded in a sound players
+Reusing the vanilla ender pearl throw sound keeps Trailforge's audio grounded in a sound players
 already associate with "launched through the air," which is exactly the
 sensation the dash is going for. `.source(SoundSource::Player)` picks the
 sound category the client's audio mixer uses (so players can turn dash
@@ -62,13 +61,3 @@ sounds down via their own "Players" volume slider without muting hostile
 mobs); `.pitch(1.4)` shifts the sound higher than the pearl's default
 throw pitch, differentiating "you dashed" from "you threw a pearl" even
 though the underlying sample is identical.
-
-## Resource packs are a separate, opt-in system
-
-Everything in this chapter uses vanilla particle and sound IDs — Trailforge
-never needs a custom resource pack for its VFX. Sand does support authoring
-resource-pack assets (HUD bars, custom textures) behind the `resourcepack`
-feature and `sand add resourcepack`, but that's a separate system from the
-datapack `Vfx` sequencing shown here, and Trailforge doesn't use it; if your
-own pack needs custom particle textures or sounds, that's where you'd start
-instead.

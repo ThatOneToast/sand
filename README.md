@@ -119,12 +119,8 @@ not a runtime dependency.
   `data/<namespace>/structure/`. Sand does not parse, generate, or semantically
   validate their binary NBT payloads. The component audit tracks these
   non-registry assets separately from registries and tags.
-- **Version-aware output** — version profiles gate known features and generated
-  registries against the selected Minecraft target.
-- **Optional systems** — feature-gated building blocks for damage, cooldowns,
-  lifecycle, player data, movement, inventory, and entities.
-- **Optional resource packs** — generate HUD and resource-pack output alongside
-  a datapack when the `resourcepack` feature is enabled.
+- **Version-aware output** — exact 26.x profiles describe verified schema
+  differences and generated registries fail safely for unknown future targets.
 
 ### CLI
 
@@ -133,7 +129,8 @@ not a runtime dependency.
   creates a distributable zip.
 - `sand run` builds the pack, prepares a local Minecraft server, and presents
   classified, verbose, raw, or JSON server logs.
-- `sand add resourcepack` adds the optional resource-pack export setup.
+- `sand add worldbuild` adds typed world/server configuration. The
+  `resourcepack` capability name is reserved while that support is unavailable.
 - `sand join` integrates with Prism Launcher for local testing.
 - `sand clean` removes generated pack and optional server/build artifacts.
 
@@ -187,13 +184,12 @@ rules, structured search controls, and the recommended validation loop.
 
 ## Minecraft versions
 
-- **26.2** is the canonical export profile and the target used by current
-  examples and generated APIs.
-- **1.21.4** is the oldest explicit compatibility boundary exercised by CI; it
-  is not the default.
-- Unknown or future version strings resolve to conservative capabilities.
-  Use `VersionProfile::resolve_strict()` when an unsupported target should be
-  a hard error.
+- Sand targets **Minecraft Java 26.x and newer**. Versions below 26 are rejected.
+- **26.2** is the latest verified export profile and the target used by current
+  examples and generated APIs; 26.1 retains its exact known schema profile.
+- Later calendar versions can be represented, but unknown schemas use
+  conservative capabilities. Use `VersionProfile::resolve_strict()` when exact
+  Minecraft data is required.
 
 Minecraft Java version support is profile-aware rather than a promise that
 every resource field or advancement trigger has identical typed coverage.
@@ -209,7 +205,7 @@ and resource-specific API documentation when targeting an edge case.
 
 The attribute-first authoring model, typed state and conditions, typed text and
 execute chains, command builders, and scaffolding are the firmest parts of the
-project today. Events, dialogs, and resource-pack generation are alpha.
+project today. Events and dialogs are alpha.
 `mcfunction!` and registry coverage for unreleased Minecraft versions are
 experimental.
 

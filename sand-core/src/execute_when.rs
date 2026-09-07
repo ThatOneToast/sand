@@ -1159,10 +1159,10 @@ mod tests {
                 .all(|command| !command.contains("return run"))
         );
 
-        let profile = sand_commands::CommandProfile::new("1.19.4", false);
+        let profile = sand_commands::CommandProfile::new("26.1", false);
         for command in registered.iter().flat_map(|(_, commands)| commands) {
             sand_commands::render::validate_collected_line(command, &profile)
-                .unwrap_or_else(|error| panic!("1.19.4 rejected `{command}`: {error}"));
+                .unwrap_or_else(|error| panic!("26.1 rejected `{command}`: {error}"));
         }
         let score_setup = crate::state::score::drain_internal_score_setup();
         assert!(score_setup.contains(&"scoreboard objectives add __sand_tmp dummy".to_string()));

@@ -2,7 +2,7 @@
 
 **Honest status:** as of this feature, `sand.toml`'s `[pack]` section
 (`namespace`, `description`, `mc_version`, `pack_format`,
-`supported_formats`, `overlays`) and `[resourcepack]` section have **no**
+`supported_formats`, `overlays`) section has **no**
 world- or server-shaped fields to migrate away from. Sand never had
 built-in `sand.toml` world/server configuration before issue #317 — there
 was no `[world]` or `[server]` table to deprecate. This chapter is
@@ -30,7 +30,7 @@ sand migrate
 
   Note: sand.toml has no world/server fields to migrate. Sand's previous
   configuration surface was limited to [pack] (namespace, description,
-  mc_version, pack_format, supported_formats, overlays) and [resourcepack]
+  mc_version, pack_format, supported_formats, overlays)
   — neither ever covered world generation, dimensions, gamerules, or server
   bootstrap settings, so there is nothing to move out of sand.toml.
 

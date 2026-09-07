@@ -1,4 +1,4 @@
-//! Builder for `data/<namespace>/painting_variant/` JSON files (Minecraft 1.21+).
+//! Builder for `data/<namespace>/painting_variant/` JSON files in Sand's 26+ baseline.
 //!
 //! # Validation
 //!
@@ -21,7 +21,7 @@ use crate::validation;
 /// A painting variant definition (`data/<namespace>/painting_variant/<id>.json`).
 ///
 /// Painting variants define the textures and dimensions used when a painting entity
-/// spawns or is placed. The `asset_id` points to a resource in the resource pack
+/// spawns or is placed. The `asset_id` points to a client painting asset
 /// under `textures/painting/`.
 pub struct PaintingVariant {
     location: ResourceLocation,

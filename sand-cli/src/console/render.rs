@@ -381,10 +381,10 @@ mod tests {
 
     #[test]
     fn render_does_not_panic_for_every_category() {
-        let mut renderer = Renderer::new(OutputMode::Classified, "1.21.1".to_string());
+        let mut renderer = Renderer::new(OutputMode::Classified, "26.2".to_string());
         renderer.render(
             &single_event(
-                "[12:00:00] [Server thread/INFO]: Starting minecraft server version 1.21.1",
+                "[12:00:00] [Server thread/INFO]: Starting minecraft server version 26.2",
             ),
             RunPhase::ServerStartup,
         );
@@ -411,10 +411,10 @@ mod tests {
 
     #[test]
     fn raw_mode_prints_raw_lines() {
-        let mut renderer = Renderer::new(OutputMode::Raw, "1.21.1".to_string());
+        let mut renderer = Renderer::new(OutputMode::Raw, "26.2".to_string());
         renderer.render(
             &single_event(
-                "[12:00:00] [Server thread/INFO]: Starting minecraft server version 1.21.1",
+                "[12:00:00] [Server thread/INFO]: Starting minecraft server version 26.2",
             ),
             RunPhase::ServerStartup,
         );
@@ -422,7 +422,7 @@ mod tests {
 
     #[test]
     fn json_mode_only_emits_diagnostics() {
-        let mut renderer = Renderer::new(OutputMode::Json, "1.21.1".to_string());
+        let mut renderer = Renderer::new(OutputMode::Json, "26.2".to_string());
         // Non-diagnostic categories must not panic and must not print
         // terminal-formatted strings; we can't capture stdout here, but we
         // can at least assert this doesn't panic and behaves the same as a

@@ -26,7 +26,7 @@ mod validation;
     use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
     avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
     example = "use sand::component::LootTableType;",
-    variants(AdvancementEntity = "Advancement entity rewards.", AdvancementReward = "Advancement reward loot.", Archaeology = "Archaeology loot.", Barter = "Bartering with piglins.", Block = "Block drops (e.g. from `minecraft:stone`).", Chest = "Chest loot.", Command = "Command rewards.", Custom = "Custom or user-defined loot table type.", Empty = "Empty loot table (returns nothing).", Entity = "Entity drops (e.g. from `minecraft:bat`).", Equipment = "Equipment drops.", Fishing = "Fishing rewards.", Generic = "Generic/untyped loot.", Gift = "Gift drops.", Selector = "Selector-based loot.", Shearing = "Shearing rewards (e.g. wool from sheep).", VaultReward = "Vault rewards (1.21+)."),
+    variants(AdvancementEntity = "Advancement entity rewards.", AdvancementReward = "Advancement reward loot.", Archaeology = "Archaeology loot.", Barter = "Bartering with piglins.", Block = "Block drops (e.g. from `minecraft:stone`).", Chest = "Chest loot.", Command = "Command rewards.", Custom = "Custom or user-defined loot table type.", Empty = "Empty loot table (returns nothing).", Entity = "Entity drops (e.g. from `minecraft:bat`).", Equipment = "Equipment drops.", Fishing = "Fishing rewards.", Generic = "Generic/untyped loot.", Gift = "Gift drops.", Selector = "Selector-based loot.", Shearing = "Shearing rewards (e.g. wool from sheep).", VaultReward = "Vault rewards in the 26+ baseline."),
     variant_fields(Custom = ["Custom or user-defined loot table type."]),
 )]
 /// Represents the type of a Minecraft loot table (block, entity, chest, etc.).
@@ -48,7 +48,7 @@ pub enum LootTableType {
     Fishing,
     /// Gift drops.
     Gift,
-    /// Vault rewards (1.21+).
+    /// Vault rewards in the 26+ baseline.
     VaultReward,
     /// Shearing rewards (e.g. wool from sheep).
     Shearing,

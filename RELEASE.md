@@ -36,17 +36,16 @@ scripts/check.sh
 
 - **Stable**: `#[function]`, `#[datapack_component]`, typed state, typed conditions,
   typed text, typed execute, generated command builders, scaffold
-- **Alpha**: Event system, dialog components, resource pack generation
+- **Alpha**: Event system and dialog components
 - **Experimental**: `mcfunction!` macro (advanced tooling), generated registries
   for future Minecraft versions
 
 ## Supported Minecraft versions
 
-Minecraft Java 26.2 is the canonical export/profile target
-(`sand_version::LATEST_KNOWN`); 1.21.4 is retained as an explicit
-oldest-profile/compatibility boundary (`sand_version::CI_STABLE_CODEGEN_VERSION`).
-Unknown/future versions fall back to conservative capabilities via
-`VersionProfile::resolve()`.
+Sand targets Minecraft Java 26.x and newer. Minecraft 26.2 is the latest
+verified export/profile target (`sand_version::LATEST_KNOWN`), while 26.1 keeps
+its exact known profile. Earlier versions are rejected. Unknown future calendar
+versions fall back to conservative capabilities via `VersionProfile::resolve()`.
 
 ## Publishing
 

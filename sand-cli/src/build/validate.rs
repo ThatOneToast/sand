@@ -3,9 +3,7 @@ use std::path::{Component, Path, PathBuf};
 
 use anyhow::{Context, Result, bail};
 
-use super::records::{
-    ComponentContentType, ComponentRecord, ContentType, OutputExt, ResourcePackRecord,
-};
+use super::records::{ComponentContentType, ComponentRecord, OutputExt};
 
 pub fn validate_component_records(
     dist: &std::path::Path,
@@ -163,8 +161,7 @@ fn validate_structure_source_file(project_root: &Path, record: &ComponentRecord)
 /// Resolves a project-relative copy source and proves it stays inside the
 /// project root.
 ///
-/// Shared by the datapack structure-template path and the resource-pack copy
-/// path so the two export boundaries cannot drift apart again.
+/// Shared by datapack file-copy paths so their containment checks cannot drift.
 ///
 /// The lexical checks performed by the callers (`..`, absolute paths, prefixes,
 /// null bytes) are not sufficient on their own: `std::fs::metadata` follows
@@ -191,12 +188,10 @@ fn validate_structure_source_file(project_root: &Path, record: &ComponentRecord)
 ///   distinguish that from an ordinary file.
 /// - **Not race-free.** The source is canonicalized and opened here, then
 ///   re-joined and copied later by [`super::write`]. A source swapped between
-///   the two steps is out of scope, exactly as it is for the resource-pack
-///   path. Closing that window would require copying through the handle opened
+///   the two steps is out of scope. Closing that window would require copying through the handle opened
 ///   during validation.
 ///
-/// `label` names the artifact family for diagnostics ("datapack structure
-/// asset", "resource-pack asset") and `expected` completes the remediation
+/// `label` names the artifact family for diagnostics and `expected` completes the remediation
 /// hint after "Make sure the source path points to ".
 fn validate_copy_source_within_project(
     project_root: &Path,
@@ -264,103 +259,6 @@ fn validate_copy_source_within_project(
     Ok(())
 }
 
-pub fn validate_resourcepack_records(records: &[ResourcePackRecord]) -> Result<()> {
-    validate_resourcepack_records_impl(records, None)
-}
-
-pub fn validate_resourcepack_records_for_project(
-    project_root: &std::path::Path,
-    records: &[ResourcePackRecord],
-) -> Result<()> {
-    validate_resourcepack_records_impl(records, Some(project_root))
-}
-
-fn validate_resourcepack_records_impl(
-    records: &[ResourcePackRecord],
-    project_root: Option<&std::path::Path>,
-) -> Result<()> {
-    let mut paths = HashSet::new();
-    for record in records {
-        // RelativePackPath guarantees no traversal — check asset root prefix.
-        if !record.path.as_str().starts_with("assets/") {
-            bail!(
-                "resource-pack record '{}' must be under assets/ (data/ belongs to the datapack)",
-                record.path
-            );
-        }
-        if !paths.insert(record.path.as_str()) {
-            bail!("duplicate resource-pack output path '{}'", record.path);
-        }
-        match record.content_type {
-            ContentType::Json => {
-                serde_json::from_str::<serde_json::Value>(&record.content).map_err(|e| {
-                    anyhow::anyhow!("invalid resource-pack JSON '{}': {e}", record.path)
-                })?;
-            }
-            ContentType::Copy => {
-                validate_resourcepack_copy_source_path(record.path.as_str(), &record.content)?;
-                if let Some(project_root) = project_root {
-                    validate_resourcepack_copy_source_file(project_root, record)?;
-                }
-            }
-            ContentType::Bytes => {
-                use base64::Engine as _;
-
-                base64::engine::general_purpose::STANDARD
-                    .decode(&record.content)
-                    .with_context(|| {
-                        format!(
-                            "invalid base64 bytes for resource-pack asset '{}'",
-                            record.path
-                        )
-                    })?;
-            }
-        }
-    }
-    Ok(())
-}
-
-fn validate_resourcepack_copy_source_path(asset_path: &str, source_path: &str) -> Result<()> {
-    if source_path.is_empty()
-        || source_path.contains('\0')
-        || Path::new(source_path).is_absolute()
-        || Path::new(source_path).components().any(|component| {
-            matches!(
-                component,
-                Component::ParentDir | Component::RootDir | Component::Prefix(_)
-            )
-        })
-    {
-        bail!(
-            "unsafe resource-pack copy source path '{source_path}' for asset '{asset_path}'; \
-             expected a project-root-relative file"
-        );
-    }
-    Ok(())
-}
-
-fn validate_resourcepack_copy_source_file(
-    project_root: &Path,
-    record: &ResourcePackRecord,
-) -> Result<()> {
-    validate_copy_source_within_project(
-        project_root,
-        &record.content,
-        "resource-pack asset",
-        "a project-root-relative file",
-    )
-}
-
-/// Validates a Minecraft function tag JSON string.
-///
-/// A valid function tag is a JSON object with a `"values"` array. Each entry
-/// must be either a resource-location string (`"namespace:path"`, optionally
-/// prefixed with `#` to reference another tag) or an object with an `"id"`
-/// field containing a valid resource location (`{"id": "ns:path", "required": false}`).
-///
-/// Called automatically from [`validate_component_records`] for all
-/// `tags/function` and `tags`+`function/` records, and available for
-/// standalone validation.
 pub fn validate_function_tag(tag_name: &str, json: &str) -> Result<()> {
     let v: serde_json::Value = serde_json::from_str(json)
         .with_context(|| format!("invalid JSON in function tag '{tag_name}'"))?;

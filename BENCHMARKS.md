@@ -37,7 +37,7 @@ Reproduce with:
 
 ```bash
 cargo clean -p sand -p sand-cli -p sand-core -p sand-components -p sand-commands \
-  -p sand-macros -p sand-resourcepack -p sand-version -p sand-api-contract \
+  -p sand-macros -p sand-version -p sand-api-contract \
   -p sand-api-enforce -p sand-build -p sand-example
 time cargo check --workspace
 time cargo check --workspace   # immediate no-change recheck
@@ -91,7 +91,7 @@ exporter compilation work when nothing changed) via
 
 - `plan_never_requests_cargos_release_profile` — `ExportBuildPlan` never
   emits `--release` to Cargo and always resolves the `debug` profile
-  directory, for both datapack-only and `--resourcepack` plans.
+  directory for the datapack plan.
 - `binary_paths_always_resolve_under_the_debug_profile_dir` — binary
   resolution is single-profile.
 - Removing `RUSTFLAGS=-Awarnings` (both in `ExportBuildPlan::compile` and
@@ -131,7 +131,7 @@ is already near-zero cost by comparison once their own caches are warm.
 
 `sand/build.rs`'s `rerun-if-changed` list includes the `src/` root of every
 API-producing crate (`sand-core`, `sand-commands`, `sand-components`,
-`sand-macros`, `sand-resourcepack`, `sand-version`, plus `sand`'s own
+`sand-macros`, `sand-version`, plus `sand`'s own
 `src`) — correctly, since it must notice new files anywhere in the
 enforced surface, which requires a directory watch. But its *body* then
 unconditionally re-runs the full pipeline on every one of those reruns:
@@ -489,7 +489,6 @@ verbatim below.
 | 9 | Immediate no-change `sand build` | 5 | 0.473s | 0.462s | 0.493s | ≈max |
 | 10 | `sand build` then `sand build --release` (single combined run) | 1 | 0.922s | — | — | — |
 | 11 | `sand build` with warm `~/.sand/cache`, cold Cargo `target/` | 1 | 45.17s | — | — | — |
-| 12 | Resource-pack build | — | — | — | — | skipped: no representative example project has a `[resourcepack]` section configured yet |
 
 Raw samples:
 

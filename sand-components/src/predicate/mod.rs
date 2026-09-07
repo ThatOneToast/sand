@@ -775,12 +775,13 @@ mod tests {
                 EntityPredicate::type_(EntityTypeId::minecraft("zombie").unwrap()),
             ),
         );
-        let legacy = sand_version::VersionCaps::from_profile_flags(
-            "1.21.4", false, false, true, true, true, true, true, true,
+        let profile_26_1 = sand_version::VersionCaps::from_profile_flags(
+            "26.1", false, true, true, true, true, true, true, true,
         );
         let modern = sand_version::VersionCaps::all_enabled();
 
-        let ComponentContent::Json(legacy_json) = predicate.try_content_for(Some(&legacy)).unwrap()
+        let ComponentContent::Json(profile_26_1_json) =
+            predicate.try_content_for(Some(&profile_26_1)).unwrap()
         else {
             panic!("predicates are JSON components")
         };
@@ -788,9 +789,9 @@ mod tests {
         else {
             panic!("predicates are JSON components")
         };
-        assert_eq!(legacy_json["predicate"]["type"], "minecraft:zombie");
+        assert_eq!(profile_26_1_json["predicate"]["type"], "minecraft:zombie");
         assert!(
-            legacy_json["predicate"]
+            profile_26_1_json["predicate"]
                 .get("minecraft:entity_type")
                 .is_none()
         );
@@ -802,7 +803,7 @@ mod tests {
     }
 
     #[test]
-    fn profiled_location_predicate_uses_target_schema_and_rejects_unknown_legacy() {
+    fn profiled_location_predicate_rejects_unknown_schemas() {
         let predicate = Predicate::new(
             loc("profiled_location"),
             PredicateRoot::location(
@@ -810,11 +811,9 @@ mod tests {
             ),
         );
         let supported = sand_version::VersionCaps::from_profile_flags(
-            "1.21.4", false, false, true, true, true, true, true, true,
+            "26.1", false, true, true, true, true, true, true, true,
         );
-        let unsupported = sand_version::VersionCaps::from_profile_flags(
-            "1.18.2", false, false, false, false, false, false, false, false,
-        );
+        let unsupported = sand_version::VersionCaps::all_disabled();
 
         let ComponentContent::Json(json) = predicate.try_content_for(Some(&supported)).unwrap()
         else {
@@ -827,6 +826,6 @@ mod tests {
             .try_content_for(Some(&unsupported))
             .unwrap_err()
             .to_string();
-        assert!(error.contains("1.21.4+"));
+        assert!(error.contains("exact known"));
     }
 }

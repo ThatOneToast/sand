@@ -27,9 +27,9 @@ tier = "author"
 provider = "source"
 
 [[scope]]
-id = "systems-source"
-canonical_module = "sand::systems"
+id = "experimental-source"
+canonical_module = "sand::experimental"
 state = "pending"
 tier = "author"
 provider = "source"
-features = ["systems-all"]
+features = ["fixture-capability"]

@@ -1,4 +1,4 @@
-//! Builder for `data/<namespace>/enchantment/` JSON files (Minecraft 1.21+).
+//! Builder for `data/<namespace>/enchantment/` JSON files in Sand's 26+ baseline.
 //!
 //! Enchantment definitions control how enchantments are applied, their effects,
 //! costs, and which items they can appear on.
@@ -21,7 +21,7 @@
 //!
 //! # Typed effect coverage
 //!
-//! Minecraft 1.21's enchantment effect schema is large and version-sensitive.
+//! Minecraft 26.1's enchantment effect schema is large and version-sensitive.
 //! Sand currently models the common "value effect" shape used by
 //! `minecraft:damage`, `minecraft:knockback`, and `minecraft:armor_effectiveness`
 //! — each of which wraps a [`LevelBasedValue`] behind an

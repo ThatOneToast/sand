@@ -27,9 +27,6 @@ use super::{ExportRegistryGuard, RegistryFamily, lookup_line};
 
 /// Whether `line` is registered for `F` in the *active* layer.
 ///
-/// Uniform across families because `execute_ir`'s requirement side table is
-/// also keyed by rendered line text — its values are capability lists
-/// rather than typed nodes, which this helper is deliberately agnostic to.
 fn is_registered<F, N>(line: &str) -> bool
 where
     F: RegistryFamily<State = BTreeMap<String, N>>,
@@ -199,13 +196,4 @@ family_lifecycle_tests! {
             .set(crate::execute_args::ItemSlot::Hotbar(0), "minecraft:stone")
     };
 
-    execute_ir: crate::execute_ir::ExecuteRequirements, Vec<crate::execute_ir::Requirement>, || {
-        crate::execute::Execute::new()
-            .if_items(
-                crate::selector::Selector::self_(),
-                crate::execute_args::ItemSlot::MainHand,
-                "minecraft:diamond",
-            )
-            .run_raw("say found")
-    };
 }

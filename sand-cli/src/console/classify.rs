@@ -224,7 +224,7 @@ mod tests {
     fn suppresses_known_routine_lines() {
         assert_eq!(
             classify_line(
-                "[12:00:00] [Server thread/INFO]: Starting minecraft server version 1.21.1"
+                "[12:00:00] [Server thread/INFO]: Starting minecraft server version 26.2"
             ),
             Category::Suppress
         );

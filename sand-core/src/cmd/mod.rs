@@ -318,7 +318,7 @@ pub fn try_function_id(
 
 /// Show a typed datapack dialog to one or more players.
 ///
-/// Dialogs are available in Minecraft Java 1.21.6+ / pack format 80+.
+/// Dialogs are part of Sand's Minecraft Java 26+ baseline.
 /// The command emitted is `dialog show <targets> <dialog>`.
 ///
 /// # Examples
@@ -338,8 +338,8 @@ pub fn try_function_id(
     aliases = ["sand::cmd::show_dialog", "sand::prelude::cmd::show_dialog"],
     module = "sand::command",
     summary = "Show a typed datapack dialog to one or more players.",
-    context = "Show a typed datapack dialog to one or more players. Dialogs are available in Minecraft Java 1.21.6+ / pack format 80+. The command emitted is `dialog show <targets> <dialog>`.",
-    minecraft = "Dialogs are available in Minecraft Java 1.21.6+ / pack format 80+. The command emitted is `dialog show <targets> <dialog>`.",
+    context = "Show a typed datapack dialog to one or more players. The command emitted is `dialog show <targets> <dialog>`.",
+    minecraft = "The command emitted is `dialog show <targets> <dialog>` for Sand's Minecraft 26+ baseline.",
     use_when = ["Constructing Minecraft commands through Sand's typed command model"],
     avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
     params(selector = "`selector` provides the Minecraft target selection used to show a typed datapack dialog to one or more players.", dialog = "`dialog` is used to show a typed datapack dialog to one or more players."),
@@ -612,7 +612,7 @@ pub fn try_give(
 
 /// `return fail` — stop the current function with a failure return value.
 ///
-/// In Minecraft 1.20.2+, `return fail` terminates the current `.mcfunction`
+/// In Sand's Minecraft 26+ baseline, `return fail` terminates the current `.mcfunction`
 /// and reports failure (return value −1) to callers using `execute … run function`.
 /// Use inside branch or helper functions to halt that branch.
 ///
@@ -628,8 +628,8 @@ pub fn try_give(
     aliases = ["sand::cmd::return_fail", "sand::prelude::cmd::return_fail"],
     module = "sand::command",
     summary = "`return fail` — stop the current function with a failure return value.",
-    context = "`return fail` — stop the current function with a failure return value. In Minecraft 1.20.2+, `return fail` terminates the current `.mcfunction` and reports failure (return value −1) to callers using `execute … run function`. Use inside branch or helper functions to halt that branch.",
-    minecraft = "In Minecraft 1.20.2+, `return fail` terminates the current `.mcfunction` and reports failure (return value −1) to callers using `execute … run function`. Use inside branch or helper functions to halt that branch.",
+    context = "`return fail` stops the current function with a failure return value and reports failure to callers using `execute … run function`. Use it inside branch or helper functions to halt that branch.",
+    minecraft = "In Sand's Minecraft 26+ baseline, `return fail` terminates the current `.mcfunction` and reports failure to its caller.",
     use_when = ["Constructing Minecraft commands through Sand's typed command model"],
     avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
     returns = "The string value produced to emit the documented `return fail` — stop the current function with a failure return value form.",
@@ -644,7 +644,7 @@ pub fn return_fail() -> String {
 /// `cmd::return_cmd(0)` → `return 0` (success, also readable by `execute store result`).
 /// `cmd::return_cmd(1)` → `return 1`.
 ///
-/// In Minecraft 1.20.2+, `return <n>` terminates the current `.mcfunction`
+/// In Sand's Minecraft 26+ baseline, `return <n>` terminates the current `.mcfunction`
 /// with the given result code. Callers using `execute … run function` see this value.
 ///
 /// ```rust,ignore
@@ -659,8 +659,8 @@ pub fn return_fail() -> String {
     aliases = ["sand::cmd::return_cmd", "sand::prelude::cmd::return_cmd"],
     module = "sand::command",
     summary = "`return <value>` — stop the current function with an integer return value.",
-    context = "`return <value>` — stop the current function with an integer return value. `cmd::return_cmd(0)` → `return 0` (success, also readable by `execute store result`). `cmd::return_cmd(1)` → `return 1`. In Minecraft 1.20.2+, `return <n>` terminates the current `.mcfunction` with the given result code. Callers using `execute … run function` see this value.",
-    minecraft = "In Minecraft 1.20.2+, `return <n>` terminates the current `.mcfunction` with the given result code. Callers using `execute … run function` see this value.",
+    context = "`return <value>` stops the current function with an integer return value. `cmd::return_cmd(0)` emits `return 0`; callers using `execute … run function` see the value.",
+    minecraft = "In Sand's Minecraft 26+ baseline, `return <n>` terminates the current `.mcfunction` with the supplied result code.",
     use_when = ["Constructing Minecraft commands through Sand's typed command model"],
     avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
     params(value = "`value` provides the value being applied or compared used to emit the documented `return <value>` — stop the current function with an integer return value form."),

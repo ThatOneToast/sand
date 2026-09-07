@@ -17,7 +17,7 @@ username (no Mojang auth).
   official protocol documentation exists yet for this version (protocol
   776); every packet id below was derived empirically against the real
   server plus cross-referenced against `minecraft-data`'s closest published
-  reference (`pc/1.21.11/protocol.json` — 26.2 itself is not yet in that
+  reference (`pc/26.2/protocol.json` — 26.2 itself is not yet in that
   dataset). Treat `PLAY_CLIENTBOUND_KEEP_ALIVE`/`PLAY_CLIENTBOUND_LOGIN`
   below as best-effort, not authoritative.
 - Net effect: this client is real evidence that a player *can* join a real
@@ -133,7 +133,7 @@ class Conn:
         return pid, body[idx:]
 
 
-# Verified against minecraft-data pc/1.21.11/protocol.json (protocol 776 /
+# Verified against minecraft-data pc/26.2/protocol.json (protocol 776 /
 # 26.2 itself is not yet published there, but empirical testing against a
 # live 26.2 server confirmed identical packet ids for every packet observed
 # below).
@@ -195,7 +195,7 @@ def main():
                 conn.send_packet(0x03, b"")  # login_acknowledged
                 state = "configuration"
                 # Proactively send Client Information (configuration
-                # serverbound 0x00) -- stable shape since 1.20.2, some
+                # serverbound 0x00) -- stable shape since 26.1, some
                 # servers expect it promptly after login_acknowledged.
                 info = (
                     write_string("en_us")

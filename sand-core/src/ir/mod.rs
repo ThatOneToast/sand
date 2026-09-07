@@ -9,43 +9,13 @@
 //!
 //! 1. Add a variant to [`Cmd`] that captures all required fields as owned values.
 //! 2. Add a render arm in [`Cmd::render`] that produces the exact Minecraft syntax.
-//! 3. Declare any real version requirement in the node's capability check.
-//! 4. Add a parity test proving the IR output matches the existing
+//! 3. Add a parity test proving the IR output matches the existing
 //!    string-builder output (copy-paste from the relevant `ScoreVar`/`Flag`/etc. test).
-//! 5. Add a diagnostic test for both the supported and unsupported profile.
-//! 6. Update the public builder to construct the typed node internally while
+//! 4. Add a diagnostic test for invalid typed values.
+//! 5. Update the public builder to construct the typed node internally while
 //!    retaining its existing authoring API and output.
 
-use crate::McVersion;
-
-pub use sand_commands::{ConditionIr, ExecuteCapability, ExecuteOp, ExecuteStoreTarget};
-
-// ── RenderContext ─────────────────────────────────────────────────────────────
-
-/// Context passed to [`Cmd::render`] to allow version-specific command generation.
-///
-/// Execute and condition capability checks use this version before rendering.
-pub struct RenderContext {
-    pub mc_version: McVersion,
-}
-
-impl RenderContext {
-    /// Construct a render context for a specific Minecraft version.
-    pub fn for_version(major: u32, minor: u32, patch: u32) -> Self {
-        Self {
-            mc_version: McVersion::new(major, minor, patch),
-        }
-    }
-
-    /// Render context for the latest supported Minecraft version (26.2).
-    pub fn latest() -> Self {
-        Self::for_version(26, 2, 0)
-    }
-
-    fn command_profile(&self) -> sand_commands::CommandProfile {
-        sand_commands::CommandProfile::new(self.mc_version.to_string(), false)
-    }
-}
+pub use sand_commands::{ConditionIr, ExecuteOp, ExecuteStoreTarget};
 
 // ── ScoreOpKind ───────────────────────────────────────────────────────────────
 
@@ -198,16 +168,8 @@ pub enum Cmd {
 }
 
 impl Cmd {
-    /// Render this command after typed version validation.
-    pub fn try_render(&self, ctx: &RenderContext) -> sand_commands::CommandResult<String> {
-        let profile = ctx.command_profile();
-        self.try_render_with_profile(&profile)
-    }
-
-    fn try_render_with_profile(
-        &self,
-        profile: &sand_commands::CommandProfile,
-    ) -> sand_commands::CommandResult<String> {
+    /// Render this command after typed validation against Sand's 26+ command baseline.
+    pub fn try_render(&self) -> sand_commands::CommandResult<String> {
         let rendered = match self {
             Self::Raw(s) => s.clone(),
 
@@ -222,7 +184,9 @@ impl Cmd {
 
             Self::ScorePlayers(op) => op.render(),
 
-            Self::Data(command) => command.try_render(profile)?,
+            Self::Data(command) => {
+                command.try_render(&sand_commands::CommandProfile::unprofiled())?
+            }
 
             Self::Execute { operations, run } => {
                 if operations.is_empty() {
@@ -233,18 +197,13 @@ impl Cmd {
                     )
                     .with_code("SAND-COMMAND-EXECUTE-EMPTY"));
                 }
-                for (index, operation) in operations.iter().enumerate() {
-                    operation.validate_version(index, profile)?;
-                }
                 let operation_text = operations
                     .iter()
                     .map(ExecuteOp::render)
                     .collect::<Vec<_>>()
                     .join(" ");
-                let run_text = run.try_render_with_profile(profile)?;
-                let line = format!("execute {operation_text} run {run_text}");
-                sand_commands::execute_ir::register_line(&line, operations);
-                line
+                let run_text = run.try_render()?;
+                format!("execute {operation_text} run {run_text}")
             }
 
             Self::Comment(text) => format!("# {text}"),
@@ -252,19 +211,16 @@ impl Cmd {
         Ok(rendered)
     }
 
-    /// Compatibility renderer using the supplied version context.
-    ///
-    /// Invalid typed IR panics here; exporters and diagnostic-aware tooling
-    /// should use [`Cmd::try_render`].
-    pub fn render(&self, ctx: &RenderContext) -> String {
-        self.try_render(ctx)
+    /// Infallible convenience renderer for already-valid typed IR.
+    pub fn render(&self) -> String {
+        self.try_render()
             .expect("typed command IR must validate before infallible rendering")
     }
 }
 
 impl From<Cmd> for String {
     fn from(cmd: Cmd) -> String {
-        cmd.render(&RenderContext::latest())
+        cmd.render()
     }
 }
 
@@ -276,7 +232,7 @@ mod tests {
     use crate::state::ScoreVar;
 
     fn render(cmd: Cmd) -> String {
-        cmd.render(&RenderContext::latest())
+        cmd.render()
     }
 
     #[test]
@@ -379,49 +335,10 @@ mod tests {
             operations: vec![],
             run: Box::new(Cmd::Raw("say no".into())),
         }
-        .try_render(&RenderContext::latest())
+        .try_render()
         .unwrap_err();
         assert_eq!(error.code, "SAND-COMMAND-EXECUTE-EMPTY");
         assert_eq!(error.field, "operations");
-    }
-
-    #[test]
-    fn item_condition_has_real_version_gate() {
-        let command = Cmd::Execute {
-            operations: vec![ExecuteOp::If(ConditionIr::ItemsEntity {
-                target: sand_commands::Selector::self_(),
-                slot: sand_commands::ItemSlot::MainHand,
-                item: "minecraft:diamond".into(),
-            })],
-            run: Box::new(Cmd::Raw("say found".into())),
-        };
-        assert!(
-            command
-                .try_render(&RenderContext::for_version(1, 20, 5))
-                .is_ok()
-        );
-        let error = command
-            .try_render(&RenderContext::for_version(1, 20, 4))
-            .unwrap_err();
-        assert_eq!(error.code, "SAND-COMMAND-VERSION");
-        assert!(error.message.contains("ExecuteItemCondition"), "{error}");
-        assert!(error.context.contains("Execute operation 0"), "{error}");
-    }
-
-    #[test]
-    fn raw_condition_is_opaque_to_version_validation() {
-        let command = Cmd::Execute {
-            operations: vec![ExecuteOp::If(ConditionIr::Raw(
-                "items entity @s weapon.mainhand minecraft:diamond".into(),
-            ))],
-            run: Box::new(Cmd::Raw("say user-owned".into())),
-        };
-        assert_eq!(
-            command
-                .try_render(&RenderContext::for_version(1, 20, 4))
-                .unwrap(),
-            "execute if items entity @s weapon.mainhand minecraft:diamond run say user-owned"
-        );
     }
 
     #[test]

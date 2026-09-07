@@ -6,7 +6,7 @@ Trailforge's `Cargo.toml` depends on exactly one Sand crate:
 
 ```toml
 [dependencies]
-sand = { path = "../../sand", features = ["systems-damage"] }
+sand = { path = "../../sand" }
 
 [build-dependencies]
 sand-build = { path = "../../sand-build" }

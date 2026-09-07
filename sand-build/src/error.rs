@@ -22,7 +22,7 @@ pub enum Error {
     },
 
     #[error(
-        "Java not found on PATH. Please install Java 21+ and ensure the `java` binary is accessible."
+        "Java not found on PATH. Install a runtime compatible with the selected Minecraft version and ensure the `java` binary is accessible."
     )]
     JavaNotFound,
 

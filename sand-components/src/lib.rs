@@ -4,7 +4,7 @@
 //! here is not by itself an author-facing compatibility promise; supported
 //! component APIs are the items reachable through canonical `sand::` paths.
 //!
-//! Typed JSON builders for every Minecraft 1.21.x datapack component type.
+//! Typed JSON builders for every Minecraft 26.1.x datapack component type.
 //!
 //! ## Module Overview
 //!

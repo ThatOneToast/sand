@@ -30,9 +30,6 @@ pub use registry::{
 pub use score::{
     ScoreConst, ScoreConstants, ScoreExpr, ScoreOperand, ScoreOperation, ScoreRef, ScoreVar,
 };
-pub use storage::{
-    BlockNbt, DataCommand, EntityNbt, Nbt, NbtLocation, NbtPath, NbtRef, NbtTarget, SnbtCompound,
-    SnbtValue, StorageField, StorageLocation, StorageSchema, StorageVar, UntypedNbt,
-};
+pub use storage::{StorageField, StorageSchema, StorageVar};
 pub use timer::{Ticks, Timer};
 pub use typed_state::{GameState, GameStateRef, TypedGameState};

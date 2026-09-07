@@ -42,7 +42,7 @@ impl EffectGive {
     )]
     pub fn new(selector: impl TargetArgument, effect: impl Into<EffectId>) -> Self {
         Self {
-            command: EffectCommand::give(selector, effect.into().to_string()),
+            command: EffectCommand::give(selector, effect.into()),
         }
     }
 

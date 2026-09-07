@@ -22,8 +22,8 @@ fn main() {
     let give_external = cmd::give(Target::self_(), external);
     assert_eq!(give_external, "give @s other_mod:machine_core");
 
-    // Raw string remains accepted (existing normal-path compatibility).
-    let give_raw = cmd::give(Target::self_(), "minecraft:diamond_sword");
+    // Raw strings use the explicit unchecked escape hatch.
+    let give_raw = cmd::give_raw(Target::self_(), "minecraft:diamond_sword");
     assert_eq!(give_raw, "give @s minecraft:diamond_sword");
 
     // Vanilla entity type in a selector filter.

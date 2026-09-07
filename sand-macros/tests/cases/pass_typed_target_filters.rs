@@ -5,7 +5,7 @@ use sand::prelude::*;
 
 fn main() {
     let entities = Target::entities()
-        .entity_type("minecraft:zombie")
+        .entity_type_raw("minecraft:zombie")
         .without_tag("done")
         .within_blocks(16.0)
         .scores_raw("threat=5..")

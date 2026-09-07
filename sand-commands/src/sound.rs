@@ -2,7 +2,7 @@
 //!
 //! # Example
 //! ```rust,ignore
-//! let cmd = Sound::play("minecraft:entity.experience_orb.pickup")
+//! let cmd = Sound::play_raw("minecraft:entity.experience_orb.pickup")
 //!     .to(Target::self_())
 //!     .source(SoundSource::Player)
 //!     .volume(1.0)
@@ -21,52 +21,10 @@ use crate::Build;
 use crate::coord::Vec3;
 use crate::error::{CommandError, CommandResult};
 use crate::render::{CommandProfile, RenderCommand, Validate};
+use crate::resource::{RegistryReference, SoundEvent as SoundEventRegistry};
 use crate::selector::{Selector, TargetArgument};
 
 // ── SoundSource ───────────────────────────────────────────────────────────────
-
-#[sand_macros::api(
-    registry = sand_api_contract,
-    path = "sand::command::IntoSoundEvent",
-    aliases = ["sand::cmd::IntoSoundEvent", "sand::prelude::cmd::IntoSoundEvent"],
-    module = "sand::command",
-    summary = "Conversion into a sound-event resource-location token.",
-    context = "Conversion into a sound-event resource-location token. This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
-    minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
-    use_when = ["Constructing Minecraft commands through Sand's typed command model"],
-    avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-    example = "use sand::command::IntoSoundEvent;",
-)]
-/// Conversion into a sound-event resource-location token.
-pub trait IntoSoundEvent {
-    /// Converts a typed or validated value into a Minecraft sound-event identifier.
-    #[sand_macros::api(
-        registry = sand_api_contract,
-        path = "sand::command::IntoSoundEvent::into_sound_event",
-        aliases = ["sand::cmd::IntoSoundEvent::into_sound_event", "sand::prelude::cmd::IntoSoundEvent::into_sound_event"],
-        module = "sand::command",
-        summary = "Converts a typed or validated value into a Minecraft sound-event identifier.",
-        context = "Converts a typed or validated value into a Minecraft sound-event identifier. This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
-        minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
-        use_when = ["Constructing Minecraft commands through Sand's typed command model"],
-        avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        returns = "The string value produced to convert a typed or validated value into a Minecraft sound-event identifier.",
-        example = "use sand::prelude::*;\n\nfn demonstrate<T: sand::command::IntoSoundEvent>(into_sound_event_value: T)  {\n    let into_sound_event = into_sound_event_value.into_sound_event();\n}",
-    )]
-    fn into_sound_event(self) -> String;
-}
-
-impl IntoSoundEvent for String {
-    fn into_sound_event(self) -> String {
-        self
-    }
-}
-
-impl IntoSoundEvent for &str {
-    fn into_sound_event(self) -> String {
-        self.to_string()
-    }
-}
 
 #[sand_macros::api(
     registry = sand_api_contract,
@@ -169,11 +127,11 @@ impl Sound {
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
         params(event = "`event` is used to begin building a `playsound` command for the given sound event ID."),
         returns = "A `Sound` builder for a `playsound` command for the given sound event ID.",
-        example = "use sand::prelude::*;\n\nfn demonstrate(event: impl sand::command::IntoSoundEvent)  {\n    let sound = sand::command::Sound::play(event);\n}",
+        example = "use sand::prelude::*;\n\nfn demonstrate(event: SoundEventId) {\n    let sound = Sound::play(event);\n}",
     )]
-    pub fn play(event: impl IntoSoundEvent) -> Self {
+    pub fn play(event: impl RegistryReference<SoundEventRegistry>) -> Self {
         Self {
-            event: event.into_sound_event(),
+            event: event.registry_id(),
             raw_event: false,
             source: SoundSource::Master,
             target: None,
@@ -198,12 +156,18 @@ impl Sound {
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
         params(event = "`event` is used to begin building a sound command with an intentionally opaque event token."),
         returns = "A `Sound` builder for a sound command with an intentionally opaque event token.",
-        example = "use sand::prelude::*;\n\nfn demonstrate(event: impl sand::command::IntoSoundEvent)  {\n    let sound = sand::command::Sound::play_raw(event);\n}",
+        example = "use sand::prelude::*;\n\nfn demonstrate(event: impl Into<String>) {\n    let sound = Sound::play_raw(event);\n}",
     )]
-    pub fn play_raw(event: impl IntoSoundEvent) -> Self {
+    pub fn play_raw(event: impl Into<String>) -> Self {
         Self {
+            event: event.into(),
             raw_event: true,
-            ..Self::play(event)
+            source: SoundSource::Master,
+            target: None,
+            pos: None,
+            volume: 1.0,
+            pitch: 1.0,
+            min_volume: None,
         }
     }
 
@@ -722,7 +686,7 @@ mod tests {
 
     #[test]
     fn basic_playsound() {
-        let cmd = Sound::play("minecraft:entity.experience_orb.pickup")
+        let cmd = Sound::play_raw("minecraft:entity.experience_orb.pickup")
             .to(Selector::self_())
             .source(SoundSource::Player)
             .build();
@@ -734,7 +698,7 @@ mod tests {
 
     #[test]
     fn custom_volume_pitch() {
-        let cmd = Sound::play("minecraft:block.note_block.bell")
+        let cmd = Sound::play_raw("minecraft:block.note_block.bell")
             .to(Selector::all_players())
             .volume(2.0)
             .pitch(0.5)
@@ -744,7 +708,7 @@ mod tests {
 
     #[test]
     fn min_volume() {
-        let cmd = Sound::play("minecraft:ambient.cave")
+        let cmd = Sound::play_raw("minecraft:ambient.cave")
             .to(Selector::self_())
             .min_volume(0.3)
             .build();
@@ -770,16 +734,19 @@ mod tests {
 
     #[test]
     fn validates_ids_and_numeric_domains() {
-        assert!(Sound::play("modded:custom.event").try_build().is_ok());
+        assert!(Sound::play_raw("modded:custom.event").try_build().is_ok());
+        let mut invalid_typed_event = Sound::play_raw("Bad Event");
+        invalid_typed_event.raw_event = false;
         assert_eq!(
-            Sound::play("Bad Event").try_build().unwrap_err().code,
+            invalid_typed_event.try_build().unwrap_err().code,
             "SAND-SOUND-ID"
         );
+        assert!(Sound::play_raw("Bad Event").try_build().is_ok());
         for sound in [
-            Sound::play("minecraft:test").volume(f64::NAN),
-            Sound::play("minecraft:test").volume(-1.0),
-            Sound::play("minecraft:test").pitch(0.0),
-            Sound::play("minecraft:test").min_volume(-0.1),
+            Sound::play_raw("minecraft:test").volume(f64::NAN),
+            Sound::play_raw("minecraft:test").volume(-1.0),
+            Sound::play_raw("minecraft:test").pitch(0.0),
+            Sound::play_raw("minecraft:test").min_volume(-0.1),
         ] {
             assert_eq!(sound.try_build().unwrap_err().code, "SAND-SOUND-NUMERIC");
         }

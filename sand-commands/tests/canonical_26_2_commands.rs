@@ -24,11 +24,11 @@
 
 use sand_commands::blocks::{CloneBlocks, CloneMode, Fill, FillMode, SetBlock, SetBlockMode};
 use sand_commands::builtins::{
-    attribute_base_set, attribute_get, effect_clear, effect_give, function, kill, summon_at,
-    tellraw, tp_with_rotation,
+    attribute_base_set, attribute_get, effect_clear, effect_give, function_raw, kill,
+    summon_at_raw, tellraw, tp_with_rotation,
 };
 use sand_commands::coord::{BlockPos, Rotation, Vec3};
-use sand_commands::nbt::{DataModify, DataTarget, NbtValue, data_modify};
+use sand_commands::nbt::{Nbt, NbtValue};
 use sand_commands::particles::{Particle, ParticleBuilder, ParticleSpread};
 use sand_commands::scoreboard::{
     DisplaySlot, Objective, ObjectiveName, ScoreHolder, ScoreOp, scoreboard_players_operation,
@@ -36,8 +36,8 @@ use sand_commands::scoreboard::{
 use sand_commands::selector::SortOrder;
 use sand_commands::sound::{Sound, SoundSource};
 use sand_commands::{
-    Actionbar, BlockState, Bossbar, BossbarColor, BossbarStyle, Build, ChatColor, Execute,
-    Inventory, ItemSlot, RawCommand, Selector, Text, Title,
+    Actionbar, BlockState, Bossbar, BossbarColor, BossbarId, BossbarStyle, Build, ChatColor,
+    Execute, Inventory, ItemSlot, RawCommand, Selector, Text, Title,
 };
 
 // ── Selectors ─────────────────────────────────────────────────────────────────
@@ -59,7 +59,7 @@ fn canonical_26_2_selector_basic_bases() {
 #[test]
 fn canonical_26_2_selector_typed_filters_combined() {
     let sel = Selector::all_players()
-        .entity_type("minecraft:player")
+        .entity_type_raw("minecraft:player")
         .tag("ready")
         .distance_range(1.0, 10.0)
         .scores("kills=1..10")
@@ -160,34 +160,37 @@ fn canonical_26_2_scoreboard_players_set_add_remove_operation() {
 
 #[test]
 fn canonical_26_2_data_modify_set_get_merge_append() {
-    let set_cmd = data_modify(DataTarget::storage("my_pack:state"), "phase").set(2_i32);
+    let set_cmd = Nbt::storage_raw("my_pack:state")
+        .path("phase")
+        .set(2_i32)
+        .to_string();
     assert_eq!(
         set_cmd,
         "data modify storage my_pack:state phase set value 2"
     );
 
-    let append_cmd = data_modify(DataTarget::storage("my_pack:log"), "kills")
-        .append(NbtValue::raw(r#"{type:"zombie"}"#));
+    let append_cmd = Nbt::storage_raw("my_pack:log")
+        .path("kills")
+        .append(NbtValue::raw(r#"{type:"zombie"}"#))
+        .to_string();
     assert_eq!(
         append_cmd,
         r#"data modify storage my_pack:log kills append value {type:"zombie"}"#
     );
 
-    let merge_cmd = DataModify::new(DataTarget::entity(Selector::self_()), "Inventory")
-        .merge(NbtValue::raw("{CustomModelData:5}"));
+    let merge_cmd = Nbt::entity(Selector::self_())
+        .path("Inventory")
+        .merge(NbtValue::raw("{CustomModelData:5}"))
+        .to_string();
     assert_eq!(
         merge_cmd,
         "data modify entity @s Inventory merge value {CustomModelData:5}"
     );
 
-    // `data get` has no dedicated typed builder in sand-commands; DataTarget's
-    // own Display impl composes the command directly (still typed API, no
-    // hand-rolled string).
-    let get_cmd = format!(
-        "data get {} {}",
-        DataTarget::entity(Selector::self_()),
-        "SelectedItem"
-    );
+    let get_cmd = Nbt::entity(Selector::self_())
+        .path("SelectedItem")
+        .get()
+        .to_string();
     assert_eq!(get_cmd, "data get entity @s SelectedItem");
 }
 
@@ -253,11 +256,11 @@ fn canonical_26_2_attribute_base_set_and_get() {
 #[test]
 fn canonical_26_2_entity_summon_kill_tp_rotation_effect() {
     assert_eq!(
-        summon_at("minecraft:zombie", Vec3::absolute(10.0, 64.0, -5.0)),
+        summon_at_raw("minecraft:zombie", Vec3::absolute(10.0, 64.0, -5.0)),
         "summon minecraft:zombie 10 64 -5"
     );
     assert_eq!(
-        kill(Selector::all_entities().entity_type("minecraft:zombie")),
+        kill(Selector::all_entities().entity_type_raw("minecraft:zombie")),
         "kill @e[type=minecraft:zombie]"
     );
     assert_eq!(
@@ -372,9 +375,10 @@ fn canonical_26_2_actionbar_with_color_click_chain() {
 
 #[test]
 fn canonical_26_2_bossbar_add_and_configure() {
+    let id = BossbarId::parse("my_pack:boss_bar").unwrap();
     assert_eq!(
         Bossbar::add(
-            "my_pack:boss_bar",
+            id.clone(),
             Text::new("Ancient Guardian")
                 .color(ChatColor::Red)
                 .bold(true)
@@ -382,15 +386,15 @@ fn canonical_26_2_bossbar_add_and_configure() {
         r#"bossbar add my_pack:boss_bar {"bold":true,"color":"red","text":"Ancient Guardian"}"#
     );
     assert_eq!(
-        Bossbar::set_color("my_pack:boss_bar", BossbarColor::Purple),
+        Bossbar::set_color(id.clone(), BossbarColor::Purple),
         "bossbar set my_pack:boss_bar color purple"
     );
     assert_eq!(
-        Bossbar::set_style("my_pack:boss_bar", BossbarStyle::Notched20),
+        Bossbar::set_style(id.clone(), BossbarStyle::Notched20),
         "bossbar set my_pack:boss_bar style notched_20"
     );
     assert_eq!(
-        Bossbar::set_players("my_pack:boss_bar", Selector::all_players()),
+        Bossbar::set_players(id, Selector::all_players()),
         "bossbar set my_pack:boss_bar players @a"
     );
 }
@@ -417,7 +421,7 @@ fn canonical_26_2_particle_with_spread_and_count() {
 
 #[test]
 fn canonical_26_2_playsound_with_source_volume_pitch() {
-    let cmd = Sound::play("minecraft:entity.wither.spawn")
+    let cmd = Sound::play_raw("minecraft:entity.wither.spawn")
         .to(Selector::all_players())
         .source(SoundSource::Hostile)
         .at(Vec3::absolute(0.0, 70.0, 0.0))
@@ -448,9 +452,9 @@ fn canonical_26_2_playsound_with_source_volume_pitch() {
 
 #[test]
 fn canonical_26_2_function_calls_direct_and_tag() {
-    assert_eq!(function("my_pack:on_load"), "function my_pack:on_load");
+    assert_eq!(function_raw("my_pack:on_load"), "function my_pack:on_load");
     assert_eq!(
-        function("#my_pack:all_ticks"),
+        function_raw("#my_pack:all_ticks"),
         "function #my_pack:all_ticks"
     );
     assert_eq!(

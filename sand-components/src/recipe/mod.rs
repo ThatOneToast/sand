@@ -23,9 +23,7 @@ pub use shaped::ShapedRecipe;
 pub use shapeless::ShapelessRecipe;
 pub use smithing::{SmithingTransformRecipe, SmithingTrimRecipe};
 pub use stonecutting::StonecuttingRecipe;
-pub use types::{
-    CookingType, Ingredient, IntoRecipeItemId, RecipeResult, TryIntoIngredient, TryIntoRecipeResult,
-};
+pub use types::{CookingType, Ingredient, RecipeResult, TryIntoIngredient, TryIntoRecipeResult};
 
 #[cfg(test)]
 mod tests {

@@ -1,38 +1,29 @@
-//! Unified gameplay-data and state-flow example.
+//! Canonical scoped State and gameplay-data example.
 //!
-//! This is the source-level companion to
-//! `sand-example/src/gameplay_state_example.rs`. It demonstrates the canonical
-//! façade import and can be copied into a Sand project.
+//! `#[derive(State)]` owns schema registration and lifecycle wiring. Authors
+//! interact with generated bound fields; the scoreboard and NBT lowering stays
+//! behind those handles.
 
 use sand::prelude::*;
 
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, Debug, StateEnum)]
 enum BossPhase {
-    Idle = 0,
-    Fighting = 1,
-    Enraged = 2,
-    Defeated = 3,
+    Idle,
+    Fighting,
+    Enraged,
+    Defeated,
 }
 
-impl TypedGameState for BossPhase {
-    fn to_score(self) -> i32 {
-        self as i32
-    }
-
-    fn from_score(score: i32) -> Option<Self> {
-        match score {
-            0 => Some(Self::Idle),
-            1 => Some(Self::Fighting),
-            2 => Some(Self::Enraged),
-            3 => Some(Self::Defeated),
-            _ => None,
-        }
-    }
+#[derive(State)]
+#[state(namespace = "boss_phases", scope = player)]
+struct Combat {
+    #[state(default = 100, min = 0, max = 100)]
+    health_percent: Score,
+    #[state(default = "BossPhase::Idle")]
+    phase: EntityEnum<BossPhase>,
+    #[state(auto_tick)]
+    special_attack: Cooldown,
 }
-
-static HEALTH_PERCENT: ScoreField = ScoreField::new("boss_health_pct").default(100);
-static PHASE: GameStateField<BossPhase> =
-    GameStateField::with_default_score("boss_phase", BossPhase::Idle as i32);
 
 #[function("boss_phases:phase/start_enrage")]
 fn start_enrage() {
@@ -45,11 +36,6 @@ fn start_enrage() {
     Bossbar::set_value(bar.clone(), 50);
     Bossbar::set_color(bar.clone(), BossbarColor::Red);
     Bossbar::set_players(bar, Target::players());
-    Title::of(Target::players())
-        .title(Text::new("ENRAGED").dark_red().bold(true))
-        .subtitle(Text::new("The guardian breaks its chains").gold())
-        .times(10, 50, 20)
-        .build();
     cmd::tellraw(
         Target::self_(),
         Text::new("The boss is enraged!").dark_red().bold(true),
@@ -59,51 +45,19 @@ fn start_enrage() {
         .amplifier(1);
 }
 
-#[function("boss_phases:phase/stop_fighting")]
-fn stop_fighting() {
-    cmd::tellraw(Target::self_(), Text::new("Fight ended.").gray());
-}
-
-#[function("boss_phases:phase/enraged_tick")]
-fn enraged_tick() {
-    Actionbar::show(Target::self_(), Text::new("ENRAGED").dark_red());
-    ParticleBuilder::new(Particle::dust_hex(0xCC2200, 1.2))
-        .try_circle(2.0, 1.0, 16)
-        .unwrap();
-    Sound::play("minecraft:entity.warden.heartbeat")
-        .source(SoundSource::Hostile)
-        .to(Target::players())
-        .volume(0.7)
-        .pitch(0.8)
-        .build();
-}
-
-#[datapack_component(Load)]
-fn boss_flow() {
-    PlayerDataSchema::new("boss")
-        .score_field(&HEALTH_PERCENT)
-        .define_all();
-    Nbt::storage("boss_phases:config")
-        .path("max_level")
-        .set(10);
-    StateFlow::players(PHASE.value())
-        .transition(BossPhase::Fighting, BossPhase::Defeated)
-        .when(HEALTH_PERCENT.of("@s").lte(0))
-        .priority(200)
-        .done()
-        .transition(BossPhase::Fighting, BossPhase::Enraged)
-        .when(HEALTH_PERCENT.of("@s").lte(50))
-        .priority(100)
-        .done()
-        .on_exit(BossPhase::Fighting, cmd::call(stop_fighting))
-        .on_enter(BossPhase::Enraged, cmd::call(start_enrage))
-        .on_tick(BossPhase::Enraged, cmd::call(enraged_tick))
-        .register();
+#[function("boss_phases:phase/tick")]
+fn boss_tick() {
+    let combat = Combat::on(EntityContext::<PlayerKind>::default());
+    when(combat.health_percent.lte(50)).then_all([
+        combat.phase.set(BossPhase::Enraged),
+        cmd::function(start_enrage),
+    ]);
+    combat.special_attack.start(Ticks::seconds(5));
 }
 
 #[function("boss_phases:inventory/cache_selected")]
 fn cache_selected_item() {
     ItemLocation::entity(Target::self_())
         .mainhand()
-        .copy_to(&Nbt::storage("boss_phases:cache").path("last_item"));
+        .copy_to(&Nbt::storage(ResourceLocation::new("boss_phases", "cache").unwrap()).path("last_item"));
 }

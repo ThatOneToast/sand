@@ -82,7 +82,7 @@ pitch, and coordinates. Sand intentionally does not impose an undocumented
 maximum volume or pitch:
 
 ```rust,ignore
-Sound::play("my_pack:boss.roar")
+Sound::play_raw("my_pack:boss.roar")
     .source(SoundSource::Hostile)
     .to(Target::players())
     .volume(1.5)

@@ -1,40 +1,29 @@
-//! A compact typed spell-system example.
+//! A compact gameplay example using derived State and typed function handles.
 
-use sand_core::prelude::*;
-use sand_macros::{datapack_component, function};
+use sand::prelude::*;
 
-static MANA: ScoreVar<i32> = ScoreVar::new("mana");
-static FIREBALL: Cooldown = Cooldown::new("fireball", Ticks::seconds(5));
-static PLAYER_DATA: StorageVar<i32> = StorageVar::new("spells:data", "player.mana");
-
-#[datapack_component(Load)]
-pub fn load_spells() {
-    MANA.define();
-    FIREBALL.define();
-    MANA.set(Target::players(), 100);
-    PLAYER_DATA.set_int(100);
-}
-
-#[datapack_component(Tick)]
-pub fn tick_spells() {
-    FIREBALL.tick_all_players();
+#[derive(State)]
+#[state(namespace = "spells", scope = player)]
+struct Spells {
+    #[state(default = 100, min = 0, max = 100)]
+    mana: Score,
+    #[state(auto_tick)]
+    fireball: Cooldown,
+    #[state(default_snbt = "{}")]
+    settings: Data<serde_json::Value>,
 }
 
 #[function]
 pub fn cast_fireball() {
-    TypedExecute::as_players_at_self()
-        .when(all![MANA.of("@s").gte(20), FIREBALL.ready("@s")])
-        .run(cmd::function(
-            ResourceLocation::new("spells", "fireball/do_cast").unwrap(),
-        ));
+    let spells = Spells::on(EntityContext::<PlayerKind>::default());
+    when(all![spells.mana.gte(20), spells.fireball.ready()]).then_all([
+        spells.mana.remove(20),
+        spells.fireball.start(Ticks::seconds(5)),
+        cmd::function(do_cast),
+    ]);
 }
 
-#[function]
-pub fn show_spell_hint() {
-    TypedExecute::as_players()
-        .when(any![FIREBALL.ready("@s"), PLAYER_DATA.exists()])
-        .run(Actionbar::show(
-            Target::self_(),
-            Text::new("Fireball ready").gold(),
-        ));
+#[function("spells:fireball/do_cast")]
+pub fn do_cast() {
+    cmd::tellraw(Target::self_(), Text::new("Fireball!").gold());
 }

@@ -9,12 +9,11 @@ State, ECS/archetype, event, and `#[system]` architecture.
 Every system in this book followed the same three-step shape when it was
 introduced:
 
-1. **Declare state** (chapter 7) if the new feature needs to remember
-   anything across ticks or reloads — pick `ScoreVar`, `Flag`, `Cooldown`,
-   `Timer`, or `StorageVar` by asking what *kind* of fact it is (a
-   quantity, a boolean, a rate-limited action, a repeating pulse, or
-   configuration/structured data).
-2. **Define it in `load`**, idempotently (chapter 3).
+1. **Declare state** (chapter 7) with `#[derive(State)]` if the new feature
+   needs to remember anything across ticks or reloads. Choose a field marker
+   such as `Score`, `Flag`, `Cooldown`, or `Data<T>` inside that schema.
+2. **Let the derived lifecycle provision it**; application code does not
+   manually register objectives.
 3. **Wire the behavior** as a `#[function]` (imperative, callable), a
    `#[datapack_component(Tick)]` guard (continuous, re-evaluated every tick), or a
    `#[on_event]` handler (reactive, fires once per occurrence) — chapters 8,

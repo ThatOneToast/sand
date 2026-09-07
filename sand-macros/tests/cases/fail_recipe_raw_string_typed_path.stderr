@@ -1,19 +1,30 @@
-error[E0277]: the trait bound `&str: IntoRecipeItemId` is not satisfied
+error[E0277]: the trait bound `ItemId: From<&str>` is not satisfied
  --> tests/cases/fail_recipe_raw_string_typed_path.rs:4:33
   |
 4 |     let _ = Ingredient::item_id("minecraft:diamond");
-  |             ------------------- ^^^^^^^^^^^^^^^^^^^ the trait `IntoRecipeItemId` is not implemented for `&str`
+  |             ------------------- ^^^^^^^^^^^^^^^^^^^ the trait `From<&str>` is not implemented for `ItemId`
   |             |
   |             required by a bound introduced by this call
   |
-  = help: the following other types implement trait `IntoRecipeItemId`:
-            &ItemId
-            &ResourceLocation
-            ItemId
-            ResourceLocation
-            sand_core::generated::Item
+help: `ItemId` implements trait `From<T>`
+ --> $WORKSPACE/sand-core/src/lib.rs
+  |
+  |   impl From<generated::Item> for sand_components::registry::ItemId {
+  |   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ `From<sand_core::generated::Item>`
+  |
+ ::: $WORKSPACE/sand-components/src/registry.rs
+  |
+  | / registry_id! {
+  | |     /// Typed Minecraft item identifier (e.g. `minecraft:diamond_sword` or `mymod:arcane_blade`).
+  | |     ///
+  | |     /// For vanilla items, prefer the generated `sand_core::generated::Item` enum.
+  | |     /// Use `ItemId` for modded items or when you have a `ResourceLocation` at hand.
+  | |     ItemId
+  | |__________^ `From<ResourceLocation>`
+  = note: required for `&str` to implement `Into<ItemId>`
 note: required by a bound in `Ingredient::item_id`
  --> $WORKSPACE/sand-components/src/recipe/types.rs
   |
-  |     pub fn item_id(id: impl IntoRecipeItemId) -> Self {
-  |                             ^^^^^^^^^^^^^^^^ required by this bound in `Ingredient::item_id`
+  |     pub fn item_id(id: impl Into<ItemId>) -> Self {
+  |                             ^^^^^^^^^^^^ required by this bound in `Ingredient::item_id`
+  = note: this error originates in the macro `registry_id` (in Nightly builds, run with -Z macro-backtrace for more info)

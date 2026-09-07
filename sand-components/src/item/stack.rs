@@ -319,6 +319,38 @@ impl IntoItemStack for ItemStack {
     }
 }
 
+impl IntoItemStack for ItemId {
+    fn into_item_stack(self) -> ItemStack {
+        ItemStack::new(self)
+    }
+}
+
+impl IntoItemStack for &ItemId {
+    fn into_item_stack(self) -> ItemStack {
+        ItemStack::new(self.clone())
+    }
+}
+
+impl IntoItemStack for CustomItem {
+    fn into_item_stack(self) -> ItemStack {
+        let id = self
+            .base_id()
+            .parse()
+            .expect("CustomItem validates its base item resource location");
+        ItemStack {
+            id,
+            count: 1,
+            item: self,
+        }
+    }
+}
+
+impl IntoItemStack for &CustomItem {
+    fn into_item_stack(self) -> ItemStack {
+        self.clone().into_item_stack()
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

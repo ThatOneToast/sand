@@ -114,6 +114,7 @@
 //! survival, per-subject expiry, clean shutdown) over RCON.
 
 use sand_commands::DataTarget;
+use sand_commands::nbt::NbtRefLowering;
 
 use crate::cmd::{function_with, macro_line, macro_var};
 use crate::events::graph::tick_event_resource_key;
@@ -183,13 +184,14 @@ impl BoundedItemSchema {
     /// substitutes it.
     fn subject_base(&self) -> NbtRef<UntypedNbt> {
         let subject = macro_var(SUBJECT_VAR);
-        Nbt::storage(BOUNDED_ITEM_STORAGE).path(NbtPath::raw(format!("p{subject}.{}", self.key)))
+        Nbt::storage_raw(BOUNDED_ITEM_STORAGE)
+            .path(NbtPath::raw(format!("p{subject}.{}", self.key)))
     }
 
     /// The static scratch root a consuming child's handler reads, populated
     /// by the generated load function. See the [module doc](self).
     fn staged_base(&self) -> NbtRef<UntypedNbt> {
-        Nbt::storage(BOUNDED_ITEM_STORAGE).path(NbtPath::raw(format!("cur.{}", self.key)))
+        Nbt::storage_raw(BOUNDED_ITEM_STORAGE).path(NbtPath::raw(format!("cur.{}", self.key)))
     }
 }
 
@@ -305,7 +307,7 @@ impl BoundedItemSnapshot {
     pub fn is_present(&self) -> crate::condition::Condition {
         let base = self.schema.staged_base();
         crate::condition::Condition::nbt_exists(
-            base.location().clone(),
+            base.__location().clone(),
             NbtPath::raw(format!("{}{{present:1b}}", base.path_value().as_str())),
         )
     }
@@ -529,7 +531,7 @@ pub(crate) fn load_macro_body(schema: &BoundedItemSchema) -> Vec<String> {
     let src = schema.subject_base();
     let dest = schema.staged_base();
     let present_guard = crate::condition::Condition::nbt_exists(
-        src.location().clone(),
+        src.__location().clone(),
         NbtPath::raw(format!("{}{{present:1b}}", src.path_value().as_str())),
     );
     let mut commands = reset_to_absence(&dest);
@@ -646,11 +648,8 @@ pub(crate) fn has_slot_guard() -> String {
 /// `function <name> with storage <storage> args` — invoke one of this
 /// module's generated macro functions against the currently-bound subject.
 pub(crate) fn call_macro(function: &str) -> String {
-    function_with(
-        function,
-        DataTarget::Storage(BOUNDED_ITEM_STORAGE.to_string()),
-        ARGS_PATH,
-    )
+    let arguments = DataTarget::storage(BOUNDED_ITEM_STORAGE).path(ARGS_PATH);
+    function_with(function, &arguments)
 }
 
 #[cfg(test)]

@@ -4,7 +4,13 @@
 
 use sand::prelude::*;
 
-static MANA: ScoreVar<i32> = ScoreVar::new("facade_mana");
+#[derive(State)]
+#[state(namespace = "facade_ns", scope = player)]
+#[allow(dead_code)]
+struct FacadeState {
+    #[state(default = 0)]
+    mana: Score,
+}
 
 #[function]
 fn facade_hello() {
@@ -23,8 +29,10 @@ fn facade_advancement() -> Advancement {
 #[on_event]
 fn facade_join(event: Event<sand::events::OnJoinEvent>) {
     let _ = event;
-    cmd::call(facade_hello);
-    let _ = MANA.set("@s", 10);
+    cmd::function(facade_hello);
+    FacadeState::on(EntityContext::<PlayerKind>::default())
+        .mana
+        .set(10);
 }
 
 // Participant context (#230) is reachable through the façade — both the

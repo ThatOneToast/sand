@@ -81,6 +81,9 @@ pub use sand_macros::{
     schedule,
 };
 
+/// Canonical typed handle accepted wherever Sand refers to a datapack function.
+pub use sand_core::FunctionRef;
+
 /// Defines the authoritative contract for a supported Sand public API item.
 pub use sand_macros::api;
 
@@ -191,21 +194,14 @@ pub mod predicate {
     };
 }
 
-/// State implementation primitives and typed storage/NBT schemas. Ordinary
-/// authoring uses [`State`] with `#[state(...)]`; this module remains available
-/// for deliberate helpers over typed score and storage representations.
-#[api(path = "sand::state", module = "sand", summary = "Provides typed scoreboard, timer, storage, and derived State primitives.", context = "This module contains the vocabulary beneath derived schemas and explicit low-level state operations.", minecraft = "Operations render scoreboard and data-storage commands against persistent datapack state locations.", use_when = ["Building typed state operations", "Defining a derived State schema"], avoid_when = ["Unvalidated raw commands can be replaced by typed state APIs"], example = "use sand::state::*;")]
+/// Canonical authoring surface for derived gameplay State.
+#[api(path = "sand::state", module = "sand", summary = "Declares scoped gameplay data with #[derive(State)].", context = "State, StateBundle, and StateQuery are the normal vocabulary for gameplay data, reusable composition, and querying.", minecraft = "Derived schemas lower to multiplayer-safe scoreboards, storage, and lifecycle functions.", use_when = ["Declaring or composing gameplay state"], avoid_when = ["Manually managing scoreboards; framework integrations can use sand::advanced::state"], example = "use sand::prelude::*; #[derive(State)] #[state(namespace = \"demo\", scope = player)] struct Combat { health: Score }")]
 pub mod state {
+    pub use crate::{EntityStateEnum, State, StateBundle, StateEnum, StateQuery};
+    pub use sand_core::Ticks;
     pub use sand_core::state::lifecycle::{
         StateCleanup, StateInit, StateLifecycle, StateMigrate, StateProvision, StateReconcile,
         StateTick,
-    };
-    pub use sand_core::state::{
-        BlockNbt, Cooldown, DataCommand, EntityNbt, Flag, FlagRef, FlowTransitionBuilder,
-        GameState, GameStateRef, IntoStateCommands, Nbt, NbtLocation, NbtPath, NbtRef, NbtTarget,
-        ScoreConst, ScoreConstants, ScoreExpr, ScoreOperand, ScoreOperation, ScoreRef, ScoreVar,
-        SnbtCompound, SnbtValue, StateFlow, StateTransitionBuilder, StorageField, StorageLocation,
-        StorageSchema, StorageVar, Ticks, Timer, TypedGameState, UntypedNbt,
     };
 }
 
@@ -253,7 +249,7 @@ pub mod state {
 )]
 pub mod entity {
     pub use sand_core::entity::{
-        Adoption, AdoptionSource, AnyEntity, AttributeBinding, AttributeModifierBinding,
+        Adoption, AdoptionSource, AnyEntity, AttributeBinding, AttributeModifierBinding, Cooldown,
         CurrentHealthSync, CurveEvaluationError, CurveInputs, DEFAULT_FIXED_POINT_SCALE, Data,
         DerivedScoreEncoding, EffectBinding, EntityAction, EntityArchetype, EntityContext,
         EntityCooldown, EntityCooldownAccessor, EntityDerivation, EntityDiagnostic, EntityEnum,
@@ -262,16 +258,16 @@ pub mod entity {
         EntityScope, EntityScore, EntityScoreAccessor, EntityState, EntityStateField, EntityTag,
         EntityTeam, EntityText, EntityTextSegment, EntityTimer, EntityTimerAccessor,
         EntityTransition, EntityTransitionField, EnumEncoding, EquipmentBinding, FixedPoint,
-        FixedScore, FixedScoreAccessor, FixedScoreValue, FixedValue, GlobalStateBundleOperations,
-        HealthBinding, HealthResizePolicy, KeyedData, KnownEntityKind, LivingEntityKind,
-        MarkerKind, Migration, MutableLivingEntityKind, NameBinding, NumericPropertySource,
-        NumericStateField, NumericStateSource, OverflowPolicy, OwnershipPolicy, PlayerKind,
-        PropertyNameError, RawEntityProperty, RawEntityStateField, RawPropertyAccess,
-        RawStateBackend, ReconcilePolicy, RefreshPolicy, Relation, RelationTraversal,
-        RoundingPolicy, SafeEntityDataWriteKind, ScopedEntityRef, Score, SpecialEntityPolicy,
-        StatCurve, StateComposition, StateFieldDescriptor, StateFieldKind, StatePredicate,
-        StateQueryOperations, StateSchema, TagBinding, TargetExecution, TeamBinding,
-        ThresholdDirection, ZombieKind,
+        FixedScore, FixedScoreAccessor, FixedScoreValue, FixedValue, Flag,
+        GlobalStateBundleOperations, HealthBinding, HealthResizePolicy, KeyedData, KnownEntityKind,
+        LivingEntityKind, MarkerKind, Migration, MutableLivingEntityKind, NameBinding,
+        NumericPropertySource, NumericStateField, NumericStateSource, OverflowPolicy,
+        OwnershipPolicy, PlayerKind, PropertyNameError, RawEntityProperty, RawEntityStateField,
+        RawPropertyAccess, RawStateBackend, ReconcilePolicy, RefreshPolicy, Relation,
+        RelationTraversal, RoundingPolicy, SafeEntityDataWriteKind, ScopedEntityRef, Score,
+        SpecialEntityPolicy, StatCurve, StateComposition, StateFieldDescriptor, StateFieldKind,
+        StatePredicate, StateQueryOperations, StateSchema, TagBinding, TargetExecution,
+        TeamBinding, ThresholdDirection, Timer, ZombieKind,
     };
 }
 
@@ -327,19 +323,17 @@ pub mod participant {
 pub mod component {
     pub use sand_components::advancement::InventorySlotsPredicate;
     pub use sand_components::dialog::{
-        Dialog, DialogAction, DialogBody, DialogButton, DialogItemRef, DialogKind, DialogTag,
-        DialogText, IntoDialogRef,
+        Dialog, DialogAction, DialogBody, DialogButton, DialogKind, DialogTag, DialogText,
     };
     pub use sand_components::{
         BannerPattern, Biome, BiomeEffects, CarverFloatRange, CarvingStep, CaveCarverConfig,
         ChatDecoration, ChatDecorationParameter, ChatStyle, ChatType, ConfiguredCarver,
         ConfiguredFeature, CustomData, DensityFunction, DensityFunctionBinaryOp,
         DensityFunctionExpr, DensityFunctionUnaryOp, Dimension, DimensionType, EnchantmentEntry,
-        IntoItemStack, IntoRecipeItemId, ItemComponent, ItemStackComponents, LootText,
-        MonsterSpawnLightLevel, Noise, OreConfig, OreTarget, PlacedFeature, PotionContents,
-        RawComponent, RawJson, RawSnbt, Result, RuleTest, SandError, SpawnCondition,
-        StatusEffectInstance, StructureTemplate, SuspiciousStewEffect, TagEntry, TagRegistry,
-        TemperatureModifier, TypedTag,
+        IntoItemStack, ItemComponent, ItemStackComponents, LootText, MonsterSpawnLightLevel, Noise,
+        OreConfig, OreTarget, PlacedFeature, PotionContents, RawComponent, RawJson, RawSnbt,
+        Result, RuleTest, SandError, SpawnCondition, StatusEffectInstance, StructureTemplate,
+        SuspiciousStewEffect, TagEntry, TagRegistry, TemperatureModifier, TypedTag,
     };
     pub use sand_core::components::*;
 }
@@ -397,6 +391,10 @@ pub mod resource_ref {
     pub use sand_core::resource_ref::{
         AdvancementId, DialogId, FunctionId, LootTableId, PredicateId, RecipeId,
     };
+    pub use sand_core::resource_ref::{
+        CommandStorageRegistry, EntityTypeRegistry, ParticleRegistry, PredicateRegistry,
+        RegistryReference, SoundEventRegistry, StatusEffectRegistry,
+    };
 }
 
 /// Typed identifiers for Minecraft registries, including custom/modded IDs
@@ -420,9 +418,9 @@ pub mod registry {
         BiomeId, BlockId, ChickenVariantId, ConfiguredCarverId, ConfiguredFeatureId, CowVariantId,
         DamageTypeId, DensityFunctionId, DimensionId, DimensionTypeId, EffectId,
         EnchantmentEffectComponentId, EnchantmentId, EntityTypeId, EquipmentModelId, ItemId,
-        NoiseId, PigVariantId, PotionId, PotionRegistryId, ProcessorListId, RandomSequenceId,
-        SoundEventId, StatusEffectId, StructureId, StructureSetId, StructureTemplateId,
-        StructureTypeId, TemplatePoolId, TradeSetId, VillagerTradeId,
+        NoiseId, ParticleId, PigVariantId, PotionId, PotionRegistryId, ProcessorListId,
+        RandomSequenceId, SoundEventId, StatusEffectId, StructureId, StructureSetId,
+        StructureTemplateId, StructureTypeId, TemplatePoolId, TradeSetId, VillagerTradeId,
     };
 }
 
@@ -518,16 +516,15 @@ pub use sand_components::PackNamespace;
 )]
 pub mod text {
     pub use sand_core::prelude::{
-        ChatColor, ClickEvent, EntityHoverId, HoverEvent, IntoTextEntityType, Text, TextComponent,
+        ChatColor, ClickEvent, EntityHoverId, HoverEvent, Text, TextComponent,
     };
 }
 
-/// Storage/NBT data authoring: SNBT values (`SnbtValue`, `SnbtCompound`),
-/// command-storage locations (`StorageLocation`, `NbtLocation`, `NbtPath`),
-/// and typed storage schemas (`StorageSchema`, `StorageField`,
-/// `StorageVar` — also available from [`state`] since storage-backed values
-/// are one kind of state). Use this module when working with NBT/storage
-/// data directly rather than through a typed state wrapper.
+/// Storage/NBT data authoring: typed values (`NbtValue`, `NbtCompound`),
+/// canonical roots and paths (`Nbt`, `NbtRef`, `NbtPath`),
+/// and typed storage schemas (`StorageSchema`, `StorageField`, `StorageVar`).
+/// Use this module when working with NBT/storage data directly rather than
+/// through declarative [`state`] derives.
 #[api(
     path = "sand::data",
     module = "sand",
@@ -536,14 +533,12 @@ pub mod text {
     minecraft = "Generates data-command targets, validated NBT paths, SNBT values, and namespaced command-storage references.",
     use_when = ["Persisting structured datapack state", "Reading or modifying entity, block, or storage NBT"],
     avoid_when = ["A scoreboard-backed integer or flag is the simpler state model"],
-    example = "use sand::data::{NbtPath, StorageLocation};"
+    example = "let health = sand::data::Nbt::entity(sand::command::Target::self_()).typed_path::<f32>(\"Health\");"
 )]
 pub mod data {
-    pub use sand_core::cmd::{DataModifyOperation, DataSource, DataTarget, NbtCompound, NbtValue};
-    pub use sand_core::state::{
-        BlockNbt, DataCommand, EntityNbt, Nbt, NbtLocation, NbtPath, NbtRef, NbtTarget,
-        SnbtCompound, SnbtValue, StorageField, StorageLocation, StorageSchema, StorageVar,
-        UntypedNbt,
+    pub use sand_core::{
+        DataCommand, Nbt, NbtCompound, NbtPath, NbtRef, NbtValue, StorageField, StorageSchema,
+        StorageVar, UntypedNbt,
     };
 }
 

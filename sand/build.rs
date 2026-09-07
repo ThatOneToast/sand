@@ -227,7 +227,7 @@ fn main() {
         })
         .and_then(|graph| {
             graph.bind_inert_item_macro(
-                "sand_components::dialog",
+                "sand_components::function",
                 "inventory::collect",
                 InertItemMacroClassification::InventoryCollectionWiring,
             )

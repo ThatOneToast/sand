@@ -52,11 +52,11 @@ pub fn audit_command() {
 #[function]
 pub fn audit_command_media() {
     Bossbar::add(
-        ResourceLocation::new("sand_audit", "guardian").unwrap(),
+        BossbarId::parse("sand_audit:guardian").unwrap(),
         Text::new("Sand Guardian").dark_red().bold(true),
     );
     Bossbar::set_color(
-        ResourceLocation::new("sand_audit", "guardian").unwrap(),
+        BossbarId::parse("sand_audit:guardian").unwrap(),
         BossbarColor::Red,
     );
     Title::of(Target::players())

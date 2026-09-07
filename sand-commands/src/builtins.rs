@@ -15,7 +15,8 @@
 
 use crate::coord::{Rotation, Vec3};
 use crate::error::CommandResult;
-use crate::selector::{IntoEntityType, Selector, SingleTargetArgument, Target, TargetArgument};
+use crate::resource::{EntityType, RegistryReference};
+use crate::selector::{Selector, SingleTargetArgument, Target, TargetArgument};
 use crate::text::TextComponent;
 use crate::validate;
 
@@ -115,29 +116,43 @@ pub fn kill(selector: impl TargetArgument) -> String {
 /// which can produce command text Minecraft rejects (`NaN`/`inf` coordinates)
 /// or silently fails to summon (an unknown entity id). Prefer
 /// [`try_summon`] on the validated path.
-pub fn summon(entity_type: impl IntoEntityType, x: f64, y: f64, z: f64) -> String {
-    format!(
-        "summon {} {} {} {}",
-        entity_type.into_entity_type(),
-        x,
-        y,
-        z
-    )
+pub fn summon(entity_type: impl RegistryReference<EntityType>, x: f64, y: f64, z: f64) -> String {
+    format!("summon {} {} {} {}", entity_type.registry_id(), x, y, z)
+}
+
+/// Explicit raw escape hatch for an unchecked entity-type token.
+pub fn summon_raw(entity_type: impl std::fmt::Display, x: f64, y: f64, z: f64) -> String {
+    format!("summon {entity_type} {x} {y} {z}")
 }
 
 /// Fallible [`summon`] — rejects non-finite coordinates and an empty/malformed
 /// entity type before producing command text.
 pub fn try_summon(
-    entity_type: impl IntoEntityType,
+    entity_type: impl RegistryReference<EntityType>,
     x: f64,
     y: f64,
     z: f64,
 ) -> CommandResult<String> {
-    let entity_type = entity_type.into_entity_type();
+    let entity_type = entity_type.registry_id();
     validate::resource_location_shape(&entity_type, "summon", "entity_type")?;
     validate::finite(x, "summon", "x")?;
     validate::finite(y, "summon", "y")?;
     validate::finite(z, "summon", "z")?;
+    Ok(format!("summon {entity_type} {x} {y} {z}"))
+}
+
+/// Validates an explicitly raw entity-type token and finite coordinates.
+pub fn try_summon_raw(
+    entity_type: impl std::fmt::Display,
+    x: f64,
+    y: f64,
+    z: f64,
+) -> CommandResult<String> {
+    let entity_type = entity_type.to_string();
+    validate::resource_location_shape(&entity_type, "summon_raw", "entity_type")?;
+    validate::finite(x, "summon_raw", "x")?;
+    validate::finite(y, "summon_raw", "y")?;
+    validate::finite(z, "summon_raw", "z")?;
     Ok(format!("summon {entity_type} {x} {y} {z}"))
 }
 
@@ -149,8 +164,13 @@ pub fn try_summon(
 /// no `try_summon_here` counterpart exists yet — validate `entity_type`
 /// ahead of the call (e.g. via [`try_summon`]'s entity-type check) if this
 /// needs to fail fast.
-pub fn summon_here(entity_type: impl IntoEntityType) -> String {
-    format!("summon {} ~ ~ ~", entity_type.into_entity_type())
+pub fn summon_here(entity_type: impl RegistryReference<EntityType>) -> String {
+    format!("summon {} ~ ~ ~", entity_type.registry_id())
+}
+
+/// Explicit raw escape hatch for summoning an unchecked entity type here.
+pub fn summon_here_raw(entity_type: impl std::fmt::Display) -> String {
+    format!("summon {entity_type} ~ ~ ~")
 }
 
 /// `tp <target> <destination>` — teleport the target to another entity's position.
@@ -241,48 +261,56 @@ pub fn tp_with_rotation(target: impl TargetArgument, pos: Vec3, rotation: Rotati
 
 /// `summon <entity_type> <pos>` — summon an entity at a typed [`Vec3`] position.
 ///
-/// Raw/unchecked for `entity_type`: `pos` is a typed [`Vec3`] (structurally
-/// modeling finite coordinates), but `entity_type` accepts any string and
-/// silently fails to summon at reload if unrecognized. No `try_summon_at`
-/// counterpart exists yet — prefer [`try_summon`] (which takes raw `f64`
-/// coordinates instead of a typed [`Vec3`]) if entity-type validation is
-/// needed ahead of export.
+/// `entity_type` is a registry-specific typed reference and `pos` is a typed
+/// [`Vec3`]. Use [`summon_at_raw`] for an unchecked entity-type token.
 ///
 /// # Example
 /// ```
 /// use sand_commands::coord::Vec3;
-/// use sand_commands::builtins::summon_at;
+/// use sand_commands::builtins::summon_at_raw;
 ///
-/// assert_eq!(summon_at("minecraft:zombie", Vec3::here()), "summon minecraft:zombie ~ ~ ~");
-/// assert_eq!(summon_at("minecraft:armor_stand", Vec3::absolute(0.0, 64.0, 0.0)), "summon minecraft:armor_stand 0 64 0");
+/// assert_eq!(summon_at_raw("minecraft:zombie", Vec3::here()), "summon minecraft:zombie ~ ~ ~");
+/// assert_eq!(summon_at_raw("minecraft:armor_stand", Vec3::absolute(0.0, 64.0, 0.0)), "summon minecraft:armor_stand 0 64 0");
 /// ```
-pub fn summon_at(entity_type: impl IntoEntityType, pos: Vec3) -> String {
-    format!("summon {} {}", entity_type.into_entity_type(), pos)
+pub fn summon_at(entity_type: impl RegistryReference<EntityType>, pos: Vec3) -> String {
+    format!("summon {} {}", entity_type.registry_id(), pos)
+}
+
+/// Explicit raw escape hatch for an unchecked entity-type token.
+pub fn summon_at_raw(entity_type: impl std::fmt::Display, pos: Vec3) -> String {
+    format!("summon {entity_type} {pos}")
 }
 
 /// `summon <entity_type> <pos> <nbt>` — summon an entity at a position with NBT data.
 ///
-/// Raw/unchecked: `entity_type` accepts any string (see [`summon_at`]), and
-/// `nbt` accepts any string with no SNBT syntax validation — malformed NBT
-/// produces a `.mcfunction` line Minecraft rejects at reload. SNBT
-/// validation is tracked separately
-/// (see [#167](https://github.com/ThatOneToast/sand/issues/167)); no
-/// `try_summon_at_with_nbt` counterpart exists yet.
+/// `entity_type` is a registry-specific typed reference. `nbt` remains an
+/// unchecked SNBT payload; malformed NBT produces a `.mcfunction` line
+/// Minecraft rejects at reload. Use [`summon_at_with_nbt_raw`] when the
+/// entity-type token must also cross an unchecked integration boundary.
 ///
 /// # Example
 /// ```
 /// use sand_commands::coord::Vec3;
-/// use sand_commands::builtins::summon_at_with_nbt;
+/// use sand_commands::builtins::summon_at_with_nbt_raw;
 ///
-/// let cmd = summon_at_with_nbt("minecraft:armor_stand", Vec3::here(), "{Invisible:1b}");
+/// let cmd = summon_at_with_nbt_raw("minecraft:armor_stand", Vec3::here(), "{Invisible:1b}");
 /// assert_eq!(cmd, "summon minecraft:armor_stand ~ ~ ~ {Invisible:1b}");
 /// ```
 pub fn summon_at_with_nbt(
-    entity_type: impl IntoEntityType,
+    entity_type: impl RegistryReference<EntityType>,
     pos: Vec3,
     nbt: impl std::fmt::Display,
 ) -> String {
-    format!("summon {} {} {}", entity_type.into_entity_type(), pos, nbt)
+    format!("summon {} {} {}", entity_type.registry_id(), pos, nbt)
+}
+
+/// Explicit raw escape hatch for an unchecked entity-type token and SNBT payload.
+pub fn summon_at_with_nbt_raw(
+    entity_type: impl std::fmt::Display,
+    pos: Vec3,
+    nbt: impl std::fmt::Display,
+) -> String {
+    format!("summon {entity_type} {pos} {nbt}")
 }
 
 // ── Tags ──────────────────────────────────────────────────────────────────────
@@ -643,14 +671,15 @@ pub fn try_difficulty(level: impl Into<String>) -> CommandResult<String> {
 /// `function <namespace:path>` — run a datapack function.
 ///
 /// Raw/unchecked: accepts any string, including a malformed resource
-/// location. Prefer [`try_function`] on the validated path.
-pub fn function(id: impl Into<String>) -> String {
+/// location. Normal Sand authoring uses the canonical typed function handle;
+/// this low-level spelling is an explicit interop escape hatch.
+pub fn function_raw(id: impl Into<String>) -> String {
     format!("function {}", id.into())
 }
 
-/// Fallible [`function`] — rejects an id that isn't a valid `namespace:path`
+/// Fallible [`function_raw`] — rejects an id that isn't a valid `namespace:path`
 /// resource location.
-pub fn try_function(id: impl Into<String>) -> CommandResult<String> {
+pub fn try_function_raw(id: impl Into<String>) -> CommandResult<String> {
     let id = id.into();
     validate::resource_location_shape(&id, "function", "id")?;
     Ok(format!("function {id}"))
@@ -658,9 +687,12 @@ pub fn try_function(id: impl Into<String>) -> CommandResult<String> {
 
 /// `schedule function <id> <time> [append|replace]` — schedule a function.
 ///
-/// Raw/unchecked: accepts any string id. Prefer [`try_schedule`] on the
-/// validated path.
-pub fn schedule(id: impl Into<String>, time: impl Into<String>, mode: impl Into<String>) -> String {
+/// Raw/unchecked: accepts arbitrary function, time, and mode tokens.
+pub fn schedule_raw(
+    id: impl Into<String>,
+    time: impl Into<String>,
+    mode: impl Into<String>,
+) -> String {
     format!(
         "schedule function {} {} {}",
         id.into(),
@@ -669,9 +701,9 @@ pub fn schedule(id: impl Into<String>, time: impl Into<String>, mode: impl Into<
     )
 }
 
-/// Fallible [`schedule`] — rejects an id that isn't a valid `namespace:path`
+/// Fallible [`schedule_raw`] — rejects an id that isn't a valid `namespace:path`
 /// resource location.
-pub fn try_schedule(
+pub fn try_schedule_raw(
     id: impl Into<String>,
     time: impl Into<String>,
     mode: impl Into<String>,
@@ -686,30 +718,30 @@ pub fn try_schedule(
 }
 
 /// `schedule function <id> <time> replace` — schedule (replace any existing).
-pub fn schedule_replace(id: impl Into<String>, time: impl Into<String>) -> String {
-    schedule(id, time, "replace")
+pub fn schedule_replace_raw(id: impl Into<String>, time: impl Into<String>) -> String {
+    schedule_raw(id, time, "replace")
 }
 
-/// Fallible [`schedule_replace`] — rejects an id that isn't a valid
+/// Fallible [`schedule_replace_raw`] — rejects an id that isn't a valid
 /// `namespace:path` resource location.
-pub fn try_schedule_replace(
+pub fn try_schedule_replace_raw(
     id: impl Into<String>,
     time: impl Into<String>,
 ) -> CommandResult<String> {
-    try_schedule(id, time, "replace")
+    try_schedule_raw(id, time, "replace")
 }
 
 /// `schedule clear <id>` — cancel a scheduled function.
 ///
-/// Raw/unchecked: accepts any string id. Prefer [`try_schedule_clear`] on the
+/// Raw/unchecked: accepts any string id. Prefer [`try_schedule_clear_raw`] on the
 /// validated path.
-pub fn schedule_clear(id: impl Into<String>) -> String {
+pub fn schedule_clear_raw(id: impl Into<String>) -> String {
     format!("schedule clear {}", id.into())
 }
 
-/// Fallible [`schedule_clear`] — rejects an id that isn't a valid
+/// Fallible [`schedule_clear_raw`] — rejects an id that isn't a valid
 /// `namespace:path` resource location.
-pub fn try_schedule_clear(id: impl Into<String>) -> CommandResult<String> {
+pub fn try_schedule_clear_raw(id: impl Into<String>) -> CommandResult<String> {
     let id = id.into();
     validate::resource_location_shape(&id, "schedule_clear", "id")?;
     Ok(format!("schedule clear {id}"))
@@ -1561,7 +1593,7 @@ mod tests {
 
     #[test]
     fn function_test() {
-        assert_eq!(function("my_pack:tick"), "function my_pack:tick");
+        assert_eq!(function_raw("my_pack:tick"), "function my_pack:tick");
     }
 
     #[test]
@@ -1640,7 +1672,7 @@ mod tests {
     #[test]
     fn schedule_test() {
         assert_eq!(
-            schedule_replace("my_pack:delayed", "20t"),
+            schedule_replace_raw("my_pack:delayed", "20t"),
             "schedule function my_pack:delayed 20t replace"
         );
     }
@@ -1727,7 +1759,7 @@ mod tests {
     fn summon_at_here() {
         use crate::coord::Vec3;
         assert_eq!(
-            summon_at("minecraft:zombie", Vec3::here()),
+            summon_at_raw("minecraft:zombie", Vec3::here()),
             "summon minecraft:zombie ~ ~ ~"
         );
     }
@@ -1736,7 +1768,7 @@ mod tests {
     fn summon_at_absolute() {
         use crate::coord::Vec3;
         assert_eq!(
-            summon_at("minecraft:armor_stand", Vec3::absolute(0.0, 64.0, 0.0)),
+            summon_at_raw("minecraft:armor_stand", Vec3::absolute(0.0, 64.0, 0.0)),
             "summon minecraft:armor_stand 0 64 0"
         );
     }
@@ -1744,7 +1776,7 @@ mod tests {
     #[test]
     fn summon_at_with_nbt_test() {
         use crate::coord::Vec3;
-        let cmd = summon_at_with_nbt("minecraft:armor_stand", Vec3::here(), "{Invisible:1b}");
+        let cmd = summon_at_with_nbt_raw("minecraft:armor_stand", Vec3::here(), "{Invisible:1b}");
         assert_eq!(cmd, "summon minecraft:armor_stand ~ ~ ~ {Invisible:1b}");
     }
 
@@ -1823,11 +1855,11 @@ mod tests {
     #[test]
     fn schedule_append_mode() {
         assert_eq!(
-            schedule("my_pack:delayed", "40t", "append"),
+            schedule_raw("my_pack:delayed", "40t", "append"),
             "schedule function my_pack:delayed 40t append"
         );
         assert_eq!(
-            schedule_clear("my_pack:delayed"),
+            schedule_clear_raw("my_pack:delayed"),
             "schedule clear my_pack:delayed"
         );
     }
@@ -1890,8 +1922,8 @@ mod tests {
     #[test]
     fn try_summon_matches_raw_for_valid_input() {
         assert_eq!(
-            try_summon("minecraft:zombie", 1.0, 2.0, 3.0).unwrap(),
-            summon("minecraft:zombie", 1.0, 2.0, 3.0)
+            try_summon_raw("minecraft:zombie", 1.0, 2.0, 3.0).unwrap(),
+            summon_raw("minecraft:zombie", 1.0, 2.0, 3.0)
         );
     }
 
@@ -1931,15 +1963,15 @@ mod tests {
 
     #[test]
     fn try_summon_rejects_non_finite_coordinates() {
-        assert!(try_summon("minecraft:zombie", f64::NAN, 0.0, 0.0).is_err());
-        assert!(try_summon("minecraft:zombie", 0.0, f64::INFINITY, 0.0).is_err());
-        assert!(try_summon("minecraft:zombie", 0.0, 0.0, f64::NEG_INFINITY).is_err());
+        assert!(try_summon_raw("minecraft:zombie", f64::NAN, 0.0, 0.0).is_err());
+        assert!(try_summon_raw("minecraft:zombie", 0.0, f64::INFINITY, 0.0).is_err());
+        assert!(try_summon_raw("minecraft:zombie", 0.0, 0.0, f64::NEG_INFINITY).is_err());
     }
 
     #[test]
     fn try_summon_rejects_malformed_entity_type() {
-        assert!(try_summon("", 0.0, 0.0, 0.0).is_err());
-        assert!(try_summon("not a resource location", 0.0, 0.0, 0.0).is_err());
+        assert!(try_summon_raw("", 0.0, 0.0, 0.0).is_err());
+        assert!(try_summon_raw("not a resource location", 0.0, 0.0, 0.0).is_err());
     }
 
     #[test]
@@ -1992,11 +2024,11 @@ mod tests {
 
     #[test]
     fn try_function_and_schedule_reject_malformed_ids() {
-        assert!(try_function("not valid").is_err());
-        assert!(try_function("my_pack:tick").is_ok());
-        assert!(try_schedule("bad id", "20t", "replace").is_err());
-        assert!(try_schedule_replace("my_pack:delayed", "20t").is_ok());
-        assert!(try_schedule_clear("bad id").is_err());
+        assert!(try_function_raw("not valid").is_err());
+        assert!(try_function_raw("my_pack:tick").is_ok());
+        assert!(try_schedule_raw("bad id", "20t", "replace").is_err());
+        assert!(try_schedule_replace_raw("my_pack:delayed", "20t").is_ok());
+        assert!(try_schedule_clear_raw("bad id").is_err());
     }
 
     #[test]

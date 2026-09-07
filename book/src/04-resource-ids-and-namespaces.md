@@ -33,7 +33,9 @@ When Trailforge needs to reference a function or resource programmatically
 `ResourceLocation` directly:
 
 ```rust,ignore
-cmd::function(ResourceLocation::new("trail", "grapple/execute").unwrap())
+cmd::function(FunctionId::custom(
+    ResourceLocation::new("trail", "grapple/execute").unwrap(),
+))
 ```
 
 `ResourceLocation::new` validates both segments against Minecraft's
@@ -53,15 +55,15 @@ CustomItem::new(ItemId::minecraft("leather_boots").unwrap())
 ```
 
 ```rust,ignore
-static GRAPPLE_RANGE: StorageVar<i32> = StorageVar::new("trail:data", "config.grapple_range");
+let grapple_range = Nbt::storage(ResourceLocation::new("trail", "data").unwrap())
+    .typed_path::<i32>("config.grapple_range");
 ```
 
 `ItemId::minecraft(...)` is shorthand for `minecraft:leather_boots` —
 Trailforge upgrades a *vanilla* base item rather than inventing a brand-new
 one, since Trail Striders need to occupy the boots equipment slot and carry
-vanilla armor rendering. `StorageVar::new("trail:data", "config.grapple_range")`
-targets a command-storage NBT location at `trail:data`, an entirely separate
-namespace from function/item resource locations but validated the same way.
+vanilla armor rendering. `Nbt::storage(ResourceLocation::new("trail", "data")?)` selects a command-storage
+root, and `typed_path` gives the value a typed reference beneath that root.
 
 ## Vanilla IDs: `sand::vanilla`
 

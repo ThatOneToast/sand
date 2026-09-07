@@ -286,7 +286,45 @@ pub fn installed_catalog() -> Result<ApiCatalog> {
                 configuration.placeholder_codegen
             );
         }
-        entries.extend(provider.entries.into_iter().map(|entry| entry.contract));
+        if provider.provider == "generated_registry_id_contracts" {
+            for mut expected in provider.entries.into_iter().map(|entry| entry.contract) {
+                let actual = entries
+                    .iter()
+                    .filter(|entry| entry.canonical_path == expected.canonical_path)
+                    .collect::<Vec<_>>();
+                let [actual] = actual.as_slice() else {
+                    if actual.is_empty() {
+                        // Handwritten inherent methods adjacent to a generated
+                        // registry ID are provider-owned but are not emitted by
+                        // the registry_id! invocation itself.
+                        entries.push(expected);
+                        continue;
+                    }
+                    bail!(
+                        "linked registry-ID contract `{}` has {} runtime registrations; expected at most one matching its generated provider",
+                        expected.canonical_path,
+                        actual.len()
+                    );
+                };
+                // Link-time registrations intentionally omit parsed structural
+                // types, and Rust token stringification may use tighter spacing
+                // than the build-time provider. Installed facade shapes replace
+                // these fields below; compare the shared semantic metadata here.
+                expected.signature.clone_from(&actual.signature);
+                expected.return_type = None;
+                for parameter in &mut expected.parameters {
+                    parameter.rust_type = None;
+                }
+                if **actual != expected {
+                    bail!(
+                        "linked registry-ID contract `{}` differs from its generated provider",
+                        expected.canonical_path
+                    );
+                }
+            }
+        } else {
+            entries.extend(provider.entries.into_iter().map(|entry| entry.contract));
+        }
     }
 
     let installed_paths = sand::__private::api_contract::INSTALLED_API_PATHS
@@ -3217,9 +3255,9 @@ mod tests {
                 "sand::participant::EntityParticipant",
             ),
             (
-                "crate::cmd::IntoGiveItem",
-                "sand_core::cmd::IntoGiveItem",
-                "sand::command::IntoGiveItem",
+                "crate::item::stack::IntoItemStack",
+                "sand_components::item::stack::IntoItemStack",
+                "sand::component::IntoItemStack",
             ),
             (
                 "crate::event::handle::EventHandle<E>",
@@ -3803,7 +3841,7 @@ mod tests {
         let block_pos = catalog.find("sand::command::BlockPos::new").unwrap();
         assert_eq!(block_pos.return_type.as_deref(), Some("Self"));
         let from_score = catalog
-            .find("sand::state::TypedGameState::from_score")
+            .find("sand::advanced::state::TypedGameState::from_score")
             .unwrap();
         assert_eq!(from_score.return_type.as_deref(), Some("Option < Self >"));
         let insert_score = catalog
@@ -3943,7 +3981,7 @@ mod tests {
         let catalog = generated_catalog();
         assert!(
             !catalog
-                .find("sand::state::ScoreVar::clamp")
+                .find("sand::advanced::state::ScoreVar::clamp")
                 .unwrap()
                 .example
                 .contains("Trailing prose")
@@ -4150,7 +4188,7 @@ mod tests {
         assert!(grouped.contains("Structs\n"));
         assert!(grouped.contains("sand::resource_ref::DialogId"));
         assert!(grouped.contains("sand::resource_ref::DialogId (5 APIs)"));
-        assert!(grouped.contains("sand::resource_ref::FunctionId (3 APIs)"));
+        assert!(grouped.contains("sand::resource_ref::FunctionId (5 APIs)"));
     }
 
     #[test]
@@ -4163,14 +4201,14 @@ mod tests {
                     || entry.canonical_path.starts_with("sand::resource_ref::")
             })
             .collect::<Vec<_>>();
-        assert_eq!(entries.len(), 23);
+        assert_eq!(entries.len(), 33);
         assert_eq!(
             entries
                 .iter()
                 .map(|entry| entry.canonical_path.as_str())
                 .collect::<BTreeSet<_>>()
                 .len(),
-            23
+            33
         );
     }
 
@@ -4248,19 +4286,19 @@ mod tests {
                     || entry.canonical_path.starts_with("sand::vfx::")
             })
             .collect::<Vec<_>>();
-        assert_eq!(entries.len(), 45);
+        assert_eq!(entries.len(), 47);
         assert_eq!(
             entries
                 .iter()
                 .map(|entry| entry.canonical_path.as_str())
                 .collect::<BTreeSet<_>>()
                 .len(),
-            45
+            47
         );
     }
 
     #[test]
-    fn installed_advanced_catalog_exposes_only_the_version_aware_export_hook() {
+    fn installed_advanced_catalog_exposes_state_primitives_and_export_hook() {
         let catalog = generated_catalog();
         let hook = show(catalog, "sand::advanced::try_export_components_json").unwrap();
         assert!(hook.contains("version-validated JSON"));
@@ -4268,6 +4306,8 @@ mod tests {
 
         let grouped = module(catalog, "sand::advanced").unwrap();
         assert!(grouped.contains("Functions\n  sand::advanced::try_export_components_json"));
+        assert!(grouped.contains("Modules\n  sand::advanced::state"));
+        assert!(show(catalog, "sand::advanced::state::ScoreVar").is_ok());
 
         let entries = catalog
             .entries
@@ -4277,7 +4317,7 @@ mod tests {
                     || entry.canonical_path.starts_with("sand::advanced::")
             })
             .collect::<Vec<_>>();
-        assert_eq!(entries.len(), 2);
+        assert_eq!(entries.len(), 227);
     }
 
     #[test]
@@ -4383,7 +4423,7 @@ mod tests {
             })
             .collect::<Vec<_>>();
         assert!(
-            generated.len() > 1_850,
+            generated.len() > 1_800,
             "expected repository-wide generated callable coverage, found {}",
             generated.len()
         );

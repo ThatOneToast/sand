@@ -32,8 +32,9 @@ fn placeholder_installation_supports_api_search_show_and_export() {
     assert!(search.contains("showing 5 of"));
     assert!(search.contains("sand::event::DamageEvent::player"));
 
-    let show = run(&binary, &["api", "show", "sand::command::IntoGiveItem"]);
-    assert!(show.contains("sand::registry::ItemId"));
+    let show = run(&binary, &["api", "show", "sand::component::IntoItemStack"]);
+    assert!(show.contains("pub trait IntoItemStack"));
+    assert!(show.contains("concrete [`ItemStack`]"));
     assert!(!show.contains("sand_core::generated"));
 
     let export = target.path().join("placeholder-api.json");

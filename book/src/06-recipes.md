@@ -45,4 +45,4 @@ function called where needed, like `trail_striders`). Functions use
 `#[function]`. Keeping these three macros distinct — rather than one
 do-everything macro — is what lets each one specialize its generated code:
 `#[custom_item]` generates a predicate struct; `#[function]` registers a callable
-`ResourceLocation` target usable from `cmd::call` and `cmd::function`.
+`FunctionId` target usable from `cmd::function` and callback APIs.

@@ -14,6 +14,7 @@ use crate::Build;
 use crate::coord::BlockPos;
 use crate::error::{CommandError, CommandResult};
 use crate::render::{CommandProfile, RenderCommand, Validate};
+use crate::resource::{CommandStorage, RegistryReference};
 use crate::selector::{Selector, TargetArgument};
 
 // ── Values ───────────────────────────────────────────────────────────────────
@@ -21,7 +22,7 @@ use crate::selector::{Selector, TargetArgument};
 #[sand_macros::api(
     registry = sand_api_contract,
     path = "sand::data::NbtValue",
-    aliases = ["sand::cmd::NbtValue", "sand::command::NbtValue", "sand::data::SnbtValue", "sand::prelude::SnbtValue", "sand::prelude::cmd::NbtValue", "sand::state::SnbtValue"],
+    aliases = ["sand::cmd::NbtValue", "sand::command::NbtValue", "sand::prelude::cmd::NbtValue"],
     module = "sand::data",
     summary = "A typed SNBT value used by `data modify` and `data merge`.",
     context = "A typed SNBT value used by `data modify` and `data merge`. This API models a typed NBT value, path, target, or data command. Raw SNBT entry points are explicit escape hatches rather than the normal representation.",
@@ -64,7 +65,7 @@ impl NbtValue {
     #[sand_macros::api(
         registry = sand_api_contract,
         path = "sand::data::NbtValue::list",
-        aliases = ["sand::cmd::NbtValue::list", "sand::command::NbtValue::list", "sand::data::SnbtValue::list", "sand::prelude::SnbtValue::list", "sand::prelude::cmd::NbtValue::list", "sand::state::SnbtValue::list"],
+        aliases = ["sand::cmd::NbtValue::list", "sand::command::NbtValue::list", "sand::prelude::cmd::NbtValue::list"],
         module = "sand::data",
         kind = "method",
         summary = "Creates an SNBT list from typed NBT values.",
@@ -84,7 +85,7 @@ impl NbtValue {
     #[sand_macros::api(
         registry = sand_api_contract,
         path = "sand::data::NbtValue::compound",
-        aliases = ["sand::cmd::NbtValue::compound", "sand::command::NbtValue::compound", "sand::data::SnbtValue::compound", "sand::prelude::SnbtValue::compound", "sand::prelude::cmd::NbtValue::compound", "sand::state::SnbtValue::compound"],
+        aliases = ["sand::cmd::NbtValue::compound", "sand::command::NbtValue::compound", "sand::prelude::cmd::NbtValue::compound"],
         module = "sand::data",
         kind = "method",
         summary = "Wraps a typed SNBT compound as an NBT value.",
@@ -104,7 +105,7 @@ impl NbtValue {
     #[sand_macros::api(
         registry = sand_api_contract,
         path = "sand::data::NbtValue::raw",
-        aliases = ["sand::cmd::NbtValue::raw", "sand::command::NbtValue::raw", "sand::data::SnbtValue::raw", "sand::prelude::SnbtValue::raw", "sand::prelude::cmd::NbtValue::raw", "sand::state::SnbtValue::raw"],
+        aliases = ["sand::cmd::NbtValue::raw", "sand::command::NbtValue::raw", "sand::prelude::cmd::NbtValue::raw"],
         module = "sand::data",
         kind = "method",
         summary = "Provides the explicit raw SNBT escape hatch after the caller accepts validation responsibility.",
@@ -190,7 +191,7 @@ impl From<NbtCompound> for NbtValue {
 #[sand_macros::api(
     registry = sand_api_contract,
     path = "sand::data::NbtCompound",
-    aliases = ["sand::cmd::NbtCompound", "sand::command::NbtCompound", "sand::data::SnbtCompound", "sand::prelude::NbtCompound", "sand::prelude::SnbtCompound", "sand::prelude::cmd::NbtCompound", "sand::state::SnbtCompound"],
+    aliases = ["sand::cmd::NbtCompound", "sand::command::NbtCompound", "sand::prelude::NbtCompound", "sand::prelude::cmd::NbtCompound"],
     module = "sand::data",
     summary = "A typed SNBT compound preserving declaration order.",
     context = "A typed SNBT compound preserving declaration order. This API models a typed NBT value, path, target, or data command. Raw SNBT entry points are explicit escape hatches rather than the normal representation.",
@@ -210,7 +211,7 @@ impl NbtCompound {
     #[sand_macros::api(
         registry = sand_api_contract,
         path = "sand::data::NbtCompound::new",
-        aliases = ["sand::cmd::NbtCompound::new", "sand::command::NbtCompound::new", "sand::data::SnbtCompound::new", "sand::prelude::NbtCompound::new", "sand::prelude::SnbtCompound::new", "sand::prelude::cmd::NbtCompound::new", "sand::state::SnbtCompound::new"],
+        aliases = ["sand::cmd::NbtCompound::new", "sand::command::NbtCompound::new", "sand::prelude::NbtCompound::new", "sand::prelude::cmd::NbtCompound::new"],
         module = "sand::data",
         kind = "method",
         summary = "Creates an empty typed SNBT compound.",
@@ -229,7 +230,7 @@ impl NbtCompound {
     #[sand_macros::api(
         registry = sand_api_contract,
         path = "sand::data::NbtCompound::field",
-        aliases = ["sand::cmd::NbtCompound::field", "sand::command::NbtCompound::field", "sand::data::SnbtCompound::field", "sand::prelude::NbtCompound::field", "sand::prelude::SnbtCompound::field", "sand::prelude::cmd::NbtCompound::field", "sand::state::SnbtCompound::field"],
+        aliases = ["sand::cmd::NbtCompound::field", "sand::command::NbtCompound::field", "sand::prelude::NbtCompound::field", "sand::prelude::cmd::NbtCompound::field"],
         module = "sand::data",
         kind = "method",
         summary = "Adds or replaces a named value in this SNBT compound builder.",
@@ -250,7 +251,7 @@ impl NbtCompound {
     #[sand_macros::api(
         registry = sand_api_contract,
         path = "sand::data::NbtCompound::insert",
-        aliases = ["sand::cmd::NbtCompound::insert", "sand::command::NbtCompound::insert", "sand::data::SnbtCompound::insert", "sand::prelude::NbtCompound::insert", "sand::prelude::SnbtCompound::insert", "sand::prelude::cmd::NbtCompound::insert", "sand::state::SnbtCompound::insert"],
+        aliases = ["sand::cmd::NbtCompound::insert", "sand::command::NbtCompound::insert", "sand::prelude::NbtCompound::insert", "sand::prelude::cmd::NbtCompound::insert"],
         module = "sand::data",
         kind = "method",
         summary = "Builds the typed Minecraft data modification for insert.",
@@ -269,7 +270,7 @@ impl NbtCompound {
     #[sand_macros::api(
         registry = sand_api_contract,
         path = "sand::data::NbtCompound::is_empty",
-        aliases = ["sand::cmd::NbtCompound::is_empty", "sand::command::NbtCompound::is_empty", "sand::data::SnbtCompound::is_empty", "sand::prelude::NbtCompound::is_empty", "sand::prelude::SnbtCompound::is_empty", "sand::prelude::cmd::NbtCompound::is_empty", "sand::state::SnbtCompound::is_empty"],
+        aliases = ["sand::cmd::NbtCompound::is_empty", "sand::command::NbtCompound::is_empty", "sand::prelude::NbtCompound::is_empty", "sand::prelude::cmd::NbtCompound::is_empty"],
         module = "sand::data",
         kind = "method",
         summary = "Reports whether this SNBT compound contains no fields.",
@@ -314,7 +315,7 @@ fn render_compound_key(key: &str) -> String {
 #[sand_macros::api(
     registry = sand_api_contract,
     path = "sand::data::NbtPath",
-    aliases = ["sand::cmd::NbtPath", "sand::command::NbtPath", "sand::prelude::NbtPath", "sand::prelude::cmd::NbtPath", "sand::state::NbtPath"],
+aliases = ["sand::cmd::NbtPath", "sand::command::NbtPath", "sand::prelude::NbtPath", "sand::prelude::cmd::NbtPath"],
     module = "sand::data",
     summary = "A standalone NBT path, independent of the location it is later attached to.",
     context = "A standalone NBT path, independent of the location it is later attached to. This API models a typed NBT value, path, target, or data command. Raw SNBT entry points are explicit escape hatches rather than the normal representation.",
@@ -338,7 +339,7 @@ impl NbtPath {
     #[sand_macros::api(
         registry = sand_api_contract,
         path = "sand::data::NbtPath::new",
-        aliases = ["sand::cmd::NbtPath::new", "sand::command::NbtPath::new", "sand::prelude::NbtPath::new", "sand::prelude::cmd::NbtPath::new", "sand::state::NbtPath::new"],
+        aliases = ["sand::cmd::NbtPath::new", "sand::command::NbtPath::new", "sand::prelude::NbtPath::new", "sand::prelude::cmd::NbtPath::new"],
         module = "sand::data",
         kind = "method",
         summary = "Construct a structurally checked path. Validation is performed at the fallible command-render/export boundary so ordinary command-producing call sites remain ergonomic.",
@@ -361,7 +362,7 @@ impl NbtPath {
     #[sand_macros::api(
         registry = sand_api_contract,
         path = "sand::data::NbtPath::raw",
-        aliases = ["sand::cmd::NbtPath::raw", "sand::command::NbtPath::raw", "sand::prelude::NbtPath::raw", "sand::prelude::cmd::NbtPath::raw", "sand::state::NbtPath::raw"],
+        aliases = ["sand::cmd::NbtPath::raw", "sand::command::NbtPath::raw", "sand::prelude::NbtPath::raw", "sand::prelude::cmd::NbtPath::raw"],
         module = "sand::data",
         kind = "method",
         summary = "Explicit opaque path escape hatch. The path renders unchanged.",
@@ -384,7 +385,7 @@ impl NbtPath {
     #[sand_macros::api(
         registry = sand_api_contract,
         path = "sand::data::NbtPath::root",
-        aliases = ["sand::cmd::NbtPath::root", "sand::command::NbtPath::root", "sand::prelude::NbtPath::root", "sand::prelude::cmd::NbtPath::root", "sand::state::NbtPath::root"],
+        aliases = ["sand::cmd::NbtPath::root", "sand::command::NbtPath::root", "sand::prelude::NbtPath::root", "sand::prelude::cmd::NbtPath::root"],
         module = "sand::data",
         kind = "method",
         summary = "Compatibility spelling for a standalone typed path.",
@@ -404,7 +405,7 @@ impl NbtPath {
     #[sand_macros::api(
         registry = sand_api_contract,
         path = "sand::data::NbtPath::as_str",
-        aliases = ["sand::cmd::NbtPath::as_str", "sand::command::NbtPath::as_str", "sand::prelude::NbtPath::as_str", "sand::prelude::cmd::NbtPath::as_str", "sand::state::NbtPath::as_str"],
+        aliases = ["sand::cmd::NbtPath::as_str", "sand::command::NbtPath::as_str", "sand::prelude::NbtPath::as_str", "sand::prelude::cmd::NbtPath::as_str"],
         module = "sand::data",
         kind = "method",
         summary = "Borrows the rendered NBT path text without allocating.",
@@ -423,7 +424,7 @@ impl NbtPath {
     #[sand_macros::api(
         registry = sand_api_contract,
         path = "sand::data::NbtPath::is_raw",
-        aliases = ["sand::cmd::NbtPath::is_raw", "sand::command::NbtPath::is_raw", "sand::prelude::NbtPath::is_raw", "sand::prelude::cmd::NbtPath::is_raw", "sand::state::NbtPath::is_raw"],
+        aliases = ["sand::cmd::NbtPath::is_raw", "sand::command::NbtPath::is_raw", "sand::prelude::NbtPath::is_raw", "sand::prelude::cmd::NbtPath::is_raw"],
         module = "sand::data",
         kind = "method",
         summary = "Provides the explicit raw SNBT escape hatch after the caller accepts validation responsibility.",
@@ -442,7 +443,7 @@ impl NbtPath {
     #[sand_macros::api(
         registry = sand_api_contract,
         path = "sand::data::NbtPath::field",
-        aliases = ["sand::cmd::NbtPath::field", "sand::command::NbtPath::field", "sand::prelude::NbtPath::field", "sand::prelude::cmd::NbtPath::field", "sand::state::NbtPath::field"],
+        aliases = ["sand::cmd::NbtPath::field", "sand::command::NbtPath::field", "sand::prelude::NbtPath::field", "sand::prelude::cmd::NbtPath::field"],
         module = "sand::data",
         kind = "method",
         summary = "Extends this typed NBT reference with the supplied field selector.",
@@ -471,7 +472,7 @@ impl NbtPath {
     #[sand_macros::api(
         registry = sand_api_contract,
         path = "sand::data::NbtPath::key",
-        aliases = ["sand::cmd::NbtPath::key", "sand::command::NbtPath::key", "sand::prelude::NbtPath::key", "sand::prelude::cmd::NbtPath::key", "sand::state::NbtPath::key"],
+        aliases = ["sand::cmd::NbtPath::key", "sand::command::NbtPath::key", "sand::prelude::NbtPath::key", "sand::prelude::cmd::NbtPath::key"],
         module = "sand::data",
         kind = "method",
         summary = "Extends this typed NBT reference with the supplied key selector.",
@@ -491,7 +492,7 @@ impl NbtPath {
     #[sand_macros::api(
         registry = sand_api_contract,
         path = "sand::data::NbtPath::index",
-        aliases = ["sand::cmd::NbtPath::index", "sand::command::NbtPath::index", "sand::prelude::NbtPath::index", "sand::prelude::cmd::NbtPath::index", "sand::state::NbtPath::index"],
+        aliases = ["sand::cmd::NbtPath::index", "sand::command::NbtPath::index", "sand::prelude::NbtPath::index", "sand::prelude::cmd::NbtPath::index"],
         module = "sand::data",
         kind = "method",
         summary = "Extends this typed NBT reference with the supplied index selector.",
@@ -612,25 +613,6 @@ fn validate_nbt_path(path: &str) -> CommandResult<()> {
     Ok(())
 }
 
-#[sand_macros::api(
-    registry = sand_api_contract,
-    path = "sand::data::DataTarget",
-    aliases = ["sand::cmd::DataTarget", "sand::command::DataTarget", "sand::prelude::cmd::DataTarget"],
-    module = "sand::data",
-    summary = "Canonical typed location for vanilla `data` commands.",
-    context = "Canonical typed location for vanilla `data` commands. This API models a typed NBT value, path, target, or data command. Raw SNBT entry points are explicit escape hatches rather than the normal representation.",
-    minecraft = "Operations render vanilla data commands against entity, block, or namespaced command-storage targets and validate writable target cardinality.",
-    use_when = ["Reading or mutating structured Minecraft NBT through typed paths and values"],
-    avoid_when = ["A scoreboard-backed state field is simpler, or the input is untrusted raw SNBT"],
-    example = "use sand::data::DataTarget;",
-    variants(Block = "Selects the block NBT or data-command operation.", Entity = "Selects the entity NBT or data-command operation.", Storage = "Selects the storage NBT or data-command operation."),
-    variant_fields(Block = ["Selects the block NBT or data-command operation."], Entity = ["Selects the entity NBT or data-command operation."], Storage = ["Selects the storage NBT or data-command operation."]),
-    member_aliases(
-        Block = ["sand::data::NbtLocation::Block", "sand::prelude::NbtLocation::Block", "sand::state::NbtLocation::Block"],
-        Entity = ["sand::data::NbtLocation::Entity", "sand::prelude::NbtLocation::Entity", "sand::state::NbtLocation::Entity"],
-        Storage = ["sand::data::NbtLocation::Storage", "sand::prelude::NbtLocation::Storage", "sand::state::NbtLocation::Storage"],
-    ),
-)]
 /// Canonical typed location for vanilla `data` commands.
 #[derive(Debug, Clone)]
 pub enum DataTarget {
@@ -640,6 +622,11 @@ pub enum DataTarget {
     Block(#[doc = "Selects the block NBT or data-command operation."] BlockPos),
     #[doc = "Selects the storage NBT or data-command operation."]
     Storage(#[doc = "Selects the storage NBT or data-command operation."] String),
+    #[doc = "Selects explicitly raw command-storage syntax without validating its identifier grammar."]
+    StorageRaw(
+        #[doc = "The unchecked command-storage token supplied through an explicit raw boundary."]
+        String,
+    ),
 }
 
 impl PartialEq for DataTarget {
@@ -652,121 +639,36 @@ impl Eq for DataTarget {}
 
 impl DataTarget {
     /// Creates an entity data-command target from a typed selector.
-    #[sand_macros::api(
-        registry = sand_api_contract,
-        path = "sand::data::DataTarget::entity",
-        aliases = ["sand::cmd::DataTarget::entity", "sand::command::DataTarget::entity", "sand::data::NbtLocation::entity", "sand::prelude::NbtLocation::entity", "sand::prelude::cmd::DataTarget::entity", "sand::state::NbtLocation::entity"],
-        module = "sand::data",
-        kind = "method",
-        summary = "Creates an entity data-command target from a typed selector.",
-        context = "Creates an entity data-command target from a typed selector. This API models a typed NBT value, path, target, or data command. Raw SNBT entry points are explicit escape hatches rather than the normal representation.",
-        minecraft = "Operations render vanilla data commands against entity, block, or namespaced command-storage targets and validate writable target cardinality.",
-        use_when = ["Reading or mutating structured Minecraft NBT through typed paths and values"],
-        avoid_when = ["A scoreboard-backed state field is simpler, or the input is untrusted raw SNBT"],
-        params(selector = "`selector` provides the Minecraft target selection used to create an entity data-command target from a typed selector."),
-        returns = "A `DataTarget` representing an entity data-command target from a typed selector.",
-        example = "use sand::prelude::*;\n\nfn demonstrate(selector: sand::command::Target)  {\n    let data_target = sand::data::DataTarget::entity(selector);\n}",
-    )]
     pub fn entity(selector: impl TargetArgument) -> Self {
         Self::Entity(selector.into_target_selector())
     }
 
     /// Creates a block data-command target from typed coordinates.
-    #[sand_macros::api(
-        registry = sand_api_contract,
-        path = "sand::data::DataTarget::block",
-        aliases = ["sand::cmd::DataTarget::block", "sand::command::DataTarget::block", "sand::data::NbtLocation::block", "sand::prelude::NbtLocation::block", "sand::prelude::cmd::DataTarget::block", "sand::state::NbtLocation::block"],
-        module = "sand::data",
-        kind = "method",
-        summary = "Creates a block data-command target from typed coordinates.",
-        context = "Creates a block data-command target from typed coordinates. This API models a typed NBT value, path, target, or data command. Raw SNBT entry points are explicit escape hatches rather than the normal representation.",
-        minecraft = "Operations render vanilla data commands against entity, block, or namespaced command-storage targets and validate writable target cardinality.",
-        use_when = ["Reading or mutating structured Minecraft NBT through typed paths and values"],
-        avoid_when = ["A scoreboard-backed state field is simpler, or the input is untrusted raw SNBT"],
-        params(position = "`position` is used when creating a block data-command target from typed coordinates."),
-        returns = "A `DataTarget` representing a block data-command target from typed coordinates.",
-        example = "use sand::prelude::*;\n\nfn demonstrate(position: sand::command::BlockPos)  {\n    let data_target = sand::data::DataTarget::block(position);\n}",
-    )]
     pub fn block(position: BlockPos) -> Self {
         Self::Block(position)
     }
 
     /// Creates a command-storage data target from a namespaced identifier.
-    #[sand_macros::api(
-        registry = sand_api_contract,
-        path = "sand::data::DataTarget::storage",
-        aliases = ["sand::cmd::DataTarget::storage", "sand::command::DataTarget::storage", "sand::data::NbtLocation::storage", "sand::prelude::NbtLocation::storage", "sand::prelude::cmd::DataTarget::storage", "sand::state::NbtLocation::storage"],
-        module = "sand::data",
-        kind = "method",
-        summary = "Creates a command-storage data target from a namespaced identifier.",
-        context = "Creates a command-storage data target from a namespaced identifier. This API models a typed NBT value, path, target, or data command. Raw SNBT entry points are explicit escape hatches rather than the normal representation.",
-        minecraft = "Operations render vanilla data commands against entity, block, or namespaced command-storage targets and validate writable target cardinality.",
-        use_when = ["Reading or mutating structured Minecraft NBT through typed paths and values"],
-        avoid_when = ["A scoreboard-backed state field is simpler, or the input is untrusted raw SNBT"],
-        params(id = "`id` provides the typed resource identifier or location used to create a command-storage data target from a namespaced identifier."),
-        returns = "A `DataTarget` representing a command-storage data target from a namespaced identifier.",
-        example = "use sand::prelude::*;\n\nfn demonstrate(id: impl Into < String >)  {\n    let data_target = sand::data::DataTarget::storage(id);\n}",
-    )]
     pub fn storage(id: impl Into<String>) -> Self {
         Self::Storage(id.into())
     }
 
+    /// Creates an explicitly raw command-storage data target.
+    pub fn storage_raw(id: impl Into<String>) -> Self {
+        Self::StorageRaw(id.into())
+    }
+
     /// Creates an untyped NBT reference at the supplied path under this target.
-    #[sand_macros::api(
-        registry = sand_api_contract,
-        path = "sand::data::DataTarget::path",
-        aliases = ["sand::cmd::DataTarget::path", "sand::command::DataTarget::path", "sand::data::NbtLocation::path", "sand::prelude::NbtLocation::path", "sand::prelude::cmd::DataTarget::path", "sand::state::NbtLocation::path"],
-        module = "sand::data",
-        kind = "method",
-        summary = "Creates an untyped NBT reference at the supplied path under this target.",
-        context = "Creates an untyped NBT reference at the supplied path under this target. This API models a typed NBT value, path, target, or data command. Raw SNBT entry points are explicit escape hatches rather than the normal representation.",
-        minecraft = "Operations render vanilla data commands against entity, block, or namespaced command-storage targets and validate writable target cardinality.",
-        use_when = ["Reading or mutating structured Minecraft NBT through typed paths and values"],
-        avoid_when = ["A scoreboard-backed state field is simpler, or the input is untrusted raw SNBT"],
-        params(path = "`path` provides the typed resource identifier or location used to create an untyped NBT reference at the supplied path under this target."),
-        returns = "The `NbtRef` value produced to create an untyped NBT reference at the supplied path under this target.",
-        example = "use sand::prelude::*;\n\nfn demonstrate(data_target_value: &sand::data::DataTarget, path: impl Into < sand::data::NbtPath >)  {\n    let path = data_target_value.path(path);\n}",
-    )]
     pub fn path(&self, path: impl Into<NbtPath>) -> NbtRef {
-        NbtRef::new(self.clone(), path.into())
+        NbtRef::__from_parts(self.clone(), path.into())
     }
 
     /// Creates a typed NBT reference at the supplied path under this target.
-    #[sand_macros::api(
-        registry = sand_api_contract,
-        path = "sand::data::DataTarget::typed_path",
-        aliases = ["sand::cmd::DataTarget::typed_path", "sand::command::DataTarget::typed_path", "sand::data::NbtLocation::typed_path", "sand::prelude::NbtLocation::typed_path", "sand::prelude::cmd::DataTarget::typed_path", "sand::state::NbtLocation::typed_path"],
-        module = "sand::data",
-        kind = "method",
-        summary = "Creates a typed NBT reference at the supplied path under this target.",
-        context = "Creates a typed NBT reference at the supplied path under this target. This API models a typed NBT value, path, target, or data command. Raw SNBT entry points are explicit escape hatches rather than the normal representation.",
-        minecraft = "Operations render vanilla data commands against entity, block, or namespaced command-storage targets and validate writable target cardinality.",
-        use_when = ["Reading or mutating structured Minecraft NBT through typed paths and values"],
-        avoid_when = ["A scoreboard-backed state field is simpler, or the input is untrusted raw SNBT"],
-        params(path = "`path` provides the typed resource identifier or location used to create a typed NBT reference at the supplied path under this target."),
-        returns = "The `NbtRef < T >` value produced to create a typed NBT reference at the supplied path under this target.",
-        example = "use sand::prelude::*;\n\nfn demonstrate<T: 'static>(data_target_value: &sand::data::DataTarget, path: impl Into < sand::data::NbtPath >)  {\n    let typed_path = data_target_value.typed_path::<T>(path);\n}",
-    )]
     pub fn typed_path<T>(&self, path: impl Into<NbtPath>) -> NbtRef<T> {
-        NbtRef::new(self.clone(), path.into())
+        NbtRef::__from_parts(self.clone(), path.into())
     }
 
     /// Builds the typed Minecraft data modification for merge.
-    #[sand_macros::api(
-        registry = sand_api_contract,
-        path = "sand::data::DataTarget::merge",
-        aliases = ["sand::cmd::DataTarget::merge", "sand::command::DataTarget::merge", "sand::data::NbtLocation::merge", "sand::prelude::NbtLocation::merge", "sand::prelude::cmd::DataTarget::merge", "sand::state::NbtLocation::merge"],
-        module = "sand::data",
-        kind = "method",
-        summary = "Builds the typed Minecraft data modification for merge.",
-        context = "Builds the typed Minecraft data modification for merge. This API models a typed NBT value, path, target, or data command. Raw SNBT entry points are explicit escape hatches rather than the normal representation.",
-        minecraft = "Operations render vanilla data commands against entity, block, or namespaced command-storage targets and validate writable target cardinality.",
-        use_when = ["Reading or mutating structured Minecraft NBT through typed paths and values"],
-        avoid_when = ["A scoreboard-backed state field is simpler, or the input is untrusted raw SNBT"],
-        params(value = "`value` provides the value being applied or compared used to build the typed Minecraft data modification for merge."),
-        returns = "The `DataCommand` value produced to build the typed Minecraft data modification for merge.",
-        example = "use sand::prelude::*;\n\nfn demonstrate(data_target_value: &sand::data::DataTarget, value: sand::data::NbtCompound)  {\n    let merge = data_target_value.merge(value);\n}",
-    )]
     pub fn merge(&self, value: NbtCompound) -> DataCommand {
         DataCommand::Merge {
             target: self.clone(),
@@ -777,6 +679,7 @@ impl DataTarget {
     fn validate(&self, write: bool) -> CommandResult<()> {
         match self {
             Self::Storage(id) => validate_resource_location(id),
+            Self::StorageRaw(_) => Ok(()),
             Self::Block(_) => Ok(()),
             Self::Entity(selector) => {
                 let rendered = selector.to_string();
@@ -799,7 +702,7 @@ impl fmt::Display for DataTarget {
         match self {
             Self::Entity(selector) => write!(f, "entity {selector}"),
             Self::Block(position) => write!(f, "block {position}"),
-            Self::Storage(id) => write!(f, "storage {id}"),
+            Self::Storage(id) | Self::StorageRaw(id) => write!(f, "storage {id}"),
         }
     }
 }
@@ -837,24 +740,30 @@ fn selector_may_be_many(selector: &str) -> bool {
 #[sand_macros::api(
     registry = sand_api_contract,
     path = "sand::data::Nbt",
-    aliases = ["sand::cmd::Nbt", "sand::command::Nbt", "sand::prelude::Nbt", "sand::prelude::cmd::Nbt", "sand::state::Nbt"],
+    aliases = ["sand::cmd::Nbt", "sand::command::Nbt", "sand::prelude::Nbt", "sand::prelude::cmd::Nbt"],
     module = "sand::data",
-    summary = "Factory for discoverable typed NBT target construction.",
-    context = "Factory for discoverable typed NBT target construction. This API models a typed NBT value, path, target, or data command. Raw SNBT entry points are explicit escape hatches rather than the normal representation.",
+    summary = "The canonical root for entity, block, or command-storage NBT.",
+    context = "An Nbt root identifies exactly one of Minecraft's three data locations. Select a path to obtain an NbtRef<T>, or merge a typed compound into the root.",
     minecraft = "Operations render vanilla data commands against entity, block, or namespaced command-storage targets and validate writable target cardinality.",
     use_when = ["Reading or mutating structured Minecraft NBT through typed paths and values"],
     avoid_when = ["A scoreboard-backed state field is simpler, or the input is untrusted raw SNBT"],
     example = "use sand::data::Nbt;",
 )]
-/// Factory for discoverable typed NBT target construction.
-pub struct Nbt;
+/// The canonical root for entity, block, or command-storage NBT.
+///
+/// Construct a root with [`Nbt::entity`], [`Nbt::block`], or
+/// [`Nbt::storage`], then select a typed path with [`Nbt::typed_path`].
+#[derive(Debug, Clone)]
+pub struct Nbt {
+    location: DataTarget,
+}
 
 impl Nbt {
     /// Starts an entity-backed NBT target from a typed selector.
     #[sand_macros::api(
         registry = sand_api_contract,
         path = "sand::data::Nbt::entity",
-        aliases = ["sand::cmd::Nbt::entity", "sand::command::Nbt::entity", "sand::prelude::Nbt::entity", "sand::prelude::cmd::Nbt::entity", "sand::state::Nbt::entity"],
+        aliases = ["sand::cmd::Nbt::entity", "sand::command::Nbt::entity", "sand::prelude::Nbt::entity", "sand::prelude::cmd::Nbt::entity"],
         module = "sand::data",
         kind = "method",
         summary = "Starts an entity-backed NBT target from a typed selector.",
@@ -863,18 +772,18 @@ impl Nbt {
         use_when = ["Reading or mutating structured Minecraft NBT through typed paths and values"],
         avoid_when = ["A scoreboard-backed state field is simpler, or the input is untrusted raw SNBT"],
         params(selector = "`selector` provides the Minecraft target selection used to start an entity-backed NBT target from a typed selector."),
-        returns = "The `NbtTarget` value produced to start an entity-backed NBT target from a typed selector.",
+        returns = "An `Nbt` root backed by the selected entity.",
         example = "use sand::prelude::*;\n\nfn demonstrate(selector: sand::command::Target)  {\n    let entity = sand::data::Nbt::entity(selector);\n}",
     )]
-    pub fn entity(selector: impl TargetArgument) -> NbtTarget {
-        NbtTarget::new(DataTarget::entity(selector))
+    pub fn entity(selector: impl TargetArgument) -> Self {
+        Self::new(DataTarget::entity(selector))
     }
 
     /// Starts a block-backed NBT target from typed coordinates.
     #[sand_macros::api(
         registry = sand_api_contract,
         path = "sand::data::Nbt::block",
-        aliases = ["sand::cmd::Nbt::block", "sand::command::Nbt::block", "sand::prelude::Nbt::block", "sand::prelude::cmd::Nbt::block", "sand::state::Nbt::block"],
+        aliases = ["sand::cmd::Nbt::block", "sand::command::Nbt::block", "sand::prelude::Nbt::block", "sand::prelude::cmd::Nbt::block"],
         module = "sand::data",
         kind = "method",
         summary = "Starts a block-backed NBT target from typed coordinates.",
@@ -883,18 +792,18 @@ impl Nbt {
         use_when = ["Reading or mutating structured Minecraft NBT through typed paths and values"],
         avoid_when = ["A scoreboard-backed state field is simpler, or the input is untrusted raw SNBT"],
         params(position = "`position` is used to start a block-backed NBT target from typed coordinates."),
-        returns = "The `NbtTarget` value produced to start a block-backed NBT target from typed coordinates.",
+        returns = "An `Nbt` root backed by the selected block entity.",
         example = "use sand::prelude::*;\n\nfn demonstrate(position: sand::command::BlockPos)  {\n    let block = sand::data::Nbt::block(position);\n}",
     )]
-    pub fn block(position: BlockPos) -> NbtTarget {
-        NbtTarget::new(DataTarget::block(position))
+    pub fn block(position: BlockPos) -> Self {
+        Self::new(DataTarget::block(position))
     }
 
     /// Starts a command-storage-backed NBT target from a namespaced identifier.
     #[sand_macros::api(
         registry = sand_api_contract,
         path = "sand::data::Nbt::storage",
-        aliases = ["sand::cmd::Nbt::storage", "sand::command::Nbt::storage", "sand::prelude::Nbt::storage", "sand::prelude::cmd::Nbt::storage", "sand::state::Nbt::storage"],
+        aliases = ["sand::cmd::Nbt::storage", "sand::command::Nbt::storage", "sand::prelude::Nbt::storage", "sand::prelude::cmd::Nbt::storage"],
         module = "sand::data",
         kind = "method",
         summary = "Starts a command-storage-backed NBT target from a namespaced identifier.",
@@ -902,78 +811,32 @@ impl Nbt {
         minecraft = "Operations render vanilla data commands against entity, block, or namespaced command-storage targets and validate writable target cardinality.",
         use_when = ["Reading or mutating structured Minecraft NBT through typed paths and values"],
         avoid_when = ["A scoreboard-backed state field is simpler, or the input is untrusted raw SNBT"],
-        params(id = "`id` provides the typed resource identifier or location used to start a command-storage-backed NBT target from a namespaced identifier."),
-        returns = "The `NbtTarget` value produced to start a command-storage-backed NBT target from a namespaced identifier.",
-        example = "use sand::prelude::*;\n\nfn demonstrate(id: impl Into < String >)  {\n    let storage = sand::data::Nbt::storage(id);\n}",
+        params(id = "The validated ResourceLocation identifying command storage."),
+        returns = "An `Nbt` root backed by command storage.",
+        example = "use sand::prelude::*;\nlet storage = Nbt::storage(ResourceLocation::new(\"demo\", \"state\").unwrap());",
     )]
-    pub fn storage(id: impl Into<String>) -> NbtTarget {
-        NbtTarget::new(DataTarget::storage(id))
+    pub fn storage(id: impl RegistryReference<CommandStorage>) -> Self {
+        Self::new(DataTarget::storage(id.registry_id()))
+    }
+
+    /// Starts command-storage NBT from an explicitly raw identifier.
+    #[sand_macros::api(registry = sand_api_contract, path = "sand::data::Nbt::storage_raw", aliases = ["sand::cmd::Nbt::storage_raw", "sand::command::Nbt::storage_raw", "sand::prelude::Nbt::storage_raw", "sand::prelude::cmd::Nbt::storage_raw"], module = "sand::data", kind = "method", summary = "Starts command-storage NBT from an explicitly raw identifier.", context = "This escape hatch is for future or modded storage syntax that a validated ResourceLocation cannot represent.", minecraft = "Preserves the supplied storage token verbatim while subsequent operations continue validating selectors, NBT paths, values, and command structure.", use_when = ["Using unsupported command-storage identifier syntax"], avoid_when = ["A validated ResourceLocation is available"], params(id = "The unchecked command-storage token."), returns = "An Nbt root backed by the raw storage token.", example = "let storage = Nbt::storage_raw(\"mod:future_storage\");")]
+    pub fn storage_raw(id: impl Into<String>) -> Self {
+        Self::new(DataTarget::storage_raw(id))
     }
 }
 
-#[sand_macros::api(
-    registry = sand_api_contract,
-    path = "sand::data::NbtTarget",
-    aliases = ["sand::cmd::NbtTarget", "sand::command::NbtTarget", "sand::prelude::NbtTarget", "sand::prelude::cmd::NbtTarget", "sand::state::NbtTarget"],
-    module = "sand::data",
-    summary = "An NBT location before a path is selected.",
-    context = "An NBT location before a path is selected. This API models a typed NBT value, path, target, or data command. Raw SNBT entry points are explicit escape hatches rather than the normal representation.",
-    minecraft = "Operations render vanilla data commands against entity, block, or namespaced command-storage targets and validate writable target cardinality.",
-    use_when = ["Reading or mutating structured Minecraft NBT through typed paths and values"],
-    avoid_when = ["A scoreboard-backed state field is simpler, or the input is untrusted raw SNBT"],
-    example = "use sand::data::NbtTarget;",
-)]
-/// An NBT location before a path is selected.
-#[derive(Debug, Clone)]
-pub struct NbtTarget {
-    location: DataTarget,
-}
-
-impl NbtTarget {
+impl Nbt {
     /// Wraps a concrete data-command location as an NBT target.
-    #[sand_macros::api(
-        registry = sand_api_contract,
-        path = "sand::data::NbtTarget::new",
-        aliases = ["sand::cmd::NbtTarget::new", "sand::command::NbtTarget::new", "sand::prelude::NbtTarget::new", "sand::prelude::cmd::NbtTarget::new", "sand::state::NbtTarget::new"],
-        module = "sand::data",
-        kind = "method",
-        summary = "Wraps a concrete data-command location as an NBT target.",
-        context = "Wraps a concrete data-command location as an NBT target. This API models a typed NBT value, path, target, or data command. Raw SNBT entry points are explicit escape hatches rather than the normal representation.",
-        minecraft = "Operations render vanilla data commands against entity, block, or namespaced command-storage targets and validate writable target cardinality.",
-        use_when = ["Reading or mutating structured Minecraft NBT through typed paths and values"],
-        avoid_when = ["A scoreboard-backed state field is simpler, or the input is untrusted raw SNBT"],
-        params(location = "`location` provides the typed resource identifier or location used to wrap a concrete data-command location as an NBT target."),
-        returns = "A `NbtTarget` wrapping a concrete data-command location as an NBT target.",
-        example = "use sand::prelude::*;\n\nfn demonstrate(location: sand::data::DataTarget)  {\n    let nbt_target = sand::data::NbtTarget::new(location);\n}",
-    )]
-    pub fn new(location: DataTarget) -> Self {
+    pub(crate) fn new(location: DataTarget) -> Self {
         Self { location }
-    }
-
-    /// Returns the typed NBT location targeted by this reference.
-    #[sand_macros::api(
-        registry = sand_api_contract,
-        path = "sand::data::NbtTarget::location",
-        aliases = ["sand::cmd::NbtTarget::location", "sand::command::NbtTarget::location", "sand::prelude::NbtTarget::location", "sand::prelude::cmd::NbtTarget::location", "sand::state::NbtTarget::location"],
-        module = "sand::data",
-        kind = "method",
-        summary = "Returns the typed NBT location targeted by this reference.",
-        context = "Returns the typed NBT location targeted by this reference. This API models a typed NBT value, path, target, or data command. Raw SNBT entry points are explicit escape hatches rather than the normal representation.",
-        minecraft = "Operations render vanilla data commands against entity, block, or namespaced command-storage targets and validate writable target cardinality.",
-        use_when = ["Reading or mutating structured Minecraft NBT through typed paths and values"],
-        avoid_when = ["A scoreboard-backed state field is simpler, or the input is untrusted raw SNBT"],
-        returns = "Returns the typed NBT location targeted by this reference.",
-        example = "use sand::prelude::*;\n\nfn demonstrate(nbt_target_value: &sand::data::NbtTarget)  {\n    let location = nbt_target_value.location();\n}",
-    )]
-    pub fn location(&self) -> &DataTarget {
-        &self.location
     }
 
     /// Extends this typed NBT reference with the supplied path selector.
     #[sand_macros::api(
         registry = sand_api_contract,
-        path = "sand::data::NbtTarget::path",
-        aliases = ["sand::cmd::NbtTarget::path", "sand::command::NbtTarget::path", "sand::prelude::NbtTarget::path", "sand::prelude::cmd::NbtTarget::path", "sand::state::NbtTarget::path"],
+        path = "sand::data::Nbt::path",
+        aliases = ["sand::cmd::Nbt::path", "sand::command::Nbt::path", "sand::prelude::Nbt::path", "sand::prelude::cmd::Nbt::path"],
         module = "sand::data",
         kind = "method",
         summary = "Extends this typed NBT reference with the supplied path selector.",
@@ -983,17 +846,17 @@ impl NbtTarget {
         avoid_when = ["A scoreboard-backed state field is simpler, or the input is untrusted raw SNBT"],
         params(path = "`path` provides the typed resource identifier or location used to extend this typed NBT reference with the supplied path selector."),
         returns = "The `NbtRef` value produced to extend this typed NBT reference with the supplied path selector.",
-        example = "use sand::prelude::*;\n\nfn demonstrate(nbt_target_value: &sand::data::NbtTarget, path: impl Into < sand::data::NbtPath >)  {\n    let path = nbt_target_value.path(path);\n}",
+        example = "use sand::prelude::*;\n\nfn demonstrate(nbt_target_value: &sand::data::Nbt, path: impl Into < sand::data::NbtPath >)  {\n    let path = nbt_target_value.path(path);\n}",
     )]
     pub fn path(&self, path: impl Into<NbtPath>) -> NbtRef {
-        NbtRef::new(self.location.clone(), path.into())
+        NbtRef::__from_parts(self.location.clone(), path.into())
     }
 
     /// Extends this typed NBT reference with the supplied typed path selector.
     #[sand_macros::api(
         registry = sand_api_contract,
-        path = "sand::data::NbtTarget::typed_path",
-        aliases = ["sand::cmd::NbtTarget::typed_path", "sand::command::NbtTarget::typed_path", "sand::prelude::NbtTarget::typed_path", "sand::prelude::cmd::NbtTarget::typed_path", "sand::state::NbtTarget::typed_path"],
+        path = "sand::data::Nbt::typed_path",
+        aliases = ["sand::cmd::Nbt::typed_path", "sand::command::Nbt::typed_path", "sand::prelude::Nbt::typed_path", "sand::prelude::cmd::Nbt::typed_path"],
         module = "sand::data",
         kind = "method",
         summary = "Extends this typed NBT reference with the supplied typed path selector.",
@@ -1003,17 +866,17 @@ impl NbtTarget {
         avoid_when = ["A scoreboard-backed state field is simpler, or the input is untrusted raw SNBT"],
         params(path = "`path` provides the typed resource identifier or location used to extend this typed NBT reference with the supplied typed path selector."),
         returns = "The `NbtRef < T >` value produced to extend this typed NBT reference with the supplied typed path selector.",
-        example = "use sand::prelude::*;\n\nfn demonstrate<T: 'static>(nbt_target_value: &sand::data::NbtTarget, path: impl Into < sand::data::NbtPath >)  {\n    let typed_path = nbt_target_value.typed_path::<T>(path);\n}",
+        example = "use sand::prelude::*;\n\nfn demonstrate<T: 'static>(nbt_target_value: &sand::data::Nbt, path: impl Into < sand::data::NbtPath >)  {\n    let typed_path = nbt_target_value.typed_path::<T>(path);\n}",
     )]
     pub fn typed_path<T>(&self, path: impl Into<NbtPath>) -> NbtRef<T> {
-        NbtRef::new(self.location.clone(), path.into())
+        NbtRef::__from_parts(self.location.clone(), path.into())
     }
 
     /// Builds the typed Minecraft data modification for merge.
     #[sand_macros::api(
         registry = sand_api_contract,
-        path = "sand::data::NbtTarget::merge",
-        aliases = ["sand::cmd::NbtTarget::merge", "sand::command::NbtTarget::merge", "sand::prelude::NbtTarget::merge", "sand::prelude::cmd::NbtTarget::merge", "sand::state::NbtTarget::merge"],
+        path = "sand::data::Nbt::merge",
+        aliases = ["sand::cmd::Nbt::merge", "sand::command::Nbt::merge", "sand::prelude::Nbt::merge", "sand::prelude::cmd::Nbt::merge"],
         module = "sand::data",
         kind = "method",
         summary = "Builds the typed Minecraft data modification for merge.",
@@ -1023,7 +886,7 @@ impl NbtTarget {
         avoid_when = ["A scoreboard-backed state field is simpler, or the input is untrusted raw SNBT"],
         params(value = "`value` provides the value being applied or compared used to build the typed Minecraft data modification for merge."),
         returns = "The `DataCommand` value produced to build the typed Minecraft data modification for merge.",
-        example = "use sand::prelude::*;\n\nfn demonstrate(nbt_target_value: &sand::data::NbtTarget, value: sand::data::NbtCompound)  {\n    let merge = nbt_target_value.merge(value);\n}",
+        example = "use sand::prelude::*;\n\nfn demonstrate(nbt_target_value: &sand::data::Nbt, value: sand::data::NbtCompound)  {\n    let merge = nbt_target_value.merge(value);\n}",
     )]
     pub fn merge(&self, value: NbtCompound) -> DataCommand {
         self.location.merge(value)
@@ -1033,7 +896,7 @@ impl NbtTarget {
 #[sand_macros::api(
     registry = sand_api_contract,
     path = "sand::data::UntypedNbt",
-    aliases = ["sand::cmd::UntypedNbt", "sand::command::UntypedNbt", "sand::prelude::UntypedNbt", "sand::prelude::cmd::UntypedNbt", "sand::state::UntypedNbt"],
+    aliases = ["sand::cmd::UntypedNbt", "sand::command::UntypedNbt", "sand::prelude::UntypedNbt", "sand::prelude::cmd::UntypedNbt"],
     module = "sand::data",
     summary = "Marker for an NBT reference without a declared schema value type.",
     context = "Marker for an NBT reference without a declared schema value type. This API models a typed NBT value, path, target, or data command. Raw SNBT entry points are explicit escape hatches rather than the normal representation.",
@@ -1049,7 +912,7 @@ pub struct UntypedNbt;
 #[sand_macros::api(
     registry = sand_api_contract,
     path = "sand::data::NbtRef",
-    aliases = ["sand::cmd::NbtRef", "sand::command::NbtRef", "sand::prelude::NbtRef", "sand::prelude::cmd::NbtRef", "sand::state::NbtRef"],
+    aliases = ["sand::cmd::NbtRef", "sand::command::NbtRef", "sand::prelude::NbtRef", "sand::prelude::cmd::NbtRef"],
     module = "sand::data",
     summary = "A typed target-plus-path reference shared by storage, entity, block, schema, and inventory APIs.",
     context = "A typed target-plus-path reference shared by storage, entity, block, schema, and inventory APIs. This API models a typed NBT value, path, target, or data command. Raw SNBT entry points are explicit escape hatches rather than the normal representation.",
@@ -1067,24 +930,15 @@ pub struct NbtRef<T = UntypedNbt> {
     marker: PhantomData<fn() -> T>,
 }
 
-impl<T> NbtRef<T> {
-    /// Creates a typed NBT reference from a target and structured path.
-    #[sand_macros::api(
-        registry = sand_api_contract,
-        path = "sand::data::NbtRef::new",
-        aliases = ["sand::cmd::NbtRef::new", "sand::command::NbtRef::new", "sand::prelude::NbtRef::new", "sand::prelude::cmd::NbtRef::new", "sand::state::NbtRef::new"],
-        module = "sand::data",
-        kind = "method",
-        summary = "Creates a typed NBT reference from a target and structured path.",
-        context = "Creates a typed NBT reference from a target and structured path. This API models a typed NBT value, path, target, or data command. Raw SNBT entry points are explicit escape hatches rather than the normal representation.",
-        minecraft = "Operations render vanilla data commands against entity, block, or namespaced command-storage targets and validate writable target cardinality.",
-        use_when = ["Reading or mutating structured Minecraft NBT through typed paths and values"],
-        avoid_when = ["A scoreboard-backed state field is simpler, or the input is untrusted raw SNBT"],
-        params(location = "`location` provides the typed resource identifier or location used to create a typed NBT reference from a target and structured path.", path = "`path` provides the typed resource identifier or location used to create a typed NBT reference from a target and structured path."),
-        returns = "A `NbtRef` representing a typed NBT reference from a target and structured path.",
-        example = "use sand::prelude::*;\n\nfn demonstrate<T: 'static>(location: sand::data::DataTarget, path: sand::data::NbtPath)  {\n    let nbt_ref = sand::data::NbtRef ::< T >::new(location, path);\n}",
-    )]
-    pub fn new(location: DataTarget, path: NbtPath) -> Self {
+/// Compiler-only access to the lowering representation behind [`NbtRef`].
+#[doc(hidden)]
+pub trait NbtRefLowering: Sized {
+    fn __from_parts(location: DataTarget, path: NbtPath) -> Self;
+    fn __location(&self) -> &DataTarget;
+}
+
+impl<T> NbtRefLowering for NbtRef<T> {
+    fn __from_parts(location: DataTarget, path: NbtPath) -> Self {
         Self {
             location,
             path,
@@ -1092,30 +946,17 @@ impl<T> NbtRef<T> {
         }
     }
 
-    /// Returns the typed NBT location targeted by this reference.
-    #[sand_macros::api(
-        registry = sand_api_contract,
-        path = "sand::data::NbtRef::location",
-        aliases = ["sand::cmd::NbtRef::location", "sand::command::NbtRef::location", "sand::prelude::NbtRef::location", "sand::prelude::cmd::NbtRef::location", "sand::state::NbtRef::location"],
-        module = "sand::data",
-        kind = "method",
-        summary = "Returns the typed NBT location targeted by this reference.",
-        context = "Returns the typed NBT location targeted by this reference. This API models a typed NBT value, path, target, or data command. Raw SNBT entry points are explicit escape hatches rather than the normal representation.",
-        minecraft = "Operations render vanilla data commands against entity, block, or namespaced command-storage targets and validate writable target cardinality.",
-        use_when = ["Reading or mutating structured Minecraft NBT through typed paths and values"],
-        avoid_when = ["A scoreboard-backed state field is simpler, or the input is untrusted raw SNBT"],
-        returns = "Returns the typed NBT location targeted by this reference.",
-        example = "use sand::prelude::*;\n\nfn demonstrate<T: 'static>(nbt_ref_value: &sand::data::NbtRef < T >)  {\n    let location = nbt_ref_value.location();\n}",
-    )]
-    pub fn location(&self) -> &DataTarget {
+    fn __location(&self) -> &DataTarget {
         &self.location
     }
+}
 
+impl<T> NbtRef<T> {
     /// Returns the typed NBT path carried by this reference.
     #[sand_macros::api(
         registry = sand_api_contract,
         path = "sand::data::NbtRef::path_value",
-        aliases = ["sand::cmd::NbtRef::path_value", "sand::command::NbtRef::path_value", "sand::prelude::NbtRef::path_value", "sand::prelude::cmd::NbtRef::path_value", "sand::state::NbtRef::path_value"],
+        aliases = ["sand::cmd::NbtRef::path_value", "sand::command::NbtRef::path_value", "sand::prelude::NbtRef::path_value", "sand::prelude::cmd::NbtRef::path_value"],
         module = "sand::data",
         kind = "method",
         summary = "Returns the typed NBT path carried by this reference.",
@@ -1134,7 +975,7 @@ impl<T> NbtRef<T> {
     #[sand_macros::api(
         registry = sand_api_contract,
         path = "sand::data::NbtRef::as_str",
-        aliases = ["sand::cmd::NbtRef::as_str", "sand::command::NbtRef::as_str", "sand::prelude::NbtRef::as_str", "sand::prelude::cmd::NbtRef::as_str", "sand::state::NbtRef::as_str"],
+        aliases = ["sand::cmd::NbtRef::as_str", "sand::command::NbtRef::as_str", "sand::prelude::NbtRef::as_str", "sand::prelude::cmd::NbtRef::as_str"],
         module = "sand::data",
         kind = "method",
         summary = "The path text, without its location.",
@@ -1156,7 +997,7 @@ impl<T> NbtRef<T> {
     #[sand_macros::api(
         registry = sand_api_contract,
         path = "sand::data::NbtRef::storage",
-        aliases = ["sand::cmd::NbtRef::storage", "sand::command::NbtRef::storage", "sand::prelude::NbtRef::storage", "sand::prelude::cmd::NbtRef::storage", "sand::state::NbtRef::storage"],
+        aliases = ["sand::cmd::NbtRef::storage", "sand::command::NbtRef::storage", "sand::prelude::NbtRef::storage", "sand::prelude::cmd::NbtRef::storage"],
         module = "sand::data",
         kind = "method",
         summary = "Compatibility accessor for storage-backed references.",
@@ -1169,7 +1010,7 @@ impl<T> NbtRef<T> {
     )]
     pub fn storage(&self) -> &str {
         match &self.location {
-            DataTarget::Storage(id) => id,
+            DataTarget::Storage(id) | DataTarget::StorageRaw(id) => id,
             _ => "",
         }
     }
@@ -1178,7 +1019,7 @@ impl<T> NbtRef<T> {
     #[sand_macros::api(
         registry = sand_api_contract,
         path = "sand::data::NbtRef::field",
-        aliases = ["sand::cmd::NbtRef::field", "sand::command::NbtRef::field", "sand::prelude::NbtRef::field", "sand::prelude::cmd::NbtRef::field", "sand::state::NbtRef::field"],
+        aliases = ["sand::cmd::NbtRef::field", "sand::command::NbtRef::field", "sand::prelude::NbtRef::field", "sand::prelude::cmd::NbtRef::field"],
         module = "sand::data",
         kind = "method",
         summary = "Extends this typed NBT reference with the supplied field selector.",
@@ -1191,14 +1032,14 @@ impl<T> NbtRef<T> {
         example = "use sand::prelude::*;\n\nfn demonstrate<T: 'static>(nbt_ref_value: &sand::data::NbtRef < T >, key: impl AsRef < str >)  {\n    let field = nbt_ref_value.field(key);\n}",
     )]
     pub fn field(&self, key: impl AsRef<str>) -> NbtRef<T> {
-        NbtRef::new(self.location.clone(), self.path.field(key))
+        NbtRef::__from_parts(self.location.clone(), self.path.field(key))
     }
 
     /// Extends this typed NBT reference with the supplied typed field selector.
     #[sand_macros::api(
         registry = sand_api_contract,
         path = "sand::data::NbtRef::typed_field",
-        aliases = ["sand::cmd::NbtRef::typed_field", "sand::command::NbtRef::typed_field", "sand::prelude::NbtRef::typed_field", "sand::prelude::cmd::NbtRef::typed_field", "sand::state::NbtRef::typed_field"],
+        aliases = ["sand::cmd::NbtRef::typed_field", "sand::command::NbtRef::typed_field", "sand::prelude::NbtRef::typed_field", "sand::prelude::cmd::NbtRef::typed_field"],
         module = "sand::data",
         kind = "method",
         summary = "Extends this typed NBT reference with the supplied typed field selector.",
@@ -1211,14 +1052,14 @@ impl<T> NbtRef<T> {
         example = "use sand::prelude::*;\n\nfn demonstrate<T: 'static, U: 'static>(nbt_ref_value: &sand::data::NbtRef < T >, key: impl AsRef < str >)  {\n    let typed_field = nbt_ref_value.typed_field::<U>(key);\n}",
     )]
     pub fn typed_field<U>(&self, key: impl AsRef<str>) -> NbtRef<U> {
-        NbtRef::new(self.location.clone(), self.path.field(key))
+        NbtRef::__from_parts(self.location.clone(), self.path.field(key))
     }
 
     /// Extends this typed NBT reference with the supplied key selector.
     #[sand_macros::api(
         registry = sand_api_contract,
         path = "sand::data::NbtRef::key",
-        aliases = ["sand::cmd::NbtRef::key", "sand::command::NbtRef::key", "sand::prelude::NbtRef::key", "sand::prelude::cmd::NbtRef::key", "sand::state::NbtRef::key"],
+        aliases = ["sand::cmd::NbtRef::key", "sand::command::NbtRef::key", "sand::prelude::NbtRef::key", "sand::prelude::cmd::NbtRef::key"],
         module = "sand::data",
         kind = "method",
         summary = "Extends this typed NBT reference with the supplied key selector.",
@@ -1238,7 +1079,7 @@ impl<T> NbtRef<T> {
     #[sand_macros::api(
         registry = sand_api_contract,
         path = "sand::data::NbtRef::index",
-        aliases = ["sand::cmd::NbtRef::index", "sand::command::NbtRef::index", "sand::prelude::NbtRef::index", "sand::prelude::cmd::NbtRef::index", "sand::state::NbtRef::index"],
+        aliases = ["sand::cmd::NbtRef::index", "sand::command::NbtRef::index", "sand::prelude::NbtRef::index", "sand::prelude::cmd::NbtRef::index"],
         module = "sand::data",
         kind = "method",
         summary = "Extends this typed NBT reference with the supplied index selector.",
@@ -1251,14 +1092,14 @@ impl<T> NbtRef<T> {
         example = "use sand::prelude::*;\n\nfn demonstrate<T: 'static>(nbt_ref_value: &sand::data::NbtRef < T >, index: i32)  {\n    let index = nbt_ref_value.index(index);\n}",
     )]
     pub fn index(&self, index: i32) -> NbtRef<T> {
-        NbtRef::new(self.location.clone(), self.path.index(index))
+        NbtRef::__from_parts(self.location.clone(), self.path.index(index))
     }
 
     /// Builds the typed Minecraft data query for get.
     #[sand_macros::api(
         registry = sand_api_contract,
         path = "sand::data::NbtRef::get",
-        aliases = ["sand::cmd::NbtRef::get", "sand::command::NbtRef::get", "sand::prelude::NbtRef::get", "sand::prelude::cmd::NbtRef::get", "sand::state::NbtRef::get"],
+        aliases = ["sand::cmd::NbtRef::get", "sand::command::NbtRef::get", "sand::prelude::NbtRef::get", "sand::prelude::cmd::NbtRef::get"],
         module = "sand::data",
         kind = "method",
         summary = "Builds the typed Minecraft data query for get.",
@@ -1280,7 +1121,7 @@ impl<T> NbtRef<T> {
     #[sand_macros::api(
         registry = sand_api_contract,
         path = "sand::data::NbtRef::get_scaled",
-        aliases = ["sand::cmd::NbtRef::get_scaled", "sand::command::NbtRef::get_scaled", "sand::prelude::NbtRef::get_scaled", "sand::prelude::cmd::NbtRef::get_scaled", "sand::state::NbtRef::get_scaled"],
+        aliases = ["sand::cmd::NbtRef::get_scaled", "sand::command::NbtRef::get_scaled", "sand::prelude::NbtRef::get_scaled", "sand::prelude::cmd::NbtRef::get_scaled"],
         module = "sand::data",
         kind = "method",
         summary = "Builds the typed Minecraft data query for get scaled.",
@@ -1303,7 +1144,7 @@ impl<T> NbtRef<T> {
     #[sand_macros::api(
         registry = sand_api_contract,
         path = "sand::data::NbtRef::set",
-        aliases = ["sand::cmd::NbtRef::set", "sand::command::NbtRef::set", "sand::prelude::NbtRef::set", "sand::prelude::cmd::NbtRef::set", "sand::state::NbtRef::set"],
+        aliases = ["sand::cmd::NbtRef::set", "sand::command::NbtRef::set", "sand::prelude::NbtRef::set", "sand::prelude::cmd::NbtRef::set"],
         module = "sand::data",
         kind = "method",
         summary = "Builds the typed Minecraft data modification for set.",
@@ -1323,7 +1164,7 @@ impl<T> NbtRef<T> {
     #[sand_macros::api(
         registry = sand_api_contract,
         path = "sand::data::NbtRef::set_value",
-        aliases = ["sand::cmd::NbtRef::set_value", "sand::command::NbtRef::set_value", "sand::prelude::NbtRef::set_value", "sand::prelude::cmd::NbtRef::set_value", "sand::state::NbtRef::set_value"],
+        aliases = ["sand::cmd::NbtRef::set_value", "sand::command::NbtRef::set_value", "sand::prelude::NbtRef::set_value", "sand::prelude::cmd::NbtRef::set_value"],
         module = "sand::data",
         kind = "method",
         summary = "Builds the typed Minecraft data modification for set value.",
@@ -1343,7 +1184,7 @@ impl<T> NbtRef<T> {
     #[sand_macros::api(
         registry = sand_api_contract,
         path = "sand::data::NbtRef::set_int",
-        aliases = ["sand::cmd::NbtRef::set_int", "sand::command::NbtRef::set_int", "sand::prelude::NbtRef::set_int", "sand::prelude::cmd::NbtRef::set_int", "sand::state::NbtRef::set_int"],
+        aliases = ["sand::cmd::NbtRef::set_int", "sand::command::NbtRef::set_int", "sand::prelude::NbtRef::set_int", "sand::prelude::cmd::NbtRef::set_int"],
         module = "sand::data",
         kind = "method",
         summary = "Builds the typed Minecraft data modification for set int.",
@@ -1363,7 +1204,7 @@ impl<T> NbtRef<T> {
     #[sand_macros::api(
         registry = sand_api_contract,
         path = "sand::data::NbtRef::set_bool",
-        aliases = ["sand::cmd::NbtRef::set_bool", "sand::command::NbtRef::set_bool", "sand::prelude::NbtRef::set_bool", "sand::prelude::cmd::NbtRef::set_bool", "sand::state::NbtRef::set_bool"],
+        aliases = ["sand::cmd::NbtRef::set_bool", "sand::command::NbtRef::set_bool", "sand::prelude::NbtRef::set_bool", "sand::prelude::cmd::NbtRef::set_bool"],
         module = "sand::data",
         kind = "method",
         summary = "Builds the typed Minecraft data modification for set bool.",
@@ -1383,7 +1224,7 @@ impl<T> NbtRef<T> {
     #[sand_macros::api(
         registry = sand_api_contract,
         path = "sand::data::NbtRef::set_string",
-        aliases = ["sand::cmd::NbtRef::set_string", "sand::command::NbtRef::set_string", "sand::prelude::NbtRef::set_string", "sand::prelude::cmd::NbtRef::set_string", "sand::state::NbtRef::set_string"],
+        aliases = ["sand::cmd::NbtRef::set_string", "sand::command::NbtRef::set_string", "sand::prelude::NbtRef::set_string", "sand::prelude::cmd::NbtRef::set_string"],
         module = "sand::data",
         kind = "method",
         summary = "Builds the typed Minecraft data modification for set string.",
@@ -1403,7 +1244,7 @@ impl<T> NbtRef<T> {
     #[sand_macros::api(
         registry = sand_api_contract,
         path = "sand::data::NbtRef::set_raw",
-        aliases = ["sand::cmd::NbtRef::set_raw", "sand::command::NbtRef::set_raw", "sand::prelude::NbtRef::set_raw", "sand::prelude::cmd::NbtRef::set_raw", "sand::state::NbtRef::set_raw"],
+        aliases = ["sand::cmd::NbtRef::set_raw", "sand::command::NbtRef::set_raw", "sand::prelude::NbtRef::set_raw", "sand::prelude::cmd::NbtRef::set_raw"],
         module = "sand::data",
         kind = "method",
         summary = "Provides the explicit raw SNBT escape hatch after the caller accepts validation responsibility.",
@@ -1423,7 +1264,7 @@ impl<T> NbtRef<T> {
     #[sand_macros::api(
         registry = sand_api_contract,
         path = "sand::data::NbtRef::copy_from",
-        aliases = ["sand::cmd::NbtRef::copy_from", "sand::command::NbtRef::copy_from", "sand::prelude::NbtRef::copy_from", "sand::prelude::cmd::NbtRef::copy_from", "sand::state::NbtRef::copy_from"],
+        aliases = ["sand::cmd::NbtRef::copy_from", "sand::command::NbtRef::copy_from", "sand::prelude::NbtRef::copy_from", "sand::prelude::cmd::NbtRef::copy_from"],
         module = "sand::data",
         kind = "method",
         summary = "Builds the typed Minecraft data modification for copy from.",
@@ -1443,7 +1284,7 @@ impl<T> NbtRef<T> {
     #[sand_macros::api(
         registry = sand_api_contract,
         path = "sand::data::NbtRef::set_string_from",
-        aliases = ["sand::cmd::NbtRef::set_string_from", "sand::command::NbtRef::set_string_from", "sand::prelude::NbtRef::set_string_from", "sand::prelude::cmd::NbtRef::set_string_from", "sand::state::NbtRef::set_string_from"],
+        aliases = ["sand::cmd::NbtRef::set_string_from", "sand::command::NbtRef::set_string_from", "sand::prelude::NbtRef::set_string_from", "sand::prelude::cmd::NbtRef::set_string_from"],
         module = "sand::data",
         kind = "method",
         summary = "Builds the typed Minecraft data modification for set string from.",
@@ -1466,7 +1307,7 @@ impl<T> NbtRef<T> {
     #[sand_macros::api(
         registry = sand_api_contract,
         path = "sand::data::NbtRef::append",
-        aliases = ["sand::cmd::NbtRef::append", "sand::command::NbtRef::append", "sand::prelude::NbtRef::append", "sand::prelude::cmd::NbtRef::append", "sand::state::NbtRef::append"],
+        aliases = ["sand::cmd::NbtRef::append", "sand::command::NbtRef::append", "sand::prelude::NbtRef::append", "sand::prelude::cmd::NbtRef::append"],
         module = "sand::data",
         kind = "method",
         summary = "Builds the typed Minecraft data modification for append.",
@@ -1486,7 +1327,7 @@ impl<T> NbtRef<T> {
     #[sand_macros::api(
         registry = sand_api_contract,
         path = "sand::data::NbtRef::append_from",
-        aliases = ["sand::cmd::NbtRef::append_from", "sand::command::NbtRef::append_from", "sand::prelude::NbtRef::append_from", "sand::prelude::cmd::NbtRef::append_from", "sand::state::NbtRef::append_from"],
+        aliases = ["sand::cmd::NbtRef::append_from", "sand::command::NbtRef::append_from", "sand::prelude::NbtRef::append_from", "sand::prelude::cmd::NbtRef::append_from"],
         module = "sand::data",
         kind = "method",
         summary = "Builds the typed Minecraft data modification for append from.",
@@ -1509,7 +1350,7 @@ impl<T> NbtRef<T> {
     #[sand_macros::api(
         registry = sand_api_contract,
         path = "sand::data::NbtRef::prepend",
-        aliases = ["sand::cmd::NbtRef::prepend", "sand::command::NbtRef::prepend", "sand::prelude::NbtRef::prepend", "sand::prelude::cmd::NbtRef::prepend", "sand::state::NbtRef::prepend"],
+        aliases = ["sand::cmd::NbtRef::prepend", "sand::command::NbtRef::prepend", "sand::prelude::NbtRef::prepend", "sand::prelude::cmd::NbtRef::prepend"],
         module = "sand::data",
         kind = "method",
         summary = "Builds the typed Minecraft data modification for prepend.",
@@ -1532,7 +1373,7 @@ impl<T> NbtRef<T> {
     #[sand_macros::api(
         registry = sand_api_contract,
         path = "sand::data::NbtRef::prepend_from",
-        aliases = ["sand::cmd::NbtRef::prepend_from", "sand::command::NbtRef::prepend_from", "sand::prelude::NbtRef::prepend_from", "sand::prelude::cmd::NbtRef::prepend_from", "sand::state::NbtRef::prepend_from"],
+        aliases = ["sand::cmd::NbtRef::prepend_from", "sand::command::NbtRef::prepend_from", "sand::prelude::NbtRef::prepend_from", "sand::prelude::cmd::NbtRef::prepend_from"],
         module = "sand::data",
         kind = "method",
         summary = "Builds the typed Minecraft data modification for prepend from.",
@@ -1555,7 +1396,7 @@ impl<T> NbtRef<T> {
     #[sand_macros::api(
         registry = sand_api_contract,
         path = "sand::data::NbtRef::insert",
-        aliases = ["sand::cmd::NbtRef::insert", "sand::command::NbtRef::insert", "sand::prelude::NbtRef::insert", "sand::prelude::cmd::NbtRef::insert", "sand::state::NbtRef::insert"],
+        aliases = ["sand::cmd::NbtRef::insert", "sand::command::NbtRef::insert", "sand::prelude::NbtRef::insert", "sand::prelude::cmd::NbtRef::insert"],
         module = "sand::data",
         kind = "method",
         summary = "Builds the typed Minecraft data modification for insert.",
@@ -1578,7 +1419,7 @@ impl<T> NbtRef<T> {
     #[sand_macros::api(
         registry = sand_api_contract,
         path = "sand::data::NbtRef::insert_from",
-        aliases = ["sand::cmd::NbtRef::insert_from", "sand::command::NbtRef::insert_from", "sand::prelude::NbtRef::insert_from", "sand::prelude::cmd::NbtRef::insert_from", "sand::state::NbtRef::insert_from"],
+        aliases = ["sand::cmd::NbtRef::insert_from", "sand::command::NbtRef::insert_from", "sand::prelude::NbtRef::insert_from", "sand::prelude::cmd::NbtRef::insert_from"],
         module = "sand::data",
         kind = "method",
         summary = "Builds the typed Minecraft data modification for insert from.",
@@ -1601,7 +1442,7 @@ impl<T> NbtRef<T> {
     #[sand_macros::api(
         registry = sand_api_contract,
         path = "sand::data::NbtRef::merge",
-        aliases = ["sand::cmd::NbtRef::merge", "sand::command::NbtRef::merge", "sand::prelude::NbtRef::merge", "sand::prelude::cmd::NbtRef::merge", "sand::state::NbtRef::merge"],
+        aliases = ["sand::cmd::NbtRef::merge", "sand::command::NbtRef::merge", "sand::prelude::NbtRef::merge", "sand::prelude::cmd::NbtRef::merge"],
         module = "sand::data",
         kind = "method",
         summary = "Builds the typed Minecraft data modification for merge.",
@@ -1621,7 +1462,7 @@ impl<T> NbtRef<T> {
     #[sand_macros::api(
         registry = sand_api_contract,
         path = "sand::data::NbtRef::merge_from",
-        aliases = ["sand::cmd::NbtRef::merge_from", "sand::command::NbtRef::merge_from", "sand::prelude::NbtRef::merge_from", "sand::prelude::cmd::NbtRef::merge_from", "sand::state::NbtRef::merge_from"],
+        aliases = ["sand::cmd::NbtRef::merge_from", "sand::command::NbtRef::merge_from", "sand::prelude::NbtRef::merge_from", "sand::prelude::cmd::NbtRef::merge_from"],
         module = "sand::data",
         kind = "method",
         summary = "Builds the typed Minecraft data modification for merge from.",
@@ -1644,7 +1485,7 @@ impl<T> NbtRef<T> {
     #[sand_macros::api(
         registry = sand_api_contract,
         path = "sand::data::NbtRef::remove",
-        aliases = ["sand::cmd::NbtRef::remove", "sand::command::NbtRef::remove", "sand::prelude::NbtRef::remove", "sand::prelude::cmd::NbtRef::remove", "sand::state::NbtRef::remove"],
+        aliases = ["sand::cmd::NbtRef::remove", "sand::command::NbtRef::remove", "sand::prelude::NbtRef::remove", "sand::prelude::cmd::NbtRef::remove"],
         module = "sand::data",
         kind = "method",
         summary = "Builds the typed Minecraft data modification for remove.",
@@ -1670,27 +1511,13 @@ impl<T> NbtRef<T> {
     }
 
     fn untyped(&self) -> NbtRef {
-        NbtRef::new(self.location.clone(), self.path.clone())
+        NbtRef::__from_parts(self.location.clone(), self.path.clone())
     }
 }
 
 // ── Typed data command IR ────────────────────────────────────────────────────
 
 #[doc = "Defines data modify operation for typed Minecraft NBT and data commands."]
-#[sand_macros::api(
-    registry = sand_api_contract,
-    path = "sand::data::DataModifyOperation",
-    aliases = ["sand::cmd::DataModifyOperation", "sand::command::DataModifyOperation", "sand::prelude::cmd::DataModifyOperation"],
-    module = "sand::data",
-    summary = "Defines data modify operation for typed Minecraft NBT and data commands.",
-    context = "Defines data modify operation for typed Minecraft NBT and data commands. This API models a typed NBT value, path, target, or data command. Raw SNBT entry points are explicit escape hatches rather than the normal representation.",
-    minecraft = "Operations render vanilla data commands against entity, block, or namespaced command-storage targets and validate writable target cardinality.",
-    use_when = ["Reading or mutating structured Minecraft NBT through typed paths and values"],
-    avoid_when = ["A scoreboard-backed state field is simpler, or the input is untrusted raw SNBT"],
-    example = "use sand::data::DataModifyOperation;",
-    variants(Append = "Selects the append NBT or data-command operation.", Insert = "Selects the insert NBT or data-command operation.", Merge = "Selects the merge NBT or data-command operation.", Prepend = "Selects the prepend NBT or data-command operation.", Set = "Selects the set NBT or data-command operation."),
-    variant_fields(Insert = ["Selects the insert NBT or data-command operation."]),
-)]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum DataModifyOperation {
     #[doc = "Selects the set NBT or data-command operation."]
@@ -1706,20 +1533,6 @@ pub enum DataModifyOperation {
 }
 
 #[doc = "Defines data source for typed Minecraft NBT and data commands."]
-#[sand_macros::api(
-    registry = sand_api_contract,
-    path = "sand::data::DataSource",
-    aliases = ["sand::cmd::DataSource", "sand::command::DataSource", "sand::prelude::cmd::DataSource"],
-    module = "sand::data",
-    summary = "Defines data source for typed Minecraft NBT and data commands.",
-    context = "Defines data source for typed Minecraft NBT and data commands. This API models a typed NBT value, path, target, or data command. Raw SNBT entry points are explicit escape hatches rather than the normal representation.",
-    minecraft = "Operations render vanilla data commands against entity, block, or namespaced command-storage targets and validate writable target cardinality.",
-    use_when = ["Reading or mutating structured Minecraft NBT through typed paths and values"],
-    avoid_when = ["A scoreboard-backed state field is simpler, or the input is untrusted raw SNBT"],
-    example = "use sand::data::DataSource;",
-    variants(From = "Selects the from NBT or data-command operation.", String = "Selects the string NBT or data-command operation.", Value = "Selects the value NBT or data-command operation."),
-    variant_fields(From = ["Selects the from NBT or data-command operation."], String = ["Selects the string NBT or data-command operation."], Value = ["Selects the value NBT or data-command operation."]),
-)]
 #[derive(Debug, Clone)]
 pub enum DataSource {
     #[doc = "Selects the value NBT or data-command operation."]
@@ -1734,7 +1547,7 @@ pub enum DataSource {
 #[sand_macros::api(
     registry = sand_api_contract,
     path = "sand::data::DataCommand",
-    aliases = ["sand::cmd::DataCommand", "sand::command::DataCommand", "sand::prelude::DataCommand", "sand::prelude::cmd::DataCommand", "sand::state::DataCommand"],
+    aliases = ["sand::cmd::DataCommand", "sand::command::DataCommand", "sand::prelude::DataCommand", "sand::prelude::cmd::DataCommand"],
     module = "sand::data",
     summary = "Defines data command for typed Minecraft NBT and data commands.",
     context = "Defines data command for typed Minecraft NBT and data commands. This API models a typed NBT value, path, target, or data command. Raw SNBT entry points are explicit escape hatches rather than the normal representation.",
@@ -1782,7 +1595,7 @@ impl DataCommand {
     #[sand_macros::api(
         registry = sand_api_contract,
         path = "sand::data::DataCommand::try_render",
-        aliases = ["sand::cmd::DataCommand::try_render", "sand::command::DataCommand::try_render", "sand::prelude::DataCommand::try_render", "sand::prelude::cmd::DataCommand::try_render", "sand::state::DataCommand::try_render"],
+        aliases = ["sand::cmd::DataCommand::try_render", "sand::command::DataCommand::try_render", "sand::prelude::DataCommand::try_render", "sand::prelude::cmd::DataCommand::try_render"],
         module = "sand::data",
         kind = "method",
         summary = "Validates and renders this typed Minecraft data command for the selected command profile.",
@@ -1805,7 +1618,7 @@ impl DataCommand {
     #[sand_macros::api(
         registry = sand_api_contract,
         path = "sand::data::DataCommand::contains",
-        aliases = ["sand::cmd::DataCommand::contains", "sand::command::DataCommand::contains", "sand::prelude::DataCommand::contains", "sand::prelude::cmd::DataCommand::contains", "sand::state::DataCommand::contains"],
+        aliases = ["sand::cmd::DataCommand::contains", "sand::command::DataCommand::contains", "sand::prelude::DataCommand::contains", "sand::prelude::cmd::DataCommand::contains"],
         module = "sand::data",
         kind = "method",
         summary = "Compatibility convenience for assertions on rendered command text.",
@@ -2035,242 +1848,13 @@ pub(crate) fn validate_registered_line(line: &str, profile: &CommandProfile) -> 
     )
 }
 
-// ── Compatibility DataModify builder ────────────────────────────────────────
-
-#[sand_macros::api(
-    registry = sand_api_contract,
-    path = "sand::command::DataModify",
-    aliases = ["sand::cmd::DataModify", "sand::prelude::cmd::DataModify"],
-    module = "sand::command",
-    summary = "Compatibility adapter over [`NbtRef`]. New code should start from [`Nbt`].",
-    context = "Compatibility adapter over [`NbtRef`]. New code should start from [`Nbt`]. This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
-    minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
-    use_when = ["Constructing Minecraft commands through Sand's typed command model"],
-    avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-    example = "use sand::command::DataModify;",
-)]
-/// Compatibility adapter over [`NbtRef`]. New code should start from [`Nbt`].
-#[derive(Debug, Clone)]
-pub struct DataModify {
-    reference: NbtRef,
-}
-
-impl DataModify {
-    /// Creates a typed data modify command builder from the supplied command inputs.
-    #[sand_macros::api(
-        registry = sand_api_contract,
-        path = "sand::command::DataModify::new",
-        aliases = ["sand::cmd::DataModify::new", "sand::prelude::cmd::DataModify::new"],
-        module = "sand::command",
-        kind = "method",
-        summary = "Creates a typed data modify command builder from the supplied command inputs.",
-        context = "Creates a typed data modify command builder from the supplied command inputs. This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
-        minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
-        use_when = ["Constructing Minecraft commands through Sand's typed command model"],
-        avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        params(target = "`target` provides the entity, block, or command target used to create a typed data modify command builder from the supplied command inputs.", path = "`path` provides the typed resource identifier or location used to create a typed data modify command builder from the supplied command inputs."),
-        returns = "A `DataModify` representing a typed data modify command builder from the supplied command inputs.",
-        example = "use sand::prelude::*;\n\nfn demonstrate(target: sand::data::DataTarget, path: impl Into < sand::data::NbtPath >)  {\n    let data_modify = sand::command::DataModify::new(target, path);\n}",
-    )]
-    pub fn new(target: DataTarget, path: impl Into<NbtPath>) -> Self {
-        Self {
-            reference: NbtRef::new(target, path.into()),
-        }
-    }
-
-    /// Renders the Minecraft set command for the selected data modify.
-    #[sand_macros::api(
-        registry = sand_api_contract,
-        path = "sand::command::DataModify::set",
-        aliases = ["sand::cmd::DataModify::set", "sand::prelude::cmd::DataModify::set"],
-        module = "sand::command",
-        kind = "method",
-        summary = "Renders the Minecraft set command for the selected data modify.",
-        context = "Renders the Minecraft set command for the selected data modify. This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
-        minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
-        use_when = ["Constructing Minecraft commands through Sand's typed command model"],
-        avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        params(value = "`value` provides the value being applied or compared used to render the Minecraft set command for the selected data modify."),
-        returns = "The rendered Minecraft command text produced to render the Minecraft set command for the selected data modify.",
-        example = "use sand::prelude::*;\n\nfn demonstrate(data_modify_value: sand::command::DataModify, value: impl Into < sand::data::NbtValue >)  {\n    let command = data_modify_value.set(value);\n}",
-    )]
-    pub fn set(self, value: impl Into<NbtValue>) -> String {
-        self.reference.set(value).to_string()
-    }
-
-    /// Renders the Minecraft command that sets from for the selected data modify.
-    #[sand_macros::api(
-        registry = sand_api_contract,
-        path = "sand::command::DataModify::set_from",
-        aliases = ["sand::cmd::DataModify::set_from", "sand::prelude::cmd::DataModify::set_from"],
-        module = "sand::command",
-        kind = "method",
-        summary = "Renders the Minecraft command that sets from for the selected data modify.",
-        context = "Renders the Minecraft command that sets from for the selected data modify. This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
-        minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
-        use_when = ["Constructing Minecraft commands through Sand's typed command model"],
-        avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        params(source = "`source` provides the source rendered when the Minecraft command that sets from for the selected data modify.", source_path = "`source_path` provides the source path rendered when the Minecraft command that sets from for the selected data modify."),
-        returns = "The rendered Minecraft command text produced to render the Minecraft command that sets from for the selected data modify.",
-        example = "use sand::prelude::*;\n\nfn demonstrate(data_modify_value: sand::command::DataModify, source: sand::data::DataTarget, source_path: impl Into < sand::data::NbtPath >)  {\n    let command = data_modify_value.set_from(source, source_path);\n}",
-    )]
-    pub fn set_from(self, source: DataTarget, source_path: impl Into<NbtPath>) -> String {
-        self.reference
-            .copy_from(&NbtRef::<UntypedNbt>::new(source, source_path.into()))
-            .to_string()
-    }
-
-    /// Renders the Minecraft append command for the selected data modify.
-    #[sand_macros::api(
-        registry = sand_api_contract,
-        path = "sand::command::DataModify::append",
-        aliases = ["sand::cmd::DataModify::append", "sand::prelude::cmd::DataModify::append"],
-        module = "sand::command",
-        kind = "method",
-        summary = "Renders the Minecraft append command for the selected data modify.",
-        context = "Renders the Minecraft append command for the selected data modify. This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
-        minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
-        use_when = ["Constructing Minecraft commands through Sand's typed command model"],
-        avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        params(value = "`value` provides the value being applied or compared used to render the Minecraft append command for the selected data modify."),
-        returns = "The rendered Minecraft command text produced to render the Minecraft append command for the selected data modify.",
-        example = "use sand::prelude::*;\n\nfn demonstrate(data_modify_value: sand::command::DataModify, value: impl Into < sand::data::NbtValue >)  {\n    let command = data_modify_value.append(value);\n}",
-    )]
-    pub fn append(self, value: impl Into<NbtValue>) -> String {
-        self.reference.append(value).to_string()
-    }
-
-    /// Renders the Minecraft append from command for the selected data modify.
-    #[sand_macros::api(
-        registry = sand_api_contract,
-        path = "sand::command::DataModify::append_from",
-        aliases = ["sand::cmd::DataModify::append_from", "sand::prelude::cmd::DataModify::append_from"],
-        module = "sand::command",
-        kind = "method",
-        summary = "Renders the Minecraft append from command for the selected data modify.",
-        context = "Renders the Minecraft append from command for the selected data modify. This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
-        minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
-        use_when = ["Constructing Minecraft commands through Sand's typed command model"],
-        avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        params(source = "`source` provides the source rendered when the Minecraft append from command for the selected data modify.", source_path = "`source_path` provides the source path rendered when the Minecraft append from command for the selected data modify."),
-        returns = "The rendered Minecraft command text produced to render the Minecraft append from command for the selected data modify.",
-        example = "use sand::prelude::*;\n\nfn demonstrate(data_modify_value: sand::command::DataModify, source: sand::data::DataTarget, source_path: impl Into < sand::data::NbtPath >)  {\n    let command = data_modify_value.append_from(source, source_path);\n}",
-    )]
-    pub fn append_from(self, source: DataTarget, source_path: impl Into<NbtPath>) -> String {
-        self.reference
-            .append_from(&NbtRef::<UntypedNbt>::new(source, source_path.into()))
-            .to_string()
-    }
-
-    /// Renders the Minecraft prepend command for the selected data modify.
-    #[sand_macros::api(
-        registry = sand_api_contract,
-        path = "sand::command::DataModify::prepend",
-        aliases = ["sand::cmd::DataModify::prepend", "sand::prelude::cmd::DataModify::prepend"],
-        module = "sand::command",
-        kind = "method",
-        summary = "Renders the Minecraft prepend command for the selected data modify.",
-        context = "Renders the Minecraft prepend command for the selected data modify. This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
-        minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
-        use_when = ["Constructing Minecraft commands through Sand's typed command model"],
-        avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        params(value = "`value` provides the value being applied or compared used to render the Minecraft prepend command for the selected data modify."),
-        returns = "The rendered Minecraft command text produced to render the Minecraft prepend command for the selected data modify.",
-        example = "use sand::prelude::*;\n\nfn demonstrate(data_modify_value: sand::command::DataModify, value: impl Into < sand::data::NbtValue >)  {\n    let command = data_modify_value.prepend(value);\n}",
-    )]
-    pub fn prepend(self, value: impl Into<NbtValue>) -> String {
-        self.reference.prepend(value).to_string()
-    }
-
-    /// Renders the Minecraft insert command for the selected data modify.
-    #[sand_macros::api(
-        registry = sand_api_contract,
-        path = "sand::command::DataModify::insert",
-        aliases = ["sand::cmd::DataModify::insert", "sand::prelude::cmd::DataModify::insert"],
-        module = "sand::command",
-        kind = "method",
-        summary = "Renders the Minecraft insert command for the selected data modify.",
-        context = "Renders the Minecraft insert command for the selected data modify. This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
-        minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
-        use_when = ["Constructing Minecraft commands through Sand's typed command model"],
-        avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        params(index = "`index` provides the index rendered when the Minecraft insert command for the selected data modify.", value = "`value` provides the value being applied or compared used to render the Minecraft insert command for the selected data modify."),
-        returns = "The rendered Minecraft command text produced to render the Minecraft insert command for the selected data modify.",
-        example = "use sand::prelude::*;\n\nfn demonstrate(data_modify_value: sand::command::DataModify, index: i32, value: impl Into < sand::data::NbtValue >)  {\n    let command = data_modify_value.insert(index, value);\n}",
-    )]
-    pub fn insert(self, index: i32, value: impl Into<NbtValue>) -> String {
-        self.reference.insert(index, value).to_string()
-    }
-
-    /// Renders the Minecraft merge command for the selected data modify.
-    #[sand_macros::api(
-        registry = sand_api_contract,
-        path = "sand::command::DataModify::merge",
-        aliases = ["sand::cmd::DataModify::merge", "sand::prelude::cmd::DataModify::merge"],
-        module = "sand::command",
-        kind = "method",
-        summary = "Renders the Minecraft merge command for the selected data modify.",
-        context = "Renders the Minecraft merge command for the selected data modify. This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
-        minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
-        use_when = ["Constructing Minecraft commands through Sand's typed command model"],
-        avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        params(value = "`value` provides the value being applied or compared used to render the Minecraft merge command for the selected data modify."),
-        returns = "The rendered Minecraft command text produced to render the Minecraft merge command for the selected data modify.",
-        example = "use sand::prelude::*;\n\nfn demonstrate(data_modify_value: sand::command::DataModify, value: impl Into < sand::data::NbtValue >)  {\n    let command = data_modify_value.merge(value);\n}",
-    )]
-    pub fn merge(self, value: impl Into<NbtValue>) -> String {
-        self.reference.merge(value).to_string()
-    }
-}
-
-impl fmt::Display for DataModify {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(
-            f,
-            "data modify {} {}",
-            self.reference.location, self.reference.path
-        )
-    }
-}
-
-impl Build for DataModify {
-    fn build(&self) -> String {
-        self.to_string()
-    }
-}
-
-impl From<DataModify> for String {
-    fn from(value: DataModify) -> Self {
-        value.to_string()
-    }
-}
-
-/// Starts a typed Minecraft data-modification builder for the target and NBT path.
-#[sand_macros::api(
-    registry = sand_api_contract,
-    path = "sand::command::data_modify",
-    aliases = ["sand::cmd::data_modify", "sand::prelude::cmd::data_modify"],
-    module = "sand::command",
-    summary = "Starts a typed Minecraft data-modification builder for the target and NBT path.",
-    context = "Starts a typed Minecraft data-modification builder for the target and NBT path. This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
-    minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
-    use_when = ["Constructing Minecraft commands through Sand's typed command model"],
-    avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-    params(target = "`target` provides the entity, block, or command target used to start a typed Minecraft data-modification builder for the target and NBT path.", path = "`path` provides the typed resource identifier or location used to start a typed Minecraft data-modification builder for the target and NBT path."),
-    returns = "The `DataModify` value produced to start a typed Minecraft data-modification builder for the target and NBT path.",
-    example = "use sand::prelude::*;\n\nfn demonstrate(target: sand::data::DataTarget, path: impl Into < sand::data::NbtPath >)  {\n    let data_modify = sand::command::data_modify(target, path);\n}",
-)]
-pub fn data_modify(target: DataTarget, path: impl Into<NbtPath>) -> DataModify {
-    DataModify::new(target, path)
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
 
     #[test]
     fn all_locations_and_operations_render() {
-        let cache = Nbt::storage("my_pack:cache").path("items");
+        let cache = Nbt::storage_raw("my_pack:cache").path("items");
         let selected = Nbt::entity(Selector::self_()).path("SelectedItem");
         let block = Nbt::block(BlockPos::here()).path("Items[0]");
 
@@ -2312,7 +1896,7 @@ mod tests {
 
     #[test]
     fn typed_and_raw_paths_have_distinct_validation() {
-        let invalid = Nbt::storage("my_pack:data").path("bad..path");
+        let invalid = Nbt::storage_raw("my_pack:data").path("bad..path");
         assert_eq!(
             invalid
                 .get()
@@ -2322,20 +1906,28 @@ mod tests {
             "SAND-DATA-TARGET"
         );
         let raw =
-            Nbt::storage("my_pack:data").path(NbtPath::raw("custom..modded[{anything:true}]"));
+            Nbt::storage_raw("my_pack:data").path(NbtPath::raw("custom..modded[{anything:true}]"));
         assert!(raw.get().try_render(&CommandProfile::unprofiled()).is_ok());
     }
 
     #[test]
     fn rejects_invalid_storage_scale_and_many_entity_write() {
-        let invalid_storage = Nbt::storage("Not Valid").path("x");
+        let invalid_storage = DataTarget::storage("Not Valid").path("x");
         assert!(
             invalid_storage
                 .get()
                 .try_render(&CommandProfile::unprofiled())
                 .is_err()
         );
-        let scale = Nbt::storage("pack:data").path("x");
+        let raw_storage = Nbt::storage_raw("future storage token").path("x");
+        assert_eq!(
+            raw_storage
+                .get()
+                .try_render(&CommandProfile::unprofiled())
+                .unwrap(),
+            "data get storage future storage token x"
+        );
+        let scale = Nbt::storage_raw("pack:data").path("x");
         assert!(
             scale
                 .get_scaled(f64::NAN)
@@ -2355,11 +1947,5 @@ mod tests {
             .unwrap_err();
         assert_eq!(error.code, "SAND-DATA-TARGET");
         assert!(error.message.contains("typed item location"));
-    }
-
-    #[test]
-    fn compatibility_builder_keeps_output() {
-        let command = data_modify(DataTarget::entity(Selector::self_()), "Custom.Phase").set(2_i32);
-        assert_eq!(command, "data modify entity @s Custom.Phase set value 2");
     }
 }

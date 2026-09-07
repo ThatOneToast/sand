@@ -1,41 +1,30 @@
-//! Typed state and nested conditions.
+//! Derived State and nested typed conditions.
 
-use sand_core::prelude::*;
-use sand_macros::{datapack_component, function};
+use sand::prelude::*;
 
-static MANA: ScoreVar<i32> = ScoreVar::new("mana");
-static CASTING: Flag = Flag::new("casting");
-static DASH: Cooldown = Cooldown::new("dash", Ticks::seconds(3));
-
-#[datapack_component(Load)]
-pub fn load_state() {
-    MANA.define();
-    CASTING.define();
-    DASH.define();
-    MANA.set(Target::players(), 100);
-    CASTING.disable(Target::players());
-}
-
-#[datapack_component(Tick)]
-pub fn tick_state() {
-    DASH.tick_all_players();
+#[derive(State)]
+#[state(namespace = "example", scope = player)]
+struct AbilityState {
+    #[state(default = 100, min = 0, max = 100)]
+    mana: Score,
+    #[state(default = false)]
+    casting: Flag,
+    #[state(auto_tick)]
+    dash: Cooldown,
 }
 
 #[function]
 pub fn try_dash() {
+    let state = AbilityState::on(EntityContext::<PlayerKind>::default());
     TypedExecute::as_players_at_self()
         .when(all![
-            MANA.of("@s").gte(25),
-            CASTING.of("@s").is_false(),
+            state.mana.gte(25),
+            state.casting.is_disabled(),
             any![
-                DASH.ready("@s"),
-                Condition::predicate(
-                    PredicateId::custom(
-                        "example:dash_override"
-                            .parse()
-                            .expect("static predicate resource is valid"),
-                    ),
-                ),
+                state.dash.ready(),
+                Condition::predicate(PredicateId::custom(
+                    "example:dash_override".parse().unwrap(),
+                )),
             ],
         ])
         .run(Actionbar::show(

@@ -218,7 +218,7 @@ mod tests {
     fn predicate_registry_id_emits_four_meaningful_contracts() {
         let provider = repository_provider();
         assert_eq!(provider.provider, "generated_registry_id_contracts");
-        assert_eq!(provider.entries.len(), 148);
+        assert_eq!(provider.entries.len(), 154);
         let predicate = provider
             .entries
             .iter()
@@ -305,7 +305,7 @@ mod tests {
     }
 
     #[test]
-    fn resource_reference_ids_emit_complete_dialog_capability_contracts() {
+    fn resource_reference_ids_emit_complete_local_capability_contracts() {
         let provider = repository_provider();
         let resource_entries = provider
             .entries
@@ -317,7 +317,7 @@ mod tests {
                     .starts_with("sand::resource_ref::")
             })
             .collect::<Vec<_>>();
-        assert_eq!(resource_entries.len(), 22);
+        assert_eq!(resource_entries.len(), 24);
         let dialog_local = resource_entries
             .iter()
             .find(|entry| entry.contract.canonical_path == "sand::resource_ref::DialogId::local")
@@ -347,6 +347,12 @@ mod tests {
                 .unwrap()
                 .contains("error")
         );
+        assert!(resource_entries.iter().any(|entry| {
+            entry.contract.canonical_path == "sand::resource_ref::FunctionId::local"
+        }));
+        assert!(resource_entries.iter().any(|entry| {
+            entry.contract.canonical_path == "sand::resource_ref::FunctionId::try_local"
+        }));
         assert!(resource_entries.iter().all(|entry| {
             !entry.contract.summary.trim().is_empty()
                 && !entry.contract.context.trim().is_empty()

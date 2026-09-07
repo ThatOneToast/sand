@@ -1,16 +1,23 @@
-use sand_core::prelude::*;
-use sand_macros::{datapack_component, function};
+use sand::prelude::*;
 
-static MANA: ScoreVar<i32> = ScoreVar::new("mana");
+#[derive(State)]
+#[state(namespace = "quickstart", scope = player)]
+#[allow(dead_code)]
+struct PlayerState {
+    #[state(default = 0, min = 0, max = 100)]
+    mana: Score,
+}
 
 #[datapack_component(Load)]
 pub fn load() {
-    MANA.define();
+    cmd::say("quickstart loaded");
 }
 
 #[function]
 pub fn reward() {
-    MANA.add(Target::self_(), 10);
+    PlayerState::on(EntityContext::<PlayerKind>::default())
+        .mana
+        .add(10);
     cmd::tellraw(Target::self_(), Text::new("+10 mana").aqua());
 }
 

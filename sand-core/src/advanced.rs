@@ -12,6 +12,28 @@ use sand_macros::api;
 
 use crate::error::Result;
 
+/// Low-level state primitives for framework integrations.
+///
+/// Ordinary datapacks should declare gameplay data with `#[derive(State)]`.
+#[api(
+    registry = sand_api_contract,
+    path = "sand::advanced::state",
+    module = "sand::advanced",
+    summary = "Low-level state primitives for framework integrations.",
+    context = "This explicitly advanced namespace contains the scoreboard-backed primitives used beneath derived State schemas.",
+    minecraft = "These primitives lower directly to scoreboards and generated lifecycle commands.",
+    use_when = ["Building framework integrations below the derived State authoring layer"],
+    avoid_when = ["Declaring ordinary gameplay state; derive State instead"],
+    example = "use sand::advanced::state::ScoreVar;",
+)]
+pub mod state {
+    pub use crate::state::{
+        Cooldown, Flag, FlagRef, FlowTransitionBuilder, GameState, GameStateRef, IntoStateCommands,
+        ScoreConst, ScoreConstants, ScoreExpr, ScoreOperand, ScoreOperation, ScoreRef, ScoreVar,
+        StateFlow, StateTransitionBuilder, Timer, TypedGameState,
+    };
+}
+
 /// Collect registered components as JSON for a configured Minecraft version.
 ///
 /// The raw version text belongs at the project-configuration boundary. Sand

@@ -33,7 +33,7 @@ IDs, non-finite values, zero counts, and empty geometry cannot reach generated
 ## Particle tuning
 
 ```rust,ignore
-VfxParticle::named("minecraft:cloud")
+VfxParticle::raw_token("minecraft:cloud")
     .count(24)
     .spread(0.4, 0.2, 0.4)
 ```

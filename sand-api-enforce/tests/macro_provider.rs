@@ -21,25 +21,27 @@ fn repository_registry_id_family_tracks_every_invocation() {
         .unwrap();
     let provider =
         registry_id_provider(&workspace.join("sand-components/src/registry.rs")).unwrap();
-    assert_eq!(provider.len(), 35);
-    let dialog = provider
-        .iter()
-        .find(|item| item.identity.ends_with("::DialogId"))
-        .unwrap();
-    assert_eq!(
-        dialog.members,
-        [
-            ("as_resource_location".into(), ReachableKind::Method),
-            ("custom".into(), ReachableKind::Method),
-            ("local".into(), ReachableKind::Method),
-            ("minecraft".into(), ReachableKind::Method),
-            ("try_local".into(), ReachableKind::Method),
-        ]
-    );
+    assert_eq!(provider.len(), 36);
+    for local_resource in provider.iter().filter(|item| {
+        item.identity.ends_with("::DialogId") || item.identity.ends_with("::FunctionId")
+    }) {
+        assert_eq!(
+            local_resource.members,
+            [
+                ("as_resource_location".into(), ReachableKind::Method),
+                ("custom".into(), ReachableKind::Method),
+                ("local".into(), ReachableKind::Method),
+                ("minecraft".into(), ReachableKind::Method),
+                ("try_local".into(), ReachableKind::Method),
+            ]
+        );
+    }
     assert!(
         provider
             .iter()
-            .filter(|item| !item.identity.ends_with("::DialogId"))
+            .filter(|item| {
+                !item.identity.ends_with("::DialogId") && !item.identity.ends_with("::FunctionId")
+            })
             .all(|item| {
                 item.provider == "generated_registry_ids"
                     && item.members

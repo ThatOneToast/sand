@@ -12,9 +12,10 @@
 //! - Spells gated behind `all!`/`any!` conditions
 //! - A welcome dialog for the 26+ baseline shown on first join
 
-use sand_commands::{Coord, Vec3, summon_at_with_nbt};
+use sand_commands::{Coord, Vec3, summon_at_with_nbt_raw};
+use sand_core::advanced::state::{Cooldown, Flag, ScoreVar};
 use sand_core::prelude::*;
-use sand_core::{all, any, mcfunction};
+use sand_core::{StorageVar, all, any, mcfunction};
 
 // ── State variables ───────────────────────────────────────────────────────────
 
@@ -63,7 +64,7 @@ fn fireball_commands() -> Vec<String> {
     // typed component yet; the position and summon command remain typed.
     let mut cmds = TypedExecute::as_self_at_self()
         .when(cast_guard)
-        .run(summon_at_with_nbt(
+        .run(summon_at_with_nbt_raw(
             "minecraft:fireball",
             Vec3::new(Coord::rel(), Coord::rel_n(1.5), Coord::rel()),
             "{direction:[0.0,0.0,1.0],ExplosionPower:2}",

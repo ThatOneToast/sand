@@ -22,6 +22,8 @@
 //! ]);
 //! ```
 
+use sand_commands::nbt::NbtRefLowering;
+
 // ── ScoreRange ────────────────────────────────────────────────────────────────
 
 /// A range used in `execute if score … matches <range>`.
@@ -397,7 +399,7 @@ impl Condition {
     /// Condition on a typed NBT reference existing.
     ///
     /// ```rust,ignore
-    /// let mana = Nbt::storage("example:state").path("player.mana");
+    /// let mana = Nbt::storage(ResourceLocation::new("example", "state")?).path("player.mana");
     /// let c = Condition::data_exists(&mana);
     /// ```
     #[sand_macros::api(
@@ -412,10 +414,13 @@ impl Condition {
         avoid_when = ["Reading or comparing the value stored at the path", "Testing whether a live inventory slot contains an item"],
         params(reference = "The typed NBT target and path whose existence Minecraft should test."),
         returns = "A condition that succeeds when the referenced NBT path exists.",
-        example = "Condition::data_exists(&Nbt::storage(\"demo:state\").path(\"player.mana\"))"
+        example = "Condition::data_exists(&Nbt::storage(ResourceLocation::new(\"demo\", \"state\").unwrap()).path(\"player.mana\"))"
     )]
     pub fn data_exists<T>(reference: &sand_commands::NbtRef<T>) -> Self {
-        Self::nbt_exists(reference.location().clone(), reference.path_value().clone())
+        Self::nbt_exists(
+            reference.__location().clone(),
+            reference.path_value().clone(),
+        )
     }
 
     /// Explicit raw `execute if/unless` fragment escape hatch.
@@ -932,7 +937,7 @@ mod tests {
 
     #[test]
     fn storage_exists_plan() {
-        let reference = sand_commands::Nbt::storage("ex:state").path("mana");
+        let reference = sand_commands::Nbt::storage_raw("ex:state").path("mana");
         let c = Condition::data_exists(&reference);
         let plans = c.rendered_plans(false);
         assert_eq!(plans, vec![vec!["if data storage ex:state mana"]]);
@@ -1216,7 +1221,7 @@ mod tests {
 
     #[test]
     fn storage_exists_execute() {
-        let reference = sand_commands::Nbt::storage("ex:state").path("mana");
+        let reference = sand_commands::Nbt::storage_raw("ex:state").path("mana");
         let c = Condition::data_exists(&reference);
         let cmds = c.execute_commands(false, "say has mana");
         assert_eq!(

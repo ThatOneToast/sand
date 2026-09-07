@@ -4,6 +4,9 @@
 
 use sand::events::{EventSetup, SandEvent, SandEventDispatch};
 use sand::prelude::*;
+// These objectives observe vanilla statistics for the custom event below;
+// gameplay-owned fields use the derived State schemas in this example.
+use sand::advanced::state::ScoreVar;
 
 static ATTACKS: ScoreVar<i32> = ScoreVar::new("rpg_attacks");
 static SEEN_ATTACKS: ScoreVar<i32> = ScoreVar::new("rpg_seen_atk");

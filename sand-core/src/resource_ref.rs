@@ -17,6 +17,10 @@
 //! let condition = Condition::predicate(can_cast);
 //! ```
 
+pub use sand_commands::{
+    CommandStorageRegistry, EntityTypeRegistry, ParticleRegistry, PredicateRegistry,
+    RegistryReference, SoundEventRegistry, StatusEffectRegistry,
+};
 pub use sand_components::{
     AdvancementId, DialogId, FunctionId, LootTableId, PredicateId, RecipeId,
 };

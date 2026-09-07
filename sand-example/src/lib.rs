@@ -18,7 +18,7 @@ pub mod player_state_transitions_example;
 pub mod state_ergonomics;
 pub mod tracked_sneaking_example;
 
-use sand_core::mcfunction;
+use sand_core::{FunctionId, mcfunction};
 use sand_macros::{datapack_component, function, run_fn};
 
 #[cfg(test)]
@@ -97,7 +97,10 @@ pub fn player_join_advancement() -> sand_core::Advancement {
     use sand_core::{Advancement, AdvancementRewards, AdvancementTrigger, Criterion};
     Advancement::new("hello_world:player_join".parse().unwrap())
         .criterion("tick", Criterion::new(AdvancementTrigger::Tick))
-        .rewards(AdvancementRewards::new().function("hello_world:hello_world".parse().unwrap()))
+        .rewards(
+            AdvancementRewards::new()
+                .function("hello_world:hello_world".parse::<FunctionId>().unwrap()),
+        )
 }
 
 // ── Export hook ───────────────────────────────────────────────────────────────
@@ -782,7 +785,7 @@ mod tests {
                     .recipe("hello_world:special_recipe".parse().unwrap())
                     .loot("hello_world:bonus_chest".parse().unwrap())
                     .experience(500)
-                    .function("hello_world:on_complete".parse().unwrap()),
+                    .function("hello_world:on_complete".parse::<FunctionId>().unwrap()),
             );
         let json = adv.to_json();
         assert_eq!(json["rewards"]["experience"].as_i64().unwrap(), 500);

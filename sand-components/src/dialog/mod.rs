@@ -15,6 +15,7 @@
 
 use std::sync::{Mutex, OnceLock};
 
+use crate::function::FunctionRef;
 use crate::registry::DialogId;
 use crate::resource_location::SAND_LOCAL_NS;
 use crate::{DatapackComponent, ResourceLocation};
@@ -157,179 +158,6 @@ impl From<String> for DialogText {
     }
 }
 
-pub struct DialogFunctionPointerEntry {
-    pub ptr: fn() -> Vec<String>,
-    pub path: &'static str,
-}
-inventory::collect!(DialogFunctionPointerEntry);
-
-pub struct DialogFunctionPointerTypeEntry {
-    pub type_id: fn() -> std::any::TypeId,
-    pub path: &'static str,
-}
-inventory::collect!(DialogFunctionPointerTypeEntry);
-
-fn local_id_for_path(path: &str) -> String {
-    if path.contains(':') {
-        path.to_string()
-    } else {
-        format!("{SAND_LOCAL_NS}:{path}")
-    }
-}
-
-fn registered_path_for_function_value<F>(value: F) -> Option<&'static str>
-where
-    F: Copy + 'static,
-{
-    let type_id = std::any::TypeId::of::<F>();
-    for entry in inventory::iter::<DialogFunctionPointerTypeEntry>() {
-        if (entry.type_id)() == type_id {
-            return Some(entry.path);
-        }
-    }
-
-    if std::mem::size_of::<F>() == std::mem::size_of::<fn() -> Vec<String>>() {
-        let ptr = unsafe { *(&value as *const F).cast::<fn() -> Vec<String>>() };
-        for entry in inventory::iter::<DialogFunctionPointerEntry>() {
-            if entry.ptr as usize == ptr as usize {
-                return Some(entry.path);
-            }
-        }
-    }
-
-    None
-}
-
-/// Converts a value into a raw dialog function-reference path.
-///
-/// Raw `&str`/`String` and [`ResourceLocation`] paths are stored as given —
-/// they are **not** validated here. Invalid function/callback paths are
-/// instead rejected as an actionable diagnostic when the owning [`Dialog`]
-/// is validated, so a malformed `run_function`/`callback` target never
-/// silently becomes generated `function` command content.
-pub trait IntoDialogFunctionRef {
-    fn into_dialog_function_path(self) -> String;
-}
-
-impl IntoDialogFunctionRef for ResourceLocation {
-    fn into_dialog_function_path(self) -> String {
-        self.to_string()
-    }
-}
-
-impl IntoDialogFunctionRef for &ResourceLocation {
-    fn into_dialog_function_path(self) -> String {
-        self.to_string()
-    }
-}
-
-impl IntoDialogFunctionRef for &str {
-    fn into_dialog_function_path(self) -> String {
-        self.to_string()
-    }
-}
-
-impl IntoDialogFunctionRef for String {
-    fn into_dialog_function_path(self) -> String {
-        self
-    }
-}
-
-/// **Exception to the "never panics" contract above:** unlike the string/
-/// `ResourceLocation` impls, this impl panics immediately if the given
-/// function value was never registered via `#[function]`/`#[function("path")]`.
-/// This is a macro-registration/programmer-error check (the function literally
-/// cannot be resolved to a path at all, so there is nothing to defer to
-/// `Dialog::validate`), not user-input validation — it is unrelated to, and
-/// does not weaken, the deferred validation of user-supplied strings/IDs.
-impl<F> IntoDialogFunctionRef for F
-where
-    F: Fn() -> Vec<String> + Copy + 'static,
-{
-    fn into_dialog_function_path(self) -> String {
-        if let Some(path) = registered_path_for_function_value(self) {
-            return local_id_for_path(path);
-        }
-        panic!(
-            "unregistered function pointer: the function must be annotated with \
-             #[function] or #[function(\"path\")] to be used in DialogAction::run_function() \
-             or DialogAction::callback()"
-        )
-    }
-}
-
-/// Converts a value into a raw dialog reference (target of `open_dialog`, or
-/// a [`DialogTag`] entry).
-///
-/// `DialogId` values are validated at construction time. Raw `&str`/`String`
-/// values remain explicit compatibility inputs; bare paths retain Sand's
-/// local-namespace convention and are validated when the owning [`Dialog`] is
-/// exported.
-///
-#[sand_macros::api(
-    registry = sand_api_contract,
-    path = "sand::component::IntoDialogRef",
-    module = "sand::component",
-    summary = "Converts a value into a raw dialog reference (target of `open_dialog`, or a [`DialogTag`] entry).",
-    context = "Converts a value into a raw dialog reference (target of `open_dialog`, or a [`DialogTag`] entry). `DialogId` values are validated at construction time. Raw `&str`/`String` values remain explicit compatibility inputs; bare paths retain Sand's local-namespace convention and are validated when the owning [`Dialog`] is exported.",
-    minecraft = "`DialogId` values are validated at construction time. Raw `&str`/`String` values remain explicit compatibility inputs; bare paths retain Sand's local-namespace convention and are validated when the owning [`Dialog`] is exported.",
-    use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
-    avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-    example = "use sand::component::IntoDialogRef;",
-)]
-pub trait IntoDialogRef {
-    /// Resolves this typed or compatibility input to a dialog resource reference.
-    #[sand_macros::api(
-        registry = sand_api_contract,
-        path = "sand::component::IntoDialogRef::into_dialog_ref",
-        module = "sand::component",
-        summary = "Resolves this typed or compatibility input to a dialog resource reference.",
-        context = "Resolves this typed or compatibility input to a dialog resource reference. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
-        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
-        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
-        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        returns = "The string value produced to resolve this typed or compatibility input to a dialog resource reference.",
-        example = "use sand::prelude::*;\n\nfn demonstrate<T: sand::component::IntoDialogRef>(into_dialog_ref_value: T)  {\n    let into_dialog_ref = into_dialog_ref_value.into_dialog_ref();\n}",
-    )]
-    fn into_dialog_ref(self) -> String;
-}
-
-impl IntoDialogRef for ResourceLocation {
-    fn into_dialog_ref(self) -> String {
-        self.to_string()
-    }
-}
-
-impl IntoDialogRef for &ResourceLocation {
-    fn into_dialog_ref(self) -> String {
-        self.to_string()
-    }
-}
-
-impl IntoDialogRef for DialogId {
-    fn into_dialog_ref(self) -> String {
-        self.to_string()
-    }
-}
-
-impl IntoDialogRef for &DialogId {
-    fn into_dialog_ref(self) -> String {
-        self.to_string()
-    }
-}
-
-impl IntoDialogRef for &str {
-    fn into_dialog_ref(self) -> String {
-        local_id_for_path(self)
-    }
-}
-
-impl IntoDialogRef for String {
-    fn into_dialog_ref(self) -> String {
-        self.as_str().into_dialog_ref()
-    }
-}
-
 // ── DialogTag ────────────────────────────────────────────────────────────────
 
 #[sand_macros::api(
@@ -420,10 +248,17 @@ impl DialogTag {
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
         params(dialog = "`dialog` provides the dialog added when building a dialog entry to this tag."),
         returns = "The `DialogTag` value with the documented change applied to add a dialog entry to this tag.",
-        example = "use sand::prelude::*;\n\nfn demonstrate(dialog_tag_value: sand::component::DialogTag, dialog: impl sand::component::IntoDialogRef)  {\n    let updated_dialog_tag = dialog_tag_value.dialog(dialog);\n}",
+        example = "use sand::prelude::*;\n\nfn demonstrate(dialog_tag_value: DialogTag, dialog: DialogId) {\n    let updated_dialog_tag = dialog_tag_value.dialog(dialog);\n}",
     )]
-    pub fn dialog(mut self, dialog: impl IntoDialogRef) -> Self {
-        self.values.push(dialog.into_dialog_ref());
+    pub fn dialog(mut self, dialog: DialogId) -> Self {
+        self.values.push(dialog.to_string());
+        self
+    }
+
+    /// Adds an explicitly raw dialog reference to this tag.
+    #[sand_macros::api(registry = sand_api_contract, path = "sand::component::DialogTag::dialog_raw", aliases = ["sand::prelude::DialogTag::dialog_raw"], module = "sand::component", kind = "method", summary = "Adds an explicitly raw dialog reference to this tag.", context = "Advanced escape hatch for unsupported dialog reference syntax.", minecraft = "Serializes the supplied dialog token verbatim in the function tag.", use_when = ["Using future or modded dialog syntax"], avoid_when = ["A validated DialogId is available"], params(dialog = "The unchecked dialog token."), returns = "This dialog tag with the raw entry added.", example = "let tag = DialogTag::new(id).dialog_raw(\"mod:menu\");")]
+    pub fn dialog_raw(mut self, dialog: impl Into<String>) -> Self {
+        self.values.push(dialog.into());
         self
     }
 
@@ -441,15 +276,11 @@ impl DialogTag {
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
         params(dialogs = "`dialogs` provides the dialogs added when building multiple dialog entries to this tag."),
         returns = "The `DialogTag` value with the documented change applied to add multiple dialog entries to this tag.",
-        example = "use sand::prelude::*;\n\nfn demonstrate<I: 'static, D: 'static>(dialog_tag_value: sand::component::DialogTag, dialogs: I) where I : IntoIterator < Item = D > , D : sand::component::IntoDialogRef {\n    let updated_dialog_tag = dialog_tag_value.dialogs::<I, D>(dialogs);\n}",
+        example = "use sand::prelude::*;\n\nfn demonstrate(dialog_tag_value: DialogTag, dialogs: Vec<DialogId>) {\n    let updated_dialog_tag = dialog_tag_value.dialogs(dialogs);\n}",
     )]
-    pub fn dialogs<I, D>(mut self, dialogs: I) -> Self
-    where
-        I: IntoIterator<Item = D>,
-        D: IntoDialogRef,
-    {
+    pub fn dialogs(mut self, dialogs: impl IntoIterator<Item = DialogId>) -> Self {
         self.values
-            .extend(dialogs.into_iter().map(IntoDialogRef::into_dialog_ref));
+            .extend(dialogs.into_iter().map(|dialog| dialog.to_string()));
         self
     }
 
@@ -472,64 +303,6 @@ impl DialogTag {
     pub fn replace(mut self, replace: bool) -> Self {
         self.replace = replace;
         self
-    }
-}
-
-// ── DialogItemRef ────────────────────────────────────────────────────────────
-
-/// A typed item reference accepted by [`DialogBody::item`] /
-/// [`DialogBody::item_sized`].
-///
-/// Accepts raw `&str`/`String` item IDs (escape hatch, validated at
-/// [`Dialog::validate`] time), [`ResourceLocation`], or the typed
-/// [`crate::registry::ItemId`] wrapper.
-#[sand_macros::api(
-    registry = sand_api_contract,
-    path = "sand::component::DialogItemRef",
-    module = "sand::component",
-    summary = "A typed item reference accepted by [`DialogBody::item`] / [`DialogBody::item_sized`].",
-    context = "A typed item reference accepted by [`DialogBody::item`] / [`DialogBody::item_sized`]. Accepts raw `&str`/`String` item IDs (escape hatch, validated at [`Dialog::validate`] time), [`ResourceLocation`], or the typed [`sand::registry::ItemId`] wrapper.",
-    minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
-    use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
-    avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-    example = "use sand::component::DialogItemRef;",
-)]
-#[derive(Debug, Clone)]
-pub struct DialogItemRef(String);
-
-impl From<&str> for DialogItemRef {
-    fn from(value: &str) -> Self {
-        Self(value.to_string())
-    }
-}
-
-impl From<String> for DialogItemRef {
-    fn from(value: String) -> Self {
-        Self(value)
-    }
-}
-
-impl From<ResourceLocation> for DialogItemRef {
-    fn from(value: ResourceLocation) -> Self {
-        Self(value.to_string())
-    }
-}
-
-impl From<&ResourceLocation> for DialogItemRef {
-    fn from(value: &ResourceLocation) -> Self {
-        Self(value.to_string())
-    }
-}
-
-impl From<crate::registry::ItemId> for DialogItemRef {
-    fn from(value: crate::registry::ItemId) -> Self {
-        Self(value.to_string())
-    }
-}
-
-impl From<&crate::registry::ItemId> for DialogItemRef {
-    fn from(value: &crate::registry::ItemId) -> Self {
-        Self(value.to_string())
     }
 }
 
@@ -623,27 +396,35 @@ impl DialogBody {
 
     /// Item display body.
     ///
-    /// Accepts a raw item ID string, a [`ResourceLocation`], or a typed
-    /// [`crate::registry::ItemId`]. The reference is validated (as a
-    /// well-formed resource location) by [`Dialog::validate`].
+    /// Accepts the canonical typed [`crate::registry::ItemId`].
     #[sand_macros::api(
         registry = sand_api_contract,
         path = "sand::component::DialogBody::item",
         aliases = ["sand::prelude::DialogBody::item"],
         module = "sand::component",
         kind = "method",
-        summary = "Item display body. Accepts a raw item ID string, a [`ResourceLocation`], or a typed [`sand::registry::ItemId`]. The reference is validated (as a well-formed resource location) by [`Dialog::validate`].",
-        context = "Item display body. Accepts a raw item ID string, a [`ResourceLocation`], or a typed [`sand::registry::ItemId`]. The reference is validated (as a well-formed resource location) by [`Dialog::validate`]. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        summary = "Builds an item display body from the canonical typed ItemId.",
+        context = "Dialog item references use the same ItemId accepted by other item-facing APIs; unsupported syntax belongs in item_raw.",
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(item = "`item` provides the item value or item predicate used to item display body. Accepts a raw item ID string, a [`ResourceLocation`], or a typed [`sand::registry::ItemId`]. The reference is validated (as a well-formed resource location) by [`Dialog::validate`]."),
-        returns = "A `DialogBody` displaying an item. Accepts a raw item ID string, a [`ResourceLocation`], or a typed [`sand::registry::ItemId`]. The reference is validated (as a well-formed resource location) by [`Dialog::validate`].",
-        example = "use sand::prelude::*;\n\nfn demonstrate(item: impl Into < sand::component::DialogItemRef >)  {\n    let dialog_body = sand::component::DialogBody::item(item);\n}",
+        params(item = "The validated item registry ID to display."),
+        returns = "A `DialogBody` displaying the selected item.",
+        example = "use sand::prelude::*;\nlet body = DialogBody::item(ItemId::minecraft(\"diamond\").unwrap());",
     )]
-    pub fn item(item: impl Into<DialogItemRef>) -> Self {
+    pub fn item(item: crate::registry::ItemId) -> Self {
         Self::Item {
-            item: item.into().0,
+            item: item.to_string(),
+            width: None,
+            height: None,
+        }
+    }
+
+    /// Builds an item display body from explicit raw item syntax.
+    #[sand_macros::api(registry = sand_api_contract, path = "sand::component::DialogBody::item_raw", aliases = ["sand::prelude::DialogBody::item_raw"], module = "sand::component", kind = "method", summary = "Builds an item display body from explicit raw item syntax.", context = "This escape hatch is for future or modded item syntax that ItemId cannot represent.", minecraft = "Stores the supplied token for validation and serialization as the dialog body's item reference.", use_when = ["Using unsupported future or modded item syntax"], avoid_when = ["A validated ItemId is available"], params(item = "The raw item reference token."), returns = "A dialog item body containing the raw reference.", example = "let body = DialogBody::item_raw(\"mod:future_item\");")]
+    pub fn item_raw(item: impl Into<String>) -> Self {
+        Self::Item {
+            item: item.into(),
             width: None,
             height: None,
         }
@@ -660,18 +441,28 @@ impl DialogBody {
         aliases = ["sand::prelude::DialogBody::item_sized"],
         module = "sand::component",
         kind = "method",
-        summary = "Item display body with explicit dimensions. `width`/`height` must be non-zero — a `0` dimension is rejected by [`Dialog::validate`]. There is no vanilla-documented upper bound, so large values are accepted (raw escape-hatch semantics).",
-        context = "Item display body with explicit dimensions. `width`/`height` must be non-zero — a `0` dimension is rejected by [`Dialog::validate`]. There is no vanilla-documented upper bound, so large values are accepted (raw escape-hatch semantics). This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        summary = "Builds a typed item display body with explicit non-zero dimensions.",
+        context = "The item uses the canonical ItemId; dialog validation rejects zero dimensions.",
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(item = "`item` provides the item value or item predicate used to item display body with explicit dimensions. `width`/`height` must be non-zero — a `0` dimension is rejected by [`Dialog::validate`]. There is no vanilla-documented upper bound, so large values are accepted (raw escape-hatch semantics).", width = "`width`/`height` must be non-zero — a `0` dimension is rejected by [`Dialog::validate`]. There is no vanilla-documented upper bound, so large values are accepted (raw escape-hatch semantics).", height = "`width`/`height` must be non-zero — a `0` dimension is rejected by [`Dialog::validate`]. There is no vanilla-documented upper bound, so large values are accepted (raw escape-hatch semantics)."),
-        returns = "A `DialogBody` displaying an item with explicit dimensions. `width`/`height` must be non-zero — a `0` dimension is rejected by [`Dialog::validate`]. There is no vanilla-documented upper bound, so large values are accepted (raw escape-hatch semantics).",
-        example = "use sand::prelude::*;\n\nfn demonstrate(item: impl Into < sand::component::DialogItemRef >, width: u32, height: u32)  {\n    let dialog_body = sand::component::DialogBody::item_sized(item, width, height);\n}",
+        params(item = "The validated item registry ID to display.", width = "The requested non-zero display width.", height = "The requested non-zero display height."),
+        returns = "A typed item display body with explicit dimensions.",
+        example = "use sand::prelude::*;\nlet body = DialogBody::item_sized(ItemId::minecraft(\"diamond\").unwrap(), 32, 32);",
     )]
-    pub fn item_sized(item: impl Into<DialogItemRef>, width: u32, height: u32) -> Self {
+    pub fn item_sized(item: crate::registry::ItemId, width: u32, height: u32) -> Self {
         Self::Item {
-            item: item.into().0,
+            item: item.to_string(),
+            width: Some(width),
+            height: Some(height),
+        }
+    }
+
+    /// Builds a sized item display body from explicit raw item syntax.
+    #[sand_macros::api(registry = sand_api_contract, path = "sand::component::DialogBody::item_sized_raw", aliases = ["sand::prelude::DialogBody::item_sized_raw"], module = "sand::component", kind = "method", summary = "Builds a sized item display body from explicit raw item syntax.", context = "This escape hatch pairs unsupported item syntax with the ordinary dialog dimension validation.", minecraft = "Stores the raw item token and dimensions for dialog validation and serialization.", use_when = ["Using unsupported future or modded item syntax in a sized body"], avoid_when = ["A validated ItemId is available"], params(item = "The raw item reference token.", width = "The requested display width.", height = "The requested display height."), returns = "A sized dialog item body containing the raw reference.", example = "let body = DialogBody::item_sized_raw(\"mod:future_item\", 32, 32);")]
+    pub fn item_sized_raw(item: impl Into<String>, width: u32, height: u32) -> Self {
+        Self::Item {
+            item: item.into(),
             width: Some(width),
             height: Some(height),
         }
@@ -783,15 +574,15 @@ impl DialogAction {
     /// Run a datapack function when the button is pressed.
     ///
     /// Prefer this over [`run_command`](DialogAction::run_command) for datapack
-    /// functions. It accepts registered function pointers and typed external
-    /// resource locations.
+    /// functions. It accepts registered function pointers and canonical
+    /// [`FunctionId`](crate::FunctionId) handles.
     ///
     /// ```
     /// use sand_components::dialog::DialogAction;
-    /// use sand_components::ResourceLocation;
+    /// use sand_components::{FunctionId, ResourceLocation};
     ///
     /// let action = DialogAction::run_function(
-    ///     ResourceLocation::new("example", "start").unwrap()
+    ///     FunctionId::custom(ResourceLocation::new("example", "start").unwrap())
     /// );
     /// ```
     #[sand_macros::api(
@@ -801,16 +592,22 @@ impl DialogAction {
         module = "sand::component",
         kind = "method",
         summary = "Run a datapack function when the button is pressed.",
-        context = "Run a datapack function when the button is pressed. Prefer this over [`run_command`](DialogAction::run_command) for datapack functions. It accepts registered function pointers and typed external resource locations.",
-        minecraft = "Prefer this over [`run_command`](DialogAction::run_command) for datapack functions. It accepts registered function pointers and typed external resource locations.",
-        use_when = ["Prefer this over [`run_command`](DialogAction::run_command) for datapack functions. It accepts registered function pointers and typed external resource locations."],
+        context = "Run a datapack function when the button is pressed. Prefer this over [`run_command`](DialogAction::run_command) for datapack functions. It accepts registered function items and canonical FunctionId handles.",
+        minecraft = "Serializes the canonical function identity into a run-function dialog action.",
+        use_when = ["Running a registered or typed external function from a dialog"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
         params(id = "`id` provides the typed resource identifier or location used to run a datapack function when the button is pressed."),
         returns = "A `DialogAction` that runs a datapack function when the button is pressed.",
-        example = "use sand::component::DialogAction;\nuse sand::ResourceLocation;\nlet action = DialogAction::run_function(\nResourceLocation::new(\"example\", \"start\").unwrap()\n);",
+        example = "use sand::prelude::*;\nlet action = DialogAction::run_function(FunctionId::custom(\"example:start\".parse().unwrap()));",
     )]
-    pub fn run_function(id: impl IntoDialogFunctionRef) -> Self {
-        Self::RunFunction(id.into_dialog_function_path())
+    pub fn run_function(id: impl FunctionRef) -> Self {
+        Self::RunFunction(id.function_id().to_string())
+    }
+
+    /// Runs an explicitly raw function identifier when Sand cannot model it.
+    #[sand_macros::api(registry = sand_api_contract, path = "sand::component::DialogAction::run_function_raw", aliases = ["sand::prelude::DialogAction::run_function_raw"], module = "sand::component", kind = "method", summary = "Runs an explicitly raw function token from a dialog action.", context = "Advanced escape hatch for unsupported function syntax.", minecraft = "Serializes a run-function dialog action using the supplied token.", use_when = ["Using future or modded function syntax"], avoid_when = ["A FunctionId or registered #[function] item is available"], params(id = "The unchecked function token."), returns = "A raw run-function dialog action.", example = "let action = DialogAction::run_function_raw(\"mod:future\");")]
+    pub fn run_function_raw(id: impl Into<String>) -> Self {
+        Self::RunFunction(id.into())
     }
 
     /// Survival-friendly callback — runs a datapack function via a scoreboard trigger.
@@ -847,8 +644,14 @@ impl DialogAction {
         returns = "A `DialogAction` for a survival-friendly callback — runs a datapack function via a scoreboard trigger.",
         example = "DialogButton::new(Text::new(\"Enhanced Cells\"))\n.tooltip(Text::new(\"Gain an extra row of hearts\"))\n.action(DialogAction::callback(grant_enhanced_cells))",
     )]
-    pub fn callback(id: impl IntoDialogFunctionRef) -> Self {
-        Self::Callback(id.into_dialog_function_path())
+    pub fn callback(id: impl FunctionRef) -> Self {
+        Self::Callback(id.function_id().to_string())
+    }
+
+    /// Registers an explicitly raw callback function identifier.
+    #[sand_macros::api(registry = sand_api_contract, path = "sand::component::DialogAction::callback_raw", aliases = ["sand::prelude::DialogAction::callback_raw"], module = "sand::component", kind = "method", summary = "Registers a dialog callback through an explicitly raw function token.", context = "Advanced escape hatch for unsupported callback syntax.", minecraft = "Generates callback dispatch using the supplied function token.", use_when = ["Using future or modded function syntax"], avoid_when = ["A FunctionId or registered #[function] item is available"], params(id = "The unchecked function token."), returns = "A raw callback dialog action.", example = "let action = DialogAction::callback_raw(\"mod:future\");")]
+    pub fn callback_raw(id: impl Into<String>) -> Self {
+        Self::Callback(id.into())
     }
 
     /// Sets the Minecraft suggest command property on this typed dialog action definition and returns the updated builder.
@@ -903,10 +706,16 @@ impl DialogAction {
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
         params(dialog = "`dialog` provides the dialog applied when setting the Minecraft open dialog property on this typed dialog action definition and returns the updated builder."),
         returns = "Sets the Minecraft open dialog property on this typed dialog action definition and returns the updated builder.",
-        example = "use sand::prelude::*;\n\nfn demonstrate(dialog: impl sand::component::IntoDialogRef)  {\n    let dialog_action = sand::component::DialogAction::open_dialog(dialog);\n}",
+        example = "use sand::prelude::*;\n\nfn demonstrate(dialog: DialogId) {\n    let dialog_action = DialogAction::open_dialog(dialog);\n}",
     )]
-    pub fn open_dialog(dialog: impl IntoDialogRef) -> Self {
-        Self::OpenDialog(dialog.into_dialog_ref())
+    pub fn open_dialog(dialog: DialogId) -> Self {
+        Self::OpenDialog(dialog.to_string())
+    }
+
+    /// Opens an explicitly raw dialog reference.
+    #[sand_macros::api(registry = sand_api_contract, path = "sand::component::DialogAction::open_dialog_raw", aliases = ["sand::prelude::DialogAction::open_dialog_raw"], module = "sand::component", kind = "method", summary = "Opens a dialog through an explicitly raw resource token.", context = "Advanced escape hatch for unsupported dialog syntax.", minecraft = "Serializes an open-dialog action using the supplied token.", use_when = ["Using future or modded dialog syntax"], avoid_when = ["A validated DialogId is available"], params(dialog = "The unchecked dialog token."), returns = "A raw open-dialog action.", example = "let action = DialogAction::open_dialog_raw(\"mod:menu\");")]
+    pub fn open_dialog_raw(dialog: impl Into<String>) -> Self {
+        Self::OpenDialog(dialog.into())
     }
     /// Sets the Minecraft close property on this typed dialog action definition and returns the updated builder.
     #[sand_macros::api(
@@ -1187,7 +996,7 @@ impl DialogKind {
 #[derive(Debug, Clone)]
 pub struct Dialog {
     /// The validated resource location for this dialog (e.g. `"example:welcome"`).
-    pub id: ResourceLocation,
+    pub id: DialogId,
     kind: DialogKind,
     title: Option<DialogText>,
     body: Vec<DialogBody>,
@@ -1318,9 +1127,8 @@ impl Dialog {
     }
 
     fn new_with_kind(id: DialogId, kind: DialogKind) -> Self {
-        let location = id.into();
         Self {
-            id: location,
+            id,
             kind,
             title: None,
             body: vec![],
@@ -1489,17 +1297,18 @@ impl Dialog {
         example = "use sand::prelude::*;\n\nfn demonstrate(dialog_value: &sand::component::Dialog)  {\n    let resource_path = dialog_value.resource_path();\n}",
     )]
     pub fn resource_path(&self) -> String {
-        if self.id.namespace() == SAND_LOCAL_NS {
-            format!("dialog/{}.json", self.id.path())
+        let location = self.id.as_resource_location();
+        if location.namespace() == SAND_LOCAL_NS {
+            format!("dialog/{}.json", location.path())
         } else {
-            format!("{}/dialog/{}.json", self.id.namespace(), self.id.path())
+            format!("{}/dialog/{}.json", location.namespace(), location.path())
         }
     }
 }
 
 impl DatapackComponent for Dialog {
     fn resource_location(&self) -> &ResourceLocation {
-        &self.id
+        self.id.as_resource_location()
     }
 
     fn to_json(&self) -> Value {
@@ -1510,7 +1319,7 @@ impl DatapackComponent for Dialog {
         let map_error = |error: crate::error::SandError| match error {
             crate::error::SandError::ComponentValidation { field, message, .. } => {
                 crate::error::SandError::ComponentValidation {
-                    location: self.id.clone(),
+                    location: self.id.as_resource_location().clone(),
                     kind: "dialog".to_string(),
                     field,
                     message,
@@ -1520,7 +1329,7 @@ impl DatapackComponent for Dialog {
         };
         let field_error = |field: &str, message: String| {
             map_error(crate::error::SandError::ComponentValidation {
-                location: self.id.clone(),
+                location: self.id.as_resource_location().clone(),
                 kind: "dialog".to_string(),
                 field: field.to_string(),
                 message,
@@ -1627,12 +1436,6 @@ impl DatapackComponent for Dialog {
     }
 }
 
-impl IntoDialogRef for &Dialog {
-    fn into_dialog_ref(self) -> String {
-        self.id.to_string()
-    }
-}
-
 impl DatapackComponent for DialogTag {
     fn resource_location(&self) -> &ResourceLocation {
         &self.location
@@ -1669,9 +1472,14 @@ impl DatapackComponent for DialogTag {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::FunctionId;
 
     fn dialog_id(value: &str) -> DialogId {
         value.parse().expect("test dialog resource location")
+    }
+
+    fn function_id(value: &str) -> FunctionId {
+        value.parse().expect("test function resource location")
     }
 
     #[test]
@@ -1690,9 +1498,8 @@ mod tests {
             .title("Welcome!")
             .body(DialogBody::text("Choose an option."))
             .button(
-                DialogButton::new("Start").action(DialogAction::run_function(
-                    ResourceLocation::new("example", "start").unwrap(),
-                )),
+                DialogButton::new("Start")
+                    .action(DialogAction::run_function(function_id("example:start"))),
             );
         let json = d.to_json();
         assert!(
@@ -1743,7 +1550,7 @@ mod tests {
 
     #[test]
     fn dialog_tag_helpers_emit_well_known_vanilla_paths() {
-        let pause = DialogTag::pause_screen_additions().dialog("example:welcome");
+        let pause = DialogTag::pause_screen_additions().dialog(dialog_id("example:welcome"));
         assert_eq!(pause.resource_location().namespace(), "minecraft");
         assert_eq!(
             pause.resource_location().path(),
@@ -1759,7 +1566,7 @@ mod tests {
         );
 
         let quick = DialogTag::quick_actions()
-            .dialog(ResourceLocation::new("example", "settings").unwrap())
+            .dialog(dialog_id("example:settings"))
             .replace(true);
         assert_eq!(quick.resource_location().namespace(), "minecraft");
         assert_eq!(quick.resource_location().path(), "dialog/quick_actions");
@@ -1795,9 +1602,8 @@ mod tests {
         let d = Dialog::multi_action_local("menu")
             .title("Power Selector")
             .button(
-                DialogButton::new("Enhanced Cells").action(DialogAction::run_function(
-                    ResourceLocation::new("example", "power/1").unwrap(),
-                )),
+                DialogButton::new("Enhanced Cells")
+                    .action(DialogAction::run_function(function_id("example:power/1"))),
             );
         let json = d.to_json();
         assert!(
@@ -1837,15 +1643,11 @@ mod tests {
             )))
             .button(
                 DialogButton::new(Text::new("Enhanced Cells").green()).action(
-                    DialogAction::run_function(
-                        ResourceLocation::new("example", "power/enhanced_cells").unwrap(),
-                    ),
+                    DialogAction::run_function(function_id("example:power/enhanced_cells")),
                 ),
             )
             .button(DialogButton::new(Text::new("Regeneration").aqua()).action(
-                DialogAction::run_function(
-                    ResourceLocation::new("example", "power/regeneration").unwrap(),
-                ),
+                DialogAction::run_function(function_id("example:power/regeneration")),
             ));
         let json = d.to_json();
         assert_eq!(json["type"].as_str().unwrap(), "minecraft:multi_action");
@@ -1868,7 +1670,8 @@ mod tests {
 
     #[test]
     fn button_action_open_dialog() {
-        let btn = DialogButton::new("Rules").action(DialogAction::open_dialog("example:rules"));
+        let btn = DialogButton::new("Rules")
+            .action(DialogAction::open_dialog(dialog_id("example:rules")));
         let json = btn.to_json();
         assert!(
             json["action"]["dialog"]
@@ -1897,7 +1700,11 @@ mod tests {
 
     #[test]
     fn item_body() {
-        let body = DialogBody::item_sized("minecraft:diamond", 32, 32);
+        let body = DialogBody::item_sized(
+            crate::registry::ItemId::minecraft("diamond").unwrap(),
+            32,
+            32,
+        );
         let json = body.to_json();
         assert_eq!(json["type"].as_str().unwrap(), "minecraft:item");
         assert_eq!(json["item"].as_str().unwrap(), "minecraft:diamond");
@@ -1911,9 +1718,10 @@ mod tests {
             .body(DialogBody::text(Text::new(
                 "Choose what you want to do next.",
             )))
-            .button(DialogButton::new(Text::new("Start").green()).action(
-                DialogAction::run_function(ResourceLocation::new("example", "start").unwrap()),
-            ))
+            .button(
+                DialogButton::new(Text::new("Start").green())
+                    .action(DialogAction::run_function(function_id("example:start"))),
+            )
             .button(
                 DialogButton::new(Text::new("Rules").yellow())
                     .action(DialogAction::open_dialog(DialogId::local("rules"))),
@@ -1950,8 +1758,9 @@ mod tests {
 
     #[test]
     fn invalid_open_dialog_ref_rejected() {
-        let dialog = Dialog::multi_action(dialog_id("example:menu"))
-            .button(DialogButton::new("Go").action(DialogAction::open_dialog("not a valid ref")));
+        let dialog = Dialog::multi_action(dialog_id("example:menu")).button(
+            DialogButton::new("Go").action(DialogAction::open_dialog_raw("not a valid ref")),
+        );
         let error = dialog.validate().unwrap_err().to_string();
         assert!(error.contains("buttons[0].action"), "{error}");
         assert!(error.contains("invalid dialog reference"), "{error}");
@@ -1959,8 +1768,9 @@ mod tests {
 
     #[test]
     fn invalid_run_function_ref_rejected() {
-        let dialog = Dialog::multi_action(dialog_id("example:menu"))
-            .button(DialogButton::new("Go").action(DialogAction::run_function("not a valid ref")));
+        let dialog = Dialog::multi_action(dialog_id("example:menu")).button(
+            DialogButton::new("Go").action(DialogAction::run_function_raw("not a valid ref")),
+        );
         let error = dialog.validate().unwrap_err().to_string();
         assert!(error.contains("buttons[0].action"), "{error}");
         assert!(error.contains("invalid function reference"), "{error}");
@@ -1969,7 +1779,7 @@ mod tests {
     #[test]
     fn invalid_callback_ref_rejected_before_export() {
         let dialog = Dialog::multi_action(dialog_id("example:menu"))
-            .button(DialogButton::new("Go").action(DialogAction::callback("not a valid ref")));
+            .button(DialogButton::new("Go").action(DialogAction::callback_raw("not a valid ref")));
         let error = dialog.validate().unwrap_err().to_string();
         assert!(error.contains("buttons[0].action"), "{error}");
         assert!(error.contains("invalid function reference"), "{error}");
@@ -1986,7 +1796,7 @@ mod tests {
         assert!(before.is_empty(), "test must start with an empty registry");
 
         let dialog = Dialog::multi_action(dialog_id("example:menu"))
-            .button(DialogButton::new("Go").action(DialogAction::callback("not a valid ref")));
+            .button(DialogButton::new("Go").action(DialogAction::callback_raw("not a valid ref")));
         assert!(DatapackComponent::try_content(&dialog).is_err());
 
         let after = drain_dialog_callbacks();
@@ -2008,7 +1818,7 @@ mod tests {
     #[test]
     fn invalid_typed_item_reference_rejected() {
         let dialog = Dialog::notice(dialog_id("example:shop"))
-            .body(DialogBody::item("Not A Valid Item!"))
+            .body(DialogBody::item_raw("Not A Valid Item!"))
             .button(DialogButton::new("OK").action(DialogAction::close()));
         let error = dialog.validate().unwrap_err().to_string();
         assert!(error.contains("body[0].item"), "{error}");
@@ -2040,7 +1850,11 @@ mod tests {
     #[test]
     fn zero_dimension_item_body_rejected() {
         let dialog = Dialog::notice(dialog_id("example:shop"))
-            .body(DialogBody::item_sized("minecraft:diamond", 0, 32))
+            .body(DialogBody::item_sized(
+                crate::registry::ItemId::minecraft("diamond").unwrap(),
+                0,
+                32,
+            ))
             .button(DialogButton::new("OK").action(DialogAction::close()));
         let error = dialog.validate().unwrap_err().to_string();
         assert!(error.contains("body[0].width"), "{error}");
@@ -2098,7 +1912,7 @@ mod tests {
     #[test]
     fn invalid_dialog_tag_entry_rejected() {
         use crate::component::DatapackComponent;
-        let tag = DialogTag::pause_screen_additions().dialog("not a valid ref");
+        let tag = DialogTag::pause_screen_additions().dialog_raw("not a valid ref");
         let error = tag.validate().unwrap_err().to_string();
         assert!(error.contains("values[0]"), "{error}");
         let _ = DatapackComponent::try_content(&tag);

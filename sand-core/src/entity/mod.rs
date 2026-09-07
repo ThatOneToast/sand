@@ -11,7 +11,7 @@
 //! use sand_core::entity::TargetExecution;
 //!
 //! let cmds = Target::entities()
-//!     .entity_type("minecraft:zombie")
+//!     .entity_type_raw("minecraft:zombie")
 //!     .without_tag("friendly")
 //!     .within_blocks(15.0)
 //!     .nearest()
@@ -69,10 +69,10 @@ pub use property::{
 pub use query::{StateQueryOperations, TargetExecution};
 pub use relation::{Relation, RelationTraversal};
 pub use state::{
-    Data, EntityCooldown, EntityCooldownAccessor, EntityEnum, EntityEnumAccessor, EntityEnumValue,
-    EntityFlag, EntityFlagAccessor, EntityScore, EntityScoreAccessor, EntityState,
+    Cooldown, Data, EntityCooldown, EntityCooldownAccessor, EntityEnum, EntityEnumAccessor,
+    EntityEnumValue, EntityFlag, EntityFlagAccessor, EntityScore, EntityScoreAccessor, EntityState,
     EntityStateField, EntityTimer, EntityTimerAccessor, EnumEncoding, FixedScore,
-    FixedScoreAccessor, FixedScoreValue, GlobalStateBundleOperations, KeyedData, NumericStateField,
-    NumericStateSource, Score, StateComposition, StateFieldDescriptor, StateFieldKind,
-    StatePredicate, StateSchema,
+    FixedScoreAccessor, FixedScoreValue, Flag, GlobalStateBundleOperations, KeyedData,
+    NumericStateField, NumericStateSource, Score, StateComposition, StateFieldDescriptor,
+    StateFieldKind, StatePredicate, StateSchema, Timer,
 };

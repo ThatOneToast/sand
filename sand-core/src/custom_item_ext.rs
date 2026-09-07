@@ -1,10 +1,10 @@
-//! Typed helpers for [`CustomItem`] that accept [`IntoFunctionRef`] instead of raw strings.
+//! Typed helpers for [`CustomItem`] that accept [`FunctionRef`] instead of raw strings.
 //!
 //! # Why an extension trait?
 //!
 //! [`CustomItem`] lives in `sand-components`, which does not depend on `sand-core`.
 //! Rather than creating a circular dependency, this module defines a trait that
-//! lives in `sand-core` and uses `IntoFunctionRef` from the same crate.
+//! lives in `sand-core` and uses `FunctionRef` from the same crate.
 //!
 //! # Example
 //! ```rust,ignore
@@ -33,7 +33,7 @@ use std::fmt;
 use sand_commands::selector::Selector;
 use sand_commands::{Execute, ItemSlot};
 
-use crate::function::IntoFunctionRef;
+use crate::function::FunctionRef;
 use crate::{Advancement, CustomItem, ResourceLocation};
 
 /// Extension trait for [`CustomItem`] that accepts typed function references.
@@ -43,18 +43,18 @@ pub trait CustomItemExt {
     /// Build a use-item advancement whose reward is a typed function ref.
     ///
     /// Identical to [`CustomItem::on_use_advancement`] but accepts any
-    /// [`IntoFunctionRef`] — including `#[function]`-registered closures.
-    fn on_use_fn(&self, location: ResourceLocation, handler: impl IntoFunctionRef) -> Advancement;
+    /// [`FunctionRef`] — including `#[function]`-registered closures.
+    fn on_use_fn(&self, location: ResourceLocation, handler: impl FunctionRef) -> Advancement;
 
     /// Build a kill-entity advancement whose reward is a typed function ref.
-    fn on_kill_fn(&self, location: ResourceLocation, handler: impl IntoFunctionRef) -> Advancement;
+    fn on_kill_fn(&self, location: ResourceLocation, handler: impl FunctionRef) -> Advancement;
 
     /// Build a custom-trigger advancement whose reward is a typed function ref.
     fn on_trigger_fn(
         &self,
         location: ResourceLocation,
         trigger: crate::AdvancementTrigger,
-        handler: impl IntoFunctionRef,
+        handler: impl FunctionRef,
     ) -> Advancement;
 
     /// `execute if items entity @s <slot> <item_string>`.
@@ -80,40 +80,21 @@ pub trait CustomItemExt {
 }
 
 impl CustomItemExt for CustomItem {
-    fn on_use_fn(&self, location: ResourceLocation, handler: impl IntoFunctionRef) -> Advancement {
-        self.on_use_advancement(
-            location,
-            handler
-                .into_function_id()
-                .parse()
-                .expect("function reference must resolve to a valid resource location"),
-        )
+    fn on_use_fn(&self, location: ResourceLocation, handler: impl FunctionRef) -> Advancement {
+        self.on_use_advancement(location, handler.function_id())
     }
 
-    fn on_kill_fn(&self, location: ResourceLocation, handler: impl IntoFunctionRef) -> Advancement {
-        self.on_kill_advancement(
-            location,
-            handler
-                .into_function_id()
-                .parse()
-                .expect("function reference must resolve to a valid resource location"),
-        )
+    fn on_kill_fn(&self, location: ResourceLocation, handler: impl FunctionRef) -> Advancement {
+        self.on_kill_advancement(location, handler.function_id())
     }
 
     fn on_trigger_fn(
         &self,
         location: ResourceLocation,
         trigger: crate::AdvancementTrigger,
-        handler: impl IntoFunctionRef,
+        handler: impl FunctionRef,
     ) -> Advancement {
-        self.custom_trigger_advancement(
-            location,
-            trigger,
-            handler
-                .into_function_id()
-                .parse()
-                .expect("function reference must resolve to a valid resource location"),
-        )
+        self.custom_trigger_advancement(location, trigger, handler.function_id())
     }
 
     fn item_check_in(&self, slot: impl Into<ItemSlot>) -> Execute {
@@ -253,7 +234,9 @@ mod tests {
         let item = CustomItem::new("minecraft:shield").custom_data("powers_shockwave");
         let adv = item.on_use_fn(
             ResourceLocation::new("my_pack", "items/shockwave/on_use").unwrap(),
-            "my_pack:functions/on_shockwave_use",
+            "my_pack:functions/on_shockwave_use"
+                .parse::<crate::FunctionId>()
+                .unwrap(),
         );
         // Just verify it builds without panicking — the full JSON is tested in sand-components.
         let _ = adv;

@@ -1,9 +1,7 @@
 //! Minecraft NBT storage abstraction for datapacks.
 //!
-//! This module provides only the datapack-level types: [`Storage`] and
-//! [`StorageKind`]. The low-level building blocks — [`NbtValue`], [`DataTarget`],
-//! [`DataModify`], and [`data_modify`] — live in `sand-commands` and are
-//! re-exported from `sand_core::cmd`.
+//! This module provides only the datapack-level [`Storage`] helper. Ordinary
+//! data authoring starts from the canonical [`Nbt`](sand_commands::Nbt) root.
 //!
 //! # Storage — a typed HashMap over Minecraft NBT
 //!
@@ -47,7 +45,8 @@
 
 use std::borrow::Cow;
 
-use sand_commands::{CommandResult, DataModify, DataTarget, NbtValue, Validate};
+use sand_commands::nbt::NbtRefLowering;
+use sand_commands::{CommandResult, DataTarget, NbtPath, NbtRef, NbtValue, UntypedNbt, Validate};
 
 // ── StorageKind ───────────────────────────────────────────────────────────────
 
@@ -289,7 +288,9 @@ impl Storage {
         example = "WORLD.insert(\"boss_phase\", 2_i32)   // → data modify storage … set value 2\nWORLD.insert(\"active\",     true)    // → data modify storage … set value 1b\nWORLD.insert(\"name\",       \"Boss\")  // → data modify storage … set value \"Boss\"",
     )]
     pub fn insert(&self, key: impl Into<String>, value: impl Into<NbtValue>) -> String {
-        DataModify::new(self.target(), key.into()).set(value)
+        NbtRef::<UntypedNbt>::__from_parts(self.target(), NbtPath::new(key))
+            .set(value)
+            .to_string()
     }
 
     /// Delete `key` from storage.
@@ -297,7 +298,7 @@ impl Storage {
     /// Equivalent to `HashMap::remove`.
     ///
     /// Raw/unchecked: hand-formats the command without routing the storage
-    /// id or NBT path through the typed [`DataTarget`]/[`NbtPath`](sand_commands::NbtPath)
+    /// id or NBT path through the canonical [`NbtRef`]/[`NbtPath`](sand_commands::NbtPath)
     /// validators. Prefer [`Storage::try_remove`].
     #[sand_macros::api(
         registry = sand_api_contract,
@@ -306,8 +307,8 @@ impl Storage {
         module = "sand::command",
         kind = "method",
         summary = "Delete `key` from storage. Equivalent to `HashMap::remove`.",
-        context = "Delete `key` from storage. Equivalent to `HashMap::remove`. Raw/unchecked: hand-formats the command without routing the storage id or NBT path through the typed [`DataTarget`]/[`NbtPath`](sand::data::NbtPath) validators. Prefer [`Storage::try_remove`].",
-        minecraft = "Raw/unchecked: hand-formats the command without routing the storage id or NBT path through the typed [`DataTarget`]/[`NbtPath`](sand::data::NbtPath) validators. Prefer [`Storage::try_remove`].",
+        context = "Delete `key` from storage. Equivalent to `HashMap::remove`. Raw/unchecked: hand-formats the command without routing the storage id or NBT path through the canonical [`NbtRef`](sand::data::NbtRef)/[`NbtPath`](sand::data::NbtPath) validators. Prefer [`Storage::try_remove`].",
+        minecraft = "Raw/unchecked: hand-formats the command without routing the storage id or NBT path through the canonical [`NbtRef`](sand::data::NbtRef)/[`NbtPath`](sand::data::NbtPath) validators. Prefer [`Storage::try_remove`].",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
         params(key = "Delete `key` from storage."),
@@ -320,7 +321,7 @@ impl Storage {
 
     /// Validated counterpart to [`Storage::remove`].
     ///
-    /// Routes through the same [`DataTarget`]/NBT-path validation as
+    /// Routes through the same canonical [`NbtRef`]/NBT-path validation as
     /// [`sand_commands::DataCommand`]: the storage id must be a valid
     /// `namespace:path` resource location and `key` must be a
     /// structurally valid NBT path.
@@ -330,13 +331,13 @@ impl Storage {
         aliases = ["sand::cmd::Storage::try_remove", "sand::prelude::cmd::Storage::try_remove"],
         module = "sand::command",
         kind = "method",
-        summary = "Validated counterpart to [`Storage::remove`]. Routes through the same [`DataTarget`]/NBT-path validation as [`sand::data::DataCommand`]: the storage id must be a valid `namespace:path` resource location and `key` must be a structurally valid NBT path.",
-        context = "Validated counterpart to [`Storage::remove`]. Routes through the same [`DataTarget`]/NBT-path validation as [`sand::data::DataCommand`]: the storage id must be a valid `namespace:path` resource location and `key` must be a structurally valid NBT path. This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
-        minecraft = "Routes through the same [`DataTarget`]/NBT-path validation as [`sand::data::DataCommand`]: the storage id must be a valid `namespace:path` resource location and `key` must be a structurally valid NBT path.",
+        summary = "Validated counterpart to [`Storage::remove`]. Routes through the same canonical [`sand::data::NbtRef`]/NBT-path validation as [`sand::data::DataCommand`]: the storage id must be a valid `namespace:path` resource location and `key` must be a structurally valid NBT path.",
+        context = "Validated counterpart to [`Storage::remove`]. Routes through the same canonical [`sand::data::NbtRef`]/NBT-path validation as [`sand::data::DataCommand`]: the storage id must be a valid `namespace:path` resource location and `key` must be a structurally valid NBT path. This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
+        minecraft = "Routes through the same canonical [`sand::data::NbtRef`]/NBT-path validation as [`sand::data::DataCommand`]: the storage id must be a valid `namespace:path` resource location and `key` must be a structurally valid NBT path.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        params(key = "Routes through the same [`DataTarget`]/NBT-path validation as [`sand::data::DataCommand`]: the storage id must be a valid `namespace:path` resource location and `key` must be a structurally valid NBT path."),
-        returns = "On success, the value produced to use validated counterpart to [`Storage::remove`]. Routes through the same [`DataTarget`]/NBT-path validation as [`sand::data::DataCommand`]: the storage id must be a valid `namespace:path` resource location and `key` must be a structurally valid NBT path; otherwise, the documented validation or export diagnostic.",
+        params(key = "The structurally validated NBT path to remove from this storage root."),
+        returns = "The validated remove command, or a diagnostic for an invalid storage identifier or NBT path.",
         example = "use sand::prelude::*;\n\nfn demonstrate(storage_value: &sand::command::Storage, key: impl Into < String >)  {\n    let try_remove = storage_value.try_remove(key);\n}",
     )]
     pub fn try_remove(&self, key: impl Into<String>) -> CommandResult<String> {
@@ -585,7 +586,9 @@ impl Storage {
         example = "use sand::prelude::*;\n\nfn demonstrate(storage_value: &sand::command::Storage, key: impl Into < String >, value: impl Into < sand::data::NbtValue >)  {\n    let push = storage_value.push(key, value);\n}",
     )]
     pub fn push(&self, key: impl Into<String>, value: impl Into<NbtValue>) -> String {
-        DataModify::new(self.target(), key.into()).append(value)
+        NbtRef::<UntypedNbt>::__from_parts(self.target(), NbtPath::new(key))
+            .append(value)
+            .to_string()
     }
 
     /// Prepend `value` to the front of the list at `key`.
@@ -605,7 +608,9 @@ impl Storage {
         example = "use sand::prelude::*;\n\nfn demonstrate(storage_value: &sand::command::Storage, key: impl Into < String >, value: impl Into < sand::data::NbtValue >)  {\n    let push_front = storage_value.push_front(key, value);\n}",
     )]
     pub fn push_front(&self, key: impl Into<String>, value: impl Into<NbtValue>) -> String {
-        DataModify::new(self.target(), key.into()).prepend(value)
+        NbtRef::<UntypedNbt>::__from_parts(self.target(), NbtPath::new(key))
+            .prepend(value)
+            .to_string()
     }
 
     // ── Merge ─────────────────────────────────────────────────────────────
@@ -635,7 +640,7 @@ impl Storage {
     /// Validated counterpart to [`Storage::merge`].
     ///
     /// Validates the storage id through the same resource-location shape
-    /// check used by [`DataTarget::Storage`]. `value`'s NBT structure is not
+    /// check used by [`NbtRef`]. `value`'s NBT structure is not
     /// re-validated here: [`sand_commands::DataCommand::Merge`] requires a
     /// structured `NbtCompound`, while this compatibility API keeps
     /// accepting any [`NbtValue`] (including [`NbtValue::raw`] escape
@@ -646,13 +651,13 @@ impl Storage {
         aliases = ["sand::cmd::Storage::try_merge", "sand::prelude::cmd::Storage::try_merge"],
         module = "sand::command",
         kind = "method",
-        summary = "Validated counterpart to [`Storage::merge`]. Validates the storage id through the same resource-location shape check used by [`DataTarget::Storage`]. `value`'s NBT structure is not re-validated here: [`sand::data::DataCommand::Merge`] requires a structured `NbtCompound`, while this compatibility API keeps accepting any [`NbtValue`] (including [`NbtValue::raw`] escape hatches) for the merge payload.",
-        context = "Validated counterpart to [`Storage::merge`]. Validates the storage id through the same resource-location shape check used by [`DataTarget::Storage`]. `value`'s NBT structure is not re-validated here: [`sand::data::DataCommand::Merge`] requires a structured `NbtCompound`, while this compatibility API keeps accepting any [`NbtValue`] (including [`NbtValue::raw`] escape hatches) for the merge payload. This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
-        minecraft = "Validates the storage id through the same resource-location shape check used by [`DataTarget::Storage`]. `value`'s NBT structure is not re-validated here: [`sand::data::DataCommand::Merge`] requires a structured `NbtCompound`, while this compatibility API keeps accepting any [`NbtValue`] (including [`NbtValue::raw`] escape hatches) for the merge payload.",
+        summary = "Validated counterpart to [`Storage::merge`]. Validates the storage id through the same resource-location check used by canonical [`sand::data::NbtRef`] values. `value`'s NBT structure is not re-validated here: [`sand::data::DataCommand::Merge`] requires a structured `NbtCompound`, while this compatibility API keeps accepting any [`NbtValue`] (including [`NbtValue::raw`] escape hatches) for the merge payload.",
+        context = "Validated counterpart to [`Storage::merge`]. Validates the storage id through the same resource-location check used by canonical [`sand::data::NbtRef`] values. `value`'s NBT structure is not re-validated here: [`sand::data::DataCommand::Merge`] requires a structured `NbtCompound`, while this compatibility API keeps accepting any [`NbtValue`] (including [`NbtValue::raw`] escape hatches) for the merge payload. This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
+        minecraft = "Validates the storage identifier before emitting a data merge command; structured [`sand::data::NbtCompound`] values remain the canonical merge payload.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        params(value = "Validates the storage id through the same resource-location shape check used by [`DataTarget::Storage`]. `value`'s NBT structure is not re-validated here: [`sand::data::DataCommand::Merge`] requires a structured `NbtCompound`, while this compatibility API keeps accepting any [`NbtValue`] (including [`NbtValue::raw`] escape hatches) for the merge payload."),
-        returns = "On success, the value produced to use validated counterpart to [`Storage::merge`]. Validates the storage id through the same resource-location shape check used by [`DataTarget::Storage`]. `value`'s NBT structure is not re-validated here: [`sand::data::DataCommand::Merge`] requires a structured `NbtCompound`, while this compatibility API keeps accepting any [`NbtValue`] (including [`NbtValue::raw`] escape hatches) for the merge payload; otherwise, the documented validation or export diagnostic.",
+        params(value = "The typed or explicitly raw NBT value to merge."),
+        returns = "The validated merge command, or a diagnostic for an invalid storage identifier.",
         example = "use sand::prelude::*;\n\nfn demonstrate(storage_value: &sand::command::Storage, value: impl Into < sand::data::NbtValue >)  {\n    let try_merge = storage_value.try_merge(value);\n}",
     )]
     pub fn try_merge(&self, value: impl Into<NbtValue>) -> CommandResult<String> {
@@ -684,10 +689,12 @@ impl Storage {
         entity: impl sand_commands::TargetArgument,
         src_path: impl Into<String>,
     ) -> String {
-        DataModify::new(self.target(), key.into()).set_from(
+        let destination = NbtRef::<UntypedNbt>::__from_parts(self.target(), NbtPath::new(key));
+        let source = NbtRef::<UntypedNbt>::__from_parts(
             DataTarget::Entity(entity.into_target_selector()),
-            src_path.into(),
-        )
+            NbtPath::new(src_path),
+        );
+        destination.copy_from(&source).to_string()
     }
 
     /// Copy a value from another storage namespace.
@@ -712,8 +719,12 @@ impl Storage {
         src_id: impl Into<String>,
         src_path: impl Into<String>,
     ) -> String {
-        DataModify::new(self.target(), key.into())
-            .set_from(DataTarget::Storage(src_id.into()), src_path.into())
+        let destination = NbtRef::<UntypedNbt>::__from_parts(self.target(), NbtPath::new(key));
+        let source = NbtRef::<UntypedNbt>::__from_parts(
+            DataTarget::Storage(src_id.into()),
+            NbtPath::new(src_path),
+        );
+        destination.copy_from(&source).to_string()
     }
 }
 
@@ -740,7 +751,7 @@ impl From<&Storage> for String {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use sand_commands::{DataTarget, NbtValue, Selector, data_modify};
+    use sand_commands::{Nbt, NbtValue, Selector};
 
     static WORLD: Storage = Storage::global("my_pack:world");
     static PLAYERS: Storage = Storage::per_player("my_pack:players");
@@ -844,11 +855,14 @@ mod tests {
         assert_eq!(s, "my_pack:players");
     }
 
-    // ── data_modify convenience ────────────────────────────────────────────
+    // ── canonical NBT reference ────────────────────────────────────────────
 
     #[test]
-    fn data_modify_via_sand_commands() {
-        let cmd = data_modify(DataTarget::entity(Selector::self_()), "Custom.Phase").set(2_i32);
+    fn data_modify_via_canonical_nbt_reference() {
+        let cmd = Nbt::entity(Selector::self_())
+            .path("Custom.Phase")
+            .set(2_i32)
+            .to_string();
         assert_eq!(cmd, "data modify entity @s Custom.Phase set value 2");
     }
 

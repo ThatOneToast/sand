@@ -1,6 +1,9 @@
-//! Demonstrates the ergonomic state API additions — new helper methods on
-//! `ScoreVar`, `Flag`, `Timer`, and `Cooldown`.
+//! Regression coverage for explicitly advanced scoreboard state primitives.
+//!
+//! Application code should use `#[derive(State)]`; these helpers remain only
+//! for framework integrations below that authoring layer.
 
+use sand_core::advanced::state::{Cooldown, Flag, ScoreVar, Timer};
 use sand_core::prelude::*;
 
 // -- State declarations -------------------------------------------------------

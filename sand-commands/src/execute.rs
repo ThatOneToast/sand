@@ -24,7 +24,7 @@ use crate::coord::{BlockPos, Rotation, Vec3};
 use crate::error::{CommandError, CommandResult};
 use crate::execute_args::{Anchor, ItemSlot, NbtStoreKind, Swizzle};
 use crate::execute_ir::{ConditionIr, ExecuteOp, ExecuteStoreTarget};
-use crate::nbt::DataTarget;
+use crate::nbt::{DataTarget, NbtRef, NbtRefLowering};
 use crate::render::{CommandProfile, RenderCommand, Validate};
 use crate::scoreboard::{ScoreCmp, ScoreHolder};
 use crate::selector::{Selector, TargetArgument};
@@ -512,12 +512,21 @@ impl Execute {
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
         params(entity_type = "`entity_type` supplies the documented `summon <entity_type>` — summon an entity and execute as it immediately form."),
         returns = "The `Execute` value with the documented change applied to emit the documented `summon <entity_type>` — summon an entity and execute as it immediately form.",
-        example = "use sand::prelude::*;\n\nfn demonstrate(execute_value: sand::command::Execute, entity_type: impl sand::command::IntoEntityType)  {\n    let updated_execute = execute_value.summon(entity_type);\n}",
+        example = "use sand::prelude::*;\nlet command = Execute::new().summon(EntityType::Marker);",
     )]
-    pub fn summon(mut self, entity_type: impl crate::selector::IntoEntityType) -> Self {
-        let entity_type = entity_type.into_entity_type();
-        self.check_resource("summon", "entity_type", &entity_type, false);
+    pub fn summon(
+        mut self,
+        entity_type: impl crate::resource::RegistryReference<crate::resource::EntityType>,
+    ) -> Self {
+        let entity_type = entity_type.registry_id();
         self.operations.push(ExecuteOp::Summon(entity_type));
+        self
+    }
+
+    /// Summons through an explicitly unchecked entity-type token.
+    #[sand_macros::api(registry = sand_api_contract, path = "sand::command::Execute::summon_raw", aliases = ["sand::cmd::Execute::summon_raw", "sand::prelude::Execute::summon_raw", "sand::prelude::cmd::Execute::summon_raw"], module = "sand::command", kind = "method", summary = "Summons through an explicitly raw entity-type token.", context = "Advanced escape hatch for future or modded entity syntax not represented by a typed registry ID.", minecraft = "Emits execute summon followed by the supplied token.", use_when = ["Using unsupported entity-type syntax"], avoid_when = ["A generated EntityType or validated EntityTypeId is available"], params(entity_type = "The unchecked entity-type token."), returns = "This execute chain with the raw summon operation appended.", example = "let command = Execute::new().summon_raw(\"mod:entity\");")]
+    pub fn summon_raw(mut self, entity_type: impl Into<String>) -> Self {
+        self.operations.push(ExecuteOp::Summon(entity_type.into()));
         self
     }
 
@@ -1907,14 +1916,13 @@ impl Execute {
         minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        params(target = "`target` provides the entity, block, or command target used to emit the documented `store result nbt <target> <path> <type> <scale>` — write the `run` result into NBT form.", path = "`path` provides the typed resource identifier or location used to emit the documented `store result nbt <target> <path> <type> <scale>` — write the `run` result into NBT form.", kind = "`kind` supplies the documented `store result nbt <target> <path> <type> <scale>` — write the `run` result into NBT form.", scale = "`scale` supplies the documented `store result nbt <target> <path> <type> <scale>` — write the `run` result into NBT form."),
+        params(destination = "The canonical NBT reference receiving the command result.", kind = "The numeric NBT representation to store.", scale = "The scale applied to the command result."),
         returns = "The `Execute` value with the documented change applied to emit the documented `store result nbt <target> <path> <type> <scale>` — write the `run` result into NBT form.",
-        example = "use sand::prelude::*;\n\nfn demonstrate(execute_value: sand::command::Execute, target: sand::data::DataTarget, path: impl Into < String >, kind: sand::command::NbtStoreKind, scale: f64)  {\n    let updated_execute = execute_value.store_result_nbt(target, path, kind, scale);\n}",
+        example = "use sand::prelude::*;\nlet destination = Nbt::storage(ResourceLocation::new(\"demo\", \"state\").unwrap()).typed_path::<i32>(\"result\");\nlet command = Execute::new().store_result_nbt(&destination, NbtStoreKind::Int, 1.0);",
     )]
-    pub fn store_result_nbt(
+    pub fn store_result_nbt<T>(
         mut self,
-        target: DataTarget,
-        path: impl Into<String>,
+        destination: &NbtRef<T>,
         kind: NbtStoreKind,
         scale: f64,
     ) -> Self {
@@ -1926,8 +1934,8 @@ impl Execute {
         });
         self.operations
             .push(ExecuteOp::StoreResult(ExecuteStoreTarget::Nbt {
-                target,
-                path: path.into(),
+                target: destination.__location().clone(),
+                path: destination.path_value().to_string(),
                 kind,
                 scale,
             }));
@@ -1946,14 +1954,13 @@ impl Execute {
         minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        params(target = "`target` provides the entity, block, or command target used to emit the documented `store success nbt <target> <path> <type> <scale>` — write 1/0 (success/fail) into NBT form.", path = "`path` provides the typed resource identifier or location used to emit the documented `store success nbt <target> <path> <type> <scale>` — write 1/0 (success/fail) into NBT form.", kind = "`kind` supplies the documented `store success nbt <target> <path> <type> <scale>` — write 1/0 (success/fail) into NBT form.", scale = "`scale` supplies the documented `store success nbt <target> <path> <type> <scale>` — write 1/0 (success/fail) into NBT form."),
+        params(destination = "The canonical NBT reference receiving the success value.", kind = "The numeric NBT representation to store.", scale = "The scale applied to the success value."),
         returns = "The `Execute` value with the documented change applied to emit the documented `store success nbt <target> <path> <type> <scale>` — write 1/0 (success/fail) into NBT form.",
-        example = "use sand::prelude::*;\n\nfn demonstrate(execute_value: sand::command::Execute, target: sand::data::DataTarget, path: impl Into < String >, kind: sand::command::NbtStoreKind, scale: f64)  {\n    let updated_execute = execute_value.store_success_nbt(target, path, kind, scale);\n}",
+        example = "use sand::prelude::*;\nlet destination = Nbt::entity(Target::self_()).typed_path::<bool>(\"success\");\nlet command = Execute::new().store_success_nbt(&destination, NbtStoreKind::Byte, 1.0);",
     )]
-    pub fn store_success_nbt(
+    pub fn store_success_nbt<T>(
         mut self,
-        target: DataTarget,
-        path: impl Into<String>,
+        destination: &NbtRef<T>,
         kind: NbtStoreKind,
         scale: f64,
     ) -> Self {
@@ -1965,8 +1972,8 @@ impl Execute {
         });
         self.operations
             .push(ExecuteOp::StoreSuccess(ExecuteStoreTarget::Nbt {
-                target,
-                path: path.into(),
+                target: destination.__location().clone(),
+                path: destination.path_value().to_string(),
                 kind,
                 scale,
             }));
@@ -2608,13 +2615,9 @@ mod tests {
 
     #[test]
     fn store_result_nbt_entity() {
+        let destination = crate::nbt::DataTarget::entity(Selector::self_()).path("Custom.kills");
         let s = Execute::new()
-            .store_result_nbt(
-                crate::nbt::DataTarget::Entity(Selector::self_()),
-                "Custom.kills",
-                NbtStoreKind::Int,
-                1.0,
-            )
+            .store_result_nbt(&destination, NbtStoreKind::Int, 1.0)
             .run_raw("scoreboard players get @s kills");
         assert_eq!(
             s,
@@ -2626,7 +2629,7 @@ mod tests {
     fn store_success_score() {
         let s = Execute::new()
             .store_success_score(ScoreHolder::entity(Selector::self_()), "result_obj")
-            .if_entity(Selector::all_entities().entity_type("minecraft:zombie"))
+            .if_entity(Selector::all_entities().entity_type_raw("minecraft:zombie"))
             .run_raw("say zombies");
         assert_eq!(
             s,
@@ -2645,7 +2648,7 @@ mod tests {
     #[test]
     fn summon_subcommand() {
         let s = Execute::new()
-            .summon("minecraft:armor_stand")
+            .summon_raw("minecraft:armor_stand")
             .run_raw("say spawned");
         assert_eq!(s, "execute summon minecraft:armor_stand run say spawned");
     }
@@ -2688,14 +2691,10 @@ mod tests {
                 .try_build()
                 .is_err()
         );
+        let destination = DataTarget::entity(Selector::self_()).path("x");
         assert!(
             Execute::new()
-                .store_result_nbt(
-                    DataTarget::Entity(Selector::self_()),
-                    "x",
-                    NbtStoreKind::Double,
-                    f64::INFINITY
-                )
+                .store_result_nbt(&destination, NbtStoreKind::Double, f64::INFINITY)
                 .try_build()
                 .is_err()
         );

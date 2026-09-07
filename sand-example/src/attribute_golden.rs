@@ -1,5 +1,7 @@
 //! Golden coverage for attribute-first datapack authoring.
 
+use sand_core::StorageVar;
+use sand_core::advanced::state::{Cooldown, Flag, ScoreVar};
 use sand_core::prelude::*;
 use sand_macros::{datapack_component, function};
 
@@ -38,9 +40,9 @@ pub fn nested_or() {
             GOLDEN_MANA.of("@s").gte(25),
             any![GOLDEN_DASH.ready("@s"), GOLDEN_SETTINGS.exists()],
         ])
-        .run(cmd::function(
+        .run(cmd::function(FunctionId::custom(
             ResourceLocation::new("golden", "cast_dash").unwrap(),
-        ));
+        )));
 }
 
 #[function]
@@ -67,9 +69,14 @@ pub fn golden_welcome_dialog() -> Dialog {
     Dialog::multi_action_local("welcome")
         .title("Welcome")
         .body(DialogBody::text("Dash is ready."))
-        .button(DialogButton::new("Start").action(DialogAction::run_command(
-            cmd::function(ResourceLocation::new("golden", "start").unwrap()).to_string(),
-        )))
+        .button(
+            DialogButton::new("Start").action(DialogAction::run_command(
+                cmd::function(FunctionId::custom(
+                    ResourceLocation::new("golden", "start").unwrap(),
+                ))
+                .to_string(),
+            )),
+        )
 }
 
 #[cfg(test)]

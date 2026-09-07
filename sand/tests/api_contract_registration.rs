@@ -44,10 +44,13 @@ fn generated_registrations_build_an_installed_catalog() {
         .with_context("registration test");
     let command_result: sand::command::CommandResult<()> = Err(command_error);
     assert!(command_result.is_err());
-    fn accepts_entity_type(_: impl sand::command::IntoEntityType) {}
-    accepts_entity_type("minecraft:marker");
-    fn accepts_dialog_ref(_: impl sand::component::IntoDialogRef) {}
-    accepts_dialog_ref("welcome");
+    fn accepts_entity_type(
+        _: impl sand::resource_ref::RegistryReference<sand::resource_ref::EntityTypeRegistry>,
+    ) {
+    }
+    accepts_entity_type(sand::registry::EntityTypeId::minecraft("marker").unwrap());
+    fn accepts_dialog_ref(_: sand::resource_ref::DialogId) {}
+    accepts_dialog_ref(sand::resource_ref::DialogId::local("welcome"));
 
     let coverage = sand::__private::api_contract::installed_coverage();
     assert!(coverage.static_surface_items > 10_000);
@@ -135,9 +138,12 @@ fn generated_registrations_build_an_installed_catalog() {
     );
     assert_eq!(command_result.kind, ApiKind::TypeAlias);
     let entity_type = catalog
-        .find("sand::cmd::IntoEntityType")
-        .expect("entity-type conversion has a canonical command path");
-    assert_eq!(entity_type.canonical_path, "sand::command::IntoEntityType");
+        .find("sand::resource_ref::RegistryReference")
+        .expect("registry references have one canonical capability path");
+    assert_eq!(
+        entity_type.canonical_path,
+        "sand::resource_ref::RegistryReference"
+    );
     assert_eq!(entity_type.kind, ApiKind::Trait);
 
     let component_module = catalog
@@ -145,14 +151,9 @@ fn generated_registrations_build_an_installed_catalog() {
         .expect("component builders retain their canonical topic module");
     assert_eq!(component_module.kind, ApiKind::Module);
     let dialog_ref = catalog
-        .find("sand::component::IntoDialogRef")
-        .expect("dialog-reference conversion is owned by the component facade");
-    assert_eq!(dialog_ref.kind, ApiKind::Trait);
-    assert!(
-        catalog
-            .find("sand::component::IntoDialogRef::into_dialog_ref")
-            .is_some()
-    );
+        .find("sand::resource_ref::DialogId")
+        .expect("dialog references use the canonical typed ID");
+    assert_eq!(dialog_ref.kind, ApiKind::Struct);
 
     let component_attribute = catalog
         .find("sand::datapack_component")

@@ -46,7 +46,7 @@ currently iterating," not "whoever ran this command directly."
 ```
 
 Called from `tick`'s exhaustion-clearing branch (chapter 3) via
-`cmd::function(ResourceLocation::new("trail", "recover").unwrap())`. No
+`cmd::function(FunctionId::custom(ResourceLocation::new("trail", "recover").unwrap()))`. No
 gating logic lives here — the caller already checked the condition — so the
 function body is just the state change and the player-facing message.
 

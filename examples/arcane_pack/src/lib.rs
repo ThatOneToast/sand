@@ -22,7 +22,11 @@
 
 use sand_core::event::vanilla::{FirstJoin, OnDeath, OnJoin, OnRespawn};
 use sand_core::prelude::*;
-use sand_macros::{datapack_component, on_event, function};
+// This older lowering-focused fixture retains explicit access to primitive
+// scoreboard/storage controls. New application examples use `#[derive(State)]`.
+use sand_core::advanced::state::{Cooldown, Flag, ScoreVar};
+use sand_core::{StorageField, StorageSchema};
+use sand_macros::{datapack_component, function, on_event};
 
 mod events;
 use crate::events::{AteGoldenAppleEvent, EnhancedCellsDamagedEvent, UsedDashWandEvent};
@@ -67,10 +71,10 @@ pub fn load() {
     HAS_ENHANCED_CELLS.define();
     GOLDEN_APPLE_HANDLE.define();
     PLAYER_MAGIC.set(
-        SnbtCompound::new()
+        NbtCompound::new()
             .field("mana", 100)
             .field("school", "unbound")
-            .field("unlocked_spells", SnbtValue::from(Vec::<SnbtValue>::new())),
+            .field("unlocked_spells", NbtValue::from(Vec::<NbtValue>::new())),
     );
 
     cmd::tellraw(
@@ -362,7 +366,7 @@ pub fn on_ate_golden_apple(event: Event<AteGoldenAppleEvent>) {
     MANA.add(event.player(), 10);
     STORED_MANA.set(110);
     Actionbar::show(event.player(), Text::new("+10 mana (golden apple)").green());
-    cmd::call(golden_apple_reward);
+    cmd::function(golden_apple_reward);
 }
 
 /// Sound reward for golden apple — called via function pointer.
@@ -379,7 +383,7 @@ pub fn on_used_dash_wand(event: Event<UsedDashWandEvent>) {
     MANA.remove(event.player(), 25);
     DASH.start(event.player());
     Actionbar::show(event.player(), Text::new("Dash wand activated!").gold());
-    cmd::call(dash_wand_effect);
+    cmd::function(dash_wand_effect);
 }
 
 /// Speed boost feedback — called via function pointer.
@@ -438,9 +442,7 @@ pub fn grant_enhanced_cells() {
 pub fn on_damaged_damage_nearby(event: DamageEvent<EnhancedCellsDamagedEvent>) {
     event
         .reflect_damage()
-        .to(Target::nearby(5.0)
-            .excluding_players()
-            .excluding_self())
+        .to(Target::nearby(5.0).excluding_players().excluding_self())
         .amount(DamageAmount::fixed(4.0))
         .damage_type(DamageKind::Generic)
         .run();
@@ -812,7 +814,7 @@ mod tests {
         // Bare function pointer resolved to real namespace (Parts 2+3)
         assert!(
             body_content.contains("function arcane:golden_apple_reward"),
-            "cmd::call() must resolve to 'function arcane:golden_apple_reward':\n{body_content}"
+            "cmd::function() must resolve to 'function arcane:golden_apple_reward':\n{body_content}"
         );
         // No sentinel leaks into exported content
         assert!(
@@ -929,5 +931,4 @@ mod tests {
         assert!(!defs.is_empty());
         assert!(defs.iter().any(|d| d.contains("mana")));
     }
-
 }

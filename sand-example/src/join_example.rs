@@ -33,7 +33,7 @@
 //! For richer structured data (e.g. a table of stats per player), use
 //! `/data modify storage` instead — see the commented example at the bottom.
 
-use sand_core::mcfunction;
+use sand_core::{FunctionId, mcfunction};
 use sand_macros::{datapack_component, function};
 
 // ── 1. Initialise scoreboards on load ────────────────────────────────────────
@@ -66,7 +66,10 @@ pub fn detect_join() -> sand_core::Advancement {
     use sand_core::{Advancement, AdvancementRewards, AdvancementTrigger, Criterion};
     Advancement::new("hello_world:detect_join".parse().unwrap())
         .criterion("joined", Criterion::new(AdvancementTrigger::Tick))
-        .rewards(AdvancementRewards::new().function("hello_world:on_player_join".parse().unwrap()))
+        .rewards(
+            AdvancementRewards::new()
+                .function("hello_world:on_player_join".parse::<FunctionId>().unwrap()),
+        )
 }
 
 // ── 3. The join handler ───────────────────────────────────────────────────────

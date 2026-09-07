@@ -144,7 +144,7 @@ family_lifecycle_tests! {
     };
 
     nbt: crate::nbt::DataLines, crate::nbt::DataCommand, || {
-        crate::nbt::Nbt::storage("regtest:scope")
+        crate::nbt::Nbt::storage_raw("regtest:scope")
             .path("counter")
             .set(1_i32)
             .try_render(&crate::render::CommandProfile::unprofiled())
@@ -153,7 +153,7 @@ family_lifecycle_tests! {
 
     particles: crate::particles::ParticleLines, crate::particles::ParticleCommand, || {
         crate::particles::ParticleBuilder::new(
-            crate::particles::Particle::named("minecraft:flame"),
+            crate::particles::Particle::raw_token("minecraft:flame"),
         )
         .points_at(&[[0.0, 64.0, 0.0]])
         .remove(0)
@@ -161,7 +161,7 @@ family_lifecycle_tests! {
 
     sound: crate::sound::SoundLines, crate::sound::SoundCommand, || {
         use crate::Build;
-        crate::sound::Sound::play("minecraft:entity.experience_orb.pickup")
+        crate::sound::Sound::play_raw("minecraft:entity.experience_orb.pickup")
             .to(crate::selector::Selector::self_())
             .build()
     };
@@ -184,7 +184,7 @@ family_lifecycle_tests! {
 
     effect: crate::effect::EffectLines, crate::effect::EffectCommand, || {
         use crate::Build;
-        crate::effect::EffectCommand::give(
+        crate::effect::EffectCommand::give_raw(
             crate::selector::Selector::self_(),
             "minecraft:speed",
         )

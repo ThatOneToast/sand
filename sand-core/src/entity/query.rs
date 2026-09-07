@@ -380,7 +380,7 @@ mod tests {
     #[test]
     fn entities_each_lowers_to_execute_as_at_run_function() {
         let cmds = Target::entities()
-            .entity_type("minecraft:zombie")
+            .entity_type_raw("minecraft:zombie")
             .tag("hostile")
             .within_blocks(15.0)
             .nearest()
@@ -424,7 +424,7 @@ mod tests {
         let level = EntityScore::<i32>::new("rpg", "mob", "level", 1, None);
         let sick = EntityFlag::new("rpg", "mob", "sick", false);
         let commands = Target::entities()
-            .entity_type("minecraft:zombie")
+            .entity_type_raw("minecraft:zombie")
             .state(level.matches(10..=20).unwrap())
             .unwrap()
             .state(sick.is_enabled())

@@ -1,4 +1,6 @@
 use sand_core::prelude::*;
+use sand_core::advanced::state::{Cooldown, ScoreVar};
+use sand_core::StorageVar;
 use sand_macros::{datapack_component, function};
 
 static MANA: ScoreVar<i32> = ScoreVar::new("mana");

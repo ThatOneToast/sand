@@ -1,5 +1,6 @@
 use sand_core::event::trigger::UsingItemTrigger;
 use sand_core::prelude::*;
+use sand_core::advanced::state::{Cooldown, Flag, ScoreVar};
 use sand_macros::on_event;
 
 static MANA: ScoreVar<i32> = ScoreVar::new("mana");

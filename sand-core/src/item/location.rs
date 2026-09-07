@@ -30,7 +30,7 @@ use std::fmt;
 
 use sand_commands::coord::BlockPos;
 use sand_commands::execute_args::ItemSlot;
-use sand_commands::nbt::{DataCommand, DataTarget, NbtPath, NbtRef, UntypedNbt};
+use sand_commands::nbt::{DataCommand, DataTarget, NbtPath, NbtRef, NbtRefLowering, UntypedNbt};
 use sand_commands::selector::{Selector, TargetArgument};
 
 use crate::condition::Condition;
@@ -134,9 +134,9 @@ impl ContainerIndex {
 /// Construct via the associated functions (`player_equipment`,
 /// `entity_equipment`) where validation is required; the remaining variants
 /// are directly constructible since every field is already a validated
-/// type. Never render `.nbt_source()`'s output into a hand-written command —
-/// use [`super::snapshot::ItemSnapshot::capture`], which composes it with
-/// `DataModify`/`Execute` typed builders.
+/// type. Use [`ItemLocation::nbt`] or
+/// [`super::snapshot::ItemSnapshot::capture`] to compose a location with the
+/// canonical `NbtRef`/`Execute` typed builders.
 #[sand_macros::api(
     registry = sand_api_contract,
     path = "sand::inventory::ItemLocation",
@@ -382,9 +382,9 @@ impl ItemLocation {
     #[sand_macros::api(kind = "method", registry = sand_api_contract, path = "sand::inventory::ItemLocation::nbt", summary = "Returns the typed NBT view of this live item stack.", context = "The view is for typed data operations; it avoids exposing a hand-written NBT source string at normal call sites.", minecraft = "Addresses the matching entity or block item compound.", use_when = ["Copying a live item compound with typed NBT builders"], avoid_when = ["Capturing event-time evidence; use ItemSnapshot::capture"], returns = "The untyped NBT reference for the live item compound.", example = "let item_nbt = ItemLocation::PlayerMainHand.nbt();")]
     pub fn nbt(&self) -> NbtRef<UntypedNbt> {
         let (target, path) = self
-            .nbt_source()
+            .nbt_parts()
             .expect("constructible ItemLocation variants always have NBT addressing");
-        NbtRef::new(target, NbtPath::new(path))
+        NbtRef::__from_parts(target, NbtPath::new(path))
     }
 
     /// Snapshot/copy the current stack compound into a typed NBT destination.
@@ -498,19 +498,7 @@ impl ItemLocation {
         }
     }
 
-    /// Resolve this location to a `(DataTarget, NBT get-path)` pair suitable
-    /// for the source side of `data modify <dest> <path> set from <target>
-    /// <source_path>` (or `if data <target> <path>` for a presence check).
-    ///
-    /// Returns [`ItemLocationError::UnsupportedLocation`] for any location
-    /// this phase cannot resolve exactly (currently none of the
-    /// constructible variants — the unsupported cases are rejected earlier,
-    /// at construction time, via [`ItemLocation::player_equipment`]/
-    /// [`ItemLocation::entity_equipment`] — this method's `Result` exists so
-    /// future variants can add fallible resolution without a breaking
-    /// signature change).
-    #[sand_macros::api(kind = "method", registry = sand_api_contract, path = "sand::inventory::ItemLocation::nbt_source", summary = "Resolves a live location to its typed data-command target and NBT path.", context = "This low-level form is available for integrations, but normal author code should prefer nbt, copy, match, replace, or snapshot helpers.", minecraft = "Returns the entity or block data target and the exact item-compound path Sand has verified for the location.", use_when = ["Adapting a location to a typed data-command integration"], avoid_when = ["Hand-writing raw command strings for ordinary inventory work"], returns = "The data target and NBT source path, or an unsupported-location error.", example = "let (target, path) = ItemLocation::PlayerMainHand.nbt_source()?;")]
-    pub fn nbt_source(&self) -> Result<(DataTarget, String), ItemLocationError> {
+    fn nbt_parts(&self) -> Result<(DataTarget, String), ItemLocationError> {
         Ok(match self {
             Self::PlayerMainHand => (
                 DataTarget::entity(Selector::self_()),
@@ -795,16 +783,18 @@ mod tests {
 
     #[test]
     fn main_hand_renders_selected_item() {
-        let (target, path) = ItemLocation::PlayerMainHand.nbt_source().unwrap();
-        assert_eq!(target.to_string(), "entity @s");
-        assert_eq!(path, "SelectedItem");
+        assert_eq!(
+            ItemLocation::PlayerMainHand.nbt().get().to_string(),
+            "data get entity @s SelectedItem"
+        );
     }
 
     #[test]
     fn off_hand_renders_inventory_slot_negative_106() {
-        let (target, path) = ItemLocation::PlayerOffHand.nbt_source().unwrap();
-        assert_eq!(target.to_string(), "entity @s");
-        assert_eq!(path, "Inventory[{Slot:-106b}]");
+        assert_eq!(
+            ItemLocation::PlayerOffHand.nbt().get().to_string(),
+            "data get entity @s Inventory[{Slot:-106b}]"
+        );
     }
 
     #[test]
@@ -840,7 +830,7 @@ mod tests {
     fn inventory_copy_matching_and_empty_use_correct_command_families() {
         let entity = ItemLocation::entity(Selector::self_());
         let mainhand = entity.mainhand();
-        let cache = sand_commands::Nbt::storage("pack:cache").path("last_item");
+        let cache = sand_commands::Nbt::storage_raw("pack:cache").path("last_item");
         assert_eq!(
             mainhand.copy_to(&cache).to_string(),
             "data modify storage pack:cache last_item set from entity @s SelectedItem"
@@ -876,7 +866,7 @@ mod tests {
                 .is_err()
         );
         assert!(ItemLocation::block(BlockPos::here()).slot(54).is_err());
-        let source = sand_commands::Nbt::storage("pack:data").path("item");
+        let source = sand_commands::Nbt::storage_raw("pack:data").path("item");
         assert!(
             ItemLocation::entity(Selector::self_())
                 .mainhand()
@@ -895,8 +885,11 @@ mod tests {
         ];
         for (slot, expected) in cases {
             let location = ItemLocation::player_equipment(slot).unwrap();
-            let (_, path) = location.nbt_source().unwrap();
-            assert_eq!(path, format!("Inventory[{{Slot:{expected}b}}]"), "{slot:?}");
+            assert_eq!(
+                location.nbt().as_str(),
+                format!("Inventory[{{Slot:{expected}b}}]"),
+                "{slot:?}"
+            );
         }
     }
 
@@ -946,10 +939,7 @@ mod tests {
     fn hotbar_and_inventory_share_canonical_inventory_slot_addressing() {
         let hotbar = ItemLocation::PlayerHotbar(HotbarIndex::new(3).unwrap());
         let inventory = ItemLocation::PlayerInventory(InventoryIndex::new(3).unwrap());
-        assert_eq!(
-            hotbar.nbt_source().unwrap().1,
-            inventory.nbt_source().unwrap().1
-        );
+        assert_eq!(hotbar.nbt().as_str(), inventory.nbt().as_str());
     }
 
     #[test]
@@ -964,8 +954,7 @@ mod tests {
         ];
         for (slot, expected) in cases {
             let location = ItemLocation::entity_equipment(Selector::self_(), slot).unwrap();
-            let (_, path) = location.nbt_source().unwrap();
-            assert_eq!(path, expected, "{slot:?}");
+            assert_eq!(location.nbt().as_str(), expected, "{slot:?}");
         }
     }
 
@@ -983,17 +972,16 @@ mod tests {
             position: BlockPos::absolute(10, 64, -5),
             slot: ContainerIndex::new(12).unwrap(),
         };
-        let (target, path) = location.nbt_source().unwrap();
-        assert_eq!(target.to_string(), "block 10 64 -5");
-        assert_eq!(path, "Items[{Slot:12b}]");
+        assert_eq!(
+            location.nbt().get().to_string(),
+            "data get block 10 64 -5 Items[{Slot:12b}]"
+        );
     }
 
     #[test]
     fn item_entity_renders_item_compound() {
         let location = ItemLocation::ItemEntity(Selector::self_());
-        let (target, path) = location.nbt_source().unwrap();
-        assert_eq!(target.to_string(), "entity @s");
-        assert_eq!(path, "Item");
+        assert_eq!(location.nbt().get().to_string(), "data get entity @s Item");
     }
 
     #[test]

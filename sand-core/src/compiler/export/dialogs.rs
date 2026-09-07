@@ -108,7 +108,11 @@ mod tests {
 
         let dialog = sand_components::dialog::Dialog::multi_action_local("welcome").button(
             sand_components::dialog::DialogButton::new("Grant").action(
-                sand_components::dialog::DialogAction::callback("__sand_local:grant_reward"),
+                sand_components::dialog::DialogAction::callback(
+                    "__sand_local:grant_reward"
+                        .parse::<sand_components::FunctionId>()
+                        .unwrap(),
+                ),
             ),
         );
         let dialog_json = dialog.to_json();

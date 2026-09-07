@@ -1424,7 +1424,7 @@ impl StatCurve {
     )]
     #[must_use]
     pub fn custom(
-        function: crate::resource_ref::FunctionId,
+        function: impl crate::FunctionRef,
         callback: impl Fn(&CurveInputs, FixedPoint) -> Result<FixedValue, CurveEvaluationError>
         + Send
         + Sync
@@ -1455,7 +1455,7 @@ impl StatCurve {
     )]
     #[must_use]
     pub fn custom_with_raw_inputs(
-        function: crate::resource_ref::FunctionId,
+        function: impl crate::FunctionRef,
         inputs: impl IntoIterator<Item = impl Into<String>>,
         callback: impl Fn(&CurveInputs, FixedPoint) -> Result<FixedValue, CurveEvaluationError>
         + Send
@@ -1464,7 +1464,7 @@ impl StatCurve {
     ) -> Self {
         Self {
             kind: CurveKind::Custom(CustomCurve {
-                id: function.to_string(),
+                id: function.function_id().to_string(),
                 inputs: inputs.into_iter().map(Into::into).collect(),
                 callback: Arc::new(callback),
             }),

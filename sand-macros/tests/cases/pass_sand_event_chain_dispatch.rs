@@ -6,6 +6,7 @@
 use sand_core::condition::Condition;
 use sand_core::events::{EventSetup, SandEvent, SandEventDispatch};
 use sand_core::prelude::*;
+use sand_core::advanced::state::ScoreVar;
 use sand_macros::on_event;
 use std::marker::PhantomData;
 

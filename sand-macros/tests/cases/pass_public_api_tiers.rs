@@ -1,4 +1,6 @@
 use sand_core::prelude::*;
+use sand_core::advanced::state::{Cooldown, ScoreVar};
+use sand_core::StorageField;
 use sand_macros::{SandStorage, datapack_component, on_event, function};
 
 static MANA: ScoreVar<i32> = ScoreVar::new("mana");
@@ -47,7 +49,7 @@ pub fn spend_mana() {
 #[on_event]
 pub fn on_ate_apple(event: Event<AteApple>) {
     MANA.add(event.player(), 1);
-    cmd::call(spend_mana);
+    cmd::function(spend_mana);
 }
 
 fn main() {

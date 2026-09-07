@@ -379,7 +379,7 @@ pub(crate) fn try_export_components_impl(
                 .rewards(
                     sand_components::AdvancementRewards::new().function(
                         format!("{namespace}:{}", desc.path)
-                            .parse()
+                            .parse::<crate::resource_ref::FunctionId>()
                             .expect("generated event function ID must be valid"),
                     ),
                 );
@@ -656,7 +656,7 @@ pub(crate) fn try_export_components_impl(
                         .rewards(
                             sand_components::AdvancementRewards::new().function(
                                 format!("{namespace}:{}", desc.path)
-                                    .parse()
+                                    .parse::<sand_components::FunctionId>()
                                     .expect("generated event function ID must be valid"),
                             ),
                         );
@@ -1997,7 +1997,7 @@ pub(crate) fn try_export_components_impl(
             .rewards(
                 sand_components::AdvancementRewards::new().function(
                     entry_ref
-                        .parse()
+                        .parse::<sand_components::FunctionId>()
                         .expect("generated event function ID must be valid"),
                 ),
             );
@@ -2614,7 +2614,7 @@ pub(crate) fn try_export_components_impl(
 
     // ── Resolve local sentinels → real namespace ──────────────────────────────
     // Sentinel patterns written by Sand-generated code:
-    //   `function __sand_local:<path>`         — from cmd::call(fn_ptr) for bare functions
+    //   `function __sand_local:<path>`         — from cmd::function(fn_ptr) for bare functions
     //   `... only __sand_local:<path>`         — from EventHandle::revoke/grant
     //   `__sand_local:<path>` in JSON          — from local component refs
     // They are resolved to the pack namespace here, after all records are collected.

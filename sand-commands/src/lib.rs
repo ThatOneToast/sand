@@ -52,7 +52,7 @@ pub use effect::{EffectCommand, EffectDuration};
 pub use error::{CommandError, CommandResult};
 pub use execute::Execute;
 pub use execute_args::{Anchor, ItemSlot, NbtStoreKind, Swizzle};
-pub use execute_ir::{ConditionIr, ExecuteCapability, ExecuteOp, ExecuteStoreTarget};
+pub use execute_ir::{ConditionIr, ExecuteOp, ExecuteStoreTarget};
 pub use export_registry::{ExportRegistryGuard, NestedExportError};
 pub use inventory::Inventory;
 pub use nbt::{

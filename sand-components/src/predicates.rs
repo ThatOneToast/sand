@@ -1359,10 +1359,6 @@ impl LocationPredicate {
         self._raw.is_some() || self.block.is_some()
     }
 
-    pub(crate) fn is_raw(&self) -> bool {
-        self._raw.is_some()
-    }
-
     /// Render the location-predicate codec used by advancement consumers.
     ///
     /// The compatibility `Serialize` shape predates the current vanilla codec:
@@ -1376,10 +1372,10 @@ impl LocationPredicate {
             return Ok(raw.as_value().clone());
         }
         if let Some(caps) = caps
-            && !caps.is_at_least(1, 21, 4)
+            && caps.is_fallback()
         {
             return Err(format!(
-                "typed location filters have no verified advancement-predicate lowering for target {}; target Minecraft 1.21.4+ or use LocationPredicate::raw(...) with profile-verified JSON",
+                "typed location filters require an exact known Minecraft schema for target {}; target a verified 26.x version or use LocationPredicate::raw(...) with profile-verified JSON",
                 caps.requested_version()
             ));
         }
@@ -1986,7 +1982,7 @@ impl ItemPredicate {
                 .is_some_and(|caps| !caps.supports(sand_version::ComponentFeature::ItemComponents))
         {
             return Err(
-                "item-component matching is unavailable for this target profile; remove the component constraint, target Minecraft 1.20.5+, or use ItemPredicate::raw(...) with manually verified legacy JSON"
+                "item-component matching is unavailable for this target profile; select a verified Minecraft 26.x target or remove the component constraint"
                     .into(),
             );
         }
@@ -2646,7 +2642,7 @@ impl EntityPredicate {
     ///
     /// Minecraft 26.2 moved typed entity sub-predicates to namespaced keys
     /// (`minecraft:entity_type`, `minecraft:location`, ...). Earlier active
-    /// profiles use the historical unnamespaced keys. Raw predicates are
+    /// Minecraft 26.1 uses unnamespaced keys while 26.2 uses namespaced keys. Raw predicates are
     /// preserved verbatim because their compatibility is user-owned.
     pub(crate) fn render_for_advancement(
         &self,

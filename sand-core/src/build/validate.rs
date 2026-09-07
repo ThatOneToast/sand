@@ -442,11 +442,11 @@ mod tests {
         use crate::build::profile::BuildProfile;
 
         let build = biome_build_with_typo();
-        let ctx = BuildContext::new(BuildProfile::Dev).with_mc_version("1.19.4");
+        let ctx = BuildContext::new(BuildProfile::Dev).with_mc_version("26.1");
         let errs = validate_for_context(&build, &ctx).unwrap_err();
         assert!(
             errs.iter()
-                .any(|d| d.location == "BuildContext::mc_version" && d.message.contains("1.19.4"))
+                .any(|d| d.location == "BuildContext::mc_version" && d.message.contains("26.1"))
         );
         // Ordinary validation still runs so all actionable failures are shown.
         assert!(
@@ -461,7 +461,7 @@ mod tests {
         use crate::build::profile::BuildProfile;
 
         let build = SandBuild::new().world(World::new());
-        let ctx = BuildContext::new(BuildProfile::Dev).with_mc_version("1.19.4");
+        let ctx = BuildContext::new(BuildProfile::Dev).with_mc_version("26.1");
         let errs = validate_for_context(&build, &ctx).unwrap_err();
         assert!(
             errs.iter()
@@ -475,7 +475,7 @@ mod tests {
         use crate::build::profile::BuildProfile;
 
         let build = SandBuild::new().world(World::new().border(WorldBorder::diameter(1e10)));
-        let ctx = BuildContext::new(BuildProfile::Dev).with_mc_version("1.19.4");
+        let ctx = BuildContext::new(BuildProfile::Dev).with_mc_version("26.1");
         let errs = validate_for_context(&build, &ctx).unwrap_err();
         assert!(
             errs.iter()

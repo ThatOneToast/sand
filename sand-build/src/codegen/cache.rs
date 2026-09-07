@@ -468,8 +468,8 @@ mod tests {
         write_reports(a.path());
         write_reports(b.path());
         assert_eq!(
-            fingerprint(a.path(), "1.21.4").unwrap(),
-            fingerprint(b.path(), "1.21.4").unwrap()
+            fingerprint(a.path(), "26.1").unwrap(),
+            fingerprint(b.path(), "26.1").unwrap()
         );
     }
 
@@ -477,9 +477,9 @@ mod tests {
     fn fingerprint_changes_when_a_report_changes() {
         let dir = tempfile::tempdir().unwrap();
         write_reports(dir.path());
-        let before = fingerprint(dir.path(), "1.21.4").unwrap();
+        let before = fingerprint(dir.path(), "26.1").unwrap();
         std::fs::write(dir.path().join("blocks.json"), b"{\"b\":999}").unwrap();
-        let after = fingerprint(dir.path(), "1.21.4").unwrap();
+        let after = fingerprint(dir.path(), "26.1").unwrap();
         assert_ne!(before, after);
     }
 
@@ -488,8 +488,8 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         write_reports(dir.path());
         assert_ne!(
-            fingerprint(dir.path(), "1.21.4").unwrap(),
-            fingerprint(dir.path(), "1.21.5").unwrap()
+            fingerprint(dir.path(), "26.1").unwrap(),
+            fingerprint(dir.path(), "26.2").unwrap()
         );
     }
 
@@ -514,7 +514,7 @@ mod tests {
             "codegen-cache-format",
             "1",
             "mc-version",
-            "1.21.4",
+            "26.1",
         ]);
         let with_impl_b = combine([
             "codegen-impl",
@@ -522,7 +522,7 @@ mod tests {
             "codegen-cache-format",
             "1",
             "mc-version",
-            "1.21.4",
+            "26.1",
         ]);
         assert_ne!(
             with_impl_a, with_impl_b,
@@ -563,8 +563,8 @@ mod tests {
         std::fs::write(a.path().join("blocks.json"), b"{\"b\":2}").unwrap();
         write_reports(b.path());
         assert_eq!(
-            fingerprint(a.path(), "1.21.4").unwrap(),
-            fingerprint(b.path(), "1.21.4").unwrap()
+            fingerprint(a.path(), "26.1").unwrap(),
+            fingerprint(b.path(), "26.1").unwrap()
         );
     }
 
@@ -572,7 +572,7 @@ mod tests {
     fn miss_when_never_published() {
         let cache_root = tempfile::tempdir().unwrap();
         let out = tempfile::tempdir().unwrap();
-        let hit = try_load(cache_root.path(), "1.21.4", "deadbeef", out.path()).unwrap();
+        let hit = try_load(cache_root.path(), "26.1", "deadbeef", out.path()).unwrap();
         assert!(!hit);
     }
 
@@ -582,10 +582,10 @@ mod tests {
         let generated = tempfile::tempdir().unwrap();
         write_generated(generated.path());
 
-        publish(cache_root.path(), "1.21.4", "abc123", generated.path());
+        publish(cache_root.path(), "26.1", "abc123", generated.path());
 
         let restored = tempfile::tempdir().unwrap();
-        let hit = try_load(cache_root.path(), "1.21.4", "abc123", restored.path()).unwrap();
+        let hit = try_load(cache_root.path(), "26.1", "abc123", restored.path()).unwrap();
         assert!(hit);
         for file in GENERATED_FILES {
             assert_eq!(
@@ -601,12 +601,12 @@ mod tests {
         let cache_root = tempfile::tempdir().unwrap();
         let generated = tempfile::tempdir().unwrap();
         write_generated(generated.path());
-        publish(cache_root.path(), "1.21.4", "abc123", generated.path());
+        publish(cache_root.path(), "26.1", "abc123", generated.path());
 
         let restored = tempfile::tempdir().unwrap();
         let hit = try_load(
             cache_root.path(),
-            "1.21.4",
+            "26.1",
             "different-fingerprint",
             restored.path(),
         )
@@ -617,19 +617,19 @@ mod tests {
     #[test]
     fn corrupt_manifest_is_treated_as_a_miss_not_an_error() {
         let cache_root = tempfile::tempdir().unwrap();
-        let dir = entry_dir(cache_root.path(), "1.21.4", "abc123");
+        let dir = entry_dir(cache_root.path(), "26.1", "abc123");
         std::fs::create_dir_all(&dir).unwrap();
         std::fs::write(dir.join("manifest.json"), b"not json{{{").unwrap();
 
         let restored = tempfile::tempdir().unwrap();
-        let hit = try_load(cache_root.path(), "1.21.4", "abc123", restored.path()).unwrap();
+        let hit = try_load(cache_root.path(), "26.1", "abc123", restored.path()).unwrap();
         assert!(!hit);
     }
 
     #[test]
     fn manifest_referencing_a_missing_file_is_treated_as_a_miss() {
         let cache_root = tempfile::tempdir().unwrap();
-        let dir = entry_dir(cache_root.path(), "1.21.4", "abc123");
+        let dir = entry_dir(cache_root.path(), "26.1", "abc123");
         std::fs::create_dir_all(&dir).unwrap();
         let manifest = canonical_manifest("abc123");
         std::fs::write(
@@ -640,7 +640,7 @@ mod tests {
         // None of the referenced files were actually written -- entry is corrupt.
 
         let restored = tempfile::tempdir().unwrap();
-        let hit = try_load(cache_root.path(), "1.21.4", "abc123", restored.path()).unwrap();
+        let hit = try_load(cache_root.path(), "26.1", "abc123", restored.path()).unwrap();
         assert!(!hit);
         assert!(
             !restored.path().join("registries.rs").exists(),
@@ -651,7 +651,7 @@ mod tests {
     #[test]
     fn manifest_missing_one_canonical_entry_is_a_miss() {
         let cache_root = tempfile::tempdir().unwrap();
-        let dir = entry_dir(cache_root.path(), "1.21.4", "abc123");
+        let dir = entry_dir(cache_root.path(), "26.1", "abc123");
         std::fs::create_dir_all(&dir).unwrap();
         write_generated(&dir);
 
@@ -664,7 +664,7 @@ mod tests {
         .unwrap();
 
         let restored = tempfile::tempdir().unwrap();
-        let hit = try_load(cache_root.path(), "1.21.4", "abc123", restored.path()).unwrap();
+        let hit = try_load(cache_root.path(), "26.1", "abc123", restored.path()).unwrap();
         assert!(
             !hit,
             "a manifest missing a canonical generated file must be rejected"
@@ -674,7 +674,7 @@ mod tests {
     #[test]
     fn manifest_with_an_unexpected_extra_entry_is_a_miss() {
         let cache_root = tempfile::tempdir().unwrap();
-        let dir = entry_dir(cache_root.path(), "1.21.4", "abc123");
+        let dir = entry_dir(cache_root.path(), "26.1", "abc123");
         std::fs::create_dir_all(&dir).unwrap();
         write_generated(&dir);
         std::fs::write(dir.join("unexpected.rs"), b"// not a canonical file").unwrap();
@@ -691,7 +691,7 @@ mod tests {
         .unwrap();
 
         let restored = tempfile::tempdir().unwrap();
-        let hit = try_load(cache_root.path(), "1.21.4", "abc123", restored.path()).unwrap();
+        let hit = try_load(cache_root.path(), "26.1", "abc123", restored.path()).unwrap();
         assert!(
             !hit,
             "a manifest with an entry outside the canonical file set must be rejected"
@@ -701,7 +701,7 @@ mod tests {
     #[test]
     fn corrupted_rs_bytes_that_dont_match_the_recorded_hash_are_a_miss() {
         let cache_root = tempfile::tempdir().unwrap();
-        let dir = entry_dir(cache_root.path(), "1.21.4", "abc123");
+        let dir = entry_dir(cache_root.path(), "26.1", "abc123");
         std::fs::create_dir_all(&dir).unwrap();
         write_generated(&dir);
         let manifest = canonical_manifest("abc123");
@@ -716,7 +716,7 @@ mod tests {
         std::fs::write(dir.join("registries.rs"), b"// CORRUPTED").unwrap();
 
         let restored = tempfile::tempdir().unwrap();
-        let hit = try_load(cache_root.path(), "1.21.4", "abc123", restored.path()).unwrap();
+        let hit = try_load(cache_root.path(), "26.1", "abc123", restored.path()).unwrap();
         assert!(
             !hit,
             "a cached .rs file whose bytes don't match its recorded hash must be rejected"
@@ -731,7 +731,7 @@ mod tests {
     #[test]
     fn corrupted_provider_json_bytes_that_dont_match_the_recorded_hash_are_a_miss() {
         let cache_root = tempfile::tempdir().unwrap();
-        let dir = entry_dir(cache_root.path(), "1.21.4", "abc123");
+        let dir = entry_dir(cache_root.path(), "26.1", "abc123");
         std::fs::create_dir_all(&dir).unwrap();
         write_generated(&dir);
         let manifest = canonical_manifest("abc123");
@@ -744,7 +744,7 @@ mod tests {
         std::fs::write(dir.join("registries.api.json"), b"{\"corrupted\":true}").unwrap();
 
         let restored = tempfile::tempdir().unwrap();
-        let hit = try_load(cache_root.path(), "1.21.4", "abc123", restored.path()).unwrap();
+        let hit = try_load(cache_root.path(), "26.1", "abc123", restored.path()).unwrap();
         assert!(
             !hit,
             "a cached provider JSON file whose bytes don't match its recorded hash must be rejected"
@@ -754,21 +754,21 @@ mod tests {
     #[test]
     fn malformed_manifest_json_is_a_miss() {
         let cache_root = tempfile::tempdir().unwrap();
-        let dir = entry_dir(cache_root.path(), "1.21.4", "abc123");
+        let dir = entry_dir(cache_root.path(), "26.1", "abc123");
         std::fs::create_dir_all(&dir).unwrap();
         write_generated(&dir);
         // Valid JSON, but doesn't match CacheManifestFile's shape at all.
         std::fs::write(dir.join("manifest.json"), b"{\"totally\": \"wrong shape\"}").unwrap();
 
         let restored = tempfile::tempdir().unwrap();
-        let hit = try_load(cache_root.path(), "1.21.4", "abc123", restored.path()).unwrap();
+        let hit = try_load(cache_root.path(), "26.1", "abc123", restored.path()).unwrap();
         assert!(!hit);
     }
 
     #[test]
     fn valid_entry_with_full_manifest_still_loads_normally() {
         let cache_root = tempfile::tempdir().unwrap();
-        let dir = entry_dir(cache_root.path(), "1.21.4", "abc123");
+        let dir = entry_dir(cache_root.path(), "26.1", "abc123");
         std::fs::create_dir_all(&dir).unwrap();
         write_generated(&dir);
         let manifest = canonical_manifest("abc123");
@@ -779,7 +779,7 @@ mod tests {
         .unwrap();
 
         let restored = tempfile::tempdir().unwrap();
-        let hit = try_load(cache_root.path(), "1.21.4", "abc123", restored.path()).unwrap();
+        let hit = try_load(cache_root.path(), "26.1", "abc123", restored.path()).unwrap();
         assert!(hit, "a fully valid, fully hash-matching entry must load");
         for file in GENERATED_FILES {
             assert!(restored.path().join(file).exists());
@@ -791,13 +791,13 @@ mod tests {
         let cache_root = tempfile::tempdir().unwrap();
         let generated = tempfile::tempdir().unwrap();
         write_generated(generated.path());
-        publish(cache_root.path(), "1.21.4", "abc123", generated.path());
+        publish(cache_root.path(), "26.1", "abc123", generated.path());
         // Publishing again for the same fingerprint must not error or
         // corrupt the existing entry.
-        publish(cache_root.path(), "1.21.4", "abc123", generated.path());
+        publish(cache_root.path(), "26.1", "abc123", generated.path());
 
         let restored = tempfile::tempdir().unwrap();
-        let hit = try_load(cache_root.path(), "1.21.4", "abc123", restored.path()).unwrap();
+        let hit = try_load(cache_root.path(), "26.1", "abc123", restored.path()).unwrap();
         assert!(hit);
     }
 
@@ -812,7 +812,7 @@ mod tests {
                 let cache_root = cache_root.path().to_path_buf();
                 let generated = generated.path().to_path_buf();
                 std::thread::spawn(move || {
-                    publish(&cache_root, "1.21.4", "abc123", &generated);
+                    publish(&cache_root, "26.1", "abc123", &generated);
                 })
             })
             .collect();
@@ -821,7 +821,7 @@ mod tests {
         }
 
         let restored = tempfile::tempdir().unwrap();
-        let hit = try_load(cache_root.path(), "1.21.4", "abc123", restored.path()).unwrap();
+        let hit = try_load(cache_root.path(), "26.1", "abc123", restored.path()).unwrap();
         assert!(hit, "at least one concurrent publisher must succeed");
     }
 
@@ -840,7 +840,7 @@ mod tests {
     #[test]
     fn corrupt_entry_is_repaired_on_next_publish() {
         let cache_root = tempfile::tempdir().unwrap();
-        let dir = entry_dir(cache_root.path(), "1.21.4", "abc123");
+        let dir = entry_dir(cache_root.path(), "26.1", "abc123");
         std::fs::create_dir_all(&dir).unwrap();
         // A corrupt entry: files present, but bytes don't match a manifest
         // hash (simulating bit-rot/truncation after a valid publish).
@@ -858,7 +858,7 @@ mod tests {
         // regenerate into a fresh out_dir, then publish.
         let generated = tempfile::tempdir().unwrap();
         write_generated(generated.path());
-        publish(cache_root.path(), "1.21.4", "abc123", generated.path());
+        publish(cache_root.path(), "26.1", "abc123", generated.path());
 
         assert_eq!(
             validate_entry(&dir, "abc123"),
@@ -870,7 +870,7 @@ mod tests {
     #[test]
     fn second_build_after_corruption_recovery_is_a_real_cache_hit() {
         let cache_root = tempfile::tempdir().unwrap();
-        let dir = entry_dir(cache_root.path(), "1.21.4", "abc123");
+        let dir = entry_dir(cache_root.path(), "26.1", "abc123");
         std::fs::create_dir_all(&dir).unwrap();
         write_generated(&dir);
         let manifest = canonical_manifest("abc123");
@@ -883,15 +883,15 @@ mod tests {
 
         // Build 1: miss (corrupt), regenerate, publish (repairs it).
         let out1 = tempfile::tempdir().unwrap();
-        let hit1 = try_load(cache_root.path(), "1.21.4", "abc123", out1.path()).unwrap();
+        let hit1 = try_load(cache_root.path(), "26.1", "abc123", out1.path()).unwrap();
         assert!(!hit1, "corrupt entry must miss");
         let generated = tempfile::tempdir().unwrap();
         write_generated(generated.path());
-        publish(cache_root.path(), "1.21.4", "abc123", generated.path());
+        publish(cache_root.path(), "26.1", "abc123", generated.path());
 
         // Build 2: must now be a genuine hit -- not another silent miss.
         let out2 = tempfile::tempdir().unwrap();
-        let hit2 = try_load(cache_root.path(), "1.21.4", "abc123", out2.path()).unwrap();
+        let hit2 = try_load(cache_root.path(), "26.1", "abc123", out2.path()).unwrap();
         assert!(
             hit2,
             "the build immediately after repair must hit the cache, not regenerate again"
@@ -907,14 +907,14 @@ mod tests {
     #[test]
     fn corrupt_manifest_json_is_repaired_on_publish() {
         let cache_root = tempfile::tempdir().unwrap();
-        let dir = entry_dir(cache_root.path(), "1.21.4", "abc123");
+        let dir = entry_dir(cache_root.path(), "26.1", "abc123");
         std::fs::create_dir_all(&dir).unwrap();
         write_generated(&dir);
         std::fs::write(dir.join("manifest.json"), b"not json{{{").unwrap();
 
         let generated = tempfile::tempdir().unwrap();
         write_generated(generated.path());
-        publish(cache_root.path(), "1.21.4", "abc123", generated.path());
+        publish(cache_root.path(), "26.1", "abc123", generated.path());
 
         assert_eq!(validate_entry(&dir, "abc123"), CacheEntryState::Valid);
     }
@@ -922,7 +922,7 @@ mod tests {
     #[test]
     fn missing_canonical_file_is_repaired_on_publish() {
         let cache_root = tempfile::tempdir().unwrap();
-        let dir = entry_dir(cache_root.path(), "1.21.4", "abc123");
+        let dir = entry_dir(cache_root.path(), "26.1", "abc123");
         std::fs::create_dir_all(&dir).unwrap();
         write_generated(&dir);
         std::fs::remove_file(dir.join("block_states.rs")).unwrap();
@@ -936,7 +936,7 @@ mod tests {
 
         let generated = tempfile::tempdir().unwrap();
         write_generated(generated.path());
-        publish(cache_root.path(), "1.21.4", "abc123", generated.path());
+        publish(cache_root.path(), "26.1", "abc123", generated.path());
 
         assert_eq!(validate_entry(&dir, "abc123"), CacheEntryState::Valid);
         assert!(dir.join("block_states.rs").is_file());
@@ -949,7 +949,7 @@ mod tests {
         // nothing. This proves the repair is a directory-level swap, not a
         // delete-then-recreate.
         let cache_root = tempfile::tempdir().unwrap();
-        let dir = entry_dir(cache_root.path(), "1.21.4", "abc123");
+        let dir = entry_dir(cache_root.path(), "26.1", "abc123");
         std::fs::create_dir_all(&dir).unwrap();
         write_generated(&dir);
         std::fs::write(dir.join("registries.rs"), b"// CORRUPTED").unwrap();
@@ -962,7 +962,7 @@ mod tests {
 
         let generated = tempfile::tempdir().unwrap();
         write_generated(generated.path());
-        publish(cache_root.path(), "1.21.4", "abc123", generated.path());
+        publish(cache_root.path(), "26.1", "abc123", generated.path());
 
         assert!(dir.is_dir(), "entry directory must exist after repair");
         assert_eq!(validate_entry(&dir, "abc123"), CacheEntryState::Valid);
@@ -984,7 +984,7 @@ mod tests {
     #[test]
     fn concurrent_corrupt_entry_recovery_converges_on_one_valid_entry() {
         let cache_root = tempfile::tempdir().unwrap();
-        let dir = entry_dir(cache_root.path(), "1.21.4", "abc123");
+        let dir = entry_dir(cache_root.path(), "26.1", "abc123");
         std::fs::create_dir_all(&dir).unwrap();
         write_generated(&dir);
         std::fs::write(dir.join("commands.rs"), b"// CORRUPTED").unwrap();
@@ -1003,7 +1003,7 @@ mod tests {
                 let cache_root = cache_root.path().to_path_buf();
                 let generated = generated.path().to_path_buf();
                 std::thread::spawn(move || {
-                    publish(&cache_root, "1.21.4", "abc123", &generated);
+                    publish(&cache_root, "26.1", "abc123", &generated);
                 })
             })
             .collect();
@@ -1017,7 +1017,7 @@ mod tests {
             "concurrent repair attempts must converge on a valid entry"
         );
         let restored = tempfile::tempdir().unwrap();
-        let hit = try_load(cache_root.path(), "1.21.4", "abc123", restored.path()).unwrap();
+        let hit = try_load(cache_root.path(), "26.1", "abc123", restored.path()).unwrap();
         assert!(
             hit,
             "readers after concurrent repair must see a valid, loadable entry"

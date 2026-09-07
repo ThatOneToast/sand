@@ -15,8 +15,8 @@
 //!
 //!     fn setup() -> EventSetup {
 //!         EventSetup::none()
-//!             .with_participants::<Self>(Self::participants(), &profile)
-//!             .expect("target version supports the declared participants")
+//!             .with_participants::<Self>(Self::participants())
+//!             .expect("the participant plan is valid")
 //!     }
 //! }
 //! ```
@@ -66,10 +66,9 @@ use crate::item::snapshot::{ItemSnapshot, SnapshotError, SnapshotReliability, Sn
 use crate::participant::availability::{ParticipantAvailability, ParticipantUnavailableReason};
 use crate::participant::bounded_item::BoundedItemSnapshot;
 use crate::participant::lifetime::ParticipantLifetime;
-use crate::participant::observation::{self, ObservationError, ObservationSchema};
+use crate::participant::observation::{self, ObservationSchema};
 use crate::participant::reference::EntityParticipant;
 use crate::participant::role::{EntityParticipantRole, ItemParticipantRole, ParticipantHand};
-use crate::version::VersionProfile;
 use sand_commands::selector::Target;
 
 /// The fixed, Sand-owned storage location every [`EventParticipantPlan`]
@@ -217,8 +216,8 @@ impl std::error::Error for DuplicateParticipantRole {}
     use_when = ["Declaring or reading a typed participant whose lifecycle is guaranteed by the event plan"],
     avoid_when = ["Assuming an entity or item remains live beyond its declared invocation, event-cycle, or bounded correlation lifetime"],
     example = "use sand::participant::EventParticipantPlanError;",
-    variants(DuplicateRole = "Selects the duplicate role participant semantic.", Observation = "Selects the observation participant semantic.", Snapshot = "Selects the snapshot participant semantic."),
-    variant_fields(DuplicateRole = ["Selects the duplicate role participant semantic."], Observation = ["Selects the observation participant semantic."], Snapshot = ["Selects the snapshot participant semantic."]),
+    variants(DuplicateRole = "Selects the duplicate role participant semantic.", Snapshot = "Selects the snapshot participant semantic."),
+    variant_fields(DuplicateRole = ["Selects the duplicate role participant semantic."], Snapshot = ["Selects the snapshot participant semantic."]),
 )]
 /// Any part of building or applying a plan failed.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -227,8 +226,6 @@ pub enum EventParticipantPlanError {
     DuplicateRole(
         #[doc = "Selects the duplicate role participant semantic."] DuplicateParticipantRole,
     ),
-    #[doc = "Selects the observation participant semantic."]
-    Observation(#[doc = "Selects the observation participant semantic."] ObservationError),
     #[doc = "Selects the snapshot participant semantic."]
     Snapshot(#[doc = "Selects the snapshot participant semantic."] String),
 }
@@ -237,7 +234,6 @@ impl std::fmt::Display for EventParticipantPlanError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::DuplicateRole(err) => err.fmt(f),
-            Self::Observation(err) => err.fmt(f),
             Self::Snapshot(message) => write!(f, "{message}"),
         }
     }
@@ -248,12 +244,6 @@ impl std::error::Error for EventParticipantPlanError {}
 impl From<DuplicateParticipantRole> for EventParticipantPlanError {
     fn from(err: DuplicateParticipantRole) -> Self {
         Self::DuplicateRole(err)
-    }
-}
-
-impl From<ObservationError> for EventParticipantPlanError {
-    fn from(err: ObservationError) -> Self {
-        Self::Observation(err)
     }
 }
 
@@ -783,7 +773,7 @@ impl EventParticipantPlan {
     }
 
     /// Generate this plan's setup (reset + mark/bind) and cleanup command
-    /// sequences for the given event type and target profile, at the fixed
+    /// sequences for the given event type, at the fixed
     /// [`PARTICIPANT_STORAGE`] location every plan uses.
     ///
     /// `pub(crate)` — reached both by [`EventSetup::with_participants`] (the
@@ -793,7 +783,6 @@ impl EventParticipantPlan {
     pub(crate) fn build(
         &self,
         event_label: &str,
-        profile: &VersionProfile,
     ) -> Result<(Vec<String>, Vec<String>), EventParticipantPlanError> {
         self.validate()?;
         let mut setup_commands = Vec::new();
@@ -803,7 +792,7 @@ impl EventParticipantPlan {
                 PlanSource::CorrelatedAttacker => {
                     let schema = ObservationSchema::new(PARTICIPANT_STORAGE, event_label);
                     let (commands, observation) =
-                        observation::attacker_observation_setup(profile, schema, entry.role)?;
+                        observation::attacker_observation_setup(schema, entry.role);
                     setup_commands.extend(commands);
                     cleanup_commands.extend(observation.cleanup_commands());
                 }
@@ -1132,19 +1121,18 @@ impl EventSetup {
         minecraft = "This is the tick-dispatch integration path — for advancement-backed `SandEvent`s (`AdvancementEvent::participants`), the export pipeline applies the plan automatically; see [`sand::event::AdvancementEvent::participants`].",
         use_when = ["Defining, composing, or handling a typed Sand event"],
         avoid_when = ["Inspecting generated advancement or event-graph implementation state"],
-        params(plan = "Apply `plan`'s generated commands to this setup: the plan's reset+mark/bind commands are appended to `pre_observation`, and its cleanup commands are appended to `post_observation` — see the [module doc](self) for the exact ordering contract. `E` supplies the deterministic `event_label` (via `std::any::type_name::<E>()`, the same scheme [`sand::item::ItemSnapshot`] uses) so callers never need to invent one.", profile = "`profile` provides the profile applied when `plan`'s generated commands to this setup: the plan's reset+mark/bind commands are appended to `pre_observation`, and its cleanup commands are appended to `post_observation` — see the [module doc](self) for the exact ordering contract. `E` supplies the deterministic `event_label` (via `std::any::type_name::<E>()`, the same scheme [`sand::item::ItemSnapshot`] uses) so callers never need to invent one."),
+        params(plan = "Apply `plan`'s generated commands to this setup: the plan's reset+mark/bind commands are appended to `pre_observation`, and its cleanup commands are appended to `post_observation` — see the [module doc](self) for the exact ordering contract. `E` supplies the deterministic `event_label` (via `std::any::type_name::<E>()`, the same scheme [`sand::item::ItemSnapshot`] uses) so callers never need to invent one."),
         returns = "On success, the value produced to apply `plan`'s generated commands to this setup: the plan's reset+mark/bind commands are appended to `pre_observation`, and its cleanup commands are appended to `post_observation` — see the [module doc](self) for the exact ordering contract. `E` supplies the deterministic `event_label` (via `std::any::type_name::<E>()`, the same scheme [`sand::item::ItemSnapshot`] uses) so callers never need to invent one; otherwise, the documented validation or export diagnostic.",
-        example = "use sand::prelude::*;\n\nfn demonstrate<E : sand::events::SandEvent + 'static>(event_setup_value: sand::events::EventSetup, plan: sand::participant::EventParticipantPlan, profile: & sand::version::VersionProfile)  {\n    let with_participants = event_setup_value.with_participants::<E>(plan, profile);\n}",
+        example = "use sand::prelude::*;\n\nfn demonstrate<E : sand::events::SandEvent + 'static>(event_setup_value: sand::events::EventSetup, plan: sand::participant::EventParticipantPlan)  {\n    let with_participants = event_setup_value.with_participants::<E>(plan);\n}",
     )]
     pub fn with_participants<E: SandEvent + 'static>(
         mut self,
         plan: EventParticipantPlan,
-        profile: &VersionProfile,
     ) -> Result<Self, EventParticipantPlanError> {
         if plan.is_empty() {
             return Ok(self);
         }
-        let (setup_commands, cleanup_commands) = plan.build(std::any::type_name::<E>(), profile)?;
+        let (setup_commands, cleanup_commands) = plan.build(std::any::type_name::<E>())?;
         self.pre_observation.extend(setup_commands);
         self.post_observation.extend(cleanup_commands);
         Ok(self)
@@ -1154,12 +1142,6 @@ impl EventSetup {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::version::MinecraftVersion;
-
-    fn profile(version: &str) -> VersionProfile {
-        VersionProfile::resolve(&MinecraftVersion::parse(version).unwrap()).unwrap()
-    }
-
     #[test]
     fn empty_plan_is_a_no_op() {
         let plan = EventParticipantPlan::none();
@@ -1221,9 +1203,7 @@ mod tests {
                 crate::events::SandEventDispatch::tick().as_players()
             }
         }
-        let applied = setup
-            .with_participants::<TestEvent>(plan, &profile("1.21.4"))
-            .unwrap();
+        let applied = setup.with_participants::<TestEvent>(plan).unwrap();
 
         assert_eq!(applied.pre_observation[0], "say existing pre");
         assert!(
@@ -1259,27 +1239,9 @@ mod tests {
         }
         let applied = setup
             .clone()
-            .with_participants::<TestEvent>(EventParticipantPlan::none(), &profile("1.21.4"))
+            .with_participants::<TestEvent>(EventParticipantPlan::none())
             .unwrap();
         assert_eq!(applied, setup);
-    }
-
-    #[test]
-    fn with_participants_rejects_unsupported_target_version() {
-        let plan = EventParticipantPlan::new().observe_correlated_attacker();
-        struct TestEvent;
-        impl SandEvent for TestEvent {
-            fn dispatch() -> impl Into<crate::events::SandEventDispatch> {
-                crate::events::SandEventDispatch::tick().as_players()
-            }
-        }
-        let result = EventSetup::none().with_participants::<TestEvent>(plan, &profile("1.19.4"));
-        assert!(matches!(
-            result,
-            Err(EventParticipantPlanError::Observation(
-                ObservationError::UnsupportedVersion { .. }
-            ))
-        ));
     }
 
     #[test]
@@ -1293,7 +1255,7 @@ mod tests {
                 crate::events::SandEventDispatch::tick().as_players()
             }
         }
-        let result = EventSetup::none().with_participants::<TestEvent>(plan, &profile("1.21.4"));
+        let result = EventSetup::none().with_participants::<TestEvent>(plan);
         assert!(matches!(
             result,
             Err(EventParticipantPlanError::DuplicateRole(_))
@@ -1330,10 +1292,10 @@ mod tests {
 
         let plan = || EventParticipantPlan::new().observe_correlated_attacker();
         let first = EventSetup::none()
-            .with_participants::<FirstEvent>(plan(), &profile("1.21.4"))
+            .with_participants::<FirstEvent>(plan())
             .unwrap();
         let second = EventSetup::none()
-            .with_participants::<SecondEvent>(plan(), &profile("1.21.4"))
+            .with_participants::<SecondEvent>(plan())
             .unwrap();
 
         assert_ne!(
@@ -1350,9 +1312,7 @@ mod tests {
         assert!(!plan.is_empty());
         assert_eq!(plan.validate(), Ok(()));
         assert_eq!(plan.direct_item_roles(), vec![ItemParticipantRole::Weapon]);
-        let (setup, _) = plan
-            .build("WeaponCapabilityTestEvent", &profile("1.21.4"))
-            .unwrap();
+        let (setup, _) = plan.build("WeaponCapabilityTestEvent").unwrap();
         assert!(
             setup.iter().any(|cmd| cmd.contains("SelectedItem")),
             "expected an exact mainhand snapshot capture: {setup:?}"
@@ -1385,7 +1345,7 @@ mod tests {
     #[test]
     fn item_plan_build_generates_capture_commands_and_no_cleanup() {
         let plan = EventParticipantPlan::new().observe_weapon();
-        let (setup, cleanup) = plan.build("TestWeaponEvent", &profile("1.21.4")).unwrap();
+        let (setup, cleanup) = plan.build("TestWeaponEvent").unwrap();
         assert!(!setup.is_empty());
         assert!(
             setup
@@ -1402,9 +1362,7 @@ mod tests {
     #[test]
     fn resolve_item_reconstructs_the_same_schema_build_used() {
         let plan = EventParticipantPlan::new().observe_weapon();
-        let (setup, _) = plan
-            .build("TestResolveWeaponEvent", &profile("1.21.4"))
-            .unwrap();
+        let (setup, _) = plan.build("TestResolveWeaponEvent").unwrap();
         let resolved = plan.resolve_item("TestResolveWeaponEvent", ItemParticipantRole::Weapon);
         let ParticipantAvailability::Available(snapshot) = resolved else {
             panic!("expected the declared weapon role to resolve as available");
@@ -1430,7 +1388,7 @@ mod tests {
         let plan = EventParticipantPlan::new()
             .observe_correlated_attacker()
             .observe_weapon();
-        let (setup, _) = plan.build("TestCombinedEvent", &profile("1.21.4")).unwrap();
+        let (setup, _) = plan.build("TestCombinedEvent").unwrap();
         // Distinct generated identities: the attacker's tag name and the
         // weapon snapshot's storage path must not accidentally share a key.
         let attacker_marker = setup
@@ -1512,7 +1470,7 @@ mod tests {
             ParticipantHand::MainHand,
             window,
         );
-        let (setup, cleanup) = plan.build("BoundedChildEvent", &profile("1.21.4")).unwrap();
+        let (setup, cleanup) = plan.build("BoundedChildEvent").unwrap();
         assert!(setup.is_empty(), "{setup:?}");
         assert!(cleanup.is_empty(), "{cleanup:?}");
     }

@@ -3,7 +3,7 @@
 ## Requirements
 
 - Rust 1.96+ with edition 2024 support.
-- Java 21+ for Minecraft data generation during builds.
+- Java 25+ for Minecraft 26.2 data generation during builds.
 - Network access on the first build so Sand can download and cache the
   matching Minecraft server jar for codegen.
 

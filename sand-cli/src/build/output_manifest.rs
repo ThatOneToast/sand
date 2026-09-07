@@ -1,7 +1,7 @@
 //! Content-hash-addressed output manifest for `dist/` (issue #347 Phase 7).
 //!
 //! Tracks every file a build writes under one pack root (a datapack's
-//! `dist/<namespace>/` or a resource pack's `dist/<namespace>-resources/`)
+//! `dist/<namespace>/`)
 //! so that:
 //!
 //! - an unchanged file is never rewritten (byte-identical content -> the

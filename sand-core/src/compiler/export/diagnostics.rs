@@ -40,69 +40,6 @@ pub(crate) fn validate_function_records(
 #[cfg(test)]
 mod tests {
     #[test]
-    fn typed_execute_version_error_reports_function_and_capability() {
-        let line = sand_commands::Execute::new()
-            .if_items(
-                sand_commands::Selector::self_(),
-                sand_commands::ItemSlot::MainHand,
-                "minecraft:diamond",
-            )
-            .run_raw("say found");
-        let mut records = vec![super::ComponentRecord {
-            namespace: "vanilla_plus".to_string(),
-            dir: "function".to_string(),
-            path: "detect_target".to_string(),
-            ext: "mcfunction".to_string(),
-            content_type: "text".to_string(),
-            content: line,
-        }];
-        let error = super::validate_function_records(
-            &mut records,
-            &sand_commands::CommandProfile::new("1.20.4", false),
-        )
-        .unwrap_err()
-        .to_string();
-        assert!(error.contains("vanilla_plus:detect_target"), "{error}");
-        assert!(error.contains("SAND-COMMAND-VERSION"), "{error}");
-        assert!(error.contains("ExecuteItemCondition"), "{error}");
-        assert!(
-            error.contains("if items entity @s weapon.mainhand minecraft:diamond"),
-            "{error}"
-        );
-        assert!(error.contains("Minecraft profile 1.20.4"), "{error}");
-        assert!(error.contains("Minecraft 1.20.5+"), "{error}");
-    }
-
-    #[test]
-    fn function_macro_version_error_reports_function_and_line() {
-        let mut records = vec![super::ComponentRecord {
-            namespace: "audit".to_string(),
-            dir: "function".to_string(),
-            path: "parameterized".to_string(),
-            ext: "mcfunction".to_string(),
-            content_type: "text".to_string(),
-            content: "$say $(message)".to_string(),
-        }];
-        let error = super::validate_function_records(
-            &mut records,
-            &sand_commands::CommandProfile::new("1.20.1", false),
-        )
-        .unwrap_err()
-        .to_string();
-        assert!(error.contains("audit:parameterized"), "{error}");
-        assert!(error.contains("commands[0].line"), "{error}");
-        assert!(error.contains("SAND-COMMAND-VERSION"), "{error}");
-        assert!(error.contains("Minecraft 1.20.2+"), "{error}");
-
-        super::validate_function_records(
-            &mut records,
-            &sand_commands::CommandProfile::new("1.20.2", false),
-        )
-        .unwrap();
-        assert_eq!(records[0].content, "$say $(message)");
-    }
-
-    #[test]
     fn function_validation_fails_before_records_are_accepted_with_owner_context() {
         let mut records = vec![super::ComponentRecord {
             namespace: "audit".to_string(),
@@ -112,13 +49,13 @@ mod tests {
             content_type: "text".to_string(),
             content: "say valid\nkill @e[limit=-1]".to_string(),
         }];
-        let profile = sand_commands::CommandProfile::new("1.21.11", false);
+        let profile = sand_commands::CommandProfile::new("26.2", false);
         let error = super::validate_function_records(&mut records, &profile)
             .expect_err("malformed typed output must fail before export")
             .to_string();
         assert!(error.contains("audit:invalid_selector"), "{error}");
         assert!(error.contains("commands[1].limit"), "{error}");
-        assert!(error.contains("1.21.11"), "{error}");
+        assert!(error.contains("26.2"), "{error}");
         assert_eq!(records[0].content, "say valid\nkill @e[limit=-1]");
     }
 
@@ -178,7 +115,7 @@ mod tests {
 
         super::validate_function_records(
             &mut records,
-            &sand_commands::CommandProfile::new("1.21.11", false),
+            &sand_commands::CommandProfile::new("26.2", false),
         )
         .unwrap();
 
@@ -213,14 +150,14 @@ mod tests {
             content_type: "text".to_string(),
             content: "say valid\nfunction not_a_resource_location".to_string(),
         }];
-        let profile = sand_commands::CommandProfile::new("1.21.11", false);
+        let profile = sand_commands::CommandProfile::new("26.2", false);
         let error = super::validate_function_records(&mut records, &profile)
             .expect_err("recognized malformed function command must fail before export")
             .to_string();
         assert!(error.contains("audit:invalid_function"), "{error}");
         assert!(error.contains("commands[1].id"), "{error}");
         assert!(error.contains("not_a_resource_location"), "{error}");
-        assert!(error.contains("1.21.11"), "{error}");
+        assert!(error.contains("26.2"), "{error}");
     }
 
     #[test]

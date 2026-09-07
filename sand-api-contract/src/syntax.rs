@@ -1756,8 +1756,8 @@ mod tests {
                 "Use a typed value, i.e. not raw text",
             ),
             (
-                "Available in Minecraft 1.21.5. More.",
-                "Available in Minecraft 1.21.5",
+                "Available in Minecraft 26.1. More.",
+                "Available in Minecraft 26.1",
             ),
             (
                 "Writes data/demo/example.json. More.",

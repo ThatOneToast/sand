@@ -69,13 +69,11 @@ pub mod execute_when;
 pub mod function;
 pub mod ir;
 pub mod item;
-pub mod mc_version;
 pub mod participant;
 pub mod prelude;
 pub mod resource_location;
 pub mod resource_ref;
 pub mod state;
-pub mod systems;
 pub mod version;
 pub mod vfx;
 
@@ -203,7 +201,6 @@ pub use function::{
 
 mod compiler;
 mod transition;
-pub use mc_version::McVersion;
 pub use resource_location::{PackNamespace, ResourceLocation};
 pub use state::{
     BlockNbt, EntityNbt, NbtLocation, NbtPath, SnbtCompound, SnbtValue, StorageField,
@@ -396,7 +393,7 @@ pub use sand_components::{
     ProcessorRule,
     ProcessorsRef,
     Projection,
-    // Villager trades (26.1+)
+    // Villager trades (Minecraft 26+)
     RandomSequenceId,
     // Raw escape hatch types
     RawComponent,
@@ -549,7 +546,7 @@ macro_rules! any {
 ///
 /// Populated at build time by `sand-build` for the Minecraft version specified
 /// in the `SAND_MC_VERSION` environment variable (default:
-/// `sand_version::DEFAULT_CODEGEN_VERSION`, currently `1.21.11`).
+/// `sand_version::DEFAULT_CODEGEN_VERSION`, currently `26.2`).
 ///
 /// # Example
 /// ```rust,ignore

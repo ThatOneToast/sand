@@ -1,44 +1,28 @@
 //! Exporter compilation and execution.
 //!
 //! `sand build` collects generated records by compiling and running exporter
-//! binaries inside the user's project. There are two of them: `sand_export`
-//! emits [`super::records::ComponentRecord`]s for the datapack, and
-//! `sand_resource_export` emits [`super::records::ResourcePackRecord`]s for the
-//! resource pack.
-//!
-//! The two exporters stay separate *processes* with separate record streams —
-//! only their compilation is coordinated. A datapack-only build never mentions
-//! the resource exporter; a `--resourcepack` build compiles both binaries with
-//! one `cargo build` invocation instead of paying Cargo's resolve/analysis cost
-//! twice.
+//! binaries inside the user's project. The `sand_export` binary emits
+//! [`super::records::ComponentRecord`]s for the datapack.
 
 use std::path::{Path, PathBuf};
 use std::time::Duration;
 
 use anyhow::{Context, Result, bail};
 
-/// One of the two exporter binaries a Sand project can expose.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(super) enum Exporter {
     Datapack,
-    ResourcePack,
 }
 
 impl Exporter {
     /// The `[[bin]]` target name in the user's `Cargo.toml`.
     pub(super) fn bin_name(self) -> &'static str {
-        match self {
-            Exporter::Datapack => "sand_export",
-            Exporter::ResourcePack => "sand_resource_export",
-        }
+        "sand_export"
     }
 
     /// Human-readable name used to attribute failures to one exporter.
     pub(super) fn label(self) -> &'static str {
-        match self {
-            Exporter::Datapack => "datapack exporter",
-            Exporter::ResourcePack => "resource-pack exporter",
-        }
+        "datapack exporter"
     }
 }
 
@@ -54,38 +38,31 @@ impl Exporter {
 /// different Cargo artifact identity.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(super) struct ExportBuildPlan {
-    exporters: Vec<Exporter>,
+    exporter: Exporter,
 }
 
 /// Compiled exporter binary paths.
 ///
-/// `resource_pack` is `Some` exactly when the plan included the resource
-/// exporter, so a datapack-only build cannot accidentally run it.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(super) struct ExportBinaries {
     pub(super) datapack: PathBuf,
-    pub(super) resource_pack: Option<PathBuf>,
 }
 
 impl ExportBuildPlan {
-    /// Plans compilation for a build. The datapack exporter is always needed;
-    /// the resource exporter is added only for `--resourcepack`.
-    ///
+    /// Plans compilation of the datapack exporter.
     /// `sand build --release` semantics (zip packaging) live entirely outside
     /// this plan — see [`super::run`]. Exporter compilation itself never
     /// varies with Sand's release flag.
-    pub(super) fn new(resourcepack: bool) -> Self {
-        let mut exporters = vec![Exporter::Datapack];
-        if resourcepack {
-            exporters.push(Exporter::ResourcePack);
+    pub(super) fn new() -> Self {
+        Self {
+            exporter: Exporter::Datapack,
         }
-        Self { exporters }
     }
 
     /// The exporters this plan compiles, in invocation order.
     #[cfg(test)]
-    fn exporters(&self) -> &[Exporter] {
-        &self.exporters
+    fn exporter(&self) -> Exporter {
+        self.exporter
     }
 
     /// Arguments for the single `cargo build` invocation.
@@ -93,12 +70,7 @@ impl ExportBuildPlan {
     /// `cargo build` accepts `--bin` repeatedly to select several binary
     /// targets from one package, which is what keeps this to one invocation.
     pub(super) fn cargo_args(&self) -> Vec<&'static str> {
-        let mut args = vec!["build"];
-        for exporter in &self.exporters {
-            args.push("--bin");
-            args.push(exporter.bin_name());
-        }
-        args
+        vec!["build", "--bin", self.exporter.bin_name()]
     }
 
     /// The command line as shown to the user in diagnostics.
@@ -156,25 +128,17 @@ impl ExportBuildPlan {
 
     /// Resolves the compiled binary paths under Cargo's target directory.
     pub(super) fn binaries(&self, cargo_target_dir: &Path) -> ExportBinaries {
-        let path = |exporter: Exporter| {
-            cargo_target_dir
-                .join(self.profile_dir())
-                .join(exporter.bin_name())
-        };
         ExportBinaries {
-            datapack: path(Exporter::Datapack),
-            resource_pack: self
-                .exporters
-                .contains(&Exporter::ResourcePack)
-                .then(|| path(Exporter::ResourcePack)),
+            datapack: cargo_target_dir
+                .join(self.profile_dir())
+                .join(self.exporter.bin_name()),
         }
     }
 }
 
 /// Runs one exporter and returns its stdout.
 ///
-/// Failures are attributed to the specific exporter so a broken resource-pack
-/// export is never reported as a datapack export failure, or vice versa.
+/// Failures are attributed to the datapack exporter.
 pub(super) fn run_exporter(
     exporter: Exporter,
     binary: &Path,
@@ -223,38 +187,10 @@ mod tests {
     use super::*;
 
     #[test]
-    fn datapack_only_plan_requests_only_the_datapack_exporter() {
-        let plan = ExportBuildPlan::new(false);
-        assert_eq!(plan.exporters(), [Exporter::Datapack]);
+    fn plan_requests_the_datapack_exporter() {
+        let plan = ExportBuildPlan::new();
+        assert_eq!(plan.exporter(), Exporter::Datapack);
         assert_eq!(plan.cargo_args(), ["build", "--bin", "sand_export"]);
-        assert!(
-            !plan.command_line().contains("sand_resource_export"),
-            "datapack-only builds must not compile the resource exporter: {}",
-            plan.command_line()
-        );
-    }
-
-    #[test]
-    fn resourcepack_plan_compiles_both_exporters_in_one_invocation() {
-        let plan = ExportBuildPlan::new(true);
-        assert_eq!(
-            plan.exporters(),
-            [Exporter::Datapack, Exporter::ResourcePack]
-        );
-        let args = plan.cargo_args();
-        assert_eq!(
-            args,
-            [
-                "build",
-                "--bin",
-                "sand_export",
-                "--bin",
-                "sand_resource_export"
-            ]
-        );
-        // One invocation: exactly one `build` subcommand for two `--bin`s.
-        assert_eq!(args.iter().filter(|a| **a == "build").count(), 1);
-        assert_eq!(args.iter().filter(|a| **a == "--bin").count(), 2);
     }
 
     /// `sand build` and `sand build --release` are both driven through
@@ -264,44 +200,23 @@ mod tests {
     /// diverge on in the first place.
     #[test]
     fn plan_never_requests_cargos_release_profile() {
-        let with_resourcepack = ExportBuildPlan::new(true);
-        assert!(!with_resourcepack.cargo_args().contains(&"--release"));
-        assert_eq!(with_resourcepack.profile_dir(), "debug");
-
-        let datapack_only = ExportBuildPlan::new(false);
-        assert!(!datapack_only.cargo_args().contains(&"--release"));
-        assert_eq!(datapack_only.profile_dir(), "debug");
+        let plan = ExportBuildPlan::new();
+        assert!(!plan.cargo_args().contains(&"--release"));
+        assert_eq!(plan.profile_dir(), "debug");
     }
 
     #[test]
     fn binary_paths_always_resolve_under_the_debug_profile_dir() {
         let target = Path::new("/tmp/custom-target");
 
-        let binaries = ExportBuildPlan::new(true).binaries(target);
+        let binaries = ExportBuildPlan::new().binaries(target);
         assert_eq!(binaries.datapack, target.join("debug/sand_export"));
-        assert_eq!(
-            binaries.resource_pack,
-            Some(target.join("debug/sand_resource_export"))
-        );
-    }
-
-    #[test]
-    fn datapack_only_plan_resolves_no_resource_binary() {
-        let binaries = ExportBuildPlan::new(false).binaries(Path::new("/tmp/t"));
-        assert_eq!(binaries.datapack, Path::new("/tmp/t/debug/sand_export"));
-        assert_eq!(
-            binaries.resource_pack, None,
-            "datapack-only builds must not resolve a resource exporter to run"
-        );
     }
 
     #[test]
     fn compile_failure_names_the_exact_cargo_command() {
-        let plan = ExportBuildPlan::new(true);
-        assert_eq!(
-            plan.command_line(),
-            "cargo build --bin sand_export --bin sand_resource_export"
-        );
+        let plan = ExportBuildPlan::new();
+        assert_eq!(plan.command_line(), "cargo build --bin sand_export");
     }
 
     // ── Exporter execution (unix: needs an executable stub) ────────────────────
@@ -330,24 +245,10 @@ mod tests {
         let stdout = run_exporter(
             Exporter::Datapack,
             &binary,
-            &[("SAND_EXPORT_MC_VERSION", "1.21.4")],
+            &[("SAND_EXPORT_MC_VERSION", "26.2")],
         )
         .unwrap();
-        assert_eq!(String::from_utf8(stdout).unwrap(), "1.21.4");
-    }
-
-    #[cfg(unix)]
-    #[test]
-    fn resource_exporter_runs_without_the_datapack_version_env() {
-        let temp = tempfile::tempdir().unwrap();
-        let binary = stub(
-            temp.path(),
-            "sand_resource_export",
-            "printf 'version=[%s]' \"$SAND_EXPORT_MC_VERSION\"",
-        );
-
-        let stdout = run_exporter(Exporter::ResourcePack, &binary, &[]).unwrap();
-        assert_eq!(String::from_utf8(stdout).unwrap(), "version=[]");
+        assert_eq!(String::from_utf8(stdout).unwrap(), "26.2");
     }
 
     #[cfg(unix)]
@@ -363,34 +264,7 @@ mod tests {
             "failure must name the datapack exporter: {rendered}"
         );
         assert!(
-            !rendered.contains("resource-pack"),
-            "datapack failure must not blame the resource exporter: {rendered}"
-        );
-        assert!(
             rendered.contains("boom"),
-            "exporter stderr must not be suppressed: {rendered}"
-        );
-    }
-
-    #[cfg(unix)]
-    #[test]
-    fn resource_exporter_failure_is_attributed_to_the_resource_exporter() {
-        let temp = tempfile::tempdir().unwrap();
-        let binary = stub(
-            temp.path(),
-            "sand_resource_export",
-            "echo 'rp boom' >&2\nexit 3",
-        );
-
-        let err = run_exporter(Exporter::ResourcePack, &binary, &[]).unwrap_err();
-        let rendered = err.to_string();
-        assert!(
-            rendered.contains("resource-pack exporter")
-                && rendered.contains("sand_resource_export"),
-            "failure must name the resource-pack exporter: {rendered}"
-        );
-        assert!(
-            rendered.contains("rp boom"),
             "exporter stderr must not be suppressed: {rendered}"
         );
     }
@@ -400,10 +274,10 @@ mod tests {
         let temp = tempfile::tempdir().unwrap();
         let missing = temp.path().join("does_not_exist");
 
-        let err = run_exporter(Exporter::ResourcePack, &missing, &[]).unwrap_err();
+        let err = run_exporter(Exporter::Datapack, &missing, &[]).unwrap_err();
         let rendered = format!("{err:#}");
         assert!(
-            rendered.contains("resource-pack exporter") && rendered.contains("does_not_exist"),
+            rendered.contains("datapack exporter") && rendered.contains("does_not_exist"),
             "missing binary must be attributed and named: {rendered}"
         );
     }

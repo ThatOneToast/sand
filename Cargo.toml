@@ -9,7 +9,6 @@ members = [
     "sand-api-contract",
     "sand-build",
     "sand-example",
-    "sand-resourcepack",
     "sand-commands",
     "sand-components",
     "sand-version",

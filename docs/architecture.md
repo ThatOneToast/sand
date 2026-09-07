@@ -8,7 +8,6 @@ Sand is split into focused crates:
 - `sand-components`: typed datapack JSON builders
 - `sand-macros`: proc macros
 - `sand-build`: Minecraft data generation and codegen
-- `sand-resourcepack`: optional resource-pack and HUD helpers
 - `sand-example`: integration coverage
 
 Build flow:
@@ -16,7 +15,7 @@ Build flow:
 1. `sand-build` resolves Minecraft data and generates Rust types.
 2. `sand-core` and `sand-commands` expose typed APIs over those generated types.
 3. `sand-macros` registers functions and components.
-4. `sand build` writes datapack/resource-pack output.
+4. `sand build` writes datapack output.
 
 ## Event dependency graph
 

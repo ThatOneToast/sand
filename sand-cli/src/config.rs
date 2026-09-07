@@ -5,9 +5,6 @@ use crate::build::records::{PackNamespace, PackOverlay, PackSupportedFormats};
 #[derive(Debug, Deserialize)]
 pub struct SandConfig {
     pub pack: PackConfig,
-    /// Optional resource pack configuration. Required when running
-    /// `sand build --resourcepack`.
-    pub resourcepack: Option<ResourcePackConfig>,
 }
 
 /// `[pack]` section in `sand.toml`.
@@ -49,35 +46,6 @@ pub struct PackConfig {
     /// Optional `pack.mcmeta` overlay entries (`overlays.entries`). Each
     /// entry pairs a validated relative directory with its own supported
     /// format range. Empty (the default) omits the `overlays` key entirely.
-    #[serde(default)]
-    pub overlays: Vec<PackOverlay>,
-}
-
-/// `[resourcepack]` section in `sand.toml`.
-///
-/// Example:
-/// ```toml
-/// [resourcepack]
-/// description = "My resource pack"
-/// # namespace defaults to [pack].namespace if omitted
-/// # namespace = "my_pack"
-/// # resource_pack_format = 46  # override the auto-detected format
-/// ```
-#[derive(Debug, Deserialize)]
-pub struct ResourcePackConfig {
-    /// Short description shown in the resource pack menu.
-    /// Defaults to the pack description if omitted.
-    pub description: Option<String>,
-    /// Asset namespace. Defaults to `[pack].namespace` if omitted.
-    pub namespace: Option<PackNamespace>,
-    /// Resource pack format number. If omitted, derived automatically from
-    /// `[pack].mc_version` using the bundled version table.
-    pub resource_pack_format: Option<u32>,
-    /// Optional `pack.mcmeta` `supported_formats` for the resource pack. Same
-    /// shape and semantics as `[pack].supported_formats`.
-    pub supported_formats: Option<PackSupportedFormats>,
-    /// Optional `pack.mcmeta` overlay entries for the resource pack. Same
-    /// shape and semantics as `[pack].overlays`.
     #[serde(default)]
     pub overlays: Vec<PackOverlay>,
 }

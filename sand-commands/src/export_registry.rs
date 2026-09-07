@@ -5,8 +5,7 @@
 //!
 //! Several typed command families ([`crate::blocks`], [`crate::nbt`],
 //! [`crate::particles`], [`crate::sound`], [`crate::display`],
-//! [`crate::text`], [`crate::effect`], [`crate::inventory`],
-//! [`crate::execute_ir`]) render to a `String` but want the *typed* node
+//! [`crate::text`], [`crate::effect`], and [`crate::inventory`]) render to a `String` but want the *typed* node
 //! re-validated against the export's resolved [`CommandProfile`] at the
 //! pre-write boundary ([`crate::render::validate_collected_line`]), long
 //! after the type has been erased into a function body's line text. Each
@@ -80,10 +79,8 @@ use crate::render::CommandProfile;
 pub(crate) trait RegistryFamily: 'static {
     /// The family's accumulated state for one export.
     ///
-    /// Almost always `BTreeMap<String, SomeTypedNode>` (see
-    /// [`register_line`]/[`lookup_line`]); [`crate::execute_ir`] instead
-    /// accumulates per-line capability requirements, which is why this is a
-    /// free-form associated type rather than a fixed map.
+    /// Usually `BTreeMap<String, SomeTypedNode>` (see
+    /// [`register_line`]/[`lookup_line`]).
     type State: Default + 'static;
 }
 

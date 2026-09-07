@@ -65,8 +65,8 @@ pub use bounded_item::BoundedItemSnapshot;
 pub use builder::ParticipantBuilder;
 pub use lifetime::ParticipantLifetime;
 pub use observation::{
-    CorrelatedEntityObservation, CorrelationEvidence, CorrelationSource, ObservationError,
-    ObservationSchema, observe_correlated_attacker,
+    CorrelatedEntityObservation, CorrelationEvidence, CorrelationSource, ObservationSchema,
+    observe_correlated_attacker,
 };
 pub use plan::{DuplicateParticipantRole, EventParticipantPlan, EventParticipantPlanError};
 pub use reference::{EntityParticipant, ParticipantReliabilityError, PlayerParticipant};

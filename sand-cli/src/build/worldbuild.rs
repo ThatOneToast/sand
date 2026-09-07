@@ -1,7 +1,7 @@
 //! Compilation and execution of a project's optional `sand.build.rs` typed
 //! world/server configuration script (issue #317).
 //!
-//! Modeled on `export.rs`'s handling of `sand_export`/`sand_resource_export`:
+//! Modeled on `export.rs`'s handling of `sand_export`:
 //! `sand-cli` compiles a project-provided binary and parses one JSON value
 //! from its stdout. `sand.build.rs` is wired in as an ordinary Cargo
 //! `[[bin]]` target named `sand_build_world` (see `sand add worldbuild`),

@@ -53,17 +53,6 @@ pub use crate::state::{
     StorageLocation, StorageSchema, StorageVar, Ticks, Timer, TypedGameState,
 };
 
-// ── Optional systems ──────────────────────────────────────────────────────────
-
-#[cfg(feature = "systems-damage")]
-pub use crate::systems::damage::{DamageThreshold, DamageTracker, recently_damaged};
-
-#[cfg(feature = "systems-player-data")]
-pub use crate::systems::player_data::{
-    CooldownField, CooldownFieldRef, FlagField, GameStateField, GlobalStorageField,
-    PlayerDataSchema, PlayerSchema, ScoreField, TimerField, TimerFieldRef,
-};
-
 // ── Version gating ────────────────────────────────────────────────────────────
 
 pub use crate::version::{MinecraftVersion, VersionFeature, VersionProfile};
@@ -333,58 +322,6 @@ mod tests {
             vec![
                 "execute at @s run particle minecraft:happy_villager ~0 ~0 ~0 0 0 0 0 2 force",
                 "execute at @s run playsound minecraft:block.note_block.bell player @s ~ ~ ~ 1 1",
-            ]
-        );
-    }
-
-    #[cfg(feature = "systems-damage")]
-    #[test]
-    fn prelude_exports_damage_threshold_with_damage_system() {
-        let current: Condition =
-            DamageTracker::current_damage_at_least("@s", DamageThreshold::hearts(1.0));
-        let last: Condition =
-            DamageTracker::last_damage_at_least("@s", DamageThreshold::raw_stat(10));
-
-        assert_eq!(DamageThreshold::hearts(1.0).to_raw_stat(), 10);
-        assert_eq!(
-            when(current).then_one("say current"),
-            ["execute if score @s sd_dmg_delta matches 10.. run say current"]
-        );
-        assert_eq!(
-            when(last).then_one("say last"),
-            ["execute if score @s sd_dmg_last matches 10.. run say last"]
-        );
-    }
-
-    #[cfg(feature = "systems-player-data")]
-    #[test]
-    fn prelude_exports_manual_player_schema_contract() {
-        static MANA: ScoreVar<i32> = ScoreVar::new("mana");
-        static HAS_WAND: Flag = Flag::new("has_wand");
-        static REGEN_TIMER: Timer = Timer::new("regen", Ticks::seconds(2));
-        static CAST_COOLDOWN: Cooldown = Cooldown::new("cast_cd", Ticks::seconds(3));
-
-        let schema = PlayerDataSchema::new("magic")
-            .score(&MANA, 100)
-            .flag(&HAS_WAND, false)
-            .timer(&REGEN_TIMER)
-            .cooldown(&CAST_COOLDOWN);
-
-        assert_eq!(schema.scoreboard_field_count(), 4);
-        assert_eq!(
-            schema.define_all(),
-            vec![
-                "scoreboard objectives add mana dummy",
-                "scoreboard objectives add has_wand dummy",
-                "scoreboard objectives add regen dummy",
-                "scoreboard objectives add cast_cd dummy",
-            ]
-        );
-        assert_eq!(
-            schema.init_player("@s"),
-            vec![
-                "execute unless score @s mana matches -2147483648.. run scoreboard players set @s mana 100",
-                "execute unless score @s has_wand matches -2147483648.. run scoreboard players set @s has_wand 0",
             ]
         );
     }

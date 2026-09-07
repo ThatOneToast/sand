@@ -72,12 +72,10 @@ fn main() {
         "../sand-commands/src",
         "../sand-components/src",
         "../sand-macros/src",
-        "../sand-resourcepack/src",
         "../sand-version/src",
         "api-scopes.toml",
         "api-surface-profiles.toml",
         "api-surface-baseline.txt",
-        "api-surface-baseline-1.21.4.txt",
         "api-surface-baseline-placeholder.txt",
     ] {
         println!("cargo:rerun-if-changed={source}");
@@ -230,13 +228,6 @@ fn main() {
         .and_then(|graph| {
             graph.bind_inert_item_macro(
                 "sand_components::dialog",
-                "inventory::collect",
-                InertItemMacroClassification::InventoryCollectionWiring,
-            )
-        })
-        .and_then(|graph| {
-            graph.bind_inert_item_macro(
-                "sand_resourcepack::descriptor",
                 "inventory::collect",
                 InertItemMacroClassification::InventoryCollectionWiring,
             )

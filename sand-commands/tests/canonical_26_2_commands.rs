@@ -13,11 +13,9 @@
 //! are pasted — only the page name and the date checked.
 //!
 //! Test naming: `canonical_26_2_*` denotes a canonical, version-pinned
-//! assertion. This file has no `compat_1_21_4_*` variants because
-//! `sand-commands` has no `MinecraftVersion`/profile-gated rendering branch
-//! for the command families exercised here (`CommandProfile` is accepted by
-//! `Validate`/`RenderCommand` but the render paths used below do not branch
-//! on it) — see the final report for details.
+//! assertion. The command families exercised here have one 26+ rendering
+//! path (`CommandProfile` is accepted by `Validate`/`RenderCommand`, but does
+//! not alter these command shapes).
 //!
 //! Known gaps (no typed builder exists in `sand-commands` for these, so they
 //! are intentionally not covered below): the `ride` command, and `attribute

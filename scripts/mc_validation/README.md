@@ -148,7 +148,7 @@ Root cause was **not** conclusively identified in the time available:
   official protocol documentation exists yet, and `minecraft-data`'s
   published protocol definitions do not yet cover it either (only the
   version *number* is catalogued there; the closest full reference
-  available was `pc/1.21.11/protocol.json`, used to derive every packet id
+  available was `pc/26.2/protocol.json`, used to derive every packet id
   in `minimal_join_client.py` — cross-checked empirically against the real
   server's actual byte-level responses, not assumed).
 - Every packet id this tooling relies on (compression threshold, login

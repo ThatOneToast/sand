@@ -123,7 +123,7 @@ mod tests {
 
     #[test]
     fn with_mc_version_overrides_it() {
-        let ctx = BuildContext::new(BuildProfile::Dev).with_mc_version("1.21.4");
-        assert_eq!(ctx.mc_version(), "1.21.4");
+        let ctx = BuildContext::new(BuildProfile::Dev).with_mc_version("26.1");
+        assert_eq!(ctx.mc_version(), "26.1");
     }
 }

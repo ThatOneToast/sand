@@ -42,13 +42,3 @@ fn registered_function_macro_exports_typed_placeholders_and_call() {
         "function macro_test:greet with storage macro_test:runtime greeting"
     );
 }
-
-#[test]
-fn registered_function_macro_is_rejected_before_minecraft_1_20_2() {
-    let error = sand_core::advanced::try_export_components_json("macro_test", "1.20.1")
-        .expect_err("function macro lines require Minecraft 1.20.2+")
-        .to_string();
-    assert!(error.contains("macro_test:greet"), "{error}");
-    assert!(error.contains("SAND-COMMAND-VERSION"), "{error}");
-    assert!(error.contains("Minecraft 1.20.2+"), "{error}");
-}

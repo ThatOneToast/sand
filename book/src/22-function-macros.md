@@ -1,6 +1,6 @@
 # 22. Parameterized Functions
 
-Minecraft 1.20.2 added function macros: a `.mcfunction` line beginning with
+Minecraft 26.1 added function macros: a `.mcfunction` line beginning with
 `$` can substitute values from an NBT compound supplied by the caller. Sand
 models the argument declaration and the call separately so placeholder
 spelling is checked before the datapack is written.
@@ -45,8 +45,8 @@ for undeclared, malformed, or unterminated `$(name)` placeholders.
 function references as `cmd::call`, plus a typed `NbtRef`; it validates the
 function ID, NBT location, and NBT path.
 
-The older `cmd::macro_var`, `cmd::macro_line`, and `cmd::function_with`
-helpers remain the explicit unchecked escape hatch for custom or future
-syntax. Their output is still version-gated at export: any function macro
-line is rejected for Minecraft 1.20.1 and older, and for conservative fallback
-profiles whose support Sand cannot prove.
+`cmd::macro_var`, `cmd::macro_line`, and `cmd::function_with` are explicit
+unchecked escape hatches for custom or future syntax. Function macros are part
+of Sand's 26+ command baseline; there is no pre-26 lowering or rejection path.
+Builds that require exact generated Minecraft data still reject unverified
+future profiles.

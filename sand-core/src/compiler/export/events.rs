@@ -568,32 +568,6 @@ pub(crate) fn check_event_trigger(
         )
 }
 
-/// Resolve the [`crate::version::VersionProfile`] a participant plan's
-/// version gating (`Relation::check_supported`) should run against, from
-/// the export's own already-resolved [`ExportCtx`].
-///
-/// `ctx: None` is the unprofiled compatibility export path
-/// ([`crate::try_export_components`]) — resolved against
-/// [`crate::version::LATEST_KNOWN`], the same permissive default
-/// `check_event_trigger` effectively uses for that path (no caps to gate
-/// against).
-pub(crate) fn resolve_participant_profile(
-    ctx: Option<&ExportCtx>,
-) -> crate::version::VersionProfile {
-    let requested = ctx
-        .map(|context| context.requested_version)
-        .unwrap_or(crate::version::LATEST_KNOWN);
-    let version = crate::version::MinecraftVersion::parse(requested).unwrap_or_else(|_| {
-        crate::version::MinecraftVersion::parse(crate::version::LATEST_KNOWN).unwrap()
-    });
-    crate::version::VersionProfile::resolve(&version).unwrap_or_else(|_| {
-        crate::version::VersionProfile::resolve(
-            &crate::version::MinecraftVersion::parse(crate::version::LATEST_KNOWN).unwrap(),
-        )
-        .expect("LATEST_KNOWN always resolves")
-    })
-}
-
 /// Merge `plan`'s generated commands into `setup`'s pre/post-observation
 /// (#230 automatic tick-dispatch integration) — a no-op returning `setup`
 /// unchanged when `plan.is_empty()`. `event_label` must be the event type's
@@ -604,15 +578,13 @@ pub(crate) fn apply_participants_to_setup(
     setup: crate::events::EventSetup,
     plan: crate::participant::EventParticipantPlan,
     event_label: &str,
-    ctx: Option<&ExportCtx>,
     handler_path: &str,
 ) -> ExportResult<crate::events::EventSetup> {
     if plan.is_empty() {
         return Ok(setup);
     }
-    let profile = resolve_participant_profile(ctx);
     let (setup_commands, cleanup_commands) = plan
-        .build(event_label, &profile)
+        .build(event_label)
         .map_err(|err| participant_plan_export_error(handler_path, err))?;
     let mut setup = setup;
     setup.pre_observation.extend(setup_commands);
@@ -817,33 +789,6 @@ mod tests {
 
     #[test]
     fn event_trigger_gating_rejects_unsupported_and_fallback_profiles() {
-        let old_caps = crate::version::VersionProfile::resolve(
-            &crate::version::MinecraftVersion::parse("1.18.2").unwrap(),
-        )
-        .unwrap()
-        .caps();
-        let old_ctx = ExportCtx {
-            caps: &old_caps,
-            requested_version: "1.18.2",
-            is_fallback: false,
-        };
-        let unsupported = super::check_event_trigger(
-            &AdvancementTrigger::AllayDropItemOnBlock {
-                item: None,
-                location: None,
-            },
-            "test:allay_event",
-            "allay_event",
-            Some(&old_ctx),
-        )
-        .expect_err("allay trigger was introduced after 1.18.2");
-        assert!(
-            unsupported
-                .to_string()
-                .contains("minecraft:allay_drop_item_on_block")
-        );
-        assert!(unsupported.to_string().contains("1.18.2"));
-
         let fallback_caps = crate::version::VersionProfile::resolve(
             &crate::version::MinecraftVersion::parse("999.0").unwrap(),
         )
@@ -870,7 +815,7 @@ mod tests {
         let caps = VersionCaps::all_enabled();
         let exact_ctx = ExportCtx {
             caps: &caps,
-            requested_version: "1.19",
+            requested_version: "26.1",
             is_fallback: false,
         };
         super::check_event_trigger(
@@ -882,7 +827,7 @@ mod tests {
             "allay_event",
             Some(&exact_ctx),
         )
-        .expect("allay trigger should be valid in 1.19");
+        .expect("allay trigger should be valid in 26.1");
 
         let fallback_ctx = ExportCtx {
             caps: &caps,

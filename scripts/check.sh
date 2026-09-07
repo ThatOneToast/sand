@@ -10,9 +10,6 @@ cargo clippy --workspace --all-targets --all-features -- -D warnings
 echo "=== Workspace tests ==="
 cargo test --workspace --all-features
 
-echo "=== Macro trybuild tests ==="
-cargo test -p sand-macros
-
 echo "=== Canonical book_project (facade-only, MC 26.2) ==="
 cargo build --manifest-path examples/book_project/Cargo.toml
 (

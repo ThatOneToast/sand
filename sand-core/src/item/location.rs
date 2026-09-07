@@ -11,7 +11,7 @@
 //! Every location resolves to a vanilla entity/block-entity NBT path
 //! (`SelectedItem`, `Inventory[{Slot:N}]`, `ArmorItems[N]`, `HandItems[N]`,
 //! `Items[{Slot:N}]`, `Item`). These are long-stable *structural* NBT tags —
-//! unrelated to the 1.20.5+ item-component encoding change, which affects
+//! unrelated to the 26+ item-component encoding, which affects
 //! only the *contents* of an item compound, not which entity/block-entity
 //! tag holds it. Rendering is therefore version-independent by design; no
 //! `VersionProfile` parameter is threaded through [`ItemLocation`] itself.
@@ -21,7 +21,7 @@
 //! the supported version range, rather than guessed.
 //!
 //! None of these paths have been independently runtime-verified against a
-//! live 1.21.4/26.2 server as part of this change. They are Sand's
+//! live 26.1/26.2 server as part of this change. They are Sand's
 //! best-confidence encoding of long-documented vanilla structure, not a
 //! certified claim — see `docs/testing/participant-role-evidence.md` for
 //! what has and has not been verified on a real server.

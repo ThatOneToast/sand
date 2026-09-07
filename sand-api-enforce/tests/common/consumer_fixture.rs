@@ -53,10 +53,9 @@ fn fixture_manifest(fixture: &str) -> PathBuf {
         .join("Cargo.toml")
 }
 
-fn fixture_target(fixture: &str) -> PathBuf {
+fn fixture_target(_fixture: &str) -> PathBuf {
     workspace_root(Path::new(env!("CARGO_MANIFEST_DIR")))
         .join("target/api-contract-consumer-fixtures")
-        .join(fixture)
 }
 
 fn workspace_root(manifest_dir: &Path) -> &Path {

@@ -43,7 +43,7 @@ sand check --agent --format json
 
 Diagnostics have stable codes and sources. Agent validation fails for missing
 configuration, catalog revision/profile mismatch, partial contract coverage,
-invalid resource-pack setup, and missing or stale generated output. It also
+invalid pack setup, and missing or stale generated output. It also
 warns about literal raw-command calls only when the compatible API contracts
 produce a likely typed alternative. Compiler diagnostics remain authoritative
 for Rust type errors; Sand's check coordinates the additional project and

@@ -5,10 +5,9 @@
 #[cfg(feature = "integration-tests")]
 mod pipeline {
     #[test]
-    fn full_pipeline_1_21_4() {
+    fn full_pipeline_26_2() {
         let out_dir = tempfile::tempdir().unwrap();
-        sand_build::generate_to_dir("1.21.4", out_dir.path())
-            .expect("full pipeline should succeed");
+        sand_build::generate_to_dir("26.2", out_dir.path()).expect("full pipeline should succeed");
 
         let registries_rs = out_dir.path().join("registries.rs");
         let block_states_rs = out_dir.path().join("block_states.rs");

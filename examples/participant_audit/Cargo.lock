@@ -1007,6 +1007,8 @@ dependencies = [
 name = "sand-commands"
 version = "0.1.0"
 dependencies = [
+ "sand-api-contract",
+ "sand-macros",
  "sand-version",
  "serde_json",
  "thiserror 2.0.19",
@@ -1056,6 +1058,10 @@ dependencies = [
 [[package]]
 name = "sand-version"
 version = "0.1.0"
+dependencies = [
+ "sand-api-contract",
+ "sand-macros",
+]
 
 [[package]]
 name = "schannel"

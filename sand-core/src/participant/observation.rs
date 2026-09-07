@@ -11,7 +11,7 @@
 //!
 //! # Why `execute on attacker` and nothing else
 //!
-//! `execute on attacker` (Minecraft 1.20.2+) is a direct vanilla relation
+//! `execute on attacker` is a direct vanilla relation
 //! query: "the entity that last damaged the current entity." It is
 //! single-valued by construction — [`crate::entity::relation::RelationTraversal<One>`]
 //! resolves to at most one entity, never a set — so there is no "multiple
@@ -118,12 +118,10 @@
 use crate::condition::Condition;
 use crate::entity::context::EntityContext;
 use crate::entity::kind::EntityKind;
-use crate::entity::relation::Relation;
 use crate::events::graph::tick_event_resource_key;
 use crate::participant::lifetime::ParticipantLifetime;
 use crate::participant::reference::EntityParticipant;
 use crate::participant::role::EntityParticipantRole;
-use crate::version::VersionProfile;
 use sand_commands::selector::Target;
 
 #[sand_macros::api(
@@ -156,7 +154,7 @@ pub enum CorrelationSource {
     use_when = ["Declaring or reading a typed participant whose lifecycle is guaranteed by the event plan"],
     avoid_when = ["Assuming an entity or item remains live beyond its declared invocation, event-cycle, or bounded correlation lifetime"],
     example = "use sand::participant::CorrelationEvidence;",
-    fields(min_version = "`(major, minor, patch)` — the vanilla version this evidence source requires. `execute on attacker` requires 1.20.2+.", source = "`source` provides the source when the evidence backing a correlated participant, exposed alongside the participant itself so callers (and diagnostics) can see *why* something is `Correlated` rather than treating the label as unexplained."),
+    fields(source = "`source` provides the source when the evidence backing a correlated participant, exposed alongside the participant itself so callers (and diagnostics) can see *why* something is `Correlated` rather than treating the label as unexplained."),
 )]
 /// The evidence backing a correlated participant, exposed alongside the
 /// participant itself so callers (and diagnostics) can see *why* something
@@ -165,9 +163,6 @@ pub enum CorrelationSource {
 pub struct CorrelationEvidence {
     /// `source` provides the source when the evidence backing a correlated participant, exposed alongside the participant itself so callers (and diagnostics) can see *why* something is `Correlated` rather than treating the label as unexplained.
     pub source: CorrelationSource,
-    /// `(major, minor, patch)` — the vanilla version this evidence source
-    /// requires. `execute on attacker` requires 1.20.2+.
-    pub min_version: (u32, u32, u32),
 }
 
 impl CorrelationEvidence {
@@ -186,7 +181,6 @@ impl CorrelationEvidence {
     )]
     pub const ATTACKER_RELATION: CorrelationEvidence = CorrelationEvidence {
         source: CorrelationSource::AttackerRelation,
-        min_version: (1, 20, 2),
     };
 }
 
@@ -263,59 +257,6 @@ impl ObservationSchema {
         format!("__sand_observed_{}", self.key)
     }
 }
-
-#[sand_macros::api(
-    registry = sand_api_contract,
-    path = "sand::participant::ObservationError",
-    module = "sand::participant",
-    summary = "An observation that failed to construct — never a runtime \"no candidate found\" outcome (that is represented by [`CorrelatedEntityObservation::is_absent`] at generated-command time, since Sand cannot know at export time whether vanilla will find an attacker). This is a build-time/version diagnostic only.",
-    context = "An observation that failed to construct — never a runtime \"no candidate found\" outcome (that is represented by [`CorrelatedEntityObservation::is_absent`] at generated-command time, since Sand cannot know at export time whether vanilla will find an attacker). This is a build-time/version diagnostic only. Participants are available only when the event plan declares a real observation or a valid same-cycle inheritance path; the exporter rejects unsupported transport.",
-    minecraft = "Entity relationships use the matching execute relation, while item snapshots are copied into Sand-owned command storage and cleaned up at the end of their declared lifetime.",
-    use_when = ["Declaring or reading a typed participant whose lifecycle is guaranteed by the event plan"],
-    avoid_when = ["Assuming an entity or item remains live beyond its declared invocation, event-cycle, or bounded correlation lifetime"],
-    example = "use sand::participant::ObservationError;",
-    variants(UnsupportedVersion = "The active `VersionProfile` predates the evidence source's minimum version."),
-    variant_fields(UnsupportedVersion(evidence = "`evidence` provides the evidence identifier when the active `VersionProfile` predates the evidence source's minimum version.", role = "`role` provides the role when the active `VersionProfile` predates the evidence source's minimum version.", target_version = "`target_version` provides the target version when the active `VersionProfile` predates the evidence source's minimum version.")),
-)]
-/// An observation that failed to construct — never a runtime "no candidate
-/// found" outcome (that is represented by
-/// [`CorrelatedEntityObservation::is_absent`] at generated-command time,
-/// since Sand cannot know at export time whether vanilla will find an
-/// attacker). This is a build-time/version diagnostic only.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum ObservationError {
-    /// The active `VersionProfile` predates the evidence source's minimum
-    /// version.
-    UnsupportedVersion {
-        /// `role` provides the role when the active `VersionProfile` predates the evidence source's minimum version.
-        role: EntityParticipantRole,
-        /// `evidence` provides the evidence identifier when the active `VersionProfile` predates the evidence source's minimum version.
-        evidence: CorrelationEvidence,
-        /// `target_version` provides the target version when the active `VersionProfile` predates the evidence source's minimum version.
-        target_version: String,
-    },
-}
-
-impl std::fmt::Display for ObservationError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Self::UnsupportedVersion {
-                role,
-                evidence,
-                target_version,
-            } => {
-                let (major, minor, patch) = evidence.min_version;
-                write!(
-                    f,
-                    "participant role {role:?} via {:?} requires Minecraft {major}.{minor}.{patch}+, but the target version is {target_version} — remove this observation or select a supported target version",
-                    evidence.source
-                )
-            }
-        }
-    }
-}
-
-impl std::error::Error for ObservationError {}
 
 #[sand_macros::api(
     registry = sand_api_contract,
@@ -485,9 +426,7 @@ impl CorrelatedEntityObservation {
 /// [`EntityParticipantRole::Attacker`] — the underlying mechanism is
 /// identical, only the role and the event's own semantics differ).
 ///
-/// Returns [`ObservationError::UnsupportedVersion`] if `profile` predates
-/// `execute on attacker` (Minecraft 1.20.2). Does not fail for "no
-/// attacker found" — that is a runtime fact, checked via
+/// "No attacker found" is a runtime fact, checked via
 /// [`CorrelatedEntityObservation::is_present`]/`is_absent`, not a build-time
 /// error.
 ///
@@ -500,26 +439,25 @@ impl CorrelatedEntityObservation {
     path = "sand::participant::observe_correlated_attacker",
     module = "sand::participant",
     summary = "Observe the entity that last damaged (`execute on attacker`) the entity currently bound to `@s`, and embed `body`'s commands so they run with the observation still bound (see the module doc for exact ordering and lifetime).",
-    context = "Observe the entity that last damaged (`execute on attacker`) the entity currently bound to `@s`, and embed `body`'s commands so they run with the observation still bound (see the module doc for exact ordering and lifetime). `ctx` is the [`EntityContext`] for whichever entity is the intended *victim* — e.g. call this from a handler where `@s` is already the exact player subject of an `EntityHurtPlayer`-backed event ([`EntityDamagePlayerEvent`](sand::events::EntityDamagePlayerEvent)) or an `EntityKilledPlayer`-backed event ([`PlayerKillEvent`](sand::events::PlayerKillEvent), where the role would be [`EntityParticipantRole::Killer`] instead of [`EntityParticipantRole::Attacker`] — the underlying mechanism is identical, only the role and the event's own semantics differ). Returns [`ObservationError::UnsupportedVersion`] if `profile` predates `execute on attacker` (Minecraft 1.20.2). Does not fail for \"no attacker found\" — that is a runtime fact, checked via [`CorrelatedEntityObservation::is_present`]/`is_absent`, not a build-time error. `_ctx` is not read — it exists purely to type-constrain callers to a point where `@s` is a known [`EntityContext`], the same documentation-only-pa...",
-    minecraft = "Returns [`ObservationError::UnsupportedVersion`] if `profile` predates `execute on attacker` (Minecraft 1.20.2). Does not fail for \"no attacker found\" — that is a runtime fact, checked via [`CorrelatedEntityObservation::is_present`]/`is_absent`, not a build-time error.",
+    context = "Observe the entity that last damaged (`execute on attacker`) the entity currently bound to `@s`, and embed `body`'s commands so they run with the observation still bound. `_ctx` type-constrains callers to a point where `@s` is a known [`EntityContext`].",
+    minecraft = "Uses the `execute on attacker` relation available throughout Sand's supported Minecraft 26.x+ baseline.",
     use_when = ["Declaring or reading a typed participant whose lifecycle is guaranteed by the event plan"],
     avoid_when = ["Assuming an entity or item remains live beyond its declared invocation, event-cycle, or bounded correlation lifetime"],
-    params(_ctx = "`ctx` is the [`EntityContext`] for whichever entity is the intended *victim* — e.g. call this from a handler where `@s` is already the exact player subject of an `EntityHurtPlayer`-backed event ([`EntityDamagePlayerEvent`](sand::events::EntityDamagePlayerEvent)) or an `EntityKilledPlayer`-backed event ([`PlayerKillEvent`](sand::events::PlayerKillEvent), where the role would be [`EntityParticipantRole::Killer`] instead of [`EntityParticipantRole::Attacker`] — the underlying mechanism is identical, only the role and the event's own semantics differ).", profile = "Returns [`ObservationError::UnsupportedVersion`] if `profile` predates `execute on attacker` (Minecraft 1.20.2). Does not fail for \"no attacker found\" — that is a runtime fact, checked via [`CorrelatedEntityObservation::is_present`]/`is_absent`, not a build-time error.", schema = "`schema` provides the schema observed when tracking the entity that last damaged (`execute on attacker`) the entity currently bound to `@s`, and embed `body`'s commands so they run with the observation still bound (see the module doc for exact ordering and lifetime).", role = "`role` provides the role observed when tracking the entity that last damaged (`execute on attacker`) the entity currently bound to `@s`, and embed `body`'s commands so they run with the observation still bound (see the module doc for exact ordering and lifetime).", body = "Observe the entity that last damaged (`execute on attacker`) the entity currently bound to `@s`, and embed `body`'s commands so they run with the observation still bound (see the module doc for exact ordering and lifetime)."),
-    returns = "Returns [`ObservationError::UnsupportedVersion`] if `profile` predates `execute on attacker` (Minecraft 1.20.2). Does not fail for \"no attacker found\" — that is a runtime fact, checked via [`CorrelatedEntityObservation::is_present`]/`is_absent`, not a build-time error.",
-    example = "use sand::prelude::*;\n\nfn demonstrate<K : sand::entity::EntityKind + 'static>(ctx: & sand::entity::EntityContext < K >, profile: & sand::version::VersionProfile, schema: sand::participant::ObservationSchema, role: sand::participant::EntityParticipantRole, body: impl FnOnce (& sand::participant::CorrelatedEntityObservation) -> Vec < String >)  {\n    let observe_correlated_attacker = sand::participant::observe_correlated_attacker::<K>(ctx, profile, schema, role, body);\n}",
+    params(_ctx = "The entity context whose attacker is observed.", schema = "The generated observation identity.", role = "The semantic participant role assigned to the attacker.", body = "Commands generated while the correlated participant is bound."),
+    returns = "The ordered reset, observation, body, and cleanup commands.",
+    example = "use sand::prelude::*;\n\nfn demonstrate<K: sand::entity::EntityKind>(ctx: &sand::entity::EntityContext<K>, schema: sand::participant::ObservationSchema) {\n    let commands = sand::participant::observe_correlated_attacker(ctx, schema, sand::participant::EntityParticipantRole::Attacker, |_| vec![\"say observed\".into()]);\n}",
 )]
 pub fn observe_correlated_attacker<K: EntityKind>(
     _ctx: &EntityContext<K>,
-    profile: &VersionProfile,
     schema: ObservationSchema,
     role: EntityParticipantRole,
     body: impl FnOnce(&CorrelatedEntityObservation) -> Vec<String>,
-) -> std::result::Result<Vec<String>, ObservationError> {
-    let (setup_commands, observation) = attacker_observation_setup(profile, schema, role)?;
+) -> Vec<String> {
+    let (setup_commands, observation) = attacker_observation_setup(schema, role);
     let mut commands = setup_commands;
     commands.extend(body(&observation));
     commands.extend(observation.cleanup_commands());
-    Ok(commands)
+    commands
 }
 
 /// The setup half of [`observe_correlated_attacker`] (reset + presence-gated
@@ -531,18 +469,9 @@ pub fn observe_correlated_attacker<K: EntityKind>(
 /// `post_observation` (the condition test, handler dispatch, and any
 /// synchronous descendants), so no separate wrapping is needed there.
 pub(crate) fn attacker_observation_setup(
-    profile: &VersionProfile,
     schema: ObservationSchema,
     role: EntityParticipantRole,
-) -> std::result::Result<(Vec<String>, CorrelatedEntityObservation), ObservationError> {
-    if Relation::Attacker.check_supported(profile).is_err() {
-        return Err(ObservationError::UnsupportedVersion {
-            role,
-            evidence: CorrelationEvidence::ATTACKER_RELATION,
-            target_version: profile.resolved_name().to_owned(),
-        });
-    }
-
+) -> (Vec<String>, CorrelatedEntityObservation) {
     let present_path = schema.present_path();
     let storage = schema.storage().to_string();
     let tag = schema.tag();
@@ -569,7 +498,7 @@ pub(crate) fn attacker_observation_setup(
         role,
         evidence: CorrelationEvidence::ATTACKER_RELATION,
     };
-    Ok((commands, observation))
+    (commands, observation)
 }
 
 #[cfg(test)]
@@ -577,42 +506,19 @@ mod tests {
     use super::*;
     use crate::entity::kind::PlayerKind;
     use crate::participant::reliability::ParticipantReliability;
-    use crate::version::MinecraftVersion;
-
-    fn profile(version: &str) -> VersionProfile {
-        VersionProfile::resolve(&MinecraftVersion::parse(version).unwrap()).unwrap()
-    }
-
-    #[test]
-    fn unsupported_version_is_rejected_before_any_commands_are_generated() {
-        let ctx: EntityContext<PlayerKind> = EntityContext::default();
-        let schema = ObservationSchema::new("mypack:observations", "TestVictimEvent");
-        let err = observe_correlated_attacker(
-            &ctx,
-            &profile("1.19.4"),
-            schema,
-            EntityParticipantRole::Attacker,
-            |_| vec!["say should not run".to_string()],
-        )
-        .unwrap_err();
-        assert!(matches!(err, ObservationError::UnsupportedVersion { .. }));
-    }
-
     #[test]
     fn supported_version_generates_reset_mark_body_cleanup_in_order() {
         let ctx: EntityContext<PlayerKind> = EntityContext::default();
         let schema = ObservationSchema::new("mypack:observations", "TestVictimEvent");
         let commands = observe_correlated_attacker(
             &ctx,
-            &profile("1.21.4"),
             schema,
             EntityParticipantRole::Attacker,
             |observation| {
                 assert_eq!(observation.role(), EntityParticipantRole::Attacker);
                 vec!["say handler ran".to_string()]
             },
-        )
-        .unwrap();
+        );
 
         let reset_index = commands
             .iter()
@@ -650,20 +556,16 @@ mod tests {
         let ctx: EntityContext<PlayerKind> = EntityContext::default();
         let a = observe_correlated_attacker(
             &ctx,
-            &profile("1.21.4"),
             ObservationSchema::new("mypack:observations", "EventA"),
             EntityParticipantRole::Attacker,
             |_| vec![],
-        )
-        .unwrap();
+        );
         let b = observe_correlated_attacker(
             &ctx,
-            &profile("1.21.4"),
             ObservationSchema::new("mypack:observations", "EventB"),
             EntityParticipantRole::Attacker,
             |_| vec![],
-        )
-        .unwrap();
+        );
         assert_ne!(a, b);
     }
 
@@ -673,12 +575,10 @@ mod tests {
         let make = || {
             observe_correlated_attacker(
                 &ctx,
-                &profile("1.21.4"),
                 ObservationSchema::new("mypack:observations", "SameEvent"),
                 EntityParticipantRole::Attacker,
                 |_| vec![],
             )
-            .unwrap()
         };
         assert_eq!(make(), make());
     }

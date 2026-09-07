@@ -106,7 +106,10 @@ fn surface() -> Vec<ReachableApi> {
         api("sand_core::state::Flag", &["sand::state::Flag"]),
         api("sand_core::state::Timer", &["sand::state::Timer"]),
         api("sand_core::event::Event", &["sand::event::Event"]),
-        api("sand_core::systems::Damage", &["sand::systems::Damage"]),
+        api(
+            "sand_core::experimental::Probe",
+            &["sand::experimental::Probe"],
+        ),
     ]
 }
 
@@ -130,13 +133,13 @@ fn deterministic_report_counts_pending_and_feature_scopes() {
         concat!(
             "command-source module=sand::command state=enforced tier=author provider=source precedence=50 recursive=true active=true items=1 contracted=1 aliases=sand::cmd features=-\n",
             "event-source module=sand::event state=pending tier=author provider=source precedence=50 recursive=true active=true items=1 contracted=0 aliases=- features=-\n",
+            "experimental-source module=sand::experimental state=pending tier=author provider=source precedence=50 recursive=true active=false items=0 contracted=0 aliases=- features=fixture-capability\n",
             "state-source module=sand::state state=pending tier=advanced provider=source precedence=50 recursive=true active=true items=2 contracted=0 aliases=- features=-\n",
-            "systems-source module=sand::systems state=pending tier=author provider=source precedence=50 recursive=true active=false items=0 contracted=0 aliases=- features=systems-all\n",
             "totals pending_scopes=3 pending_items=3 enforced_items=1 pending_scope_ceiling=3 pending_item_ceiling=3"
         )
     );
 
-    let enabled = BTreeSet::from(["systems-all".to_owned()]);
+    let enabled = BTreeSet::from(["fixture-capability".to_owned()]);
     let failures = manifest()
         .evaluate(&surface(), &[command_contract()], &enabled)
         .unwrap_err();

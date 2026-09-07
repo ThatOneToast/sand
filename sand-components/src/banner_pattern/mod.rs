@@ -1,4 +1,4 @@
-//! Builder for `data/<namespace>/banner_pattern/` JSON files (Minecraft 1.21+).
+//! Builder for `data/<namespace>/banner_pattern/` JSON files in Sand's 26+ baseline.
 //!
 //! # Validation
 //!

@@ -1,4 +1,4 @@
-//! Builders for `data/<namespace>/wolf_variant/` JSON files (Minecraft 1.21+).
+//! Builders for `data/<namespace>/wolf_variant/` JSON files in Sand's 26+ baseline.
 //!
 //! # Validation
 //!

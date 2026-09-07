@@ -181,7 +181,6 @@ pub fn run(args: RunArgs) -> Result<()> {
     } else {
         crate::build::run_with_options(crate::build::BuildOptions {
             release: false,
-            resourcepack: false,
             print_timings: false,
             explain_rebuild: false,
             profile: args.profile.clone(),
@@ -399,7 +398,7 @@ pub fn sync_dir(src: &Path, dest: &Path) -> Result<SyncStats> {
     for entry in walkdir::WalkDir::new(src) {
         let entry = entry?;
         // Sand's own output-manifest bookkeeping file (issue #347 Phase 7) is
-        // not part of the datapack/resource-pack; don't mirror it into the
+        // not part of the datapack; don't mirror it into the
         // live server's world.
         if entry.file_type().is_file()
             && entry.path().file_name().and_then(|n| n.to_str())

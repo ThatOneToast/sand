@@ -161,7 +161,7 @@ fn canonical_26_2_advancement_display_icon_criteria_rewards_parent() {
 }
 
 /// Minecraft 26.2 namespaces advancement entity sub-predicate keys
-/// (`minecraft:entity_type`) while 1.21.4 uses the historical unnamespaced
+/// (`minecraft:entity_type`) while 26.1 uses the unnamespaced
 /// `type` key inside a `minecraft:entity_properties` loot condition — a
 /// genuine `VersionCaps`-gated rendering branch
 /// (`AdvancementSchemaFamily::{LocationConditionItemComponents,NamespacedEntityPredicates}`
@@ -169,7 +169,7 @@ fn canonical_26_2_advancement_display_icon_criteria_rewards_parent() {
 ///
 /// Wiki: "Advancement definition" (https://minecraft.wiki/w/Advancement_definition), checked 2026-07-19.
 #[test]
-fn compat_1_21_4_advancement_entity_predicate_schema_is_unnamespaced() {
+fn minecraft_26_1_advancement_entity_predicate_schema_is_unnamespaced() {
     let trigger = AdvancementTrigger::PlayerKilledEntity {
         entity: Some(EntityPredicate::type_(
             EntityTypeId::minecraft("ender_dragon").unwrap(),
@@ -177,13 +177,13 @@ fn compat_1_21_4_advancement_entity_predicate_schema_is_unnamespaced() {
         killing_blow: None,
     };
 
-    let caps_1_21_4 = sand_version::VersionCaps::from_profile_flags(
-        "1.21.4", false, false, true, true, true, true, true, true,
+    let caps_26_1 = sand_version::VersionCaps::from_profile_flags(
+        "26.1", false, false, true, true, true, true, true, true,
     );
 
-    let legacy = trigger.render_for(Some(&caps_1_21_4)).unwrap();
+    let version_26_1 = trigger.render_for(Some(&caps_26_1)).unwrap();
     assert_eq!(
-        legacy,
+        version_26_1,
         serde_json::json!({
             "trigger": "minecraft:player_killed_entity",
             "conditions": {
@@ -198,7 +198,7 @@ fn compat_1_21_4_advancement_entity_predicate_schema_is_unnamespaced() {
         })
     );
 
-    // The unprofiled/26.2 compatibility path namespaces the same key.
+    // The unprofiled/26.2 baseline namespaces the same key.
     let modern = trigger.render_for(None).unwrap();
     assert_eq!(
         modern["conditions"]["entity"][0]["predicate"]["minecraft:entity_type"],

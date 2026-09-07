@@ -217,7 +217,7 @@ pub fn show_mana() {
         ));
 }
 
-// -- Dialog (1.21.6+ / 26.x) ----------------------------------------------
+// -- Dialog (Minecraft 26+) ---------------------------------------------
 
 /// A welcome dialog presented to players.
 #[datapack_component]

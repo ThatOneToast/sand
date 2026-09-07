@@ -37,31 +37,19 @@ gameplay abstraction
 Raw commands, JSON, SNBT, identifiers, and other escape hatches are for
 unsupported edges and interoperability, not the default implementation path.
 
-## Public API and documentation
+## API and framework changes
 
-The supported author-facing API is the `sand` crate. Normal examples should
-use:
+Sand has no stable public release and its API is volatile. Replace or delete
+obsolete endpoints instead of preserving them through wrappers, aliases, or
+deprecated duplicates.
 
-```rust
-use sand::prelude::*;
-```
+Public-facing endpoints need useful Rustdoc explaining the abstraction, its
+behavior, and important surrounding APIs without requiring authors to inspect
+the implementation.
 
-Implementation crates are not user-facing APIs merely because an item is
-`pub`.
-
-Use the API boundary to understand and document supported behavior:
-
-```sh
-sand api search <terms>
-sand api show <path>
-sand api module <module>
-```
-
-When changing public API, keep its API contract and Rustdoc accurate. Document
-what the abstraction means to a datapack author rather than exposing compiler
-implementation details.
-
-Do not bypass API-contract enforcement to make a build pass.
+Compiler and export validation should prove Sand's observable Minecraft
+commands, JSON, resources, runtime behavior, and framework invariants rather
+than implementation details.
 
 ## Implementation
 

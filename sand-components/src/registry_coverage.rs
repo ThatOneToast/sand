@@ -233,8 +233,8 @@ pub const REGISTRY_COVERAGE: &[RegistryCoverage] = &[
         tag_dir: Some("tags/damage_type"),
         sand_module: Some("sand_components::damage_type"),
         api_status: RegistryApiStatus::FullyImplemented,
-        version_gate: Some("1.19.4"),
-        notes: "DamageType, DamageScaling, DamageEffects, DeathMessageType. Introduced in 1.19.4.",
+        version_gate: None,
+        notes: "DamageType, DamageScaling, DamageEffects, DeathMessageType.",
     },
     RegistryCoverage {
         registry_key: "minecraft:enchantment",
@@ -242,7 +242,7 @@ pub const REGISTRY_COVERAGE: &[RegistryCoverage] = &[
         tag_dir: Some("tags/enchantment"),
         sand_module: Some("sand_components::enchantment"),
         api_status: RegistryApiStatus::PartiallyImplemented,
-        version_gate: Some("1.21"),
+        version_gate: None,
         notes: "Enchantment uses typed TextComponent description, ItemOrTag/EnchantmentOrTag \
                 (ItemId/EnchantmentId/TagId<T>) for supported_items/primary_items/exclusive_set, \
                 and the reused EquipmentSlotGroup enum for slots on the normal path. Effects use a \
@@ -259,11 +259,11 @@ pub const REGISTRY_COVERAGE: &[RegistryCoverage] = &[
         tag_dir: None,
         sand_module: Some("sand_components::enchantment_provider"),
         api_status: RegistryApiStatus::PartiallyImplemented,
-        version_gate: Some("1.21"),
+        version_gate: None,
         notes: "EnchantmentProvider covers single, by_cost, and by_cost_with_difficulty with typed \
                 enchantment IDs/tags and constant/uniform integer providers. Other integer-provider \
                 and modded provider shapes use the explicit whole-provider RawJson escape hatch. \
-                Added with data-driven enchantments in 1.21. Follow-up: #188.",
+                Follow-up: #188.",
     },
     RegistryCoverage {
         registry_key: "minecraft:jukebox_song",
@@ -271,8 +271,8 @@ pub const REGISTRY_COVERAGE: &[RegistryCoverage] = &[
         tag_dir: None,
         sand_module: Some("sand_components::jukebox_song"),
         api_status: RegistryApiStatus::PartiallyImplemented,
-        version_gate: Some("1.21"),
-        notes: "JukeboxSong. Introduced in 1.21. sound_event/song_length/comparator_output are \
+        version_gate: None,
+        notes: "JukeboxSong sound_event/song_length/comparator_output are \
                 typed/validated on the normal path, but description is `Option<serde_json::Value>` \
                 behind the unnamed `description()` setter with no typed TextComponent path and no \
                 export-time validation at all. Overstated FullyImplemented found during #193's \
@@ -318,14 +318,12 @@ pub const REGISTRY_COVERAGE: &[RegistryCoverage] = &[
         datapack_dir: "trim_material",
         tag_dir: None,
         sand_module: Some("sand_components::trim"),
-        api_status: RegistryApiStatus::PartiallyImplemented,
-        version_gate: Some("1.19.4"),
-        notes: "TrimMaterial uses typed ItemId, TextComponent, ResourceLocation armor-material keys, and \
-                validated TrimAssetName values on the normal path; raw descriptions/override objects are \
-                explicit. item_model_index remains the legacy pre-1.21.4 field and current \
-                override_armor_assets is not yet modeled. Golden JSON test: \
-                trim::tests::valid_trim_material_json_is_stable. #198 (typed ID migration) is closed; \
-                the remaining override_armor_assets gap is tracked by #322.",
+        api_status: RegistryApiStatus::FullyImplemented,
+        version_gate: None,
+        notes: "TrimMaterial models the 26+ asset_name, description, and override_armor_assets fields \
+                with typed ResourceLocation keys and validated TrimAssetName values; raw description \
+                and override objects remain explicit escape hatches. Golden JSON test: \
+                trim::tests::valid_trim_material_json_is_stable.",
     },
     RegistryCoverage {
         registry_key: "minecraft:trim_pattern",
@@ -333,8 +331,8 @@ pub const REGISTRY_COVERAGE: &[RegistryCoverage] = &[
         tag_dir: None,
         sand_module: Some("sand_components::trim"),
         api_status: RegistryApiStatus::FullyImplemented,
-        version_gate: Some("1.19.4"),
-        notes: "TrimPattern uses typed ResourceLocation, ItemId, and TextComponent inputs on the normal \
+        version_gate: None,
+        notes: "TrimPattern uses typed ResourceLocation and TextComponent inputs on the normal \
                 path, with an explicitly named raw text escape hatch. Golden JSON test: \
                 trim::tests::valid_trim_pattern_json_is_stable. Typed migration: #198.",
     },
@@ -344,8 +342,8 @@ pub const REGISTRY_COVERAGE: &[RegistryCoverage] = &[
         tag_dir: None,
         sand_module: Some("sand_components::wolf_variant"),
         api_status: RegistryApiStatus::FullyImplemented,
-        version_gate: Some("1.20.5"),
-        notes: "WolfVariant. Introduced in 1.20.5. validate() rejects empty/malformed texture paths and \
+        version_gate: None,
+        notes: "WolfVariant validate() rejects empty/malformed texture paths and \
                 unsupported biomes JSON shapes (empty string/array, non-string entries, non-string/array \
                 top-level shapes) before export. Golden JSON test: wolf_variant::tests::valid_wolf_variant_json_is_stable. \
                 See #141.",
@@ -356,8 +354,8 @@ pub const REGISTRY_COVERAGE: &[RegistryCoverage] = &[
         tag_dir: None,
         sand_module: Some("sand_components::chat_type"),
         api_status: RegistryApiStatus::FullyImplemented,
-        version_gate: Some("1.19"),
-        notes: "ChatType, ChatDecoration. Introduced in 1.19. Normal-path authoring is typed: \
+        version_gate: None,
+        notes: "ChatType and ChatDecoration normal-path authoring is typed: \
                 ChatDecorationParameter (Sender/Target/Content, with an explicit Custom(_) escape \
                 hatch that still fails validation unless it matches a known vanilla value) and \
                 ChatStyle (color/color_hex/bold/italic/underlined/strikethrough/obfuscated/insertion) \
@@ -377,7 +375,7 @@ pub const REGISTRY_COVERAGE: &[RegistryCoverage] = &[
         tag_dir: None,
         sand_module: None,
         api_status: RegistryApiStatus::RawOnly,
-        version_gate: Some("1.21.5"),
+        version_gate: None,
         notes: "No typed component builder. Use RawComponent. Follow-up: #201.",
     },
     RegistryCoverage {
@@ -386,7 +384,7 @@ pub const REGISTRY_COVERAGE: &[RegistryCoverage] = &[
         tag_dir: None,
         sand_module: None,
         api_status: RegistryApiStatus::RawOnly,
-        version_gate: Some("1.21.5"),
+        version_gate: None,
         notes: "No typed component builder. Use RawComponent. Follow-up: #201.",
     },
     RegistryCoverage {
@@ -405,7 +403,7 @@ pub const REGISTRY_COVERAGE: &[RegistryCoverage] = &[
         tag_dir: None,
         sand_module: None,
         api_status: RegistryApiStatus::RawOnly,
-        version_gate: Some("26.1"),
+        version_gate: None,
         notes: "No typed component builder. Use RawComponent. Follow-up: #201.",
     },
     RegistryCoverage {
@@ -414,7 +412,7 @@ pub const REGISTRY_COVERAGE: &[RegistryCoverage] = &[
         tag_dir: None,
         sand_module: None,
         api_status: RegistryApiStatus::RawOnly,
-        version_gate: Some("26.1"),
+        version_gate: None,
         notes: "No typed component builder. Use RawComponent. Follow-up: #201.",
     },
     RegistryCoverage {
@@ -423,11 +421,11 @@ pub const REGISTRY_COVERAGE: &[RegistryCoverage] = &[
         tag_dir: None,
         sand_module: Some("sand_components::chicken_variant"),
         api_status: RegistryApiStatus::PartiallyImplemented,
-        version_gate: Some("1.21.5"),
+        version_gate: None,
         notes: "ChickenVariant covers asset_id and the minecraft:biome spawn_conditions shape \
                 (shared SpawnCondition model, also used by cow_variant/pig_variant) on the normal \
                 path; other vanilla/modded fields and spawn-condition types use the explicit \
-                raw_field escape hatch. Introduced in 1.21.5. Golden JSON test: \
+                raw_field escape hatch. Golden JSON test: \
                 chicken_variant::tests::valid_chicken_variant_json_is_stable. #201.",
     },
     RegistryCoverage {
@@ -436,7 +434,7 @@ pub const REGISTRY_COVERAGE: &[RegistryCoverage] = &[
         tag_dir: None,
         sand_module: None,
         api_status: RegistryApiStatus::RawOnly,
-        version_gate: Some("26.1"),
+        version_gate: None,
         notes: "No typed component builder. Use RawComponent. Follow-up: #201.",
     },
     RegistryCoverage {
@@ -445,11 +443,11 @@ pub const REGISTRY_COVERAGE: &[RegistryCoverage] = &[
         tag_dir: None,
         sand_module: Some("sand_components::cow_variant"),
         api_status: RegistryApiStatus::PartiallyImplemented,
-        version_gate: Some("1.21.5"),
+        version_gate: None,
         notes: "CowVariant covers asset_id and the minecraft:biome spawn_conditions shape (shared \
                 SpawnCondition model). The vanilla model selector and other fields use the explicit \
-                raw_field escape hatch pending confirmation of its exact accepted values. Introduced \
-                in 1.21.5. Golden JSON test: cow_variant::tests::valid_cow_variant_json_is_stable. \
+                raw_field escape hatch pending confirmation of its exact accepted values. Golden JSON \
+                test: cow_variant::tests::valid_cow_variant_json_is_stable. \
                 #201.",
     },
     RegistryCoverage {
@@ -458,7 +456,7 @@ pub const REGISTRY_COVERAGE: &[RegistryCoverage] = &[
         tag_dir: None,
         sand_module: None,
         api_status: RegistryApiStatus::RawOnly,
-        version_gate: Some("26.1"),
+        version_gate: None,
         notes: "No typed component builder. Use RawComponent. Follow-up: #201.",
     },
     RegistryCoverage {
@@ -467,10 +465,10 @@ pub const REGISTRY_COVERAGE: &[RegistryCoverage] = &[
         tag_dir: None,
         sand_module: Some("sand_components::pig_variant"),
         api_status: RegistryApiStatus::PartiallyImplemented,
-        version_gate: Some("1.21.5"),
+        version_gate: None,
         notes: "PigVariant covers asset_id and the minecraft:biome spawn_conditions shape (shared \
                 SpawnCondition model). Other vanilla/modded fields and spawn-condition types use the \
-                explicit raw_field escape hatch. Introduced in 1.21.5. Golden JSON test: \
+                explicit raw_field escape hatch. Golden JSON test: \
                 pig_variant::tests::valid_pig_variant_json_is_stable. #201.",
     },
     RegistryCoverage {
@@ -488,7 +486,7 @@ pub const REGISTRY_COVERAGE: &[RegistryCoverage] = &[
         tag_dir: None,
         sand_module: None,
         api_status: RegistryApiStatus::IntentionallyUnsupported,
-        version_gate: Some("1.21.5"),
+        version_gate: None,
         notes: "Vanilla test framework data. Use RawComponent if required.",
     },
     RegistryCoverage {
@@ -497,7 +495,7 @@ pub const REGISTRY_COVERAGE: &[RegistryCoverage] = &[
         tag_dir: None,
         sand_module: None,
         api_status: RegistryApiStatus::IntentionallyUnsupported,
-        version_gate: Some("1.21.5"),
+        version_gate: None,
         notes: "Vanilla test framework data. Use RawComponent if required.",
     },
     RegistryCoverage {
@@ -506,7 +504,7 @@ pub const REGISTRY_COVERAGE: &[RegistryCoverage] = &[
         tag_dir: None,
         sand_module: None,
         api_status: RegistryApiStatus::RawOnly,
-        version_gate: Some("1.21.5"),
+        version_gate: None,
         notes: "No typed component builder. Use RawComponent.",
     },
     RegistryCoverage {
@@ -515,7 +513,7 @@ pub const REGISTRY_COVERAGE: &[RegistryCoverage] = &[
         tag_dir: None,
         sand_module: Some("sand_components::villager_trade"),
         api_status: RegistryApiStatus::PartiallyImplemented,
-        version_gate: Some("26.1"),
+        version_gate: None,
         notes: "TradeSet supports inline entry hoisting, explicit/tag sources, amount, \
                 allow_duplicates, and random_sequence. Item modifiers/merchant predicates on \
                 referenced trades remain raw JSON escape hatches pending #185/#204; #296.",
@@ -526,7 +524,7 @@ pub const REGISTRY_COVERAGE: &[RegistryCoverage] = &[
         tag_dir: Some("tags/villager_trade"),
         sand_module: Some("sand_components::villager_trade"),
         api_status: RegistryApiStatus::PartiallyImplemented,
-        version_gate: Some("26.1"),
+        version_gate: None,
         notes: "VillagerTrade types wants/additional_wants/gives/max_uses/reputation_discount/ \
                 merchant_xp/double_trade_price_enchantments. given_item_modifiers and \
                 merchant_predicate remain raw JSON escape hatches pending #185/#204; #296.",
@@ -537,7 +535,7 @@ pub const REGISTRY_COVERAGE: &[RegistryCoverage] = &[
         tag_dir: None,
         sand_module: None,
         api_status: RegistryApiStatus::RawOnly,
-        version_gate: Some("1.21.5"),
+        version_gate: None,
         notes: "No typed component builder. Use RawComponent. Follow-up: #201.",
     },
     RegistryCoverage {
@@ -546,7 +544,7 @@ pub const REGISTRY_COVERAGE: &[RegistryCoverage] = &[
         tag_dir: None,
         sand_module: None,
         api_status: RegistryApiStatus::RawOnly,
-        version_gate: Some("26.1"),
+        version_gate: None,
         notes: "No typed component builder. Use RawComponent.",
     },
     RegistryCoverage {
@@ -555,7 +553,7 @@ pub const REGISTRY_COVERAGE: &[RegistryCoverage] = &[
         tag_dir: None,
         sand_module: None,
         api_status: RegistryApiStatus::RawOnly,
-        version_gate: Some("1.21.5"),
+        version_gate: None,
         notes: "No typed component builder. Use RawComponent. Follow-up: #201.",
     },
     // ── Worldgen ─────────────────────────────────────────────────────────────
@@ -703,14 +701,14 @@ pub const REGISTRY_COVERAGE: &[RegistryCoverage] = &[
         version_gate: None,
         notes: "Typed builder covers the stable vanilla-like field set and DimensionTypeId references; version-specific additions use an explicit raw_field escape hatch.",
     },
-    // ── 1.21.6+ dialog (version-gated) ───────────────────────────────────────
+    // ── Dialog ─────────────────────────────────────────────────────────────
     RegistryCoverage {
         registry_key: "minecraft:dialog",
         datapack_dir: "dialog",
         tag_dir: Some("tags/dialog"),
         sand_module: Some("sand_components::dialog"),
         api_status: RegistryApiStatus::PartiallyImplemented,
-        version_gate: Some("1.21.6"),
+        version_gate: None,
         notes: "Dialog builder and well-known pause_screen_additions/quick_actions tag helpers exist. Broader validation remains partial.",
     },
 ];
@@ -815,7 +813,6 @@ pub const KNOWN_PARTIAL_REGISTRIES: &[(&str, &[&str])] = &[
     ("minecraft:villager_trade", &["#185", "#204", "#296"]),
     ("minecraft:jukebox_song", &["#321"]),
     ("minecraft:instrument", &["#321"]),
-    ("minecraft:trim_material", &["#322"]),
 ];
 
 // ── Tests ─────────────────────────────────────────────────────────────────────
@@ -1049,13 +1046,9 @@ mod tests {
 
     #[test]
     fn checked_in_fixtures_match_coverage() {
-        for fixture in [
-            parse_fixture(include_str!("../fixtures/registry-coverage/1.21.4.json")),
-            parse_fixture(include_str!("../fixtures/registry-coverage/26.2.json")),
-        ] {
-            assert!(fixture.provenance.contains("datapack.json"));
-            assert_eq!(drift(&fixture, REGISTRY_COVERAGE), Vec::<String>::new());
-        }
+        let fixture = parse_fixture(include_str!("../fixtures/registry-coverage/26.2.json"));
+        assert!(fixture.provenance.contains("datapack.json"));
+        assert_eq!(drift(&fixture, REGISTRY_COVERAGE), Vec::<String>::new());
     }
 
     #[test]
@@ -1067,7 +1060,7 @@ mod tests {
     #[test]
     fn synthetic_drift_diagnostics_are_actionable() {
         let fixture = parse_fixture(
-            r#"{"minecraft_version":"1.0","provenance":"test","registries":[{"registry_id":"minecraft:new","datapack_dir":"new"}]}"#,
+            r#"{"minecraft_version":"26.2","provenance":"test","registries":[{"registry_id":"minecraft:new","datapack_dir":"new"}]}"#,
         );
         assert_eq!(
             drift(&fixture, &[]),
@@ -1121,19 +1114,19 @@ mod tests {
     #[test]
     fn version_gates_and_explicit_non_typed_statuses_are_valid() {
         let fixture =
-            parse_fixture(r#"{"minecraft_version":"1.0","provenance":"test","registries":[]}"#);
-        let gated = test_row("minecraft:future", "future", Some("2.0"));
+            parse_fixture(r#"{"minecraft_version":"26.1","provenance":"test","registries":[]}"#);
+        let gated = test_row("minecraft:future", "future", Some("26.2"));
         assert!(drift(&fixture, &[gated]).is_empty());
 
         let old_fixture = parse_fixture(
-            r#"{"minecraft_version":"1.0","provenance":"test","registries":[{"registry_id":"minecraft:old","datapack_dir":"old"}]}"#,
+            r#"{"minecraft_version":"26.1","provenance":"test","registries":[{"registry_id":"minecraft:old","datapack_dir":"old"}]}"#,
         );
         let new_fixture =
-            parse_fixture(r#"{"minecraft_version":"2.0","provenance":"test","registries":[]}"#);
+            parse_fixture(r#"{"minecraft_version":"26.2","provenance":"test","registries":[]}"#);
         let old = test_row("minecraft:old", "old", None);
-        assert!(drift_with_removals(&old_fixture, &[old], &[("minecraft:old", "2.0")]).is_empty());
+        assert!(drift_with_removals(&old_fixture, &[old], &[("minecraft:old", "26.2")]).is_empty());
         let old = test_row("minecraft:old", "old", None);
-        assert!(drift_with_removals(&new_fixture, &[old], &[("minecraft:old", "2.0")]).is_empty());
+        assert!(drift_with_removals(&new_fixture, &[old], &[("minecraft:old", "26.2")]).is_empty());
 
         for status in [
             RegistryApiStatus::RawOnly,
@@ -1143,7 +1136,7 @@ mod tests {
             let mut row = test_row("minecraft:ok", "ok", None);
             row.api_status = status;
             let present = parse_fixture(
-                r#"{"minecraft_version":"1.0","provenance":"test","registries":[{"registry_id":"minecraft:ok","datapack_dir":"ok"}]}"#,
+                r#"{"minecraft_version":"26.2","provenance":"test","registries":[{"registry_id":"minecraft:ok","datapack_dir":"ok"}]}"#,
             );
             assert!(drift(&present, &[row]).is_empty());
         }

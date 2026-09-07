@@ -49,7 +49,7 @@ behind) every system Trailforge demonstrates:
 - **Equipment and attributes** — an `AttributeModifier` on armor.
 - **A dialog** — a multi-button upgrade menu.
 - **Particles and sounds** — a reusable `Vfx` sequence for the dash.
-- **Optional systems** — the `systems-damage` feature's `DamageTracker`.
+- **Framework systems** — typed `#[system]` behavior over State, events, and archetypes.
 
 Nothing in this book is aspirational: if a chapter shows you an API, that API
 is exercised by Trailforge's own compiling, tested source, and by

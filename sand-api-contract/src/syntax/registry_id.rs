@@ -211,13 +211,7 @@ fn semantic_default_contract(attributes: &[Attribute], name: &syn::Ident) -> syn
         .unwrap_or(first_sentence)
         .trim_end_matches('.')
         .to_owned();
-    let availability = if documentation.contains("Introduced in Minecraft 26") {
-        Some(vec![LitStr::new("Minecraft Java 26.1+", name.span())])
-    } else if documentation.contains("Introduced in 1.21.5") {
-        Some(vec![LitStr::new("Minecraft Java 1.21.5+", name.span())])
-    } else {
-        None
-    };
+    let availability = None;
     Ok(Contract {
         path: Some(LitStr::new(&format!("sand::registry::{name}"), name.span())),
         aliases: Some(Vec::new()),
@@ -848,7 +842,7 @@ mod tests {
                 avoid_when = ["Building dialog JSON"],
                 example_namespace = "demo",
                 example_path = "menu/welcome",
-                availability = ["Minecraft Java 1.21.6+"],
+                availability = ["Minecraft Java 26.x and newer"],
                 local({local})
             );
             DialogId"#
@@ -950,7 +944,7 @@ mod tests {
                use_when = ["Referring to a dialog from this project"],
                avoid_when = ["Referring to a foreign dialog"],
                example_path = "welcome",
-               availability = ["Minecraft Java 1.21.6+"]"#,
+               availability = ["Minecraft Java 26.x and newer"]"#,
         ))
         .unwrap();
         assert_eq!(expansion.definitions.len(), 6);
@@ -964,7 +958,10 @@ mod tests {
             "sand::resource_ref::DialogId::local"
         );
         assert_eq!(local.contract.parameters[0].name, "path");
-        assert_eq!(local.contract.availability, ["Minecraft Java 1.21.6+"]);
+        assert_eq!(
+            local.contract.availability,
+            ["Minecraft Java 26.x and newer"]
+        );
         let file = syn::parse2::<syn::File>(expansion.rust).unwrap();
         let implementation = file
             .items
@@ -984,7 +981,7 @@ mod tests {
             .unwrap();
         let local_docs = docs(&local_method.attrs).join("\n");
         assert!(local_docs.contains("# Availability"));
-        assert!(local_docs.contains("Minecraft Java 1.21.6+"));
+        assert!(local_docs.contains("Minecraft Java 26.x and newer"));
         assert!(local_docs.contains("# Minecraft behavior"));
         assert!(!local_docs.contains("sand api show"));
     }
@@ -1007,7 +1004,7 @@ mod tests {
                use_when = ["Referring to a dialog from this project"],
                avoid_when = ["Referring to a foreign dialog"],
                example_path = "welcome",
-               availability = ["Minecraft Java 1.21.6+"],
+               availability = ["Minecraft Java 26.x and newer"],
                typo = "no""#,
         )) {
             Ok(_) => panic!("unknown local key unexpectedly expanded"),
@@ -1020,7 +1017,7 @@ mod tests {
                use_when = ["Referring to a dialog from this project"],
                avoid_when = ["Referring to a foreign dialog"],
                example_path = "welcome",
-               availability = ["Minecraft Java 1.21.6+"],
+               availability = ["Minecraft Java 26.x and newer"],
                availability = ["Minecraft Java 26.x"]"#,
         )) {
             Ok(_) => panic!("duplicate local key unexpectedly expanded"),

@@ -10,7 +10,7 @@
 //! - `CASTING` — a boolean flag set while a spell is active
 //! - `ACTIVE_SPELL` — an NBT storage var holding the spell name string
 //! - Spells gated behind `all!`/`any!` conditions
-//! - A welcome dialog (1.21.5+ only) shown on first join
+//! - A welcome dialog for the 26+ baseline shown on first join
 
 use sand_commands::{Coord, Vec3, summon_at_with_nbt};
 use sand_core::prelude::*;
@@ -168,8 +168,8 @@ fn main() {
         println!("  {cmd}");
     }
 
-    println!("\n--- welcome dialog (1.21.5+) ---");
-    let v = MinecraftVersion::parse("1.21.5").unwrap();
+    println!("\n--- welcome dialog (Minecraft 26+) ---");
+    let v = MinecraftVersion::parse("26.1").unwrap();
     let profile = VersionProfile::resolve(&v).unwrap();
     match maybe_welcome_dialog(&profile) {
         Some(d) => {
@@ -179,11 +179,11 @@ fn main() {
         None => println!("  (not supported on this version)"),
     }
 
-    println!("\n--- welcome dialog (1.21.4 — no dialogs) ---");
-    let v_old = MinecraftVersion::parse("1.21.4").unwrap();
+    println!("\n--- welcome dialog (26.1 — no dialogs) ---");
+    let v_old = MinecraftVersion::parse("26.1").unwrap();
     let profile_old = VersionProfile::resolve(&v_old).unwrap();
     match maybe_welcome_dialog(&profile_old) {
         Some(_) => println!("  (unexpected)"),
-        None => println!("  (correctly gated — dialogs not supported on 1.21.4)"),
+        None => println!("  (correctly gated — dialogs not supported on 26.1)"),
     }
 }

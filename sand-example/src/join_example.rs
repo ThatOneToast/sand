@@ -16,7 +16,7 @@
 //!    `minecraft:tick`. Its reward runs `on_player_join`, then the function
 //!    *revokes* the advancement so it re-arms for next login.
 //!
-//!    Note: `minecraft:player_joined_world` was removed in 1.21.x. Use
+//!    Note: `minecraft:player_joined_world` was removed in 26.1.x. Use
 //!    `AdvancementTrigger::Tick` (or `Custom` for other version-specific triggers).
 //!
 //! 3. **`#[function]`** — `on_player_join` contains the actual join logic:
@@ -59,7 +59,7 @@ pub fn join_init() {
 /// this advancement, re-arming it for the player's next session.
 ///
 /// We use `AdvancementTrigger::Tick` because `minecraft:player_joined_world`
-/// was removed in 1.21.x. Revoking after the first trigger achieves the same
+/// was removed in 26.1.x. Revoking after the first trigger achieves the same
 /// per-session-join behaviour.
 #[datapack_component]
 pub fn detect_join() -> sand_core::Advancement {
@@ -92,7 +92,7 @@ pub fn on_player_join() {
 
         // ── Announce to everyone else ──────────────────────────────────────
         // `@a[tag=!@s]` selects all players *except* the one who just joined.
-        // Note: tag=!@s is valid syntax in 1.21.11 selectors.
+        // Note: tag=!@s is valid syntax in 26.2 selectors.
         r#"tellraw @a[tag=!joined_just_now] [{"selector":"@s","color":"green"},{"text":" joined the server!","color":"gray"}]"#;
 
         // ── Re-arm the detection advancement ──────────────────────────────

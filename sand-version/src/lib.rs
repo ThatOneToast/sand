@@ -17,21 +17,7 @@
 /// `sand-core` builds/tests — see [`DEFAULT_CODEGEN_VERSION`].
 pub const LATEST_KNOWN: &str = "26.2";
 
-/// The oldest Minecraft version Sand intentionally promises compatibility
-/// with, and the CI job that verifies that promise still codegens.
-///
-/// This is an explicit compatibility/profile-boundary target, not the
-/// canonical one: `1.21.4` fixtures cover a known rendering-branch boundary
-/// (see `sand-core/tests/advancement_version_export.rs` and the
-/// profile/fallback tests in `version.rs`). Canonical fixtures, examples,
-/// and the default local codegen target are [`LATEST_KNOWN`]/
-/// [`DEFAULT_CODEGEN_VERSION`] (Minecraft 26.2) — 1.21.4 is retained here
-/// only so that boundary cannot silently regress, not because it is the
-/// implicit default format.
-pub const CI_STABLE_CODEGEN_VERSION: &str = "1.21.4";
-
-/// Java runtimes required by the verified vanilla-server validation matrix.
-pub const CI_STABLE_JAVA_VERSION: &str = "21";
+/// Java runtime required by the verified vanilla-server validation target.
 pub const CI_LATEST_JAVA_VERSION: &str = "25";
 
 /// The default Minecraft version `sand-core/build.rs` uses to run `sand-build`
@@ -108,20 +94,20 @@ impl CommandProfile {
         }
     }
 
-    /// Compatibility profile used by direct command rendering without project
-    /// configuration. Exporters should pass the project's resolved profile.
+    /// Current baseline profile used by direct command rendering without
+    /// project configuration. Exporters should pass the project's resolved profile.
     #[sand_macros::api(
         registry = sand_api_contract,
         path = "sand::command::CommandProfile::unprofiled",
         aliases = ["sand::cmd::CommandProfile::unprofiled", "sand::prelude::cmd::CommandProfile::unprofiled"],
         module = "sand::command",
         kind = "method",
-        summary = "Compatibility profile used by direct command rendering without project configuration. Exporters should pass the project's resolved profile.",
-        context = "Compatibility profile used by direct command rendering without project configuration. Exporters should pass the project's resolved profile. This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
+        summary = "Current baseline profile used by direct command rendering without project configuration. Exporters should pass the project's resolved profile.",
+        context = "Current baseline profile used by direct command rendering without project configuration. Exporters should pass the project's resolved profile. This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
         minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        returns = "A `CommandProfile` configured for compatibility profile used by direct command rendering without project configuration. Exporters should pass the project's resolved profile.",
+        returns = "A `CommandProfile` configured for the current baseline when direct rendering has no project configuration.",
         example = "use sand::prelude::*;\n\nfn demonstrate()  {\n    let command_profile = sand::command::CommandProfile::unprofiled();\n}",
     )]
     pub fn unprofiled() -> Self {
@@ -165,42 +151,6 @@ impl CommandProfile {
     pub fn is_fallback(&self) -> bool {
         self.is_fallback
     }
-
-    /// Whether this resolved command target is at least the given Java release.
-    ///
-    /// Unknown/fallback profiles are conservative and never claim support.
-    #[sand_macros::api(
-        registry = sand_api_contract,
-        path = "sand::command::CommandProfile::is_at_least",
-        aliases = ["sand::cmd::CommandProfile::is_at_least", "sand::prelude::cmd::CommandProfile::is_at_least"],
-        module = "sand::command",
-        kind = "method",
-        summary = "Whether this resolved command target is at least the given Java release.",
-        context = "Whether this resolved command target is at least the given Java release. Unknown/fallback profiles are conservative and never claim support.",
-        minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
-        use_when = ["Constructing Minecraft commands through Sand's typed command model"],
-        avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        params(major = "`major` is the major considered when determining whether this resolved command target is at least the given Java release.", minor = "`minor` is the minor considered when determining whether this resolved command target is at least the given Java release.", patch = "`patch` is the patch considered when determining whether this resolved command target is at least the given Java release."),
-        returns = "`true` when the documented condition holds to determine whether this resolved command target is at least the given Java release; otherwise `false`.",
-        example = "use sand::prelude::*;\n\nfn demonstrate(command_profile_value: &sand::command::CommandProfile, major: u32, minor: u32, patch: u32)  {\n    let is_is_at_least = command_profile_value.is_at_least(major, minor, patch);\n}",
-    )]
-    pub fn is_at_least(&self, major: u32, minor: u32, patch: u32) -> bool {
-        if self.is_fallback {
-            return false;
-        }
-        let value = if self.requested_version == "latest" {
-            LATEST_KNOWN
-        } else {
-            &self.requested_version
-        };
-        let mut parts = value.split('.').map(|part| part.parse::<u32>());
-        let Some(Ok(actual_major)) = parts.next() else {
-            return false;
-        };
-        let actual_minor = parts.next().transpose().ok().flatten().unwrap_or(0);
-        let actual_patch = parts.next().transpose().ok().flatten().unwrap_or(0);
-        (actual_major, actual_minor, actual_patch) >= (major, minor, patch)
-    }
 }
 
 // ── Component capability identifiers ───────────────────────────────────────────
@@ -226,31 +176,27 @@ impl CommandProfile {
     use_when = ["Adapting authored resources or integrations to an explicitly selected Minecraft target"],
     avoid_when = ["Ordinary datapack code can rely on the target selected in sand.toml"],
     example = "use sand::version::ComponentFeature;",
-    variants(AnimalVariants = "Biome-scoped animal variant registries — `chicken_variant`, `cow_variant`, `pig_variant` (1.21.5+).", ChatTypes = "Chat type registries (1.19+).", DamageTypes = "Damage type registries (1.19.4+).", Dialogs = "Data-driven dialogs (1.21.6+ / 26.x).", Enchantments = "Enchantment data components (1.21+).", ItemComponents = "Item data components — the 1.20.5+ component system (`minecraft:custom_data`, `minecraft:item_name`, etc.). Gates component-bearing recipe results and other JSON payloads that embed structured item components.", JukeboxSongs = "Jukebox song components (1.21+).", TrimAssets = "Armor trim assets — trim material and trim pattern components (1.19.4+).", VillagerTrades = "Data-driven Villager/Wandering Trader trade registries — `villager_trade` and `trade_set` (26.1+)."),
+    variants(AnimalVariants = "Biome-scoped animal variant registries in verified 26.x schemas.", ChatTypes = "Chat type registries in verified 26.x schemas.", DamageTypes = "Damage type registries in verified 26.x schemas.", Dialogs = "Data-driven dialogs in verified 26.x schemas.", Enchantments = "Enchantment data components in verified 26.x schemas.", ItemComponents = "Structured item components in verified 26.x schemas.", JukeboxSongs = "Jukebox song components in verified 26.x schemas.", TrimAssets = "Armor trim assets in verified 26.x schemas.", VillagerTrades = "Data-driven Villager/Wandering Trader trade registries in verified 26.x schemas."),
 )]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum ComponentFeature {
-    /// Data-driven dialogs (1.21.6+ / 26.x).
+    /// Data-driven dialogs in verified 26.x schemas.
     Dialogs,
-    /// Jukebox song components (1.21+).
+    /// Jukebox song components in verified 26.x schemas.
     JukeboxSongs,
-    /// Damage type registries (1.19.4+).
+    /// Damage type registries in verified 26.x schemas.
     DamageTypes,
-    /// Chat type registries (1.19+).
+    /// Chat type registries in verified 26.x schemas.
     ChatTypes,
-    /// Enchantment data components (1.21+).
+    /// Enchantment data components in verified 26.x schemas.
     Enchantments,
-    /// Armor trim assets — trim material and trim pattern components (1.19.4+).
+    /// Armor trim assets in verified 26.x schemas.
     TrimAssets,
-    /// Item data components — the 1.20.5+ component system (`minecraft:custom_data`,
-    /// `minecraft:item_name`, etc.). Gates component-bearing recipe results and
-    /// other JSON payloads that embed structured item components.
+    /// Structured item components in verified 26.x schemas.
     ItemComponents,
-    /// Biome-scoped animal variant registries — `chicken_variant`,
-    /// `cow_variant`, `pig_variant` (1.21.5+).
+    /// Biome-scoped animal variant registries in verified 26.x schemas.
     AnimalVariants,
-    /// Data-driven Villager/Wandering Trader trade registries —
-    /// `villager_trade` and `trade_set` (26.1+).
+    /// Data-driven Villager/Wandering Trader trade registries.
     VillagerTrades,
 }
 
@@ -349,16 +295,16 @@ pub struct VersionCaps {
 impl VersionCaps {
     /// Create a `VersionCaps` where all features are enabled.
     ///
-    /// Used by the compatibility (unprofiled) export path so existing
-    /// callers retain their prior behavior.
+    /// Used by the unprofiled export path, which targets Sand's current
+    /// verified baseline.
     #[sand_macros::api(
         registry = sand_api_contract,
         path = "sand::version::VersionCaps::all_enabled",
         module = "sand::version",
         kind = "method",
         summary = "Create a `VersionCaps` where all features are enabled.",
-        context = "Create a `VersionCaps` where all features are enabled. Used by the compatibility (unprofiled) export path so existing callers retain their prior behavior.",
-        minecraft = "Used by the compatibility (unprofiled) export path so existing callers retain their prior behavior.",
+        context = "Create a `VersionCaps` where all features are enabled. Used by the unprofiled export path, which targets Sand's current verified baseline.",
+        minecraft = "Used by the unprofiled export path for Sand's current verified baseline.",
         use_when = ["Adapting authored resources or integrations to an explicitly selected Minecraft target"],
         avoid_when = ["Ordinary datapack code can rely on the target selected in sand.toml"],
         returns = "A `VersionCaps` with every modeled feature enabled.",
@@ -396,7 +342,7 @@ impl VersionCaps {
     )]
     pub fn all_disabled() -> Self {
         Self {
-            requested_version: "1.18".to_string(),
+            requested_version: "unknown".to_string(),
             is_fallback: true,
             supports_dialogs: false,
             supports_jukebox_songs: false,
@@ -410,24 +356,20 @@ impl VersionCaps {
         }
     }
 
-    /// Set whether biome-scoped animal variant registries (`chicken_variant`,
-    /// `cow_variant`, `pig_variant`; 1.21.5+) are supported.
-    ///
-    /// A separate builder method (rather than a constructor parameter) keeps
-    /// [`VersionCaps::from_flags`]/[`VersionCaps::from_profile_flags`] call
-    /// sites stable as new narrowly-scoped features are added.
+    /// Set whether biome-scoped animal variant registries are present in the
+    /// exact target schema.
     #[sand_macros::api(
         registry = sand_api_contract,
         path = "sand::version::VersionCaps::with_animal_variants",
         module = "sand::version",
         kind = "method",
-        summary = "Set whether biome-scoped animal variant registries (`chicken_variant`, `cow_variant`, `pig_variant`; 1.21.5+) are supported.",
-        context = "Set whether biome-scoped animal variant registries (`chicken_variant`, `cow_variant`, `pig_variant`; 1.21.5+) are supported. A separate builder method (rather than a constructor parameter) keeps [`VersionCaps::from_flags`]/[`VersionCaps::from_profile_flags`] call sites stable as new narrowly-scoped features are added.",
+        summary = "Set whether biome-scoped animal variant registries are present in the exact target schema.",
+        context = "This capability is false for conservative unknown-future profiles until their generated schema is verified.",
         minecraft = "Capability checks describe the data-driven features accepted by the selected Minecraft Java Edition target before pack output is written.",
         use_when = ["Adapting authored resources or integrations to an explicitly selected Minecraft target"],
         avoid_when = ["Ordinary datapack code can rely on the target selected in sand.toml"],
-        params(value = "`value` provides the value being applied or compared used to set whether biome-scoped animal variant registries (`chicken_variant`, `cow_variant`, `pig_variant`; 1.21.5+) are supported."),
-        returns = "The `VersionCaps` value with the documented change applied to set whether biome-scoped animal variant registries (`chicken_variant`, `cow_variant`, `pig_variant`; 1.21.5+) are supported.",
+        params(value = "`value` indicates whether the exact target schema contains the animal variant registries."),
+        returns = "The updated target capabilities.",
         example = "use sand::prelude::*;\n\nfn demonstrate(version_caps_value: sand::version::VersionCaps, value: bool)  {\n    let updated_version_caps = version_caps_value.with_animal_variants(value);\n}",
     )]
     pub fn with_animal_variants(mut self, value: bool) -> Self {
@@ -436,24 +378,20 @@ impl VersionCaps {
     }
 
     /// Set whether the data-driven Villager/Wandering Trader trade
-    /// registries (`villager_trade`, `trade_set`; 26.1+) are supported.
+    /// registries are supported.
     ///
-    /// Follows the same builder-method pattern as
-    /// [`VersionCaps::with_animal_variants`] for the same reason: it keeps
-    /// [`VersionCaps::from_flags`]/[`VersionCaps::from_profile_flags`] call
-    /// sites stable.
     #[sand_macros::api(
         registry = sand_api_contract,
         path = "sand::version::VersionCaps::with_villager_trades",
         module = "sand::version",
         kind = "method",
-        summary = "Set whether the data-driven Villager/Wandering Trader trade registries (`villager_trade`, `trade_set`; 26.1+) are supported.",
-        context = "Set whether the data-driven Villager/Wandering Trader trade registries (`villager_trade`, `trade_set`; 26.1+) are supported. Follows the same builder-method pattern as [`VersionCaps::with_animal_variants`] for the same reason: it keeps [`VersionCaps::from_flags`]/[`VersionCaps::from_profile_flags`] call sites stable.",
+        summary = "Set whether the data-driven Villager/Wandering Trader trade registries are supported.",
+        context = "This capability is enabled for verified 26.x profiles and false for conservative unknown-future profiles until their generated schema is verified.",
         minecraft = "Capability checks describe the data-driven features accepted by the selected Minecraft Java Edition target before pack output is written.",
         use_when = ["Adapting authored resources or integrations to an explicitly selected Minecraft target"],
         avoid_when = ["Ordinary datapack code can rely on the target selected in sand.toml"],
-        params(value = "`value` provides the value being applied or compared used to set whether the data-driven Villager/Wandering Trader trade registries (`villager_trade`, `trade_set`; 26.1+) are supported."),
-        returns = "The `VersionCaps` value with the documented change applied to set whether the data-driven Villager/Wandering Trader trade registries (`villager_trade`, `trade_set`; 26.1+) are supported.",
+        params(value = "`value` selects whether the target schema supports data-driven Villager/Wandering Trader trade registries."),
+        returns = "The updated `VersionCaps` value.",
         example = "use sand::prelude::*;\n\nfn demonstrate(version_caps_value: sand::version::VersionCaps, value: bool)  {\n    let updated_version_caps = version_caps_value.with_villager_trades(value);\n}",
     )]
     pub fn with_villager_trades(mut self, value: bool) -> Self {
@@ -488,48 +426,6 @@ impl VersionCaps {
             ComponentFeature::AnimalVariants => self.supports_animal_variants,
             ComponentFeature::VillagerTrades => self.supports_villager_trades,
         }
-    }
-
-    /// Create an unprofiled `VersionCaps` from individual feature flags.
-    ///
-    /// This compatibility constructor retains the pre-profile API. Schema
-    /// consumers treat it as the latest known target, matching unprofiled
-    /// component export behavior.
-    #[sand_macros::api(
-        registry = sand_api_contract,
-        path = "sand::version::VersionCaps::from_flags",
-        module = "sand::version",
-        kind = "method",
-        summary = "Create an unprofiled `VersionCaps` from individual feature flags.",
-        context = "Create an unprofiled `VersionCaps` from individual feature flags. This compatibility constructor retains the pre-profile API. Schema consumers treat it as the latest known target, matching unprofiled component export behavior.",
-        minecraft = "This compatibility constructor retains the pre-profile API. Schema consumers treat it as the latest known target, matching unprofiled component export behavior.",
-        use_when = ["Adapting authored resources or integrations to an explicitly selected Minecraft target"],
-        avoid_when = ["Ordinary datapack code can rely on the target selected in sand.toml"],
-        params(supports_dialogs = "`supports_dialogs` provides the switch that enables or disables the behavior used to create an unprofiled `VersionCaps` from individual feature flags.", supports_jukebox_songs = "`supports_jukebox_songs` provides the switch that enables or disables the behavior used to create an unprofiled `VersionCaps` from individual feature flags.", supports_damage_types = "`supports_damage_types` provides the switch that enables or disables the behavior used to create an unprofiled `VersionCaps` from individual feature flags.", supports_chat_types = "`supports_chat_types` provides the switch that enables or disables the behavior used to create an unprofiled `VersionCaps` from individual feature flags.", supports_enchantments = "`supports_enchantments` provides the switch that enables or disables the behavior used to create an unprofiled `VersionCaps` from individual feature flags.", supports_trim_assets = "`supports_trim_assets` provides the switch that enables or disables the behavior used to create an unprofiled `VersionCaps` from individual feature flags.", supports_item_components = "`supports_item_components` provides the switch that enables or disables the behavior used to create an unprofiled `VersionCaps` from individual feature flags."),
-        returns = "A `VersionCaps` representing an unprofiled `VersionCaps` from individual feature flags.",
-        example = "use sand::prelude::*;\n\nfn demonstrate(supports_dialogs: bool, supports_jukebox_songs: bool, supports_damage_types: bool, supports_chat_types: bool, supports_enchantments: bool, supports_trim_assets: bool, supports_item_components: bool)  {\n    let version_caps = sand::version::VersionCaps::from_flags(supports_dialogs, supports_jukebox_songs, supports_damage_types, supports_chat_types, supports_enchantments, supports_trim_assets, supports_item_components);\n}",
-    )]
-    #[allow(clippy::too_many_arguments)]
-    pub fn from_flags(
-        supports_dialogs: bool,
-        supports_jukebox_songs: bool,
-        supports_damage_types: bool,
-        supports_chat_types: bool,
-        supports_enchantments: bool,
-        supports_trim_assets: bool,
-        supports_item_components: bool,
-    ) -> Self {
-        Self::from_profile_flags(
-            LATEST_KNOWN,
-            false,
-            supports_dialogs,
-            supports_jukebox_songs,
-            supports_damage_types,
-            supports_chat_types,
-            supports_enchantments,
-            supports_trim_assets,
-            supports_item_components,
-        )
     }
 
     /// Create a `VersionCaps` for a concrete resolved target profile.
@@ -658,114 +554,34 @@ mod tests {
     use super::*;
 
     #[test]
-    fn all_enabled_supports_everything() {
-        let caps = VersionCaps::all_enabled();
+    fn capability_sets_fail_closed_for_unknown_schemas() {
+        let known = VersionCaps::all_enabled();
+        let unknown = VersionCaps::all_disabled();
         for feature in ComponentFeature::ALL {
-            assert!(caps.supports(*feature), "{feature:?} should be enabled");
+            assert!(known.supports(*feature), "{feature:?} should be enabled");
+            assert!(
+                !unknown.supports(*feature),
+                "{feature:?} should fail closed"
+            );
         }
+        assert!(known.is_at_least(26, 1, 0));
+        assert!(!unknown.is_at_least(26, 0, 0));
     }
 
     #[test]
-    fn all_disabled_supports_nothing() {
-        let caps = VersionCaps::all_disabled();
-        for feature in ComponentFeature::ALL {
-            assert!(!caps.supports(*feature), "{feature:?} should be disabled");
-        }
-    }
-
-    #[test]
-    fn feature_name_is_stable() {
-        assert_eq!(ComponentFeature::Dialogs.name(), "dialogs");
-        assert_eq!(ComponentFeature::JukeboxSongs.name(), "jukebox_songs");
-        assert_eq!(ComponentFeature::DamageTypes.name(), "damage_types");
-        assert_eq!(ComponentFeature::ChatTypes.name(), "chat_types");
-        assert_eq!(ComponentFeature::Enchantments.name(), "enchantments");
-        assert_eq!(ComponentFeature::TrimAssets.name(), "trim_assets");
-        assert_eq!(ComponentFeature::ItemComponents.name(), "item_components");
-        assert_eq!(ComponentFeature::AnimalVariants.name(), "animal_variants");
-        assert_eq!(ComponentFeature::VillagerTrades.name(), "villager_trades");
-    }
-
-    #[test]
-    fn from_flags_respects_individual_values() {
-        let caps = VersionCaps::from_flags(true, false, true, false, true, false, true);
-        assert!(caps.supports(ComponentFeature::Dialogs));
-        assert!(!caps.supports(ComponentFeature::JukeboxSongs));
-        assert!(caps.supports(ComponentFeature::DamageTypes));
-        assert!(!caps.supports(ComponentFeature::ChatTypes));
-        assert!(caps.supports(ComponentFeature::Enchantments));
-        assert!(!caps.supports(ComponentFeature::TrimAssets));
-        assert!(caps.supports(ComponentFeature::ItemComponents));
-        assert_eq!(caps.requested_version(), LATEST_KNOWN);
-        assert!(!caps.is_fallback());
-    }
-
-    #[test]
-    fn with_animal_variants_overrides_without_touching_other_flags() {
-        let caps = VersionCaps::from_flags(true, true, true, true, true, true, true)
-            .with_animal_variants(true);
-        assert!(caps.supports(ComponentFeature::AnimalVariants));
-        assert!(caps.supports(ComponentFeature::Dialogs));
-
-        let caps = VersionCaps::all_enabled().with_animal_variants(false);
+    fn narrow_capabilities_can_be_overridden_without_affecting_others() {
+        let caps = VersionCaps::all_enabled()
+            .with_animal_variants(false)
+            .with_villager_trades(false);
         assert!(!caps.supports(ComponentFeature::AnimalVariants));
-        assert!(caps.supports(ComponentFeature::Dialogs));
-    }
-
-    #[test]
-    fn with_villager_trades_overrides_without_touching_other_flags() {
-        let caps = VersionCaps::from_flags(true, true, true, true, true, true, true)
-            .with_villager_trades(true);
-        assert!(caps.supports(ComponentFeature::VillagerTrades));
-        assert!(caps.supports(ComponentFeature::Dialogs));
-
-        let caps = VersionCaps::all_enabled().with_villager_trades(false);
         assert!(!caps.supports(ComponentFeature::VillagerTrades));
         assert!(caps.supports(ComponentFeature::Dialogs));
     }
 
     #[test]
-    fn profiled_caps_compare_versions_without_guessing_for_fallbacks() {
-        let stable = VersionCaps::from_profile_flags(
-            "1.21.4", false, false, true, true, true, true, true, true,
-        );
-        assert!(stable.is_at_least(1, 20, 5));
-        assert!(!stable.is_at_least(26, 2, 0));
-
-        let fallback = VersionCaps::all_disabled();
-        assert!(!fallback.is_at_least(1, 0, 0));
-    }
-
-    #[test]
-    fn codegen_ci_targets_are_explicit_verified_versions() {
-        assert_eq!(CI_STABLE_CODEGEN_VERSION, "1.21.4");
-        assert!(!LATEST_KNOWN.is_empty());
-        assert_ne!(CI_STABLE_CODEGEN_VERSION, "latest");
-        assert_ne!(LATEST_KNOWN, "latest");
-    }
-
-    #[test]
-    fn rust_workflow_resolves_codegen_targets_from_this_crate() {
-        let workflow = include_str!("../../.github/workflows/rust.yml");
-        assert!(workflow.contains("codegen-ci-version -- stable"));
-        assert!(workflow.contains("codegen-ci-version -- latest"));
-        assert!(workflow.contains("SAND_STRICT_CODEGEN: \"1\""));
-        assert!(workflow.contains("Generated API health (stable"));
-        assert!(workflow.contains("Generated API health (latest verified"));
-        assert!(workflow.contains("Set up Java 21 for stable codegen"));
-        assert!(workflow.contains("Set up Java 25 for latest verified codegen"));
-    }
-
-    #[test]
-    fn vanilla_reload_workflow_uses_verified_matrix_source() {
-        let workflow = include_str!("../../.github/workflows/vanilla-reload.yml");
-        assert!(workflow.contains("--bin vanilla-reload-matrix"));
-        assert!(workflow.contains("fromJSON(needs.versions.outputs.matrix)"));
-        assert!(workflow.contains("actions/upload-artifact@v4"));
-        assert!(workflow.contains("target/vanilla-reload/${{ matrix.version }}/latest.log"));
-        assert!(!CI_STABLE_CODEGEN_VERSION.is_empty());
-        assert!(!LATEST_KNOWN.is_empty());
-        assert_eq!(CI_STABLE_JAVA_VERSION, "21");
+    fn version_anchors_are_exact() {
+        assert_eq!(LATEST_KNOWN, "26.2");
+        assert_eq!(DEFAULT_CODEGEN_VERSION, LATEST_KNOWN);
         assert_eq!(CI_LATEST_JAVA_VERSION, "25");
     }
 }

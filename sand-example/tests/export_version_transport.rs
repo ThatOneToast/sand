@@ -21,7 +21,7 @@ fn export_binary_requires_and_uses_runtime_version_transport() {
     assert!(String::from_utf8_lossy(&malformed.stderr).contains("not-a-version"));
 
     let valid = Command::new(export_binary())
-        .env("SAND_EXPORT_MC_VERSION", "1.21.4")
+        .env("SAND_EXPORT_MC_VERSION", "26.1")
         .output()
         .expect("run sand_export with the configured version");
     assert!(

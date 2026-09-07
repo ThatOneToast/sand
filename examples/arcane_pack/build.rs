@@ -6,7 +6,7 @@ fn main() {
         .map(|v| matches!(v.trim(), "1" | "true" | "yes"))
         .unwrap_or(false);
 
-    if let Err(err) = sand_build::generate("1.21.4") {
+    if let Err(err) = sand_build::generate("26.1") {
         if strict {
             panic!("arcane-pack codegen failed: {err}");
         }

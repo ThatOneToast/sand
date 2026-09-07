@@ -1,6 +1,6 @@
-//! Typed builder for Minecraft 1.21+ custom items.
+//! Typed builder for Minecraft 26+ custom items.
 //!
-//! `CustomItem` wraps a base item type with any combination of the 1.21 item
+//! `CustomItem` wraps a base item type with any combination of the 26.1 item
 //! component system. The resulting value formats as an item-component string
 //! (e.g. `minecraft:diamond_sword[custom_name={text:"..."},enchantments={...}]`) that
 //! can be passed directly to `sand::command::give`.
@@ -519,7 +519,7 @@ impl AttributeModifier {
     }
 
     fn to_snbt(&self) -> String {
-        // Minecraft 1.21+ requires an `id` field on every attribute modifier.
+        // Minecraft 26+ requires an `id` field on every attribute modifier.
         // Fall back to the attribute type's resource location when none is set.
         let id = self
             .id
@@ -2473,14 +2473,14 @@ fn item_component_error(base: &str, key: &str, message: impl fmt::Display) -> Sa
     path = "sand::component::CustomItem",
     aliases = ["sand::prelude::CustomItem"],
     module = "sand::component",
-    summary = "A custom item definition using the Minecraft 1.21+ item component system.",
-    context = "A custom item definition using the Minecraft 1.21+ item component system. The item formats as `base[component1=val1,component2=val2,...]` and can be passed directly to `sand::command::give` since it implements `Into<String>`. Use [`custom_data`](Self::custom_data) to tag the item with a unique key. This is the most reliable way to detect the item in advancements and predicates. Use [`custom_model_data`](Self::custom_model_data) separately for resourcepack model overrides.",
+    summary = "A custom item definition using Sand's Minecraft 26+ item component baseline.",
+    context = "A custom item definition using Sand's Minecraft 26+ item component baseline. The item formats as `base[component1=val1,component2=val2,...]` and can be passed directly to `sand::command::give` since it implements `Into<String>`. Use [`custom_data`](Self::custom_data) to tag the item with a unique key. This is the most reliable way to detect the item in advancements and predicates. Use [`custom_model_data`](Self::custom_model_data) separately for client-side model selection.",
     minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
-    use_when = ["Use [`custom_data`](Self::custom_data) to tag the item with a unique key. This is the most reliable way to detect the item in advancements and predicates. Use [`custom_model_data`](Self::custom_model_data) separately for resourcepack model overrides."],
+    use_when = ["Use [`custom_data`](Self::custom_data) to tag the item with a unique key. This is the most reliable way to detect the item in advancements and predicates. Use [`custom_model_data`](Self::custom_model_data) separately for client-side model selection."],
     avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
     example = "use sand::component::CustomItem;",
 )]
-/// A custom item definition using the Minecraft 1.21+ item component system.
+/// A custom item definition using the Minecraft 26+ item component system.
 ///
 /// The item formats as `base[component1=val1,component2=val2,...]` and can be
 /// passed directly to `sand::command::give` since it implements `Into<String>`.
@@ -2489,7 +2489,7 @@ fn item_component_error(base: &str, key: &str, message: impl fmt::Display) -> Sa
 ///
 /// Use [`custom_data`](Self::custom_data) to tag the item with a unique key.
 /// This is the most reliable way to detect the item in advancements and predicates.
-/// Use [`custom_model_data`](Self::custom_model_data) separately for resourcepack
+/// Use [`custom_model_data`](Self::custom_model_data) separately for external asset
 /// model overrides.
 #[derive(Debug, Clone)]
 pub struct CustomItem {
@@ -2757,22 +2757,22 @@ impl CustomItem {
         self
     }
 
-    /// Set `custom_model_data` for pairing with resourcepack model overrides.
+    /// Set `custom_model_data` for pairing with client-side model selection.
     ///
-    /// Emits `custom_model_data={floats:[N.0f]}` (1.21.4+ format).
+    /// Emits `custom_model_data={floats:[N.0f]}` in the 26+ format.
     #[sand_macros::api(
         registry = sand_api_contract,
         path = "sand::component::CustomItem::custom_model_data",
         aliases = ["sand::prelude::CustomItem::custom_model_data"],
         module = "sand::component",
         kind = "method",
-        summary = "Set `custom_model_data` for pairing with resourcepack model overrides.",
-        context = "Set `custom_model_data` for pairing with resourcepack model overrides. Emits `custom_model_data={floats:[N.0f]}` (1.21.4+ format).",
+        summary = "Set `custom_model_data` for pairing with client-side model selection.",
+        context = "Set `custom_model_data` for pairing with client-side model selection. Emits `custom_model_data={floats:[N.0f]}` in the 26+ format.",
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(value = "`value` provides the value being applied or compared used to set `custom_model_data` for pairing with resourcepack model overrides."),
-        returns = "The `CustomItem` value with the documented change applied to set `custom_model_data` for pairing with resourcepack model overrides.",
+        params(value = "`value` provides the value being applied or compared used to set `custom_model_data` for pairing with client-side model selection."),
+        returns = "The `CustomItem` value with the documented change applied to set `custom_model_data` for pairing with client-side model selection.",
         example = "use sand::prelude::*;\n\nfn demonstrate(custom_item_value: sand::component::CustomItem, value: i32)  {\n    let updated_custom_item = custom_item_value.custom_model_data(value);\n}",
     )]
     pub fn custom_model_data(self, value: i32) -> Self {
@@ -3830,11 +3830,11 @@ impl CustomItem {
             parts.push(format!("custom_data={}", data.to_snbt()));
         }
         if let Some(cmd) = self.custom_model_data {
-            // 1.21.4+ format: custom_model_data={floats:[N.0f]}
+            // 26+ format: custom_model_data={floats:[N.0f]}
             parts.push(format!("custom_model_data={{floats:[{cmd}.0f]}}"));
         }
 
-        // Display — 1.21.4+ requires SNBT compound tags for text components,
+        // Display — 26+ requires SNBT compound tags for text components,
         // not JSON strings in single quotes.
         if let Some(ref name) = self.custom_name {
             parts.push(format!("custom_name={}", text_to_snbt(name)));
@@ -4223,7 +4223,7 @@ fn text_json_value(base: &str, text_json: &str) -> SandResult<Value> {
 
 /// Convert a JSON text component string to an SNBT compound for use in item components.
 ///
-/// In Minecraft 1.21.4+, text components in item NBT are stored as SNBT compound tags
+/// In Minecraft 26+, text components in item NBT are stored as SNBT compound tags
 /// rather than JSON strings. `/give ... custom_name='{"text":"..."}' ` no longer works;
 /// the value must be `custom_name={text:"..."}`.
 fn text_to_snbt(json_str: &str) -> String {

@@ -37,9 +37,7 @@ Runs `cargo build` for the `sand_export` binary, executes it, and writes
 the resulting datapack under `dist/` — the `.mcfunction` files, advancement
 and recipe JSON, function tags, and dialogs this book has walked through,
 laid out exactly as vanilla expects under `data/trail/...`. Pass
-`--release` to also zip the output for distribution, or `--resourcepack`
-if the project has resource-pack support enabled (`sand add resourcepack`;
-Trailforge itself doesn't use this).
+`--release` to also zip the output for distribution.
 
 ### `pack_format` vs `supported_formats` and `overlays`
 
@@ -69,8 +67,7 @@ formats = { min = 72, max = 72 }
 Sand validates `min <= max` and rejects absolute or path-traversing overlay
 directories at `sand.toml` parse time, and only emits the overlay metadata —
 it does not generate or route files into the overlay directory, so its
-contents are the project's own responsibility. `[resourcepack]` accepts the
-same `supported_formats` and `overlays` fields.
+contents are the project's own responsibility.
 
 ## `sand run`
 
@@ -123,7 +120,7 @@ sand join --local
 
 **Requires Prism Launcher.** Joins the local dev server started by `sand
 run` (with `--local`), or joins a preconfigured `sand-dev` world with the
-datapack (and resource pack, if built) already attached — useful for
+datapack already attached — useful for
 testing without manually managing a Minecraft installation's world/mods
 folder.
 

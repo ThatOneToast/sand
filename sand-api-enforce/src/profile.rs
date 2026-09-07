@@ -132,7 +132,7 @@ mod tests {
             schema_version: 1,
             profiles: vec![
                 SurfaceProfile {
-                    minecraft_version: "1.21.4".into(),
+                    minecraft_version: "26.1".into(),
                     static_surface_items: 10,
                     pending_item_ceiling: 10,
                     baseline: "stable.txt".into(),
@@ -150,8 +150,8 @@ mod tests {
     #[test]
     fn selects_exact_provider_version() {
         let providers = BTreeMap::from([
-            ("generated_commands".into(), "1.21.4".into()),
-            ("generated_registries".into(), "1.21.4".into()),
+            ("generated_commands".into(), "26.1".into()),
+            ("generated_registries".into(), "26.1".into()),
         ]);
         assert_eq!(
             manifest().select(&providers).unwrap().baseline,
@@ -173,11 +173,11 @@ mod tests {
     #[test]
     fn mixed_provider_versions_fail_closed() {
         let providers = BTreeMap::from([
-            ("generated_commands".into(), "1.21.4".into()),
+            ("generated_commands".into(), "26.1".into()),
             ("generated_registries".into(), "26.2".into()),
         ]);
         let error = manifest().select(&providers).unwrap_err();
-        assert!(error.contains("generated_commands=1.21.4"));
+        assert!(error.contains("generated_commands=26.1"));
         assert!(error.contains("generated_registries=26.2"));
     }
 }

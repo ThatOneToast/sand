@@ -4,7 +4,7 @@
 # are discovered through the reachable re-export graph. Generator scopes are
 # supplied from the same declaration/schema that emits their Rust API.
 schema_version = 1
-enforced_scope_baseline = ["predicate-source", "generated-predicate-id-wrapper", "execute-when-source", "condition-source", "resource-ref-source", "generated-resource-id-wrappers", "version-source", "generated-vanilla-registries", "vfx-source", "build-source", "advanced-source", "root-source", "generated-effect-registry-enums", "generated-commands", "generated-event-markers", "generated-registry-id-wrappers", "item-source", "inventory-source", "event-source", "events-source", "entity-source", "state-source", "participant-source", "text-source", "data-source", "systems-source", "command-source", "component-source", "resourcepack-source"]
+enforced_scope_baseline = ["predicate-source", "generated-predicate-id-wrapper", "execute-when-source", "condition-source", "resource-ref-source", "generated-resource-id-wrappers", "version-source", "generated-vanilla-registries", "vfx-source", "build-source", "advanced-source", "root-source", "generated-effect-registry-enums", "generated-commands", "generated-event-markers", "generated-registry-id-wrappers", "item-source", "inventory-source", "event-source", "events-source", "entity-source", "state-source", "participant-source", "text-source", "data-source", "command-source", "component-source"]
 pending_scope_ceiling = 0
 
 [[scope]]
@@ -159,13 +159,6 @@ provider = "source"
 precedence = 100
 
 [[scope]]
-id = "systems-source"
-canonical_module = "sand::systems"
-state = "enforced"
-tier = "ordinary"
-provider = "source"
-
-[[scope]]
 id = "text-source"
 canonical_module = "sand::text"
 state = "enforced"
@@ -190,14 +183,6 @@ state = "enforced"
 tier = "advanced"
 provider = "source"
 precedence = 100
-
-[[scope]]
-id = "resourcepack-source"
-canonical_module = "sand::resourcepack"
-state = "enforced"
-tier = "ordinary"
-provider = "source"
-features = ["resourcepack"]
 
 [[scope]]
 id = "generated-commands"

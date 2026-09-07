@@ -325,7 +325,7 @@ mod tests {
         assert_eq!(dialog_local.contract.parameters[0].name, "path");
         assert_eq!(
             dialog_local.contract.availability,
-            ["Minecraft Java 1.21.6+", "Minecraft Java 26.x"]
+            ["Minecraft Java 26.x and newer"]
         );
         assert!(
             dialog_local

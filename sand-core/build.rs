@@ -66,7 +66,7 @@ fn main() {
                  (={DEFAULT_CODEGEN_VERSION}); override it with SAND_MC_VERSION=<version>.\n\
                  \n\
                  Codegen requires a Java runtime new enough for the selected Minecraft\n\
-                 server (Java 21 for the stable baseline; Java 25 for 26.2) and either\n\
+                 server (Java 25 for the current 26.2 baseline) and either\n\
                  network access or a cached jar in ~/.sand/cache/{version}/.\n\
                  \n\
                  To compile ordinary facade code with empty placeholder APIs (sand-core\n\

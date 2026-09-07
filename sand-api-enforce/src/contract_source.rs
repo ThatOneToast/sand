@@ -933,7 +933,6 @@ fn family_signature_is_concrete(signature: &str) -> bool {
             | "handwritten typed Minecraft command API"
             | "typed datapack component definition API"
             | "typed Minecraft version capability API"
-            | "feature-gated resource-pack authoring API"
     )
 }
 
@@ -1178,11 +1177,9 @@ fn inspect_items(
                     || item.mac.path.is_ident("register_participant_api")
                     || item.mac.path.is_ident("register_text_api")
                     || item.mac.path.is_ident("register_data_api")
-                    || item.mac.path.is_ident("register_systems_api")
                     || item.mac.path.is_ident("register_command_api")
                     || item.mac.path.is_ident("register_component_api")
-                    || item.mac.path.is_ident("register_version_api")
-                    || item.mac.path.is_ident("register_resourcepack_api") =>
+                    || item.mac.path.is_ident("register_version_api") =>
             {
                 let macro_name = item
                     .mac
@@ -1457,24 +1454,6 @@ impl RegisterArgs {
                     "use sand::data::{NbtPath, StorageLocation};",
                     Vec::new(),
                 ),
-                "register_systems_api" => {
-                    let availability = self
-                        .path
-                        .as_deref()
-                        .and_then(system_feature_for_path)
-                        .map(|feature| vec![format!("Cargo feature: {feature}")])
-                        .unwrap_or_default();
-                    (
-                        "sand::systems",
-                        "feature-gated author-facing gameplay system API",
-                        "This opt-in system composes Sand's typed primitives into a higher-level gameplay behavior; exporter registries and generated tick bookkeeping are private.",
-                        "The exact commands, resources, and lifecycle behavior are described by the defining item's source documentation for the selected feature and Minecraft profile.",
-                        "Opting into the documented higher-level gameplay behavior instead of assembling its commands manually",
-                        "Using the API outside its documented system scope or feature configuration",
-                        "use sand::systems;",
-                        availability,
-                    )
-                }
                 "register_command_api" => (
                     "sand::command",
                     "handwritten typed Minecraft command API",
@@ -1504,16 +1483,6 @@ impl RegisterArgs {
                     "Ordinary datapack code can rely on the target selected in sand.toml",
                     "let caps = sand::version::VersionCaps::all_enabled();",
                     Vec::new(),
-                ),
-                "register_resourcepack_api" => (
-                    "sand::resourcepack",
-                    "feature-gated resource-pack authoring API",
-                    "This API defines client-side HUD, font, texture, or resource-pack output while keeping asset registration and exporter inventory wiring private.",
-                    "The resourcepack exporter writes version-appropriate assets, bitmap-font providers, and pack metadata for the selected Minecraft profile.",
-                    "Building HUD bars, HUD elements, textures, or resource-pack output alongside a Sand datapack",
-                    "The project is datapack-only or needs unrelated resource-pack functionality not modeled by Sand",
-                    "use sand::resourcepack::*;",
-                    vec!["Cargo feature: resourcepack".to_owned()],
                 ),
                 _ => return,
             };
@@ -1549,14 +1518,6 @@ impl RegisterArgs {
         })?;
         if self.kind.is_none() {
             return Err(format!("{macro_name}! contract is missing `kind`"));
-        }
-        if macro_name == "register_systems_api"
-            && self.availability.as_ref().is_none_or(Vec::is_empty)
-        {
-            return Err(format!(
-                "register_systems_api! path `{}` does not map to a known Cargo feature",
-                self.path.as_deref().unwrap_or("<missing>")
-            ));
         }
         if macro_name == "register" {
             if self
@@ -1627,20 +1588,6 @@ impl RegisterArgs {
                 .ok_or_else(|| ContractSourceError::Parse("missing canonical module".into()))?,
             family: self.family,
         })
-    }
-}
-
-fn system_feature_for_path(path: &str) -> Option<&'static str> {
-    let family = path.strip_prefix("sand::systems::")?.split("::").next()?;
-    match family {
-        "cooldowns" => Some("systems-cooldowns"),
-        "damage" => Some("systems-damage"),
-        "entities" => Some("systems-entities"),
-        "inventory" => Some("systems-inventory"),
-        "lifecycle" => Some("systems-lifecycle"),
-        "movement" => Some("systems-movement"),
-        "player_data" => Some("systems-player-data"),
-        _ => None,
     }
 }
 

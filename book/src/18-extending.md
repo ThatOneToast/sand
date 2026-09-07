@@ -1,50 +1,8 @@
 # 18. Extending Trailforge
 
-The previous seventeen chapters covered every system Trailforge's core
-gameplay loop uses. This closing chapter looks at the one system left —
-an *optional*, feature-gated one — and at how to add your own systems
-following the same shape.
-
-## Optional systems: `systems-damage`
-
-Trailforge's `Cargo.toml` opts into one optional system:
-
-```toml
-sand = { path = "../../sand", features = ["systems-damage"] }
-```
-
-`systems-damage` is a feature-gated `DamageTracker` — cumulative-stat-based
-damage tracking, used in both `load` and `tick`:
-
-```rust,ignore
-DamageTracker::define();       // in load
-DamageTracker::tick_players(); // in tick
-```
-
-```rust,ignore
-TypedExecute::as_players()
-    .when(DamageTracker::hurt_within("@s", Ticks::seconds(3)))
-    .run(Actionbar::show(
-        Target::self_(),
-        Text::new("Catch your breath...").red(),
-    ));
-```
-
-Like every state primitive in chapter 7, `DamageTracker` needs a `.define()`
-in `load` and, because it derives "was recently hurt" from tracked deltas
-rather than an instantaneous event, a per-tick update
-(`DamageTracker::tick_players()`) to keep its cumulative stats current.
-`hurt_within(selector, duration)` is then a plain condition, usable in a
-`.when(...)` exactly like any `Flag` or `ScoreVar` comparison. This is
-called out explicitly as an approximation, not an event payload — vanilla
-has no "player took N damage from X" event Sand can subscribe to directly;
-`DamageTracker` polls the `minecraft.damage_taken`-style cumulative
-scoreboard criteria and infers "recently hurt" from the delta. See
-[Vanilla Limitations](reference/vanilla-limitations.md).
-
-Optional systems like this exist specifically so packs that don't need
-damage tracking don't pay for it — no feature flag, no compiled code, no
-exported components. Enable only what your pack actually uses.
+The previous seventeen chapters covered Trailforge's core gameplay loop. This
+closing chapter shows how to add your own behavior using Sand's canonical
+State, ECS/archetype, event, and `#[system]` architecture.
 
 ## Adding your own function, item, or event
 

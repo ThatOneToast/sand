@@ -292,7 +292,7 @@ mod tests {
             let _ = tx.send(Event::InputClosed);
         });
 
-        let result = drive(&mut child, stdin, &rx, OutputMode::Classified, "1.21.1");
+        let result = drive(&mut child, stdin, &rx, OutputMode::Classified, "26.2");
         // The fixture script isn't a real Minecraft server, so we only
         // assert the loop terminates cleanly with a status, proving no
         // deadlock — not any particular exit code.

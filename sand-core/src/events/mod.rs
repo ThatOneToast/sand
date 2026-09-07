@@ -595,26 +595,14 @@ pub(crate) struct SameCycleEventDependency {
 /// would then correctly reject as two conflicting definitions of one
 /// event).
 ///
-/// Resolved against the permissive default profile (`LATEST_KNOWN`), the
-/// same one `resolve_participant_profile(None)` uses — matching every
-/// caller of this factory that exports without an explicit target version.
-/// A version-profiled export whose target actually changes the merged
-/// commands for this specific event is a known, narrow limitation: fully
-/// closing it would require threading `ExportCtx` through this factory
-/// type, which is out of scope here (see #264's final report).
 fn dependency_setup<E: SandEvent + 'static>() -> EventSetup {
     let plan = E::participants();
     if plan.is_empty() {
         return E::setup();
     }
-    let profile = crate::version::VersionProfile::resolve(
-        &crate::version::MinecraftVersion::parse(crate::version::LATEST_KNOWN).unwrap(),
-    )
-    .expect("LATEST_KNOWN always resolves");
-    E::setup().with_participants::<E>(plan, &profile).expect(
-        "a participant plan declared on a same-cycle graph parent must support LATEST_KNOWN \
-             — Sand does not know how to target a version newer than its own latest supported one",
-    )
+    E::setup()
+        .with_participants::<E>(plan)
+        .expect("a same-cycle graph parent's participant plan must be valid")
 }
 
 impl SameCycleEventDependency {

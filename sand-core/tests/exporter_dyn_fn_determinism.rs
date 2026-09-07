@@ -25,7 +25,6 @@ use sand_core::condition::Condition;
 use sand_core::entity::EntityContext;
 use sand_core::entity::kind::PlayerKind;
 use sand_core::events::{EventSetup, SandEvent, SandEventDispatch};
-use sand_core::version::{MinecraftVersion, VersionProfile};
 use sand_core::{EventDescriptor, EventDispatch};
 use std::any::TypeId;
 
@@ -39,20 +38,19 @@ impl SandEvent for OnAttackerRelationCheck {
     }
 
     fn setup() -> EventSetup {
-        let profile = VersionProfile::resolve(&MinecraftVersion::parse("1.21.4").unwrap()).unwrap();
         let ctx: EntityContext<PlayerKind> = EntityContext::default();
         // The exact pattern that triggered the original bug: a
         // multi-command relation body wrapped via `if_present`, which
         // registers a dynamic function from inside `SandEvent::setup()`.
         let commands = ctx
             .attacker()
-            .if_present(&profile, |attacker| {
+            .if_present(|attacker| {
                 vec![
                     "scoreboard players set @s p10_attacker_seen 1".to_string(),
                     attacker.add_tag("p10_seen_attacker"),
                 ]
             })
-            .expect("1.20.2+ supports execute on attacker");
+            .expect("relation lowering succeeds");
         EventSetup {
             objectives: vec!["scoreboard objectives add p10_trigger dummy".into()],
             pre_observation: commands,
@@ -172,11 +170,9 @@ fn drain_after_export_does_not_leak_into_a_later_export() {
 }
 
 #[test]
-fn cross_profile_export_is_deterministic_for_1_21_4_and_26_2() {
-    // The event itself hardcodes 1.21.4 for its relation gating, but the
-    // export pipeline as a whole (registry drains, resource identity) must
-    // still be deterministic when exporting twice regardless of which
-    // Minecraft profile a caller happens to be validating separately.
+fn repeated_export_is_deterministic() {
+    // The export pipeline must remain deterministic across repeated exports
+    // regardless of prior thread-local registry activity.
     let a = export();
     let b = export();
     assert_eq!(a, b);

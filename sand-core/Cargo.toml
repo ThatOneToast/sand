@@ -12,38 +12,6 @@ links = "sand_core"
 keywords = ["minecraft", "datapack", "commands", "gamedev"]
 categories = ["game-development", "data-structures"]
 
-[features]
-## Track recent player damage via the `minecraft.custom:minecraft.damage_taken` stat.
-## Provides `DamageTracker`, `DamageThreshold`, and `recently_damaged` helpers. Cannot
-## report exact per-event damage amounts (a vanilla datapack limitation); see the
-## `systems::damage` module docs.
-systems-damage = []
-
-## Auto-generate scoreboard-tick commands for all `Cooldown` values registered via
-## `systems::cooldowns::register`. Adds a tick-tag entry handled by the export pipeline.
-systems-cooldowns = []
-
-## Manual command-fragment helpers for join, death, and respawn lifecycle handlers.
-systems-lifecycle = []
-
-## Manual PlayerDataSchema/PlayerSchema builder helpers for grouping scoreboard-backed
-## player state. Current users call define_all() from load and init_player(selector)
-## from join/first-join handlers; automatic lifecycle wiring is future #47/#68 work.
-systems-player-data = ["systems-lifecycle"]
-
-## Typed movement helpers: push-away shockwave, launch upward, speed boost, slow.
-## Emits pure-vanilla local-coordinate teleport and effect-give commands.
-systems-movement = []
-
-## Typed inventory helpers: has/replace/clear/give with ItemSlot everywhere.
-systems-inventory = []
-
-## Typed interactable entity builder (interaction entity + trigger wiring).
-systems-entities = []
-
-## Enable all optional systems.
-systems-all = ["systems-damage", "systems-cooldowns", "systems-player-data", "systems-movement", "systems-inventory", "systems-entities"]
-
 [dependencies]
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"

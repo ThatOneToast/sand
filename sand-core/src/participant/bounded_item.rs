@@ -35,9 +35,8 @@
 //! RCON/tooling artifact — a vanilla-recognized field (`CustomName`,
 //! `tag ... add`) on the *same* entity in the *same* session round-trips
 //! correctly. Vanilla drops **any** custom top-level entity NBT key, on any
-//! entity, generalizing the narrower findings already recorded in
-//! `crate::systems::player_data` ("Arbitrary player NBT and inventory writes
-//! are rejected") and `crate::item::location`.
+//! entity, consistent with the limitations recorded in
+//! `crate::item::location`.
 //!
 //! # The backend actually used
 //!

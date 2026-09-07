@@ -178,7 +178,7 @@ impl ItemMatcher {
     /// the matcher when:
     /// - this matcher has any component constraint (custom data, enchantment,
     ///   damage range, or raw component/predicate) and `caps` targets a
-    ///   pre-1.20.5 profile that doesn't support item components;
+    ///   conservative unknown-future profile without a verified item schema;
     /// - [`custom_data_exact`](Self::custom_data_exact) was set to a
     ///   [`CustomData::Raw`] payload, which has no general SNBT-to-JSON
     ///   conversion.
@@ -194,7 +194,7 @@ impl ItemMatcher {
         if self.has_component_constraints()
             && !caps.is_none_or(|c| c.supports(sand_version::ComponentFeature::ItemComponents))
         {
-            return Err(unsupported_legacy_item_filter(consumer));
+            return Err(unsupported_item_schema(consumer));
         }
         if self
             .exact_raw_components
@@ -417,27 +417,17 @@ fn item_matcher_location() -> ResourceLocation {
 
 /// Shared diagnostic for requesting item-component matching (custom data,
 /// enchantments, damage, or raw component/predicate constraints) on a
-/// pre-1.20.5 profile that doesn't support item components.
-///
-/// This is the same failure [`crate::advancement::AdvancementTrigger::render_for`]
-/// raises for `placed_block`/`item_used_on_block` item filters on
-/// [`crate::advancement::AdvancementSchemaFamily::Legacy`] — that call site now
-/// delegates here so the diagnostic text and the underlying capability check
-/// have exactly one source, instead of two parallel implementations that
-/// could drift.
-pub(crate) fn unsupported_legacy_item_filter(consumer: ItemMatcherConsumer) -> SandError {
+/// an unknown-future profile whose item schema has not been verified.
+pub(crate) fn unsupported_item_schema(consumer: ItemMatcherConsumer) -> SandError {
     SandError::ComponentValidation {
         location: item_matcher_location(),
         kind: consumer.label(),
         field: "components".to_string(),
         message: format!(
             "{} requested item-component matching (custom data, enchantments, damage, or raw \
-             component/predicate constraints), but the target Minecraft profile is a \
-             pre-item-component profile (predates 1.20.5). Sand's item predicate model only \
-             renders the `components`/`predicates` schema, which this profile does not \
-             recognize. Target a supported item-component profile (every currently-supported \
-             1.20.5+ and 26.x profile), drop the component constraint and match by item ID \
-             only, or use a manually-verified legacy predicate/raw JSON escape hatch.",
+             component/predicate constraints), but the target does not have an exact verified \
+             item schema. Target a known Minecraft 26.x profile, drop the component constraint \
+             and match by item ID only, or use manually verified raw JSON.",
             consumer.label()
         ),
     }
@@ -495,7 +485,7 @@ mod tests {
         sand_version::VersionCaps::all_enabled()
     }
 
-    fn legacy_caps() -> sand_version::VersionCaps {
+    fn unknown_caps() -> sand_version::VersionCaps {
         sand_version::VersionCaps::all_disabled()
     }
 
@@ -621,20 +611,20 @@ mod tests {
     fn unsupported_consumer_version_combination_fails_not_weakens() {
         let matcher = ItemMatcher::item(id("bow")).custom_data_partial("special_bow");
         let err = matcher
-            .try_render_for(ItemMatcherConsumer::Predicate, Some(&legacy_caps()))
-            .expect_err("component constraint on a legacy profile must fail");
+            .try_render_for(ItemMatcherConsumer::Predicate, Some(&unknown_caps()))
+            .expect_err("component constraint on an unknown schema must fail");
         assert!(err.to_string().contains("item predicate"));
-        assert!(err.to_string().contains("1.20.5"));
+        assert!(err.to_string().contains("exact verified"));
     }
 
     #[test]
-    fn item_id_only_matcher_succeeds_on_legacy_profile() {
+    fn item_id_only_matcher_does_not_require_an_exact_schema() {
         // No component constraints — base item matching alone is not
         // gated by the item-component system.
         let matcher = ItemMatcher::item(id("bow"));
         assert!(
             matcher
-                .try_render_for(ItemMatcherConsumer::Predicate, Some(&legacy_caps()))
+                .try_render_for(ItemMatcherConsumer::Predicate, Some(&unknown_caps()))
                 .is_ok()
         );
     }

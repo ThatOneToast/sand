@@ -1,4 +1,4 @@
-//! Worldgen builders for `data/<namespace>/worldgen/` JSON files (Minecraft 1.21+).
+//! Worldgen builders for `data/<namespace>/worldgen/` JSON files in Sand's 26+ baseline.
 //!
 //! This module provides builders for the most commonly customized worldgen types.
 //! More complex worldgen (noise settings, processor lists, etc.) can be supplied

@@ -6,11 +6,6 @@ use std::sync::Mutex;
 
 use sand_commands::Target;
 use sand_core::entity::{EntityContext, EntityScope, PlayerKind, TargetExecution};
-use sand_core::version::{MinecraftVersion, VersionProfile};
-
-fn latest() -> VersionProfile {
-    VersionProfile::resolve(&MinecraftVersion::parse("latest").unwrap()).unwrap()
-}
 
 // `drain_dyn_fns()` reads a process-global registry shared by every test in
 // this binary; serialize the tests that touch it so they don't observe each
@@ -40,15 +35,13 @@ fn nested_relationship_traversal_retains_original_context() {
     // Mirrors the issue's worked example: bind the current entity (e.g. an
     // arrow), traverse to its owner, and — if the owner is a player holding
     // a specific item — tag the *original* bound entity, not the owner.
-    let profile = latest();
-
     let cmds = Target::entities()
         .entity_type("minecraft:arrow")
         .each(|arrow| {
             EntityScope::bind(arrow, |arrow_ref| {
                 arrow_ref
                     .owner()
-                    .if_player(&profile, |_owner| vec![arrow_ref.add_tag("special")])
+                    .if_player(|_owner| vec![arrow_ref.add_tag("special")])
                     .unwrap()
             })
         });
@@ -90,24 +83,6 @@ fn nested_relationship_traversal_retains_original_context() {
 }
 
 #[test]
-fn version_gated_relation_fails_with_actionable_diagnostic_before_export() {
-    // Acceptance: "Unsupported relationships fail during export with
-    // actionable diagnostics."
-    let old = VersionProfile::resolve(&MinecraftVersion::parse("1.19.4").unwrap()).unwrap();
-    let ctx: sand_core::entity::EntityContext<sand_core::entity::AnyEntity> = Default::default();
-
-    let err = ctx
-        .attacker()
-        .if_present(&old, |a| vec![a.add_tag("hit_something")])
-        .expect_err("attacker relation should be gated on 1.19.4")
-        .to_string();
-
-    assert!(err.contains("entity_relation_attacker"));
-    assert!(err.contains("1.20.2"));
-    assert!(err.contains("1.19.4"));
-}
-
-#[test]
 fn player_target_each_binds_a_player_context() {
     let cmds = Target::players()
         .tag("ready")
@@ -134,14 +109,13 @@ fn raw_single_player_each_binds_a_player_context() {
 #[test]
 fn passengers_relation_is_many_cardinality_and_iterates_via_each() {
     let _guard = DYN_FN_REGISTRY_LOCK.lock().unwrap();
-    let profile = latest();
     let cmds = Target::entities()
         .entity_type("minecraft:boat")
         .limit(1)
         .expect("a positive limit is valid")
         .each(|boat| {
             boat.passengers()
-                .each(&profile, |passenger| vec![passenger.add_tag("aboard")])
+                .each(|passenger| vec![passenger.add_tag("aboard")])
                 .unwrap()
         });
 

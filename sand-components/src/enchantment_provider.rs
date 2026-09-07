@@ -1,7 +1,7 @@
 //! Typed builders for `data/<namespace>/enchantment_provider/` JSON files.
 //!
 //! Enchantment providers were added with data-driven enchantments in
-//! Minecraft 1.21. The normal API covers all three vanilla provider kinds:
+//! Minecraft 26.1. The normal API covers all three vanilla provider kinds:
 //! [`EnchantmentProvider::single`], [`EnchantmentProvider::by_cost`], and
 //! [`EnchantmentProvider::by_cost_with_difficulty`].
 //!
@@ -310,14 +310,14 @@ enum EnchantmentProviderKind {
     path = "sand::component::EnchantmentProvider",
     aliases = ["sand::prelude::EnchantmentProvider"],
     module = "sand::component",
-    summary = "A data-driven enchantment provider definition (Minecraft 1.21+).",
-    context = "A data-driven enchantment provider definition (Minecraft 1.21+). This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+    summary = "A data-driven enchantment provider definition for Minecraft 26+.",
+    context = "A data-driven enchantment provider definition for Minecraft 26+. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
     minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
     use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
     avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
     example = "use sand::component::EnchantmentProvider;",
 )]
-/// A data-driven enchantment provider definition (Minecraft 1.21+).
+/// A data-driven enchantment provider definition for Minecraft 26+.
 #[derive(Debug, Clone, PartialEq)]
 pub struct EnchantmentProvider {
     location: ResourceLocation,

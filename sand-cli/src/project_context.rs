@@ -31,7 +31,6 @@ pub struct ProjectIdentity {
     pub sand_dependency: SandDependency,
     pub sand_features: Vec<String>,
     pub active_profile: String,
-    pub resource_pack_enabled: bool,
     pub build_script_present: bool,
 }
 
@@ -154,7 +153,6 @@ impl ProjectContext {
             sand_dependency: dependency,
             sand_features: features,
             active_profile: active_profile.to_owned(),
-            resource_pack_enabled: config.resourcepack.is_some(),
             build_script_present: project_build_script_present(&config_path),
         };
         let compatibility = compare(&project, &cli, &api_catalog);
@@ -600,14 +598,13 @@ pub fn render_human(context: &ProjectContext) -> String {
     let mut output = String::new();
     if let Some(project) = &context.project {
         output.push_str(&format!(
-            "Sand project {}\n  root: {}\n  Minecraft: {}\n  Sand: {} ({:?})\n  profile: {}\n  resource pack: {}\n  sand.build.rs: {}\n",
+            "Sand project {}\n  root: {}\n  Minecraft: {}\n  Sand: {} ({:?})\n  profile: {}\n  sand.build.rs: {}\n",
             project.namespace,
             project.root.display(),
             project.minecraft_version,
             project.sand_dependency.version,
             project.sand_dependency.source_kind,
             project.active_profile,
-            project.resource_pack_enabled,
             project.build_script_present,
         ));
     } else {
@@ -676,7 +673,6 @@ mod tests {
             sand_dependency: dependency,
             sand_features: Vec::new(),
             active_profile: "dev".into(),
-            resource_pack_enabled: false,
             build_script_present: false,
         }
     }
@@ -761,7 +757,7 @@ mod tests {
             local_path: None,
         };
         let mut identity = catalog_identity();
-        identity.minecraft_version = "1.21.4".into();
+        identity.minecraft_version = "26.1".into();
         assert_eq!(
             compare(&project(dependency.clone()), &cli(), &identity).status,
             CompatibilityStatus::Incompatible
@@ -780,7 +776,7 @@ mod tests {
         std::fs::write(
             temp.path().join("Cargo.toml"),
             format!(
-                "[package]\nname='fixture'\nversion='0.1.0'\n[dependencies]\nsand_framework={{package='sand',path={:?},features=['systems-damage']}}\n",
+                "[package]\nname='fixture'\nversion='0.1.0'\n[dependencies]\nsand_framework={{package='sand',path={:?},features=['fixture-feature']}}\n",
                 PathBuf::from(env!("SAND_WORKSPACE_ROOT")).join("sand")
             ),
         )
@@ -788,7 +784,7 @@ mod tests {
         let (dependency, features) = manifest_sand_dependency(temp.path()).unwrap();
         assert_eq!(dependency.source_kind, DependencySourceKind::Path);
         assert_eq!(dependency.version, env!("CARGO_PKG_VERSION"));
-        assert_eq!(features, ["systems-damage"]);
+        assert_eq!(features, ["fixture-feature"]);
     }
 
     #[test]
@@ -830,14 +826,14 @@ mod tests {
                     CargoNode {
                         id: "sand-id".into(),
                         deps: Vec::new(),
-                        features: vec!["systems-all".into(), "systems-damage".into()],
+                        features: vec!["alpha".into(), "beta".into()],
                     },
                 ],
             }),
         };
         let (dependency, features) = metadata.sand_dependency(temp.path()).unwrap();
         assert_eq!(dependency.source_kind, DependencySourceKind::Path);
-        assert_eq!(features, ["systems-all", "systems-damage"]);
+        assert_eq!(features, ["alpha", "beta"]);
     }
 
     #[test]

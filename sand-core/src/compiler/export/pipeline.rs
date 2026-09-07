@@ -24,8 +24,8 @@ use super::events::{
     ChildPostObservation, CustomDispatchBackend, apply_participants_to_setup, build_child_edge,
     build_dispatch_function, build_staged_occurrence_lines, build_staged_post_observation_line,
     check_event_trigger, participant_accessor_panic_export_error, participant_plan_export_error,
-    resolve_custom_dispatch_backend, resolve_participant_profile, setup_objective_owner,
-    tick_event_export_error, xp_advance_command, xp_score_commands,
+    resolve_custom_dispatch_backend, setup_objective_owner, tick_event_export_error,
+    xp_advance_command, xp_score_commands,
 };
 use super::functions::{drain_dynamic_functions_into, resolve_local_refs};
 use super::identities::{IDENTITY_PROBE_LIMIT, allocate_collision_safe_keys};
@@ -322,9 +322,8 @@ pub(crate) fn try_export_components_impl(
                 let plan = make_participants();
                 let mut body_commands = commands.clone();
                 if !plan.is_empty() {
-                    let profile = resolve_participant_profile(ctx);
                     let (setup, cleanup) = plan
-                        .build(event_type_name(), &profile)
+                        .build(event_type_name())
                         .map_err(|err| participant_plan_export_error(desc.path, err))?;
                     body_commands = setup
                         .into_iter()
@@ -569,9 +568,8 @@ pub(crate) fn try_export_components_impl(
                         );
                         let mut body_commands = commands.clone();
                         if !plan.is_empty() {
-                            let profile = resolve_participant_profile(ctx);
                             let (setup, cleanup) = plan
-                                .build(event_type_name(), &profile)
+                                .build(event_type_name())
                                 .map_err(|err| participant_plan_export_error(desc.path, err))?;
                             body_commands = setup
                                 .into_iter()
@@ -616,9 +614,8 @@ pub(crate) fn try_export_components_impl(
                         );
                         let mut body_commands = commands.clone();
                         if !plan.is_empty() {
-                            let profile = resolve_participant_profile(ctx);
                             let (setup, cleanup) = plan
-                                .build(event_type_name(), &profile)
+                                .build(event_type_name())
                                 .map_err(|err| participant_plan_export_error(desc.path, err))?;
                             body_commands = setup
                                 .into_iter()
@@ -705,7 +702,6 @@ pub(crate) fn try_export_components_impl(
                                 make_setup(),
                                 plan,
                                 event_type_name(),
-                                ctx,
                                 desc.path,
                             )?,
                         ));
@@ -745,7 +741,6 @@ pub(crate) fn try_export_components_impl(
                                 make_setup(),
                                 plan,
                                 event_type_name(),
-                                ctx,
                                 desc.path,
                             )?,
                         ));
@@ -786,7 +781,6 @@ pub(crate) fn try_export_components_impl(
                                 make_setup(),
                                 plan,
                                 event_type_name(),
-                                ctx,
                                 desc.path,
                             )?,
                         ));
@@ -1952,9 +1946,8 @@ pub(crate) fn try_export_components_impl(
 
             let plan = (bridge.event_participants)();
             if !plan.is_empty() {
-                let profile = resolve_participant_profile(ctx);
                 let (setup, cleanup) = plan
-                    .build(parent_name, &profile)
+                    .build(parent_name)
                     .map_err(|err| participant_plan_export_error(parent_name, err))?;
                 bridge_cmds = setup
                     .into_iter()

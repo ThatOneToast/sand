@@ -1,6 +1,6 @@
 /// Full pipeline integration test.
 ///
-/// Requires network access and Java 21+ on PATH.
+/// Requires network access and a Java runtime compatible with the target on PATH.
 /// Run with: `cargo test -p sand-build --features integration-tests`
 #[cfg(feature = "integration-tests")]
 mod pipeline {
@@ -37,7 +37,8 @@ mod pipeline {
     /// the jar, runs the data generator, and asserts non-placeholder output.
     ///
     /// **Maintenance-only — `#[ignore]` so it is NOT part of deterministic
-    /// workspace tests.** Requires network access and Java 21+ on PATH. Run
+    /// workspace tests.** Requires network access and a Java runtime compatible
+    /// with the target on PATH. Run
     /// the explicit maintenance command:
     /// `cargo test -p sand-build --features integration-tests \
     ///     default_codegen_target_is_codegen_available -- --ignored`

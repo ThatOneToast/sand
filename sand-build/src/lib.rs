@@ -28,8 +28,8 @@
 //! }
 //! ```
 //!
-//! Requires a Java runtime new enough for the selected server on `PATH`
-//! (Java 21 for the stable baseline; Java 25 for Minecraft 26.2).
+//! Requires a Java runtime new enough for the selected server on `PATH`.
+//! Sand's current Minecraft 26.2 validation target uses Java 25.
 
 mod api_provider;
 mod cache;

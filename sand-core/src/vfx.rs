@@ -421,7 +421,7 @@ impl VfxParticle {
         avoid_when = ["Selecting a named particle identifier directly; use named"],
         params(particle = "The typed particle value to emit."),
         returns = "A particle step with one forced particle at the current position by default.",
-        example = "let step = VfxParticle::new(Particle::named(\"minecraft:crit\"));"
+        example = "let id = sand::registry::ParticleId::minecraft(\"crit\").unwrap();\nlet step = VfxParticle::new(Particle::named(id));"
     )]
     pub fn new(particle: Particle) -> Self {
         Self {
@@ -445,7 +445,7 @@ impl VfxParticle {
         avoid_when = ["Constructing a particle with structured particle data; use new"],
         params(name = "The particle identifier accepted by Sand's particle command API."),
         returns = "A default particle step for that identifier.",
-        example = "let step = VfxParticle::named(\"minecraft:crit\");"
+        example = "let id = sand::registry::ParticleId::minecraft(\"crit\").unwrap();\nlet step = VfxParticle::named(id);"
     )]
     pub fn named(name: impl RegistryReference<sand_commands::resource::ParticleType>) -> Self {
         Self::new(Particle::named(name))
@@ -520,7 +520,7 @@ impl VfxParticle {
         avoid_when = ["Keeping Minecraft's stationary default speed"],
         params(speed = "The initial particle speed."),
         returns = "This particle step with the requested speed.",
-        example = "let step = VfxParticle::named(\"minecraft:crit\").speed(0.1);"
+        example = "let id = sand::registry::ParticleId::minecraft(\"crit\").unwrap();\nlet step = VfxParticle::named(id).speed(0.1);"
     )]
     pub fn speed(mut self, speed: f64) -> Self {
         self.speed = speed;
@@ -574,7 +574,7 @@ impl VfxParticle {
         avoid_when = ["Emitting several ordered points; use offsets"],
         params(x = "Relative X offset.", y = "Relative Y offset.", z = "Relative Z offset."),
         returns = "This particle step with one configured offset.",
-        example = "let step = VfxParticle::named(\"minecraft:crit\").offset(0.0, 1.0, 0.0);"
+        example = "let id = sand::registry::ParticleId::minecraft(\"crit\").unwrap();\nlet step = VfxParticle::named(id).offset(0.0, 1.0, 0.0);"
     )]
     pub fn offset(mut self, x: f64, y: f64, z: f64) -> Self {
         self.points = vec![[x, y, z]];
@@ -592,7 +592,7 @@ impl VfxParticle {
         avoid_when = ["A single point is sufficient; use offset"],
         params(points = "Relative X, Y, Z offsets to emit in order."),
         returns = "This particle step with the supplied point sequence.",
-        example = "let step = VfxParticle::named(\"minecraft:end_rod\").offsets([[0.0, 0.0, 0.0], [1.0, 0.0, 0.0]]);"
+        example = "let id = sand::registry::ParticleId::minecraft(\"end_rod\").unwrap();\nlet step = VfxParticle::named(id).offsets([[0.0, 0.0, 0.0], [1.0, 0.0, 0.0]]);"
     )]
     pub fn offsets(mut self, points: impl IntoIterator<Item = [f64; 3]>) -> Self {
         self.points = points.into_iter().collect();

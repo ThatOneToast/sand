@@ -683,7 +683,7 @@ impl DataTarget {
             Self::Block(_) => Ok(()),
             Self::Entity(selector) => {
                 let rendered = selector.to_string();
-                if write && selector_may_be_many(&rendered) {
+                if write && !selector.is_statically_single() {
                     return Err(data_error(
                         "target",
                         format!(
@@ -729,12 +729,6 @@ fn validate_resource_location(id: &str) -> CommandResult<()> {
         ));
     }
     Ok(())
-}
-
-fn selector_may_be_many(selector: &str) -> bool {
-    matches!(selector, "@a" | "@e")
-        || ((selector.starts_with("@a[") || selector.starts_with("@e["))
-            && !selector.contains("limit=1"))
 }
 
 #[sand_macros::api(
@@ -1950,5 +1944,16 @@ mod tests {
             .unwrap_err();
         assert_eq!(error.code, "SAND-DATA-TARGET");
         assert!(error.message.contains("typed item location"));
+    }
+
+    #[test]
+    fn multi_digit_selector_limits_remain_many_for_entity_writes() {
+        let profile = CommandProfile::unprofiled();
+        let ten_entities = Nbt::entity(Selector::all_entities().limit(10)).path("Health");
+        let error = ten_entities.set(1).try_render(&profile).unwrap_err();
+        assert_eq!(error.code, "SAND-DATA-TARGET");
+
+        let one_entity = Nbt::entity(Selector::all_entities().limit(1)).path("Health");
+        assert!(one_entity.set(1).try_render(&profile).is_ok());
     }
 }

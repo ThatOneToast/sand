@@ -2344,7 +2344,7 @@ impl<T> Data<T> {
         example = "use sand::prelude::*;\n\nfn demonstrate<T: 'static>(data_value: sand::entity::Data < T >)  {\n    let get = data_value.get();\n}",
     )]
     pub fn get(self) -> String {
-        crate::Nbt::storage_raw(self.storage)
+        sand_commands::__private::nbt_storage_target(self.storage)
             .typed_path::<T>(self.path)
             .get()
             .to_string()
@@ -2369,7 +2369,7 @@ impl<T> Data<T> {
     )]
     pub fn set(self, value: impl Into<sand_commands::NbtValue>) -> Vec<String> {
         vec![
-            crate::Nbt::storage_raw(self.storage)
+            sand_commands::__private::nbt_storage_target(self.storage)
                 .typed_path::<T>(self.path)
                 .set(value)
                 .to_string(),
@@ -2416,10 +2416,12 @@ impl<T> Data<T> {
         example = "use sand::prelude::*;\n\nfn demonstrate<T: 'static>(data_value: sand::entity::Data < T >)  {\n    let values = data_value.remove();\n}",
     )]
     pub fn remove(self) -> Vec<String> {
-        vec![format!(
-            "data remove storage {} {}",
-            self.storage, self.path
-        )]
+        vec![
+            sand_commands::__private::nbt_storage_target(self.storage)
+                .typed_path::<T>(self.path)
+                .remove()
+                .to_string(),
+        ]
     }
 }
 
@@ -3644,6 +3646,20 @@ fn predicate_for_range(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn data_handles_preserve_storage_validation_at_export_boundary() {
+        let _scope = sand_commands::ExportRegistryGuard::enter().unwrap();
+        let profile = sand_commands::CommandProfile::unprofiled();
+        let data = Data::<i32>::new("Not Valid", "value");
+
+        let lines = [data.get(), data.set(1).remove(0), data.remove().remove(0)];
+        for line in lines {
+            let error = sand_commands::render::validate_collected_line(&line, &profile)
+                .expect_err("typed Data handles must reject invalid storage identifiers");
+            assert_eq!(error.code, "SAND-DATA-TARGET");
+        }
+    }
 
     #[derive(Debug, Clone, Copy, PartialEq, Eq)]
     enum Phase {

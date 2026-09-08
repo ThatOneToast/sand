@@ -1,5 +1,6 @@
 //! Small deterministic datapack used only by vanilla load/reload validation.
 
+use sand_core::advanced::state::ScoreVar;
 use sand_core::event::vanilla::{OnDeath, OnRespawn, PlayerStartsSneaking, PlayerStopsSneaking};
 use sand_core::events::{EventSetup, PlayerSneakEvent, SandEvent, SandEventDispatch, TickWindow};
 use sand_core::prelude::*;
@@ -68,12 +69,10 @@ pub fn audit_command_media() {
         Target::players(),
         Text::new("Command media parser audit").green(),
     );
-    ParticleBuilder::new(Particle::named(
-        ResourceLocation::new("minecraft", "flame").unwrap(),
-    ))
-    .try_points_at(&[[0.0, 1.0, 0.0]])
-    .unwrap();
-    Sound::play(ResourceLocation::new("minecraft", "block.note_block.pling").unwrap())
+    ParticleBuilder::new(Particle::named(ParticleId::minecraft("flame").unwrap()))
+        .try_points_at(&[[0.0, 1.0, 0.0]])
+        .unwrap();
+    Sound::play(SoundEventId::minecraft("block.note_block.pling").unwrap())
         .source(SoundSource::Master)
         .to(Target::players())
         .volume(1.0)
@@ -341,7 +340,7 @@ pub fn stops_sneaking(event: sand_core::event::Event<PlayerStopsSneaking>) {
 pub fn audit_advancement() -> Advancement {
     Advancement::new("sand_audit:first_tick".parse().unwrap())
         .criterion("tick", Criterion::new(AdvancementTrigger::Tick))
-        .rewards(AdvancementRewards::new().function("sand_audit:audit_command".parse().unwrap()))
+        .rewards(AdvancementRewards::new().function(audit_command))
 }
 
 /// Real-vanilla load/reload coverage for the #231/#232 `placed_block` fix:
@@ -366,7 +365,7 @@ pub fn audit_placed_block_filtered() -> Advancement {
                 None,
             )),
         )
-        .rewards(AdvancementRewards::new().function("sand_audit:audit_command".parse().unwrap()))
+        .rewards(AdvancementRewards::new().function(audit_command))
 }
 
 /// Same coverage as [`audit_placed_block_filtered`] for `item_used_on_block`.
@@ -380,7 +379,7 @@ pub fn audit_item_used_on_block_filtered() -> Advancement {
                 location: None,
             }),
         )
-        .rewards(AdvancementRewards::new().function("sand_audit:audit_command".parse().unwrap()))
+        .rewards(AdvancementRewards::new().function(audit_command))
 }
 
 /// Client-driven semantic fixture. The reward revokes this advancement so a
@@ -397,10 +396,7 @@ pub fn semantic_placed_block() -> Advancement {
                 None,
             )),
         )
-        .rewards(
-            AdvancementRewards::new()
-                .function("sand_audit:semantic_placed_reward".parse().unwrap()),
-        )
+        .rewards(AdvancementRewards::new().function(semantic_placed_reward))
 }
 
 /// Client-driven item-use fixture with the same revoke/re-fire contract.
@@ -419,10 +415,7 @@ pub fn semantic_item_used_on_block() -> Advancement {
                 ),
             }),
         )
-        .rewards(
-            AdvancementRewards::new()
-                .function("sand_audit:semantic_item_used_reward".parse().unwrap()),
-        )
+        .rewards(AdvancementRewards::new().function(semantic_item_used_reward))
 }
 
 /// Cross-family parse fixture for direct entity, entity-nested location,

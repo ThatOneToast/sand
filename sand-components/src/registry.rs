@@ -74,7 +74,7 @@ registry_id! {
         subject = "Minecraft function resource",
         minecraft = "Serializes as the namespaced identifier of a data/<namespace>/function/<path>.mcfunction resource.",
         use_when = ["Calling or referring to a function by resource identity", "Representing a function supplied by another datapack"],
-        avoid_when = ["A registered Rust function pointer is available", "Passing an unvalidated namespace:path string"],
+        avoid_when = ["A registered Rust function item is available", "Passing an unvalidated namespace:path string"],
         example_namespace = "demo",
         example_path = "combat/on_hit",
         local(

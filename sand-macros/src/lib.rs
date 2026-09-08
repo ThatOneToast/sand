@@ -1893,14 +1893,7 @@ fn expand_function(
         );
 
         ::sand::__private::inventory::submit!(
-            ::sand::__private::sand_components::function::FunctionPointerEntry {
-                ptr: #fn_name as fn() -> ::std::vec::Vec<::std::string::String>,
-                path: #ptr_path_str,
-            }
-        );
-
-        ::sand::__private::inventory::submit!(
-            ::sand::__private::sand_components::function::FunctionPointerTypeEntry {
+            ::sand::__private::sand_components::function::FunctionItemTypeEntry {
                 type_id: #type_id_ident,
                 path: #ptr_path_str,
             }

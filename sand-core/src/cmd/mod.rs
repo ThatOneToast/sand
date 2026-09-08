@@ -55,7 +55,7 @@
 //! | `fn_macros::try_function_with` | validated-compatibility | validates `name` as a resource location and the NBT source/path |
 //! | `fn_macros::call_with`/`try_call_with` | typed-canonical | fully typed function + NBT reference path (#194) |
 //! | `data::Storage` raw methods (`remove`, `get`, `get_scaled`, `contains`, `get_or_insert`, `merge`) | validated-compatibility | each has a `try_*` counterpart routing through [`sand_commands::DataTarget`]/NBT-path validation |
-//! | `FunctionRef` for `fn() -> Vec<String>` / function items | programmer-error panic (documented, not a `try_*` gap) | see the "unregistered function pointer" rationale on [`crate::function::FunctionRef`] |
+//! | `FunctionRef` for registered function items | programmer-error panic for unregistered callables (documented, not a `try_*` gap) | see [`crate::function::FunctionRef`] |
 
 // ── Internal modules (sand-core-specific) ─────────────────────────────────────
 
@@ -360,7 +360,9 @@ pub fn try_tellraw_raw(
     example = "use sand::prelude::*;\ncommand::give(Target::players(), ItemId::minecraft(\"diamond\").unwrap());\ncommand::give(Target::self_(), ItemId::minecraft(\"diamond_sword\").unwrap());",
 )]
 pub fn give(selector: impl TargetArgument, item: impl sand_components::IntoItemStack) -> String {
-    let item = item.into_item_stack();
+    let item = item
+        .try_into_item_stack()
+        .expect("typed item stack identity must be valid");
     if item.count_value() == 1 {
         format!("give {selector} {item}")
     } else {
@@ -397,7 +399,9 @@ pub fn try_give(
     item: impl sand_components::IntoItemStack,
 ) -> sand_commands::CommandResult<String> {
     selector.validate(&CommandProfile::unprofiled())?;
-    let item = item.into_item_stack();
+    let item = item
+        .try_into_item_stack()
+        .map_err(|error| sand_commands::CommandError::new("give", "item", error.to_string()))?;
     item.validate()
         .map_err(|error| sand_commands::CommandError::new("give", "item", error.to_string()))?;
     Ok(give(selector, item))
@@ -719,6 +723,14 @@ mod tests {
             )
             .is_err()
         );
+    }
+
+    #[test]
+    fn try_give_returns_diagnostic_for_malformed_custom_item_base() {
+        let item = sand_components::CustomItem::new("not a resource id");
+        let error = super::try_give(super::Selector::self_(), item).unwrap_err();
+        assert_eq!(error.helper, "give");
+        assert_eq!(error.field, "item");
     }
 
     #[test]

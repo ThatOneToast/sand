@@ -4,10 +4,24 @@
 use std::marker::PhantomData;
 
 use crate::condition::Condition;
-use sand_commands::{DataTarget, TargetArgument};
+use sand_commands::{CommandStorageRegistry, DataTarget, RegistryReference, TargetArgument};
 use sand_components::RawSnbt;
 
 pub use sand_commands::{DataCommand, Nbt, NbtCompound, NbtPath, NbtRef, NbtValue, UntypedNbt};
+
+struct StorageReference<'a>(&'a str);
+
+impl sand_commands::resource::sealed::Sealed<CommandStorageRegistry> for StorageReference<'_> {}
+
+impl RegistryReference<CommandStorageRegistry> for StorageReference<'_> {
+    fn registry_id(&self) -> String {
+        self.0.to_owned()
+    }
+}
+
+fn storage_reference(id: &str) -> Nbt {
+    Nbt::storage(StorageReference(id))
+}
 
 // ── StorageSchema / StorageField ─────────────────────────────────────────────
 
@@ -138,7 +152,7 @@ impl<T> StorageSchema<T> {
         example = "use sand::data::*;\n\nfn demonstrate<T: 'static>(storage_schema_value: &sand::data::StorageSchema < T >)  {\n    let path = storage_schema_value.path();\n}",
     )]
     pub fn path(&self) -> NbtRef<T> {
-        Nbt::storage_raw(self.storage).typed_path(self.root)
+        storage_reference(self.storage).typed_path(self.root)
     }
 
     /// Returns the typed NBT location targeted by this reference.
@@ -156,7 +170,7 @@ impl<T> StorageSchema<T> {
         example = "use sand::data::*;\n\nfn demonstrate<T: 'static>(storage_schema_value: &sand::data::StorageSchema < T >)  {\n    let location = storage_schema_value.location();\n}",
     )]
     pub fn location(&self) -> Nbt {
-        Nbt::storage_raw(self.storage)
+        storage_reference(self.storage)
     }
 
     /// Builds the typed Minecraft data query for get.
@@ -389,7 +403,7 @@ impl<Schema, T> StorageField<Schema, T> {
         example = "use sand::data::*;\n\nfn demonstrate<Schema: 'static, T: 'static>(storage_field_value: &sand::data::StorageField < Schema , T >)  {\n    let path = storage_field_value.path();\n}",
     )]
     pub fn path(&self) -> NbtRef<T> {
-        Nbt::storage_raw(self.storage)
+        storage_reference(self.storage)
             .typed_path::<T>(self.root)
             .field(self.field)
     }
@@ -455,7 +469,7 @@ impl<Schema, T> StorageField<Schema, T> {
         example = "use sand::data::*;\n\nfn demonstrate<Schema: 'static, T: 'static>(storage_field_value: &sand::data::StorageField < Schema , T >)  {\n    let location = storage_field_value.location();\n}",
     )]
     pub fn location(&self) -> Nbt {
-        Nbt::storage_raw(self.storage)
+        storage_reference(self.storage)
     }
 
     /// Builds the typed Minecraft data query for get.
@@ -794,7 +808,7 @@ impl<T> StorageVar<T> {
         example = "use sand::data::*;\n\nfn demonstrate<T: 'static>(storage_var_value: &sand::data::StorageVar < T >)  {\n    let as_path = storage_var_value.as_path();\n}",
     )]
     pub fn as_path(&self) -> NbtRef<T> {
-        Nbt::storage_raw(self.storage).typed_path(self.path)
+        storage_reference(self.storage).typed_path(self.path)
     }
 
     // ── Read ──────────────────────────────────────────────────────────────────
@@ -1006,7 +1020,7 @@ impl<T> StorageVar<T> {
         example = "use sand::data::*;\n\nfn demonstrate<T: 'static>(storage_var_value: &sand::data::StorageVar < T >, src_storage: & str, src_path: & str)  {\n    let copy_from = storage_var_value.copy_from(src_storage, src_path);\n}",
     )]
     pub fn copy_from(&self, src_storage: &str, src_path: &str) -> String {
-        let source = Nbt::storage_raw(src_storage).path(src_path);
+        let source = storage_reference(src_storage).path(src_path);
         self.as_path().copy_from(&source).to_string()
     }
 
@@ -1070,6 +1084,17 @@ mod tests {
     #[test]
     fn get_command() {
         assert_eq!(MANA.get(), "data get storage sand:data player.mana");
+    }
+
+    #[test]
+    fn typed_storage_schema_preserves_storage_id_validation() {
+        let invalid = StorageSchema::<i32>::new("not a resource id", "value");
+        let error = invalid
+            .path()
+            .get()
+            .try_render(&sand_commands::CommandProfile::unprofiled())
+            .unwrap_err();
+        assert_eq!(error.code, "SAND-DATA-TARGET");
     }
 
     #[test]

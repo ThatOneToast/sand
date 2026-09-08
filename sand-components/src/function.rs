@@ -2,42 +2,22 @@
 
 use crate::registry::FunctionId;
 
-/// Compiler registration mapping a function pointer to its resource path.
-#[doc(hidden)]
-pub struct FunctionPointerEntry {
-    pub ptr: fn() -> Vec<String>,
-    pub path: &'static str,
-}
-inventory::collect!(FunctionPointerEntry);
-
 /// Compiler registration mapping a function item's type to its resource path.
 #[doc(hidden)]
-pub struct FunctionPointerTypeEntry {
+pub struct FunctionItemTypeEntry {
     pub type_id: fn() -> std::any::TypeId,
     pub path: &'static str,
 }
-inventory::collect!(FunctionPointerTypeEntry);
+inventory::collect!(FunctionItemTypeEntry);
 
-fn registered_path_for_function_value<F>(value: F) -> Option<&'static str>
+fn registered_path_for_function_value<F>(_value: F) -> Option<&'static str>
 where
     F: Copy + 'static,
 {
     let type_id = std::any::TypeId::of::<F>();
-    for entry in inventory::iter::<FunctionPointerTypeEntry>() {
+    for entry in inventory::iter::<FunctionItemTypeEntry>() {
         if (entry.type_id)() == type_id {
             return Some(entry.path);
-        }
-    }
-
-    if std::mem::size_of::<F>() == std::mem::size_of::<fn() -> Vec<String>>() {
-        // Function items and pointers have no stable reflection API. The size
-        // check makes this cast specific to the pointer-shaped representation
-        // registered by #[function].
-        let ptr = unsafe { *(&value as *const F).cast::<fn() -> Vec<String>>() };
-        for entry in inventory::iter::<FunctionPointerEntry>() {
-            if entry.ptr as usize == ptr as usize {
-                return Some(entry.path);
-            }
         }
     }
 
@@ -98,7 +78,7 @@ where
     fn function_id(self) -> FunctionId {
         let path = registered_path_for_function_value(self).unwrap_or_else(|| {
             panic!(
-                "unregistered function pointer: the function must be annotated with \
+                "unregistered function item: the function must be annotated with \
                  #[function] or #[function(\"path\")] before it can be referenced"
             )
         });
@@ -108,5 +88,23 @@ where
         } else {
             FunctionId::local(path)
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::FunctionRef;
+
+    #[test]
+    fn pointer_sized_capturing_closure_panics_without_interpreting_capture_as_pointer() {
+        let captured = 7_usize;
+        let closure = move || vec![captured.to_string()];
+        assert_eq!(
+            std::mem::size_of_val(&closure),
+            std::mem::size_of::<fn() -> Vec<String>>()
+        );
+
+        let result = std::panic::catch_unwind(|| closure.function_id());
+        assert!(result.is_err());
     }
 }

@@ -574,7 +574,7 @@ impl DialogAction {
     /// Run a datapack function when the button is pressed.
     ///
     /// Prefer this over [`run_command`](DialogAction::run_command) for datapack
-    /// functions. It accepts registered function pointers and canonical
+    /// functions. It accepts registered function items and canonical
     /// [`FunctionId`](crate::FunctionId) handles.
     ///
     /// ```

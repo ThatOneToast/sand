@@ -565,8 +565,8 @@ impl From<generated::Item> for sand_components::registry::ItemId {
 }
 
 impl sand_components::IntoItemStack for generated::Item {
-    fn into_item_stack(self) -> sand_components::ItemStack {
-        sand_components::ItemStack::new(self.into())
+    fn try_into_item_stack(self) -> sand_components::Result<sand_components::ItemStack> {
+        Ok(sand_components::ItemStack::new(self.into()))
     }
 }
 

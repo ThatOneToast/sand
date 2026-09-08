@@ -111,7 +111,7 @@ use sand_commands::nbt::{DataTarget, NbtRefLowering, NbtValue};
 use crate::condition::Condition;
 use crate::events::graph::tick_event_resource_key;
 use crate::item::location::{ItemLocation, ItemLocationError};
-use crate::state::storage::{Nbt, NbtPath, NbtRef, StorageField, UntypedNbt};
+use crate::state::storage::{NbtPath, NbtRef, StorageField, UntypedNbt};
 
 /// Deterministic, collision-checked identity for one snapshot's generated
 /// storage. `storage` is the fully-qualified `namespace:path` command
@@ -161,7 +161,8 @@ impl SnapshotSchema {
     }
 
     fn base_path(&self) -> NbtRef {
-        Nbt::storage_raw(self.storage.clone()).path(format!("snap.{}", self.key))
+        sand_commands::__private::nbt_storage_target(self.storage.clone())
+            .path(format!("snap.{}", self.key))
     }
 }
 
@@ -595,6 +596,21 @@ pub struct EventItem {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn snapshot_schema_preserves_storage_validation_at_export_boundary() {
+        let _scope = sand_commands::ExportRegistryGuard::enter().unwrap();
+        let line = SnapshotSchema::new("Not Valid", "Event")
+            .base_path()
+            .get()
+            .to_string();
+        let error = sand_commands::render::validate_collected_line(
+            &line,
+            &sand_commands::CommandProfile::unprofiled(),
+        )
+        .expect_err("typed snapshot schemas must reject invalid storage identifiers");
+        assert_eq!(error.code, "SAND-DATA-TARGET");
+    }
 
     fn schema() -> SnapshotSchema {
         SnapshotSchema::new("my_pack:snapshots", "my_pack::MyEvent")

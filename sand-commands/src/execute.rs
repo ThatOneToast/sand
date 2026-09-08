@@ -24,7 +24,7 @@ use crate::coord::{BlockPos, Rotation, Vec3};
 use crate::error::{CommandError, CommandResult};
 use crate::execute_args::{Anchor, ItemSlot, NbtStoreKind, Swizzle};
 use crate::execute_ir::{ConditionIr, ExecuteOp, ExecuteStoreTarget};
-use crate::nbt::{DataTarget, NbtRef, NbtRefLowering};
+use crate::nbt::{DataTarget, NbtPath, NbtRef, NbtRefLowering, validate_ref_parts};
 use crate::render::{CommandProfile, RenderCommand, Validate};
 use crate::scoreboard::{ScoreCmp, ScoreHolder};
 use crate::selector::{Selector, TargetArgument};
@@ -112,6 +112,12 @@ enum ExecuteCheck {
         index: usize,
         kind: &'static str,
         value: String,
+    },
+    NbtDestination {
+        index: usize,
+        kind: &'static str,
+        target: DataTarget,
+        path: NbtPath,
     },
 }
 
@@ -1926,6 +1932,12 @@ impl Execute {
         kind: NbtStoreKind,
         scale: f64,
     ) -> Self {
+        self.checks.push(ExecuteCheck::NbtDestination {
+            index: self.next_index(),
+            kind: "store_result_nbt",
+            target: destination.__location().clone(),
+            path: destination.path_value().clone(),
+        });
         self.checks.push(ExecuteCheck::Finite {
             index: self.next_index(),
             kind: "store_result_nbt",
@@ -1964,6 +1976,12 @@ impl Execute {
         kind: NbtStoreKind,
         scale: f64,
     ) -> Self {
+        self.checks.push(ExecuteCheck::NbtDestination {
+            index: self.next_index(),
+            kind: "store_success_nbt",
+            target: destination.__location().clone(),
+            path: destination.path_value().clone(),
+        });
         self.checks.push(ExecuteCheck::Finite {
             index: self.next_index(),
             kind: "store_success_nbt",
@@ -2276,6 +2294,12 @@ impl Validate for Execute {
                 ExecuteCheck::ScoreRange { index, kind, value } => {
                     (*index, *kind, validate_score_range(value))
                 }
+                ExecuteCheck::NbtDestination {
+                    index,
+                    kind,
+                    target,
+                    path,
+                } => (*index, *kind, validate_ref_parts(target, path, true)),
             };
             result.map_err(|e| e.with_context(format!("Execute subcommand {index} `{kind}`")))?;
         }
@@ -2697,6 +2721,33 @@ mod tests {
                 .store_result_nbt(&destination, NbtStoreKind::Double, f64::INFINITY)
                 .try_build()
                 .is_err()
+        );
+    }
+
+    #[test]
+    fn try_build_validates_nbt_store_destinations() {
+        let malformed_path = DataTarget::storage("demo:state").path("bad..path");
+        let path_error = Execute::new()
+            .store_result_nbt(&malformed_path, NbtStoreKind::Int, 1.0)
+            .try_build()
+            .unwrap_err()
+            .to_string();
+        assert!(path_error.contains("store_result_nbt"), "{path_error}");
+        assert!(
+            path_error.contains("malformed empty path segment"),
+            "{path_error}"
+        );
+
+        let many_entities = DataTarget::entity(Selector::all_entities()).path("Health");
+        let target_error = Execute::new()
+            .store_success_nbt(&many_entities, NbtStoreKind::Byte, 1.0)
+            .try_build()
+            .unwrap_err()
+            .to_string();
+        assert!(target_error.contains("store_success_nbt"), "{target_error}");
+        assert!(
+            target_error.contains("single writable entity"),
+            "{target_error}"
         );
     }
 

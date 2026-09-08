@@ -1664,18 +1664,17 @@ impl Validate for DataCommand {
     }
 }
 
-fn validate_ref(reference: &NbtRef, write: bool) -> CommandResult<()> {
-    reference.location.validate(write)?;
-    reference.path.validate()?;
+pub(crate) fn validate_ref_parts(
+    location: &DataTarget,
+    path: &NbtPath,
+    write: bool,
+) -> CommandResult<()> {
+    location.validate(write)?;
+    path.validate()?;
     if write
-        && matches!(reference.location, DataTarget::Entity(_))
+        && matches!(location, DataTarget::Entity(_))
         && matches!(
-            reference
-                .path
-                .as_str()
-                .split(['.', '['])
-                .next()
-                .unwrap_or_default(),
+            path.as_str().split(['.', '[']).next().unwrap_or_default(),
             "Inventory" | "SelectedItem" | "EnderItems"
         )
     {
@@ -1683,11 +1682,15 @@ fn validate_ref(reference: &NbtRef, write: bool) -> CommandResult<()> {
             "target",
             format!(
                 "entity inventory path `{}` is not a safe `/data` write target; use a typed item location and `/item replace`",
-                reference.path
+                path
             ),
         ));
     }
     Ok(())
+}
+
+fn validate_ref(reference: &NbtRef, write: bool) -> CommandResult<()> {
+    validate_ref_parts(&reference.location, &reference.path, write)
 }
 
 fn validate_source(source: &DataSource) -> CommandResult<()> {

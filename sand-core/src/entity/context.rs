@@ -5,8 +5,14 @@ use std::marker::PhantomData;
 use sand_commands::Selector;
 use sand_commands::selector::{Many, One};
 
+use crate::entity::capability::{
+    EntityDataRoot, EntityEquipmentHandle, EntityIdentity, EntityMounts, EntityTransform,
+    LivingEntity,
+};
 use crate::entity::kind::EntityKind;
+use crate::entity::kind::{EquipmentEntityKind, LivingEntityKind, PlayerKind};
 use crate::entity::relation::{Relation, RelationTraversal};
+use crate::item::{EntityInventory, ItemLocation};
 
 #[sand_macros::api(
     registry = sand_api_contract,
@@ -45,6 +51,82 @@ impl<K: EntityKind> Default for EntityContext<K> {
 impl<K: EntityKind> EntityContext<K> {
     pub(crate) fn new() -> Self {
         Self { _kind: PhantomData }
+    }
+
+    /// Identity and lifecycle operations for the current executor.
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::entity::EntityContext::identity",
+        aliases = ["sand::prelude::EntityContext::identity"],
+        module = "sand::entity",
+        kind = "method",
+        summary = "Returns identity and lifecycle operations for this entity.",
+        context = "Returns a focused capability for the execution-scoped entity represented by this handle; no persistent entity identity or lifecycle resource is created.",
+        minecraft = "Operations emitted by the capability retain this handle's @s or scoped tag-backed target.",
+        use_when = ["Discovering legal operations on this entity"],
+        avoid_when = ["Keeping an entity identity across ticks"],
+        example = "use sand::prelude::*;",
+        returns = "The requested capability value or canonical Minecraft command.",
+    )]
+    pub fn identity(&self) -> EntityIdentity<K> {
+        EntityIdentity::new(Selector::self_())
+    }
+
+    /// Position, teleportation, rotation, and facing operations for the current executor.
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::entity::EntityContext::transform",
+        aliases = ["sand::prelude::EntityContext::transform"],
+        module = "sand::entity",
+        kind = "method",
+        summary = "Returns teleportation, rotation, and facing operations for this entity.",
+        context = "Returns a focused capability for the execution-scoped entity represented by this handle; no persistent entity identity or lifecycle resource is created.",
+        minecraft = "Operations emitted by the capability retain this handle's @s or scoped tag-backed target.",
+        use_when = ["Discovering legal operations on this entity"],
+        avoid_when = ["Keeping an entity identity across ticks"],
+        example = "use sand::prelude::*;",
+        returns = "The requested capability value or canonical Minecraft command.",
+    )]
+    pub fn transform(&self) -> EntityTransform<K> {
+        EntityTransform::new(Selector::self_())
+    }
+
+    /// Ride and dismount mutations for the current executor.
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::entity::EntityContext::mounts",
+        aliases = ["sand::prelude::EntityContext::mounts"],
+        module = "sand::entity",
+        kind = "method",
+        summary = "Returns ride and dismount operations for this entity.",
+        context = "Returns a focused capability for the execution-scoped entity represented by this handle; no persistent entity identity or lifecycle resource is created.",
+        minecraft = "Operations emitted by the capability retain this handle's @s or scoped tag-backed target.",
+        use_when = ["Discovering legal operations on this entity"],
+        avoid_when = ["Keeping an entity identity across ticks"],
+        example = "use sand::prelude::*;",
+        returns = "The requested capability value or canonical Minecraft command.",
+    )]
+    pub fn mounts(&self) -> EntityMounts<K> {
+        EntityMounts::new(Selector::self_())
+    }
+
+    /// Read-only typed entity-data access. Writes are present only for safe kinds.
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::entity::EntityContext::data",
+        aliases = ["sand::prelude::EntityContext::data"],
+        module = "sand::entity",
+        kind = "method",
+        summary = "Returns capability-gated typed entity-data access.",
+        context = "Returns a focused capability for the execution-scoped entity represented by this handle; no persistent entity identity or lifecycle resource is created.",
+        minecraft = "Operations emitted by the capability retain this handle's @s or scoped tag-backed target.",
+        use_when = ["Discovering legal operations on this entity"],
+        avoid_when = ["Keeping an entity identity across ticks"],
+        example = "use sand::prelude::*;",
+        returns = "The requested capability value or canonical Minecraft command.",
+    )]
+    pub fn data(&self) -> EntityDataRoot<K> {
+        EntityDataRoot::new(Selector::self_())
     }
 
     /// Bind a typed entity-state field to the current executor (`@s`).
@@ -264,6 +346,69 @@ impl<K: EntityKind> EntityContext<K> {
     }
 }
 
+impl<K: LivingEntityKind> EntityContext<K> {
+    /// Living-only health, damage, effects, and attribute operations.
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::entity::EntityContext::living",
+        aliases = ["sand::prelude::EntityContext::living"],
+        module = "sand::entity",
+        kind = "method",
+        summary = "Returns living-only health, damage, effects, and attribute operations.",
+        context = "Returns a focused capability for the execution-scoped entity represented by this handle; no persistent entity identity or lifecycle resource is created.",
+        minecraft = "Operations emitted by the capability retain this handle's @s or scoped tag-backed target.",
+        use_when = ["Discovering legal operations on this entity"],
+        avoid_when = ["Keeping an entity identity across ticks"],
+        example = "use sand::prelude::*;",
+        returns = "The requested capability value or canonical Minecraft command.",
+    )]
+    pub fn living(&self) -> LivingEntity<K> {
+        LivingEntity::new(Selector::self_())
+    }
+}
+
+impl<K: EquipmentEntityKind> EntityContext<K> {
+    /// Typed equipment locations for the current executor.
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::entity::EntityContext::equipment",
+        aliases = ["sand::prelude::EntityContext::equipment"],
+        module = "sand::entity",
+        kind = "method",
+        summary = "Returns typed equipment locations for a statically capable entity.",
+        context = "Returns a focused capability for the execution-scoped entity represented by this handle; no persistent entity identity or lifecycle resource is created.",
+        minecraft = "Operations emitted by the capability retain this handle's @s or scoped tag-backed target.",
+        use_when = ["Discovering legal operations on this entity"],
+        avoid_when = ["Keeping an entity identity across ticks"],
+        example = "use sand::prelude::*;",
+        returns = "The requested capability value or canonical Minecraft command.",
+    )]
+    pub fn equipment(&self) -> EntityEquipmentHandle<K> {
+        EntityEquipmentHandle::new(Selector::self_())
+    }
+}
+
+impl EntityContext<PlayerKind> {
+    /// Typed inventory locations for the current player executor.
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::entity::EntityContext::inventory",
+        aliases = ["sand::prelude::EntityContext::inventory"],
+        module = "sand::entity",
+        kind = "method",
+        summary = "Returns Sand's canonical typed inventory-location factory for this player.",
+        context = "The factory explicitly retains @s while providing validated hotbar, main-inventory, ender-chest, hand, and armor locations.",
+        minecraft = "Locations lower through Sand's existing item and NBT command paths; this does not mutate player entity NBT directly.",
+        use_when = ["Reading, matching, or replacing a known player's inventory items"],
+        avoid_when = ["Addressing an entity whose inventory layout is not statically known"],
+        returns = "A selector-preserving player inventory factory.",
+        example = "use sand::prelude::*; let player = EntityContext::<PlayerKind>::default(); let slot = player.inventory().hotbar(0);",
+    )]
+    pub fn inventory(&self) -> EntityInventory {
+        ItemLocation::entity(Selector::self_())
+    }
+}
+
 // ── Scoped bindings ────────────────────────────────────────────────────────────
 
 #[sand_macros::api(
@@ -302,6 +447,82 @@ pub struct ScopedEntityRef<K> {
 impl<K: EntityKind> ScopedEntityRef<K> {
     fn selector(&self) -> Selector {
         Selector::all_entities().tag(&self.tag).limit(1)
+    }
+
+    /// Identity and lifecycle operations targeting the bound entity.
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::entity::ScopedEntityRef::identity",
+        aliases = ["sand::prelude::ScopedEntityRef::identity"],
+        module = "sand::entity",
+        kind = "method",
+        summary = "Returns identity and lifecycle operations for this entity.",
+        context = "Returns a focused capability for the execution-scoped entity represented by this handle; no persistent entity identity or lifecycle resource is created.",
+        minecraft = "Operations emitted by the capability retain this handle's @s or scoped tag-backed target.",
+        use_when = ["Discovering legal operations on this entity"],
+        avoid_when = ["Keeping an entity identity across ticks"],
+        example = "use sand::prelude::*;",
+        returns = "The requested capability value or canonical Minecraft command.",
+    )]
+    pub fn identity(&self) -> EntityIdentity<K> {
+        EntityIdentity::new(self.selector())
+    }
+
+    /// Transform operations targeting the bound entity, even after `@s` changes.
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::entity::ScopedEntityRef::transform",
+        aliases = ["sand::prelude::ScopedEntityRef::transform"],
+        module = "sand::entity",
+        kind = "method",
+        summary = "Returns teleportation, rotation, and facing operations for this entity.",
+        context = "Returns a focused capability for the execution-scoped entity represented by this handle; no persistent entity identity or lifecycle resource is created.",
+        minecraft = "Operations emitted by the capability retain this handle's @s or scoped tag-backed target.",
+        use_when = ["Discovering legal operations on this entity"],
+        avoid_when = ["Keeping an entity identity across ticks"],
+        example = "use sand::prelude::*;",
+        returns = "The requested capability value or canonical Minecraft command.",
+    )]
+    pub fn transform(&self) -> EntityTransform<K> {
+        EntityTransform::new(self.selector())
+    }
+
+    /// Ride and dismount mutations targeting the bound entity.
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::entity::ScopedEntityRef::mounts",
+        aliases = ["sand::prelude::ScopedEntityRef::mounts"],
+        module = "sand::entity",
+        kind = "method",
+        summary = "Returns ride and dismount operations for this entity.",
+        context = "Returns a focused capability for the execution-scoped entity represented by this handle; no persistent entity identity or lifecycle resource is created.",
+        minecraft = "Operations emitted by the capability retain this handle's @s or scoped tag-backed target.",
+        use_when = ["Discovering legal operations on this entity"],
+        avoid_when = ["Keeping an entity identity across ticks"],
+        example = "use sand::prelude::*;",
+        returns = "The requested capability value or canonical Minecraft command.",
+    )]
+    pub fn mounts(&self) -> EntityMounts<K> {
+        EntityMounts::new(self.selector())
+    }
+
+    /// Typed data access targeting the bound entity.
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::entity::ScopedEntityRef::data",
+        aliases = ["sand::prelude::ScopedEntityRef::data"],
+        module = "sand::entity",
+        kind = "method",
+        summary = "Returns capability-gated typed entity-data access.",
+        context = "Returns a focused capability for the execution-scoped entity represented by this handle; no persistent entity identity or lifecycle resource is created.",
+        minecraft = "Operations emitted by the capability retain this handle's @s or scoped tag-backed target.",
+        use_when = ["Discovering legal operations on this entity"],
+        avoid_when = ["Keeping an entity identity across ticks"],
+        example = "use sand::prelude::*;",
+        returns = "The requested capability value or canonical Minecraft command.",
+    )]
+    pub fn data(&self) -> EntityDataRoot<K> {
+        EntityDataRoot::new(self.selector())
     }
 
     /// `tag @e[tag=<scope>,limit=1] add <tag>` — tag the bound entity, not `@s`.
@@ -496,6 +717,69 @@ impl<K: EntityKind> ScopedEntityRef<K> {
     )]
     pub fn passengers(&self) -> RelationTraversal<Many> {
         RelationTraversal::new(Relation::Passengers)
+    }
+}
+
+impl<K: LivingEntityKind> ScopedEntityRef<K> {
+    /// Living-only operations targeting the bound entity.
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::entity::ScopedEntityRef::living",
+        aliases = ["sand::prelude::ScopedEntityRef::living"],
+        module = "sand::entity",
+        kind = "method",
+        summary = "Returns living-only health, damage, effects, and attribute operations.",
+        context = "Returns a focused capability for the execution-scoped entity represented by this handle; no persistent entity identity or lifecycle resource is created.",
+        minecraft = "Operations emitted by the capability retain this handle's @s or scoped tag-backed target.",
+        use_when = ["Discovering legal operations on this entity"],
+        avoid_when = ["Keeping an entity identity across ticks"],
+        example = "use sand::prelude::*;",
+        returns = "The requested capability value or canonical Minecraft command.",
+    )]
+    pub fn living(&self) -> LivingEntity<K> {
+        LivingEntity::new(self.selector())
+    }
+}
+
+impl<K: EquipmentEntityKind> ScopedEntityRef<K> {
+    /// Typed equipment locations targeting the bound entity.
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::entity::ScopedEntityRef::equipment",
+        aliases = ["sand::prelude::ScopedEntityRef::equipment"],
+        module = "sand::entity",
+        kind = "method",
+        summary = "Returns typed equipment locations for a statically capable entity.",
+        context = "Returns a focused capability for the execution-scoped entity represented by this handle; no persistent entity identity or lifecycle resource is created.",
+        minecraft = "Operations emitted by the capability retain this handle's @s or scoped tag-backed target.",
+        use_when = ["Discovering legal operations on this entity"],
+        avoid_when = ["Keeping an entity identity across ticks"],
+        example = "use sand::prelude::*;",
+        returns = "The requested capability value or canonical Minecraft command.",
+    )]
+    pub fn equipment(&self) -> EntityEquipmentHandle<K> {
+        EntityEquipmentHandle::new(self.selector())
+    }
+}
+
+impl ScopedEntityRef<PlayerKind> {
+    /// Typed inventory locations targeting the bound player after `@s` changes.
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::entity::ScopedEntityRef::inventory",
+        aliases = ["sand::prelude::ScopedEntityRef::inventory"],
+        module = "sand::entity",
+        kind = "method",
+        summary = "Returns Sand's canonical typed inventory-location factory for the bound player.",
+        context = "The factory retains the scope's explicit tag selector, so nested relationship execution cannot redirect inventory operations to another @s.",
+        minecraft = "Locations lower through Sand's existing item and NBT command paths; this does not mutate player entity NBT directly.",
+        use_when = ["Reading, matching, or replacing a scoped player's inventory items"],
+        avoid_when = ["Keeping the scope-backed reference beyond EntityScope::bind"],
+        returns = "A selector-preserving player inventory factory.",
+        example = "use sand::prelude::*;",
+    )]
+    pub fn inventory(&self) -> EntityInventory {
+        ItemLocation::entity(self.selector())
     }
 }
 

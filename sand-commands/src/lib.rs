@@ -183,6 +183,16 @@ pub mod __private {
         crate::Sound::play_typed_id(event)
     }
 
+    /// Applies canonical validated single-target damage lowering to an
+    /// implementation-owned selector.
+    pub fn try_damage_one(
+        selector: crate::Selector,
+        amount: f64,
+        kind: crate::DamageKind,
+    ) -> crate::CommandResult<String> {
+        crate::builtins::try_damage_selector(selector, amount, kind)
+    }
+
     /// Appends one compiler-produced execute operation.
     pub fn execute_with_operation(
         execute: crate::Execute,

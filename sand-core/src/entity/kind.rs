@@ -72,8 +72,8 @@ pub struct MarkerKind;
     path = "sand::entity::EntityKind",
     aliases = ["sand::prelude::EntityKind"],
     module = "sand::entity",
-    summary = "A query/context entity kind. Sealed: only [`AnyEntity`] and [`PlayerKind`] implement it today. Capability-specific kinds (living entities, individual mob types) are follow-up work — see issue #228, which builds entity operations and blueprints on top of this foundation.",
-    context = "A query/context entity kind. Sealed: only [`AnyEntity`] and [`PlayerKind`] implement it today. Capability-specific kinds (living entities, individual mob types) are follow-up work — see issue #228, which builds entity operations and blueprints on top of this foundation. This declaration belongs to Sand's typed entity model. Semantic definitions are public; selector rendering, validation bookkeeping, and compiler lowering remain internal.",
+    summary = "A sealed marker describing what Sand knows statically about an execution-scoped entity.",
+    context = "AnyEntity and PlayerKind represent query roots; concrete known kinds such as ZombieKind and MarkerKind enable only the focused EntityContext capabilities legal for that kind.",
     minecraft = "Sand validates this definition and lowers it to entity-scoped selectors, scoreboards, NBT operations, and generated lifecycle functions as required.",
     use_when = ["Defining or using typed entity behavior in a Sand datapack"],
     avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
@@ -81,10 +81,10 @@ pub struct MarkerKind;
 )]
 /// A query/context entity kind.
 ///
-/// Sealed: only [`AnyEntity`] and [`PlayerKind`] implement it today.
-/// Capability-specific kinds (living entities, individual mob types) are
-/// follow-up work — see issue #228, which builds entity operations and
-/// blueprints on top of this foundation.
+/// The trait is sealed because each implementation participates in Sand's
+/// verified capability model. [`AnyEntity`] deliberately exposes fewer
+/// operations than a known kind: an `@e` query may select entities with very
+/// different vanilla behavior.
 pub trait EntityKind: sealed::Sealed + fmt::Debug + Clone + Copy + Default + 'static {
     #[sand_macros::api(
         registry = sand_api_contract,
@@ -219,6 +219,28 @@ impl MutableLivingEntityKind for ZombieKind {}
 
 #[sand_macros::api(
     registry = sand_api_contract,
+    path = "sand::entity::EquipmentEntityKind",
+    aliases = ["sand::prelude::EquipmentEntityKind"],
+    module = "sand::entity",
+    summary = "An entity kind with vanilla equipment slots addressable through Sand's typed item-location API.",
+    context = "This sealed capability is implemented for players and known living mobs with supported hand and armor slots. It is absent from MarkerKind and AnyEntity, where equipment legality is not statically known.",
+    minecraft = "Equipment access delegates to vanilla item locations: player Inventory entries for PlayerKind and ArmorItems/HandItems for supported non-player living kinds.",
+    use_when = ["Writing generic behavior that needs supported equipment slots"],
+    avoid_when = ["Assuming an AnyEntity query contains only equipment-capable entities"],
+    example = "use sand::entity::EquipmentEntityKind;",
+)]
+/// An entity kind with equipment slots supported by Sand's canonical item API.
+///
+/// The trait is sealed because the slot layout is part of Sand's verified
+/// vanilla model. [`AnyEntity`] does not implement it: an `@e` query can also
+/// contain markers and other entities without the modeled slots.
+pub trait EquipmentEntityKind: KnownEntityKind + sealed::Equipment {}
+
+impl EquipmentEntityKind for PlayerKind {}
+impl EquipmentEntityKind for ZombieKind {}
+
+#[sand_macros::api(
+    registry = sand_api_contract,
     path = "sand::entity::SafeEntityDataWriteKind",
     aliases = ["sand::prelude::SafeEntityDataWriteKind"],
     module = "sand::entity",
@@ -237,7 +259,7 @@ pub trait SafeEntityDataWriteKind: KnownEntityKind + sealed::SafeDataWrite {}
 impl SafeEntityDataWriteKind for ZombieKind {}
 impl SafeEntityDataWriteKind for MarkerKind {}
 
-mod sealed {
+pub(crate) mod sealed {
     pub trait Sealed {}
     impl Sealed for super::AnyEntity {}
     impl Sealed for super::PlayerKind {}
@@ -250,6 +272,47 @@ mod sealed {
 
     pub trait MutableLiving {}
     impl MutableLiving for super::ZombieKind {}
+
+    pub trait Equipment {
+        fn equipment_location(
+            selector: sand_commands::Selector,
+            slot: sand_components::EquipmentSlot,
+        ) -> Result<crate::item::ItemLocation, crate::item::ItemLocationError>;
+    }
+
+    impl Equipment for super::PlayerKind {
+        fn equipment_location(
+            selector: sand_commands::Selector,
+            slot: sand_components::EquipmentSlot,
+        ) -> Result<crate::item::ItemLocation, crate::item::ItemLocationError> {
+            use sand_components::EquipmentSlot;
+
+            let inventory = crate::item::ItemLocation::entity(selector);
+            Ok(match slot {
+                EquipmentSlot::Mainhand => inventory.mainhand(),
+                EquipmentSlot::Offhand => inventory.offhand(),
+                EquipmentSlot::Head => inventory.helmet(),
+                EquipmentSlot::Chest => inventory.chestplate(),
+                EquipmentSlot::Legs => inventory.leggings(),
+                EquipmentSlot::Feet => inventory.boots(),
+                EquipmentSlot::Body => {
+                    return Err(crate::item::ItemLocationError::UnsupportedLocation {
+                        location: "PlayerEquipment(Body)".to_owned(),
+                        reason: "the Body equipment slot does not apply to players",
+                    });
+                }
+            })
+        }
+    }
+
+    impl Equipment for super::ZombieKind {
+        fn equipment_location(
+            selector: sand_commands::Selector,
+            slot: sand_components::EquipmentSlot,
+        ) -> Result<crate::item::ItemLocation, crate::item::ItemLocationError> {
+            crate::item::ItemLocation::entity_equipment(selector, slot)
+        }
+    }
 
     pub trait SafeDataWrite {}
     impl SafeDataWrite for super::ZombieKind {}

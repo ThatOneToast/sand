@@ -2,6 +2,12 @@
 
 use sand_commands::selector::{AnyTarget, One, PlayersOnly, Target};
 
+use crate::entity::{
+    AnyEntity, EntityDataRoot, EntityEquipmentHandle, EntityIdentity, EntityMounts,
+    EntityTransform, LivingEntity, PlayerKind,
+};
+use crate::item::{EntityInventory, ItemLocation};
+
 use super::lifetime::ParticipantLifetime;
 use super::reliability::ParticipantReliability;
 use super::role::EntityParticipantRole;
@@ -255,6 +261,48 @@ impl PlayerParticipant {
     )]
     pub fn require_exact(&self) -> Result<&Self, ParticipantReliabilityError> {
         self.require(ParticipantReliability::Exact)
+    }
+
+    /// Identity and lifecycle operations targeting this event participant.
+    #[sand_macros::api(registry = sand_api_contract, path = "sand::participant::PlayerParticipant::identity", module = "sand::participant", kind = "method", summary = "Returns identity and lifecycle operations for this player participant.", context = "The capability retains the participant's typed selector, reliability, and lifetime assumptions; it does not create another reference.", minecraft = "Commands target the participant selector directly through Sand's canonical lowering.", use_when = ["Applying entity operations to an event's player participant"], avoid_when = ["Using a participant outside its declared lifetime"], returns = "A selector-preserving identity capability.", example = "use sand::prelude::*; let participant = PlayerParticipant::subject(); let command = participant.identity().kill();")]
+    pub fn identity(&self) -> EntityIdentity<PlayerKind> {
+        EntityIdentity::new(self.selector.clone().into())
+    }
+
+    /// Transform operations targeting this event participant.
+    #[sand_macros::api(registry = sand_api_contract, path = "sand::participant::PlayerParticipant::transform", module = "sand::participant", kind = "method", summary = "Returns transform operations for this player participant.", context = "The capability retains the participant's typed selector, reliability, and lifetime assumptions; it does not create another reference.", minecraft = "Commands target the participant selector directly through Sand's canonical lowering.", use_when = ["Moving or facing an event's player participant"], avoid_when = ["Using a participant outside its declared lifetime"], returns = "A selector-preserving transform capability.", example = "use sand::prelude::*; let participant = PlayerParticipant::subject(); let command = participant.transform().teleport(Vec3::absolute(0.0, 80.0, 0.0));")]
+    pub fn transform(&self) -> EntityTransform<PlayerKind> {
+        EntityTransform::new(self.selector.clone().into())
+    }
+
+    /// Living operations targeting this event participant.
+    #[sand_macros::api(registry = sand_api_contract, path = "sand::participant::PlayerParticipant::living", module = "sand::participant", kind = "method", summary = "Returns living-entity operations for this player participant.", context = "PlayerKind supplies the living capability while player NBT mutation remains unavailable.", minecraft = "Health, damage, effects, and attributes delegate to canonical command/data builders.", use_when = ["Applying living operations to an event's player participant"], avoid_when = ["Mutating player entity NBT"], returns = "A selector-preserving living capability.", example = "use sand::prelude::*; let participant = PlayerParticipant::subject(); let command = participant.living().clear_effects();")]
+    pub fn living(&self) -> LivingEntity<PlayerKind> {
+        LivingEntity::new(self.selector.clone().into())
+    }
+
+    /// Equipment locations targeting this event participant.
+    #[sand_macros::api(registry = sand_api_contract, path = "sand::participant::PlayerParticipant::equipment", module = "sand::participant", kind = "method", summary = "Returns typed equipment locations for this player participant.", context = "The capability preserves the participant selector so nested event execution cannot redirect the slot to another @s.", minecraft = "Slots use Sand's canonical explicit-entity ItemLocation representation.", use_when = ["Reading, matching, or replacing a player participant's equipment"], avoid_when = ["Writing player inventory through entity NBT"], returns = "A selector-preserving equipment capability.", example = "use sand::prelude::*; let participant = PlayerParticipant::subject(); let slot = participant.equipment().slot(EquipmentSlot::Head);")]
+    pub fn equipment(&self) -> EntityEquipmentHandle<PlayerKind> {
+        EntityEquipmentHandle::new(self.selector.clone().into())
+    }
+
+    /// Typed inventory locations targeting this player participant.
+    #[sand_macros::api(registry = sand_api_contract, path = "sand::participant::PlayerParticipant::inventory", module = "sand::participant", kind = "method", summary = "Returns typed inventory locations for this player participant.", context = "The canonical EntityInventory factory retains the participant selector, reliability, and lifetime assumptions.", minecraft = "Inventory operations use Sand's existing item and NBT lowering while player entity-NBT mutation remains prohibited.", use_when = ["Reading, matching, or replacing an event player's inventory items"], avoid_when = ["Using a participant outside its declared lifetime"], returns = "A selector-preserving player inventory factory.", example = "use sand::prelude::*; let participant = PlayerParticipant::subject(); let slot = participant.inventory().hotbar(0);")]
+    pub fn inventory(&self) -> EntityInventory {
+        ItemLocation::entity(self.selector.clone())
+    }
+
+    /// Ride and dismount operations targeting this event participant.
+    #[sand_macros::api(registry = sand_api_contract, path = "sand::participant::PlayerParticipant::mounts", module = "sand::participant", kind = "method", summary = "Returns ride and dismount operations for this player participant.", context = "The capability retains the participant selector rather than assuming the caller's @s.", minecraft = "Ride commands delegate to the generated Minecraft 26.x command builders.", use_when = ["Mounting or dismounting an event's player participant"], avoid_when = ["Observing relationships; use EntityContext traversal when executing as the participant"], returns = "A selector-preserving mounts capability.", example = "use sand::prelude::*; let participant = PlayerParticipant::subject(); let command = participant.mounts().dismount();")]
+    pub fn mounts(&self) -> EntityMounts<PlayerKind> {
+        EntityMounts::new(self.selector.clone().into())
+    }
+
+    /// Read-only typed entity-data navigation for this player participant.
+    #[sand_macros::api(registry = sand_api_contract, path = "sand::participant::PlayerParticipant::data", module = "sand::participant", kind = "method", summary = "Returns read-only typed entity-data navigation for this player participant.", context = "PlayerKind intentionally lacks SafeEntityDataWriteKind, so selected paths cannot call mutation methods.", minecraft = "Reads target the participant selector through canonical data commands; player entity-NBT writes remain prohibited.", use_when = ["Reading a player participant's native entity data"], avoid_when = ["Mutating player NBT"], returns = "A selector-preserving player data root.", example = "use sand::prelude::*; let participant = PlayerParticipant::subject(); let command = participant.data().field::<f32>(\"Health\").get();")]
+    pub fn data(&self) -> EntityDataRoot<PlayerKind> {
+        EntityDataRoot::new(self.selector.clone().into())
     }
 }
 
@@ -512,6 +560,30 @@ impl EntityParticipant {
         self.require(ParticipantReliability::Exact)
     }
 
+    /// Identity and lifecycle operations targeting this event participant.
+    #[sand_macros::api(registry = sand_api_contract, path = "sand::participant::EntityParticipant::identity", module = "sand::participant", kind = "method", summary = "Returns identity and lifecycle operations for this entity participant.", context = "The capability retains the participant's typed selector, reliability, and lifetime assumptions; it does not create another reference.", minecraft = "Commands target the participant selector directly through Sand's canonical lowering.", use_when = ["Applying generic entity operations to an event participant"], avoid_when = ["Using a participant outside its declared lifetime"], returns = "A selector-preserving identity capability.", example = "use sand::prelude::*; let participant = EntityParticipant::subject(); let command = participant.identity().kill();")]
+    pub fn identity(&self) -> EntityIdentity<AnyEntity> {
+        EntityIdentity::new(self.selector.clone().into())
+    }
+
+    /// Transform operations targeting this event participant.
+    #[sand_macros::api(registry = sand_api_contract, path = "sand::participant::EntityParticipant::transform", module = "sand::participant", kind = "method", summary = "Returns transform operations for this entity participant.", context = "The capability retains the participant's typed selector, reliability, and lifetime assumptions; it does not create another reference.", minecraft = "Commands target the participant selector directly through Sand's canonical lowering.", use_when = ["Moving or facing an event participant"], avoid_when = ["Using a participant outside its declared lifetime"], returns = "A selector-preserving transform capability.", example = "use sand::prelude::*; let participant = EntityParticipant::subject(); let command = participant.transform().teleport(Vec3::absolute(0.0, 80.0, 0.0));")]
+    pub fn transform(&self) -> EntityTransform<AnyEntity> {
+        EntityTransform::new(self.selector.clone().into())
+    }
+
+    /// Ride and dismount operations targeting this event participant.
+    #[sand_macros::api(registry = sand_api_contract, path = "sand::participant::EntityParticipant::mounts", module = "sand::participant", kind = "method", summary = "Returns ride and dismount operations for this entity participant.", context = "The capability retains the participant selector rather than assuming the caller's @s.", minecraft = "Ride commands delegate to the generated Minecraft 26.x command builders.", use_when = ["Mounting or dismounting an event participant"], avoid_when = ["Assuming the participant has a statically known living or equipment capability"], returns = "A selector-preserving mounts capability.", example = "use sand::prelude::*; let participant = EntityParticipant::subject(); let command = participant.mounts().dismount();")]
+    pub fn mounts(&self) -> EntityMounts<AnyEntity> {
+        EntityMounts::new(self.selector.clone().into())
+    }
+
+    /// Read-only typed entity-data navigation for this event participant.
+    #[sand_macros::api(registry = sand_api_contract, path = "sand::participant::EntityParticipant::data", module = "sand::participant", kind = "method", summary = "Returns read-only typed entity-data navigation for this generic entity participant.", context = "AnyEntity does not claim a safe direct-write capability because the participant's concrete vanilla kind is not statically known.", minecraft = "Reads target the participant selector through Sand's canonical typed data commands.", use_when = ["Reading a generic event participant's native entity data"], avoid_when = ["Mutating entity data without a known safe entity kind"], returns = "A selector-preserving generic entity data root.", example = "use sand::prelude::*; let participant = EntityParticipant::subject(); let command = participant.data().field::<Vec<f64>>(\"Pos\").get();")]
+    pub fn data(&self) -> EntityDataRoot<AnyEntity> {
+        EntityDataRoot::new(self.selector.clone().into())
+    }
+
     /// `execute as <this participant's selector> at @s run <cmd>` — run a
     /// typed command with this participant as *both* the executing entity
     /// and the execution position, without ever stringifying the selector
@@ -605,6 +677,46 @@ mod tests {
         let subject = EntityParticipant::subject();
         assert_eq!(subject.reliability(), ParticipantReliability::Exact);
         assert!(subject.require_exact().is_ok());
+    }
+
+    #[test]
+    fn participant_capabilities_preserve_the_participant_selector() {
+        let player = PlayerParticipant::subject();
+        assert_eq!(player.living().clear_effects(), "effect clear @s");
+        assert_eq!(
+            player
+                .inventory()
+                .hotbar(0)
+                .unwrap()
+                .nbt()
+                .get()
+                .to_string(),
+            "data get entity @s Inventory[{Slot:0b}]"
+        );
+        assert_eq!(
+            player
+                .equipment()
+                .slot(sand_components::EquipmentSlot::Head)
+                .unwrap()
+                .nbt()
+                .get()
+                .to_string(),
+            "data get entity @s Inventory[{Slot:103b}]"
+        );
+
+        let entity = EntityParticipant::correlated(
+            Target::raw_single("@e[tag=candidate,limit=1]"),
+            EntityParticipantRole::Attacker,
+            ParticipantLifetime::Invocation,
+        );
+        assert_eq!(
+            entity.transform().position().get().to_string(),
+            "data get entity @e[tag=candidate,limit=1] Pos"
+        );
+        assert_eq!(
+            entity.mounts().dismount(),
+            "ride @e[tag=candidate,limit=1] dismount"
+        );
     }
 
     #[test]

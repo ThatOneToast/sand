@@ -78,8 +78,19 @@ enum TargetBase {
 }
 
 /// Marker for selector wrappers that are statically known to select one target.
+#[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::command::One",
+    aliases = ["sand::cmd::One", "sand::prelude::One", "sand::prelude::cmd::One"],
+    module = "sand::command",
+    summary = "Cardinality marker for a Target statically narrowed to one entity.",
+    context = "Target-producing methods such as nearest and limit(1) infer this marker; authors rarely need to name it directly.",
+    minecraft = "Allows command and entity capability signatures to reject many-target arguments for vanilla operations that require exactly one entity.",
+    use_when = ["Writing a generic signature that accepts only a statically single Target"],
+    avoid_when = ["Constructing selectors directly; use Target's narrowing methods"],
+    example = "use sand::prelude::*; let target: Target<_, One> = Target::nearest_player();",
+)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[doc(hidden)]
 pub enum One {}
 
 /// Marker for selector wrappers that may select multiple targets.

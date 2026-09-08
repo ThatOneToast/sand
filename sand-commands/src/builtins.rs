@@ -810,6 +810,14 @@ pub fn try_damage(
     damage_type: impl Into<String>,
 ) -> CommandResult<String> {
     let target = target.into_single_target_selector();
+    try_damage_selector(target, amount, damage_type)
+}
+
+pub(crate) fn try_damage_selector(
+    target: Selector,
+    amount: f64,
+    damage_type: impl Into<String>,
+) -> CommandResult<String> {
     let damage_type = damage_type.into();
     validate::finite(amount, "damage", "amount")?;
     validate::resource_location_shape(&damage_type, "damage", "damage_type")?;

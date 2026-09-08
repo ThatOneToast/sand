@@ -4,23 +4,13 @@
 use std::marker::PhantomData;
 
 use crate::condition::Condition;
-use sand_commands::{CommandStorageRegistry, DataTarget, RegistryReference, TargetArgument};
+use sand_commands::{DataTarget, TargetArgument};
 use sand_components::RawSnbt;
 
 pub use sand_commands::{DataCommand, Nbt, NbtCompound, NbtPath, NbtRef, NbtValue, UntypedNbt};
 
-struct StorageReference<'a>(&'a str);
-
-impl sand_commands::resource::sealed::Sealed<CommandStorageRegistry> for StorageReference<'_> {}
-
-impl RegistryReference<CommandStorageRegistry> for StorageReference<'_> {
-    fn registry_id(&self) -> String {
-        self.0.to_owned()
-    }
-}
-
 fn storage_reference(id: &str) -> Nbt {
-    Nbt::storage(StorageReference(id))
+    sand_commands::__private::nbt_storage_target(id)
 }
 
 // ── StorageSchema / StorageField ─────────────────────────────────────────────

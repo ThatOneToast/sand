@@ -695,6 +695,7 @@ impl VfxParticleVisibility {
 )]
 pub struct VfxSound {
     event: String,
+    raw_event: bool,
     source: SoundSource,
     audience: Option<Selector>,
     position: Option<Vec3>,
@@ -719,7 +720,8 @@ impl VfxSound {
     )]
     pub fn new(event: impl RegistryReference<sand_commands::resource::SoundEvent>) -> Self {
         Self {
-            event: event.registry_id(),
+            event: event.registry_id().to_string(),
+            raw_event: false,
             source: SoundSource::Master,
             audience: None,
             position: None,
@@ -734,6 +736,7 @@ impl VfxSound {
     pub fn new_raw(event: impl Into<String>) -> Self {
         Self {
             event: event.into(),
+            raw_event: true,
             source: SoundSource::Master,
             audience: None,
             position: None,
@@ -865,7 +868,12 @@ impl VfxSound {
     }
 
     fn sound(&self, audience: Option<&Selector>, position: Option<Vec3>) -> Sound {
-        let mut sound = Sound::play_raw(self.event.clone())
+        let sound = if self.raw_event {
+            Sound::play_raw(self.event.clone())
+        } else {
+            sand_commands::__private::sound_from_typed_id(self.event.clone())
+        };
+        let mut sound = sound
             .source(self.source)
             .volume(self.volume)
             .pitch(self.pitch);
@@ -943,6 +951,18 @@ mod tests {
                 .try_play()
                 .is_err()
         );
+    }
+
+    #[test]
+    fn downstream_registry_reference_cannot_construct_a_malformed_id() {
+        let error =
+            match sand_commands::resource::RegistryId::<sand_commands::resource::SoundEvent>::new(
+                "not a resource id",
+            ) {
+                Ok(_) => panic!("malformed registry IDs must not be constructible"),
+                Err(error) => error,
+            };
+        assert_eq!(error.field, "registry_id");
     }
 
     #[test]

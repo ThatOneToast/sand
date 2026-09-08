@@ -130,8 +130,12 @@ impl Sound {
         example = "use sand::prelude::*;\n\nfn demonstrate(event: SoundEventId) {\n    let sound = Sound::play(event);\n}",
     )]
     pub fn play(event: impl RegistryReference<SoundEventRegistry>) -> Self {
+        Self::play_typed_id(event.registry_id().to_string())
+    }
+
+    pub(crate) fn play_typed_id(event: impl Into<String>) -> Self {
         Self {
-            event: event.registry_id(),
+            event: event.into(),
             raw_event: false,
             source: SoundSource::Master,
             target: None,

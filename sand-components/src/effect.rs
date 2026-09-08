@@ -421,8 +421,11 @@ impl sand_commands::resource::sealed::Sealed<sand_commands::resource::StatusEffe
 impl sand_commands::resource::RegistryReference<sand_commands::resource::StatusEffect>
     for EffectId
 {
-    fn registry_id(&self) -> String {
-        self.to_string()
+    fn registry_id(
+        &self,
+    ) -> sand_commands::resource::RegistryId<sand_commands::resource::StatusEffect> {
+        sand_commands::resource::RegistryId::new(self.to_string())
+            .expect("EffectId is validated at construction")
     }
 }
 

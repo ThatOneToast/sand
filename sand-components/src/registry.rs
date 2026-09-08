@@ -62,8 +62,11 @@ impl sand_commands::resource::sealed::Sealed<sand_commands::resource::EntityType
 impl sand_commands::resource::RegistryReference<sand_commands::resource::EntityType>
     for EntityTypeId
 {
-    fn registry_id(&self) -> String {
-        self.to_string()
+    fn registry_id(
+        &self,
+    ) -> sand_commands::resource::RegistryId<sand_commands::resource::EntityType> {
+        sand_commands::resource::RegistryId::new(self.to_string())
+            .expect("EntityTypeId is validated at construction")
     }
 }
 
@@ -157,8 +160,11 @@ impl sand_commands::resource::sealed::Sealed<sand_commands::resource::Predicate>
 impl sand_commands::resource::RegistryReference<sand_commands::resource::Predicate>
     for PredicateId
 {
-    fn registry_id(&self) -> String {
-        self.to_string()
+    fn registry_id(
+        &self,
+    ) -> sand_commands::resource::RegistryId<sand_commands::resource::Predicate> {
+        sand_commands::resource::RegistryId::new(self.to_string())
+            .expect("PredicateId is validated at construction")
     }
 }
 
@@ -311,8 +317,11 @@ impl sand_commands::resource::sealed::Sealed<sand_commands::resource::SoundEvent
 impl sand_commands::resource::RegistryReference<sand_commands::resource::SoundEvent>
     for SoundEventId
 {
-    fn registry_id(&self) -> String {
-        self.to_string()
+    fn registry_id(
+        &self,
+    ) -> sand_commands::resource::RegistryId<sand_commands::resource::SoundEvent> {
+        sand_commands::resource::RegistryId::new(self.to_string())
+            .expect("SoundEventId is validated at construction")
     }
 }
 
@@ -326,8 +335,11 @@ impl sand_commands::resource::sealed::Sealed<sand_commands::resource::ParticleTy
 impl sand_commands::resource::RegistryReference<sand_commands::resource::ParticleType>
     for ParticleId
 {
-    fn registry_id(&self) -> String {
-        self.to_string()
+    fn registry_id(
+        &self,
+    ) -> sand_commands::resource::RegistryId<sand_commands::resource::ParticleType> {
+        sand_commands::resource::RegistryId::new(self.to_string())
+            .expect("ParticleId is validated at construction")
     }
 }
 
@@ -352,8 +364,11 @@ impl sand_commands::resource::sealed::Sealed<sand_commands::resource::StatusEffe
 impl sand_commands::resource::RegistryReference<sand_commands::resource::StatusEffect>
     for StatusEffectId
 {
-    fn registry_id(&self) -> String {
-        self.to_string()
+    fn registry_id(
+        &self,
+    ) -> sand_commands::resource::RegistryId<sand_commands::resource::StatusEffect> {
+        sand_commands::resource::RegistryId::new(self.to_string())
+            .expect("StatusEffectId is validated at construction")
     }
 }
 

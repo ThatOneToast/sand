@@ -816,7 +816,7 @@ impl Nbt {
         example = "use sand::prelude::*;\nlet storage = Nbt::storage(ResourceLocation::new(\"demo\", \"state\").unwrap());",
     )]
     pub fn storage(id: impl RegistryReference<CommandStorage>) -> Self {
-        Self::new(DataTarget::storage(id.registry_id()))
+        Self::new(DataTarget::storage(id.registry_id().to_string()))
     }
 
     /// Starts command-storage NBT from an explicitly raw identifier.

@@ -133,7 +133,7 @@ pub fn try_summon(
     y: f64,
     z: f64,
 ) -> CommandResult<String> {
-    let entity_type = entity_type.registry_id();
+    let entity_type = entity_type.registry_id().to_string();
     validate::resource_location_shape(&entity_type, "summon", "entity_type")?;
     validate::finite(x, "summon", "x")?;
     validate::finite(y, "summon", "y")?;

@@ -134,7 +134,7 @@ impl EffectCommand {
     ) -> Self {
         Self {
             target: target.into_target_selector(),
-            effect: effect.registry_id(),
+            effect: effect.registry_id().to_string(),
             raw_effect: false,
             duration: None,
             amplifier: None,

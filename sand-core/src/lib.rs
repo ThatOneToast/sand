@@ -577,8 +577,11 @@ impl sand_commands::resource::sealed::Sealed<sand_commands::resource::EntityType
 impl sand_commands::resource::RegistryReference<sand_commands::resource::EntityType>
     for generated::EntityType
 {
-    fn registry_id(&self) -> String {
-        self.resource_location().to_owned()
+    fn registry_id(
+        &self,
+    ) -> sand_commands::resource::RegistryId<sand_commands::resource::EntityType> {
+        sand_commands::resource::RegistryId::new(self.resource_location())
+            .expect("generated vanilla entity-type IDs are valid resource locations")
     }
 }
 impl sand_commands::resource::sealed::Sealed<sand_commands::resource::SoundEvent>
@@ -588,8 +591,11 @@ impl sand_commands::resource::sealed::Sealed<sand_commands::resource::SoundEvent
 impl sand_commands::resource::RegistryReference<sand_commands::resource::SoundEvent>
     for generated::SoundEvent
 {
-    fn registry_id(&self) -> String {
-        self.resource_location().to_owned()
+    fn registry_id(
+        &self,
+    ) -> sand_commands::resource::RegistryId<sand_commands::resource::SoundEvent> {
+        sand_commands::resource::RegistryId::new(self.resource_location())
+            .expect("generated vanilla sound-event IDs are valid resource locations")
     }
 }
 

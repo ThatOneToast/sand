@@ -4,6 +4,11 @@
 //! instead of defining a conversion trait per command family. Implementations
 //! are provided by Sand's generated vanilla IDs and validated custom ID types.
 
+use std::fmt;
+use std::marker::PhantomData;
+
+use crate::error::CommandResult;
+
 /// Marker for the entity-type registry.
 #[sand_macros::api(registry = sand_api_contract, path = "sand::resource_ref::EntityTypeRegistry", module = "sand::resource_ref", summary = "Registry marker for typed entity-type references.", context = "Used with RegistryReference to keep entity IDs distinct from other resources.", minecraft = "Represents the entity_type registry consumed by selectors and summon commands.", use_when = ["Constraining a generic registry reference to entity types"], avoid_when = ["Naming an entity type value; use EntityType or EntityTypeId"], example = "fn accepts_entity(id: impl RegistryReference<EntityTypeRegistry>) {}")]
 pub enum EntityType {}
@@ -30,9 +35,46 @@ pub enum CommandStorage {}
 
 #[doc(hidden)]
 pub mod sealed {
+    // This module is public so Sand's sibling crates can implement the shared
+    // capability. Validation is enforced by the opaque RegistryId returned by
+    // the capability rather than by treating this marker as a trust boundary.
     pub trait Sealed<K> {}
 
     impl<K, T: Sealed<K> + ?Sized> Sealed<K> for &T {}
+}
+
+/// Validated lowering token returned by [`RegistryReference`].
+///
+/// Its fields are private, so implementations outside this crate can only
+/// construct a token through [`RegistryId::new`], which validates the
+/// `namespace:path` grammar before any typed consumer can render it.
+#[doc(hidden)]
+pub struct RegistryId<K> {
+    value: String,
+    marker: PhantomData<fn() -> K>,
+}
+
+impl<K> RegistryId<K> {
+    #[doc(hidden)]
+    pub fn new(value: impl Into<String>) -> CommandResult<Self> {
+        let value = value.into();
+        crate::validate::resource_location_shape(&value, "RegistryReference", "registry_id")?;
+        Ok(Self {
+            value,
+            marker: PhantomData,
+        })
+    }
+
+    #[doc(hidden)]
+    pub fn as_str(&self) -> &str {
+        &self.value
+    }
+}
+
+impl<K> fmt::Display for RegistryId<K> {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter.write_str(&self.value)
+    }
 }
 
 /// A typed reference to one Minecraft registry or datapack-resource kind.
@@ -41,6 +83,11 @@ pub mod sealed {
 /// being mixed. Plain strings intentionally do not implement this trait;
 /// command APIs expose separately named `_raw` entry points for unsupported
 /// future or modded syntax.
+///
+/// Sand spans multiple crates, so the implementation marker is necessarily
+/// reachable by those crates. The opaque [`RegistryId`] return value is the
+/// validation boundary: even external implementations cannot return malformed
+/// resource-location text to a typed consumer.
 #[sand_macros::api(
     registry = sand_api_contract,
     path = "sand::resource_ref::RegistryReference",
@@ -68,11 +115,11 @@ pub trait RegistryReference<K>: sealed::Sealed<K> {
         returns = "The validated namespaced registry identifier.",
         example = "let token = id.registry_id();",
     )]
-    fn registry_id(&self) -> String;
+    fn registry_id(&self) -> RegistryId<K>;
 }
 
 impl<K, T: RegistryReference<K> + ?Sized> RegistryReference<K> for &T {
-    fn registry_id(&self) -> String {
+    fn registry_id(&self) -> RegistryId<K> {
         (*self).registry_id()
     }
 }

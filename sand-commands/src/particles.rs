@@ -105,7 +105,7 @@ impl Particle {
         example = "use sand::prelude::*;\n\nfn demonstrate(name: ParticleId) {\n    let particle = Particle::named(name);\n}",
     )]
     pub fn named(name: impl RegistryReference<ParticleRegistry>) -> Self {
-        Particle::Named(name.registry_id())
+        Particle::Named(name.registry_id().to_string())
     }
 
     /// Create an intentionally opaque particle token.

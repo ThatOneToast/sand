@@ -171,6 +171,18 @@ impl<T: Build> Build for &T {
 /// supported author API.
 #[doc(hidden)]
 pub mod __private {
+    /// Builds validated-at-render command storage for Sand's typed schema
+    /// declarations, whose static ID cannot be parsed in a const constructor.
+    pub fn nbt_storage_target(id: impl Into<String>) -> crate::Nbt {
+        crate::Nbt::new(crate::DataTarget::storage(id))
+    }
+
+    /// Starts a typed sound builder after a higher Sand crate has erased the
+    /// concrete registry-reference type. The event remains validated syntax.
+    pub fn sound_from_typed_id(event: impl Into<String>) -> crate::Sound {
+        crate::Sound::play_typed_id(event)
+    }
+
     /// Appends one compiler-produced execute operation.
     pub fn execute_with_operation(
         execute: crate::Execute,

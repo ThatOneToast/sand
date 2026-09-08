@@ -524,7 +524,7 @@ impl Execute {
         mut self,
         entity_type: impl crate::resource::RegistryReference<crate::resource::EntityType>,
     ) -> Self {
-        let entity_type = entity_type.registry_id();
+        let entity_type = entity_type.registry_id().to_string();
         self.operations.push(ExecuteOp::Summon(entity_type));
         self
     }

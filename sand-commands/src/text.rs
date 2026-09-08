@@ -1319,7 +1319,7 @@ impl TextComponent {
     ) -> Self {
         self.hover_event = Some(TextHoverEvent::ShowEntityText {
             name: Box::new(name),
-            entity_type: entity_type.registry_id(),
+            entity_type: entity_type.registry_id().to_string(),
             id: None,
             raw: false,
         });
@@ -1356,7 +1356,7 @@ impl TextComponent {
     ) -> Self {
         self.hover_event = Some(TextHoverEvent::ShowEntityText {
             name: Box::new(name),
-            entity_type: entity_type.registry_id(),
+            entity_type: entity_type.registry_id().to_string(),
             id: Some(id.to_string()),
             raw: false,
         });
@@ -2148,8 +2148,8 @@ mod tests {
     impl crate::resource::sealed::Sealed<EntityTypeRegistry> for Zombie {}
 
     impl RegistryReference<EntityTypeRegistry> for Zombie {
-        fn registry_id(&self) -> String {
-            "minecraft:zombie".to_owned()
+        fn registry_id(&self) -> crate::resource::RegistryId<EntityTypeRegistry> {
+            crate::resource::RegistryId::new("minecraft:zombie").expect("test entity type is valid")
         }
     }
 

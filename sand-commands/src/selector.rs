@@ -292,7 +292,7 @@ impl<K, A> Target<K, A> {
     /// Restricts the target through a canonical predicate resource identifier.
     #[sand_macros::api(registry = sand_api_contract, path = "sand::command::Target::predicate", aliases = ["sand::cmd::Target::predicate", "sand::prelude::Target::predicate", "sand::prelude::cmd::Target::predicate"], module = "sand::command", summary = "Filters a target through a named predicate resource.", context = "Accepts the canonical PredicateId through the predicate-specific RegistryReference<PredicateRegistry> capability, preventing unrelated registry IDs from compiling here.", minecraft = "Emits predicate=<namespace:path>.", use_when = ["Filtering entities through a reusable predicate resource"], avoid_when = ["Supplying unsupported raw selector syntax; use predicate_raw"], params(predicate = "The canonical predicate resource identifier."), returns = "The same target with the predicate filter applied.", example = "let target = sand::command::Target::entities().predicate(predicate_id);")]
     pub fn predicate(mut self, predicate: impl RegistryReference<PredicateRegistry>) -> Self {
-        self.raw = self.raw.predicate(predicate.registry_id());
+        self.raw = self.raw.predicate(predicate.registry_id().to_string());
         self
     }
 
@@ -820,7 +820,8 @@ impl Selector {
 
     /// `type=<entity_type>` — select only entities of the given type.
     pub fn entity_type(mut self, ty: impl RegistryReference<EntityTypeRegistry>) -> Self {
-        self.args.push(SelectorArg::Type(ty.registry_id()));
+        self.args
+            .push(SelectorArg::Type(ty.registry_id().to_string()));
         self
     }
 
@@ -832,7 +833,8 @@ impl Selector {
 
     /// `type=!<entity_type>` — select only entities NOT of the given type.
     pub fn not_type(mut self, ty: impl RegistryReference<EntityTypeRegistry>) -> Self {
-        self.args.push(SelectorArg::NotType(ty.registry_id()));
+        self.args
+            .push(SelectorArg::NotType(ty.registry_id().to_string()));
         self
     }
 

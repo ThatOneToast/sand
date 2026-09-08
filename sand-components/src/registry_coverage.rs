@@ -207,7 +207,7 @@ pub const REGISTRY_COVERAGE: &[RegistryCoverage] = &[
         notes: "All standard recipe types implemented: shaped, shapeless, smelting, blasting, smoking, campfire, \
                 smithing_transform, smithing_trim, stonecutting. #178 (route recipe ingredient/result IDs through \
                 typed item/tag IDs) is closed and confirmed done: Ingredient::item_id/item_tag and \
-                RecipeResult::item take IntoRecipeItemId/TagId<ItemId> on the normal path; raw_item/raw_tag/raw \
+                RecipeResult::item take ItemId/TagId<ItemId> on the normal path; raw_item/raw_tag/raw \
                 remain as explicitly named compatibility escape hatches. Not downgraded per #193 (a prior review \
                 pass incorrectly cited #178 as still open; verified closed 2026-07-12 with the typed API already \
                 present on this branch's base). #226 (component-bearing CustomItem recipe results) is also done: \

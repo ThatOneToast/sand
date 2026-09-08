@@ -6,6 +6,7 @@ use std::fmt;
 use crate::Build;
 use crate::error::{CommandError, CommandResult};
 use crate::render::{CommandProfile, RenderCommand, Validate};
+use crate::resource::{RegistryReference, StatusEffect as StatusEffectRegistry};
 use crate::selector::{Selector, TargetArgument};
 
 #[sand_macros::api(
@@ -125,12 +126,15 @@ impl EffectCommand {
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
         params(target = "`target` provides the entity, block, or command target used to create a typed effect command builder from the supplied command inputs.", effect = "`effect` is used when creating a typed effect command builder from the supplied command inputs."),
         returns = "An `EffectCommand` representing a typed effect command builder from the supplied command inputs.",
-        example = "use sand::prelude::*;\n\nfn demonstrate(target: sand::command::Target, effect: impl Into < String >)  {\n    let effect_command = sand::command::EffectCommand::give(target, effect);\n}",
+        example = "use sand::prelude::*;\n\nfn demonstrate(target: sand::command::Target, effect: sand::registry::StatusEffectId)  {\n    let effect_command = sand::command::EffectCommand::give(target, effect);\n}",
     )]
-    pub fn give(target: impl TargetArgument, effect: impl Into<String>) -> Self {
+    pub fn give(
+        target: impl TargetArgument,
+        effect: impl RegistryReference<StatusEffectRegistry>,
+    ) -> Self {
         Self {
             target: target.into_target_selector(),
-            effect: effect.into(),
+            effect: effect.registry_id().to_string(),
             raw_effect: false,
             duration: None,
             amplifier: None,
@@ -156,8 +160,12 @@ impl EffectCommand {
     )]
     pub fn give_raw(target: impl TargetArgument, effect: impl Into<String>) -> Self {
         Self {
+            target: target.into_target_selector(),
+            effect: effect.into(),
             raw_effect: true,
-            ..Self::give(target, effect)
+            duration: None,
+            amplifier: None,
+            show_particles: true,
         }
     }
 
@@ -355,11 +363,11 @@ mod tests {
     #[test]
     fn exact_duration_rendering_and_defaults() {
         assert_eq!(
-            EffectCommand::give(Selector::self_(), "minecraft:speed").build(),
+            EffectCommand::give_raw(Selector::self_(), "minecraft:speed").build(),
             "effect give @s minecraft:speed"
         );
         assert_eq!(
-            EffectCommand::give(Selector::self_(), "minecraft:speed")
+            EffectCommand::give_raw(Selector::self_(), "minecraft:speed")
                 .duration(EffectDuration::seconds(10))
                 .amplifier(1)
                 .particles(false)
@@ -371,17 +379,17 @@ mod tests {
 
     #[test]
     fn ticks_must_align_and_seconds_are_bounded() {
-        let bad = EffectCommand::give(Selector::self_(), "minecraft:speed")
+        let bad = EffectCommand::give_raw(Selector::self_(), "minecraft:speed")
             .duration(EffectDuration::ticks(15));
         assert_eq!(bad.try_build().unwrap_err().code, "SAND-EFFECT-DURATION");
         assert!(
-            EffectCommand::give(Selector::self_(), "minecraft:speed")
+            EffectCommand::give_raw(Selector::self_(), "minecraft:speed")
                 .duration(EffectDuration::seconds(0))
                 .try_build()
                 .is_err()
         );
         assert!(
-            EffectCommand::give(Selector::self_(), "minecraft:speed")
+            EffectCommand::give_raw(Selector::self_(), "minecraft:speed")
                 .duration(EffectDuration::seconds(1_000_001))
                 .try_build()
                 .is_err()

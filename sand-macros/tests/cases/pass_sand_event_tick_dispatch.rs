@@ -3,6 +3,7 @@
 // owned lifecycle setup (objectives + post-observation sync).
 use sand_core::events::{EventSetup, SandEvent, SandEventDispatch};
 use sand_core::prelude::*;
+use sand_core::advanced::state::ScoreVar;
 use sand_macros::on_event;
 
 static JUMPS: ScoreVar<i32> = ScoreVar::new("mtst_jumps");

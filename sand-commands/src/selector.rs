@@ -5,106 +5,10 @@ use std::marker::PhantomData;
 
 use crate::error::{CommandError, CommandResult};
 use crate::render::{CommandProfile, RenderCommand, Validate};
+use crate::resource::{
+    EntityType as EntityTypeRegistry, Predicate as PredicateRegistry, RegistryReference,
+};
 use crate::validate;
-
-// ── Entity type conversion ──────────────────────────────────────────────────────
-
-/// Conversion accepted by entity-type filter/target methods (`entity_type`,
-/// `not_type`, `summon`, ...).
-///
-/// Implemented for `&str`/`String` (the untyped escape hatch — no validation
-/// beyond what the selector/command syntax itself enforces) and for Sand's
-/// typed vanilla/custom entity-type identifiers: the generated vanilla
-/// entity-type enum when the selected Minecraft profile provides one, and
-/// `EntityTypeId` (validated custom/modded IDs).
-/// Prefer the typed identifiers in normal code; the string forms remain for
-/// compatibility and cases with no typed representation yet.
-///
-#[sand_macros::api(
-    registry = sand_api_contract,
-    path = "sand::command::IntoEntityType",
-    aliases = ["sand::cmd::IntoEntityType", "sand::prelude::cmd::IntoEntityType"],
-    module = "sand::command",
-    summary = "Conversion accepted by entity-type filter/target methods (`entity_type`, `not_type`, `summon`, ...).",
-    context = "Conversion accepted by entity-type filter/target methods (`entity_type`, `not_type`, `summon`, ...). Implemented for `&str`/`String` (the untyped escape hatch — no validation beyond what the selector/command syntax itself enforces) and for Sand's typed vanilla/custom entity-type identifiers: the generated vanilla entity-type enum when the selected Minecraft profile provides one, and `EntityTypeId` (validated custom/modded IDs). Prefer the typed identifiers in normal code; the string forms remain for compatibility and cases with no typed representation yet.",
-    minecraft = "Implemented for `&str`/`String` (the untyped escape hatch — no validation beyond what the selector/command syntax itself enforces) and for Sand's typed vanilla/custom entity-type identifiers: the generated vanilla entity-type enum when the selected Minecraft profile provides one, and `EntityTypeId` (validated custom/modded IDs). Prefer the typed identifiers in normal code; the string forms remain for compatibility and cases with no typed representation yet.",
-    use_when = ["Constructing Minecraft commands through Sand's typed command model"],
-    avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-    example = "use sand::command::IntoEntityType;",
-)]
-pub trait IntoEntityType {
-    /// Convert to the entity type's resource location, e.g. `"minecraft:marker"`.
-    #[sand_macros::api(
-        registry = sand_api_contract,
-        path = "sand::command::IntoEntityType::into_entity_type",
-        aliases = ["sand::cmd::IntoEntityType::into_entity_type", "sand::prelude::cmd::IntoEntityType::into_entity_type"],
-        module = "sand::command",
-        summary = "Convert to the entity type's resource location, e.g. `\"minecraft:marker\"`.",
-        context = "Convert to the entity type's resource location, e.g. `\"minecraft:marker\"`. This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
-        minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
-        use_when = ["Constructing Minecraft commands through Sand's typed command model"],
-        avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        returns = "The string value produced to convert to the entity type's resource location, e.g. `\"minecraft:marker\"`.",
-        example = "use sand::prelude::*;\n\nfn demonstrate<T: sand::command::IntoEntityType>(into_entity_type_value: T)  {\n    let into_entity_type = into_entity_type_value.into_entity_type();\n}",
-    )]
-    fn into_entity_type(self) -> String;
-}
-
-impl IntoEntityType for String {
-    fn into_entity_type(self) -> String {
-        self
-    }
-}
-
-impl IntoEntityType for &str {
-    fn into_entity_type(self) -> String {
-        self.to_string()
-    }
-}
-
-impl IntoEntityType for &String {
-    fn into_entity_type(self) -> String {
-        self.clone()
-    }
-}
-
-// ── Predicate ID conversion ──────────────────────────────────────────────────
-
-/// Conversion capability for canonical predicate resource identifiers.
-///
-/// Sand implements this trait for `PredicateId` and `&PredicateId`. Arbitrary
-/// selector text deliberately remains behind [`Target::predicate_raw`], so a
-/// different registry ID cannot be passed to a predicate filter merely because
-/// it also implements [`fmt::Display`].
-#[sand_macros::api(
-    registry = sand_api_contract,
-    path = "sand::command::IntoPredicateId",
-    aliases = ["sand::cmd::IntoPredicateId", "sand::prelude::cmd::IntoPredicateId"],
-    module = "sand::command",
-    summary = "Converts the canonical predicate resource ID for a target filter.",
-    context = "Implemented for PredicateId and its shared-reference form so predicate resource kinds cannot be confused with unrelated registry IDs.",
-    minecraft = "Produces the namespace:path identifier used by a selector predicate argument.",
-    use_when = ["Writing a generic helper that accepts typed predicate resource IDs"],
-    avoid_when = ["Supplying unmodeled selector text; use Target::predicate_raw"],
-    example = "use sand::command::IntoPredicateId;",
-)]
-pub trait IntoPredicateId {
-    /// Converts this typed predicate identifier to its resource location.
-    #[sand_macros::api(
-        registry = sand_api_contract,
-        path = "sand::command::IntoPredicateId::into_predicate_id",
-        aliases = ["sand::cmd::IntoPredicateId::into_predicate_id", "sand::prelude::cmd::IntoPredicateId::into_predicate_id"],
-        module = "sand::command",
-        summary = "Converts a predicate identifier to namespace:path text.",
-        context = "Preserves the predicate-specific type boundary before selector lowering.",
-        minecraft = "Produces the resource location placed after predicate= or predicate=!.",
-        use_when = ["Lowering a typed predicate resource ID into a target filter"],
-        avoid_when = ["Passing arbitrary text; use Target::predicate_raw"],
-        returns = "The predicate resource location.",
-        example = "let id = predicate_id.into_predicate_id();",
-    )]
-    fn into_predicate_id(self) -> String;
-}
 
 // ── Public types ──────────────────────────────────────────────────────────────
 
@@ -386,18 +290,16 @@ impl<K, A> Target<K, A> {
     }
 
     /// Restricts the target through a canonical predicate resource identifier.
-    #[sand_macros::api(registry = sand_api_contract, path = "sand::command::Target::predicate", aliases = ["sand::cmd::Target::predicate", "sand::prelude::Target::predicate", "sand::prelude::cmd::Target::predicate"], module = "sand::command", summary = "Filters a target through a named predicate resource.", context = "Accepts the canonical PredicateId through the predicate-specific IntoPredicateId capability, preventing unrelated registry IDs from compiling here.", minecraft = "Emits predicate=<namespace:path>.", use_when = ["Filtering entities through a reusable predicate resource"], avoid_when = ["Supplying unsupported raw selector syntax; use predicate_raw"], params(predicate = "The canonical predicate resource identifier."), returns = "The same target with the predicate filter applied.", example = "let target = sand::command::Target::entities().predicate(predicate_id);")]
-    pub fn predicate(mut self, predicate: impl IntoPredicateId) -> Self {
-        self.raw = self.raw.predicate(predicate.into_predicate_id());
+    #[sand_macros::api(registry = sand_api_contract, path = "sand::command::Target::predicate", aliases = ["sand::cmd::Target::predicate", "sand::prelude::Target::predicate", "sand::prelude::cmd::Target::predicate"], module = "sand::command", summary = "Filters a target through a named predicate resource.", context = "Accepts the canonical PredicateId through the predicate-specific RegistryReference<PredicateRegistry> capability, preventing unrelated registry IDs from compiling here.", minecraft = "Emits predicate=<namespace:path>.", use_when = ["Filtering entities through a reusable predicate resource"], avoid_when = ["Supplying unsupported raw selector syntax; use predicate_raw"], params(predicate = "The canonical predicate resource identifier."), returns = "The same target with the predicate filter applied.", example = "let target = sand::command::Target::entities().predicate(predicate_id);")]
+    pub fn predicate(mut self, predicate: impl RegistryReference<PredicateRegistry>) -> Self {
+        self.raw = self.raw.predicate(predicate.registry_id().to_string());
         self
     }
 
     /// Excludes entities matching a canonical predicate resource identifier.
-    #[sand_macros::api(registry = sand_api_contract, path = "sand::command::Target::not_predicate", aliases = ["sand::cmd::Target::not_predicate", "sand::prelude::Target::not_predicate", "sand::prelude::cmd::Target::not_predicate"], module = "sand::command", summary = "Excludes entities matching a named predicate resource.", context = "Accepts the predicate-specific IntoPredicateId capability; negation remains a method on Target rather than another predicate-ID wrapper state.", minecraft = "Emits predicate=!<namespace:path>.", use_when = ["Excluding matches of a reusable predicate resource"], avoid_when = ["The predicate should be required; use predicate", "Supplying unsupported raw selector syntax; use predicate_raw with an explicit ! prefix"], params(predicate = "The canonical predicate resource identifier to negate."), returns = "The same target with the negated predicate filter applied.", example = "let target = sand::command::Target::entities().not_predicate(predicate_id);")]
-    pub fn not_predicate(mut self, predicate: impl IntoPredicateId) -> Self {
-        self.raw = self
-            .raw
-            .predicate(format!("!{}", predicate.into_predicate_id()));
+    #[sand_macros::api(registry = sand_api_contract, path = "sand::command::Target::not_predicate", aliases = ["sand::cmd::Target::not_predicate", "sand::prelude::Target::not_predicate", "sand::prelude::cmd::Target::not_predicate"], module = "sand::command", summary = "Excludes entities matching a named predicate resource.", context = "Accepts the predicate-specific RegistryReference<PredicateRegistry> capability; negation remains a method on Target rather than another predicate-ID wrapper state.", minecraft = "Emits predicate=!<namespace:path>.", use_when = ["Excluding matches of a reusable predicate resource"], avoid_when = ["The predicate should be required; use predicate", "Supplying unsupported raw selector syntax; use predicate_raw with an explicit ! prefix"], params(predicate = "The canonical predicate resource identifier to negate."), returns = "The same target with the negated predicate filter applied.", example = "let target = sand::command::Target::entities().not_predicate(predicate_id);")]
+    pub fn not_predicate(mut self, predicate: impl RegistryReference<PredicateRegistry>) -> Self {
+        self.raw = self.raw.predicate(format!("!{}", predicate.registry_id()));
         self
     }
 }
@@ -459,29 +361,37 @@ impl Target<AnyTarget, One> {
 
 impl<A> Target<AnyTarget, A> {
     /// Restricts the target to an entity type.
-    #[sand_macros::api(registry = sand_api_contract, path = "sand::command::Target::entity_type", aliases = ["sand::cmd::Target::entity_type", "sand::prelude::Target::entity_type", "sand::prelude::cmd::Target::entity_type"], module = "sand::command", summary = "Restricts an entity target to one entity type.", context = "Uses Sand's typed/generated entity-type conversion path and preserves cardinality.", minecraft = "Emits type=<entity-type>.", use_when = ["Filtering arbitrary entities by type"], avoid_when = ["The target is already statically player-only"], params(ty = "The typed vanilla, custom, or raw entity type."), returns = "The same entity target with the type filter applied.", example = "let target = sand::command::Target::entities().entity_type(\"minecraft:zombie\");")]
-    pub fn entity_type(mut self, ty: impl IntoEntityType) -> Self {
+    #[sand_macros::api(registry = sand_api_contract, path = "sand::command::Target::entity_type", aliases = ["sand::cmd::Target::entity_type", "sand::prelude::Target::entity_type", "sand::prelude::cmd::Target::entity_type"], module = "sand::command", summary = "Restricts an entity target to one entity type.", context = "Uses Sand's typed/generated entity-type conversion path and preserves cardinality.", minecraft = "Emits type=<entity-type>.", use_when = ["Filtering arbitrary entities by type"], avoid_when = ["The target is already statically player-only"], params(ty = "The typed vanilla, custom, or raw entity type."), returns = "The same entity target with the type filter applied.", example = "let zombie = sand::registry::EntityTypeId::minecraft(\"zombie\").unwrap();\nlet target = sand::command::Target::entities().entity_type(zombie);")]
+    pub fn entity_type(mut self, ty: impl RegistryReference<EntityTypeRegistry>) -> Self {
         self.raw = self.raw.entity_type(ty);
         self
     }
 
+    /// Restricts the target with explicit raw entity-type syntax.
+    #[sand_macros::api(registry = sand_api_contract, path = "sand::command::Target::entity_type_raw", aliases = ["sand::cmd::Target::entity_type_raw", "sand::prelude::Target::entity_type_raw", "sand::prelude::cmd::Target::entity_type_raw"], module = "sand::command", kind = "method", summary = "Filters an entity target with an explicitly raw entity-type token.", context = "Advanced escape hatch for entity syntax not represented by a typed registry ID.", minecraft = "Emits type=<token>.", use_when = ["Using unsupported entity-type syntax"], avoid_when = ["A generated EntityType or validated EntityTypeId is available"], params(ty = "The unchecked entity-type token."), returns = "The target with the raw filter applied.", example = "let target = Target::entities().entity_type_raw(\"mod:entity\");")]
+    pub fn entity_type_raw(mut self, ty: impl Into<String>) -> Self {
+        self.raw = self.raw.entity_type_raw(ty);
+        self
+    }
+
     /// Excludes an entity type.
-    #[sand_macros::api(registry = sand_api_contract, path = "sand::command::Target::not_entity_type", aliases = ["sand::cmd::Target::not_entity_type", "sand::prelude::Target::not_entity_type", "sand::prelude::cmd::Target::not_entity_type"], module = "sand::command", summary = "Excludes one entity type from an entity target.", context = "Uses Sand's typed/generated entity-type conversion path and preserves cardinality.", minecraft = "Emits type=!<entity-type>.", use_when = ["Excluding an entity category by type"], avoid_when = ["The target is statically player-only"], params(ty = "The typed vanilla, custom, or raw entity type to exclude."), returns = "The same entity target with the exclusion applied.", example = "let target = sand::command::Target::entities().not_entity_type(\"minecraft:player\");")]
-    pub fn not_entity_type(mut self, ty: impl IntoEntityType) -> Self {
+    #[sand_macros::api(registry = sand_api_contract, path = "sand::command::Target::not_entity_type", aliases = ["sand::cmd::Target::not_entity_type", "sand::prelude::Target::not_entity_type", "sand::prelude::cmd::Target::not_entity_type"], module = "sand::command", summary = "Excludes one entity type from an entity target.", context = "Uses Sand's typed/generated entity-type conversion path and preserves cardinality.", minecraft = "Emits type=!<entity-type>.", use_when = ["Excluding an entity category by type"], avoid_when = ["The target is statically player-only"], params(ty = "The typed vanilla, custom, or raw entity type to exclude."), returns = "The same entity target with the exclusion applied.", example = "let player = sand::registry::EntityTypeId::minecraft(\"player\").unwrap();\nlet target = sand::command::Target::entities().not_entity_type(player);")]
+    pub fn not_entity_type(mut self, ty: impl RegistryReference<EntityTypeRegistry>) -> Self {
         self.raw = self.raw.not_type(ty);
         self
     }
 
-    /// Alias for [`Target::not_entity_type`].
-    #[sand_macros::api(registry = sand_api_contract, path = "sand::command::Target::not_type", aliases = ["sand::cmd::Target::not_type", "sand::prelude::Target::not_type", "sand::prelude::cmd::Target::not_type"], module = "sand::command", summary = "Alias for Target::not_entity_type.", context = "Provides the compact selector-filter spelling on the canonical Target value.", minecraft = "Emits type=!<entity-type>.", use_when = ["Using symmetric entity_type/not_type naming"], avoid_when = ["A single canonical spelling is preferred; use not_entity_type"], params(ty = "The entity type to exclude."), returns = "The same entity target with the exclusion applied.", example = "let target = sand::command::Target::entities().not_type(\"minecraft:player\");")]
-    pub fn not_type(self, ty: impl IntoEntityType) -> Self {
-        self.not_entity_type(ty)
+    /// Excludes explicit raw entity-type syntax.
+    #[sand_macros::api(registry = sand_api_contract, path = "sand::command::Target::not_entity_type_raw", aliases = ["sand::cmd::Target::not_entity_type_raw", "sand::prelude::Target::not_entity_type_raw", "sand::prelude::cmd::Target::not_entity_type_raw"], module = "sand::command", kind = "method", summary = "Excludes an explicitly raw entity-type token.", context = "Advanced escape hatch for entity syntax not represented by a typed registry ID.", minecraft = "Emits type=!<token>.", use_when = ["Using unsupported entity-type syntax"], avoid_when = ["A generated EntityType or validated EntityTypeId is available"], params(ty = "The unchecked entity-type token."), returns = "The target with the raw exclusion applied.", example = "let target = Target::entities().not_entity_type_raw(\"mod:entity\");")]
+    pub fn not_entity_type_raw(mut self, ty: impl Into<String>) -> Self {
+        self.raw = self.raw.not_type_raw(ty);
+        self
     }
 
     /// Excludes players from an entity target.
     #[sand_macros::api(registry = sand_api_contract, path = "sand::command::Target::excluding_players", aliases = ["sand::cmd::Target::excluding_players", "sand::prelude::Target::excluding_players", "sand::prelude::cmd::Target::excluding_players"], module = "sand::command", summary = "Excludes players from an entity target.", context = "Discoverable typed convenience for a negated minecraft:player entity-type filter.", minecraft = "Emits type=!minecraft:player.", use_when = ["Selecting only non-player entities"], avoid_when = ["Selecting players"], returns = "The same entity target with players excluded.", example = "let target = sand::command::Target::entities().excluding_players();")]
     pub fn excluding_players(self) -> Self {
-        self.not_entity_type("minecraft:player")
+        self.not_entity_type_raw("minecraft:player")
     }
 }
 
@@ -909,14 +819,28 @@ impl Selector {
     }
 
     /// `type=<entity_type>` — select only entities of the given type.
-    pub fn entity_type(mut self, ty: impl IntoEntityType) -> Self {
-        self.args.push(SelectorArg::Type(ty.into_entity_type()));
+    pub fn entity_type(mut self, ty: impl RegistryReference<EntityTypeRegistry>) -> Self {
+        self.args
+            .push(SelectorArg::Type(ty.registry_id().to_string()));
+        self
+    }
+
+    /// Adds explicit raw entity-type selector syntax.
+    pub fn entity_type_raw(mut self, ty: impl Into<String>) -> Self {
+        self.args.push(SelectorArg::Type(ty.into()));
         self
     }
 
     /// `type=!<entity_type>` — select only entities NOT of the given type.
-    pub fn not_type(mut self, ty: impl IntoEntityType) -> Self {
-        self.args.push(SelectorArg::NotType(ty.into_entity_type()));
+    pub fn not_type(mut self, ty: impl RegistryReference<EntityTypeRegistry>) -> Self {
+        self.args
+            .push(SelectorArg::NotType(ty.registry_id().to_string()));
+        self
+    }
+
+    /// Adds explicit raw negated entity-type selector syntax.
+    pub fn not_type_raw(mut self, ty: impl Into<String>) -> Self {
+        self.args.push(SelectorArg::NotType(ty.into()));
         self
     }
 
@@ -1858,7 +1782,7 @@ mod tests {
     #[test]
     fn multiple_args() {
         let s = Selector::all_entities()
-            .entity_type("minecraft:zombie")
+            .entity_type_raw("minecraft:zombie")
             .not_tag("killed")
             .limit(5);
         assert_eq!(
@@ -1886,7 +1810,9 @@ mod tests {
 
     #[test]
     fn many_entity_limit_converts_to_single() {
-        let target = Target::entities().entity_type("minecraft:zombie").nearest();
+        let target = Target::entities()
+            .entity_type_raw("minecraft:zombie")
+            .nearest();
         assert_eq!(
             target.to_string(),
             "@e[type=minecraft:zombie,sort=nearest,limit=1]"
@@ -1941,7 +1867,7 @@ mod tests {
     #[test]
     fn sort_random_arg() {
         let s = Selector::all_entities()
-            .entity_type("minecraft:cow")
+            .entity_type_raw("minecraft:cow")
             .sort(SortOrder::Random)
             .limit(1);
         assert_eq!(s.to_string(), "@e[type=minecraft:cow,sort=random,limit=1]");
@@ -2024,7 +1950,7 @@ mod tests {
         );
         assert!(
             Selector::all_entities()
-                .entity_type("#pack:mobs")
+                .entity_type_raw("#pack:mobs")
                 .try_build()
                 .is_ok()
         );
@@ -2231,7 +2157,7 @@ mod tests {
         // chance.
         let build = || {
             Selector::all_entities()
-                .entity_type("minecraft:zombie")
+                .entity_type_raw("minecraft:zombie")
                 .tag("elite")
                 .distance_typed(TargetRange::at_most(20.0))
                 .scores_typed([
@@ -2256,7 +2182,7 @@ mod tests {
         // deterministic across repeated builds.
         let reordered = || {
             Selector::all_entities()
-                .entity_type("minecraft:zombie")
+                .entity_type_raw("minecraft:zombie")
                 .tag("elite")
                 .distance_typed(TargetRange::at_most(20.0))
                 .scores_typed([

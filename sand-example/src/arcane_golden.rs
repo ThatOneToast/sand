@@ -1,5 +1,7 @@
 //! Golden tests for the arcane_starter dogfood datapack.
 
+use sand_core::StorageVar;
+use sand_core::advanced::state::{Cooldown, ScoreVar};
 use sand_core::prelude::*;
 use sand_macros::{datapack_component, function};
 
@@ -29,9 +31,9 @@ pub fn arcane_tick() {
 pub fn arcane_cast() {
     TypedExecute::as_players_at_self()
         .when(all![ARCANE_MANA.of("@s").gte(25), ARCANE_DASH.ready("@s")])
-        .run(cmd::function(
+        .run(cmd::function(FunctionId::custom(
             ResourceLocation::new("arcane_dogfood", "cast/execute").unwrap(),
-        ));
+        )));
 }
 
 #[function("arcane_dogfood:cast/execute")]

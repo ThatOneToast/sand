@@ -296,26 +296,55 @@ fn item_stack_location() -> ResourceLocation {
 /// Implemented for `ItemStack` itself so APIs that accept `impl IntoItemStack`
 /// can also accept an already-built stack directly.
 pub trait IntoItemStack {
-    /// Converts the value through the into item stack component authoring contract.
+    /// Converts the value into a validated item-stack identity.
     #[sand_macros::api(
         registry = sand_api_contract,
-        path = "sand::component::IntoItemStack::into_item_stack",
-        aliases = ["sand::prelude::IntoItemStack::into_item_stack"],
+        path = "sand::component::IntoItemStack::try_into_item_stack",
+        aliases = ["sand::prelude::IntoItemStack::try_into_item_stack"],
         module = "sand::component",
-        summary = "Converts the value through the into item stack component authoring contract.",
-        context = "Converts the value through the into item stack component authoring contract. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+        summary = "Converts the value into a validated item-stack identity.",
+        context = "Converts generated items, typed ItemId values, CustomItem builders, and existing stacks through one fallible boundary so malformed custom-item bases remain ordinary diagnostics.",
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        returns = "The `ItemStack` value produced to convert the value through the into item stack component authoring contract.",
-        example = "use sand::prelude::*;\n\nfn demonstrate<T: sand::component::IntoItemStack>(into_item_stack_value: T)  {\n    let into_item_stack = into_item_stack_value.into_item_stack();\n}",
+        returns = "The canonical item stack, or a validation diagnostic for a malformed item identity.",
+        example = "use sand::prelude::*;\n\nfn demonstrate<T: sand::component::IntoItemStack>(value: T) -> sand::component::Result<()> {\n    let stack = value.try_into_item_stack()?;\n    Ok(())\n}",
     )]
-    fn into_item_stack(self) -> ItemStack;
+    fn try_into_item_stack(self) -> SandResult<ItemStack>;
 }
 
 impl IntoItemStack for ItemStack {
-    fn into_item_stack(self) -> ItemStack {
-        self
+    fn try_into_item_stack(self) -> SandResult<ItemStack> {
+        Ok(self)
+    }
+}
+
+impl IntoItemStack for ItemId {
+    fn try_into_item_stack(self) -> SandResult<ItemStack> {
+        Ok(ItemStack::new(self))
+    }
+}
+
+impl IntoItemStack for &ItemId {
+    fn try_into_item_stack(self) -> SandResult<ItemStack> {
+        Ok(ItemStack::new(self.clone()))
+    }
+}
+
+impl IntoItemStack for CustomItem {
+    fn try_into_item_stack(self) -> SandResult<ItemStack> {
+        let id = self.base_id().parse()?;
+        Ok(ItemStack {
+            id,
+            count: 1,
+            item: self,
+        })
+    }
+}
+
+impl IntoItemStack for &CustomItem {
+    fn try_into_item_stack(self) -> SandResult<ItemStack> {
+        self.clone().try_into_item_stack()
     }
 }
 

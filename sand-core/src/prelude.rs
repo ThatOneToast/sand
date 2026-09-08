@@ -30,7 +30,7 @@ pub use crate::cmd::{
     Actionbar, BlockPos, BlockState, Bossbar, BossbarColor, BossbarId, BossbarStyle, Build,
     CloneBlocks, CloneMaskMode, CloneMode, Coord, DamageAmount, DamageBuilder, DamageKind,
     DataCommand, EffectDuration, Execute, Fill, FillMode, FunctionMacroArg, FunctionMacroArgs,
-    GameMode, Inventory, ItemSlot, Nbt, NbtCompound, NbtRef, NbtTarget, Objective, ObjectiveName,
+    GameMode, Inventory, ItemSlot, Nbt, NbtCompound, NbtPath, NbtRef, Objective, ObjectiveName,
     Particle, ParticleBuilder, ParticleSpread, RawCommand, RenderCommand, Rotation, ScoreHolder,
     SetBlock, SetBlockMode, SortOrder, Sound, SoundSource, Target, Title, TitleTimes, UntypedNbt,
     Validate, Vec2, Vec3,
@@ -47,14 +47,10 @@ pub use crate::state::lifecycle::{
     StateCleanup, StateInit, StateLifecycle, StateMigrate, StateProvision, StateReconcile,
     StateTick,
 };
-pub use crate::state::{
-    BlockNbt, Cooldown, EntityNbt, Flag, FlagRef, GameState, GameStateRef, IntoStateCommands,
-    NbtLocation, NbtPath, ScoreRef, ScoreVar, SnbtCompound, SnbtValue, StateFlow, StorageField,
-    StorageLocation, StorageSchema, StorageVar, Ticks, Timer, TypedGameState,
-};
 
 // ── Version gating ────────────────────────────────────────────────────────────
 
+pub use crate::state::Ticks;
 pub use crate::version::{MinecraftVersion, VersionFeature, VersionProfile};
 
 /// Validated `namespace:path` locations shared by typed resource IDs.
@@ -63,26 +59,27 @@ pub use crate::ResourceLocation;
 // ── Entity queries and execution-scoped contexts ──────────────────────────────
 
 pub use crate::entity::{
-    Adoption, AdoptionSource, AnyEntity, AttributeBinding, AttributeModifierBinding,
+    Adoption, AdoptionSource, AnyEntity, AttributeBinding, AttributeModifierBinding, Cooldown,
     CurrentHealthSync, CurveEvaluationError, CurveInputs, DEFAULT_FIXED_POINT_SCALE, Data,
     DerivedScoreEncoding, EffectBinding, EntityAction, EntityArchetype, EntityContext,
     EntityCooldown, EntityDerivation, EntityDiagnostic, EntityEnum, EntityEnumValue, EntityEventId,
     EntityFlag, EntityKind, EntityName, EntityNbtBinding, EntityNbtProperty, EntityNbtType,
     EntityNbtValue, EntityScope, EntityScore, EntityState, EntityStateField, EntityTag, EntityTeam,
     EntityTimer, EntityTransition, EnumEncoding, EquipmentBinding, FixedPoint, FixedScore,
-    FixedScoreAccessor, FixedScoreValue, FixedValue, GlobalStateBundleOperations, HealthBinding,
-    HealthResizePolicy, KeyedData, KnownEntityKind, LivingEntityKind, MarkerKind, Migration,
-    MutableLivingEntityKind, NumericPropertySource, NumericStateField, NumericStateSource,
-    OverflowPolicy, OwnershipPolicy, PlayerKind, RawEntityProperty, RawEntityStateField,
-    ReconcilePolicy, RefreshPolicy, Relation, RelationTraversal, RoundingPolicy,
-    SafeEntityDataWriteKind, ScopedEntityRef, Score, SpecialEntityPolicy, StatCurve,
-    StateComposition, StateFieldDescriptor, StateFieldKind, StatePredicate, StateQueryOperations,
-    StateSchema, TagBinding, TargetExecution, TeamBinding, ThresholdDirection, ZombieKind,
+    FixedScoreAccessor, FixedScoreValue, FixedValue, Flag, GlobalStateBundleOperations,
+    HealthBinding, HealthResizePolicy, KeyedData, KnownEntityKind, LivingEntityKind, MarkerKind,
+    Migration, MutableLivingEntityKind, NumericPropertySource, NumericStateField,
+    NumericStateSource, OverflowPolicy, OwnershipPolicy, PlayerKind, RawEntityProperty,
+    RawEntityStateField, ReconcilePolicy, RefreshPolicy, Relation, RelationTraversal,
+    RoundingPolicy, SafeEntityDataWriteKind, ScopedEntityRef, Score, SpecialEntityPolicy,
+    StatCurve, StateComposition, StateFieldDescriptor, StateFieldKind, StatePredicate,
+    StateQueryOperations, StateSchema, TagBinding, TargetExecution, TeamBinding,
+    ThresholdDirection, Timer, ZombieKind,
 };
 
-// ── Function refs (IntoFunctionRef trait) ─────────────────────────────────────
+// ── Function refs (FunctionRef trait) ─────────────────────────────────────
 
-pub use crate::function::IntoFunctionRef;
+pub use crate::function::FunctionRef;
 
 // ── Typed event model ─────────────────────────────────────────────────────────
 
@@ -186,7 +183,7 @@ pub use sand_components::{
     AdvancementId, BiomeId, BlockId, ConfiguredCarverId, ConfiguredFeatureId, DamageTypeId,
     DensityFunctionId, DialogId, DimensionId, DimensionTypeId, EffectId,
     EnchantmentEffectComponentId, EnchantmentId, EntityTypeId, FunctionId, ItemId, LootTableId,
-    NoiseId, PotionContents, PotionId, PotionRegistryId, PredicateId, ProcessorListId,
+    NoiseId, ParticleId, PotionContents, PotionId, PotionRegistryId, PredicateId, ProcessorListId,
     RandomSequenceId, RecipeId, SoundEventId, StatusEffectId, StatusEffectInstance, StructureId,
     StructureSetId, StructureTemplate, StructureTemplateId, StructureTypeId, SuspiciousStewEffect,
     TagId, TemplatePoolId, TradeSetId, VillagerTradeId,
@@ -194,9 +191,7 @@ pub use sand_components::{
 
 // ── Text / chat ───────────────────────────────────────────────────────────────
 
-pub use sand_commands::{
-    ChatColor, ClickEvent, EntityHoverId, HoverEvent, IntoTextEntityType, Text, TextComponent,
-};
+pub use sand_commands::{ChatColor, ClickEvent, EntityHoverId, HoverEvent, Text, TextComponent};
 
 #[cfg(test)]
 mod tests {
@@ -279,42 +274,16 @@ mod tests {
     }
 
     #[test]
-    fn prelude_exports_resource_locations_for_function_refs() {
-        let id = ResourceLocation::new("example", "start").unwrap();
+    fn prelude_exports_typed_function_refs() {
+        let id: FunctionId = "example:start".parse().unwrap();
         assert_eq!(cmd::function(id).to_string(), "function example:start");
-    }
-
-    #[test]
-    fn prelude_exports_typed_game_state() {
-        #[derive(Clone, Copy, PartialEq, Eq)]
-        enum Phase {
-            Idle = 0,
-        }
-
-        impl TypedGameState for Phase {
-            fn to_score(self) -> i32 {
-                self as i32
-            }
-
-            fn from_score(score: i32) -> Option<Self> {
-                match score {
-                    0 => Some(Self::Idle),
-                    _ => None,
-                }
-            }
-        }
-
-        static PHASE: GameState<Phase> = GameState::with_default_score("phase", 0);
-
-        let _state_ref: GameStateRef<'_, Phase> = PHASE.of("@s");
-        assert_eq!(PHASE.of("@s").reset(), "scoreboard players set @s phase 0");
     }
 
     #[test]
     fn prelude_exports_vfx_types() {
         let commands = Vfx::new("prelude")
             .particle(VfxParticle::happy_villager().count(2))
-            .sound(VfxSound::new("minecraft:block.note_block.bell").source(SoundSource::Player))
+            .sound(VfxSound::new_raw("minecraft:block.note_block.bell").source(SoundSource::Player))
             .play_at(Target::self_());
 
         assert_eq!(
@@ -372,7 +341,7 @@ mod tests {
         assert_eq!(gamemode, "gamemode survival @s");
 
         // Function call.
-        let call = cmd::try_function("my_pack:api/do_thing").unwrap();
+        let call = cmd::function("my_pack:api/do_thing".parse::<FunctionId>().unwrap());
         assert_eq!(call, "function my_pack:api/do_thing");
 
         // Raw command escape hatch.

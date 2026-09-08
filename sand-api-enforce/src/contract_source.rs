@@ -1451,7 +1451,7 @@ impl RegisterArgs {
                     "Operations render vanilla data commands against entity, block, or namespaced command-storage targets and validate writable target cardinality.",
                     "Reading or mutating structured Minecraft NBT through typed paths and values",
                     "A scoreboard-backed state field is simpler, or the input is untrusted raw SNBT",
-                    "use sand::data::{NbtPath, StorageLocation};",
+                    "let data = sand::data::Nbt::storage(sand::ResourceLocation::new(\"demo\", \"data\").unwrap()).path(\"value\");",
                     Vec::new(),
                 ),
                 "register_command_api" => (

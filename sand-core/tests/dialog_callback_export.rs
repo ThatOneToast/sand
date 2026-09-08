@@ -12,7 +12,7 @@
 use sand_components::dialog::{Dialog, DialogAction, DialogButton};
 use sand_core::component::export_components_json;
 use sand_core::function::ComponentFactory;
-use sand_core::inventory;
+use sand_core::{FunctionId, inventory};
 use std::sync::{LazyLock, Mutex};
 
 /// The real export path serializes every export through
@@ -24,16 +24,22 @@ use std::sync::{LazyLock, Mutex};
 /// on this test-local lock instead, to avoid stealing each other's IDs.
 static TEST_LOCK: Mutex<()> = Mutex::new(());
 
+fn function_id(value: &str) -> FunctionId {
+    value.parse().expect("valid callback function ID")
+}
+
 fn callback_dialog() -> Box<dyn sand_core::DatapackComponent> {
     static DIALOG: LazyLock<Dialog> = LazyLock::new(|| {
         Dialog::multi_action_local("callback_menu")
             .button(
-                DialogButton::new("First")
-                    .action(DialogAction::callback("__sand_local:first_callback")),
+                DialogButton::new("First").action(DialogAction::callback(function_id(
+                    "__sand_local:first_callback",
+                ))),
             )
             .button(
-                DialogButton::new("Second")
-                    .action(DialogAction::callback("example:second_callback")),
+                DialogButton::new("Second").action(DialogAction::callback(function_id(
+                    "example:second_callback",
+                ))),
             )
     });
     Box::new(DIALOG.clone())
@@ -94,9 +100,9 @@ fn repeated_exports_assign_stable_unique_dialog_callback_ids() {
 // as well as every export. Used to confirm a third, later export is not
 // shifted by a prior unrelated export's dialogs.
 fn build_solo_callback_dialog() -> Dialog {
-    Dialog::multi_action_local("solo_menu").button(
-        DialogButton::new("Only").action(DialogAction::callback("__sand_local:solo_callback")),
-    )
+    Dialog::multi_action_local("solo_menu").button(DialogButton::new("Only").action(
+        DialogAction::callback(function_id("__sand_local:solo_callback")),
+    ))
 }
 
 #[test]
@@ -129,9 +135,10 @@ fn prebuilt_dialog_callback_survives_a_reset_issued_before_it_is_serialized() {
     // called) *before* reset_dialog_callbacks_for_export runs — e.g. a
     // LazyLock forced by unrelated code, or a unit test building a component
     // ahead of any export.
-    let prebuilt = Dialog::multi_action_local("prebuilt_menu").button(
-        DialogButton::new("Go").action(DialogAction::callback("__sand_local:prebuilt_callback")),
-    );
+    let prebuilt =
+        Dialog::multi_action_local("prebuilt_menu").button(DialogButton::new("Go").action(
+            DialogAction::callback(function_id("__sand_local:prebuilt_callback")),
+        ));
 
     // An export boundary starts: reset must not need to know this dialog
     // exists yet, and must not prevent it from registering when serialized.

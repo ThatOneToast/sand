@@ -1,6 +1,7 @@
 use sand_core::event::vanilla::PlayerLevelsUp;
 use sand_core::events::PlayerLevelUpEvent;
 use sand_core::prelude::*;
+use sand_core::advanced::state::ScoreVar;
 use sand_macros::on_event;
 
 static MANA: ScoreVar<i32> = ScoreVar::new("mana");

@@ -19,9 +19,9 @@
 //!   `Actionbar`, `Bossbar`, `Title`, particles, and `Damage`.
 //! - **Conditions** — [`Condition`] and the grouped-branch
 //!   helpers `if_`/`unless`/`when` from [`crate::execute_when`].
-//! - **State** — `ScoreVar`, `Flag`, `Timer`, `Cooldown`, `GameState`/
-//!   `TypedGameState`, and storage types (`StorageVar`, `StorageSchema`,
-//!   `SnbtValue`, …).
+//! - **State** — derive macros and declarative state vocabulary. Low-level
+//!   scoreboard builders live under [`crate::advanced::state`], while typed
+//!   storage and NBT values live under [`crate::data`].
 //! - **Entities** — target execution capabilities and execution-scoped
 //!   contexts from [`crate::entity`].
 //! - **Events** — the typed event model: `Event`, `AdvancementEvent`,

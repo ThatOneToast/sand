@@ -35,7 +35,7 @@ fn invalid_custom_item_reports_a_sand_diagnostic_before_reaching_give() {
 
     let result: Result<String, _> = invalid
         .try_to_string()
-        .map(|item_str| cmd::give(Target::all_players(), item_str).to_string());
+        .map(|item_str| cmd::give_raw(Target::all_players(), item_str).to_string());
 
     let err = result.expect_err("invalid CustomItem must not reach cmd::give");
     assert!(err.to_string().contains("max_stack_size"), "{err}");

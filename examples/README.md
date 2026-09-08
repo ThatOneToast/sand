@@ -6,13 +6,13 @@ standalone crates; scaffold a project and paste the relevant code into
 
 ## Typed Beginner Path
 
-- `basic_typed.rs` — typed function, load, and tick basics with `ScoreVar`, `#[datapack_component(Load)]`, `#[datapack_component(Tick)]`.
-- `state_and_conditions.rs` — scoreboard state, flags, cooldowns, and nested `all!`/`any!` conditions.
-- `gameplay_state.rs` — boss encounter using enum-backed `StateFlow` hooks with a typed bossbar, title/actionbar, particle geometry, sound, and status effect. See the [player state and storage chapter](../book/src/07-state-and-storage.md) and [validated command-media chapter](../book/src/19-validated-command-media.md).
+- `basic_typed.rs` — typed functions and a minimal global `#[derive(State)]` schema.
+- `state_and_conditions.rs` — derived player State, flags, cooldowns, and nested `all!`/`any!` conditions.
+- `gameplay_state.rs` — boss encounter using enum-backed derived State with a typed bossbar, function handles, and status effects. See the [player state and storage chapter](../book/src/07-state-and-storage.md) and [validated command-media chapter](../book/src/19-validated-command-media.md).
 - `dialogs.rs` — typed dialog component with a typed function command action.
-- `storage_nbt.rs` — typed `StorageVar<T>`, storage paths, and storage-backed conditions.
+- `storage_nbt.rs` — canonical `Nbt` roots, typed paths, and storage-backed conditions.
 - `datapack_components.rs` — typed datapack JSON components (dialogs, custom items).
-- `spell_system.rs` — small typed gameplay flow: load, tick, named function, cooldown, conditions, actionbar, storage.
+- `spell_system.rs` — small typed gameplay flow using derived State and canonical function handles.
 
 ## Advanced And Interop
 

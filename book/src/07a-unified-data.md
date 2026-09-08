@@ -10,7 +10,7 @@ use sand::prelude::*;
 
 let health = Nbt::entity(Target::self_()).path("Health");
 let first_item = Nbt::block(BlockPos::here()).path("Items[0]");
-let cache = Nbt::storage("trail:cache").path("last_item");
+let cache = Nbt::storage(ResourceLocation::new("trail", "cache").unwrap()).path("last_item");
 ```
 
 `path(...)` creates an untyped reference for dynamic vanilla data.
@@ -30,13 +30,13 @@ Typed integers, floats, booleans, strings, lists, and `NbtCompound` values
 render as SNBT. Raw SNBT remains explicit and opaque; Sand does not parse it.
 
 ```rust,ignore
-let config = Nbt::storage("trail:config").path("max_level");
+let config = Nbt::storage(ResourceLocation::new("trail", "config").unwrap()).path("max_level");
 config.set(10);
 config.get();
 config.get_scaled(10.0);
 config.remove();
 
-let queue = Nbt::storage("trail:data").path("queue");
+let queue = Nbt::storage(ResourceLocation::new("trail", "data").unwrap()).path("queue");
 queue.append(1);
 queue.prepend_from(&config);
 queue.insert(2, NbtCompound::new().field("ready", true));
@@ -70,12 +70,12 @@ replace`, which is the safe vanilla mutation family.
 
 ```rust,ignore
 let selected = ItemLocation::entity(Target::self_()).mainhand();
-let cache = Nbt::storage("trail:cache").path("last_item");
+let cache = Nbt::storage(ResourceLocation::new("trail", "cache").unwrap()).path("last_item");
 selected.copy_to(&cache);
 
 ItemLocation::block(BlockPos::here())
     .slot(0)?
-    .copy_to(&Nbt::storage("trail:cache").path("input"));
+    .copy_to(&Nbt::storage(ResourceLocation::new("trail", "cache").unwrap()).path("input"));
 
 let offhand = ItemLocation::entity(Target::self_()).offhand();
 offhand.replace_from(&selected)?;
@@ -92,45 +92,29 @@ conditions; `.exists()` lowers through typed `execute if data`.
 
 ## Schema-owned field handles
 
-`PlayerDataSchema` groups initialization while field handles remain the single
-source of truth for access. Ordinary Rust methods give fields semantic names
-without runtime string lookup or macro attributes:
+Derived State is the single source of truth for scoped gameplay fields. The
+derive creates lifecycle metadata and bound handles from one declaration:
 
 ```rust,ignore
-static MANA: ScoreField = ScoreField::new("trail_mana").default(100);
-static HAS_WAND: FlagField = FlagField::new("trail_wand").default(false);
-static CAST: CooldownField =
-    CooldownField::new("trail_cast", Ticks::seconds(3));
-static PHASE: GameStateField<BossPhase> =
-    GameStateField::with_default_score("trail_phase", 0);
-
-struct PlayerModel;
-static PLAYER: PlayerModel = PlayerModel;
-
-impl PlayerModel {
-    fn schema(&self) -> PlayerDataSchema {
-        PlayerDataSchema::new("trail")
-            .score_field(&MANA)
-            .flag_field(&HAS_WAND)
-            .cooldown_field(&CAST)
-            .game_state(&PHASE)
-    }
-
-    fn mana(&self) -> &'static ScoreField { &MANA }
-    fn has_wand(&self) -> &'static FlagField { &HAS_WAND }
-    fn cast_cooldown(&self) -> &'static CooldownField { &CAST }
-    fn phase(&self) -> &'static GameStateField<BossPhase> { &PHASE }
+#[derive(State)]
+#[state(namespace = "trail", scope = player)]
+struct PlayerData {
+    #[state(default = 100)]
+    mana: Score,
+    #[state(default = false)]
+    has_wand: Flag,
+    #[state(auto_tick)]
+    cast: Cooldown,
+    #[state(default = "BossPhase::Idle")]
+    phase: EntityEnum<BossPhase>,
 }
 
-PLAYER.mana().of("@s").gte(25);
-PLAYER.has_wand().of("@s").is_true();
-PLAYER.cast_cooldown().of("@s").ready();
+let player = PlayerData::on(EntityContext::<PlayerKind>::default());
+player.mana.gte(25);
+player.has_wand.is_enabled();
+player.cast.ready();
 ```
 
-`define_all()` deduplicates objectives and `init_player(...)` applies defaults
-only to missing scores, so reloads and reconnects do not clobber state.
-Timer and cooldown ticking still use their existing lifecycle operations.
-
-Storage fields are deliberately named `GlobalStorageField`. Command storage is
-pack-global; attaching one to a player schema does not make it per-player.
-Sand does not invent an implicit UUID-keyed record format.
+Schema provisioning applies defaults only to missing state, so reloads and
+reconnects do not clobber values. Command storage remains pack-global; Sand
+does not invent an implicit UUID-keyed record format.

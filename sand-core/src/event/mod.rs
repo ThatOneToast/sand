@@ -22,7 +22,7 @@ use std::marker::PhantomData;
 
 /// Converts a value into a validated event/advancement [`ResourceLocation`](crate::ResourceLocation).
 ///
-/// Mirrors [`crate::function::IntoFunctionRef`]'s conversion table: a typed
+/// Mirrors [`crate::function::FunctionRef`]'s conversion table: a typed
 /// [`ResourceLocation`](crate::ResourceLocation) value passes through unchanged (already validated at
 /// construction), while raw `&str`/`String` values are parsed and validated
 /// here, panicking with an actionable diagnostic on malformed input.

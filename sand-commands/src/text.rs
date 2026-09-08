@@ -22,6 +22,8 @@
 use std::collections::BTreeMap;
 use std::{fmt, str::FromStr};
 
+use crate::resource::{EntityType as EntityTypeRegistry, RegistryReference};
+
 use crate::Build;
 use crate::error::{CommandError, CommandResult};
 use crate::render::{CommandProfile, RenderCommand, Validate};
@@ -179,43 +181,6 @@ pub enum HoverEvent {
         /// `id` optionally provides the identifier when show a legacy entity tooltip using raw strings, including a plain name.
         id: Option<String>,
     },
-}
-
-#[sand_macros::api(
-    registry = sand_api_contract,
-    path = "sand::text::IntoTextEntityType",
-    aliases = ["sand::cmd::IntoTextEntityType", "sand::command::IntoTextEntityType", "sand::prelude::IntoTextEntityType", "sand::prelude::cmd::IntoTextEntityType"],
-    module = "sand::text",
-    summary = "Conversion implemented by Sand's typed entity registry identifiers.",
-    context = "Conversion implemented by Sand's typed entity registry identifiers. [`TextComponent::hover_entity`] accepts this trait instead of an arbitrary string. `EntityTypeId` validates manually constructed IDs, while Sand's profile-generated vanilla entity enum supplies built-in IDs when available. Use [`TextComponent::hover_entity_raw`] only when an untyped compatibility escape hatch is required.",
-    minecraft = "The component serializes to the JSON text format consumed by tellraw, titles, books, dialogs, and other vanilla text fields.",
-    use_when = ["Building player-visible text with typed styling or interactions"],
-    avoid_when = ["Passing an unvalidated JSON string when a typed text component can express the same value"],
-    example = "use sand::text::IntoTextEntityType;",
-)]
-/// Conversion implemented by Sand's typed entity registry identifiers.
-///
-/// [`TextComponent::hover_entity`] accepts this trait instead of an arbitrary
-/// string. `EntityTypeId` validates manually constructed IDs, while Sand's
-/// profile-generated vanilla entity enum supplies built-in IDs when available. Use
-/// [`TextComponent::hover_entity_raw`] only when an untyped compatibility
-/// escape hatch is required.
-pub trait IntoTextEntityType {
-    /// Convert the validated entity registry identifier to its resource location.
-    #[sand_macros::api(
-        registry = sand_api_contract,
-        path = "sand::text::IntoTextEntityType::into_text_entity_type",
-        aliases = ["sand::cmd::IntoTextEntityType::into_text_entity_type", "sand::command::IntoTextEntityType::into_text_entity_type", "sand::prelude::IntoTextEntityType::into_text_entity_type", "sand::prelude::cmd::IntoTextEntityType::into_text_entity_type"],
-        module = "sand::text",
-        summary = "Convert the validated entity registry identifier to its resource location.",
-        context = "Convert the validated entity registry identifier to its resource location. Sand text values preserve Minecraft's structured JSON component model, including styling and validated click or hover interactions.",
-        minecraft = "The component serializes to the JSON text format consumed by tellraw, titles, books, dialogs, and other vanilla text fields.",
-        use_when = ["Building player-visible text with typed styling or interactions"],
-        avoid_when = ["Passing an unvalidated JSON string when a typed text component can express the same value"],
-        returns = "The string value produced to convert the validated entity registry identifier to its resource location.",
-        example = "use sand::prelude::*;\n\nfn demonstrate<T: sand::text::IntoTextEntityType>(into_text_entity_type_value: T)  {\n    let into_text_entity_type = into_text_entity_type_value.into_text_entity_type();\n}",
-    )]
-    fn into_text_entity_type(self) -> String;
 }
 
 #[sand_macros::api(
@@ -1345,16 +1310,16 @@ impl TextComponent {
         avoid_when = ["Passing an unvalidated JSON string when a typed text component can express the same value"],
         params(entity_type = "`entity_type` is used to show an entity tooltip without a UUID on hover. The entity type must be one of Sand's typed registry identifiers. The displayed name remains a full text component, so styling and translation data are preserved.", name = "`name` is used to show an entity tooltip without a UUID on hover. The entity type must be one of Sand's typed registry identifiers. The displayed name remains a full text component, so styling and translation data are preserved."),
         returns = "The `TextComponent` value with the documented change applied to show an entity tooltip without a UUID on hover. The entity type must be one of Sand's typed registry identifiers. The displayed name remains a full text component, so styling and translation data are preserved.",
-        example = "use sand::prelude::*;\n\nfn demonstrate(text_component_value: sand::text::TextComponent, entity_type: impl sand::text::IntoTextEntityType, name: sand::text::TextComponent)  {\n    let updated_text_component = text_component_value.hover_entity(entity_type, name);\n}",
+        example = "use sand::prelude::*;\n\nfn demonstrate(text_component_value: sand::text::TextComponent, entity_type: impl sand::resource_ref::RegistryReference<sand::resource_ref::EntityTypeRegistry>, name: sand::text::TextComponent)  {\n    let updated_text_component = text_component_value.hover_entity(entity_type, name);\n}",
     )]
     pub fn hover_entity(
         mut self,
-        entity_type: impl IntoTextEntityType,
+        entity_type: impl RegistryReference<EntityTypeRegistry>,
         name: TextComponent,
     ) -> Self {
         self.hover_event = Some(TextHoverEvent::ShowEntityText {
             name: Box::new(name),
-            entity_type: entity_type.into_text_entity_type(),
+            entity_type: entity_type.registry_id().to_string(),
             id: None,
             raw: false,
         });
@@ -1381,17 +1346,17 @@ impl TextComponent {
         avoid_when = ["Passing an unvalidated JSON string when a typed text component can express the same value"],
         params(entity_type = "`entity_type` is used to show an entity tooltip with a validated UUID on hover.", id = "`id` is the entity UUID shown in the hover payload, not a namespaced Minecraft resource identifier.", name = "Parse user-provided UUID text with [`EntityHoverId::parse`] first. The styled `name` is serialized as a complete text component."),
         returns = "The `TextComponent` value with the documented change applied to show an entity tooltip with a validated UUID on hover.",
-        example = "use sand::prelude::*;\n\nfn demonstrate(text_component_value: sand::text::TextComponent, entity_type: impl sand::text::IntoTextEntityType, id: sand::text::EntityHoverId, name: sand::text::TextComponent)  {\n    let updated_text_component = text_component_value.hover_entity_with_id(entity_type, id, name);\n}",
+        example = "use sand::prelude::*;\n\nfn demonstrate(text_component_value: sand::text::TextComponent, entity_type: impl sand::resource_ref::RegistryReference<sand::resource_ref::EntityTypeRegistry>, id: sand::text::EntityHoverId, name: sand::text::TextComponent)  {\n    let updated_text_component = text_component_value.hover_entity_with_id(entity_type, id, name);\n}",
     )]
     pub fn hover_entity_with_id(
         mut self,
-        entity_type: impl IntoTextEntityType,
+        entity_type: impl RegistryReference<EntityTypeRegistry>,
         id: EntityHoverId,
         name: TextComponent,
     ) -> Self {
         self.hover_event = Some(TextHoverEvent::ShowEntityText {
             name: Box::new(name),
-            entity_type: entity_type.into_text_entity_type(),
+            entity_type: entity_type.registry_id().to_string(),
             id: Some(id.to_string()),
             raw: false,
         });
@@ -2180,9 +2145,11 @@ mod tests {
     #[derive(Clone, Copy)]
     struct Zombie;
 
-    impl IntoTextEntityType for Zombie {
-        fn into_text_entity_type(self) -> String {
-            "minecraft:zombie".to_owned()
+    impl crate::resource::sealed::Sealed<EntityTypeRegistry> for Zombie {}
+
+    impl RegistryReference<EntityTypeRegistry> for Zombie {
+        fn registry_id(&self) -> crate::resource::RegistryId<EntityTypeRegistry> {
+            crate::resource::RegistryId::new("minecraft:zombie").expect("test entity type is valid")
         }
     }
 

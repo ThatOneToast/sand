@@ -36,6 +36,9 @@ use sand::events::{
     EntityDamagePlayerEvent, EntityKillEvent, PlayerDamageEntityEvent, PlayerKillEvent,
 };
 use sand::prelude::*;
+// This runtime-audit fixture intentionally verifies exact scoreboard lowering.
+// Application gameplay state belongs in `#[derive(State)]` schemas.
+use sand::advanced::state::ScoreVar;
 
 /// Typed evidence schema for every scenario this pack validates. Field
 /// paths are flat (`state.<field>`) — nested schema support does not exist

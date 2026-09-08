@@ -7,7 +7,8 @@ use sand::prelude::*;
 
 // -- State ------------------------------------------------------------------
 
-static PLAYER_DATA: StorageVar<i32> = StorageVar::new("{{namespace}}:data", "player.mana");
+static PLAYER_DATA: sand::data::StorageVar<i32> =
+    sand::data::StorageVar::new("{{namespace}}:data", "player.mana");
 
 // -- Functions -------------------------------------------------------------
 
@@ -15,7 +16,7 @@ static PLAYER_DATA: StorageVar<i32> = StorageVar::new("{{namespace}}:data", "pla
 ///
 /// Automatically written to `data/{{namespace}}/function/hello_world.mcfunction`
 /// by `sand build`. Called from `on_join` below via a typed function
-/// reference (`cmd::call`), and callable directly with `/function {{namespace}}:hello_world`.
+/// reference (`cmd::function`), and callable directly with `/function {{namespace}}:hello_world`.
 #[function]
 pub fn hello_world() {
     cmd::tellraw(
@@ -41,7 +42,7 @@ pub fn hello_world() {
 #[on_event]
 pub fn on_join(event: Event<OnJoinEvent>) {
     let _ = event;
-    cmd::call(hello_world);
+    cmd::function(hello_world);
 }
 
 // -- Datapack export hook -- required by `sand build`, do not remove -------

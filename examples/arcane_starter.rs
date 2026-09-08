@@ -26,28 +26,36 @@
 //! cargo run -p sand -- build
 //! ```
 
-use sand_core::prelude::*;
-use sand_macros::{datapack_component, function};
+use sand::prelude::*;
 
 // -- State ------------------------------------------------------------------
 
-/// Player mana (scoreboard integer).
-static MANA: ScoreVar<i32> = ScoreVar::new("mana");
+#[derive(State)]
+#[state(namespace = "arcane", scope = player)]
+#[allow(dead_code)]
+struct ArcanePlayer {
+    /// Player mana.
+    #[state(default = 100, min = 0)]
+    mana: Score,
+    /// Dash cooldown.
+    #[state(auto_tick)]
+    dash: Cooldown,
+}
 
-/// Dash cooldown (scoreboard-based timer, 3 seconds).
-static DASH: Cooldown = Cooldown::new("dash", Ticks::seconds(3));
+fn player_state() -> ArcanePlayerBound {
+    ArcanePlayer::on(EntityContext::<PlayerKind>::default())
+}
 
-/// Persistent player settings (NBT storage).
-static PLAYER_DATA: StorageVar<i32> = StorageVar::new("arcane:data", "player.settings");
+fn player_settings() -> NbtRef<i32> {
+    Nbt::storage(ResourceLocation::new("arcane", "data").unwrap()).typed_path("player.settings")
+}
 
 // -- Load ------------------------------------------------------------------
 
-/// Initialize scoreboards and storage on datapack load.
+/// Initialize storage on datapack load; State owns its scoreboard lifecycle.
 #[datapack_component(Load)]
 pub fn load() {
-    MANA.define();
-    DASH.define();
-    PLAYER_DATA.set_int(100);
+    player_settings().set(100);
     cmd::tellraw(
         Target::players(),
         Text::new("[Arcane] Datapack loaded.").gold().bold(true),
@@ -56,16 +64,16 @@ pub fn load() {
 
 // -- Tick ------------------------------------------------------------------
 
-/// Per-tick logic: decrement cooldowns, show actionbar status.
+/// Per-tick logic: show actionbar status. Auto-tick fields decrement through State.
 #[datapack_component(Tick)]
 pub fn tick() {
-    DASH.tick_all_players();
+    let player = player_state();
 
     // Show "Dash ready" when the player has enough mana and dash is off cooldown.
     TypedExecute::as_players()
         .when(all![
-            MANA.of("@s").gte(25),
-            DASH.ready("@s"),
+            player.mana.matches(25..).unwrap(),
+            player.dash.ready(),
         ])
         .run(Actionbar::show(
             Target::self_(),
@@ -78,18 +86,18 @@ pub fn tick() {
 /// Cast the dash ability — costs 25 mana, starts 3-second cooldown.
 #[function("arcane:cast_dash")]
 pub fn cast_dash() {
+    let player = player_state();
     TypedExecute::as_players_at_self()
-        .when(all![MANA.of("@s").gte(25), DASH.ready("@s")])
-        .run(cmd::function(
-            ResourceLocation::new("arcane", "cast_dash/execute").unwrap(),
-        ));
+        .when(all![player.mana.matches(25..).unwrap(), player.dash.ready()])
+        .run(cmd::function(cast_dash_execute));
 }
 
 /// Internal: actually apply the dash effect (called by cast_dash via function ref).
 #[function("arcane:cast_dash/execute")]
 pub fn cast_dash_execute() {
-    MANA.remove(Target::self_(), 25);
-    DASH.start(Target::self_());
+    let player = player_state();
+    player.mana.subtract(25);
+    player.dash.start(Ticks::seconds(3));
     cmd::tellraw(
         Target::self_(),
         Text::new("Dash cast!").gold(),
@@ -100,7 +108,7 @@ pub fn cast_dash_execute() {
 #[function("arcane:show_mana")]
 pub fn show_mana() {
     TypedExecute::as_players()
-        .when(MANA.of("@s").gte(0))
+        .when(player_state().mana.matches(0..).unwrap())
         .run(cmd::tellraw(
             Target::self_(),
             Text::new("Your mana is available.").green(),

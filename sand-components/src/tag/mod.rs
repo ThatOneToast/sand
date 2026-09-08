@@ -674,6 +674,23 @@ impl<T: TagRegistry> TypedTag<T> {
     }
 }
 
+impl TypedTag<FunctionId> {
+    /// Adds a registered function item or canonical function ID to this function tag.
+    #[sand_macros::api(registry = sand_api_contract, path = "sand::component::TypedTag::function", aliases = ["sand::prelude::TypedTag::function"], module = "sand::component", kind = "method", summary = "Adds a canonical function handle to a function tag.", context = "Macro-generated functions and explicit FunctionId values use the same handle accepted by function commands and callbacks.", minecraft = "Serializes the resolved function ID as a required function-tag entry.", use_when = ["Adding a registered function to a function tag"], avoid_when = ["Adding a non-function registry value"], params(function = "A registered #[function] item or validated FunctionId."), returns = "This function tag with the resolved function entry.", example = "let tag = TypedTag::<FunctionId>::new(id).function(tick);")]
+    pub fn function(mut self, function: impl crate::FunctionRef) -> Self {
+        self.values.push(TagEntry::value(function.function_id()));
+        self
+    }
+
+    /// Adds an optional canonical function handle to this function tag.
+    #[sand_macros::api(registry = sand_api_contract, path = "sand::component::TypedTag::optional_function", aliases = ["sand::prelude::TypedTag::optional_function"], module = "sand::component", kind = "method", summary = "Adds an optional canonical function handle to a function tag.", context = "Macro-generated functions and explicit FunctionId values use the same handle for optional tag entries.", minecraft = "Serializes the resolved function ID as an optional function-tag entry.", use_when = ["Adding an optional registered function to a function tag"], avoid_when = ["Adding a non-function registry value"], params(function = "A registered #[function] item or validated FunctionId."), returns = "This function tag with the optional resolved function entry.", example = "let tag = TypedTag::<FunctionId>::new(id).optional_function(tick);")]
+    pub fn optional_function(mut self, function: impl crate::FunctionRef) -> Self {
+        self.values
+            .push(TagEntry::optional_value(function.function_id()));
+        self
+    }
+}
+
 impl<T: TagRegistry> DatapackComponent for TypedTag<T> {
     fn resource_location(&self) -> &ResourceLocation {
         self.location.as_resource_location()

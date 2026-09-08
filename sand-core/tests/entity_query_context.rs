@@ -17,7 +17,7 @@ fn each_lowers_target_iteration_without_a_manual_execute_chain() {
     // Authors can iterate the canonical target without manually writing an
     // execute chain.
     let cmds = Target::entities()
-        .entity_type("minecraft:zombie")
+        .entity_type_raw("minecraft:zombie")
         .without_tag("friendly")
         .within_blocks(15.0)
         .nearest()
@@ -36,7 +36,7 @@ fn nested_relationship_traversal_retains_original_context() {
     // arrow), traverse to its owner, and — if the owner is a player holding
     // a specific item — tag the *original* bound entity, not the owner.
     let cmds = Target::entities()
-        .entity_type("minecraft:arrow")
+        .entity_type_raw("minecraft:arrow")
         .each(|arrow| {
             EntityScope::bind(arrow, |arrow_ref| {
                 arrow_ref
@@ -110,7 +110,7 @@ fn raw_single_player_each_binds_a_player_context() {
 fn passengers_relation_is_many_cardinality_and_iterates_via_each() {
     let _guard = DYN_FN_REGISTRY_LOCK.lock().unwrap();
     let cmds = Target::entities()
-        .entity_type("minecraft:boat")
+        .entity_type_raw("minecraft:boat")
         .limit(1)
         .expect("a positive limit is valid")
         .each(|boat| {

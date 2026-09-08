@@ -33,6 +33,7 @@ pub mod nbt;
 pub mod particles;
 pub mod raw;
 pub mod render;
+pub mod resource;
 pub mod scoreboard;
 pub mod selector;
 pub mod sound;
@@ -45,8 +46,7 @@ pub use blocks::{
 pub use builtins::*;
 pub use coord::{BlockPos, Coord, Rotation, Vec2, Vec3};
 pub use display::{
-    Actionbar, Bossbar, BossbarColor, BossbarCommand, BossbarId, BossbarStyle, IntoBossbarId,
-    Title, TitleTimes,
+    Actionbar, Bossbar, BossbarColor, BossbarCommand, BossbarId, BossbarStyle, Title, TitleTimes,
 };
 pub use effect::{EffectCommand, EffectDuration};
 pub use error::{CommandError, CommandResult};
@@ -56,26 +56,28 @@ pub use execute_ir::{ConditionIr, ExecuteOp, ExecuteStoreTarget};
 pub use export_registry::{ExportRegistryGuard, NestedExportError};
 pub use inventory::Inventory;
 pub use nbt::{
-    DataCommand, DataModify, DataModifyOperation, DataSource, DataTarget, Nbt, NbtCompound,
-    NbtPath, NbtRef, NbtTarget, NbtValue, UntypedNbt, data_modify,
+    DataCommand, DataModifyOperation, DataSource, DataTarget, Nbt, NbtCompound, NbtPath, NbtRef,
+    NbtValue, UntypedNbt,
 };
-pub use particles::{
-    IntoParticleId, Particle, ParticleBuilder, ParticleCommand, ParticleEffect, ParticleSpread,
-};
+pub use particles::{Particle, ParticleBuilder, ParticleCommand, ParticleEffect, ParticleSpread};
 pub use raw::RawCommand;
 pub use render::{CommandProfile, RenderCommand, Validate};
+pub use resource::{
+    CommandStorage as CommandStorageRegistry, EntityType as EntityTypeRegistry,
+    ParticleType as ParticleRegistry, Predicate as PredicateRegistry, RegistryReference,
+    SoundEvent as SoundEventRegistry, StatusEffect as StatusEffectRegistry,
+};
 pub use scoreboard::{
     DisplaySlot, Objective, ObjectiveName, ScoreCmp, ScoreHolder, ScoreOp,
     ScoreboardPlayersOperation, hash_objective_name, scoreboard_players_operation,
 };
 pub use selector::{
-    AnyTarget, GameMode, IntoEntityType, IntoPredicateId, Many, One, PlayersOnly, ScoreRange,
-    Selector, SingleTargetArgument, SortOrder, Target, TargetArgument,
+    AnyTarget, GameMode, Many, One, PlayersOnly, ScoreRange, Selector, SingleTargetArgument,
+    SortOrder, Target, TargetArgument,
 };
-pub use sound::{IntoSoundEvent, Sound, SoundSource, StopSoundCommand};
+pub use sound::{Sound, SoundSource, StopSoundCommand};
 pub use text::{
-    ChatColor, ClickEvent, EntityHoverId, HoverEvent, IntoTextEntityType, Text, TextCommand,
-    TextComponent,
+    ChatColor, ClickEvent, EntityHoverId, HoverEvent, Text, TextCommand, TextComponent,
 };
 
 // ── Build trait ───────────────────────────────────────────────────────────────
@@ -169,6 +171,18 @@ impl<T: Build> Build for &T {
 /// supported author API.
 #[doc(hidden)]
 pub mod __private {
+    /// Builds validated-at-render command storage for Sand's typed schema
+    /// declarations, whose static ID cannot be parsed in a const constructor.
+    pub fn nbt_storage_target(id: impl Into<String>) -> crate::Nbt {
+        crate::Nbt::new(crate::DataTarget::storage(id))
+    }
+
+    /// Starts a typed sound builder after a higher Sand crate has erased the
+    /// concrete registry-reference type. The event remains validated syntax.
+    pub fn sound_from_typed_id(event: impl Into<String>) -> crate::Sound {
+        crate::Sound::play_typed_id(event)
+    }
+
     /// Appends one compiler-produced execute operation.
     pub fn execute_with_operation(
         execute: crate::Execute,

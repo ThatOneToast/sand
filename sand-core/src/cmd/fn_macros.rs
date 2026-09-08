@@ -55,9 +55,8 @@
 use std::collections::BTreeSet;
 use std::fmt;
 
+use sand_commands::nbt::NbtRefLowering;
 use sand_commands::{CommandError, CommandResult, NbtRef, RenderCommand};
-
-use super::DataTarget;
 
 #[sand_macros::api(
     registry = sand_api_contract,
@@ -323,11 +322,11 @@ impl FunctionMacroArgs {
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
         params(function = "`function` provides the callback invoked by this operation used to call a registered/typed function using a typed NBT compound reference.", arguments = "`arguments` is used to call a registered/typed function using a typed NBT compound reference."),
         returns = "On success, the value produced to call a registered/typed function using a typed NBT compound reference; otherwise, the documented validation or export diagnostic.",
-        example = "use sand::prelude::*;\n\nfn demonstrate<T: 'static>(function_macro_args_value: &sand::command::FunctionMacroArgs, function: impl sand::command::IntoFunctionRef, arguments: & sand::data::NbtRef < T >)  {\n    let call_with = function_macro_args_value.call_with::<T>(function, arguments);\n}",
+        example = "use sand::prelude::*;\n\nfn demonstrate<T: 'static>(function_macro_args_value: &sand::command::FunctionMacroArgs, function: impl sand::command::FunctionRef, arguments: & sand::data::NbtRef < T >)  {\n    let call_with = function_macro_args_value.call_with::<T>(function, arguments);\n}",
     )]
     pub fn call_with<T>(
         &self,
-        function: impl crate::function::IntoFunctionRef,
+        function: impl crate::function::FunctionRef,
         arguments: &NbtRef<T>,
     ) -> CommandResult<String> {
         try_call_with(function, arguments)
@@ -534,23 +533,16 @@ pub fn macro_line(cmd: impl std::fmt::Display) -> String {
 /// This command invokes the named function in **macro mode**, substituting all
 /// `$(key)` placeholders from the NBT compound found at `source` / `path`.
 ///
-/// # Source types
-///
-/// | `DataTarget` variant | Reads variables from |
-/// |---|---|
-/// | `DataTarget::storage(id)` | Named NBT storage |
-/// | `DataTarget::entity(selector)` | Entity's NBT compound |
-/// | `DataTarget::block(pos)` | Block entity NBT |
-///
 /// # Example
 /// ```rust,ignore
-/// use sand_core::cmd::{function_with, DataTarget, Storage};
+/// use sand_core::cmd::{function_with, Storage};
 ///
 /// static TEMP: Storage = Storage::global("my_pack:temp");
 ///
 /// // Pre-populate vars, then call the macro function
 /// TEMP.insert("vars.player", "Steve");
-/// function_with("my_pack:init_player", DataTarget::storage(TEMP.id()), "vars")
+/// let arguments = TEMP.field("vars");
+/// function_with("my_pack:init_player", &arguments)
 /// // → "function my_pack:init_player with storage my_pack:temp vars"
 /// ```
 #[sand_macros::api(
@@ -558,33 +550,31 @@ pub fn macro_line(cmd: impl std::fmt::Display) -> String {
     path = "sand::command::function_with",
     aliases = ["sand::cmd::function_with", "sand::prelude::cmd::function_with"],
     module = "sand::command",
-    summary = "Generate `function <name> with <source> <path>` — call a macro function.",
-    context = "Generate `function <name> with <source> <path>` — call a macro function. This command invokes the named function in macro mode, substituting all `$(key)` placeholders from the NBT compound found at `source` / `path`. | `DataTarget` variant | Reads variables from | |---|---| | `DataTarget::storage(id)` | Named NBT storage | | `DataTarget::entity(selector)` | Entity's NBT compound | | `DataTarget::block(pos)` | Block entity NBT |",
+    summary = "Calls a raw function name with arguments from a typed NBT reference.",
+    context = "This explicit escape hatch leaves the function name unchecked while using the canonical NbtRef model for the argument source and path.",
     minecraft = "This command invokes the named function in macro mode, substituting all `$(key)` placeholders from the NBT compound found at `source` / `path`.",
     use_when = ["Constructing Minecraft commands through Sand's typed command model"],
     avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-    params(name = "`name` is used to generate `function <name> with <source> <path>` — call a macro function.", source = "This command invokes the named function in macro mode, substituting all `$(key)` placeholders from the NBT compound found at `source` / `path`.", path = "This command invokes the named function in macro mode, substituting all `$(key)` placeholders from the NBT compound found at `source` / `path`."),
+    params(name = "The unchecked function resource token.", arguments = "The typed NBT compound supplying macro arguments."),
     returns = "The string value produced to generate `function <name> with <source> <path>` — call a macro function.",
-    example = "use std::fmt;\nuse sand::prelude::*;\n\nfn demonstrate(name: impl std::fmt::Display, source: sand::data::DataTarget, path: impl Into < String >)  {\n    let function_with = sand::command::function_with(name, source, path);\n}",
+    example = "use std::fmt;\nuse sand::prelude::*;\n\nfn demonstrate<T>(name: impl std::fmt::Display, arguments: &sand::data::NbtRef<T>) {\n    let command = sand::command::function_with(name, arguments);\n}",
 )]
-pub fn function_with(
-    name: impl std::fmt::Display,
-    source: DataTarget,
-    path: impl Into<String>,
-) -> String {
-    format!("function {name} with {source} {}", path.into())
+pub fn function_with<T>(name: impl std::fmt::Display, arguments: &NbtRef<T>) -> String {
+    format!(
+        "function {name} with {} {}",
+        arguments.__location(),
+        arguments.path_value()
+    )
 }
 
 /// Validated counterpart to [`function_with`].
 ///
 /// Raw/unchecked: [`function_with`] interpolates `name` verbatim, with no
 /// resource-location validation, and hand-formats `source`/`path` instead of
-/// routing through a typed [`sand_commands::NbtRef`]/[`DataCommand`](sand_commands::DataCommand)
-/// (see [#175](https://github.com/ThatOneToast/sand/issues/175)). This
-/// validates `name` as a `namespace:path` resource location and validates
-/// `source`/`path` by rendering a throwaway `data get` command through the
-/// same [`DataTarget`]/`NbtPath` validators [`try_call_with`] uses, without
-/// duplicating that validation logic. Prefer [`try_call_with`]/[`call_with`]
+/// accepting a typed [`sand_commands::NbtRef`]. This validates `name` as a
+/// `namespace:path` resource location and validates the NBT reference through
+/// the same rendering boundary [`try_call_with`] uses. Prefer
+/// [`try_call_with`]/[`call_with`]
 /// when `name` is a typed function reference; use this when `name` must stay
 /// a raw string (e.g. cross-datapack calls not modeled as a local
 /// `#[function]`).
@@ -593,39 +583,33 @@ pub fn function_with(
     path = "sand::command::try_function_with",
     aliases = ["sand::cmd::try_function_with", "sand::prelude::cmd::try_function_with"],
     module = "sand::command",
-    summary = "Validated counterpart to [`function_with`]. Raw/unchecked: [`function_with`] interpolates `name` verbatim, with no resource-location validation, and hand-formats `source`/`path` instead of routing through a typed [`sand::data::NbtRef`]/[`DataCommand`](sand::data::DataCommand) (see [#175](https://github.com/ThatOneToast/sand/issues/175)). This validates `name` as a `namespace:path` resource location and validates `source`/`path` by rendering a throwaway `data get` command through the same [`DataTarget`]/`NbtPath` validators [`try_call_with`] uses, without duplicating that validation logic. Prefer [`try_call_with`]/[`call_with`] when `name` is a typed function reference; use this when `name` must stay a raw string (e.g. cross-datapack calls not modeled as a local `#[function]`).",
-    context = "Validated counterpart to [`function_with`]. Raw/unchecked: [`function_with`] interpolates `name` verbatim, with no resource-location validation, and hand-formats `source`/`path` instead of routing through a typed [`sand::data::NbtRef`]/[`DataCommand`](sand::data::DataCommand) (see [#175](https://github.com/ThatOneToast/sand/issues/175)). This validates `name` as a `namespace:path` resource location and validates `source`/`path` by rendering a throwaway `data get` command through the same [`DataTarget`]/`NbtPath` validators [`try_call_with`] uses, without duplicating that validation logic. Prefer [`try_call_with`]/[`call_with`] when `name` is a typed function reference; use this when `name` must stay a raw string (e.g. cross-datapack calls not modeled as a local `#[function]`). This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
-    minecraft = "Raw/unchecked: [`function_with`] interpolates `name` verbatim, with no resource-location validation, and hand-formats `source`/`path` instead of routing through a typed [`sand::data::NbtRef`]/[`DataCommand`](sand::data::DataCommand) (see [#175](https://github.com/ThatOneToast/sand/issues/175)). This validates `name` as a `namespace:path` resource location and validates `source`/`path` by rendering a throwaway `data get` command through the same [`DataTarget`]/`NbtPath` validators [`try_call_with`] uses, without duplicating that validation logic. Prefer [`try_call_with`]/[`call_with`] when `name` is a typed function reference; use this when `name` must stay a raw string (e.g. cross-datapack calls not modeled as a local `#[function]`).",
+    summary = "Validated raw-name counterpart to [`function_with`].",
+    context = "Validates a dynamic function resource location while retaining the canonical typed NbtRef argument source used by call_with.",
+    minecraft = "Emits `function <name> with <source> <path>` after validating the function ID, NBT target, and NBT path.",
     use_when = ["Constructing Minecraft commands through Sand's typed command model"],
     avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-    params(name = "Raw/unchecked: [`function_with`] interpolates `name` verbatim, with no resource-location validation, and hand-formats `source`/`path` instead of routing through a typed [`sand::data::NbtRef`]/[`DataCommand`](sand::data::DataCommand) (see [#175](https://github.com/ThatOneToast/sand/issues/175)). This validates `name` as a `namespace:path` resource location and validates `source`/`path` by rendering a throwaway `data get` command through the same [`DataTarget`]/`NbtPath` validators [`try_call_with`] uses, without duplicating that validation logic. Prefer [`try_call_with`]/[`call_with`] when `name` is a typed function reference; use this when `name` must stay a raw string (e.g. cross-datapack calls not modeled as a local `#[function]`).", source = "Raw/unchecked: [`function_with`] interpolates `name` verbatim, with no resource-location validation, and hand-formats `source`/`path` instead of routing through a typed [`sand::data::NbtRef`]/[`DataCommand`](sand::data::DataCommand) (see [#175](https://github.com/ThatOneToast/sand/issues/175)). This validates `name` as a `namespace:path` resource location and validates `source`/`path` by rendering a throwaway `data get` command through the same [`DataTarget`]/`NbtPath` validators [`try_call_with`] uses, without duplicating that validation logic. Prefer [`try_call_with`]/[`call_with`] when `name` is a typed function reference; use this when `name` must stay a raw string (e.g. cross-datapack calls not modeled as a local `#[function]`).", path = "Raw/unchecked: [`function_with`] interpolates `name` verbatim, with no resource-location validation, and hand-formats `source`/`path` instead of routing through a typed [`sand::data::NbtRef`]/[`DataCommand`](sand::data::DataCommand) (see [#175](https://github.com/ThatOneToast/sand/issues/175)). This validates `name` as a `namespace:path` resource location and validates `source`/`path` by rendering a throwaway `data get` command through the same [`DataTarget`]/`NbtPath` validators [`try_call_with`] uses, without duplicating that validation logic. Prefer [`try_call_with`]/[`call_with`] when `name` is a typed function reference; use this when `name` must stay a raw string (e.g. cross-datapack calls not modeled as a local `#[function]`)."),
-    returns = "On success, the value produced to use validated counterpart to [`function_with`]. Raw/unchecked: [`function_with`] interpolates `name` verbatim, with no resource-location validation, and hand-formats `source`/`path` instead of routing through a typed [`sand::data::NbtRef`]/[`DataCommand`](sand::data::DataCommand) (see [#175](https://github.com/ThatOneToast/sand/issues/175)). This validates `name` as a `namespace:path` resource location and validates `source`/`path` by rendering a throwaway `data get` command through the same [`DataTarget`]/`NbtPath` validators [`try_call_with`] uses, without duplicating that validation logic. Prefer [`try_call_with`]/[`call_with`] when `name` is a typed function reference; use this when `name` must stay a raw string (e.g. cross-datapack calls not modeled as a local `#[function]`); otherwise, the documented validation or export diagnostic.",
-    example = "use std::fmt;\nuse sand::prelude::*;\n\nfn demonstrate(name: impl std::fmt::Display, source: sand::data::DataTarget, path: impl Into < String >)  {\n    let try_function_with = sand::command::try_function_with(name, source, path);\n}",
+    params(name = "The dynamic function resource location to validate.", arguments = "The typed NBT compound supplying macro arguments."),
+    returns = "The rendered function-macro command, or a function-ID/NBT validation diagnostic.",
+    example = "use std::fmt;\nuse sand::prelude::*;\n\nfn demonstrate<T>(name: impl std::fmt::Display, arguments: &sand::data::NbtRef<T>) {\n    let command = sand::command::try_function_with(name, arguments);\n}",
 )]
-pub fn try_function_with(
+pub fn try_function_with<T>(
     name: impl std::fmt::Display,
-    source: DataTarget,
-    path: impl Into<String>,
+    arguments: &NbtRef<T>,
 ) -> CommandResult<String> {
     let name = name.to_string();
     sand_commands::validate::resource_location_shape(&name, "cmd::try_function_with", "name")
         .map_err(|error| error.with_code("SAND-COMMAND-ARG-FUNCTION-ID"))?;
-    let path = path.into();
-
-    // Exercises the canonical DataTarget/NbtPath validators without
-    // maintaining a second parser here — same approach as `try_call_with`.
-    source
-        .path(path.clone())
+    arguments
         .get()
         .try_render(&sand_commands::CommandProfile::unprofiled())?;
 
-    Ok(format!("function {name} with {source} {path}"))
+    Ok(function_with(name, arguments))
 }
 
 /// Call a registered or typed function with a typed NBT compound reference.
 ///
 /// This is the function-reference-integrated normal path. It resolves local
-/// `#[function]` pointers through [`IntoFunctionRef`](crate::function::IntoFunctionRef)
+/// `#[function]` pointers through [`FunctionRef`](crate::function::FunctionRef)
 /// and validates the NBT location and path before rendering. Use
 /// [`function_with`] only when intentionally supplying unchecked strings.
 #[sand_macros::api(
@@ -634,19 +618,19 @@ pub fn try_function_with(
     aliases = ["sand::cmd::try_call_with", "sand::prelude::cmd::try_call_with"],
     module = "sand::command",
     summary = "Call a registered or typed function with a typed NBT compound reference.",
-    context = "Call a registered or typed function with a typed NBT compound reference. This is the function-reference-integrated normal path. It resolves local `#[function]` pointers through [`IntoFunctionRef`](sand::command::IntoFunctionRef) and validates the NBT location and path before rendering. Use [`function_with`] only when intentionally supplying unchecked strings.",
-    minecraft = "This is the function-reference-integrated normal path. It resolves local `#[function]` pointers through [`IntoFunctionRef`](sand::command::IntoFunctionRef) and validates the NBT location and path before rendering. Use [`function_with`] only when intentionally supplying unchecked strings.",
+    context = "Call a registered or typed function with a typed NBT compound reference. This is the function-reference-integrated normal path. It resolves local `#[function]` pointers through [`FunctionRef`](sand::command::FunctionRef) and validates the NBT location and path before rendering. Use [`function_with`] only when intentionally supplying unchecked strings.",
+    minecraft = "This is the function-reference-integrated normal path. It resolves local `#[function]` pointers through [`FunctionRef`](sand::command::FunctionRef) and validates the NBT location and path before rendering. Use [`function_with`] only when intentionally supplying unchecked strings.",
     use_when = ["Call a registered or typed function with a typed NBT compound reference."],
     avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
     params(function = "`function` provides the callback invoked by this operation used to call a registered or typed function with a typed NBT compound reference.", arguments = "`arguments` is used to call a registered or typed function with a typed NBT compound reference."),
     returns = "On success, the value produced to call a registered or typed function with a typed NBT compound reference; otherwise, the documented validation or export diagnostic.",
-    example = "use sand::prelude::*;\n\nfn demonstrate<T: 'static>(function: impl sand::command::IntoFunctionRef, arguments: & sand::data::NbtRef < T >)  {\n    let try_call_with = sand::command::try_call_with::<T>(function, arguments);\n}",
+    example = "use sand::prelude::*;\n\nfn demonstrate<T: 'static>(function: impl sand::command::FunctionRef, arguments: & sand::data::NbtRef < T >)  {\n    let try_call_with = sand::command::try_call_with::<T>(function, arguments);\n}",
 )]
 pub fn try_call_with<T>(
-    function: impl crate::function::IntoFunctionRef,
+    function: impl crate::function::FunctionRef,
     arguments: &NbtRef<T>,
 ) -> CommandResult<String> {
-    let function_id = function.into_function_id();
+    let function_id = function.function_id().to_string();
     sand_commands::validate::resource_location_shape(
         &function_id,
         "cmd::try_call_with",
@@ -662,7 +646,7 @@ pub fn try_call_with<T>(
 
     Ok(format!(
         "function {function_id} with {} {}",
-        arguments.location(),
+        arguments.__location(),
         arguments.path_value()
     ))
 }
@@ -671,25 +655,22 @@ pub fn try_call_with<T>(
 ///
 /// This is convenient when the function and NBT reference were already
 /// validated by construction. It panics with the validation diagnostic if a
-/// raw `IntoFunctionRef` or `NbtPath` escape hatch is malformed.
+/// raw `FunctionRef` or `NbtPath` escape hatch is malformed.
 #[sand_macros::api(
     registry = sand_api_contract,
     path = "sand::command::call_with",
     aliases = ["sand::cmd::call_with", "sand::prelude::cmd::call_with"],
     module = "sand::command",
     summary = "Infallible typed-reference spelling for [`try_call_with`].",
-    context = "Infallible typed-reference spelling for [`try_call_with`]. This is convenient when the function and NBT reference were already validated by construction. It panics with the validation diagnostic if a raw `IntoFunctionRef` or `NbtPath` escape hatch is malformed.",
-    minecraft = "This is convenient when the function and NBT reference were already validated by construction. It panics with the validation diagnostic if a raw `IntoFunctionRef` or `NbtPath` escape hatch is malformed.",
+    context = "Infallible typed-reference spelling for [`try_call_with`]. This is convenient when the function and NBT reference were already validated by construction. It panics with the validation diagnostic if a raw `FunctionRef` or `NbtPath` escape hatch is malformed.",
+    minecraft = "This is convenient when the function and NBT reference were already validated by construction. It panics with the validation diagnostic if a raw `FunctionRef` or `NbtPath` escape hatch is malformed.",
     use_when = ["Constructing Minecraft commands through Sand's typed command model"],
     avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
     params(function = "`function` selects the typed function resource invoked by the command.", arguments = "`arguments` supplies the function arguments; unlike [`try_call_with`], this spelling assumes they are valid."),
     returns = "The string value produced to infallible typed-reference spelling for [`try_call_with`].",
-    example = "use sand::prelude::*;\n\nfn demonstrate<T: 'static>(function: impl sand::command::IntoFunctionRef, arguments: & sand::data::NbtRef < T >)  {\n    let call_with = sand::command::call_with::<T>(function, arguments);\n}",
+    example = "use sand::prelude::*;\n\nfn demonstrate<T: 'static>(function: impl sand::command::FunctionRef, arguments: & sand::data::NbtRef < T >)  {\n    let call_with = sand::command::call_with::<T>(function, arguments);\n}",
 )]
-pub fn call_with<T>(
-    function: impl crate::function::IntoFunctionRef,
-    arguments: &NbtRef<T>,
-) -> String {
+pub fn call_with<T>(function: impl crate::function::FunctionRef, arguments: &NbtRef<T>) -> String {
     try_call_with(function, arguments)
         .unwrap_or_else(|error| panic!("invalid function macro call: {error}"))
 }
@@ -700,6 +681,7 @@ pub fn call_with<T>(
 mod tests {
     use super::*;
     use crate::cmd::{Selector, Storage};
+    use sand_commands::DataTarget;
 
     static PLAYERS: Storage = Storage::per_player("my_pack:players");
     static TEMP: Storage = Storage::global("my_pack:temp");
@@ -772,11 +754,8 @@ mod tests {
 
     #[test]
     fn function_with_storage() {
-        let cmd = function_with(
-            "my_pack:init_player",
-            DataTarget::storage(TEMP.id()),
-            "vars",
-        );
+        let arguments = DataTarget::storage(TEMP.id()).path("vars");
+        let cmd = function_with("my_pack:init_player", &arguments);
         assert_eq!(
             cmd,
             "function my_pack:init_player with storage my_pack:temp vars"
@@ -785,11 +764,8 @@ mod tests {
 
     #[test]
     fn function_with_entity() {
-        let cmd = function_with(
-            "my_pack:on_hit",
-            DataTarget::entity(Selector::self_()),
-            "Custom.macro_args",
-        );
+        let arguments = DataTarget::entity(Selector::self_()).path("Custom.macro_args");
+        let cmd = function_with("my_pack:on_hit", &arguments);
         assert_eq!(
             cmd,
             "function my_pack:on_hit with entity @s Custom.macro_args"
@@ -798,58 +774,34 @@ mod tests {
 
     #[test]
     fn try_function_with_matches_function_with_for_valid_input() {
+        let arguments = DataTarget::storage(TEMP.id()).path("vars");
         assert_eq!(
-            try_function_with(
-                "my_pack:init_player",
-                DataTarget::storage(TEMP.id()),
-                "vars"
-            )
-            .unwrap(),
-            function_with(
-                "my_pack:init_player",
-                DataTarget::storage(TEMP.id()),
-                "vars"
-            )
+            try_function_with("my_pack:init_player", &arguments).unwrap(),
+            function_with("my_pack:init_player", &arguments)
         );
     }
 
     #[test]
     fn try_function_with_rejects_malformed_name() {
-        assert!(
-            try_function_with(
-                "not a resource location",
-                DataTarget::storage(TEMP.id()),
-                "vars"
-            )
-            .is_err()
-        );
+        let arguments = DataTarget::storage(TEMP.id()).path("vars");
+        assert!(try_function_with("not a resource location", &arguments).is_err());
     }
 
     #[test]
     fn try_function_with_rejects_invalid_source_or_path() {
-        assert!(
-            try_function_with(
-                "my_pack:init_player",
-                DataTarget::storage("not namespaced"),
-                "vars"
-            )
-            .is_err()
-        );
-        assert!(
-            try_function_with(
-                "my_pack:init_player",
-                DataTarget::storage(TEMP.id()),
-                "bad..path"
-            )
-            .is_err()
-        );
+        let invalid_source = DataTarget::storage("not namespaced").path("vars");
+        assert!(try_function_with("my_pack:init_player", &invalid_source).is_err());
+        let invalid_path = DataTarget::storage(TEMP.id()).path("bad..path");
+        assert!(try_function_with("my_pack:init_player", &invalid_path).is_err());
     }
 
     #[test]
     fn call_with_resolves_typed_function_and_nbt_reference() {
         let reference = DataTarget::storage(TEMP.id()).path("vars");
         let cmd = try_call_with(
-            crate::ResourceLocation::new("my_pack", "init_player").unwrap(),
+            crate::FunctionId::custom(
+                crate::ResourceLocation::new("my_pack", "init_player").unwrap(),
+            ),
             &reference,
         )
         .unwrap();
@@ -860,25 +812,14 @@ mod tests {
     }
 
     #[test]
-    fn call_with_rejects_invalid_raw_function_or_nbt_reference() {
+    fn call_with_rejects_invalid_nbt_reference() {
         let valid_reference = DataTarget::storage(TEMP.id()).path("vars");
-        assert!(try_call_with("not namespaced", &valid_reference).is_err());
+        let function: crate::FunctionId = "my_pack:init_player".parse().unwrap();
+        assert!(try_call_with(function.clone(), &valid_reference).is_ok());
 
         let invalid_reference = DataTarget::storage("not namespaced").path("vars");
-        assert!(
-            try_call_with(
-                crate::ResourceLocation::new("my_pack", "init_player").unwrap(),
-                &invalid_reference,
-            )
-            .is_err()
-        );
+        assert!(try_call_with(function.clone(), &invalid_reference,).is_err());
         let invalid_path = DataTarget::storage(TEMP.id()).path("bad..path");
-        assert!(
-            try_call_with(
-                crate::ResourceLocation::new("my_pack", "init_player").unwrap(),
-                &invalid_path,
-            )
-            .is_err()
-        );
+        assert!(try_call_with(function, &invalid_path,).is_err());
     }
 }

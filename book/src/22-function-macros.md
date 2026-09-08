@@ -24,7 +24,8 @@ fn greet() -> Vec<String> {
 #[function("run_greeting")]
 fn run_greeting() -> Vec<String> {
     let args = FunctionMacroArgs::new(["player", "count"]).unwrap();
-    let values = Nbt::storage("trailforge:runtime").path("greeting");
+    let values = Nbt::storage(ResourceLocation::new("trailforge", "runtime").unwrap())
+        .path("greeting");
 
     vec![args.call_with(greet, &values).unwrap()]
 }
@@ -42,11 +43,12 @@ function trailforge:greet with storage trailforge:runtime greeting
 `variable` rejects an undeclared name, and `line` scans the complete command
 for undeclared, malformed, or unterminated `$(name)` placeholders.
 `cmd::try_call_with` accepts the same registered function pointers and typed
-function references as `cmd::call`, plus a typed `NbtRef`; it validates the
+function references as `cmd::function`, plus a typed `NbtRef`; it validates the
 function ID, NBT location, and NBT path.
 
-`cmd::macro_var`, `cmd::macro_line`, and `cmd::function_with` are explicit
-unchecked escape hatches for custom or future syntax. Function macros are part
+`cmd::macro_var`, `cmd::macro_line`, and the function-name argument to
+`cmd::function_with` are explicit unchecked escape hatches for custom or future
+syntax; `function_with` still requires a typed `NbtRef`. Function macros are part
 of Sand's 26+ command baseline; there is no pre-26 lowering or rejection path.
 Builds that require exact generated Minecraft data still reject unverified
 future profiles.

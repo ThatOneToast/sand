@@ -1,20 +1,21 @@
-//! Typed storage and NBT paths.
+//! Canonical NBT roots, paths, and typed references.
 
-use sand_core::prelude::*;
-use sand_macros::{datapack_component, function};
+use sand::prelude::*;
 
-static PLAYER_MANA: StorageVar<i32> = StorageVar::new("example:data", "players.self.mana");
-
-#[datapack_component(Load)]
-pub fn load_storage() {
-    PLAYER_MANA.set_int(100);
-    PLAYER_MANA.as_path().key("regen").set_bool(true);
+#[function]
+pub fn initialize_storage() {
+    let mana = Nbt::storage(ResourceLocation::new("example", "data").unwrap())
+        .typed_path::<i32>("players.self.mana");
+    mana.set(100);
+    mana.field("regen").set(true);
 }
 
 #[function]
 pub fn show_storage_state() {
+    let mana = Nbt::storage(ResourceLocation::new("example", "data").unwrap())
+        .path("players.self.mana");
     TypedExecute::as_players()
-        .when(PLAYER_MANA.exists())
+        .when(mana.exists())
         .run(Actionbar::show(
             Target::self_(),
             Text::new("Storage ready").green(),

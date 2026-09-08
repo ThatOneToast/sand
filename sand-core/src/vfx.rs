@@ -10,12 +10,12 @@
 //! fn level_up_vfx() -> Vfx {
 //!     Vfx::new("level_up")
 //!         .particle(
-//!             VfxParticle::named("minecraft:happy_villager")
+//!             VfxParticle::named_raw("minecraft:happy_villager")
 //!                 .count(20)
 //!                 .spread(0.6, 1.0, 0.6),
 //!         )
 //!         .sound(
-//!             VfxSound::new("minecraft:entity.player.levelup")
+//!             VfxSound::new_raw("minecraft:entity.player.levelup")
 //!                 .source(SoundSource::Player)
 //!                 .volume(1.0)
 //!                 .pitch(1.2),
@@ -34,7 +34,7 @@ use crate::cmd::{
     Build, CommandProfile, Execute, Particle, ParticleBuilder, ParticleSpread, RawCommand,
     RenderCommand, Selector, Sound, SoundSource, Validate, Vec3,
 };
-use sand_commands::{CommandResult, IntoParticleId, IntoSoundEvent, TargetArgument};
+use sand_commands::{CommandResult, RegistryReference, TargetArgument};
 use sand_macros::api;
 
 /// A reusable group of visual/audio commands.
@@ -421,7 +421,7 @@ impl VfxParticle {
         avoid_when = ["Selecting a named particle identifier directly; use named"],
         params(particle = "The typed particle value to emit."),
         returns = "A particle step with one forced particle at the current position by default.",
-        example = "let step = VfxParticle::new(Particle::named(\"minecraft:crit\"));"
+        example = "let id = sand::registry::ParticleId::minecraft(\"crit\").unwrap();\nlet step = VfxParticle::new(Particle::named(id));"
     )]
     pub fn new(particle: Particle) -> Self {
         Self {
@@ -445,10 +445,16 @@ impl VfxParticle {
         avoid_when = ["Constructing a particle with structured particle data; use new"],
         params(name = "The particle identifier accepted by Sand's particle command API."),
         returns = "A default particle step for that identifier.",
-        example = "let step = VfxParticle::named(\"minecraft:crit\");"
+        example = "let id = sand::registry::ParticleId::minecraft(\"crit\").unwrap();\nlet step = VfxParticle::named(id);"
     )]
-    pub fn named(name: impl IntoParticleId) -> Self {
+    pub fn named(name: impl RegistryReference<sand_commands::resource::ParticleType>) -> Self {
         Self::new(Particle::named(name))
+    }
+
+    /// Starts a particle step from an explicitly unchecked particle token.
+    #[api(registry = sand_api_contract, path = "sand::vfx::VfxParticle::named_raw", summary = "Starts a particle step from an explicitly raw token.", context = "Advanced escape hatch for unsupported particle syntax.", minecraft = "Emits the supplied particle token verbatim.", use_when = ["Using future or modded particle syntax"], avoid_when = ["A generated particle or validated ParticleId is available"], params(name = "The unchecked particle token."), returns = "A default particle step for the raw token.", example = "let step = VfxParticle::named_raw(\"mod:spark\");")]
+    pub fn named_raw(name: impl Into<String>) -> Self {
+        Self::new(Particle::raw_token(name))
     }
 
     /// Convenience constructor for `minecraft:happy_villager`.
@@ -464,7 +470,7 @@ impl VfxParticle {
         example = "let step = VfxParticle::happy_villager().count(12);"
     )]
     pub fn happy_villager() -> Self {
-        Self::named("minecraft:happy_villager")
+        Self::named_raw("minecraft:happy_villager")
     }
 
     /// Set the random spread box around each point.
@@ -514,7 +520,7 @@ impl VfxParticle {
         avoid_when = ["Keeping Minecraft's stationary default speed"],
         params(speed = "The initial particle speed."),
         returns = "This particle step with the requested speed.",
-        example = "let step = VfxParticle::named(\"minecraft:crit\").speed(0.1);"
+        example = "let id = sand::registry::ParticleId::minecraft(\"crit\").unwrap();\nlet step = VfxParticle::named(id).speed(0.1);"
     )]
     pub fn speed(mut self, speed: f64) -> Self {
         self.speed = speed;
@@ -568,7 +574,7 @@ impl VfxParticle {
         avoid_when = ["Emitting several ordered points; use offsets"],
         params(x = "Relative X offset.", y = "Relative Y offset.", z = "Relative Z offset."),
         returns = "This particle step with one configured offset.",
-        example = "let step = VfxParticle::named(\"minecraft:crit\").offset(0.0, 1.0, 0.0);"
+        example = "let id = sand::registry::ParticleId::minecraft(\"crit\").unwrap();\nlet step = VfxParticle::named(id).offset(0.0, 1.0, 0.0);"
     )]
     pub fn offset(mut self, x: f64, y: f64, z: f64) -> Self {
         self.points = vec![[x, y, z]];
@@ -586,7 +592,7 @@ impl VfxParticle {
         avoid_when = ["A single point is sufficient; use offset"],
         params(points = "Relative X, Y, Z offsets to emit in order."),
         returns = "This particle step with the supplied point sequence.",
-        example = "let step = VfxParticle::named(\"minecraft:end_rod\").offsets([[0.0, 0.0, 0.0], [1.0, 0.0, 0.0]]);"
+        example = "let id = sand::registry::ParticleId::minecraft(\"end_rod\").unwrap();\nlet step = VfxParticle::named(id).offsets([[0.0, 0.0, 0.0], [1.0, 0.0, 0.0]]);"
     )]
     pub fn offsets(mut self, points: impl IntoIterator<Item = [f64; 3]>) -> Self {
         self.points = points.into_iter().collect();
@@ -689,6 +695,7 @@ impl VfxParticleVisibility {
 )]
 pub struct VfxSound {
     event: String,
+    raw_event: bool,
     source: SoundSource,
     audience: Option<Selector>,
     position: Option<Vec3>,
@@ -711,9 +718,25 @@ impl VfxSound {
         returns = "A default master-channel sound step with volume and pitch of one.",
         example = "let step = VfxSound::new(\"minecraft:block.note_block.bell\");"
     )]
-    pub fn new(event: impl IntoSoundEvent) -> Self {
+    pub fn new(event: impl RegistryReference<sand_commands::resource::SoundEvent>) -> Self {
         Self {
-            event: event.into_sound_event(),
+            event: event.registry_id().to_string(),
+            raw_event: false,
+            source: SoundSource::Master,
+            audience: None,
+            position: None,
+            volume: 1.0,
+            pitch: 1.0,
+            min_volume: None,
+        }
+    }
+
+    /// Starts a sound step from an explicitly unchecked sound-event token.
+    #[api(registry = sand_api_contract, path = "sand::vfx::VfxSound::new_raw", summary = "Starts a sound step from an explicitly raw token.", context = "Advanced escape hatch for unsupported sound-event syntax.", minecraft = "Emits the supplied sound-event token verbatim.", use_when = ["Using future or modded sound syntax"], avoid_when = ["A generated SoundEvent or validated SoundEventId is available"], params(event = "The unchecked sound-event token."), returns = "A default sound step for the raw token.", example = "let step = VfxSound::new_raw(\"mod:chime\");")]
+    pub fn new_raw(event: impl Into<String>) -> Self {
+        Self {
+            event: event.into(),
+            raw_event: true,
             source: SoundSource::Master,
             audience: None,
             position: None,
@@ -845,7 +868,12 @@ impl VfxSound {
     }
 
     fn sound(&self, audience: Option<&Selector>, position: Option<Vec3>) -> Sound {
-        let mut sound = Sound::play(self.event.clone())
+        let sound = if self.raw_event {
+            Sound::play_raw(self.event.clone())
+        } else {
+            sand_commands::__private::sound_from_typed_id(self.event.clone())
+        };
+        let mut sound = sound
             .source(self.source)
             .volume(self.volume)
             .pitch(self.pitch);
@@ -899,14 +927,20 @@ mod tests {
     #[test]
     fn vfx_uses_particle_and_sound_validation() {
         let particle_error = Vfx::new("bad_particle")
-            .particle(VfxParticle::named("Bad Particle"))
+            .particle(VfxParticle::new(Particle::Named("Bad Particle".into())))
             .try_play()
             .unwrap_err();
         assert_eq!(particle_error.code, "SAND-PARTICLE-ID");
         assert!(particle_error.to_string().contains("bad_particle"));
+        assert!(
+            Vfx::new("raw_particle")
+                .particle(VfxParticle::named_raw("Bad Particle"))
+                .try_play()
+                .is_ok()
+        );
 
         let sound_error = Vfx::new("bad_sound")
-            .sound(VfxSound::new("minecraft:test").pitch(0.0))
+            .sound(VfxSound::new_raw("minecraft:test").pitch(0.0))
             .try_play()
             .unwrap_err();
         assert_eq!(sound_error.code, "SAND-SOUND-NUMERIC");
@@ -917,6 +951,18 @@ mod tests {
                 .try_play()
                 .is_err()
         );
+    }
+
+    #[test]
+    fn downstream_registry_reference_cannot_construct_a_malformed_id() {
+        let error =
+            match sand_commands::resource::RegistryId::<sand_commands::resource::SoundEvent>::new(
+                "not a resource id",
+            ) {
+                Ok(_) => panic!("malformed registry IDs must not be constructible"),
+                Err(error) => error,
+            };
+        assert_eq!(error.field, "registry_id");
     }
 
     #[test]
@@ -933,7 +979,7 @@ mod tests {
     fn single_particle_uses_particle_builder_output() {
         let commands = Vfx::new("spark")
             .particle(
-                VfxParticle::named("minecraft:happy_villager")
+                VfxParticle::named_raw("minecraft:happy_villager")
                     .count(20)
                     .spread(0.6, 1.0, 0.6),
             )
@@ -947,7 +993,7 @@ mod tests {
 
     #[test]
     fn named_particle_visibility_replaces_the_ambiguous_boolean() {
-        let commands = VfxParticle::named("minecraft:crit")
+        let commands = VfxParticle::named_raw("minecraft:crit")
             .visibility(VfxParticleVisibility::Normal)
             .render();
         assert_eq!(
@@ -960,7 +1006,7 @@ mod tests {
     fn single_sound_uses_sound_builder_output() {
         let commands = Vfx::new("ding")
             .sound(
-                VfxSound::new("minecraft:entity.player.levelup")
+                VfxSound::new_raw("minecraft:entity.player.levelup")
                     .source(SoundSource::Player)
                     .volume(1.0)
                     .pitch(1.2),
@@ -976,8 +1022,8 @@ mod tests {
     #[test]
     fn combined_steps_preserve_order() {
         let commands = Vfx::new("combo")
-            .particle(VfxParticle::named("minecraft:crit"))
-            .sound(VfxSound::new("minecraft:block.note_block.bell"))
+            .particle(VfxParticle::named_raw("minecraft:crit"))
+            .sound(VfxSound::new_raw("minecraft:block.note_block.bell"))
             .command(RawCommand::new("say done"))
             .play_for(Selector::all_players());
 
@@ -994,8 +1040,8 @@ mod tests {
     #[test]
     fn play_at_targets_expected_selector() {
         let commands = Vfx::new("self")
-            .particle(VfxParticle::named("minecraft:crit"))
-            .sound(VfxSound::new("minecraft:block.note_block.bell"))
+            .particle(VfxParticle::named_raw("minecraft:crit"))
+            .sound(VfxSound::new_raw("minecraft:block.note_block.bell"))
             .play_at(Selector::self_());
 
         assert_eq!(
@@ -1010,8 +1056,8 @@ mod tests {
     #[test]
     fn positioned_playback_wraps_positioned_commands() {
         let commands = Vfx::new("pos")
-            .particle(VfxParticle::named("minecraft:crit"))
-            .sound(VfxSound::new("minecraft:block.note_block.bell"))
+            .particle(VfxParticle::named_raw("minecraft:crit"))
+            .sound(VfxSound::new_raw("minecraft:block.note_block.bell"))
             .play_positioned(Vec3::absolute(1.0, 2.0, 3.0));
 
         assert_eq!(
@@ -1027,9 +1073,10 @@ mod tests {
     fn command_output_is_deterministic() {
         let vfx = Vfx::new("deterministic")
             .particle(
-                VfxParticle::named("minecraft:end_rod").offsets([[0.0, 0.0, 0.0], [1.0, 0.0, 0.0]]),
+                VfxParticle::named_raw("minecraft:end_rod")
+                    .offsets([[0.0, 0.0, 0.0], [1.0, 0.0, 0.0]]),
             )
-            .sound(VfxSound::new("minecraft:block.note_block.bell"));
+            .sound(VfxSound::new_raw("minecraft:block.note_block.bell"));
 
         assert_eq!(
             vfx.play_at(Selector::self_()),
@@ -1050,7 +1097,7 @@ mod tests {
     #[test]
     fn play_at_all_players_does_not_reuse_selector_as_sound_audience() {
         let commands = Vfx::new("level_up")
-            .sound(VfxSound::new("minecraft:entity.player.levelup"))
+            .sound(VfxSound::new_raw("minecraft:entity.player.levelup"))
             .play_at(Selector::all_players());
 
         // The playsound audience (third argument to playsound) must NOT be @a.
@@ -1080,7 +1127,7 @@ mod tests {
         // When no explicit audience is configured on the VfxSound, play_at
         // must fall back to @s (the entity currently executing), not @a.
         let commands = Vfx::new("level_up")
-            .sound(VfxSound::new("minecraft:entity.player.levelup"))
+            .sound(VfxSound::new_raw("minecraft:entity.player.levelup"))
             .play_at(Selector::all_players());
 
         assert_eq!(
@@ -1094,7 +1141,7 @@ mod tests {
         // play_at("@s") must still emit the expected positional particle
         // command — the fix must not regress the common single-entity case.
         let commands = Vfx::new("spark")
-            .particle(VfxParticle::named("minecraft:happy_villager"))
+            .particle(VfxParticle::named_raw("minecraft:happy_villager"))
             .play_at(Selector::self_());
 
         assert_eq!(
@@ -1107,8 +1154,8 @@ mod tests {
     fn sound_audience_independent_from_positional_selector() {
         // Particle uses the positional target; sound audience is separate.
         let commands = Vfx::new("effect")
-            .particle(VfxParticle::named("minecraft:crit"))
-            .sound(VfxSound::new("minecraft:block.note_block.bell"))
+            .particle(VfxParticle::named_raw("minecraft:crit"))
+            .sound(VfxSound::new_raw("minecraft:block.note_block.bell"))
             .play_at(Selector::all_players());
 
         assert_eq!(
@@ -1127,7 +1174,8 @@ mod tests {
         // selector entirely.
         let commands = Vfx::new("broadcast")
             .sound(
-                VfxSound::new("minecraft:ui.toast.challenge_complete").to(Selector::all_players()),
+                VfxSound::new_raw("minecraft:ui.toast.challenge_complete")
+                    .to(Selector::all_players()),
             )
             .play_at(Selector::self_());
 
@@ -1143,8 +1191,8 @@ mod tests {
     fn play_at_combined_particle_and_sound_preserves_order() {
         // Combined effect: particle first, then sound, deterministic order.
         let commands = Vfx::new("combo_at")
-            .particle(VfxParticle::named("minecraft:end_rod"))
-            .sound(VfxSound::new("minecraft:block.note_block.bell"))
+            .particle(VfxParticle::named_raw("minecraft:end_rod"))
+            .sound(VfxSound::new_raw("minecraft:block.note_block.bell"))
             .command(RawCommand::new("say vfx"))
             .play_at(Selector::self_());
 
@@ -1162,7 +1210,7 @@ mod tests {
     fn play_for_all_players_targets_expected_audience() {
         // play_for must still target the supplied audience — regression guard.
         let commands = Vfx::new("announce")
-            .sound(VfxSound::new("minecraft:entity.player.levelup"))
+            .sound(VfxSound::new_raw("minecraft:entity.player.levelup"))
             .play_for(Selector::all_players());
 
         assert_eq!(

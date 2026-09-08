@@ -30,6 +30,22 @@ pub struct ResourceLocation {
     path: String,
 }
 
+impl sand_commands::resource::sealed::Sealed<sand_commands::resource::CommandStorage>
+    for ResourceLocation
+{
+}
+
+impl sand_commands::resource::RegistryReference<sand_commands::resource::CommandStorage>
+    for ResourceLocation
+{
+    fn registry_id(
+        &self,
+    ) -> sand_commands::resource::RegistryId<sand_commands::resource::CommandStorage> {
+        sand_commands::resource::RegistryId::new(self.to_string())
+            .expect("ResourceLocation is validated at construction")
+    }
+}
+
 impl ResourceLocation {
     /// Construct a `ResourceLocation`, returning an error if either part is invalid.
     #[sand_macros::api(
@@ -129,44 +145,6 @@ impl FromStr for ResourceLocation {
             .split_once(':')
             .ok_or_else(|| SandError::InvalidNamespace(s.to_string()))?;
         Self::new(namespace, path)
-    }
-}
-
-impl sand_commands::IntoParticleId for ResourceLocation {
-    fn into_particle_id(self) -> String {
-        self.to_string()
-    }
-}
-
-impl sand_commands::IntoParticleId for &ResourceLocation {
-    fn into_particle_id(self) -> String {
-        self.to_string()
-    }
-}
-
-impl sand_commands::IntoSoundEvent for ResourceLocation {
-    fn into_sound_event(self) -> String {
-        self.to_string()
-    }
-}
-
-impl sand_commands::IntoSoundEvent for &ResourceLocation {
-    fn into_sound_event(self) -> String {
-        self.to_string()
-    }
-}
-
-impl sand_commands::IntoBossbarId for ResourceLocation {
-    fn into_bossbar_id(self) -> sand_commands::BossbarId {
-        sand_commands::BossbarId::parse(self.to_string())
-            .expect("ResourceLocation is already validated")
-    }
-}
-
-impl sand_commands::IntoBossbarId for &ResourceLocation {
-    fn into_bossbar_id(self) -> sand_commands::BossbarId {
-        sand_commands::BossbarId::parse(self.to_string())
-            .expect("ResourceLocation is already validated")
     }
 }
 
@@ -288,16 +266,19 @@ mod tests {
     use super::*;
 
     #[test]
-    fn resource_locations_feed_command_media_ids_directly() {
-        let id = ResourceLocation::new("example", "boss").unwrap();
+    fn typed_registry_ids_feed_command_media_directly() {
+        let particle =
+            crate::registry::ParticleId::custom(ResourceLocation::new("example", "boss").unwrap());
+        let sound = crate::SoundEventId::custom(ResourceLocation::new("example", "boss").unwrap());
+        let bossbar = sand_commands::BossbarId::parse("example:boss").unwrap();
         assert!(
-            sand_commands::Particle::named(id.clone())
+            sand_commands::Particle::named(particle)
                 .validate(&sand_commands::CommandProfile::unprofiled())
                 .is_ok()
         );
-        assert!(sand_commands::Sound::play(id.clone()).try_build().is_ok());
+        assert!(sand_commands::Sound::play(sound).try_build().is_ok());
         assert_eq!(
-            sand_commands::Bossbar::remove(id),
+            sand_commands::Bossbar::remove(bossbar),
             "bossbar remove example:boss"
         );
     }

@@ -106,12 +106,12 @@
 //! with the caller's own lifetime guarantees, not part of this contract.
 
 use sand_commands::Execute;
-use sand_commands::nbt::{DataModify, DataTarget, NbtValue};
+use sand_commands::nbt::{DataTarget, NbtRefLowering, NbtValue};
 
 use crate::condition::Condition;
 use crate::events::graph::tick_event_resource_key;
 use crate::item::location::{ItemLocation, ItemLocationError};
-use crate::state::storage::{Nbt, NbtPath, NbtRef, StorageField, UntypedNbt};
+use crate::state::storage::{NbtPath, NbtRef, StorageField, UntypedNbt};
 
 /// Deterministic, collision-checked identity for one snapshot's generated
 /// storage. `storage` is the fully-qualified `namespace:path` command
@@ -161,7 +161,8 @@ impl SnapshotSchema {
     }
 
     fn base_path(&self) -> NbtRef {
-        Nbt::storage(self.storage.clone()).path(format!("snap.{}", self.key))
+        sand_commands::__private::nbt_storage_target(self.storage.clone())
+            .path(format!("snap.{}", self.key))
     }
 }
 
@@ -320,7 +321,9 @@ impl ItemSnapshot {
         schema: SnapshotSchema,
         reliability: SnapshotReliability,
     ) -> Result<(Self, Vec<String>), SnapshotError> {
-        let (source_target, source_path) = location.nbt_source()?;
+        let source = location.nbt();
+        let source_target = source.__location().clone();
+        let source_path = source.path_value().clone();
         let base = schema.base_path();
         let present_path = base.field("present");
         let item_path = base.field("item");
@@ -331,22 +334,24 @@ impl ItemSnapshot {
         //    from an earlier invocation must never leak through.
         commands.push(present_path.set_value(false).to_string());
         commands.push(
-            DataModify::new(
+            NbtRef::<UntypedNbt>::__from_parts(
                 dest_storage.clone(),
-                item_path.path_value().as_str().to_string(),
+                item_path.path_value().clone(),
             )
-            .set(NbtValue::raw("{}")),
+            .set(NbtValue::raw("{}"))
+            .to_string(),
         );
         // 2. Presence-gated exact copy — only runs (and only overwrites the
         //    reset-to-empty compound) if the source actually resolves.
-        let copy_guard = presence_execute(&source_target, &source_path);
+        let copy_guard = presence_execute(&source_target, source_path.as_str());
         commands.push(
             copy_guard.clone().run(
-                DataModify::new(
+                NbtRef::<UntypedNbt>::__from_parts(
                     dest_storage.clone(),
-                    item_path.path_value().as_str().to_string(),
+                    item_path.path_value().clone(),
                 )
-                .set_from(source_target, source_path),
+                .copy_from(&source)
+                .to_string(),
             ),
         );
         // 3. Presence-gated mark — never a bare unconditional `set value
@@ -407,7 +412,7 @@ impl ItemSnapshot {
     pub fn is_present(&self) -> Condition {
         let base = self.schema.base_path();
         Condition::nbt_exists(
-            base.location().clone(),
+            base.__location().clone(),
             NbtPath::raw(format!("{}{{present:1b}}", base.path_value().as_str())),
         )
     }
@@ -499,11 +504,12 @@ impl ItemSnapshot {
         let base = self.schema.base_path();
         vec![
             base.field("present").set_value(false).to_string(),
-            DataModify::new(
+            NbtRef::<UntypedNbt>::__from_parts(
                 DataTarget::storage(self.schema.storage.clone()),
-                base.field("item").path_value().as_str().to_string(),
+                base.field("item").path_value().clone(),
             )
-            .set(NbtValue::raw("{}")),
+            .set(NbtValue::raw("{}"))
+            .to_string(),
         ]
     }
 }
@@ -518,7 +524,9 @@ fn presence_execute(target: &DataTarget, path: &str) -> Execute {
             Execute::new().if_data_entity(selector.clone(), path.to_string())
         }
         DataTarget::Block(pos) => Execute::new().if_data_block(pos.clone(), path.to_string()),
-        DataTarget::Storage(id) => Execute::new().if_data_storage(id.clone(), path.to_string()),
+        DataTarget::Storage(id) | DataTarget::StorageRaw(id) => {
+            Execute::new().if_data_storage(id.clone(), path.to_string())
+        }
     }
 }
 
@@ -588,6 +596,21 @@ pub struct EventItem {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn snapshot_schema_preserves_storage_validation_at_export_boundary() {
+        let _scope = sand_commands::ExportRegistryGuard::enter().unwrap();
+        let line = SnapshotSchema::new("Not Valid", "Event")
+            .base_path()
+            .get()
+            .to_string();
+        let error = sand_commands::render::validate_collected_line(
+            &line,
+            &sand_commands::CommandProfile::unprofiled(),
+        )
+        .expect_err("typed snapshot schemas must reject invalid storage identifiers");
+        assert_eq!(error.code, "SAND-DATA-TARGET");
+    }
 
     fn schema() -> SnapshotSchema {
         SnapshotSchema::new("my_pack:snapshots", "my_pack::MyEvent")

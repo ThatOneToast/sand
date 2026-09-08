@@ -46,7 +46,7 @@ reference near each other (as Trailforge does — both live in `src/lib.rs`)
 is a project-organization discipline worth keeping as a pack grows.
 
 `on_obtained_grapple_core` (chapter 9) is Trailforge's other dialog
-trigger, calling `cmd::call(open_menu)` — a typed function call (chapter 8's
+trigger, calling `cmd::function(open_menu)` — a typed function call (chapter 8's
 `ResourceLocation` pattern, but resolved directly from the function item)
 right after telling the player about the upgrade, so picking up a Grapple
 Core immediately surfaces the menu that explains what to do with it.

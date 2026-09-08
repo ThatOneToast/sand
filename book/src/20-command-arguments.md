@@ -88,32 +88,26 @@ assert!(ScoreHolder::fake("#total_kills").try_build().is_ok());
 assert!(ScoreHolder::fake("@a").try_build().is_err());
 ```
 
-`ScoreVar` is the ergonomic `static`-declared counterpart used throughout
-gameplay code. Its infallible methods (`set`, `add`, `clamp`, ...) remain
-available for byte-identical compatibility with existing code, but prefer
-the validated counterpart where the input is not already known to be
-correct — for example, `ScoreVar::try_clamp` rejects `min > max` instead of
-emitting two contradictory `execute if score ... matches` commands:
+Gameplay scores belong in a derived State schema. Its generated bound accessor
+provides arithmetic and comparisons without exposing an objective name:
 
 ```rust,ignore
 use sand::prelude::*;
 
-static HEALTH: ScoreVar<i32> = ScoreVar::new("health");
+#[derive(State)]
+#[state(namespace = "demo", scope = player)]
+struct Combat {
+    #[state(default = 100, min = 0, max = 100)]
+    health: Score,
+}
 
-assert!(HEALTH.try_clamp("@s", 0, 100).is_ok());
-assert!(HEALTH.try_clamp("@s", 100, 0).is_err());
+let combat = Combat::on(EntityContext::<PlayerKind>::default());
+combat.health.set(80);
+combat.health.gte(1);
 ```
 
-Score-range helpers (`ScoreRef::gt`, `lt`, `between`, `matches`) have
-validated counterparts (`try_gt`, `try_lt`, `try_between`, `try_matches`)
-that reject ranges no `i32` score can satisfy, such as `Gt(i32::MAX)` or a
-`between` call with `min > max`.
-
-The `sand_commands::scoreboard::Objective` builder (a lower-level,
-non-`static`-friendly companion to `ScoreVar`) gained the same validated
-path: `try_create`, `try_set`, `try_get`, `try_add`, `try_subtract`,
-`try_reset`, and `try_operation` all validate the objective name and score
-holder(s) before returning command text.
+Low-level `Objective` and scoreboard primitives are available only from the
+explicit advanced/command boundary for framework integrations.
 
 ## Typed block states
 
@@ -160,13 +154,16 @@ let modded = RawCommand::new("mymod:pulse 5").to_string();
 ```rust,ignore
 use sand::prelude::*;
 
-static PROGRESS: ScoreVar<i32> = ScoreVar::new("trail_prog");
+#[derive(State)]
+#[state(namespace = "trail", scope = player)]
+struct Progress { #[state(default = 0)] value: Score }
 
 let nearby_runners = Target::players()
     .distance_range(0.0, 24.0)
     .tag("trailforge_active");
 
-let bump_score = PROGRESS.try_clamp("@s", 0, 100)?;
+let progress = Progress::on(EntityContext::<PlayerKind>::default());
+let bump_score = progress.value.add(1);
 let teleport = cmd::try_tp(Target::self_(), 120.5, 71.0, -31.5)?;
 let tag_done = cmd::try_tag_add(Target::self_(), "checkpoint_1")?;
 
@@ -174,7 +171,7 @@ let tag_done = cmd::try_tag_add(Target::self_(), "checkpoint_1")?;
 let modded = RawCommand::new("mymod:pulse 5").to_string();
 
 let _ = (nearby_runners, bump_score, teleport, tag_done, modded);
-# Ok::<(), sand_commands::CommandError>(())
+# Ok::<(), sand::command::CommandError>(())
 ```
 
 Block placement (`setblock`, `fill`) is left out of this facade-only example
@@ -183,16 +180,6 @@ re-exported.
 
 ## Migrating from string-first helpers
 
-Most `cmd::*` free functions have a `try_` counterpart (`try_summon`,
-`try_tp`, `try_tag_add`, `try_gamemode`, `try_damage`, `try_team_add`,
-`try_schedule`, `try_gamerule`, ...) that validates its arguments before
-returning command text. The plain, infallible functions remain documented
-compatibility/raw paths — prefer the `try_` form for any input that is not
-already known-valid at compile time.
-
-`Storage` (the `HashMap`-style NBT storage wrapper) follows the same
-pattern: `try_remove`, `try_get`, `try_get_scaled`, `try_contains`,
-`try_get_or_insert`, and `try_merge` route through the same
-`DataTarget`/`NbtPath` validation as the typed `data`-command IR, while the
-original infallible methods keep their existing (unvalidated) output for
-compatibility.
+Normal resource, function, target, and NBT paths accept canonical typed values.
+Unsupported future or modded syntax is deliberately secondary and uses an API
+whose name ends in `_raw`.

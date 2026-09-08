@@ -8,12 +8,12 @@
 //! Compiled by `sand-cli` as the `sand_build_world` binary (see the
 //! `[[bin]]` entry in Cargo.toml) and run during `sand build`/`sand run`.
 
+use sand::ResourceLocation;
 use sand::build::{
     BuildContext, Difficulty, Dimension, DimensionSlot, DimensionType, Dimensions, FlatGenerator,
-    FlatLayer, Generator, NoiseGenerator, SandBuild, Seed, ServerConfig, Spawn, VanillaNoiseSettings,
-    World, WorldResetPolicy,
+    FlatLayer, Generator, NoiseGenerator, SandBuild, Seed, ServerConfig, Spawn,
+    VanillaNoiseSettings, World, WorldResetPolicy,
 };
-use sand::ResourceLocation;
 
 fn build(ctx: &BuildContext) -> SandBuild {
     let (overworld, seed, reset_policy) = if ctx.profile().is_dev() || ctx.profile().is_test() {
@@ -23,7 +23,10 @@ fn build(ctx: &BuildContext) -> SandBuild {
             .generator(Generator::Flat(FlatGenerator::new(vec![
                 FlatLayer::new(ResourceLocation::new("minecraft", "bedrock").unwrap(), 1),
                 FlatLayer::new(ResourceLocation::new("minecraft", "stone").unwrap(), 32),
-                FlatLayer::new(ResourceLocation::new("minecraft", "grass_block").unwrap(), 1),
+                FlatLayer::new(
+                    ResourceLocation::new("minecraft", "grass_block").unwrap(),
+                    1,
+                ),
             ])));
         (dimension, Seed::Fixed(1_337), WorldResetPolicy::AlwaysReset)
     } else if ctx.profile().is_bench() {

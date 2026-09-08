@@ -64,8 +64,7 @@ const ALLOWLIST: &[(&str, &str)] = &[
     // `DimensionId`-accepting normal path yet; tracked as a remaining
     // signature gap in issue #277's follow-up scope rather than fixed here.
     ("sand-commands/src/execute.rs", "in_"),
-    // This PR's #277 scope covers `give`/`entity_type`/`summon` (see
-    // sand_core::cmd::IntoGiveItem, sand_commands::selector::IntoEntityType).
+    // Item and entity references use canonical typed IDs on their normal paths.
     // These related item/block-matching signatures were not converted in
     // this pass and remain tracked as follow-up scope, not fixed here:
     // item/block predicate matchers used by `execute if/unless items`, and
@@ -260,8 +259,8 @@ fn facade_signatures_do_not_regress_typed_identifier_parameters() {
         violations.is_empty(),
         "found {} public façade parameter(s) that look like a typed identifier/target \
          concept but still accept an untyped string conversion. Either use a typed \
-         parameter (see sand_commands::selector::IntoEntityType, sand_core::cmd::IntoGiveItem \
-         for precedent), rename the function to end in `_raw` as an explicit escape hatch, \
+         parameter (see RegistryReference and IntoItemStack for precedent), rename the \
+         function to end in `_raw` as an explicit escape hatch, \
          or add `(file, function)` to ALLOWLIST in this test with a comment explaining why:\n{:#?}",
         violations.len(),
         violations

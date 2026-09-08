@@ -26,6 +26,7 @@
 //! `REWARD_CD` handles back-to-back level gains (e.g. `/xp add @s 100 levels`)
 //! by collapsing the burst into a single reward pulse.
 
+use sand_core::advanced::state::{Cooldown, ScoreVar};
 use sand_core::event::vanilla::PlayerLevelsUp;
 use sand_core::prelude::*;
 use sand_macros::{datapack_component, function, on_event};
@@ -80,9 +81,9 @@ pub fn on_level_up(event: Event<PlayerLevelsUp>) {
     // level just increased. `event.player()` returns a Target, but Cooldown
     // guards take &str, so we use the "@s" literal directly.
     cmd::raw(ensure_reward_cooldown_score("@s"));
-    when(REWARD_CD.ready("@s")).then_all([cmd::function(
+    when(REWARD_CD.ready("@s")).then_all([cmd::function(FunctionId::custom(
         ResourceLocation::new("hello_world", "lvl_grant_reward").unwrap(),
-    )]);
+    ))]);
 }
 
 // ── Reward function ───────────────────────────────────────────────────────────

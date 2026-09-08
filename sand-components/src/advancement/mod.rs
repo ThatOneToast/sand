@@ -14,8 +14,8 @@ use crate::predicates::{
 };
 use crate::raw::RawJson;
 use crate::registry::{
-    AdvancementId, BlockId, DimensionId, FunctionId, ItemId, LootTableId, PotionRegistryId,
-    RecipeId, StatusEffectId,
+    AdvancementId, BlockId, DimensionId, ItemId, LootTableId, PotionRegistryId, RecipeId,
+    StatusEffectId,
 };
 use crate::resource_location::ResourceLocation;
 
@@ -3386,8 +3386,8 @@ impl AdvancementRewards {
         returns = "The `AdvancementRewards` value with the documented change applied to set a function to execute as a reward.",
         example = "use sand::prelude::*;\n\nfn demonstrate(advancement_rewards_value: sand::component::AdvancementRewards, func: sand::resource_ref::FunctionId)  {\n    let updated_advancement_rewards = advancement_rewards_value.function(func);\n}",
     )]
-    pub fn function(mut self, func: FunctionId) -> Self {
-        self.function = Some(func.to_string());
+    pub fn function(mut self, func: impl crate::FunctionRef) -> Self {
+        self.function = Some(func.function_id().to_string());
         self
     }
 
@@ -3878,6 +3878,7 @@ impl Advancement {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::FunctionId;
     use crate::predicates::{
         DamagePredicate, DamageSourcePredicate, EntityPredicate, FloatRange, IntRange,
         ItemPredicate, LocationPredicate,

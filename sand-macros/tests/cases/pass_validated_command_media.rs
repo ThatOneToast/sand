@@ -7,7 +7,7 @@ fn boss_warning() {
     Bossbar::add(id.clone(), Text::new("Boss").red());
     Bossbar::set_players(id, Target::all_players());
     Actionbar::show(Target::all_players(), Text::new("Incoming").gold());
-    Sound::play("example:boss.roar")
+    Sound::play_raw("example:boss.roar")
         .source(SoundSource::Hostile)
         .to(Target::all_players())
         .build();

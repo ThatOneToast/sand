@@ -48,6 +48,8 @@ pub mod effect;
 pub mod enchantment;
 pub mod enchantment_provider;
 pub mod error;
+pub mod function;
+pub use function::FunctionRef;
 pub mod instrument;
 pub mod item;
 pub mod item_modifier;
@@ -90,9 +92,10 @@ pub use registry::{
     AdvancementId, BiomeId, BlockId, ChickenVariantId, ConfiguredCarverId, ConfiguredFeatureId,
     CowVariantId, DamageTypeId, DensityFunctionId, DialogId, DimensionId, DimensionTypeId,
     EnchantmentEffectComponentId, EnchantmentId, EntityTypeId, EquipmentModelId, FunctionId,
-    ItemId, LootTableId, NoiseId, PigVariantId, PotionRegistryId, PredicateId, ProcessorListId,
-    RandomSequenceId, RecipeId, SoundEventId, StatusEffectId, StructureId, StructureSetId,
-    StructureTemplateId, StructureTypeId, TagId, TemplatePoolId, TradeSetId, VillagerTradeId,
+    ItemId, LootTableId, NoiseId, ParticleId, PigVariantId, PotionRegistryId, PredicateId,
+    ProcessorListId, RandomSequenceId, RecipeId, SoundEventId, StatusEffectId, StructureId,
+    StructureSetId, StructureTemplateId, StructureTypeId, TagId, TemplatePoolId, TradeSetId,
+    VillagerTradeId,
 };
 pub use resource_location::{PackNamespace, ResourceLocation};
 
@@ -172,9 +175,9 @@ pub use predicate::{EntityPredicateTarget, Predicate, PredicateRoot};
 // ── Recipes ───────────────────────────────────────────────────────────────────
 
 pub use recipe::{
-    CookingRecipe, CookingType, Ingredient, IntoRecipeItemId, RecipeResult, ShapedRecipe,
-    ShapelessRecipe, SmithingTransformRecipe, SmithingTrimRecipe, StonecuttingRecipe,
-    TryIntoIngredient, TryIntoRecipeResult,
+    CookingRecipe, CookingType, Ingredient, RecipeResult, ShapedRecipe, ShapelessRecipe,
+    SmithingTransformRecipe, SmithingTrimRecipe, StonecuttingRecipe, TryIntoIngredient,
+    TryIntoRecipeResult,
 };
 
 // ── Dialog ────────────────────────────────────────────────────────────────────

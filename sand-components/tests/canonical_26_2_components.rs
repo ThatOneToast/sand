@@ -761,7 +761,9 @@ fn canonical_26_2_dialog_notice_with_button_action() {
         .body(DialogBody::text("Choose an option."))
         .button(
             DialogButton::new("Start")
-                .action(DialogAction::run_function(id("start")))
+                .action(DialogAction::run_function(
+                    "canon:start".parse::<FunctionId>().unwrap(),
+                ))
                 .tooltip("Begin your journey")
                 .width(150),
         )

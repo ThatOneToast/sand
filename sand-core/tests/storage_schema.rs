@@ -1,4 +1,6 @@
+use sand_commands::NbtValue;
 use sand_core::prelude::*;
+use sand_core::{StorageField, StorageSchema};
 
 #[derive(Debug)]
 struct PlayerMagic;
@@ -10,23 +12,20 @@ static SPELLS: StorageField<PlayerMagic, Vec<String>> = MAGIC.field("spells");
 
 #[test]
 fn snbt_values_format_primitives_lists_and_compounds() {
-    assert_eq!(SnbtValue::from(1_i8).to_string(), "1b");
-    assert_eq!(SnbtValue::from(2_i16).to_string(), "2s");
-    assert_eq!(SnbtValue::from(3_i32).to_string(), "3");
-    assert_eq!(SnbtValue::from(4_i64).to_string(), "4L");
-    assert_eq!(SnbtValue::from(1.25_f32).to_string(), "1.25f");
-    assert_eq!(SnbtValue::from(2.5_f64).to_string(), "2.5d");
-    assert_eq!(SnbtValue::from(true).to_string(), "1b");
-    assert_eq!(
-        SnbtValue::from(r#"say "hi""#).to_string(),
-        r#""say \"hi\"""#
-    );
+    assert_eq!(NbtValue::from(1_i8).to_string(), "1b");
+    assert_eq!(NbtValue::from(2_i16).to_string(), "2s");
+    assert_eq!(NbtValue::from(3_i32).to_string(), "3");
+    assert_eq!(NbtValue::from(4_i64).to_string(), "4L");
+    assert_eq!(NbtValue::from(1.25_f32).to_string(), "1.25f");
+    assert_eq!(NbtValue::from(2.5_f64).to_string(), "2.5d");
+    assert_eq!(NbtValue::from(true).to_string(), "1b");
+    assert_eq!(NbtValue::from(r#"say "hi""#).to_string(), r#""say \"hi\"""#);
 
-    let compound = SnbtCompound::new()
+    let compound = NbtCompound::new()
         .field("mana", 100)
         .field("school", "pyromancy")
         .field("arcane:rank", 2_i8)
-        .field("spells", SnbtValue::from(vec!["dash", "shield"]));
+        .field("spells", NbtValue::from(vec!["dash", "shield"]));
 
     assert_eq!(
         compound.to_string(),
@@ -49,7 +48,7 @@ fn storage_schema_and_fields_emit_commands() {
     assert_eq!(MAGIC.storage(), "arcane:players");
     assert_eq!(MAGIC.root_path(), "player.magic");
     assert_eq!(
-        MAGIC.set(SnbtCompound::new().field("mana", 100)),
+        MAGIC.set(NbtCompound::new().field("mana", 100)),
         "data modify storage arcane:players player.magic set value {mana:100}"
     );
     assert_eq!(
@@ -87,7 +86,7 @@ fn storage_field_copy_append_merge_and_raw_escape_hatch() {
         r#"data modify storage arcane:players player.magic.spells append value "dash""#
     );
     assert_eq!(
-        MAGIC.merge(SnbtCompound::new().field("school", "pyromancy")),
+        MAGIC.merge(NbtCompound::new().field("school", "pyromancy")),
         r#"data modify storage arcane:players player.magic merge value {school:"pyromancy"}"#
     );
     assert_eq!(

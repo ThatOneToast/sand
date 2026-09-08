@@ -13,63 +13,6 @@ use crate::item::stack::ItemStack;
 use crate::registry::{ItemId, TagId};
 use crate::resource_location::ResourceLocation;
 
-/// Converts a validated item identifier into the representation used by recipes.
-///
-/// Implemented for [`ItemId`] and [`ResourceLocation`]. `sand-core` also
-/// implements it for its generated vanilla `Item` enum without introducing a
-/// dependency from `sand-components` back to `sand-core`.
-#[sand_macros::api(
-    registry = sand_api_contract,
-    path = "sand::component::IntoRecipeItemId",
-    module = "sand::component",
-    summary = "Converts a validated item identifier into the representation used by recipes.",
-    context = "Converts a validated item identifier into the representation used by recipes. Implemented for [`ItemId`] and [`ResourceLocation`]. `sand-core` also implements it for its generated vanilla `Item` enum without introducing a dependency from `sand-components` back to `sand-core`.",
-    minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
-    use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
-    avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-    example = "use sand::component::IntoRecipeItemId;",
-)]
-pub trait IntoRecipeItemId {
-    /// Resolves the receiver to the canonical item ID serialized in the recipe.
-    #[sand_macros::api(
-        registry = sand_api_contract,
-        path = "sand::component::IntoRecipeItemId::into_recipe_item_id",
-        module = "sand::component",
-        summary = "Resolves the receiver to the canonical item ID serialized in the recipe.",
-        context = "Resolves the receiver to the canonical item ID serialized in the recipe. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
-        minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
-        use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
-        avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        returns = "The `ItemId` value produced to resolve the receiver to the canonical item ID serialized in the recipe.",
-        example = "use sand::prelude::*;\n\nfn demonstrate<T: sand::component::IntoRecipeItemId>(into_recipe_item_id_value: T)  {\n    let into_recipe_item_id = into_recipe_item_id_value.into_recipe_item_id();\n}",
-    )]
-    fn into_recipe_item_id(self) -> ItemId;
-}
-
-impl IntoRecipeItemId for ItemId {
-    fn into_recipe_item_id(self) -> ItemId {
-        self
-    }
-}
-
-impl IntoRecipeItemId for &ItemId {
-    fn into_recipe_item_id(self) -> ItemId {
-        self.clone()
-    }
-}
-
-impl IntoRecipeItemId for ResourceLocation {
-    fn into_recipe_item_id(self) -> ItemId {
-        self.into()
-    }
-}
-
-impl IntoRecipeItemId for &ResourceLocation {
-    fn into_recipe_item_id(self) -> ItemId {
-        self.clone().into()
-    }
-}
-
 // ── Ingredient ───────────────────────────────────────────────────────────────
 
 #[sand_macros::api(
@@ -107,10 +50,10 @@ impl Ingredient {
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
         params(id = "`id` provides the typed resource identifier or location used to create an item ingredient through Sand's validated item-ID boundary."),
         returns = "An `Ingredient` representing an item ingredient through Sand's validated item-ID boundary.",
-        example = "use sand::prelude::*;\n\nfn demonstrate(id: impl sand::component::IntoRecipeItemId)  {\n    let ingredient = sand::component::Ingredient::item_id(id);\n}",
+        example = "use sand::prelude::*;\n\nfn demonstrate(id: ItemId) {\n    let ingredient = Ingredient::item_id(id);\n}",
     )]
-    pub fn item_id(id: impl IntoRecipeItemId) -> Self {
-        Self::raw_item(id.into_recipe_item_id().to_string())
+    pub fn item_id(id: impl Into<ItemId>) -> Self {
+        Self::raw_item(id.into().to_string())
     }
 
     /// Creates an item-tag ingredient. The `ItemId` marker prevents block or
@@ -524,10 +467,10 @@ impl RecipeResult {
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
         params(id = "`id` provides the typed resource identifier or location used to create a recipe result through Sand's validated item-ID boundary.", count = "`count` provides the requested numeric amount used to create a recipe result through Sand's validated item-ID boundary."),
         returns = "A `RecipeResult` representing a recipe result through Sand's validated item-ID boundary.",
-        example = "use sand::prelude::*;\n\nfn demonstrate(id: impl sand::component::IntoRecipeItemId, count: u32)  {\n    let recipe_result = sand::component::RecipeResult::item(id, count);\n}",
+        example = "use sand::prelude::*;\n\nfn demonstrate(id: ItemId, count: u32) {\n    let recipe_result = RecipeResult::item(id, count);\n}",
     )]
-    pub fn item(id: impl IntoRecipeItemId, count: u32) -> Self {
-        Self::raw(id.into_recipe_item_id().to_string(), count)
+    pub fn item(id: impl Into<ItemId>, count: u32) -> Self {
+        Self::raw(id.into().to_string(), count)
     }
 
     /// Creates a recipe result from an unchecked compatibility string.

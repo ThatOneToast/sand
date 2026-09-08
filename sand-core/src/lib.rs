@@ -97,10 +97,10 @@ pub use sand_components::dialog::SAND_DIALOG_TRIGGER;
 
 pub use cmd::{
     Actionbar, BlockState, Bossbar, BossbarColor, BossbarStyle, CloneBlocks, CloneMaskMode,
-    CloneMode, Command, ConditionedExecute, Cooldown, ExecuteExt, Fill, FillMode, ItemSlot,
-    NbtStoreKind, NbtValue, Objective, ObjectiveName, ParticleEffect, ParticleSpread, RawCommand,
-    RenderCommand, ScoreCmp, ScoreHolder, SetBlock, SetBlockMode, Sound, SoundSource, Storage,
-    Target, Title, TypedExecute, Validate,
+    CloneMode, Command, ConditionedExecute, DataCommand, ExecuteExt, Fill, FillMode, ItemSlot, Nbt,
+    NbtCompound, NbtPath, NbtRef, NbtStoreKind, NbtValue, Objective, ObjectiveName, ParticleEffect,
+    ParticleSpread, RawCommand, RenderCommand, ScoreCmp, ScoreHolder, SetBlock, SetBlockMode,
+    Sound, SoundSource, Storage, Target, Title, TypedExecute, UntypedNbt, Validate,
 };
 pub use component::try_export_components;
 pub use component::try_export_components_for_version;
@@ -193,19 +193,14 @@ pub use events::{
 };
 pub use function::{
     ArmorEventDescriptor, ArmorEventKind, ArmorSlot, ComponentFactory, EventDescriptor,
-    EventDispatch, EventPathEntry, FunctionDescriptor, FunctionPointerEntry,
-    FunctionPointerTypeEntry, FunctionTagDescriptor, IntoFunctionRef, ScheduleDescriptor,
-    ScoreThresholdComparator, TrackedSource, TrackedTransition, TransitionKind, drain_dyn_fns,
-    register_dyn_fn, register_dyn_fn_dedup,
+    EventDispatch, EventPathEntry, FunctionDescriptor, FunctionRef, FunctionTagDescriptor,
+    ScheduleDescriptor, ScoreThresholdComparator, TrackedSource, TrackedTransition, TransitionKind,
+    drain_dyn_fns, register_dyn_fn, register_dyn_fn_dedup,
 };
 
 mod compiler;
 mod transition;
 pub use resource_location::{PackNamespace, ResourceLocation};
-pub use state::{
-    BlockNbt, EntityNbt, NbtLocation, NbtPath, SnbtCompound, SnbtValue, StorageField,
-    StorageLocation, StorageSchema, StorageVar,
-};
 pub use state::{GameState, GameStateRef, TypedGameState};
 pub use state::{
     StateCleanup, StateInit, StateLifecycle, StateMigrate, StateProvision, StateReconcile,
@@ -213,6 +208,7 @@ pub use state::{
 };
 #[doc(hidden)]
 pub use state::{StateDescriptor, StateHookDescriptor, StateLifecycleDescriptor, StateScope};
+pub use state::{StorageField, StorageSchema, StorageVar};
 pub use vfx::{Vfx, VfxParticle, VfxParticleVisibility, VfxSound, VfxStep};
 
 // ── McFunction (sand-core-specific component) ─────────────────────────────────
@@ -341,7 +337,6 @@ pub use sand_components::{
     IntRange,
     // Item stack (#229)
     IntoItemStack,
-    IntoRecipeItemId,
     ItemComponent,
     ItemId,
     // Item modifier
@@ -373,6 +368,7 @@ pub use sand_components::{
     OreConfig,
     OreTarget,
     PaintingVariant,
+    ParticleId,
     PigVariant,
     PigVariantId,
     PlacedFeature,
@@ -559,23 +555,47 @@ pub mod generated {
     include!(concat!(env!("OUT_DIR"), "/registries.rs"));
 }
 
-impl sand_components::recipe::IntoRecipeItemId for generated::Item {
-    fn into_recipe_item_id(self) -> sand_components::registry::ItemId {
-        self.resource_location()
+impl From<generated::Item> for sand_components::registry::ItemId {
+    fn from(value: generated::Item) -> Self {
+        value
+            .resource_location()
             .parse()
             .expect("generated vanilla item IDs are valid resource locations")
     }
 }
 
-impl sand_commands::IntoTextEntityType for generated::EntityType {
-    fn into_text_entity_type(self) -> String {
-        self.resource_location().to_owned()
+impl sand_components::IntoItemStack for generated::Item {
+    fn try_into_item_stack(self) -> sand_components::Result<sand_components::ItemStack> {
+        Ok(sand_components::ItemStack::new(self.into()))
     }
 }
 
-impl sand_commands::selector::IntoEntityType for generated::EntityType {
-    fn into_entity_type(self) -> String {
-        self.resource_location().to_owned()
+impl sand_commands::resource::sealed::Sealed<sand_commands::resource::EntityType>
+    for generated::EntityType
+{
+}
+impl sand_commands::resource::RegistryReference<sand_commands::resource::EntityType>
+    for generated::EntityType
+{
+    fn registry_id(
+        &self,
+    ) -> sand_commands::resource::RegistryId<sand_commands::resource::EntityType> {
+        sand_commands::resource::RegistryId::new(self.resource_location())
+            .expect("generated vanilla entity-type IDs are valid resource locations")
+    }
+}
+impl sand_commands::resource::sealed::Sealed<sand_commands::resource::SoundEvent>
+    for generated::SoundEvent
+{
+}
+impl sand_commands::resource::RegistryReference<sand_commands::resource::SoundEvent>
+    for generated::SoundEvent
+{
+    fn registry_id(
+        &self,
+    ) -> sand_commands::resource::RegistryId<sand_commands::resource::SoundEvent> {
+        sand_commands::resource::RegistryId::new(self.resource_location())
+            .expect("generated vanilla sound-event IDs are valid resource locations")
     }
 }
 
@@ -682,14 +702,6 @@ pub mod __private {
         bounds: Option<(i32, i32)>,
     ) -> crate::entity::FixedScore {
         crate::entity::FixedScore::__new(namespace, schema, name, scale, default, bounds)
-    }
-}
-
-impl From<generated::Item> for sand_components::registry::ItemId {
-    fn from(item: generated::Item) -> Self {
-        item.resource_location()
-            .parse()
-            .expect("generated vanilla item IDs are valid resource locations")
     }
 }
 

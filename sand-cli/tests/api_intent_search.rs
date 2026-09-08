@@ -77,7 +77,7 @@ const CORPUS: &[Case] = &[
     },
     Case {
         query: "define custom state",
-        expect: Expect::Family("sand::state"),
+        expect: Expect::Family("sand::advanced::state"),
     },
 ];
 

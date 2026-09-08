@@ -225,7 +225,73 @@ pub fn api(attr: TokenStream, item: TokenStream) -> TokenStream {
 #[proc_macro]
 pub fn registry_id(input: TokenStream) -> TokenStream {
     sand_api_contract::syntax::registry_id::expand(input.into())
-        .map(|expansion| expansion.rust)
+        .map(|expansion| {
+            let rust = expansion.rust;
+            let registrations = expansion.definitions.iter().map(|definition| {
+                let entry = &definition.contract;
+                let canonical_path = &entry.canonical_path;
+                let aliases = &entry.aliases;
+                let canonical_module = &entry.canonical_module;
+                let kind = syn::Ident::new(
+                    match entry.kind {
+                        sand_api_contract::ApiKind::Struct => "Struct",
+                        sand_api_contract::ApiKind::Method => "Method",
+                        _ => unreachable!("registry_id! only emits structs and methods"),
+                    },
+                    proc_macro2::Span::call_site(),
+                );
+                let signature = &entry.signature;
+                let summary = &entry.summary;
+                let context = &entry.context;
+                let minecraft = &entry.minecraft;
+                let use_when = &entry.use_when;
+                let avoid_when = &entry.avoid_when;
+                let parameter_names = entry
+                    .parameters
+                    .iter()
+                    .map(|parameter| &parameter.name)
+                    .collect::<Vec<_>>();
+                let parameter_docs = entry
+                    .parameters
+                    .iter()
+                    .map(|parameter| &parameter.description)
+                    .collect::<Vec<_>>();
+                let returns = match &entry.returns {
+                    Some(value) => quote!(::std::option::Option::Some(#value)),
+                    None => quote!(::std::option::Option::None),
+                };
+                let example = &entry.example;
+                let availability = &entry.availability;
+                quote! {
+                    ::sand_api_contract::inventory::submit! {
+                        ::sand_api_contract::ApiRegistration {
+                            canonical_path: #canonical_path,
+                            aliases: &[#(#aliases),*],
+                            canonical_module: #canonical_module,
+                            kind: ::sand_api_contract::ApiKind::#kind,
+                            signature: #signature,
+                            summary: #summary,
+                            context: #context,
+                            minecraft: #minecraft,
+                            use_when: &[#(#use_when),*],
+                            avoid_when: &[#(#avoid_when),*],
+                            parameters: &[
+                                #(
+                                    ::sand_api_contract::StaticApiParameter {
+                                        name: #parameter_names,
+                                        description: #parameter_docs,
+                                    }
+                                ),*
+                            ],
+                            returns: #returns,
+                            example: #example,
+                            availability: &[#(#availability),*],
+                        }
+                    }
+                }
+            });
+            quote! { #rust #(#registrations)* }
+        })
         .unwrap_or_else(syn::Error::into_compile_error)
         .into()
 }
@@ -1763,7 +1829,7 @@ fn expand_function(
 ) -> syn::Result<proc_macro2::TokenStream> {
     let fn_name = &func.sig.ident;
     let fn_name_str = function_descriptor_path(fn_name, explicit_path.clone());
-    // Store the full path (with namespace if given) for IntoFunctionRef resolution.
+    // Store the full path (with namespace if given) for FunctionRef resolution.
     let ptr_path_str = explicit_path.unwrap_or_else(|| fn_name.to_string());
     let vis = &func.vis;
     let attrs = &func.attrs;
@@ -1827,28 +1893,7 @@ fn expand_function(
         );
 
         ::sand::__private::inventory::submit!(
-            ::sand::__private::FunctionPointerEntry {
-                ptr: #fn_name as fn() -> ::std::vec::Vec<::std::string::String>,
-                path: #ptr_path_str,
-            }
-        );
-
-        ::sand::__private::inventory::submit!(
-            ::sand::__private::FunctionPointerTypeEntry {
-                type_id: #type_id_ident,
-                path: #ptr_path_str,
-            }
-        );
-
-        ::sand::__private::inventory::submit!(
-            ::sand::__private::sand_components::dialog::DialogFunctionPointerEntry {
-                ptr: #fn_name as fn() -> ::std::vec::Vec<::std::string::String>,
-                path: #ptr_path_str,
-            }
-        );
-
-        ::sand::__private::inventory::submit!(
-            ::sand::__private::sand_components::dialog::DialogFunctionPointerTypeEntry {
+            ::sand::__private::sand_components::function::FunctionItemTypeEntry {
                 type_id: #type_id_ident,
                 path: #ptr_path_str,
             }
@@ -3561,8 +3606,10 @@ fn expand_run_fn(input: TokenStream) -> syn::Result<proc_macro2::TokenStream> {
     let full_path_lit = LitStr::new(&path_val, span);
     let fn_call = quote! {
         ::sand::__private::cmd::function(
-            ::sand::__private::ResourceLocation::new(#ns_lit, #full_path_lit)
-                .expect("run_fn! validates namespace/path syntax at compile time")
+            ::sand::__private::FunctionId::custom(
+                ::sand::__private::ResourceLocation::new(#ns_lit, #full_path_lit)
+                    .expect("run_fn! validates namespace/path syntax at compile time")
+            )
         )
     };
 
@@ -3639,7 +3686,7 @@ fn expand_run_fn(input: TokenStream) -> syn::Result<proc_macro2::TokenStream> {
 /// #[schedule(ticks = 60)]
 /// pub fn flame_aura() {
 ///     mcfunction! {
-///         for cmd in &ParticleBuilder::new(Particle::named("minecraft:flame"))
+///         for cmd in &ParticleBuilder::new(Particle::raw_token("minecraft:flame"))
 ///             .circle(1.5, 1.0, 24) { cmd; }
 ///     }
 /// }

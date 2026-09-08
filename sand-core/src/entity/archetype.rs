@@ -409,8 +409,12 @@ impl Migration {
         example = "use sand::prelude::*;\n\nfn demonstrate(from: u32, to: u32, action: sand::resource_ref::FunctionId)  {\n    let migration = sand::entity::Migration::new(from, to, action);\n}",
     )]
     #[must_use]
-    pub fn new(from: u32, to: u32, action: FunctionId) -> Self {
-        Self { from, to, action }
+    pub fn new(from: u32, to: u32, action: impl crate::FunctionRef) -> Self {
+        Self {
+            from,
+            to,
+            action: action.function_id(),
+        }
     }
 }
 
@@ -615,8 +619,8 @@ where
         example = "use sand::prelude::*; fn update<K: KnownEntityKind>(archetype: EntityArchetype<K>, function: FunctionId) { let _ = archetype.initialize_with(function); }",
     )]
     #[must_use]
-    pub fn initialize_with(mut self, function: FunctionId) -> Self {
-        self.initialize = Some(function);
+    pub fn initialize_with(mut self, function: impl crate::FunctionRef) -> Self {
+        self.initialize = Some(function.function_id());
         self
     }
 
@@ -641,8 +645,8 @@ where
         example = "use sand::prelude::*; fn update<K: KnownEntityKind>(archetype: EntityArchetype<K>, function: FunctionId) { let _ = archetype.cleanup_with(function); }",
     )]
     #[must_use]
-    pub fn cleanup_with(mut self, function: FunctionId) -> Self {
-        self.cleanup = Some(function);
+    pub fn cleanup_with(mut self, function: impl crate::FunctionRef) -> Self {
+        self.cleanup = Some(function.function_id());
         self
     }
 

@@ -99,16 +99,10 @@ pub fn expand(input: TokenStream) -> syn::Result<RegistryIdExpansion> {
         None => semantic_default_contract(attributes, name)?,
     };
     let local_constructor = contract.local.is_some();
-    if local_constructor && name != "DialogId" {
-        return Err(syn::Error::new_spanned(
-            name,
-            "the local registry contract capability is only supported for DialogId",
-        ));
-    }
     let local_methods = local_constructor.then(|| {
         quote! {
             pub fn local(path: impl AsRef<str>) -> Self {
-                Self::try_local(path).expect("invalid local dialog path")
+                Self::try_local(path).expect("invalid local resource path")
             }
 
             pub fn try_local(path: impl AsRef<str>) -> Result<Self> {
@@ -607,12 +601,6 @@ fn definitions(
         &[], "A borrowed view of the identifier's validated namespace and path.",
         format!("let id = {name}::custom(ResourceLocation::new(\"{example_namespace}\", \"{example_path}\")?); let location = id.as_resource_location();"))?);
     if let Some(local) = local {
-        if name != "DialogId" {
-            return Err(syn::Error::new_spanned(
-                name,
-                "the local registry contract capability is only supported for DialogId",
-            ));
-        }
         let minecraft = required(local.minecraft, "local.minecraft")?;
         let use_when = required_list(local.use_when, "local.use_when")?;
         let avoid_when = required_list(local.avoid_when, "local.avoid_when")?;
@@ -624,14 +612,14 @@ fn definitions(
         if parameters.len() != 1 || parameters[0] != "path" {
             return Err(syn::Error::new_spanned(
                 &item.sig,
-                "DialogId local constructor must have exactly one `path` parameter",
+                "local constructor must have exactly one `path` parameter",
             ));
         }
         let try_parameters = parameter_names(&try_item.sig)?;
         if try_parameters.len() != 1 || try_parameters[0] != "path" {
             return Err(syn::Error::new_spanned(
                 &try_item.sig,
-                "DialogId fallible local constructor must have exactly one `path` parameter",
+                "fallible local constructor must have exactly one `path` parameter",
             ));
         }
         let visibility = &item.vis;
@@ -650,7 +638,7 @@ fn definitions(
                 canonical_module: path.clone(),
                 kind: ApiKind::Method,
                 signature: quote!(#visibility #signature).to_string(),
-                summary: "Constructs a local dialog identifier for a trusted literal path.".into(),
+                summary: format!("Constructs a local {subject} for a trusted literal path."),
                 context: "This convenience constructor keeps the local namespace unresolved until Sand knows the project namespace and panics when a dynamic path is invalid; use try_local for user-provided input.".into(),
                 minecraft: minecraft.clone(),
                 use_when,
@@ -658,11 +646,11 @@ fn definitions(
                 parameters: vec![ApiParameter {
                     name: "path".into(),
                     rust_type: Some("impl AsRef<str>".into()),
-                    description: "The validated dialog path inside the current Sand project's namespace.".into(),
+                    description: format!("The validated {subject} path inside the current Sand project's namespace."),
                 }],
-                returns: Some("The local dialog identifier.".into()),
+                returns: Some(format!("The local {subject}.")),
                 return_type: return_type(&item.sig),
-                example: format!("let dialog = DialogId::local(\"{example_path}\");"),
+                example: format!("let id = {name}::local(\"{example_path}\");"),
                 availability: availability.clone(),
             },
         });
@@ -682,21 +670,21 @@ fn definitions(
                 canonical_module: path.clone(),
                 kind: ApiKind::Method,
                 signature: quote!(#visibility #signature).to_string(),
-                summary: "Fallibly constructs a local dialog identifier.".into(),
+                summary: format!("Fallibly constructs a local {subject}."),
                 context: "Use this constructor for a path supplied at runtime; it keeps the namespace unresolved until Sand exports the current project.".into(),
                 minecraft: format!(
                     "{minecraft} This fallible form validates the path before it can reach generated Minecraft resources."
                 ),
-                use_when: vec!["Accepting a local dialog path from configuration or another runtime source".into()],
-                avoid_when: vec!["A trusted literal path can use DialogId::local".into()],
+                use_when: vec![format!("Accepting a local {subject} path from configuration or another runtime source")],
+                avoid_when: vec![format!("A trusted literal path can use {name}::local")],
                 parameters: vec![ApiParameter {
                     name: "path".into(),
                     rust_type: Some("impl AsRef<str>".into()),
-                    description: "The dialog path inside the current Sand project's namespace to validate.".into(),
+                    description: format!("The {subject} path inside the current Sand project's namespace to validate."),
                 }],
-                returns: Some("The local dialog identifier, or an error when the path is invalid.".into()),
+                returns: Some(format!("The local {subject}, or an error when the path is invalid.")),
                 return_type: return_type(&try_item.sig),
-                example: format!("let dialog = DialogId::try_local(\"{example_path}\")?;"),
+                example: format!("let id = {name}::try_local(\"{example_path}\")?;"),
                 availability,
             },
         });
@@ -987,7 +975,7 @@ mod tests {
     }
 
     #[test]
-    fn dialog_local_capability_requires_complete_known_semantics() {
+    fn local_capability_requires_complete_known_semantics_and_supports_resource_kinds() {
         let missing = match expand(dialog_invocation(
             r#"minecraft = "Uses Sand's export-time namespace sentinel.",
                use_when = ["Referring to a dialog from this project"],
@@ -1025,19 +1013,18 @@ mod tests {
         };
         assert!(duplicate.contains("duplicate registry contract field `availability`"));
 
-        let wrong_type: TokenStream = r#"@contract(
-                path = "sand::resource_ref::NotDialogId",
-                aliases = [], subject = "thing", minecraft = "thing",
-                use_when = ["thing"], avoid_when = ["thing"],
-                example_namespace = "demo", example_path = "thing",
-                local(minecraft = "thing", use_when = ["thing"], avoid_when = ["thing"], example_path = "thing", availability = ["all configurations"])
-            ); NotDialogId"#
+        let function_id: TokenStream = r#"@contract(
+                path = "sand::resource_ref::FunctionId",
+                aliases = [], subject = "function", minecraft = "function",
+                use_when = ["function"], avoid_when = ["function"],
+                example_namespace = "demo", example_path = "function",
+                local(minecraft = "function", use_when = ["function"], avoid_when = ["function"], example_path = "function", availability = ["all configurations"])
+            ); FunctionId"#
             .parse()
             .unwrap();
-        let error = match expand(wrong_type) {
-            Ok(_) => panic!("local capability unexpectedly expanded on another type"),
-            Err(error) => error.to_string(),
-        };
-        assert!(error.contains("only supported for DialogId"));
+        let expansion = expand(function_id).expect("local capability supports function IDs");
+        assert!(expansion.definitions.iter().any(|definition| {
+            definition.contract.canonical_path == "sand::resource_ref::FunctionId::local"
+        }));
     }
 }

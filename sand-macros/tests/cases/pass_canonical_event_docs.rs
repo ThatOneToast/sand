@@ -10,6 +10,7 @@ use sand_core::events::{
     SandEventDispatch,
 };
 use sand_core::prelude::*;
+use sand_core::advanced::state::ScoreVar;
 use sand_macros::on_event;
 use std::marker::PhantomData;
 

@@ -15,7 +15,8 @@ fn greet() {
 #[function("run_greeting")]
 fn run_greeting() {
     let args = FunctionMacroArgs::new(["player", "count"]).unwrap();
-    let values = Nbt::storage("macro_test:runtime").path("greeting");
+    let values =
+        Nbt::storage(ResourceLocation::new("macro_test", "runtime").unwrap()).path("greeting");
     args.call_with(greet, &values).unwrap();
 }
 

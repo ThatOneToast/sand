@@ -15,7 +15,7 @@ fn level_up_vfx() -> Vfx {
                 .spread(0.6, 1.0, 0.6),
         )
         .sound(
-            VfxSound::new("minecraft:entity.player.levelup")
+            VfxSound::new_raw("minecraft:entity.player.levelup")
                 .source(SoundSource::Player)
                 .volume(1.0)
                 .pitch(1.2),

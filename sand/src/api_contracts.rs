@@ -170,7 +170,7 @@ register! {
 
 register! {
     path: "sand::State",
-    aliases: ["sand::prelude::State"],
+    aliases: ["sand::prelude::State", "sand::state::State"],
     module: "sand",
     kind: Macro,
     signature: "#[derive(State)]",
@@ -186,7 +186,7 @@ register! {
 
 register! {
     path: "sand::EntityStateEnum",
-    aliases: ["sand::prelude::EntityStateEnum"],
+    aliases: ["sand::prelude::EntityStateEnum", "sand::state::EntityStateEnum"],
     module: "sand",
     kind: Macro,
     signature: "#[derive(EntityStateEnum)]",
@@ -202,7 +202,7 @@ register! {
 
 register! {
     path: "sand::StateEnum",
-    aliases: ["sand::prelude::StateEnum"],
+    aliases: ["sand::prelude::StateEnum", "sand::state::StateEnum"],
     module: "sand",
     kind: Macro,
     signature: "#[derive(StateEnum)]",
@@ -218,7 +218,7 @@ register! {
 
 register! {
     path: "sand::StateBundle",
-    aliases: ["sand::prelude::StateBundle"],
+    aliases: ["sand::prelude::StateBundle", "sand::state::StateBundle"],
     module: "sand",
     kind: Macro,
     signature: "#[derive(StateBundle)]",
@@ -234,7 +234,7 @@ register! {
 
 register! {
     path: "sand::StateQuery",
-    aliases: ["sand::prelude::StateQuery"],
+    aliases: ["sand::prelude::StateQuery", "sand::state::StateQuery"],
     module: "sand",
     kind: Macro,
     signature: "#[derive(StateQuery)]",

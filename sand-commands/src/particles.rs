@@ -10,7 +10,7 @@
 //!     .circle(2.0, 1.0, 32);
 //!
 //! // Arbitrary point list
-//! let cmds = ParticleBuilder::new(Particle::named("minecraft:end_rod"))
+//! let cmds = ParticleBuilder::new(Particle::raw_token("minecraft:end_rod"))
 //!     .points_at(&[[0.0,0.0,0.0],[1.0,1.0,0.0],[2.0,0.0,0.0]]);
 //! ```
 
@@ -18,51 +18,9 @@ use std::collections::BTreeMap;
 
 use crate::error::{CommandError, CommandResult};
 use crate::render::{CommandProfile, RenderCommand, Validate};
+use crate::resource::{ParticleType as ParticleRegistry, RegistryReference};
 
 // ── Particle ──────────────────────────────────────────────────────────────────
-
-#[sand_macros::api(
-    registry = sand_api_contract,
-    path = "sand::command::IntoParticleId",
-    aliases = ["sand::cmd::IntoParticleId", "sand::prelude::cmd::IntoParticleId"],
-    module = "sand::command",
-    summary = "Conversion into a particle resource-location token.",
-    context = "Conversion into a particle resource-location token. This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
-    minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
-    use_when = ["Constructing Minecraft commands through Sand's typed command model"],
-    avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-    example = "use sand::command::IntoParticleId;",
-)]
-/// Conversion into a particle resource-location token.
-pub trait IntoParticleId {
-    /// Converts a typed or validated value into a Minecraft particle identifier.
-    #[sand_macros::api(
-        registry = sand_api_contract,
-        path = "sand::command::IntoParticleId::into_particle_id",
-        aliases = ["sand::cmd::IntoParticleId::into_particle_id", "sand::prelude::cmd::IntoParticleId::into_particle_id"],
-        module = "sand::command",
-        summary = "Converts a typed or validated value into a Minecraft particle identifier.",
-        context = "Converts a typed or validated value into a Minecraft particle identifier. This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
-        minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
-        use_when = ["Constructing Minecraft commands through Sand's typed command model"],
-        avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        returns = "The string value produced to convert a typed or validated value into a Minecraft particle identifier.",
-        example = "use sand::prelude::*;\n\nfn demonstrate<T: sand::command::IntoParticleId>(into_particle_id_value: T)  {\n    let into_particle_id = into_particle_id_value.into_particle_id();\n}",
-    )]
-    fn into_particle_id(self) -> String;
-}
-
-impl IntoParticleId for String {
-    fn into_particle_id(self) -> String {
-        self
-    }
-}
-
-impl IntoParticleId for &str {
-    fn into_particle_id(self) -> String {
-        self.to_string()
-    }
-}
 
 #[sand_macros::api(
     registry = sand_api_contract,
@@ -144,10 +102,10 @@ impl Particle {
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
         params(name = "`name` sets the author-visible text for a named particle with no extra parameters (e.g. `\"minecraft:flame\"`)."),
         returns = "A `Particle` configured for a named particle with no extra parameters (e.g. `\"minecraft:flame\"`).",
-        example = "use sand::prelude::*;\n\nfn demonstrate(name: impl sand::command::IntoParticleId)  {\n    let particle = sand::command::Particle::named(name);\n}",
+        example = "use sand::prelude::*;\n\nfn demonstrate(name: ParticleId) {\n    let particle = Particle::named(name);\n}",
     )]
-    pub fn named(name: impl IntoParticleId) -> Self {
-        Particle::Named(name.into_particle_id())
+    pub fn named(name: impl RegistryReference<ParticleRegistry>) -> Self {
+        Particle::Named(name.registry_id().to_string())
     }
 
     /// Create an intentionally opaque particle token.
@@ -1865,10 +1823,10 @@ impl ParticleEffect {
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
         params(particle = "`particle` sets the particle for horizontal ring of particles.", radius = "`radius` sets the radius for horizontal ring of particles.", y_offset = "`y_offset` sets the y offset for horizontal ring of particles.", count = "`count` provides the requested numeric amount used to use horizontal ring of particles.", spread = "`spread` sets the spread for horizontal ring of particles."),
         returns = "The ordered values produced to use horizontal ring of particles.",
-        example = "use sand::prelude::*;\n\nfn demonstrate(particle: & str, radius: f64, y_offset: f64, count: usize, spread: & sand::command::ParticleSpread)  {\n    let values = sand::command::ParticleEffect::circle(particle, radius, y_offset, count, spread);\n}",
+        example = "use sand::prelude::*;\n\nfn demonstrate(particle: sand::registry::ParticleId, radius: f64, y_offset: f64, count: usize, spread: & sand::command::ParticleSpread)  {\n    let values = sand::command::ParticleEffect::circle(particle, radius, y_offset, count, spread);\n}",
     )]
     pub fn circle(
-        particle: &str,
+        particle: impl RegistryReference<ParticleRegistry>,
         radius: f64,
         y_offset: f64,
         count: usize,
@@ -1893,10 +1851,10 @@ impl ParticleEffect {
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
         params(particle = "`particle` selects the particle placed across the sphere surface.", radius = "`radius` sets the sphere radius.", y_offset = "`y_offset` shifts the sphere center vertically.", count = "`count` sets how many Fibonacci-distributed surface points are generated.", spread = "`spread` configures each emitted particle's random offset."),
         returns = "The ordered values produced to sphere surface (Fibonacci distribution).",
-        example = "use sand::prelude::*;\n\nfn demonstrate(particle: & str, radius: f64, y_offset: f64, count: usize, spread: & sand::command::ParticleSpread)  {\n    let values = sand::command::ParticleEffect::sphere(particle, radius, y_offset, count, spread);\n}",
+        example = "use sand::prelude::*;\n\nfn demonstrate(particle: sand::registry::ParticleId, radius: f64, y_offset: f64, count: usize, spread: & sand::command::ParticleSpread)  {\n    let values = sand::command::ParticleEffect::sphere(particle, radius, y_offset, count, spread);\n}",
     )]
     pub fn sphere(
-        particle: &str,
+        particle: impl RegistryReference<ParticleRegistry>,
         radius: f64,
         y_offset: f64,
         count: usize,
@@ -1921,10 +1879,10 @@ impl ParticleEffect {
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
         params(particle = "`particle` sets the particle for rising spiral helix.", radius = "`radius` sets the radius for rising spiral helix.", height = "`height` sets the height for rising spiral helix.", turns = "`turns` sets the turns for rising spiral helix.", count = "`count` provides the requested numeric amount used to use rising spiral helix.", spread = "`spread` sets the spread for rising spiral helix."),
         returns = "The ordered values produced to use rising spiral helix.",
-        example = "use sand::prelude::*;\n\nfn demonstrate(particle: & str, radius: f64, height: f64, turns: f64, count: usize, spread: & sand::command::ParticleSpread)  {\n    let values = sand::command::ParticleEffect::helix(particle, radius, height, turns, count, spread);\n}",
+        example = "use sand::prelude::*;\n\nfn demonstrate(particle: sand::registry::ParticleId, radius: f64, height: f64, turns: f64, count: usize, spread: & sand::command::ParticleSpread)  {\n    let values = sand::command::ParticleEffect::helix(particle, radius, height, turns, count, spread);\n}",
     )]
     pub fn helix(
-        particle: &str,
+        particle: impl RegistryReference<ParticleRegistry>,
         radius: f64,
         height: f64,
         turns: f64,
@@ -1950,11 +1908,11 @@ impl ParticleEffect {
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
         params(particle = "`particle` sets the particle for straight line between two relative points.", x1 = "`x1` sets the x1 for straight line between two relative points.", y1 = "`y1` sets the y1 for straight line between two relative points.", z1 = "`z1` sets the z1 for straight line between two relative points.", x2 = "`x2` sets the x2 for straight line between two relative points.", y2 = "`y2` sets the y2 for straight line between two relative points.", z2 = "`z2` sets the z2 for straight line between two relative points.", count = "`count` provides the requested numeric amount used to use straight line between two relative points.", spread = "`spread` sets the spread for straight line between two relative points."),
         returns = "The ordered values produced to use straight line between two relative points.",
-        example = "use sand::prelude::*;\n\nfn demonstrate(particle: & str, x1: f64, y1: f64, z1: f64, x2: f64, y2: f64, z2: f64, count: usize, spread: & sand::command::ParticleSpread)  {\n    let values = sand::command::ParticleEffect::line(particle, x1, y1, z1, x2, y2, z2, count, spread);\n}",
+        example = "use sand::prelude::*;\n\nfn demonstrate(particle: sand::registry::ParticleId, x1: f64, y1: f64, z1: f64, x2: f64, y2: f64, z2: f64, count: usize, spread: & sand::command::ParticleSpread)  {\n    let values = sand::command::ParticleEffect::line(particle, x1, y1, z1, x2, y2, z2, count, spread);\n}",
     )]
     #[allow(clippy::too_many_arguments)]
     pub fn line(
-        particle: &str,
+        particle: impl RegistryReference<ParticleRegistry>,
         x1: f64,
         y1: f64,
         z1: f64,
@@ -1983,10 +1941,10 @@ impl ParticleEffect {
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
         params(particle = "`particle` sets the particle for outward burst (sphere with boosted spread).", radius = "`radius` sets the radius for outward burst (sphere with boosted spread).", y_offset = "`y_offset` sets the y offset for outward burst (sphere with boosted spread).", count = "`count` provides the requested numeric amount used to use outward burst (sphere with boosted spread).", spread = "`spread` sets the spread for outward burst (sphere with boosted spread)."),
         returns = "The ordered values produced to use outward burst (sphere with boosted spread).",
-        example = "use sand::prelude::*;\n\nfn demonstrate(particle: & str, radius: f64, y_offset: f64, count: usize, spread: & sand::command::ParticleSpread)  {\n    let values = sand::command::ParticleEffect::burst(particle, radius, y_offset, count, spread);\n}",
+        example = "use sand::prelude::*;\n\nfn demonstrate(particle: sand::registry::ParticleId, radius: f64, y_offset: f64, count: usize, spread: & sand::command::ParticleSpread)  {\n    let values = sand::command::ParticleEffect::burst(particle, radius, y_offset, count, spread);\n}",
     )]
     pub fn burst(
-        particle: &str,
+        particle: impl RegistryReference<ParticleRegistry>,
         radius: f64,
         y_offset: f64,
         count: usize,
@@ -2011,10 +1969,10 @@ impl ParticleEffect {
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
         params(particle = "`particle` sets the particle for two interleaved helices.", radius = "`radius` sets the radius for two interleaved helices.", height = "`height` sets the height for two interleaved helices.", turns = "`turns` sets the turns for two interleaved helices.", count = "`count` provides the requested numeric amount used to use two interleaved helices.", spread = "`spread` sets the spread for two interleaved helices."),
         returns = "The ordered values produced to use two interleaved helices.",
-        example = "use sand::prelude::*;\n\nfn demonstrate(particle: & str, radius: f64, height: f64, turns: f64, count: usize, spread: & sand::command::ParticleSpread)  {\n    let values = sand::command::ParticleEffect::double_helix(particle, radius, height, turns, count, spread);\n}",
+        example = "use sand::prelude::*;\n\nfn demonstrate(particle: sand::registry::ParticleId, radius: f64, height: f64, turns: f64, count: usize, spread: & sand::command::ParticleSpread)  {\n    let values = sand::command::ParticleEffect::double_helix(particle, radius, height, turns, count, spread);\n}",
     )]
     pub fn double_helix(
-        particle: &str,
+        particle: impl RegistryReference<ParticleRegistry>,
         radius: f64,
         height: f64,
         turns: f64,
@@ -2040,10 +1998,10 @@ impl ParticleEffect {
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
         params(particle = "`particle` sets the particle for filled disc of concentric rings.", radius = "`radius` sets the radius for filled disc of concentric rings.", y_offset = "`y_offset` sets the y offset for filled disc of concentric rings.", density = "`density` sets the density for filled disc of concentric rings.", spread = "`spread` sets the spread for filled disc of concentric rings."),
         returns = "The ordered values produced to use filled disc of concentric rings.",
-        example = "use sand::prelude::*;\n\nfn demonstrate(particle: & str, radius: f64, y_offset: f64, density: usize, spread: & sand::command::ParticleSpread)  {\n    let values = sand::command::ParticleEffect::disc(particle, radius, y_offset, density, spread);\n}",
+        example = "use sand::prelude::*;\n\nfn demonstrate(particle: sand::registry::ParticleId, radius: f64, y_offset: f64, density: usize, spread: & sand::command::ParticleSpread)  {\n    let values = sand::command::ParticleEffect::disc(particle, radius, y_offset, density, spread);\n}",
     )]
     pub fn disc(
-        particle: &str,
+        particle: impl RegistryReference<ParticleRegistry>,
         radius: f64,
         y_offset: f64,
         density: usize,
@@ -2218,7 +2176,7 @@ mod tests {
     use super::*;
 
     fn builder(name: &str) -> ParticleBuilder {
-        ParticleBuilder::new(Particle::named(name))
+        ParticleBuilder::new(Particle::raw_token(name))
     }
 
     #[test]
@@ -2368,16 +2326,21 @@ mod tests {
     fn particle_validation_covers_ids_numbers_and_geometry() {
         let profile = CommandProfile::unprofiled();
         assert!(
-            Particle::named("modded:custom_particle")
+            Particle::raw_token("modded:custom_particle")
                 .validate(&profile)
                 .is_ok()
         );
         assert_eq!(
-            Particle::named("Bad Particle")
+            Particle::Named("Bad Particle".into())
                 .validate(&profile)
                 .unwrap_err()
                 .code,
             "SAND-PARTICLE-ID"
+        );
+        assert!(
+            Particle::raw_token("Bad Particle")
+                .validate(&profile)
+                .is_ok()
         );
         assert_eq!(
             Particle::dust(f32::NAN, 0.0, 0.0, 1.0)
@@ -2393,7 +2356,7 @@ mod tests {
                 .code,
             "SAND-PARTICLE-SCALE"
         );
-        let builder = ParticleBuilder::new(Particle::named("minecraft:flame"));
+        let builder = ParticleBuilder::new(Particle::raw_token("minecraft:flame"));
         assert!(builder.try_circle(-1.0, 0.0, 4).is_err());
         assert!(builder.try_helix(1.0, 2.0, 0.0, 4).is_err());
         assert!(builder.try_grid(1.0, 1.0, 0, 2, 0.0).is_err());

@@ -45,7 +45,7 @@
 use crate::AdvancementTrigger;
 use crate::condition::Condition;
 use crate::event::{EventId, EventReset, EventVisibility, IntoEventId};
-use crate::function::IntoFunctionRef;
+use crate::function::FunctionRef;
 use crate::state::{Cooldown, Flag, ScoreVar, StorageField, StorageVar, Timer};
 
 // ── EventConfig ───────────────────────────────────────────────────────────────
@@ -82,14 +82,11 @@ impl EventConfig {
     ///   pre-validated) or a raw `&str`/`String`, which is parsed and
     ///   validated here — invalid input panics with an actionable diagnostic
     ///   instead of silently producing a malformed advancement/revoke command.
-    /// - `reward_fn` — the mcfunction to call. Accepts a
-    ///   [`FunctionId`](crate::resource_ref::FunctionId) (preferred), a
-    ///   [`ResourceLocation`](crate::ResourceLocation), or a raw `&str`/`String`
-    ///   via [`IntoFunctionRef`].
+    /// - `reward_fn` — a registered function item or validated function ID.
     pub fn advancement(
         &self,
         advancement_id: impl IntoEventId,
-        reward_fn: impl IntoFunctionRef,
+        reward_fn: impl FunctionRef,
     ) -> crate::Advancement {
         let rl = advancement_id.into_event_resource_location();
 
@@ -99,10 +96,7 @@ impl EventConfig {
             .criterion("event", crate::Criterion::new(self.trigger_clone()))
             .rewards(
                 crate::AdvancementRewards::new().function(
-                    reward_fn
-                        .into_function_id()
-                        .parse()
-                        .expect("function reference must resolve to a valid resource location"),
+                    reward_fn.function_id().as_resource_location().clone(),
                 ),
             )
     }

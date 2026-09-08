@@ -10,15 +10,15 @@ surfaces are not retained as aliases.
 | temporary objectives | separate function-like declaration DSL and export phase | fields in a scoped `State` schema | removed |
 | entity schemas | entity-specific derive with associated handles only | `#[derive(State)]` with a concrete bound view | removed and migrated |
 | manual objective lifecycle registry | register/drain helpers plus a parallel export phase | derive-emitted immutable lifecycle descriptors | removed |
-| function command references | strings, `Display`, and `IntoFunctionRef` | one typed function reference/resolution path | follow-up; #373 (the closed #175 covered validation, not consolidation) |
+| function command references | strings, `Display`, and command-local conversion traits | `FunctionRef` implemented by `FunctionId` and registered `#[function]` items | completed; #373 |
 | entity/player selection | `Selector`, entity/player target aliases, entity/player query wrappers, selector-specific range/map inputs, and a command-local predicate ID | one inferred `Target` model with direct scalar/tuple filters and the canonical `PredicateId`; `ScoreHolder` remains distinct for fake players/wildcards | completed; #368 |
-| resource and registry identifiers | mixed strings and typed IDs | existing typed refs/IDs backed by `ResourceLocation` | follow-up; #372 |
+| resource and registry identifiers | mixed strings and command-local conversion traits | generated/custom typed IDs sharing the small `RegistryReference<K>` capability | completed; #372 |
 | trim materials and patterns | raw string/JSON IDs, items, text, and overrides | typed `ItemId`, `ResourceLocation`, `TextComponent`, `TrimAssetName`, and typed override maps | completed normal paths; #198 |
 | enchantment providers | whole-provider raw JSON only | `EnchantmentProvider`, typed IDs/tags, and typed constant/uniform integer providers | completed common vanilla shapes; #188 |
 | enchantment description/item-tag/slot/effect fields | raw JSON description, bare strings for item/tag refs, string slot names, whole-map raw effects | typed `TextComponent`, `ItemOrTag`/`EnchantmentOrTag` (`ItemId`/`EnchantmentId`/`TagId<T>`), reused `EquipmentSlotGroup`, and a typed `minecraft:damage`/`minecraft:knockback`/`minecraft:armor_effectiveness` value-effect slice with `EnchantmentEffectComponentId` | completed normal paths + small effect slice; #202 |
 | consumable/equippable sound and model IDs | `Display`/string fields | `SoundEventId` and `EquipmentModelId` | completed; #195 |
 | structure-generation registries (`worldgen/structure`, `worldgen/structure_set`, `worldgen/template_pool`, `worldgen/processor_list`) | no Sand module; `RawComponent`/raw JSON only | `Structure`, `StructureSet`, `TemplatePool`, `ProcessorList` with typed IDs (`StructureId`, `StructureSetId`, `TemplatePoolId`, `ProcessorListId`, `StructureTemplateId`, `StructureTypeId`) and a shared `worldgen::providers` module (`HeightProvider`, `VerticalAnchor`, `Heightmap`, `BlockState`, `BlockStateProvider`) | completed common vanilla jigsaw/random-spread/concentric-rings/processor shapes with named raw escape hatches; #187 |
-| storage and NBT paths | strings plus typed paths | one canonical NBT root/reference/path model | follow-up; #371 |
+| storage and NBT paths | duplicate roots, locations, targets, and builders | `Nbt` root + `NbtPath` + `NbtRef<T>` | completed; #371 |
 | loot table item/tag/reference/text/enchantment IDs | raw strings and `serde_json::Value` | `ItemId`, `TagId<ItemId>`, `LootTableId`, `TextComponent`-backed `LootText`, `EnchantmentSelector` (`EnchantmentId`/`TagId<EnchantmentId>`), `ResourceLocation` | completed normal paths; predicate/range/target payloads remain raw pending #137; #185 |
 | standalone predicate authoring | `Predicate` as a thin `LootCondition` wrapper | dedicated `PredicateRoot` typed condition tree (`AllOf`/`AnyOf`/`Inverted`, `EntityProperties` with `EntityPredicateTarget`, `LocationCheck`, `WeatherCheck`, `TimeCheck`, `RandomChance`, `Reference` via typed `PredicateId`) reusing the shared `sand_components::predicates` model, with an explicit `Raw` escape hatch and a `Predicate::from_loot_condition` compatibility path | completed; #204 |
 | chicken/cow/pig animal variant registries | absent (`RawComponent`/`RawJson` only) | `ChickenVariant`/`CowVariant`/`PigVariant`, shared `SpawnCondition` (`minecraft:biome` condition), `ChickenVariantId`/`CowVariantId`/`PigVariantId` | narrow first pass covering `asset_id` + biome `spawn_conditions`; other fields (e.g. `cow_variant` model selector) and non-biome condition types remain `raw_field`; #201 |
@@ -42,10 +42,10 @@ event families, and tests are not public declaration languages.
 
 ## Retained low-level primitives
 
-`ScoreVar`, `Flag`, `Timer`, `Cooldown`, and `GameState` remain implementation
-or advanced command-building primitives because existing systems and state-flow
-lowering use their operations directly. They are not the canonical declaration
-API, and their parallel lifecycle registration methods have been removed.
+`ScoreVar`, standalone `Flag`/`Timer`/`Cooldown`, and `GameState` remain only
+under `sand::advanced::state` because compiler integrations still use their
+operations directly. They are not exported by `sand::prelude` or
+`sand::state`; `#[derive(State)]` is the sole normal declaration API.
 Player/global score fields retain custom vanilla criteria and JSON-safe
 objective display names through
 `#[state(criterion = "...", display_name = "...")]`. Entity/living fields use

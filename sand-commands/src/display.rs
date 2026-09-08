@@ -647,79 +647,11 @@ impl BossbarId {
             raw: true,
         }
     }
-
-    fn compatibility(value: impl Into<String>) -> Self {
-        Self {
-            value: value.into(),
-            raw: false,
-        }
-    }
 }
 
 impl fmt::Display for BossbarId {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.write_str(&self.value)
-    }
-}
-
-impl From<&str> for BossbarId {
-    fn from(value: &str) -> Self {
-        Self::compatibility(value)
-    }
-}
-
-impl From<String> for BossbarId {
-    fn from(value: String) -> Self {
-        Self::compatibility(value)
-    }
-}
-
-#[sand_macros::api(
-    registry = sand_api_contract,
-    path = "sand::command::IntoBossbarId",
-    aliases = ["sand::cmd::IntoBossbarId", "sand::prelude::cmd::IntoBossbarId"],
-    module = "sand::command",
-    summary = "Conversion into a bossbar resource-location token.",
-    context = "Conversion into a bossbar resource-location token. This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
-    minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
-    use_when = ["Constructing Minecraft commands through Sand's typed command model"],
-    avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-    example = "use sand::command::IntoBossbarId;",
-)]
-/// Conversion into a bossbar resource-location token.
-pub trait IntoBossbarId {
-    /// Converts a value into the validated bossbar identifier accepted by command builders.
-    #[sand_macros::api(
-        registry = sand_api_contract,
-        path = "sand::command::IntoBossbarId::into_bossbar_id",
-        aliases = ["sand::cmd::IntoBossbarId::into_bossbar_id", "sand::prelude::cmd::IntoBossbarId::into_bossbar_id"],
-        module = "sand::command",
-        summary = "Converts a value into the validated bossbar identifier accepted by command builders.",
-        context = "Converts a value into the validated bossbar identifier accepted by command builders. This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
-        minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
-        use_when = ["Constructing Minecraft commands through Sand's typed command model"],
-        avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        returns = "The `BossbarId` value produced to convert a value into the validated bossbar identifier accepted by command builders.",
-        example = "use sand::prelude::*;\n\nfn demonstrate<T: sand::command::IntoBossbarId>(into_bossbar_id_value: T)  {\n    let into_bossbar_id = into_bossbar_id_value.into_bossbar_id();\n}",
-    )]
-    fn into_bossbar_id(self) -> BossbarId;
-}
-
-impl IntoBossbarId for BossbarId {
-    fn into_bossbar_id(self) -> BossbarId {
-        self
-    }
-}
-
-impl IntoBossbarId for String {
-    fn into_bossbar_id(self) -> BossbarId {
-        BossbarId::compatibility(self)
-    }
-}
-
-impl IntoBossbarId for &str {
-    fn into_bossbar_id(self) -> BossbarId {
-        BossbarId::compatibility(self)
     }
 }
 
@@ -912,14 +844,10 @@ impl Bossbar {
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
         params(id = "`id` provides the typed resource identifier or location used to render the Minecraft add command for the selected bossbar.", name = "`name` provides the author-visible text rendered when the Minecraft add command for the selected bossbar."),
         returns = "The rendered Minecraft command text produced to render the Minecraft add command for the selected bossbar.",
-        example = "use sand::prelude::*;\n\nfn demonstrate(id: impl sand::command::IntoBossbarId, name: sand::text::TextComponent)  {\n    let command = sand::command::Bossbar::add(id, name);\n}",
+        example = "use sand::prelude::*;\n\nfn demonstrate(id: BossbarId, name: TextComponent) {\n    let command = Bossbar::add(id, name);\n}",
     )]
-    pub fn add(id: impl IntoBossbarId, name: TextComponent) -> String {
-        BossbarCommand::Add {
-            id: id.into_bossbar_id(),
-            name,
-        }
-        .build_registered()
+    pub fn add(id: BossbarId, name: TextComponent) -> String {
+        BossbarCommand::Add { id, name }.build_registered()
     }
     /// Renders the Minecraft remove command for the selected bossbar.
     #[sand_macros::api(
@@ -935,13 +863,10 @@ impl Bossbar {
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
         params(id = "`id` provides the typed resource identifier or location used to render the Minecraft remove command for the selected bossbar."),
         returns = "The rendered Minecraft command text produced to render the Minecraft remove command for the selected bossbar.",
-        example = "use sand::prelude::*;\n\nfn demonstrate(id: impl sand::command::IntoBossbarId)  {\n    let command = sand::command::Bossbar::remove(id);\n}",
+        example = "use sand::prelude::*;\n\nfn demonstrate(id: BossbarId) {\n    let command = Bossbar::remove(id);\n}",
     )]
-    pub fn remove(id: impl IntoBossbarId) -> String {
-        BossbarCommand::Remove {
-            id: id.into_bossbar_id(),
-        }
-        .build_registered()
+    pub fn remove(id: BossbarId) -> String {
+        BossbarCommand::Remove { id }.build_registered()
     }
     /// Renders the Minecraft list command for the selected bossbar.
     #[sand_macros::api(
@@ -975,14 +900,10 @@ impl Bossbar {
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
         params(id = "`id` provides the typed resource identifier or location used to render the Minecraft command that sets value for the selected bossbar.", value = "`value` provides the value being applied or compared used to render the Minecraft command that sets value for the selected bossbar."),
         returns = "The rendered Minecraft command text produced to render the Minecraft command that sets value for the selected bossbar.",
-        example = "use sand::prelude::*;\n\nfn demonstrate(id: impl sand::command::IntoBossbarId, value: u32)  {\n    let command = sand::command::Bossbar::set_value(id, value);\n}",
+        example = "use sand::prelude::*;\n\nfn demonstrate(id: BossbarId, value: u32) {\n    let command = Bossbar::set_value(id, value);\n}",
     )]
-    pub fn set_value(id: impl IntoBossbarId, value: u32) -> String {
-        BossbarCommand::SetValue {
-            id: id.into_bossbar_id(),
-            value,
-        }
-        .build_registered()
+    pub fn set_value(id: BossbarId, value: u32) -> String {
+        BossbarCommand::SetValue { id, value }.build_registered()
     }
     /// Renders the Minecraft command that sets max for the selected bossbar.
     #[sand_macros::api(
@@ -998,14 +919,10 @@ impl Bossbar {
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
         params(id = "`id` provides the typed resource identifier or location used to render the Minecraft command that sets max for the selected bossbar.", max = "`max` provides the inclusive upper bound used to render the Minecraft command that sets max for the selected bossbar."),
         returns = "The rendered Minecraft command text produced to render the Minecraft command that sets max for the selected bossbar.",
-        example = "use sand::prelude::*;\n\nfn demonstrate(id: impl sand::command::IntoBossbarId, max: u32)  {\n    let command = sand::command::Bossbar::set_max(id, max);\n}",
+        example = "use sand::prelude::*;\n\nfn demonstrate(id: BossbarId, max: u32) {\n    let command = Bossbar::set_max(id, max);\n}",
     )]
-    pub fn set_max(id: impl IntoBossbarId, max: u32) -> String {
-        BossbarCommand::SetMax {
-            id: id.into_bossbar_id(),
-            max,
-        }
-        .build_registered()
+    pub fn set_max(id: BossbarId, max: u32) -> String {
+        BossbarCommand::SetMax { id, max }.build_registered()
     }
     /// Renders the Minecraft command that sets players for the selected bossbar.
     #[sand_macros::api(
@@ -1021,11 +938,11 @@ impl Bossbar {
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
         params(id = "`id` provides the typed resource identifier or location used to render the Minecraft command that sets players for the selected bossbar.", players = "`players` provides the Minecraft target selection used to render the Minecraft command that sets players for the selected bossbar."),
         returns = "The rendered Minecraft command text produced to render the Minecraft command that sets players for the selected bossbar.",
-        example = "use sand::prelude::*;\n\nfn demonstrate(id: impl sand::command::IntoBossbarId, players: sand::command::Target)  {\n    let command = sand::command::Bossbar::set_players(id, players);\n}",
+        example = "use sand::prelude::*;\n\nfn demonstrate(id: BossbarId, players: Target) {\n    let command = Bossbar::set_players(id, players);\n}",
     )]
-    pub fn set_players(id: impl IntoBossbarId, players: impl TargetArgument) -> String {
+    pub fn set_players(id: BossbarId, players: impl TargetArgument) -> String {
         BossbarCommand::SetPlayers {
-            id: id.into_bossbar_id(),
+            id,
             players: players.into_target_selector(),
         }
         .build_registered()
@@ -1044,14 +961,10 @@ impl Bossbar {
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
         params(id = "`id` provides the typed resource identifier or location used to render the Minecraft command that sets color for the selected bossbar.", color = "`color` provides the color rendered when the Minecraft command that sets color for the selected bossbar."),
         returns = "The rendered Minecraft command text produced to render the Minecraft command that sets color for the selected bossbar.",
-        example = "use sand::prelude::*;\n\nfn demonstrate(id: impl sand::command::IntoBossbarId, color: sand::command::BossbarColor)  {\n    let command = sand::command::Bossbar::set_color(id, color);\n}",
+        example = "use sand::prelude::*;\n\nfn demonstrate(id: BossbarId, color: BossbarColor) {\n    let command = Bossbar::set_color(id, color);\n}",
     )]
-    pub fn set_color(id: impl IntoBossbarId, color: BossbarColor) -> String {
-        BossbarCommand::SetColor {
-            id: id.into_bossbar_id(),
-            color,
-        }
-        .build_registered()
+    pub fn set_color(id: BossbarId, color: BossbarColor) -> String {
+        BossbarCommand::SetColor { id, color }.build_registered()
     }
     /// Renders the Minecraft command that sets style for the selected bossbar.
     #[sand_macros::api(
@@ -1067,14 +980,10 @@ impl Bossbar {
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
         params(id = "`id` provides the typed resource identifier or location used to render the Minecraft command that sets style for the selected bossbar.", style = "`style` provides the style rendered when the Minecraft command that sets style for the selected bossbar."),
         returns = "The rendered Minecraft command text produced to render the Minecraft command that sets style for the selected bossbar.",
-        example = "use sand::prelude::*;\n\nfn demonstrate(id: impl sand::command::IntoBossbarId, style: sand::command::BossbarStyle)  {\n    let command = sand::command::Bossbar::set_style(id, style);\n}",
+        example = "use sand::prelude::*;\n\nfn demonstrate(id: BossbarId, style: BossbarStyle) {\n    let command = Bossbar::set_style(id, style);\n}",
     )]
-    pub fn set_style(id: impl IntoBossbarId, style: BossbarStyle) -> String {
-        BossbarCommand::SetStyle {
-            id: id.into_bossbar_id(),
-            style,
-        }
-        .build_registered()
+    pub fn set_style(id: BossbarId, style: BossbarStyle) -> String {
+        BossbarCommand::SetStyle { id, style }.build_registered()
     }
     /// Renders the Minecraft command that sets name for the selected bossbar.
     #[sand_macros::api(
@@ -1090,14 +999,10 @@ impl Bossbar {
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
         params(id = "`id` provides the typed resource identifier or location used to render the Minecraft command that sets name for the selected bossbar.", name = "`name` provides the author-visible text rendered when the Minecraft command that sets name for the selected bossbar."),
         returns = "The rendered Minecraft command text produced to render the Minecraft command that sets name for the selected bossbar.",
-        example = "use sand::prelude::*;\n\nfn demonstrate(id: impl sand::command::IntoBossbarId, name: sand::text::TextComponent)  {\n    let command = sand::command::Bossbar::set_name(id, name);\n}",
+        example = "use sand::prelude::*;\n\nfn demonstrate(id: BossbarId, name: TextComponent) {\n    let command = Bossbar::set_name(id, name);\n}",
     )]
-    pub fn set_name(id: impl IntoBossbarId, name: TextComponent) -> String {
-        BossbarCommand::SetName {
-            id: id.into_bossbar_id(),
-            name,
-        }
-        .build_registered()
+    pub fn set_name(id: BossbarId, name: TextComponent) -> String {
+        BossbarCommand::SetName { id, name }.build_registered()
     }
     /// Renders the Minecraft command that sets visible for the selected bossbar.
     #[sand_macros::api(
@@ -1113,14 +1018,10 @@ impl Bossbar {
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
         params(id = "`id` provides the typed resource identifier or location used to render the Minecraft command that sets visible for the selected bossbar.", visible = "`visible` provides the switch that enables or disables the behavior used to render the Minecraft command that sets visible for the selected bossbar."),
         returns = "The rendered Minecraft command text produced to render the Minecraft command that sets visible for the selected bossbar.",
-        example = "use sand::prelude::*;\n\nfn demonstrate(id: impl sand::command::IntoBossbarId, visible: bool)  {\n    let command = sand::command::Bossbar::set_visible(id, visible);\n}",
+        example = "use sand::prelude::*;\n\nfn demonstrate(id: BossbarId, visible: bool) {\n    let command = Bossbar::set_visible(id, visible);\n}",
     )]
-    pub fn set_visible(id: impl IntoBossbarId, visible: bool) -> String {
-        BossbarCommand::SetVisible {
-            id: id.into_bossbar_id(),
-            visible,
-        }
-        .build_registered()
+    pub fn set_visible(id: BossbarId, visible: bool) -> String {
+        BossbarCommand::SetVisible { id, visible }.build_registered()
     }
     /// Renders the Minecraft command that queries value for the selected bossbar.
     #[sand_macros::api(
@@ -1136,14 +1037,10 @@ impl Bossbar {
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
         params(id = "`id` provides the typed resource identifier or location used to render the Minecraft command that queries value for the selected bossbar."),
         returns = "The rendered Minecraft command text produced to render the Minecraft command that queries value for the selected bossbar.",
-        example = "use sand::prelude::*;\n\nfn demonstrate(id: impl sand::command::IntoBossbarId)  {\n    let command = sand::command::Bossbar::get_value(id);\n}",
+        example = "use sand::prelude::*;\n\nfn demonstrate(id: BossbarId) {\n    let command = Bossbar::get_value(id);\n}",
     )]
-    pub fn get_value(id: impl IntoBossbarId) -> String {
-        BossbarCommand::Get {
-            id: id.into_bossbar_id(),
-            field: "value",
-        }
-        .build_registered()
+    pub fn get_value(id: BossbarId) -> String {
+        BossbarCommand::Get { id, field: "value" }.build_registered()
     }
     /// Renders the Minecraft command that queries max for the selected bossbar.
     #[sand_macros::api(
@@ -1159,14 +1056,10 @@ impl Bossbar {
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
         params(id = "`id` provides the typed resource identifier or location used to render the Minecraft command that queries max for the selected bossbar."),
         returns = "The rendered Minecraft command text produced to render the Minecraft command that queries max for the selected bossbar.",
-        example = "use sand::prelude::*;\n\nfn demonstrate(id: impl sand::command::IntoBossbarId)  {\n    let command = sand::command::Bossbar::get_max(id);\n}",
+        example = "use sand::prelude::*;\n\nfn demonstrate(id: BossbarId) {\n    let command = Bossbar::get_max(id);\n}",
     )]
-    pub fn get_max(id: impl IntoBossbarId) -> String {
-        BossbarCommand::Get {
-            id: id.into_bossbar_id(),
-            field: "max",
-        }
-        .build_registered()
+    pub fn get_max(id: BossbarId) -> String {
+        BossbarCommand::Get { id, field: "max" }.build_registered()
     }
     /// Renders the Minecraft command that queries players for the selected bossbar.
     #[sand_macros::api(
@@ -1182,11 +1075,11 @@ impl Bossbar {
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
         params(id = "`id` provides the typed resource identifier or location used to render the Minecraft command that queries players for the selected bossbar."),
         returns = "The rendered Minecraft command text produced to render the Minecraft command that queries players for the selected bossbar.",
-        example = "use sand::prelude::*;\n\nfn demonstrate(id: impl sand::command::IntoBossbarId)  {\n    let command = sand::command::Bossbar::get_players(id);\n}",
+        example = "use sand::prelude::*;\n\nfn demonstrate(id: BossbarId) {\n    let command = Bossbar::get_players(id);\n}",
     )]
-    pub fn get_players(id: impl IntoBossbarId) -> String {
+    pub fn get_players(id: BossbarId) -> String {
         BossbarCommand::Get {
-            id: id.into_bossbar_id(),
+            id,
             field: "players",
         }
         .build_registered()
@@ -1299,15 +1192,14 @@ mod tests {
 
     #[test]
     fn malformed_bossbar_id_and_nested_text_are_rejected() {
-        let bad = BossbarCommand::Remove {
-            id: BossbarId::compatibility("Boss Bar"),
-        };
         assert_eq!(
-            bad.validate(&CommandProfile::unprofiled())
-                .unwrap_err()
-                .code,
+            BossbarId::parse("Boss Bar").unwrap_err().code,
             "SAND-BOSSBAR-ID"
         );
+        let bad = BossbarCommand::Remove {
+            id: BossbarId::raw("Boss Bar"),
+        };
+        assert!(bad.validate(&CommandProfile::unprofiled()).is_ok());
         let bad_name = BossbarCommand::Add {
             id: BossbarId::parse("pack:boss").unwrap(),
             name: TextComponent::literal("bad").color_hex("#12FG00"),

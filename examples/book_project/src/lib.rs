@@ -27,44 +27,46 @@ use sand::prelude::*;
 
 // ── State ─────────────────────────────────────────────────────────────────────
 //
-// Scoreboard scores, flags, and timers plus one storage-backed variable.
+// One scoped gameplay-data schema plus one command-storage reference.
 
 // ANCHOR: state
-/// Stamina fuels the grapple dash. Regenerates over time, capped at 100.
-static STAMINA: ScoreVar<i32> = ScoreVar::new("trail_stamina");
+#[derive(State)]
+#[state(namespace = "trail", scope = player)]
+#[allow(dead_code)]
+struct Traversal {
+    /// Stamina fuels the grapple dash. Regenerates over time, capped at 100.
+    #[state(default = 100, min = 0, max = 100)]
+    stamina: Score,
+    /// Grapple dash cooldown.
+    #[state(auto_tick)]
+    grapple: Cooldown,
+    /// Set once the player has claimed the Trail Striders upgrade.
+    has_striders: Flag,
+    /// Set while the player is exhausted.
+    exhausted: Flag,
+    /// Stamina regeneration pulse.
+    #[state(auto_tick)]
+    regen: Timer,
+}
 
-/// Grapple dash cooldown (4 seconds).
-static GRAPPLE: Cooldown = Cooldown::new("trail_grapple", Ticks::seconds(4));
+fn traversal() -> TraversalBound {
+    Traversal::on(EntityContext::<PlayerKind>::default())
+}
 
-/// Set once the player has crafted and claimed the Trail Striders upgrade.
-static HAS_STRIDERS: Flag = Flag::new("trail_striders");
-
-/// Set while the player is exhausted (stamina ran out).
-static EXHAUSTED: Flag = Flag::new("trail_tired");
-
-/// Stamina regen pulse: every 2 seconds each player regains some stamina.
-static REGEN: Timer = Timer::new("trail_regen", Ticks::seconds(2));
-
-/// Persistent pack tuning value kept in command storage.
-static GRAPPLE_RANGE: StorageVar<i32> = StorageVar::new("trail:data", "config.grapple_range");
+fn grapple_range() -> NbtRef<i32> {
+    Nbt::storage(ResourceLocation::new("trail", "data").unwrap())
+        .typed_path("config.grapple_range")
+}
 // ANCHOR_END: state
 
 // ── Load / Tick ───────────────────────────────────────────────────────────────
 
 // ANCHOR: load
-/// Runs once on `/reload` and world load: define objectives, seed storage.
+/// Runs once on `/reload` and world load. State owns its own schema lifecycle.
 #[datapack_component(Load)]
 pub fn load() {
-    STAMINA.define();
-    GRAPPLE.define();
-    HAS_STRIDERS.define();
-    EXHAUSTED.define();
-    REGEN.define();
-    GRAPPLE_RANGE.set_int(8);
-    cmd::tellraw(
-        Target::players(),
-        Text::new("[Trailforge] loaded.").gold(),
-    );
+    grapple_range().set(8);
+    cmd::tellraw(Target::players(), Text::new("[Trailforge] loaded.").gold());
 }
 // ANCHOR_END: load
 
@@ -72,38 +74,54 @@ pub fn load() {
 /// Runs every tick: advance timers, regenerate stamina, drive the actionbar.
 #[datapack_component(Tick)]
 pub fn tick() {
-    GRAPPLE.tick_all_players();
-    REGEN.tick_all_players();
+    let state = traversal();
 
     // Stamina regen pulse: when the regen timer expires, restore 10 stamina
     // to every player below the cap, then restart the timer.
-    TypedExecute::as_players()
-        .when(all![REGEN.expired("@s"), STAMINA.of("@s").lt(100)])
-        .run(STAMINA.add(Target::self_(), 10));
-    TypedExecute::as_players()
-        .when(REGEN.expired("@s"))
-        .run(REGEN.start(Target::self_()));
+    state
+        .stamina
+        .add(10)
+        .into_iter()
+        .flat_map(|command| {
+            TypedExecute::as_players()
+                .when(all![
+                    state.regen.elapsed(),
+                    state.stamina.matches(..100).unwrap(),
+                ])
+                .run(command)
+        })
+        .collect::<Vec<_>>();
+    state
+        .regen
+        .start(Ticks::seconds(2))
+        .into_iter()
+        .flat_map(|command| {
+            TypedExecute::as_players()
+                .when(state.regen.elapsed())
+                .run(command)
+        })
+        .collect::<Vec<_>>();
 
     // Exhaustion clears once stamina recovers past half.
     TypedExecute::as_players()
-        .when(all![EXHAUSTED.of("@s").is_true(), STAMINA.of("@s").gte(50)])
-        .run(cmd::function(
-            ResourceLocation::new("trail", "recover").unwrap(),
-        ));
+        .when(all![
+            state.exhausted.is_enabled(),
+            state.stamina.matches(50..).unwrap()
+        ])
+        .run(cmd::function(recover));
 
     // Actionbar: grapple readiness for upgraded players.
     TypedExecute::as_players()
         .when(all![
-            HAS_STRIDERS.of("@s").is_true(),
-            GRAPPLE.ready("@s"),
-            STAMINA.of("@s").gte(30),
-            EXHAUSTED.of("@s").is_false(),
+            state.has_striders.is_enabled(),
+            state.grapple.ready(),
+            state.stamina.matches(30..).unwrap(),
+            state.exhausted.is_disabled(),
         ])
         .run(Actionbar::show(
             Target::self_(),
             Text::new("Grapple ready").aqua().bold(true),
         ));
-
 }
 // ANCHOR_END: tick
 
@@ -170,16 +188,15 @@ pub fn grapple_core_recipe() -> ShapedRecipe {
 /// Grapple dash entry point: gate on upgrade, stamina, cooldown, exhaustion.
 #[function("trail:grapple")]
 pub fn grapple() {
+    let state = traversal();
     TypedExecute::as_players_at_self()
         .when(all![
-            HAS_STRIDERS.of("@s").is_true(),
-            GRAPPLE.ready("@s"),
-            STAMINA.of("@s").gte(30),
-            EXHAUSTED.of("@s").is_false(),
+            state.has_striders.is_enabled(),
+            state.grapple.ready(),
+            state.stamina.matches(30..).unwrap(),
+            state.exhausted.is_disabled(),
         ])
-        .run(cmd::function(
-            ResourceLocation::new("trail", "grapple/execute").unwrap(),
-        ));
+        .run(cmd::function(grapple_execute));
 }
 // ANCHOR_END: fn_grapple
 
@@ -187,8 +204,9 @@ pub fn grapple() {
 /// Applies the grapple dash: pay stamina, start the cooldown, launch, sparkle.
 #[function("trail:grapple/execute")]
 pub fn grapple_execute() {
-    STAMINA.remove(Target::self_(), 30);
-    GRAPPLE.start(Target::self_());
+    let state = traversal();
+    state.stamina.subtract(30);
+    state.grapple.start(Ticks::seconds(4));
     cmd::effect_give(Target::self_(), EffectId::Speed)
         .duration(Ticks::seconds(3))
         .amplifier(2)
@@ -205,11 +223,8 @@ pub fn grapple_execute() {
 /// Clears exhaustion once stamina has recovered (called from `tick`).
 #[function("trail:recover")]
 pub fn recover() {
-    EXHAUSTED.disable(Target::self_());
-    cmd::tellraw(
-        Target::self_(),
-        Text::new("You feel steady again.").green(),
-    );
+    traversal().exhausted.disable();
+    cmd::tellraw(Target::self_(), Text::new("You feel steady again.").green());
 }
 // ANCHOR_END: fn_recover
 
@@ -221,7 +236,8 @@ pub fn recover() {
 /// simplicity), grants the boots, and sets the flag.
 #[function("trail:claim_striders")]
 pub fn claim_striders() {
-    if_(HAS_STRIDERS.of("@s").is_true())
+    let state = traversal();
+    if_(state.has_striders.is_enabled())
         .then_all(mcfunction![
             cmd::tellraw(
                 Target::self_(),
@@ -231,7 +247,7 @@ pub fn claim_striders() {
         ])
         .else_all(mcfunction![
             cmd::raw(format!("give @s {}", trail_striders()));
-            HAS_STRIDERS.enable("@s");
+            state.has_striders.enable();
             cmd::tellraw(
                 Target::self_(),
                 Text::new("Trail Striders bound to your feet!").gold(),
@@ -256,12 +272,12 @@ pub fn open_menu() {
 fn grapple_vfx() -> Vfx {
     Vfx::new("grapple_dash")
         .particle(
-            VfxParticle::named("minecraft:cloud")
+            VfxParticle::named(ParticleId::minecraft("cloud").unwrap())
                 .count(24)
                 .spread(0.4, 0.2, 0.4),
         )
         .sound(
-            VfxSound::new("minecraft:entity.ender_pearl.throw")
+            VfxSound::new(SoundEventId::minecraft("entity.ender_pearl.throw").unwrap())
                 .source(SoundSource::Player)
                 .volume(0.8)
                 .pitch(1.4),
@@ -307,7 +323,7 @@ impl AdvancementEvent for ObtainedGrappleCoreEvent {
     }
 
     fn guard() -> Option<Condition> {
-        Some(HAS_STRIDERS.of("@s").is_false())
+        Some(traversal().has_striders.is_disabled())
     }
 }
 // ANCHOR_END: event_obtained_grapple_core
@@ -320,9 +336,10 @@ pub struct StaminaExhaustedEvent;
 
 impl SandEvent for StaminaExhaustedEvent {
     fn dispatch() -> impl Into<SandEventDispatch> {
-        SandEventDispatch::tick()
-            .as_players()
-            .when(all![STAMINA.of("@s").lte(0), EXHAUSTED.of("@s").is_false(),])
+        SandEventDispatch::tick().as_players().when(all![
+            traversal().stamina.matches(..=0).unwrap(),
+            traversal().exhausted.is_disabled(),
+        ])
     }
 }
 // ANCHOR_END: event_stamina_exhausted
@@ -334,7 +351,7 @@ pub struct SprintingWhileExhaustedEvent;
 
 impl SandEvent for SprintingWhileExhaustedEvent {
     fn dispatch() -> impl Into<SandEventDispatch> {
-        SandEventDispatch::chain::<PlayerSprintEvent>().when(EXHAUSTED.of("@s").is_true())
+        SandEventDispatch::chain::<PlayerSprintEvent>().when(traversal().exhausted.is_enabled())
     }
 }
 // ANCHOR_END: event_sprint_while_exhausted
@@ -343,7 +360,7 @@ impl SandEvent for SprintingWhileExhaustedEvent {
 /// First-ever join: seed stamina and greet the player.
 #[on_event]
 pub fn on_first_join(event: FirstJoin) {
-    STAMINA.set(event.player(), 100);
+    traversal().stamina.set(100);
     Title::of(event.player())
         .title(Text::new("Trailforge").gold().bold(true))
         .subtitle(Text::new("Craft a Grapple Core to begin").aqua())
@@ -355,9 +372,10 @@ pub fn on_first_join(event: FirstJoin) {
 /// Death resets the traversal state so respawned players start steady.
 #[on_event]
 pub fn on_death(event: OnDeath) {
-    EXHAUSTED.disable(Target::self_());
-    GRAPPLE.stop(Target::self_());
-    STAMINA.set(event.player(), 100);
+    let state = traversal();
+    state.exhausted.disable();
+    state.grapple.start(Ticks::new(0));
+    state.stamina.set(100);
 }
 // ANCHOR_END: event_on_death
 
@@ -369,7 +387,7 @@ pub fn on_obtained_grapple_core(event: Event<ObtainedGrappleCoreEvent>) {
         event.player(),
         Text::new("The core hums. Run /function trail:claim_striders").aqua(),
     );
-    cmd::call(open_menu);
+    cmd::function(open_menu);
 }
 // ANCHOR_END: event_on_obtained_grapple_core
 
@@ -377,7 +395,7 @@ pub fn on_obtained_grapple_core(event: Event<ObtainedGrappleCoreEvent>) {
 /// Stamina hit zero: mark the player exhausted.
 #[on_event]
 pub fn on_stamina_exhausted(_event: StaminaExhaustedEvent) {
-    EXHAUSTED.enable("@s");
+    traversal().exhausted.enable();
     cmd::tellraw(
         Target::self_(),
         Text::new("You are exhausted!").red().bold(true),
@@ -421,10 +439,8 @@ mod tests {
     use super::*;
 
     #[test]
-    fn load_defines_state_and_storage() {
+    fn load_seeds_storage() {
         let cmds = load();
-        let stamina_define = STAMINA.define();
-        assert!(cmds.contains(&stamina_define), "defines stamina: {cmds:?}");
         assert!(
             cmds.iter().any(|c| c.contains("storage trail:data")),
             "seeds storage: {cmds:?}"

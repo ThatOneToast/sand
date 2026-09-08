@@ -1,11 +1,20 @@
 // Canonical recipe: advancement-backed event with a typed guard and a rewarded
 // #[function] that applies a status effect. Exercises the full
 // AdvancementEvent → Event<T> → #[on_event] pipeline.
-use sand_core::event::trigger::ConsumeItemTrigger;
-use sand_core::prelude::*;
-use sand_macros::{on_event, function};
+use sand::event::trigger::ConsumeItemTrigger;
+use sand::prelude::*;
 
-static STRENGTH_STACKS: ScoreVar<i32> = ScoreVar::new("str_stacks");
+#[derive(State)]
+#[state(namespace = "recipe", scope = player)]
+#[allow(dead_code)]
+struct StrengthState {
+    #[state(default = 0, min = 0, max = 5)]
+    stacks: Score,
+}
+
+fn strength() -> StrengthStateBound {
+    StrengthState::on(EntityContext::<PlayerKind>::default())
+}
 
 pub struct AteChorusFruitEvent;
 
@@ -20,7 +29,7 @@ impl AdvancementEvent for AteChorusFruitEvent {
 
     fn guard() -> Option<Condition> {
         // Only trigger while the player has fewer than 5 strength stacks.
-        Some(STRENGTH_STACKS.of("@s").lt(5))
+        Some(strength().stacks.matches(..5).unwrap())
     }
 }
 
@@ -34,8 +43,9 @@ pub fn apply_strength_buff() {
 
 #[on_event]
 pub fn on_ate_chorus_fruit(event: Event<AteChorusFruitEvent>) {
-    STRENGTH_STACKS.add(event.player(), 1);
-    cmd::call(apply_strength_buff);
+    let _ = event;
+    strength().stacks.add(1);
+    cmd::function(apply_strength_buff);
 }
 
 fn main() {
@@ -43,7 +53,7 @@ fn main() {
     assert!(
         commands
             .iter()
-            .any(|c| c.contains("scoreboard players add") && c.contains("str_stacks")),
+            .any(|c| c.contains("scoreboard players add")),
         "expected str_stacks increment; got: {commands:?}"
     );
     assert!(
@@ -65,7 +75,7 @@ fn main() {
                 assert!(
                     guard_cmds
                         .iter()
-                        .any(|c| c.contains("score @s str_stacks matches ..4")),
+                        .any(|c| c.contains("score @s") && c.contains("matches ..4")),
                     "guard should enforce str_stacks < 5 (matches ..4); got: {guard_cmds:?}"
                 );
                 found_guard = true;

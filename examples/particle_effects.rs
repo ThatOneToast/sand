@@ -14,7 +14,7 @@ use sand_macros::{datapack_component, function, run_fn};
 
 #[function]
 pub fn orb_sphere() {
-    let cmds = ParticleBuilder::new(Particle::named("minecraft:end_rod"))
+    let cmds = ParticleBuilder::new(Particle::raw_token("minecraft:end_rod"))
         .speed(0.01)
         .sphere(1.5, 1.0, 120);
 
@@ -62,7 +62,7 @@ pub fn tornado() {
 #[function]
 pub fn portal_ring() {
     // Outer glow ring
-    let outer = ParticleBuilder::new(Particle::named("minecraft:portal"))
+    let outer = ParticleBuilder::new(Particle::raw_token("minecraft:portal"))
         .speed(0.05)
         .spread(ParticleSpread::uniform(0.05))
         .circle(2.5, 1.5, 64);
@@ -81,7 +81,7 @@ pub fn portal_ring() {
 
 #[function]
 pub fn impact_burst() {
-    let sparks = ParticleBuilder::new(Particle::named("minecraft:crit"))
+    let sparks = ParticleBuilder::new(Particle::raw_token("minecraft:crit"))
         .speed(0.3)
         .particles_per_point(2)
         .burst(1.5, 0.8, 48);
@@ -101,7 +101,7 @@ pub fn impact_burst() {
 pub fn magic_circle() {
     let gold = ParticleBuilder::new(Particle::dust_hex(0xFFCC00, 1.2));
     let white = ParticleBuilder::new(Particle::dust_hex(0xFFFFFF, 0.8));
-    let orange = ParticleBuilder::new(Particle::named("minecraft:flame")).speed(0.0);
+    let orange = ParticleBuilder::new(Particle::raw_token("minecraft:flame")).speed(0.0);
 
     let hexagon = gold.polygon(6, 2.5, 0.05, 12);
     let star = gold.star(6, 2.0, 0.9, 0.05);
@@ -141,7 +141,7 @@ pub fn dna_helix() {
 
 #[function]
 pub fn lightning_bolt() {
-    let b = ParticleBuilder::new(Particle::named("minecraft:electric_spark"))
+    let b = ParticleBuilder::new(Particle::raw_token("minecraft:electric_spark"))
         .speed(0.02)
         .particles_per_point(2);
 
@@ -168,7 +168,7 @@ pub fn lightning_bolt() {
 #[function]
 pub fn torus_gate() {
     // Outer torus shell (end_rod)
-    let shell = ParticleBuilder::new(Particle::named("minecraft:end_rod"))
+    let shell = ParticleBuilder::new(Particle::raw_token("minecraft:end_rod"))
         .speed(0.0)
         .torus(2.0, 0.4, 1.5, 24, 16);
 

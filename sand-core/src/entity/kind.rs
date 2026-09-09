@@ -259,6 +259,28 @@ pub trait SafeEntityDataWriteKind: KnownEntityKind + sealed::SafeDataWrite {}
 impl SafeEntityDataWriteKind for ZombieKind {}
 impl SafeEntityDataWriteKind for MarkerKind {}
 
+#[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::entity::MountVehicleKind",
+    aliases = ["sand::prelude::MountVehicleKind"],
+    module = "sand::entity",
+    summary = "An entity kind not statically known to be illegal as a ride vehicle.",
+    context = "Known players and marker entities are excluded because vanilla rejects them as vehicles; AnyEntity remains available when the selected runtime type is not statically known.",
+    minecraft = "Gates the vehicle side of the ride mount command without inventing a persistent entity reference.",
+    use_when = ["Writing generic behavior that mounts a rider onto an entity"],
+    avoid_when = ["The kind is a player or marker, which vanilla cannot use as a vehicle"],
+    example = "use sand::entity::MountVehicleKind;",
+)]
+/// An entity kind not statically known to be illegal as a ride vehicle.
+///
+/// [`AnyEntity`] is included because its runtime type is unknown; callers are
+/// responsible for selecting a legal vehicle. [`PlayerKind`] and
+/// [`MarkerKind`] are excluded because their illegality is statically known.
+pub trait MountVehicleKind: EntityKind + sealed::MountVehicle {}
+
+impl MountVehicleKind for AnyEntity {}
+impl MountVehicleKind for ZombieKind {}
+
 pub(crate) mod sealed {
     pub trait Sealed {}
     impl Sealed for super::AnyEntity {}
@@ -317,4 +339,8 @@ pub(crate) mod sealed {
     pub trait SafeDataWrite {}
     impl SafeDataWrite for super::ZombieKind {}
     impl SafeDataWrite for super::MarkerKind {}
+
+    pub trait MountVehicle {}
+    impl MountVehicle for super::AnyEntity {}
+    impl MountVehicle for super::ZombieKind {}
 }

@@ -2,7 +2,9 @@
 
 use std::marker::PhantomData;
 
-use sand_commands::{DataCommand, DataTarget, NbtPath, NbtRef, NbtValue, Selector, UntypedNbt};
+use sand_commands::{
+    AnyTarget, DataCommand, DataTarget, NbtPath, NbtRef, NbtValue, Selector, UntypedNbt,
+};
 use sand_components::{AttributeType, EffectId, EquipmentSlot};
 
 use crate::cmd::{
@@ -10,7 +12,7 @@ use crate::cmd::{
     Vec3,
 };
 use crate::entity::kind::{
-    EntityKind, EquipmentEntityKind, LivingEntityKind, SafeEntityDataWriteKind,
+    EntityKind, EquipmentEntityKind, LivingEntityKind, MountVehicleKind, SafeEntityDataWriteKind,
 };
 use crate::entity::property::{EntityTag, EntityTeam};
 use crate::item::{ItemLocation, ItemLocationError};
@@ -609,6 +611,22 @@ impl<K: EquipmentEntityKind> EntityEquipmentHandle<K> {
 }
 
 /// Ride and dismount mutations for one entity.
+///
+/// Known players and marker entities can ride and dismount, but cannot call
+/// [`mount_rider`](Self::mount_rider) because vanilla rejects them as vehicles.
+/// Player-only destination targets are likewise rejected statically.
+///
+/// ```compile_fail
+/// use sand::prelude::*;
+/// let player = EntityContext::<PlayerKind>::default();
+/// player.mounts().mount_rider(Target::nearest_player());
+/// ```
+///
+/// ```compile_fail
+/// use sand::prelude::*;
+/// let zombie = EntityContext::<ZombieKind>::default();
+/// zombie.mounts().mount_on(Target::nearest_player());
+/// ```
 #[derive(Debug, Clone)]
 #[sand_macros::api(
     registry = sand_api_contract,
@@ -650,14 +668,19 @@ impl<K: EntityKind> EntityMounts<K> {
         returns = "The requested capability value or canonical Minecraft command.",
         params(vehicle = "The typed vehicle used by this operation."),
     )]
-    pub fn mount_on<TargetKind>(&self, vehicle: Target<TargetKind, One>) -> String {
+    pub fn mount_on(&self, vehicle: Target<AnyTarget, One>) -> CommandResult<String> {
         #[cfg(sand_placeholder_codegen)]
         {
             let _ = (&self.selector, vehicle);
             panic!("ride is unavailable in an explicit placeholder-codegen build");
         }
         #[cfg(not(sand_placeholder_codegen))]
-        crate::cmd::ride_mount(self.selector.clone(), vehicle).to_string()
+        {
+            let profile = CommandProfile::unprofiled();
+            self.selector.validate(&profile)?;
+            vehicle.validate(&profile)?;
+            Ok(crate::cmd::ride_mount(self.selector.clone(), vehicle).to_string())
+        }
     }
 
     #[sand_macros::api(
@@ -674,14 +697,18 @@ impl<K: EntityKind> EntityMounts<K> {
         example = "use sand::prelude::*;",
         returns = "The requested capability value or canonical Minecraft command.",
     )]
-    pub fn dismount(&self) -> String {
+    pub fn dismount(&self) -> CommandResult<String> {
         #[cfg(sand_placeholder_codegen)]
         {
             let _ = &self.selector;
             panic!("ride is unavailable in an explicit placeholder-codegen build");
         }
         #[cfg(not(sand_placeholder_codegen))]
-        crate::cmd::ride_dismount(self.selector.clone()).to_string()
+        {
+            let profile = CommandProfile::unprofiled();
+            self.selector.validate(&profile)?;
+            Ok(crate::cmd::ride_dismount(self.selector.clone()).to_string())
+        }
     }
 
     #[sand_macros::api(
@@ -699,14 +726,22 @@ impl<K: EntityKind> EntityMounts<K> {
         returns = "The requested capability value or canonical Minecraft command.",
         params(rider = "The typed rider used by this operation."),
     )]
-    pub fn mount_rider<TargetKind>(&self, rider: Target<TargetKind, One>) -> String {
+    pub fn mount_rider<TargetKind>(&self, rider: Target<TargetKind, One>) -> CommandResult<String>
+    where
+        K: MountVehicleKind,
+    {
         #[cfg(sand_placeholder_codegen)]
         {
             let _ = (&self.selector, rider);
             panic!("ride is unavailable in an explicit placeholder-codegen build");
         }
         #[cfg(not(sand_placeholder_codegen))]
-        crate::cmd::ride_mount(rider, self.selector.clone()).to_string()
+        {
+            let profile = CommandProfile::unprofiled();
+            self.selector.validate(&profile)?;
+            rider.validate(&profile)?;
+            Ok(crate::cmd::ride_mount(rider, self.selector.clone()).to_string())
+        }
     }
 }
 
@@ -1038,6 +1073,12 @@ mod tests {
                 .attribute(AttributeType::Custom("not namespaced".to_owned()))
                 .is_err()
         );
+        assert!(
+            zombie
+                .mounts()
+                .mount_on(Target::entities().tag("invalid tag").nearest())
+                .is_err()
+        );
     }
 
     #[test]
@@ -1055,7 +1096,7 @@ mod tests {
             .unwrap()
         );
         assert_eq!(
-            zombie.mounts().mount_on(vehicle.clone()),
+            zombie.mounts().mount_on(vehicle.clone()).unwrap(),
             crate::cmd::ride_mount(Selector::self_(), vehicle).to_string()
         );
         assert_eq!(

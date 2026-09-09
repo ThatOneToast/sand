@@ -69,13 +69,13 @@ pub use crate::entity::{
     EntityTransform, EntityTransition, EnumEncoding, EquipmentBinding, EquipmentEntityKind,
     FixedPoint, FixedScore, FixedScoreAccessor, FixedScoreValue, FixedValue, Flag,
     GlobalStateBundleOperations, HealthBinding, HealthResizePolicy, KeyedData, KnownEntityKind,
-    LivingEntity, LivingEntityKind, MarkerKind, Migration, MutableLivingEntityKind,
-    NumericPropertySource, NumericStateField, NumericStateSource, OverflowPolicy, OwnershipPolicy,
-    PlayerKind, RawEntityProperty, RawEntityStateField, ReconcilePolicy, RefreshPolicy, Relation,
-    RelationTraversal, RoundingPolicy, SafeEntityDataWriteKind, ScopedEntityRef, Score,
-    SpecialEntityPolicy, StatCurve, StateComposition, StateFieldDescriptor, StateFieldKind,
-    StatePredicate, StateQueryOperations, StateSchema, TagBinding, TargetExecution, TeamBinding,
-    ThresholdDirection, Timer, ZombieKind,
+    LivingEntity, LivingEntityKind, MarkerKind, Migration, MountVehicleKind,
+    MutableLivingEntityKind, NumericPropertySource, NumericStateField, NumericStateSource,
+    OverflowPolicy, OwnershipPolicy, PlayerKind, RawEntityProperty, RawEntityStateField,
+    ReconcilePolicy, RefreshPolicy, Relation, RelationTraversal, RoundingPolicy,
+    SafeEntityDataWriteKind, ScopedEntityRef, Score, SpecialEntityPolicy, StatCurve,
+    StateComposition, StateFieldDescriptor, StateFieldKind, StatePredicate, StateQueryOperations,
+    StateSchema, TagBinding, TargetExecution, TeamBinding, ThresholdDirection, Timer, ZombieKind,
 };
 
 // ── Function refs (FunctionRef trait) ─────────────────────────────────────

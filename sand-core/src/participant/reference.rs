@@ -714,7 +714,7 @@ mod tests {
             "data get entity @e[tag=candidate,limit=1] Pos"
         );
         assert_eq!(
-            entity.mounts().dismount(),
+            entity.mounts().dismount().unwrap(),
             "ride @e[tag=candidate,limit=1] dismount"
         );
     }

@@ -61,7 +61,7 @@ pub use curve::{
 pub use diagnostic::EntityDiagnostic;
 pub use kind::{
     AnyEntity, EntityKind, EquipmentEntityKind, KnownEntityKind, LivingEntityKind, MarkerKind,
-    MutableLivingEntityKind, PlayerKind, SafeEntityDataWriteKind, ZombieKind,
+    MountVehicleKind, MutableLivingEntityKind, PlayerKind, SafeEntityDataWriteKind, ZombieKind,
 };
 pub use property::{
     AttributeBinding, AttributeModifierBinding, CurrentHealthSync, EffectBinding, EntityEventId,

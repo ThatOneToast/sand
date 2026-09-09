@@ -21,7 +21,7 @@ fn target_each_composes_multiple_capability_families() {
             helmet.nbt().get().to_string(),
             hotbar.nbt().get().to_string(),
             player.living().clear_effects(),
-            player.mounts().dismount(),
+            player.mounts().dismount().unwrap(),
         ]
     });
 

@@ -11,6 +11,7 @@ use crate::entity::capability::{
 };
 use crate::entity::kind::EntityKind;
 use crate::entity::kind::{EquipmentEntityKind, LivingEntityKind, PlayerKind};
+use crate::entity::property::EntityTag;
 use crate::entity::relation::{Relation, RelationTraversal};
 use crate::item::{EntityInventory, ItemLocation};
 
@@ -153,7 +154,9 @@ impl<K: EntityKind> EntityContext<K> {
         field.bind()
     }
 
-    /// `tag @s add <tag>`.
+    /// Adds a validated tag to `@s`.
+    ///
+    /// This fundamental convenience delegates to [`Self::identity`].
     #[sand_macros::api(
         registry = sand_api_contract,
         path = "sand::entity::EntityContext::add_tag",
@@ -167,13 +170,15 @@ impl<K: EntityKind> EntityContext<K> {
         avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
         params(tag = "`tag` supplies the documented `tag @s add <tag>` form."),
         returns = "The string value produced to emit the documented `tag @s add <tag>` form.",
-        example = "use sand::prelude::*;\n\nfn demonstrate<K : sand::entity::EntityKind + 'static>(entity_context_value: &sand::entity::EntityContext < K >, tag: impl Into < String >)  {\n    let add_tag = entity_context_value.add_tag(tag);\n}",
+        example = "use sand::prelude::*;\n\nfn demonstrate<K : sand::entity::EntityKind + 'static>(entity_context_value: &sand::entity::EntityContext < K >, tag: &EntityTag)  {\n    let add_tag = entity_context_value.add_tag(tag);\n}",
     )]
-    pub fn add_tag(&self, tag: impl Into<String>) -> String {
-        sand_commands::builtins::tag_add(Selector::self_(), tag)
+    pub fn add_tag(&self, tag: &EntityTag) -> String {
+        self.identity().add_tag(tag)
     }
 
-    /// `tag @s remove <tag>`.
+    /// Removes a validated tag from `@s`.
+    ///
+    /// This fundamental convenience delegates to [`Self::identity`].
     #[sand_macros::api(
         registry = sand_api_contract,
         path = "sand::entity::EntityContext::remove_tag",
@@ -187,10 +192,10 @@ impl<K: EntityKind> EntityContext<K> {
         avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
         params(tag = "`tag` supplies the documented `tag @s remove <tag>` form."),
         returns = "The string value produced to emit the documented `tag @s remove <tag>` form.",
-        example = "use sand::prelude::*;\n\nfn demonstrate<K : sand::entity::EntityKind + 'static>(entity_context_value: &sand::entity::EntityContext < K >, tag: impl Into < String >)  {\n    let remove_tag = entity_context_value.remove_tag(tag);\n}",
+        example = "use sand::prelude::*;\n\nfn demonstrate<K : sand::entity::EntityKind + 'static>(entity_context_value: &sand::entity::EntityContext < K >, tag: &EntityTag)  {\n    let remove_tag = entity_context_value.remove_tag(tag);\n}",
     )]
-    pub fn remove_tag(&self, tag: impl Into<String>) -> String {
-        sand_commands::builtins::tag_remove(Selector::self_(), tag)
+    pub fn remove_tag(&self, tag: &EntityTag) -> String {
+        self.identity().remove_tag(tag)
     }
 
     /// The entity that owns this entity (e.g. a tamed wolf's owner).
@@ -525,7 +530,9 @@ impl<K: EntityKind> ScopedEntityRef<K> {
         EntityDataRoot::new(self.selector())
     }
 
-    /// `tag @e[tag=<scope>,limit=1] add <tag>` — tag the bound entity, not `@s`.
+    /// Adds a validated tag to the bound entity, not `@s`.
+    ///
+    /// This fundamental convenience delegates to [`Self::identity`].
     #[sand_macros::api(
         registry = sand_api_contract,
         path = "sand::entity::ScopedEntityRef::add_tag",
@@ -539,13 +546,15 @@ impl<K: EntityKind> ScopedEntityRef<K> {
         avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
         params(tag = "`tag` supplies the documented `tag @e[tag=<scope>,limit=1] add <tag>` — tag the bound entity, not `@s` form."),
         returns = "The string value produced to emit the documented `tag @e[tag=<scope>,limit=1] add <tag>` — tag the bound entity, not `@s` form.",
-        example = "use sand::prelude::*;\n\nfn demonstrate<K : sand::entity::EntityKind + 'static>(scoped_entity_ref_value: &sand::entity::ScopedEntityRef < K >, tag: impl Into < String >)  {\n    let add_tag = scoped_entity_ref_value.add_tag(tag);\n}",
+        example = "use sand::prelude::*;\n\nfn demonstrate<K : sand::entity::EntityKind + 'static>(scoped_entity_ref_value: &sand::entity::ScopedEntityRef < K >, tag: &EntityTag)  {\n    let add_tag = scoped_entity_ref_value.add_tag(tag);\n}",
     )]
-    pub fn add_tag(&self, tag: impl Into<String>) -> String {
-        sand_commands::builtins::tag_add(self.selector(), tag)
+    pub fn add_tag(&self, tag: &EntityTag) -> String {
+        self.identity().add_tag(tag)
     }
 
-    /// `tag @e[tag=<scope>,limit=1] remove <tag>` — untag the bound entity.
+    /// Removes a validated tag from the bound entity.
+    ///
+    /// This fundamental convenience delegates to [`Self::identity`].
     #[sand_macros::api(
         registry = sand_api_contract,
         path = "sand::entity::ScopedEntityRef::remove_tag",
@@ -559,10 +568,10 @@ impl<K: EntityKind> ScopedEntityRef<K> {
         avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
         params(tag = "`tag` supplies the documented `tag @e[tag=<scope>,limit=1] remove <tag>` — untag the bound entity form."),
         returns = "The string value produced to emit the documented `tag @e[tag=<scope>,limit=1] remove <tag>` — untag the bound entity form.",
-        example = "use sand::prelude::*;\n\nfn demonstrate<K : sand::entity::EntityKind + 'static>(scoped_entity_ref_value: &sand::entity::ScopedEntityRef < K >, tag: impl Into < String >)  {\n    let remove_tag = scoped_entity_ref_value.remove_tag(tag);\n}",
+        example = "use sand::prelude::*;\n\nfn demonstrate<K : sand::entity::EntityKind + 'static>(scoped_entity_ref_value: &sand::entity::ScopedEntityRef < K >, tag: &EntityTag)  {\n    let remove_tag = scoped_entity_ref_value.remove_tag(tag);\n}",
     )]
-    pub fn remove_tag(&self, tag: impl Into<String>) -> String {
-        sand_commands::builtins::tag_remove(self.selector(), tag)
+    pub fn remove_tag(&self, tag: &EntityTag) -> String {
+        self.identity().remove_tag(tag)
     }
 
     /// The bound entity's owner relationship, evaluated relative to `@s`
@@ -806,7 +815,7 @@ impl EntityScope {
     ///
     /// # Example
     /// ```
-    /// use sand_core::entity::{EntityContext, EntityScope, kind::AnyEntity};
+    /// use sand_core::entity::{EntityContext, EntityScope, EntityTag, kind::AnyEntity};
     /// use sand_core::version::{MinecraftVersion, VersionProfile};
     ///
     /// let profile = VersionProfile::resolve(&MinecraftVersion::parse("latest").unwrap()).unwrap();
@@ -814,7 +823,7 @@ impl EntityScope {
     /// let cmds = EntityScope::bind(&ctx, |arrow_ref| {
     ///     arrow_ref
     ///         .owner()
-    ///         .if_player(|owner| vec![owner.add_tag("shot_by_owner")])
+    ///         .if_player(|owner| vec![owner.identity().add_tag(&EntityTag::new("shot_by_owner").unwrap())])
     ///         .unwrap()
     /// });
     /// assert!(cmds[0].starts_with("tag @s add __sand_scope_"));
@@ -833,7 +842,7 @@ impl EntityScope {
         avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
         params(_ctx = "`ctx` is used to tag the entity currently bound to `@s` with a unique, collision-safe temporary tag, run `body` with a [`ScopedEntityRef`] that can reach that entity again by tag (even after `@s` has changed via relation traversal inside `body`), then remove the tag.", body = "Tag the entity currently bound to `@s` with a unique, collision-safe temporary tag, run `body` with a [`ScopedEntityRef`] that can reach that entity again by tag (even after `@s` has changed via relation traversal inside `body`), then remove the tag."),
         returns = "The ordered values produced to tag the entity currently bound to `@s` with a unique, collision-safe temporary tag, run `body` with a [`ScopedEntityRef`] that can reach that entity again by tag (even after `@s` has changed via relation traversal inside `body`), then remove the tag.",
-        example = "use {sand::entity::EntityContext, sand::entity::EntityScope, sand::entity::AnyEntity};\nlet ctx: EntityContext<AnyEntity> = EntityContext::default();\nlet cmds = EntityScope::bind(&ctx, |arrow_ref| {\narrow_ref.owner().if_player(|owner| vec![owner.add_tag(\"shot_by_owner\")]).unwrap()\n});\nassert!(cmds[0].starts_with(\"tag @s add __sand_scope_\"));",
+        example = "use sand::prelude::*;\nlet ctx: EntityContext<AnyEntity> = EntityContext::default();\nlet tag = EntityTag::new(\"shot_by_owner\").unwrap();\nlet cmds = EntityScope::bind(&ctx, |arrow_ref| {\narrow_ref.owner().if_player(|owner| vec![owner.identity().add_tag(&tag)]).unwrap()\n});\nassert!(cmds[0].starts_with(\"tag @s add __sand_scope_\"));",
     )]
     #[track_caller]
     pub fn bind<K: EntityKind>(
@@ -889,17 +898,21 @@ mod tests {
     use super::*;
     use crate::entity::kind::AnyEntity;
 
+    fn tag(value: &str) -> EntityTag {
+        EntityTag::new(value).unwrap()
+    }
+
     #[test]
     fn add_and_remove_tag_use_self() {
         let ctx: EntityContext<AnyEntity> = EntityContext::new();
-        assert_eq!(ctx.add_tag("observed"), "tag @s add observed");
-        assert_eq!(ctx.remove_tag("observed"), "tag @s remove observed");
+        assert_eq!(ctx.add_tag(&tag("observed")), "tag @s add observed");
+        assert_eq!(ctx.remove_tag(&tag("observed")), "tag @s remove observed");
     }
 
     #[test]
     fn scoped_ref_targets_by_tag_not_self() {
         let ctx: EntityContext<AnyEntity> = EntityContext::new();
-        let cmds = EntityScope::bind(&ctx, |scoped| vec![scoped.add_tag("special")]);
+        let cmds = EntityScope::bind(&ctx, |scoped| vec![scoped.add_tag(&tag("special"))]);
         assert_eq!(cmds.len(), 3);
         assert!(cmds[0].starts_with("tag @s add __sand_scope_"));
         let scope_tag = cmds[0].strip_prefix("tag @s add ").unwrap();
@@ -923,15 +936,15 @@ mod tests {
     #[test]
     fn distinct_bind_call_sites_get_distinct_tags() {
         let ctx: EntityContext<AnyEntity> = EntityContext::new();
-        let a = EntityScope::bind(&ctx, |scoped| vec![scoped.add_tag("a")]);
-        let b = EntityScope::bind(&ctx, |scoped| vec![scoped.add_tag("a")]);
+        let a = EntityScope::bind(&ctx, |scoped| vec![scoped.add_tag(&tag("a"))]);
+        let b = EntityScope::bind(&ctx, |scoped| vec![scoped.add_tag(&tag("a"))]);
         assert_ne!(a[0], b[0]);
     }
 
     #[test]
     fn same_call_site_is_repeat_export_deterministic() {
         fn build(ctx: &EntityContext<AnyEntity>) -> Vec<String> {
-            EntityScope::bind(ctx, |scoped| vec![scoped.add_tag("a")])
+            EntityScope::bind(ctx, |scoped| vec![scoped.add_tag(&tag("a"))])
         }
         let ctx: EntityContext<AnyEntity> = EntityContext::new();
         assert_eq!(build(&ctx), build(&ctx));

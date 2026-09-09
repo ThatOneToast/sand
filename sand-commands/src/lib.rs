@@ -57,7 +57,7 @@ pub use export_registry::{ExportRegistryGuard, NestedExportError};
 pub use inventory::Inventory;
 pub use nbt::{
     DataCommand, DataModifyOperation, DataSource, DataTarget, Nbt, NbtCompound, NbtPath, NbtRef,
-    NbtValue, UntypedNbt,
+    NbtValue, ReadOnlyNbtRef, UntypedNbt,
 };
 pub use particles::{Particle, ParticleBuilder, ParticleCommand, ParticleEffect, ParticleSpread};
 pub use raw::RawCommand;

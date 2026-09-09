@@ -5,7 +5,10 @@ use std::marker::PhantomData;
 use sand_commands::{DataCommand, DataTarget, NbtPath, NbtRef, NbtValue, Selector, UntypedNbt};
 use sand_components::{AttributeType, EffectId, EquipmentSlot};
 
-use crate::cmd::{Anchor, CommandResult, DamageKind, EffectGive, One, Rotation, Target, Vec3};
+use crate::cmd::{
+    Anchor, CommandProfile, CommandResult, DamageKind, EffectGive, One, Rotation, Target, Validate,
+    Vec3,
+};
 use crate::entity::kind::{
     EntityKind, EquipmentEntityKind, LivingEntityKind, SafeEntityDataWriteKind,
 };
@@ -218,14 +221,19 @@ impl<K: EntityKind> EntityTransform<K> {
         returns = "The requested capability value or canonical Minecraft command.",
         params(position = "The typed position used by this operation."),
     )]
-    pub fn teleport(&self, position: Vec3) -> String {
+    pub fn teleport(&self, position: Vec3) -> CommandResult<String> {
         #[cfg(sand_placeholder_codegen)]
         {
             let _ = (&self.selector, position);
             panic!("teleport is unavailable in an explicit placeholder-codegen build");
         }
         #[cfg(not(sand_placeholder_codegen))]
-        crate::cmd::teleport_4(self.selector.clone(), position).to_string()
+        {
+            let profile = CommandProfile::unprofiled();
+            self.selector.validate(&profile)?;
+            position.validate(&profile)?;
+            Ok(crate::cmd::teleport_4(self.selector.clone(), position).to_string())
+        }
     }
 
     #[sand_macros::api(
@@ -243,14 +251,22 @@ impl<K: EntityKind> EntityTransform<K> {
         returns = "The requested capability value or canonical Minecraft command.",
         params(destination = "The typed destination used by this operation."),
     )]
-    pub fn teleport_to<TargetKind>(&self, destination: Target<TargetKind, One>) -> String {
+    pub fn teleport_to<TargetKind>(
+        &self,
+        destination: Target<TargetKind, One>,
+    ) -> CommandResult<String> {
         #[cfg(sand_placeholder_codegen)]
         {
             let _ = (&self.selector, destination);
             panic!("teleport is unavailable in an explicit placeholder-codegen build");
         }
         #[cfg(not(sand_placeholder_codegen))]
-        crate::cmd::teleport_3(self.selector.clone(), destination).to_string()
+        {
+            let profile = CommandProfile::unprofiled();
+            self.selector.validate(&profile)?;
+            destination.validate(&profile)?;
+            Ok(crate::cmd::teleport_3(self.selector.clone(), destination).to_string())
+        }
     }
 
     #[sand_macros::api(
@@ -268,14 +284,19 @@ impl<K: EntityKind> EntityTransform<K> {
         returns = "The requested capability value or canonical Minecraft command.",
         params(rotation = "The typed rotation used by this operation."),
     )]
-    pub fn rotate(&self, rotation: Rotation) -> String {
+    pub fn rotate(&self, rotation: Rotation) -> CommandResult<String> {
         #[cfg(sand_placeholder_codegen)]
         {
             let _ = (&self.selector, rotation);
             panic!("rotate is unavailable in an explicit placeholder-codegen build");
         }
         #[cfg(not(sand_placeholder_codegen))]
-        crate::cmd::rotate(self.selector.clone(), rotation).to_string()
+        {
+            let profile = CommandProfile::unprofiled();
+            self.selector.validate(&profile)?;
+            rotation.validate(&profile)?;
+            Ok(crate::cmd::rotate(self.selector.clone(), rotation).to_string())
+        }
     }
 
     #[sand_macros::api(
@@ -293,14 +314,19 @@ impl<K: EntityKind> EntityTransform<K> {
         returns = "The requested capability value or canonical Minecraft command.",
         params(position = "The typed position used by this operation."),
     )]
-    pub fn face_position(&self, position: Vec3) -> String {
+    pub fn face_position(&self, position: Vec3) -> CommandResult<String> {
         #[cfg(sand_placeholder_codegen)]
         {
             let _ = (&self.selector, position);
             panic!("rotate is unavailable in an explicit placeholder-codegen build");
         }
         #[cfg(not(sand_placeholder_codegen))]
-        crate::cmd::rotate_facing(self.selector.clone(), position).to_string()
+        {
+            let profile = CommandProfile::unprofiled();
+            self.selector.validate(&profile)?;
+            position.validate(&profile)?;
+            Ok(crate::cmd::rotate_facing(self.selector.clone(), position).to_string())
+        }
     }
 
     #[sand_macros::api(
@@ -322,16 +348,23 @@ impl<K: EntityKind> EntityTransform<K> {
         &self,
         target: Target<TargetKind, One>,
         anchor: Anchor,
-    ) -> String {
+    ) -> CommandResult<String> {
         #[cfg(sand_placeholder_codegen)]
         {
             let _ = (&self.selector, target, anchor);
             panic!("rotate is unavailable in an explicit placeholder-codegen build");
         }
         #[cfg(not(sand_placeholder_codegen))]
-        crate::cmd::rotate_facing_entity(self.selector.clone(), target)
-            .facingAnchor(anchor)
-            .to_string()
+        {
+            let profile = CommandProfile::unprofiled();
+            self.selector.validate(&profile)?;
+            target.validate(&profile)?;
+            Ok(
+                crate::cmd::rotate_facing_entity(self.selector.clone(), target)
+                    .facingAnchor(anchor)
+                    .to_string(),
+            )
+        }
     }
 }
 
@@ -477,8 +510,8 @@ impl<K: LivingEntityKind> LivingEntity<K> {
         returns = "The requested capability value or canonical Minecraft command.",
         params(attribute = "The typed attribute used by this operation."),
     )]
-    pub fn attribute(&self, attribute: AttributeType) -> String {
-        sand_commands::builtins::attribute_get(self.selector.clone(), attribute.as_str())
+    pub fn attribute(&self, attribute: AttributeType) -> CommandResult<String> {
+        sand_commands::builtins::try_attribute_get(self.selector.clone(), attribute.as_str())
     }
 
     #[sand_macros::api(
@@ -510,6 +543,18 @@ impl<K: LivingEntityKind> LivingEntity<K> {
 }
 
 /// Typed item locations for an equipment-capable entity.
+///
+/// Live item NBT is deliberately read-only, so player entity-NBT mutation is
+/// rejected at compile time. Use the typed `/item` operations on
+/// [`ItemLocation`] to change equipment.
+///
+/// ```compile_fail
+/// use sand::prelude::*;
+///
+/// let player = EntityContext::<PlayerKind>::default();
+/// let helmet = player.equipment().slot(EquipmentSlot::Head).unwrap();
+/// helmet.nbt().set(NbtValue::Compound(Default::default()));
+/// ```
 #[derive(Debug, Clone)]
 #[sand_macros::api(
     registry = sand_api_contract,
@@ -949,7 +994,7 @@ mod tests {
             sand_commands::builtins::tag_add(Selector::self_(), tag.as_str())
         );
         assert_eq!(
-            zombie.transform().teleport(position.clone()),
+            zombie.transform().teleport(position.clone()).unwrap(),
             crate::cmd::teleport_4(Selector::self_(), position).to_string()
         );
         assert_eq!(
@@ -958,6 +1003,40 @@ mod tests {
                 .typed_path::<Vec<f64>>(NbtPath::new("Pos"))
                 .get()
                 .to_string()
+        );
+    }
+
+    #[test]
+    fn transform_and_attribute_operations_reject_invalid_typed_values() {
+        let zombie = EntityContext::<ZombieKind>::default();
+
+        assert!(
+            zombie
+                .transform()
+                .teleport(Vec3::absolute(f64::NAN, 64.0, 0.0))
+                .is_err()
+        );
+        assert!(
+            zombie
+                .transform()
+                .face_position(Vec3::new(
+                    crate::cmd::Coord::local(),
+                    crate::cmd::Coord::abs(64.0),
+                    crate::cmd::Coord::local(),
+                ))
+                .is_err()
+        );
+        assert!(
+            zombie
+                .transform()
+                .rotate(Rotation::absolute(f64::NAN, 0.0))
+                .is_err()
+        );
+        assert!(
+            zombie
+                .living()
+                .attribute(AttributeType::Custom("not namespaced".to_owned()))
+                .is_err()
         );
     }
 

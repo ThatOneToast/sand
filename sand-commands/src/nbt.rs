@@ -924,6 +924,77 @@ pub struct NbtRef<T = UntypedNbt> {
     marker: PhantomData<fn() -> T>,
 }
 
+/// A typed NBT reference that permits observation and path traversal but not mutation.
+///
+/// This is used when vanilla exposes readable data whose target cannot safely be
+/// changed with `/data modify`, notably live player inventory data.
+#[derive(Debug, Clone)]
+#[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::data::ReadOnlyNbtRef",
+    aliases = ["sand::cmd::ReadOnlyNbtRef", "sand::command::ReadOnlyNbtRef", "sand::prelude::ReadOnlyNbtRef", "sand::prelude::cmd::ReadOnlyNbtRef"],
+    module = "sand::data",
+    summary = "A typed NBT reference restricted to observation and path traversal.",
+    context = "Use this view for readable vanilla data whose target cannot safely be mutated, such as live player inventory NBT.",
+    minecraft = "Builds data-get commands while making data-modify and data-remove unavailable at compile time.",
+    use_when = ["Reading NBT from a target with vanilla mutation restrictions"],
+    avoid_when = ["The target is safely writable; use NbtRef"],
+    example = "use sand::prelude::*; let view = ItemLocation::PlayerMainHand.nbt(); let command = view.get();",
+)]
+pub struct ReadOnlyNbtRef<T = UntypedNbt> {
+    reference: NbtRef<T>,
+}
+
+impl<T> From<NbtRef<T>> for ReadOnlyNbtRef<T> {
+    fn from(reference: NbtRef<T>) -> Self {
+        Self { reference }
+    }
+}
+
+impl<T> ReadOnlyNbtRef<T> {
+    /// Returns the typed path carried by this read-only reference.
+    #[sand_macros::api(registry = sand_api_contract, path = "sand::data::ReadOnlyNbtRef::path_value", aliases = ["sand::cmd::ReadOnlyNbtRef::path_value", "sand::command::ReadOnlyNbtRef::path_value", "sand::prelude::ReadOnlyNbtRef::path_value", "sand::prelude::cmd::ReadOnlyNbtRef::path_value"], module = "sand::data", kind = "method", summary = "Returns the typed path carried by this read-only reference.", context = "The target remains read-only while its path can be inspected or extended.", minecraft = "Emits no command.", use_when = ["Inspecting the addressed NBT path"], avoid_when = ["Mutating NBT"], returns = "The typed NBT path.", example = "use sand::prelude::*; let path = ItemLocation::PlayerMainHand.nbt().path_value().clone();")]
+    pub fn path_value(&self) -> &NbtPath {
+        self.reference.path_value()
+    }
+
+    /// Returns the path text without its data target.
+    #[sand_macros::api(registry = sand_api_contract, path = "sand::data::ReadOnlyNbtRef::as_str", aliases = ["sand::cmd::ReadOnlyNbtRef::as_str", "sand::command::ReadOnlyNbtRef::as_str", "sand::prelude::ReadOnlyNbtRef::as_str", "sand::prelude::cmd::ReadOnlyNbtRef::as_str"], module = "sand::data", kind = "method", summary = "Returns the path text without its data target.", context = "The target remains read-only while its path can be inspected.", minecraft = "Emits no command.", use_when = ["Inspecting the addressed NBT path"], avoid_when = ["Mutating NBT"], returns = "The NBT path text.", example = "use sand::prelude::*; let path = ItemLocation::PlayerMainHand.nbt().as_str().to_owned();")]
+    pub fn as_str(&self) -> &str {
+        self.reference.as_str()
+    }
+
+    /// Extends this read-only reference with a field selector.
+    #[sand_macros::api(registry = sand_api_contract, path = "sand::data::ReadOnlyNbtRef::field", aliases = ["sand::cmd::ReadOnlyNbtRef::field", "sand::command::ReadOnlyNbtRef::field", "sand::prelude::ReadOnlyNbtRef::field", "sand::prelude::cmd::ReadOnlyNbtRef::field"], module = "sand::data", kind = "method", summary = "Extends this read-only reference with a field selector.", context = "Path traversal preserves the read-only capability.", minecraft = "Quotes field names through NbtPath when necessary.", use_when = ["Reading a nested NBT field"], avoid_when = ["Mutating NBT"], params(key = "The nested compound key."), returns = "A read-only reference at the nested field.", example = "use sand::prelude::*; let id = ItemLocation::PlayerMainHand.nbt().field(\"id\");")]
+    pub fn field(&self, key: impl AsRef<str>) -> ReadOnlyNbtRef<T> {
+        self.reference.field(key).into()
+    }
+
+    /// Extends this read-only reference with a typed field selector.
+    #[sand_macros::api(registry = sand_api_contract, path = "sand::data::ReadOnlyNbtRef::typed_field", aliases = ["sand::cmd::ReadOnlyNbtRef::typed_field", "sand::command::ReadOnlyNbtRef::typed_field", "sand::prelude::ReadOnlyNbtRef::typed_field", "sand::prelude::cmd::ReadOnlyNbtRef::typed_field"], module = "sand::data", kind = "method", summary = "Extends this read-only reference with a typed field selector.", context = "Path traversal preserves the read-only capability and changes only the Rust value type.", minecraft = "Quotes field names through NbtPath when necessary.", use_when = ["Reading a nested NBT field with a known value type"], avoid_when = ["Mutating NBT"], params(key = "The nested compound key."), returns = "A typed read-only reference at the nested field.", example = "use sand::prelude::*; let count = ItemLocation::PlayerMainHand.nbt().typed_field::<i32>(\"count\");")]
+    pub fn typed_field<U>(&self, key: impl AsRef<str>) -> ReadOnlyNbtRef<U> {
+        self.reference.typed_field(key).into()
+    }
+
+    /// Extends this read-only reference with a list index.
+    #[sand_macros::api(registry = sand_api_contract, path = "sand::data::ReadOnlyNbtRef::index", aliases = ["sand::cmd::ReadOnlyNbtRef::index", "sand::command::ReadOnlyNbtRef::index", "sand::prelude::ReadOnlyNbtRef::index", "sand::prelude::cmd::ReadOnlyNbtRef::index"], module = "sand::data", kind = "method", summary = "Extends this read-only reference with a list index.", context = "Path traversal preserves the read-only capability.", minecraft = "Appends an NBT list index.", use_when = ["Reading an indexed NBT list value"], avoid_when = ["Mutating NBT"], params(index = "The NBT list index."), returns = "A read-only reference at the indexed value.", example = "use sand::prelude::*; let first = ItemLocation::PlayerMainHand.nbt().field(\"components\").index(0);")]
+    pub fn index(&self, index: i32) -> ReadOnlyNbtRef<T> {
+        self.reference.index(index).into()
+    }
+
+    /// Builds a data query for this read-only reference.
+    #[sand_macros::api(registry = sand_api_contract, path = "sand::data::ReadOnlyNbtRef::get", aliases = ["sand::cmd::ReadOnlyNbtRef::get", "sand::command::ReadOnlyNbtRef::get", "sand::prelude::ReadOnlyNbtRef::get", "sand::prelude::cmd::ReadOnlyNbtRef::get"], module = "sand::data", kind = "method", summary = "Builds a data query for this read-only reference.", context = "Observation is available without exposing data mutation methods.", minecraft = "Lowers to data get for the carried target and path.", use_when = ["Reading the addressed NBT value"], avoid_when = ["Mutating NBT"], returns = "The typed data-get command.", example = "use sand::prelude::*; let command = ItemLocation::PlayerMainHand.nbt().get();")]
+    pub fn get(&self) -> DataCommand {
+        self.reference.get()
+    }
+
+    /// Builds a scaled data query for this read-only reference.
+    #[sand_macros::api(registry = sand_api_contract, path = "sand::data::ReadOnlyNbtRef::get_scaled", aliases = ["sand::cmd::ReadOnlyNbtRef::get_scaled", "sand::command::ReadOnlyNbtRef::get_scaled", "sand::prelude::ReadOnlyNbtRef::get_scaled", "sand::prelude::cmd::ReadOnlyNbtRef::get_scaled"], module = "sand::data", kind = "method", summary = "Builds a scaled data query for this read-only reference.", context = "Observation is available without exposing data mutation methods.", minecraft = "Lowers to data get with a numeric scale.", use_when = ["Reading and scaling a numeric NBT value"], avoid_when = ["Mutating NBT"], params(scale = "The numeric result scale."), returns = "The scaled data-get command.", example = "use sand::prelude::*; let command = ItemLocation::PlayerMainHand.nbt().get_scaled(100.0);")]
+    pub fn get_scaled(&self, scale: f64) -> DataCommand {
+        self.reference.get_scaled(scale)
+    }
+}
+
 /// Compiler-only access to the lowering representation behind [`NbtRef`].
 #[doc(hidden)]
 pub trait NbtRefLowering: Sized {

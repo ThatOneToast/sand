@@ -153,8 +153,8 @@ pub use sand_core::item;
 
 /// Typed live inventory locations. [`inventory::ItemLocation`] is the canonical model;
 /// the entity/block factory handles in this module only construct locations.
-/// NBT reads and snapshots share [`data::NbtRef`], while live mutation and
-/// matching use vanilla `/item` and `execute if items`.
+/// Live item NBT is exposed through [`data::ReadOnlyNbtRef`], while mutation
+/// and matching use vanilla `/item` and `execute if items`.
 #[api(
     path = "sand::inventory",
     module = "sand",
@@ -539,8 +539,8 @@ pub mod text {
 )]
 pub mod data {
     pub use sand_core::{
-        DataCommand, Nbt, NbtCompound, NbtPath, NbtRef, NbtValue, StorageField, StorageSchema,
-        StorageVar, UntypedNbt,
+        DataCommand, Nbt, NbtCompound, NbtPath, NbtRef, NbtValue, ReadOnlyNbtRef, StorageField,
+        StorageSchema, StorageVar, UntypedNbt,
     };
 }
 

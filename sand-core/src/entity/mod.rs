@@ -8,14 +8,14 @@
 //! # Quick start
 //! ```
 //! use sand_commands::Target;
-//! use sand_core::entity::TargetExecution;
+//! use sand_core::entity::{EntityTag, TargetExecution};
 //!
 //! let cmds = Target::entities()
 //!     .entity_type_raw("minecraft:zombie")
 //!     .without_tag("friendly")
 //!     .within_blocks(15.0)
 //!     .nearest()
-//!     .each(|entity| vec![entity.add_tag("observed")]);
+//!     .each(|entity| vec![entity.identity().add_tag(&EntityTag::new("observed").unwrap())]);
 //!
 //! assert!(cmds[0].starts_with("execute as @e["));
 //! ```

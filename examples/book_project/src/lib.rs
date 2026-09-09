@@ -201,7 +201,10 @@ pub fn capability_facade_example() -> Vec<String> {
 
         let mut commands = vec![
             player.identity().add_tag(&active),
-            player.transform().face_position(Vec3::absolute(0.0, 80.0, 0.0)),
+            player
+                .transform()
+                .face_position(Vec3::absolute(0.0, 80.0, 0.0))
+                .unwrap(),
             first_hotbar_slot.nbt().get().to_string(),
         ];
         commands.extend(

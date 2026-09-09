@@ -83,7 +83,7 @@ impl Relation {
     minecraft = "Sand lowers this capability to the `execute on <relation>` syntax available throughout Minecraft 26.x+.",
     use_when = ["Traversing an owner, vehicle, passenger, or other vanilla entity relationship"],
     avoid_when = ["Selecting entities by filters; use `Target` for selector-compatible targeting"],
-    example = "use sand::prelude::*;\n\nfn commands(ctx: &EntityContext<AnyEntity>) {\n    let _commands = ctx.owner().if_present(|owner| vec![owner.add_tag(\"has_owner\")]).unwrap();\n}",
+    example = "use sand::prelude::*;\n\nfn commands(ctx: &EntityContext<AnyEntity>) {\n    let tag = EntityTag::new(\"has_owner\").unwrap();\n    let _commands = ctx.owner().if_present(|owner| vec![owner.identity().add_tag(&tag)]).unwrap();\n}",
 )]
 /// A pending traversal of a single [`Relation`] from an [`EntityContext`].
 ///
@@ -101,7 +101,7 @@ impl Relation {
 /// let ctx: EntityContext<AnyEntity> = EntityContext::default();
 ///
 /// // `passengers()` is many-cardinality — `if_present` does not exist for it.
-/// ctx.passengers().if_present(|p| vec![p.add_tag("x")]);
+/// ctx.passengers().if_present(|p| vec![p.identity().add_tag(&EntityTag::new("x").unwrap())]);
 /// ```
 pub struct RelationTraversal<A> {
     relation: Relation,
@@ -175,7 +175,7 @@ impl RelationTraversal<One> {
         avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
         params(body = "Commands generated in the related entity context."),
         returns = "On success, the value produced to run `body` if the relation resolves to an entity, as a generic [`AnyEntity`] context. No-op (empty command list) if the relation is absent at runtime — vanilla `execute on <relation>` fails silently when there is no such entity; otherwise, the documented validation or export diagnostic.",
-        example = "use sand::prelude::*;\n\nfn demonstrate(ctx: &EntityContext<AnyEntity>) {\n    let _commands = ctx.owner().if_present(|owner| vec![owner.add_tag(\"found\")]);\n}",
+        example = "use sand::prelude::*;\n\nfn demonstrate(ctx: &EntityContext<AnyEntity>) {\n    let tag = EntityTag::new(\"found\").unwrap();\n    let _commands = ctx.owner().if_present(|owner| vec![owner.identity().add_tag(&tag)]);\n}",
     )]
     pub fn if_present(
         &self,
@@ -198,7 +198,7 @@ impl RelationTraversal<One> {
         avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
         params(body = "Commands generated when the related entity is a player."),
         returns = "On success, the value produced to run `body` only if the relation resolves to a player; otherwise, the documented validation or export diagnostic.",
-        example = "use sand::prelude::*;\n\nfn demonstrate(ctx: &EntityContext<AnyEntity>) {\n    let _commands = ctx.owner().if_player(|player| vec![player.add_tag(\"owner\")]);\n}",
+        example = "use sand::prelude::*;\n\nfn demonstrate(ctx: &EntityContext<AnyEntity>) {\n    let tag = EntityTag::new(\"owner\").unwrap();\n    let _commands = ctx.owner().if_player(|player| vec![player.identity().add_tag(&tag)]);\n}",
     )]
     pub fn if_player(
         &self,
@@ -223,7 +223,7 @@ impl RelationTraversal<Many> {
         avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
         params(body = "Commands generated for each related passenger."),
         returns = "On success, the value produced to run `body` once for each passenger, as a generic [`AnyEntity`] context; otherwise, the documented validation or export diagnostic.",
-        example = "use sand::prelude::*;\n\nfn demonstrate(ctx: &EntityContext<AnyEntity>) {\n    let _commands = ctx.passengers().each(|passenger| vec![passenger.add_tag(\"aboard\")]);\n}",
+        example = "use sand::prelude::*;\n\nfn demonstrate(ctx: &EntityContext<AnyEntity>) {\n    let tag = EntityTag::new(\"aboard\").unwrap();\n    let _commands = ctx.passengers().each(|passenger| vec![passenger.identity().add_tag(&tag)]);\n}",
     )]
     pub fn each(
         &self,
@@ -237,10 +237,14 @@ impl RelationTraversal<Many> {
 mod tests {
     use super::*;
 
+    fn tag(value: &str) -> crate::entity::EntityTag {
+        crate::entity::EntityTag::new(value).unwrap()
+    }
+
     #[test]
     fn owner_if_present_lowers_to_execute_on_owner() {
         let cmds = RelationTraversal::<One>::new(Relation::Owner)
-            .if_present(|owner| vec![owner.add_tag("has_owner")])
+            .if_present(|owner| vec![owner.add_tag(&tag("has_owner"))])
             .unwrap();
         assert_eq!(cmds.len(), 1);
         assert!(
@@ -253,7 +257,7 @@ mod tests {
     #[test]
     fn owner_if_player_adds_player_type_guard() {
         let cmds = RelationTraversal::<One>::new(Relation::Owner)
-            .if_player(|owner| vec![owner.add_tag("owner_is_player")])
+            .if_player(|owner| vec![owner.add_tag(&tag("owner_is_player"))])
             .unwrap();
         assert_eq!(cmds.len(), 1);
         assert!(cmds[0].starts_with(
@@ -272,7 +276,7 @@ mod tests {
     #[test]
     fn passengers_each_lowers_to_execute_on_passengers() {
         let cmds = RelationTraversal::<Many>::new(Relation::Passengers)
-            .each(|passenger| vec![passenger.add_tag("carried")])
+            .each(|passenger| vec![passenger.add_tag(&tag("carried"))])
             .unwrap();
         assert_eq!(cmds.len(), 1);
         assert!(cmds[0].starts_with(

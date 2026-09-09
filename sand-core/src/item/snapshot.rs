@@ -321,7 +321,7 @@ impl ItemSnapshot {
         schema: SnapshotSchema,
         reliability: SnapshotReliability,
     ) -> Result<(Self, Vec<String>), SnapshotError> {
-        let source = location.nbt();
+        let source = location.writable_nbt();
         let source_target = source.__location().clone();
         let source_path = source.path_value().clone();
         let base = schema.base_path();

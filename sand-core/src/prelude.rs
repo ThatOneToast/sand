@@ -31,9 +31,9 @@ pub use crate::cmd::{
     CloneBlocks, CloneMaskMode, CloneMode, Coord, DamageAmount, DamageBuilder, DamageKind,
     DataCommand, EffectDuration, Execute, Fill, FillMode, FunctionMacroArg, FunctionMacroArgs,
     GameMode, Inventory, ItemSlot, Nbt, NbtCompound, NbtPath, NbtRef, Objective, ObjectiveName,
-    One, Particle, ParticleBuilder, ParticleSpread, RawCommand, RenderCommand, Rotation,
-    ScoreHolder, SetBlock, SetBlockMode, SortOrder, Sound, SoundSource, Target, Title, TitleTimes,
-    UntypedNbt, Validate, Vec2, Vec3,
+    One, Particle, ParticleBuilder, ParticleSpread, RawCommand, ReadOnlyNbtRef, RenderCommand,
+    Rotation, ScoreHolder, SetBlock, SetBlockMode, SortOrder, Sound, SoundSource, Target, Title,
+    TitleTimes, UntypedNbt, Validate, Vec2, Vec3,
 };
 pub use crate::item::{
     BlockInventory, ContainerIndex, EnderChestIndex, EntityInventory, EntityInventorySlot,

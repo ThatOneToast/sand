@@ -22,8 +22,9 @@ Focused handles keep related operations easy to find:
 The kind parameter is a compile-time capability boundary. For example,
 `EntityContext<MarkerKind>` has no `living()` or `equipment()` method, while
 `EntityContext<PlayerKind>` has both but cannot call the mutable methods on an
-`EntityData` path. Player inventory changes should use typed `/item` operations,
-not entity-NBT mutation. An `AnyEntity` context from `Target::entities()` exposes
+`EntityData` path. Live item locations expose a `ReadOnlyNbtRef`, so player
+inventory changes must use typed `/item` operations rather than entity-NBT
+mutation. An `AnyEntity` context from `Target::entities()` exposes
 only operations valid without knowing the selected entity's concrete type.
 Event `PlayerParticipant` and `EntityParticipant` references expose the same
 capabilities that their known kind permits while retaining the participant's

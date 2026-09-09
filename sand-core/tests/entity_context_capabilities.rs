@@ -55,7 +55,7 @@ fn scoped_capabilities_keep_the_bound_selector_across_relationship_traversal() {
             .if_player(|owner| {
                 vec![
                     owner.living().clear_effects(),
-                    bound.transform().teleport_to(Target::self_()),
+                    bound.transform().teleport_to(Target::self_()).unwrap(),
                     bound.data().field::<i32>("Air").set(300).to_string(),
                 ]
             })

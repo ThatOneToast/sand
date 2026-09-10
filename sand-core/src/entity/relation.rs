@@ -83,7 +83,7 @@ impl Relation {
     minecraft = "Sand lowers this capability to the `execute on <relation>` syntax available throughout Minecraft 26.x+.",
     use_when = ["Traversing an owner, vehicle, passenger, or other vanilla entity relationship"],
     avoid_when = ["Selecting entities by filters; use `Target` for selector-compatible targeting"],
-    example = "use sand::prelude::*;\n\nfn commands(ctx: &EntityContext<AnyEntity>) {\n    let tag = EntityTag::new(\"has_owner\").unwrap();\n    let _commands = ctx.owner().if_present(|owner| vec![owner.identity().add_tag(&tag)]).unwrap();\n}",
+    example = "use sand::prelude::*;\n\nfn commands(ctx: &EntityContext<AnyEntity>) {\n    let tag = EntityTag::new(\"has_owner\").unwrap();\n    let _commands = ctx.owner().if_present(|owner| vec![owner.identity().add_tag(&tag).unwrap()]).unwrap();\n}",
 )]
 /// A pending traversal of a single [`Relation`] from an [`EntityContext`].
 ///
@@ -97,11 +97,11 @@ impl Relation {
 /// relation is a compile error, not a runtime one:
 ///
 /// ```compile_fail
-/// use sand_core::entity::{EntityContext, kind::AnyEntity};
+/// use sand_core::entity::{EntityContext, EntityTag, kind::AnyEntity};
 /// let ctx: EntityContext<AnyEntity> = EntityContext::default();
 ///
 /// // `passengers()` is many-cardinality — `if_present` does not exist for it.
-/// ctx.passengers().if_present(|p| vec![p.identity().add_tag(&EntityTag::new("x").unwrap())]);
+/// ctx.passengers().if_present(|p| vec![p.identity().add_tag(&EntityTag::new("x").unwrap()).unwrap()]);
 /// ```
 pub struct RelationTraversal<A> {
     relation: Relation,
@@ -175,7 +175,7 @@ impl RelationTraversal<One> {
         avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
         params(body = "Commands generated in the related entity context."),
         returns = "On success, the value produced to run `body` if the relation resolves to an entity, as a generic [`AnyEntity`] context. No-op (empty command list) if the relation is absent at runtime — vanilla `execute on <relation>` fails silently when there is no such entity; otherwise, the documented validation or export diagnostic.",
-        example = "use sand::prelude::*;\n\nfn demonstrate(ctx: &EntityContext<AnyEntity>) {\n    let tag = EntityTag::new(\"found\").unwrap();\n    let _commands = ctx.owner().if_present(|owner| vec![owner.identity().add_tag(&tag)]);\n}",
+        example = "use sand::prelude::*;\n\nfn demonstrate(ctx: &EntityContext<AnyEntity>) {\n    let tag = EntityTag::new(\"found\").unwrap();\n    let _commands = ctx.owner().if_present(|owner| vec![owner.identity().add_tag(&tag).unwrap()]);\n}",
     )]
     pub fn if_present(
         &self,
@@ -198,7 +198,7 @@ impl RelationTraversal<One> {
         avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
         params(body = "Commands generated when the related entity is a player."),
         returns = "On success, the value produced to run `body` only if the relation resolves to a player; otherwise, the documented validation or export diagnostic.",
-        example = "use sand::prelude::*;\n\nfn demonstrate(ctx: &EntityContext<AnyEntity>) {\n    let tag = EntityTag::new(\"owner\").unwrap();\n    let _commands = ctx.owner().if_player(|player| vec![player.identity().add_tag(&tag)]);\n}",
+        example = "use sand::prelude::*;\n\nfn demonstrate(ctx: &EntityContext<AnyEntity>) {\n    let tag = EntityTag::new(\"owner\").unwrap();\n    let _commands = ctx.owner().if_player(|player| vec![player.identity().add_tag(&tag).unwrap()]);\n}",
     )]
     pub fn if_player(
         &self,
@@ -223,7 +223,7 @@ impl RelationTraversal<Many> {
         avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
         params(body = "Commands generated for each related passenger."),
         returns = "On success, the value produced to run `body` once for each passenger, as a generic [`AnyEntity`] context; otherwise, the documented validation or export diagnostic.",
-        example = "use sand::prelude::*;\n\nfn demonstrate(ctx: &EntityContext<AnyEntity>) {\n    let tag = EntityTag::new(\"aboard\").unwrap();\n    let _commands = ctx.passengers().each(|passenger| vec![passenger.identity().add_tag(&tag)]);\n}",
+        example = "use sand::prelude::*;\n\nfn demonstrate(ctx: &EntityContext<AnyEntity>) {\n    let tag = EntityTag::new(\"aboard\").unwrap();\n    let _commands = ctx.passengers().each(|passenger| vec![passenger.identity().add_tag(&tag).unwrap()]);\n}",
     )]
     pub fn each(
         &self,

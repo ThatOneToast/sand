@@ -173,7 +173,9 @@ impl<K: EntityKind> EntityContext<K> {
         example = "use sand::prelude::*;\n\nfn demonstrate<K : sand::entity::EntityKind + 'static>(entity_context_value: &sand::entity::EntityContext < K >, tag: &EntityTag)  {\n    let add_tag = entity_context_value.add_tag(tag);\n}",
     )]
     pub fn add_tag(&self, tag: &EntityTag) -> String {
-        self.identity().add_tag(tag)
+        self.identity()
+            .add_tag(tag)
+            .expect("the fixed @s entity context selector is valid")
     }
 
     /// Removes a validated tag from `@s`.
@@ -195,7 +197,9 @@ impl<K: EntityKind> EntityContext<K> {
         example = "use sand::prelude::*;\n\nfn demonstrate<K : sand::entity::EntityKind + 'static>(entity_context_value: &sand::entity::EntityContext < K >, tag: &EntityTag)  {\n    let remove_tag = entity_context_value.remove_tag(tag);\n}",
     )]
     pub fn remove_tag(&self, tag: &EntityTag) -> String {
-        self.identity().remove_tag(tag)
+        self.identity()
+            .remove_tag(tag)
+            .expect("the fixed @s entity context selector is valid")
     }
 
     /// The entity that owns this entity (e.g. a tamed wolf's owner).
@@ -549,7 +553,9 @@ impl<K: EntityKind> ScopedEntityRef<K> {
         example = "use sand::prelude::*;\n\nfn demonstrate<K : sand::entity::EntityKind + 'static>(scoped_entity_ref_value: &sand::entity::ScopedEntityRef < K >, tag: &EntityTag)  {\n    let add_tag = scoped_entity_ref_value.add_tag(tag);\n}",
     )]
     pub fn add_tag(&self, tag: &EntityTag) -> String {
-        self.identity().add_tag(tag)
+        self.identity()
+            .add_tag(tag)
+            .expect("Sand-generated scoped entity selectors are valid")
     }
 
     /// Removes a validated tag from the bound entity.
@@ -571,7 +577,9 @@ impl<K: EntityKind> ScopedEntityRef<K> {
         example = "use sand::prelude::*;\n\nfn demonstrate<K : sand::entity::EntityKind + 'static>(scoped_entity_ref_value: &sand::entity::ScopedEntityRef < K >, tag: &EntityTag)  {\n    let remove_tag = scoped_entity_ref_value.remove_tag(tag);\n}",
     )]
     pub fn remove_tag(&self, tag: &EntityTag) -> String {
-        self.identity().remove_tag(tag)
+        self.identity()
+            .remove_tag(tag)
+            .expect("Sand-generated scoped entity selectors are valid")
     }
 
     /// The bound entity's owner relationship, evaluated relative to `@s`
@@ -823,7 +831,7 @@ impl EntityScope {
     /// let cmds = EntityScope::bind(&ctx, |arrow_ref| {
     ///     arrow_ref
     ///         .owner()
-    ///         .if_player(|owner| vec![owner.identity().add_tag(&EntityTag::new("shot_by_owner").unwrap())])
+    ///         .if_player(|owner| vec![owner.identity().add_tag(&EntityTag::new("shot_by_owner").unwrap()).unwrap()])
     ///         .unwrap()
     /// });
     /// assert!(cmds[0].starts_with("tag @s add __sand_scope_"));
@@ -842,7 +850,7 @@ impl EntityScope {
         avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
         params(_ctx = "`ctx` is used to tag the entity currently bound to `@s` with a unique, collision-safe temporary tag, run `body` with a [`ScopedEntityRef`] that can reach that entity again by tag (even after `@s` has changed via relation traversal inside `body`), then remove the tag.", body = "Tag the entity currently bound to `@s` with a unique, collision-safe temporary tag, run `body` with a [`ScopedEntityRef`] that can reach that entity again by tag (even after `@s` has changed via relation traversal inside `body`), then remove the tag."),
         returns = "The ordered values produced to tag the entity currently bound to `@s` with a unique, collision-safe temporary tag, run `body` with a [`ScopedEntityRef`] that can reach that entity again by tag (even after `@s` has changed via relation traversal inside `body`), then remove the tag.",
-        example = "use sand::prelude::*;\nlet ctx: EntityContext<AnyEntity> = EntityContext::default();\nlet tag = EntityTag::new(\"shot_by_owner\").unwrap();\nlet cmds = EntityScope::bind(&ctx, |arrow_ref| {\narrow_ref.owner().if_player(|owner| vec![owner.identity().add_tag(&tag)]).unwrap()\n});\nassert!(cmds[0].starts_with(\"tag @s add __sand_scope_\"));",
+        example = "use sand::prelude::*;\nlet ctx: EntityContext<AnyEntity> = EntityContext::default();\nlet tag = EntityTag::new(\"shot_by_owner\").unwrap();\nlet cmds = EntityScope::bind(&ctx, |arrow_ref| {\narrow_ref.owner().if_player(|owner| vec![owner.identity().add_tag(&tag).unwrap()]).unwrap()\n});\nassert!(cmds[0].starts_with(\"tag @s add __sand_scope_\"));",
     )]
     #[track_caller]
     pub fn bind<K: EntityKind>(

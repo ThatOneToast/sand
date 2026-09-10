@@ -15,7 +15,7 @@
 //!     .without_tag("friendly")
 //!     .within_blocks(15.0)
 //!     .nearest()
-//!     .each(|entity| vec![entity.identity().add_tag(&EntityTag::new("observed").unwrap())]);
+//!     .each(|entity| vec![entity.identity().add_tag(&EntityTag::new("observed").unwrap()).unwrap()]);
 //!
 //! assert!(cmds[0].starts_with("execute as @e["));
 //! ```

@@ -301,7 +301,7 @@ fn guard_state_query_commands(
     minecraft = "State filters become selector score constraints and iteration lowers to execute as/at plus one deduplicated generated function.",
     use_when = ["Iterating a Target", "Filtering a Target with typed State"],
     avoid_when = ["Representing the bound executor inside the callback; use EntityContext"],
-    example = "use sand::prelude::*; let tag = EntityTag::new(\"seen\").unwrap(); let commands = Target::entities().each(|entity| vec![entity.identity().add_tag(&tag)]);",
+    example = "use sand::prelude::*; let tag = EntityTag::new(\"seen\").unwrap(); let commands = Target::entities().each(|entity| vec![entity.identity().add_tag(&tag).unwrap()]);",
 )]
 pub trait TargetExecution: Sized {
     /// The execution-scoped entity kind passed to an iteration body.
@@ -316,7 +316,7 @@ pub trait TargetExecution: Sized {
     ) -> sand_commands::CommandResult<Self>;
 
     /// Runs `body` with `@s` bound to each matching target.
-    #[sand_macros::api(registry = sand_api_contract, path = "sand::entity::TargetExecution::each", aliases = ["sand::prelude::TargetExecution::each"], module = "sand::entity", summary = "Runs a generated command body once for each matching target.", context = "Iteration is a capability of the canonical Target representation; the callback receives EntityContext rather than another target wrapper.", minecraft = "Lowers to execute as <target> at @s run function <generated>.", use_when = ["Applying commands to every entity or player selected by a Target"], avoid_when = ["Passing the target directly to one command is sufficient"], params(body = "The command-producing callback evaluated with a bound EntityContext."), returns = "The generated execute command, or an empty list for an empty body.", example = "use sand::prelude::*; let tag = EntityTag::new(\"ready\").unwrap(); let commands = Target::players().each(|player| vec![player.identity().add_tag(&tag)]);")]
+    #[sand_macros::api(registry = sand_api_contract, path = "sand::entity::TargetExecution::each", aliases = ["sand::prelude::TargetExecution::each"], module = "sand::entity", summary = "Runs a generated command body once for each matching target.", context = "Iteration is a capability of the canonical Target representation; the callback receives EntityContext rather than another target wrapper.", minecraft = "Lowers to execute as <target> at @s run function <generated>.", use_when = ["Applying commands to every entity or player selected by a Target"], avoid_when = ["Passing the target directly to one command is sufficient"], params(body = "The command-producing callback evaluated with a bound EntityContext."), returns = "The generated execute command, or an empty list for an empty body.", example = "use sand::prelude::*; let tag = EntityTag::new(\"ready\").unwrap(); let commands = Target::players().each(|player| vec![player.identity().add_tag(&tag).unwrap()]);")]
     fn each(self, body: impl FnOnce(&EntityContext<Self::Kind>) -> Vec<String>) -> Vec<String>;
 }
 

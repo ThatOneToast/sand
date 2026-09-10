@@ -200,7 +200,7 @@ pub fn capability_facade_example() -> Vec<String> {
             .particles(false);
 
         let mut commands = vec![
-            player.identity().add_tag(&active),
+            player.identity().add_tag(&active).unwrap(),
             player
                 .transform()
                 .face_position(Vec3::absolute(0.0, 80.0, 0.0))

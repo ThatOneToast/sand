@@ -7,9 +7,10 @@ use sand_commands::{
 };
 use sand_components::{AttributeType, EffectId, EquipmentSlot};
 
-use crate::cmd::{Anchor, CommandResult, DamageKind, EffectGive, One, Rotation, Target, Vec3};
-#[cfg(not(sand_placeholder_codegen))]
-use crate::cmd::{CommandProfile, Validate};
+use crate::cmd::{
+    Anchor, CommandProfile, CommandResult, DamageKind, EffectGive, One, Rotation, Target, Validate,
+    Vec3,
+};
 use crate::entity::kind::{
     EntityKind, EquipmentEntityKind, LivingEntityKind, MountVehicleKind, SafeEntityDataWriteKind,
 };
@@ -43,6 +44,11 @@ impl<K: EntityKind> EntityIdentity<K> {
         }
     }
 
+    fn validated_selector(&self) -> CommandResult<Selector> {
+        self.selector.validate(&CommandProfile::unprofiled())?;
+        Ok(self.selector.clone())
+    }
+
     /// Add a validated entity tag.
     #[sand_macros::api(
         registry = sand_api_contract,
@@ -59,8 +65,8 @@ impl<K: EntityKind> EntityIdentity<K> {
         returns = "The requested capability value or canonical Minecraft command.",
         params(tag = "The typed tag used by this operation."),
     )]
-    pub fn add_tag(&self, tag: &EntityTag) -> String {
-        sand_commands::builtins::tag_add(self.selector.clone(), tag.as_str())
+    pub fn add_tag(&self, tag: &EntityTag) -> CommandResult<String> {
+        sand_commands::builtins::try_tag_add(self.validated_selector()?, tag.as_str())
     }
 
     /// Remove a validated entity tag.
@@ -79,8 +85,8 @@ impl<K: EntityKind> EntityIdentity<K> {
         returns = "The requested capability value or canonical Minecraft command.",
         params(tag = "The typed tag used by this operation."),
     )]
-    pub fn remove_tag(&self, tag: &EntityTag) -> String {
-        sand_commands::builtins::tag_remove(self.selector.clone(), tag.as_str())
+    pub fn remove_tag(&self, tag: &EntityTag) -> CommandResult<String> {
+        sand_commands::builtins::try_tag_remove(self.validated_selector()?, tag.as_str())
     }
 
     /// Join a validated scoreboard team.
@@ -99,8 +105,8 @@ impl<K: EntityKind> EntityIdentity<K> {
         returns = "The requested capability value or canonical Minecraft command.",
         params(team = "The typed team used by this operation."),
     )]
-    pub fn join_team(&self, team: &EntityTeam) -> String {
-        sand_commands::builtins::team_join(team.as_str(), self.selector.clone())
+    pub fn join_team(&self, team: &EntityTeam) -> CommandResult<String> {
+        sand_commands::builtins::try_team_join(team.as_str(), self.validated_selector()?)
     }
 
     /// Leave the current scoreboard team.
@@ -118,8 +124,10 @@ impl<K: EntityKind> EntityIdentity<K> {
         example = "use sand::prelude::*;",
         returns = "The requested capability value or canonical Minecraft command.",
     )]
-    pub fn leave_team(&self) -> String {
-        sand_commands::builtins::team_leave(self.selector.clone())
+    pub fn leave_team(&self) -> CommandResult<String> {
+        Ok(sand_commands::builtins::team_leave(
+            self.validated_selector()?,
+        ))
     }
 
     /// Kill the entity. For non-living entities vanilla removes it directly.
@@ -137,8 +145,8 @@ impl<K: EntityKind> EntityIdentity<K> {
         example = "use sand::prelude::*;",
         returns = "The requested capability value or canonical Minecraft command.",
     )]
-    pub fn kill(&self) -> String {
-        sand_commands::builtins::kill(self.selector.clone())
+    pub fn kill(&self) -> CommandResult<String> {
+        Ok(sand_commands::builtins::kill(self.validated_selector()?))
     }
 }
 
@@ -1024,7 +1032,7 @@ mod tests {
         let position = Vec3::absolute(1.0, 64.0, -2.0);
 
         assert_eq!(
-            zombie.identity().add_tag(&tag),
+            zombie.identity().add_tag(&tag).unwrap(),
             sand_commands::builtins::tag_add(Selector::self_(), tag.as_str())
         );
         assert_eq!(
@@ -1078,6 +1086,19 @@ mod tests {
                 .mount_on(Target::entities().tag("invalid tag").nearest())
                 .is_err()
         );
+        let invalid_selector: Selector = Target::entities().tag("invalid tag").nearest().into();
+        let invalid_identity = EntityIdentity::<ZombieKind>::new(invalid_selector);
+        let tag = EntityTag::new("valid").unwrap();
+        let team = EntityTeam::new("valid").unwrap();
+        assert!(invalid_identity.add_tag(&tag).is_err());
+        assert!(invalid_identity.remove_tag(&tag).is_err());
+        assert!(invalid_identity.join_team(&team).is_err());
+        assert!(invalid_identity.leave_team().is_err());
+        assert!(invalid_identity.kill().is_err());
+        let invalid_living =
+            LivingEntity::<ZombieKind>::new(Target::entities().tag("invalid tag").nearest().into());
+        assert!(invalid_living.damage(1.0, DamageKind::Generic).is_err());
+        assert!(zombie.living().damage(-1.0, DamageKind::Generic).is_err());
     }
 
     #[test]

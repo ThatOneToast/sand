@@ -676,12 +676,13 @@ impl DataTarget {
         }
     }
 
-    fn validate(&self, write: bool) -> CommandResult<()> {
+    fn validate(&self, write: bool, profile: &CommandProfile) -> CommandResult<()> {
         match self {
             Self::Storage(id) => validate_resource_location(id),
             Self::StorageRaw(_) => Ok(()),
             Self::Block(_) => Ok(()),
             Self::Entity(selector) => {
+                selector.validate(profile)?;
                 let rendered = selector.to_string();
                 if write && !selector.is_statically_single() {
                     return Err(data_error(
@@ -1701,21 +1702,21 @@ impl DataCommand {
 }
 
 impl Validate for DataCommand {
-    fn validate(&self, _profile: &CommandProfile) -> CommandResult<()> {
+    fn validate(&self, profile: &CommandProfile) -> CommandResult<()> {
         match self {
             Self::Get { source, scale } => {
-                validate_ref(source, false)?;
+                validate_ref(source, false, profile)?;
                 if scale.is_some_and(|value| !value.is_finite()) {
                     return Err(data_error("scale", "data get scale must be finite"));
                 }
             }
-            Self::Remove { target } => validate_ref(target, true)?,
+            Self::Remove { target } => validate_ref(target, true, profile)?,
             Self::Modify { target, source, .. } => {
-                validate_ref(target, true)?;
-                validate_source(source)?;
+                validate_ref(target, true, profile)?;
+                validate_source(source, profile)?;
             }
             Self::Merge { target, value } => {
-                target.validate(true)?;
+                target.validate(true, profile)?;
                 validate_compound(value)?;
                 if value.is_empty() {
                     return Err(data_error(
@@ -1733,8 +1734,9 @@ pub(crate) fn validate_ref_parts(
     location: &DataTarget,
     path: &NbtPath,
     write: bool,
+    profile: &CommandProfile,
 ) -> CommandResult<()> {
-    location.validate(write)?;
+    location.validate(write, profile)?;
     path.validate()?;
     if write
         && matches!(location, DataTarget::Entity(_))
@@ -1754,15 +1756,15 @@ pub(crate) fn validate_ref_parts(
     Ok(())
 }
 
-fn validate_ref(reference: &NbtRef, write: bool) -> CommandResult<()> {
-    validate_ref_parts(&reference.location, &reference.path, write)
+fn validate_ref(reference: &NbtRef, write: bool, profile: &CommandProfile) -> CommandResult<()> {
+    validate_ref_parts(&reference.location, &reference.path, write, profile)
 }
 
-fn validate_source(source: &DataSource) -> CommandResult<()> {
+fn validate_source(source: &DataSource, profile: &CommandProfile) -> CommandResult<()> {
     match source {
         DataSource::Value(value) => validate_value(value),
         DataSource::From(reference) | DataSource::String(reference) => {
-            validate_ref(reference, false)
+            validate_ref(reference, false, profile)
         }
     }
 }
@@ -2015,6 +2017,18 @@ mod tests {
             .unwrap_err();
         assert_eq!(error.code, "SAND-DATA-TARGET");
         assert!(error.message.contains("typed item location"));
+    }
+
+    #[test]
+    fn entity_data_commands_validate_embedded_selectors() {
+        let invalid =
+            Nbt::entity(Selector::all_entities().tag("invalid tag").limit(1)).path("Health");
+        assert!(
+            invalid
+                .get()
+                .try_render(&CommandProfile::unprofiled())
+                .is_err()
+        );
     }
 
     #[test]

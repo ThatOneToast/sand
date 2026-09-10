@@ -5,12 +5,16 @@
 use std::sync::Mutex;
 
 use sand_commands::Target;
-use sand_core::entity::{EntityContext, EntityScope, PlayerKind, TargetExecution};
+use sand_core::entity::{EntityContext, EntityScope, EntityTag, PlayerKind, TargetExecution};
 
 // `drain_dyn_fns()` reads a process-global registry shared by every test in
 // this binary; serialize the tests that touch it so they don't observe each
 // other's generated helper functions.
 static DYN_FN_REGISTRY_LOCK: Mutex<()> = Mutex::new(());
+
+fn tag(value: &str) -> EntityTag {
+    EntityTag::new(value).unwrap()
+}
 
 #[test]
 fn each_lowers_target_iteration_without_a_manual_execute_chain() {
@@ -21,7 +25,7 @@ fn each_lowers_target_iteration_without_a_manual_execute_chain() {
         .without_tag("friendly")
         .within_blocks(15.0)
         .nearest()
-        .each(|entity| vec![entity.add_tag("observed")]);
+        .each(|entity| vec![entity.add_tag(&tag("observed"))]);
 
     assert_eq!(cmds.len(), 1);
     assert!(cmds[0].starts_with(
@@ -41,7 +45,7 @@ fn nested_relationship_traversal_retains_original_context() {
             EntityScope::bind(arrow, |arrow_ref| {
                 arrow_ref
                     .owner()
-                    .if_player(|_owner| vec![arrow_ref.add_tag("special")])
+                    .if_player(|_owner| vec![arrow_ref.add_tag(&tag("special"))])
                     .unwrap()
             })
         });
@@ -87,7 +91,7 @@ fn player_target_each_binds_a_player_context() {
     let cmds = Target::players()
         .tag("ready")
         .nearest()
-        .each(|player| vec![player.add_tag("chosen")]);
+        .each(|player| vec![player.add_tag(&tag("chosen"))]);
 
     assert_eq!(cmds.len(), 1);
     assert!(cmds[0].starts_with(
@@ -98,7 +102,7 @@ fn player_target_each_binds_a_player_context() {
 #[test]
 fn raw_single_player_each_binds_a_player_context() {
     let cmds = Target::raw_single_player("@a[modded=true,limit=1]")
-        .each(|player: &EntityContext<PlayerKind>| vec![player.add_tag("chosen")]);
+        .each(|player: &EntityContext<PlayerKind>| vec![player.add_tag(&tag("chosen"))]);
 
     assert_eq!(cmds.len(), 1);
     assert!(cmds[0].starts_with(
@@ -115,7 +119,7 @@ fn passengers_relation_is_many_cardinality_and_iterates_via_each() {
         .expect("a positive limit is valid")
         .each(|boat| {
             boat.passengers()
-                .each(|passenger| vec![passenger.add_tag("aboard")])
+                .each(|passenger| vec![passenger.add_tag(&tag("aboard"))])
                 .unwrap()
         });
 

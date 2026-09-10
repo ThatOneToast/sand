@@ -57,7 +57,7 @@ pub use export_registry::{ExportRegistryGuard, NestedExportError};
 pub use inventory::Inventory;
 pub use nbt::{
     DataCommand, DataModifyOperation, DataSource, DataTarget, Nbt, NbtCompound, NbtPath, NbtRef,
-    NbtValue, UntypedNbt,
+    NbtValue, ReadOnlyNbtRef, UntypedNbt,
 };
 pub use particles::{Particle, ParticleBuilder, ParticleCommand, ParticleEffect, ParticleSpread};
 pub use raw::RawCommand;
@@ -181,6 +181,16 @@ pub mod __private {
     /// concrete registry-reference type. The event remains validated syntax.
     pub fn sound_from_typed_id(event: impl Into<String>) -> crate::Sound {
         crate::Sound::play_typed_id(event)
+    }
+
+    /// Applies canonical validated single-target damage lowering to an
+    /// implementation-owned selector.
+    pub fn try_damage_one(
+        selector: crate::Selector,
+        amount: f64,
+        kind: crate::DamageKind,
+    ) -> crate::CommandResult<String> {
+        crate::builtins::try_damage_selector(selector, amount, kind)
     }
 
     /// Appends one compiler-produced execute operation.

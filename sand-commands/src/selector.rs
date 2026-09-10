@@ -78,8 +78,19 @@ enum TargetBase {
 }
 
 /// Marker for selector wrappers that are statically known to select one target.
+#[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::command::One",
+    aliases = ["sand::cmd::One", "sand::prelude::One", "sand::prelude::cmd::One"],
+    module = "sand::command",
+    summary = "Cardinality marker for a Target statically narrowed to one entity.",
+    context = "Target-producing methods such as nearest and limit(1) infer this marker; authors rarely need to name it directly.",
+    minecraft = "Allows command and entity capability signatures to reject many-target arguments for vanilla operations that require exactly one entity.",
+    use_when = ["Writing a generic signature that accepts only a statically single Target"],
+    avoid_when = ["Constructing selectors directly; use Target's narrowing methods"],
+    example = "use sand::prelude::*; let target: Target<_, One> = Target::nearest_player();",
+)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[doc(hidden)]
 pub enum One {}
 
 /// Marker for selector wrappers that may select multiple targets.
@@ -89,8 +100,24 @@ pub enum Many {}
 
 // ── Canonical target model ───────────────────────────────────────────────────
 
-/// Hidden category marker for targets that may select any entity.
-#[doc(hidden)]
+/// Category marker for targets that may select any non-statically-restricted entity.
+///
+/// Normal author code obtains this type through inference from
+/// [`Target::entities`]. It is public so capability APIs can reject a
+/// statically player-only target while still accepting runtime-unknown entity
+/// selectors.
+#[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::command::AnyTarget",
+    aliases = ["sand::cmd::AnyTarget", "sand::prelude::AnyTarget", "sand::prelude::cmd::AnyTarget"],
+    module = "sand::command",
+    summary = "Category marker for entity-wide targets that are not statically player-only.",
+    context = "Usually inferred from Target::entities; capability APIs use it to reject operations that are known illegal for player-only destinations.",
+    minecraft = "Preserves the entity-wide selector category without changing rendered selector text.",
+    use_when = ["Writing generic APIs that must exclude statically player-only targets"],
+    avoid_when = ["Constructing a target directly; use Target constructors and inference"],
+    example = "use sand::prelude::*; let target: Target<AnyTarget, One> = Target::entities().nearest();",
+)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum AnyTarget {}
 

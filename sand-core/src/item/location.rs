@@ -30,7 +30,9 @@ use std::fmt;
 
 use sand_commands::coord::BlockPos;
 use sand_commands::execute_args::ItemSlot;
-use sand_commands::nbt::{DataCommand, DataTarget, NbtPath, NbtRef, NbtRefLowering, UntypedNbt};
+use sand_commands::nbt::{
+    DataCommand, DataTarget, NbtPath, NbtRef, NbtRefLowering, ReadOnlyNbtRef, UntypedNbt,
+};
 use sand_commands::selector::{Selector, TargetArgument};
 
 use crate::condition::Condition;
@@ -379,8 +381,12 @@ impl ItemLocation {
     }
 
     /// Canonical typed NBT view of this live item location.
-    #[sand_macros::api(kind = "method", registry = sand_api_contract, path = "sand::inventory::ItemLocation::nbt", summary = "Returns the typed NBT view of this live item stack.", context = "The view is for typed data operations; it avoids exposing a hand-written NBT source string at normal call sites.", minecraft = "Addresses the matching entity or block item compound.", use_when = ["Copying a live item compound with typed NBT builders"], avoid_when = ["Capturing event-time evidence; use ItemSnapshot::capture"], returns = "The untyped NBT reference for the live item compound.", example = "let item_nbt = ItemLocation::PlayerMainHand.nbt();")]
-    pub fn nbt(&self) -> NbtRef<UntypedNbt> {
+    #[sand_macros::api(kind = "method", registry = sand_api_contract, path = "sand::inventory::ItemLocation::nbt", summary = "Returns the read-only typed NBT view of this live item stack.", context = "The view supports observation and typed path traversal without exposing unsafe player or entity inventory data mutation.", minecraft = "Addresses the matching entity or block item compound for data-get commands; use typed /item operations for live mutation.", use_when = ["Reading a live item compound with typed NBT builders"], avoid_when = ["Mutating live inventory NBT; use replace_from or another typed /item operation", "Capturing event-time evidence; use ItemSnapshot::capture"], returns = "A read-only untyped NBT reference for the live item compound.", example = "let item_nbt = ItemLocation::PlayerMainHand.nbt();")]
+    pub fn nbt(&self) -> ReadOnlyNbtRef<UntypedNbt> {
+        self.writable_nbt().into()
+    }
+
+    pub(crate) fn writable_nbt(&self) -> NbtRef<UntypedNbt> {
         let (target, path) = self
             .nbt_parts()
             .expect("constructible ItemLocation variants always have NBT addressing");
@@ -390,7 +396,7 @@ impl ItemLocation {
     /// Snapshot/copy the current stack compound into a typed NBT destination.
     #[sand_macros::api(kind = "method", registry = sand_api_contract, path = "sand::inventory::ItemLocation::copy_to", summary = "Builds a typed command copying this live item compound to NBT.", context = "Use it for deliberate data transfer while the source is still live; snapshots are safer for event-time evidence.", minecraft = "Renders a data modify set-from command from the location's item compound.", use_when = ["Copying a live item into a typed NBT destination"], avoid_when = ["Persisting an event observation after later commands can mutate the source"], params(destination = "The typed NBT destination."), returns = "The data command that performs the copy.", example = "let command = ItemLocation::PlayerMainHand.copy_to(&destination);")]
     pub fn copy_to<T>(&self, destination: &NbtRef<T>) -> DataCommand {
-        destination.copy_from(&self.nbt())
+        destination.copy_from(&self.writable_nbt())
     }
 
     /// Copy NBT into a block container slot.
@@ -401,7 +407,7 @@ impl ItemLocation {
     #[sand_macros::api(kind = "method", registry = sand_api_contract, path = "sand::inventory::ItemLocation::copy_from", summary = "Builds a typed NBT copy into a block-container item slot.", context = "Sand deliberately rejects entity and player inventory NBT writes because vanilla does not safely permit arbitrary live-inventory mutation through data commands.", minecraft = "Renders data modify only for a supported block container target.", use_when = ["Writing a complete item compound into a block container"], avoid_when = ["Mutating player or entity inventory; use replace_from for live stack copies"], params(source = "The typed NBT source item compound."), returns = "The data command or an unsupported-location error.", example = "let command = chest.slot(0)?.copy_from(&source)?;")]
     pub fn copy_from<T>(&self, source: &NbtRef<T>) -> Result<DataCommand, ItemLocationError> {
         match self {
-            Self::BlockContainer { .. } => Ok(self.nbt().copy_from(source)),
+            Self::BlockContainer { .. } => Ok(self.writable_nbt().copy_from(source)),
             _ => Err(ItemLocationError::UnsupportedLocation {
                 location: self.kind().to_string(),
                 reason: "NBT writes to live entity/player inventory are unsafe; use ItemLocation::replace_from for item-to-item copies",
@@ -412,7 +418,7 @@ impl ItemLocation {
     /// Typed `execute if data` existence check for the stack compound.
     #[sand_macros::api(kind = "method", registry = sand_api_contract, path = "sand::inventory::ItemLocation::exists", summary = "Builds a runtime condition that this live item location exists.", context = "Use a condition when the source may be empty or absent at Minecraft execution time.", minecraft = "Lowers to an execute-if-data check for the resolved item compound.", use_when = ["Guarding commands that require a live item stack"], avoid_when = ["Checking the presence flag of an ItemSnapshot"], returns = "A condition over the live location.", example = "let present = ItemLocation::PlayerMainHand.exists();")]
     pub fn exists(&self) -> Condition {
-        let reference = self.nbt();
+        let reference = self.writable_nbt();
         Condition::data_exists(&reference)
     }
 

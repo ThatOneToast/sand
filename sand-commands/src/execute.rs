@@ -2299,7 +2299,11 @@ impl Validate for Execute {
                     kind,
                     target,
                     path,
-                } => (*index, *kind, validate_ref_parts(target, path, true)),
+                } => (
+                    *index,
+                    *kind,
+                    validate_ref_parts(target, path, true, profile),
+                ),
             };
             result.map_err(|e| e.with_context(format!("Execute subcommand {index} `{kind}`")))?;
         }

@@ -47,7 +47,8 @@ impl SandEvent for OnAttackerRelationCheck {
             .if_present(|attacker| {
                 vec![
                     "scoreboard players set @s p10_attacker_seen 1".to_string(),
-                    attacker.add_tag("p10_seen_attacker"),
+                    attacker
+                        .add_tag(&sand_core::entity::EntityTag::new("p10_seen_attacker").unwrap()),
                 ]
             })
             .expect("relation lowering succeeds");

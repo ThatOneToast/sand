@@ -8,14 +8,14 @@
 //! # Quick start
 //! ```
 //! use sand_commands::Target;
-//! use sand_core::entity::TargetExecution;
+//! use sand_core::entity::{EntityTag, TargetExecution};
 //!
 //! let cmds = Target::entities()
 //!     .entity_type_raw("minecraft:zombie")
 //!     .without_tag("friendly")
 //!     .within_blocks(15.0)
 //!     .nearest()
-//!     .each(|entity| vec![entity.add_tag("observed")]);
+//!     .each(|entity| vec![entity.identity().add_tag(&EntityTag::new("observed").unwrap()).unwrap()]);
 //!
 //! assert!(cmds[0].starts_with("execute as @e["));
 //! ```
@@ -34,6 +34,7 @@
 //!   across relationship traversal, which reassigns `@s`.
 
 pub mod archetype;
+pub mod capability;
 pub mod context;
 pub mod curve;
 pub mod diagnostic;
@@ -48,6 +49,10 @@ pub use archetype::{
     EntityDerivation, EntityTransition, EntityTransitionField, Migration, ReconcilePolicy,
     SpecialEntityPolicy, ThresholdDirection,
 };
+pub use capability::{
+    EntityData, EntityDataRoot, EntityEquipmentHandle, EntityIdentity, EntityMounts,
+    EntityTransform, LivingEntity,
+};
 pub use context::{EntityContext, EntityScope, ScopedEntityRef};
 pub use curve::{
     CurveEvaluationError, CurveInputs, DEFAULT_FIXED_POINT_SCALE, FixedPoint, FixedValue,
@@ -55,8 +60,8 @@ pub use curve::{
 };
 pub use diagnostic::EntityDiagnostic;
 pub use kind::{
-    AnyEntity, EntityKind, KnownEntityKind, LivingEntityKind, MarkerKind, MutableLivingEntityKind,
-    PlayerKind, SafeEntityDataWriteKind, ZombieKind,
+    AnyEntity, EntityKind, EquipmentEntityKind, KnownEntityKind, LivingEntityKind, MarkerKind,
+    MountVehicleKind, MutableLivingEntityKind, PlayerKind, SafeEntityDataWriteKind, ZombieKind,
 };
 pub use property::{
     AttributeBinding, AttributeModifierBinding, CurrentHealthSync, EffectBinding, EntityEventId,

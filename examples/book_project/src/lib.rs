@@ -184,6 +184,39 @@ pub fn grapple_core_recipe() -> ShapedRecipe {
 
 // ── Functions ─────────────────────────────────────────────────────────────────
 
+// ANCHOR: entity_capabilities
+/// A façade-only example that discovers entity operations from the context.
+pub fn capability_facade_example() -> Vec<String> {
+    let active = EntityTag::new("trail_active").unwrap();
+
+    Target::players().each(|player| {
+        let boots = player.equipment().slot(EquipmentSlot::Feet).unwrap();
+        let first_hotbar_slot = player.inventory().hotbar(0).unwrap();
+        let wearing_boots = boots.matches("minecraft:leather_boots").unwrap();
+        let speed = player
+            .living()
+            .give_effect(EffectId::Speed)
+            .duration(Ticks::seconds(1))
+            .particles(false);
+
+        let mut commands = vec![
+            player.identity().add_tag(&active).unwrap(),
+            player
+                .transform()
+                .face_position(Vec3::absolute(0.0, 80.0, 0.0))
+                .unwrap(),
+            first_hotbar_slot.nbt().get().to_string(),
+        ];
+        commands.extend(
+            TypedExecute::as_self_at_self()
+                .when(wearing_boots)
+                .run(speed),
+        );
+        commands
+    })
+}
+// ANCHOR_END: entity_capabilities
+
 // ANCHOR: fn_grapple
 /// Grapple dash entry point: gate on upgrade, stamina, cooldown, exhaustion.
 #[function("trail:grapple")]

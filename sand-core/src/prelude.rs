@@ -27,13 +27,13 @@ pub use crate::execute_when::{if_, unless, when};
 
 pub use crate::Damage;
 pub use crate::cmd::{
-    Actionbar, BlockPos, BlockState, Bossbar, BossbarColor, BossbarId, BossbarStyle, Build,
-    CloneBlocks, CloneMaskMode, CloneMode, Coord, DamageAmount, DamageBuilder, DamageKind,
+    Actionbar, AnyTarget, BlockPos, BlockState, Bossbar, BossbarColor, BossbarId, BossbarStyle,
+    Build, CloneBlocks, CloneMaskMode, CloneMode, Coord, DamageAmount, DamageBuilder, DamageKind,
     DataCommand, EffectDuration, Execute, Fill, FillMode, FunctionMacroArg, FunctionMacroArgs,
     GameMode, Inventory, ItemSlot, Nbt, NbtCompound, NbtPath, NbtRef, Objective, ObjectiveName,
-    Particle, ParticleBuilder, ParticleSpread, RawCommand, RenderCommand, Rotation, ScoreHolder,
-    SetBlock, SetBlockMode, SortOrder, Sound, SoundSource, Target, Title, TitleTimes, UntypedNbt,
-    Validate, Vec2, Vec3,
+    One, Particle, ParticleBuilder, ParticleSpread, RawCommand, ReadOnlyNbtRef, RenderCommand,
+    Rotation, ScoreHolder, SetBlock, SetBlockMode, SortOrder, Sound, SoundSource, Target, Title,
+    TitleTimes, UntypedNbt, Validate, Vec2, Vec3,
 };
 pub use crate::item::{
     BlockInventory, ContainerIndex, EnderChestIndex, EntityInventory, EntityInventorySlot,
@@ -62,19 +62,20 @@ pub use crate::entity::{
     Adoption, AdoptionSource, AnyEntity, AttributeBinding, AttributeModifierBinding, Cooldown,
     CurrentHealthSync, CurveEvaluationError, CurveInputs, DEFAULT_FIXED_POINT_SCALE, Data,
     DerivedScoreEncoding, EffectBinding, EntityAction, EntityArchetype, EntityContext,
-    EntityCooldown, EntityDerivation, EntityDiagnostic, EntityEnum, EntityEnumValue, EntityEventId,
-    EntityFlag, EntityKind, EntityName, EntityNbtBinding, EntityNbtProperty, EntityNbtType,
-    EntityNbtValue, EntityScope, EntityScore, EntityState, EntityStateField, EntityTag, EntityTeam,
-    EntityTimer, EntityTransition, EnumEncoding, EquipmentBinding, FixedPoint, FixedScore,
-    FixedScoreAccessor, FixedScoreValue, FixedValue, Flag, GlobalStateBundleOperations,
-    HealthBinding, HealthResizePolicy, KeyedData, KnownEntityKind, LivingEntityKind, MarkerKind,
-    Migration, MutableLivingEntityKind, NumericPropertySource, NumericStateField,
-    NumericStateSource, OverflowPolicy, OwnershipPolicy, PlayerKind, RawEntityProperty,
-    RawEntityStateField, ReconcilePolicy, RefreshPolicy, Relation, RelationTraversal,
-    RoundingPolicy, SafeEntityDataWriteKind, ScopedEntityRef, Score, SpecialEntityPolicy,
-    StatCurve, StateComposition, StateFieldDescriptor, StateFieldKind, StatePredicate,
-    StateQueryOperations, StateSchema, TagBinding, TargetExecution, TeamBinding,
-    ThresholdDirection, Timer, ZombieKind,
+    EntityCooldown, EntityData, EntityDataRoot, EntityDerivation, EntityDiagnostic, EntityEnum,
+    EntityEnumValue, EntityEquipmentHandle, EntityEventId, EntityFlag, EntityIdentity, EntityKind,
+    EntityMounts, EntityName, EntityNbtBinding, EntityNbtProperty, EntityNbtType, EntityNbtValue,
+    EntityScope, EntityScore, EntityState, EntityStateField, EntityTag, EntityTeam, EntityTimer,
+    EntityTransform, EntityTransition, EnumEncoding, EquipmentBinding, EquipmentEntityKind,
+    FixedPoint, FixedScore, FixedScoreAccessor, FixedScoreValue, FixedValue, Flag,
+    GlobalStateBundleOperations, HealthBinding, HealthResizePolicy, KeyedData, KnownEntityKind,
+    LivingEntity, LivingEntityKind, MarkerKind, Migration, MountVehicleKind,
+    MutableLivingEntityKind, NumericPropertySource, NumericStateField, NumericStateSource,
+    OverflowPolicy, OwnershipPolicy, PlayerKind, RawEntityProperty, RawEntityStateField,
+    ReconcilePolicy, RefreshPolicy, Relation, RelationTraversal, RoundingPolicy,
+    SafeEntityDataWriteKind, ScopedEntityRef, Score, SpecialEntityPolicy, StatCurve,
+    StateComposition, StateFieldDescriptor, StateFieldKind, StatePredicate, StateQueryOperations,
+    StateSchema, TagBinding, TargetExecution, TeamBinding, ThresholdDirection, Timer, ZombieKind,
 };
 
 // ── Function refs (FunctionRef trait) ─────────────────────────────────────

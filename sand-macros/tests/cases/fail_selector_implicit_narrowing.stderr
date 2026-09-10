@@ -10,7 +10,7 @@ help: the following other types implement trait `sand_commands::selector::Single
  --> $WORKSPACE/sand-commands/src/selector.rs
   |
   | impl SingleTargetArgument for Target<AnyTarget, One> {}
-  | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ `sand::prelude::Target<sand_commands::selector::AnyTarget, One>`
+  | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ `sand::prelude::Target<AnyTarget, One>`
 ...
   | impl SingleTargetArgument for Target<PlayersOnly, One> {}
   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ `sand::prelude::Target<sand_commands::selector::PlayersOnly, One>`

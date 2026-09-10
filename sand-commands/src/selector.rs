@@ -100,8 +100,24 @@ pub enum Many {}
 
 // ── Canonical target model ───────────────────────────────────────────────────
 
-/// Hidden category marker for targets that may select any entity.
-#[doc(hidden)]
+/// Category marker for targets that may select any non-statically-restricted entity.
+///
+/// Normal author code obtains this type through inference from
+/// [`Target::entities`]. It is public so capability APIs can reject a
+/// statically player-only target while still accepting runtime-unknown entity
+/// selectors.
+#[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::command::AnyTarget",
+    aliases = ["sand::cmd::AnyTarget", "sand::prelude::AnyTarget", "sand::prelude::cmd::AnyTarget"],
+    module = "sand::command",
+    summary = "Category marker for entity-wide targets that are not statically player-only.",
+    context = "Usually inferred from Target::entities; capability APIs use it to reject operations that are known illegal for player-only destinations.",
+    minecraft = "Preserves the entity-wide selector category without changing rendered selector text.",
+    use_when = ["Writing generic APIs that must exclude statically player-only targets"],
+    avoid_when = ["Constructing a target directly; use Target constructors and inference"],
+    example = "use sand::prelude::*; let target: Target<AnyTarget, One> = Target::entities().nearest();",
+)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum AnyTarget {}
 

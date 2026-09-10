@@ -508,7 +508,7 @@ fn repository_contract_sources_are_the_actual_authored_declarations() {
     }
     sources.sort();
     let declarations = contract_declarations_from_files(&sources).unwrap();
-    assert_eq!(declarations.len(), 4_496);
+    assert_eq!(declarations.len(), 4_497);
     assert_eq!(
         declarations.first().unwrap().canonical_path,
         "sand::EntityStateEnum"

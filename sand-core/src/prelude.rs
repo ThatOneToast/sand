@@ -27,8 +27,8 @@ pub use crate::execute_when::{if_, unless, when};
 
 pub use crate::Damage;
 pub use crate::cmd::{
-    Actionbar, BlockPos, BlockState, Bossbar, BossbarColor, BossbarId, BossbarStyle, Build,
-    CloneBlocks, CloneMaskMode, CloneMode, Coord, DamageAmount, DamageBuilder, DamageKind,
+    Actionbar, AnyTarget, BlockPos, BlockState, Bossbar, BossbarColor, BossbarId, BossbarStyle,
+    Build, CloneBlocks, CloneMaskMode, CloneMode, Coord, DamageAmount, DamageBuilder, DamageKind,
     DataCommand, EffectDuration, Execute, Fill, FillMode, FunctionMacroArg, FunctionMacroArgs,
     GameMode, Inventory, ItemSlot, Nbt, NbtCompound, NbtPath, NbtRef, Objective, ObjectiveName,
     One, Particle, ParticleBuilder, ParticleSpread, RawCommand, ReadOnlyNbtRef, RenderCommand,

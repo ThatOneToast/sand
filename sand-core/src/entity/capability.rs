@@ -7,10 +7,9 @@ use sand_commands::{
 };
 use sand_components::{AttributeType, EffectId, EquipmentSlot};
 
-use crate::cmd::{
-    Anchor, CommandProfile, CommandResult, DamageKind, EffectGive, One, Rotation, Target, Validate,
-    Vec3,
-};
+use crate::cmd::{Anchor, CommandResult, DamageKind, EffectGive, One, Rotation, Target, Vec3};
+#[cfg(not(sand_placeholder_codegen))]
+use crate::cmd::{CommandProfile, Validate};
 use crate::entity::kind::{
     EntityKind, EquipmentEntityKind, LivingEntityKind, MountVehicleKind, SafeEntityDataWriteKind,
 };

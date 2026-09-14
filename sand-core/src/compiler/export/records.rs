@@ -208,32 +208,63 @@ pub(crate) fn validate_unique_output_identities(records: &[ComponentRecord]) -> 
 /// regardless of which compiler path produced it. Identical declarations are
 /// harmless; different criteria for the same objective are never resolved by
 /// record or lifecycle order.
-pub(crate) fn validate_objective_definitions(records: &[ComponentRecord]) -> ExportResult<()> {
-    fn objective_definition(mut command: &str) -> Option<(&str, &str)> {
-        loop {
-            let mut parts = command.split_whitespace();
-            match (
-                parts.next(),
-                parts.next(),
-                parts.next(),
-                parts.next(),
-                parts.next(),
-            ) {
-                (
-                    Some("scoreboard"),
-                    Some("objectives"),
-                    Some("add"),
-                    Some(objective),
-                    Some(criterion),
-                ) => return Some((objective, criterion)),
-                (Some("execute"), _, _, _, _) => {
-                    command = command.split_once(" run ")?.1;
-                }
-                _ => return None,
+fn execute_run_tail(command: &str) -> Option<&str> {
+    let bytes = command.as_bytes();
+    let mut quote = None;
+    let mut escaped = false;
+
+    for index in 0..bytes.len() {
+        let byte = bytes[index];
+        if let Some(delimiter) = quote {
+            if escaped {
+                escaped = false;
+            } else if byte == b'\\' {
+                escaped = true;
+            } else if byte == delimiter {
+                quote = None;
             }
+            continue;
+        }
+
+        if byte == b'"' || byte == b'\'' {
+            quote = Some(byte);
+            continue;
+        }
+        let is_run = bytes.get(index..index + 3) == Some(b"run")
+            && index > 0
+            && bytes[index - 1].is_ascii_whitespace()
+            && bytes.get(index + 3).is_some_and(u8::is_ascii_whitespace);
+        if is_run {
+            return Some(command[index + 3..].trim_start());
         }
     }
+    None
+}
 
+fn objective_definition(mut command: &str) -> Option<(&str, &str)> {
+    loop {
+        let mut parts = command.split_whitespace();
+        match (
+            parts.next(),
+            parts.next(),
+            parts.next(),
+            parts.next(),
+            parts.next(),
+        ) {
+            (
+                Some("scoreboard"),
+                Some("objectives"),
+                Some("add"),
+                Some(objective),
+                Some(criterion),
+            ) => return Some((objective, criterion)),
+            (Some("execute"), _, _, _, _) => command = execute_run_tail(command)?,
+            _ => return None,
+        }
+    }
+}
+
+pub(crate) fn validate_objective_definitions(records: &[ComponentRecord]) -> ExportResult<()> {
     let mut definitions = std::collections::BTreeMap::<String, (String, String)>::new();
     for record in records.iter().filter(|record| record.dir == "function") {
         for line in record.content.lines() {

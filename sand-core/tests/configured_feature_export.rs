@@ -1,6 +1,6 @@
-use sand_core::ComponentFactory;
 use sand_core::prelude::*;
 use sand_core::sand_components::worldgen::providers::{BlockState, BlockStateProvider};
+use sand_core::{ComponentFactory, IntoDatapack};
 
 fn ashen_shrub() -> ConfiguredFeature {
     ConfiguredFeature::simple_block(
@@ -20,11 +20,11 @@ fn ashen_shrub_placement() -> PlacedFeature {
 }
 
 inventory::submit! {
-    ComponentFactory { make: || Box::new(ashen_shrub()) }
+    ComponentFactory { owner: "configured_feature", make: || ashen_shrub().into_datapack() }
 }
 
 inventory::submit! {
-    ComponentFactory { make: || Box::new(ashen_shrub_placement()) }
+    ComponentFactory { owner: "placed_feature", make: || ashen_shrub_placement().into_datapack() }
 }
 
 #[test]

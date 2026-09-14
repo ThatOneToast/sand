@@ -1,11 +1,13 @@
-use sand_core::{ComponentFactory, DatapackComponent, LootPool, LootTable};
+use sand_core::{ComponentFactory, DatapackRegistration, IntoDatapack, LootPool, LootTable};
 
-fn invalid_loot_table() -> Box<dyn DatapackComponent> {
-    Box::new(LootTable::new("audit:invalid_loot".parse().unwrap()).pool(LootPool::new()))
+fn invalid_loot_table() -> DatapackRegistration {
+    LootTable::new("audit:invalid_loot".parse().unwrap())
+        .pool(LootPool::new())
+        .into_datapack()
 }
 
 sand_core::inventory::submit! {
-    ComponentFactory { make: invalid_loot_table }
+    ComponentFactory { owner: "invalid_loot_table", make: invalid_loot_table }
 }
 
 #[test]

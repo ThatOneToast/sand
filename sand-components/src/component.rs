@@ -153,11 +153,6 @@ pub trait DatapackComponent {
     }
 }
 
-/// A type that can produce a collection of [`DatapackComponent`]s.
-pub trait IntoDatapack {
-    fn into_datapack(self) -> Vec<Box<dyn DatapackComponent>>;
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;

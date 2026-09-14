@@ -71,6 +71,8 @@ pub mod ir;
 pub mod item;
 pub mod participant;
 pub mod prelude;
+#[doc(hidden)]
+pub mod registration;
 pub mod resource_location;
 pub mod resource_ref;
 pub mod state;
@@ -107,8 +109,9 @@ pub use component::try_export_components_for_version;
 pub use component::try_export_components_json;
 pub use component::try_export_components_json_for_version;
 pub use component::{
-    ComponentContent, ComponentExportError, ComponentRecord, DatapackComponent, ExportResult,
-    IntoDatapack,
+    ComponentContent, ComponentExportError, ComponentRecord, DatapackComponent,
+    DatapackRegistration, ExportResult, FunctionTagContribution, IntoDatapack,
+    LifecycleContribution,
 };
 pub use error::{Result, SandError};
 pub use event::handle::EventHandle;

@@ -74,7 +74,7 @@ pub mod worldgen;
 
 // ── Core traits and types ─────────────────────────────────────────────────────
 
-pub use component::{ComponentContent, DatapackComponent, IntoDatapack};
+pub use component::{ComponentContent, DatapackComponent};
 pub use effect::{
     EffectId, PotionContents, PotionId, StatusEffectInstance, SuspiciousStewEffect, Ticks,
 };

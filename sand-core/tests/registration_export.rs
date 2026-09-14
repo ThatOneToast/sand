@@ -31,6 +31,12 @@ impl IntoDatapack for FutureFeature {
                 .command("say alpha"),
             ])
             .lifecycle(LifecycleContribution::load("say registration load first"))
+            .lifecycle(LifecycleContribution::load(
+                "scoreboard objectives remove reg_order",
+            ))
+            .lifecycle(LifecycleContribution::load(
+                "scoreboard objectives add reg_order dummy",
+            ))
             .lifecycle(LifecycleContribution::load("say registration load second"))
             .lifecycle(LifecycleContribution::tick("say registration tick first"))
             .lifecycle(LifecycleContribution::tick("say registration tick second"))
@@ -85,7 +91,7 @@ fn generalized_registration_uses_canonical_component_lifecycle_and_tag_output() 
     );
     assert_eq!(
         load.content,
-        "say registration load first\nsay registration load second"
+        "say registration load first\nscoreboard objectives remove reg_order\nscoreboard objectives add reg_order dummy\nsay registration load second"
     );
     let tick = record(
         &records,

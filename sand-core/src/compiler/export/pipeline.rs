@@ -2528,18 +2528,7 @@ pub(crate) fn try_export_components_impl(
             .sort_by(|left, right| left.0.cmp(&right.0).then_with(|| left.1.cmp(&right.1)));
 
         let mut load_definitions: BTreeMap<String, (String, String, String)> = BTreeMap::new();
-        let mut other_load_commands = Vec::new();
-        let load_inputs = automatic
-            .load_commands
-            .into_iter()
-            .map(|command| ("automatic state lifecycle".to_string(), command))
-            .chain(
-                registration_load_commands
-                    .into_iter()
-                    .map(|(owner, _, command)| (owner, command)),
-            );
-
-        for (owner, command) in load_inputs {
+        for command in automatic.load_commands {
             let mut parts = command.splitn(6, ' ');
             let parsed = match (
                 parts.next(),
@@ -2569,24 +2558,68 @@ pub(crate) fn try_export_components_impl(
                     Some((existing, _, _)) if existing == &criterion => {}
                     Some((existing, _, existing_owner)) => {
                         return Err(lifecycle_export_error(format!(
+                            "conflicting objective `{objective}`: `{existing_owner}` declares criterion `{existing}`, while automatic state lifecycle declares `{criterion}`"
+                        )));
+                    }
+                    None => {
+                        load_definitions.insert(
+                            objective,
+                            (criterion, command, "automatic state lifecycle".to_string()),
+                        );
+                    }
+                }
+            } else {
+                return Err(lifecycle_export_error(format!(
+                    "invalid registered load command `{command}`"
+                )));
+            }
+        }
+        let mut registration_definitions: BTreeMap<String, (String, String)> = load_definitions
+            .iter()
+            .map(|(objective, (criterion, _, owner))| {
+                (objective.clone(), (criterion.clone(), owner.clone()))
+            })
+            .collect();
+        let mut load_cmds: Vec<String> = load_definitions
+            .into_values()
+            .map(|(_, command, _)| command)
+            .collect();
+        for (owner, _, command) in registration_load_commands {
+            let mut parts = command.splitn(6, ' ');
+            let parsed = match (
+                parts.next(),
+                parts.next(),
+                parts.next(),
+                parts.next(),
+                parts.next(),
+                parts.next(),
+            ) {
+                (
+                    Some("scoreboard"),
+                    Some("objectives"),
+                    Some("add"),
+                    Some(objective),
+                    Some(criterion),
+                    None,
+                ) => Some((objective.to_string(), criterion.to_string())),
+                _ => None,
+            };
+
+            if let Some((objective, criterion)) = parsed {
+                match registration_definitions.get(&objective) {
+                    Some((existing, _)) if existing == &criterion => {}
+                    Some((existing, existing_owner)) => {
+                        return Err(lifecycle_export_error(format!(
                             "conflicting objective `{objective}`: `{existing_owner}` declares criterion `{existing}`, while `{owner}` declares `{criterion}`"
                         )));
                     }
                     None => {
-                        load_definitions.insert(objective, (criterion, command, owner));
+                        registration_definitions.insert(objective, (criterion, owner));
                     }
                 }
-            } else {
-                other_load_commands.push(command);
             }
+            load_cmds.push(command);
         }
-        let load_cmds: Vec<String> = load_definitions
-            .into_values()
-            .map(|(_, command, _)| command)
-            .collect();
-        let mut load_cmds = load_cmds;
-        other_load_commands = dedupe_preserve_order(other_load_commands);
-        load_cmds.append(&mut other_load_commands);
         load_cmds.append(&mut automatic.provision_commands);
         load_cmds.append(&mut automatic.global_init_commands);
         if !load_cmds.is_empty() {

@@ -209,11 +209,10 @@ pub(crate) fn validate_unique_output_identities(records: &[ComponentRecord]) -> 
 /// harmless; different criteria for the same objective are never resolved by
 /// record or lifecycle order.
 pub(crate) fn validate_objective_definitions(records: &[ComponentRecord]) -> ExportResult<()> {
-    let mut definitions = std::collections::BTreeMap::<String, (String, String)>::new();
-    for record in records.iter().filter(|record| record.dir == "function") {
-        for line in record.content.lines() {
-            let mut parts = line.split_whitespace();
-            let definition = match (
+    fn objective_definition(mut command: &str) -> Option<(&str, &str)> {
+        loop {
+            let mut parts = command.split_whitespace();
+            match (
                 parts.next(),
                 parts.next(),
                 parts.next(),
@@ -226,10 +225,19 @@ pub(crate) fn validate_objective_definitions(records: &[ComponentRecord]) -> Exp
                     Some("add"),
                     Some(objective),
                     Some(criterion),
-                ) => Some((objective, criterion)),
-                _ => None,
-            };
-            let Some((objective, criterion)) = definition else {
+                ) => return Some((objective, criterion)),
+                (Some("execute"), _, _, _, _) => {
+                    command = command.split_once(" run ")?.1;
+                }
+                _ => return None,
+            }
+        }
+    }
+
+    let mut definitions = std::collections::BTreeMap::<String, (String, String)>::new();
+    for record in records.iter().filter(|record| record.dir == "function") {
+        for line in record.content.lines() {
+            let Some((objective, criterion)) = objective_definition(line) else {
                 continue;
             };
             let owner = format!("{}:{}/{}", record.namespace, record.dir, record.path);

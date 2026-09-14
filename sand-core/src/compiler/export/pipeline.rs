@@ -230,6 +230,21 @@ pub(crate) fn try_export_components_impl(
     // generated child and an explicit standalone component order-independent.
     let mut factories: Vec<_> = inventory::iter::<ComponentFactory>().collect();
     factories.sort_by_key(|factory| factory.owner);
+    if let Some(duplicate) = factories
+        .windows(2)
+        .find(|pair| pair[0].owner == pair[1].owner)
+    {
+        return Err(ComponentExportError::ComponentValidation {
+            location: sand_components::ResourceLocation::new("sand", "registration")
+                .expect("fixed registration resource location is valid"),
+            kind: "registration".to_string(),
+            field: "owner".to_string(),
+            message: format!(
+                "duplicate component factory owner `{}`; logical registration owners must be unique",
+                duplicate[0].owner
+            ),
+        });
+    }
     let registrations = factories
         .into_iter()
         .map(|factory| {

@@ -26,6 +26,7 @@
 - [19. Validated Command Media](19-validated-command-media.md)
 - [20. Command Arguments: Coordinates, Selectors, Scores, and Blocks](20-command-arguments.md)
 - [21. RPG Entities: State, Archetypes, And Derived Stats](21-entity-archetypes.md)
+  - [Entity Context Capabilities](21a-entity-context-capabilities.md)
 - [22. Parameterized Functions](22-function-macros.md)
 - [23. Unified State Components, Bundles, Queries, And Systems](23-unified-state.md)
   - [Numeric State: Scales, Rounding, And Arithmetic](23a-numeric-state.md)

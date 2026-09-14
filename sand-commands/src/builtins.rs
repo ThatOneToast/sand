@@ -802,16 +802,25 @@ pub fn damage(
     format!("damage {} {} {}", target, amount, damage_type.into())
 }
 
-/// Fallible [`damage`] — rejects a non-finite amount or a damage type that
-/// isn't a valid `namespace:path` resource location.
+/// Fallible [`damage`] — rejects a negative/non-finite amount or a damage type
+/// that isn't a valid `namespace:path` resource location.
 pub fn try_damage(
     target: impl SingleTargetArgument,
     amount: f64,
     damage_type: impl Into<String>,
 ) -> CommandResult<String> {
     let target = target.into_single_target_selector();
+    try_damage_selector(target, amount, damage_type)
+}
+
+pub(crate) fn try_damage_selector(
+    target: Selector,
+    amount: f64,
+    damage_type: impl Into<String>,
+) -> CommandResult<String> {
     let damage_type = damage_type.into();
-    validate::finite(amount, "damage", "amount")?;
+    crate::Validate::validate(&target, &crate::CommandProfile::unprofiled())?;
+    validate_damage_amount(amount, "damage")?;
     validate::resource_location_shape(&damage_type, "damage", "damage_type")?;
     Ok(format!("damage {target} {amount} {damage_type}"))
 }
@@ -853,8 +862,8 @@ pub enum DamageAmount {
 impl DamageAmount {
     /// Fixed hit-point damage.
     ///
-    /// Raw/unchecked: accepts non-finite amounts (`NaN`/`±inf`), which
-    /// [`Damage::run`] would format directly into command text. Prefer
+    /// Raw/unchecked: accepts negative or non-finite amounts (`NaN`/`±inf`),
+    /// which [`Damage::run`] would format directly into command text. Prefer
     /// [`try_fixed`](Self::try_fixed) on the validated path, or
     /// [`Damage::try_run`] to validate at build time.
     #[sand_macros::api(
@@ -863,37 +872,37 @@ impl DamageAmount {
         aliases = ["sand::cmd::DamageAmount::fixed", "sand::prelude::DamageAmount::fixed", "sand::prelude::cmd::DamageAmount::fixed"],
         module = "sand::command",
         kind = "method",
-        summary = "Fixed hit-point damage. Raw/unchecked: accepts non-finite amounts (`NaN`/`±inf`), which [`Damage::run`] would format directly into command text. Prefer [`try_fixed`](Self::try_fixed) on the validated path, or [`Damage::try_run`] to validate at build time.",
-        context = "Fixed hit-point damage. Raw/unchecked: accepts non-finite amounts (`NaN`/`±inf`), which [`Damage::run`] would format directly into command text. Prefer [`try_fixed`](Self::try_fixed) on the validated path, or [`Damage::try_run`] to validate at build time. This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
-        minecraft = "Raw/unchecked: accepts non-finite amounts (`NaN`/`±inf`), which [`Damage::run`] would format directly into command text. Prefer [`try_fixed`](Self::try_fixed) on the validated path, or [`Damage::try_run`] to validate at build time.",
+        summary = "Fixed hit-point damage. Raw/unchecked: accepts negative or non-finite amounts (`NaN`/`±inf`), which [`Damage::run`] would format directly into command text. Prefer [`try_fixed`](Self::try_fixed) on the validated path, or [`Damage::try_run`] to validate at build time.",
+        context = "Fixed hit-point damage. Raw/unchecked: accepts negative or non-finite amounts (`NaN`/`±inf`), which [`Damage::run`] would format directly into command text. Prefer [`try_fixed`](Self::try_fixed) on the validated path, or [`Damage::try_run`] to validate at build time. This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
+        minecraft = "Raw/unchecked: accepts negative or non-finite amounts (`NaN`/`±inf`), which [`Damage::run`] would format directly into command text. Prefer [`try_fixed`](Self::try_fixed) on the validated path, or [`Damage::try_run`] to validate at build time.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        params(amount = "`amount` provides the requested numeric amount used to fixed hit-point damage. Raw/unchecked: accepts non-finite amounts (`NaN`/`±inf`), which [`Damage::run`] would format directly into command text. Prefer [`try_fixed`](Self::try_fixed) on the validated path, or [`Damage::try_run`] to validate at build time."),
-        returns = "A `DamageAmount` representing fixed hit-point damage. Raw/unchecked: accepts non-finite amounts (`NaN`/`±inf`), which [`Damage::run`] would format directly into command text. Prefer [`try_fixed`](Self::try_fixed) on the validated path, or [`Damage::try_run`] to validate at build time.",
+        params(amount = "`amount` provides the requested numeric amount used to fixed hit-point damage. Raw/unchecked: accepts negative or non-finite amounts (`NaN`/`±inf`), which [`Damage::run`] would format directly into command text. Prefer [`try_fixed`](Self::try_fixed) on the validated path, or [`Damage::try_run`] to validate at build time."),
+        returns = "A `DamageAmount` representing fixed hit-point damage. Raw/unchecked: accepts negative or non-finite amounts (`NaN`/`±inf`), which [`Damage::run`] would format directly into command text. Prefer [`try_fixed`](Self::try_fixed) on the validated path, or [`Damage::try_run`] to validate at build time.",
         example = "use sand::prelude::*;\n\nfn demonstrate(amount: f64)  {\n    let damage_amount = sand::command::DamageAmount::fixed(amount);\n}",
     )]
     pub fn fixed(amount: f64) -> Self {
         Self::Fixed(amount)
     }
 
-    /// Fallible [`fixed`](Self::fixed) — rejects a non-finite amount.
+    /// Fallible [`fixed`](Self::fixed) — rejects a negative or non-finite amount.
     #[sand_macros::api(
         registry = sand_api_contract,
         path = "sand::command::DamageAmount::try_fixed",
         aliases = ["sand::cmd::DamageAmount::try_fixed", "sand::prelude::DamageAmount::try_fixed", "sand::prelude::cmd::DamageAmount::try_fixed"],
         module = "sand::command",
         kind = "method",
-        summary = "Fallible [`fixed`](Self::fixed) — rejects a non-finite amount.",
-        context = "Fallible [`fixed`](Self::fixed) — rejects a non-finite amount. This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
+        summary = "Fallible [`fixed`](Self::fixed) — rejects a negative or non-finite amount.",
+        context = "Fallible [`fixed`](Self::fixed) — rejects a negative or non-finite amount. This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
         minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        params(amount = "`amount` provides the requested numeric amount used to use fallible [`fixed`](Self::fixed) — rejects a non-finite amount."),
-        returns = "On success, the value produced to use fallible [`fixed`](Self::fixed) — rejects a non-finite amount; otherwise, the documented validation or export diagnostic.",
+        params(amount = "`amount` provides the requested numeric amount used to use fallible [`fixed`](Self::fixed) — rejects a negative or non-finite amount."),
+        returns = "On success, the value produced to use fallible [`fixed`](Self::fixed) — rejects a negative or non-finite amount; otherwise, the documented validation or export diagnostic.",
         example = "use sand::prelude::*;\n\nfn demonstrate(amount: f64)  {\n    let try_fixed = sand::command::DamageAmount::try_fixed(amount);\n}",
     )]
     pub fn try_fixed(amount: f64) -> CommandResult<Self> {
-        validate::finite(amount, "DamageAmount::try_fixed", "amount")?;
+        validate_damage_amount(amount, "DamageAmount::try_fixed")?;
         Ok(Self::Fixed(amount))
     }
 
@@ -1258,9 +1267,9 @@ impl Damage {
 
     /// Build one or more valid Minecraft command lines.
     ///
-    /// Raw/unchecked: accepts a non-finite [`DamageAmount`] and an empty/
-    /// malformed `damage_type`. Prefer [`try_run`](Self::try_run) on the
-    /// validated path.
+    /// Raw/unchecked: accepts a negative/non-finite [`DamageAmount`], an
+    /// empty/malformed `damage_type`, or invalid retained selectors. Prefer
+    /// [`try_run`](Self::try_run) on the validated path.
     #[sand_macros::api(
         registry = sand_api_contract,
         path = "sand::command::DamageBuilder::run",
@@ -1268,7 +1277,7 @@ impl Damage {
         module = "sand::command",
         kind = "method",
         summary = "Build one or more valid Minecraft command lines.",
-        context = "Build one or more valid Minecraft command lines. Raw/unchecked: accepts a non-finite [`DamageAmount`] and an empty/ malformed `damage_type`. Prefer [`try_run`](Self::try_run) on the validated path.",
+        context = "Build one or more valid Minecraft command lines. Raw/unchecked: accepts a negative/non-finite [`DamageAmount`], an empty/malformed `damage_type`, or invalid retained selectors. Prefer [`try_run`](Self::try_run) on the validated path.",
         minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
@@ -1305,28 +1314,54 @@ impl Damage {
         }
     }
 
-    /// Fallible [`run`](Self::run) — rejects a non-finite damage amount or a
-    /// `damage_type` that isn't a valid `namespace:path` resource location
-    /// before producing command text.
+    /// Fallible [`run`](Self::run) — rejects invalid retained selectors, a
+    /// negative/non-finite damage amount, or a `damage_type` that isn't a valid
+    /// `namespace:path` resource location before producing command text.
     #[sand_macros::api(
         registry = sand_api_contract,
         path = "sand::command::DamageBuilder::try_run",
         aliases = ["sand::cmd::DamageBuilder::try_run", "sand::prelude::Damage::try_run", "sand::prelude::DamageBuilder::try_run", "sand::prelude::cmd::DamageBuilder::try_run"],
         module = "sand::command",
         kind = "method",
-        summary = "Fallible [`run`](Self::run) — rejects a non-finite damage amount or a `damage_type` that isn't a valid `namespace:path` resource location before producing command text.",
-        context = "Fallible [`run`](Self::run) — rejects a non-finite damage amount or a `damage_type` that isn't a valid `namespace:path` resource location before producing command text. This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
+        summary = "Fallible [`run`](Self::run) — rejects invalid retained selectors, a negative/non-finite damage amount, or a `damage_type` that isn't a valid `namespace:path` resource location before producing command text.",
+        context = "Fallible [`run`](Self::run) — rejects invalid retained selectors, a negative/non-finite damage amount, or a `damage_type` that isn't a valid `namespace:path` resource location before producing command text. This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
         minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        returns = "On success, the value produced to use fallible [`run`](Self::run) — rejects a non-finite damage amount or a `damage_type` that isn't a valid `namespace:path` resource location before producing command text; otherwise, the documented validation or export diagnostic.",
+        returns = "On success, the value produced to use fallible [`run`](Self::run) — rejects invalid retained selectors, a negative/non-finite damage amount, or a `damage_type` that isn't a valid `namespace:path` resource location before producing command text; otherwise, the documented validation or export diagnostic.",
         example = "use sand::prelude::*;\n\nfn demonstrate(damage_builder_value: sand::command::DamageBuilder)  {\n    let try_run = damage_builder_value.try_run();\n}",
     )]
     pub fn try_run(self) -> CommandResult<Vec<String>> {
-        validate::finite(self.amount.as_fixed(), "Damage::try_run", "amount")?;
+        let profile = crate::CommandProfile::unprofiled();
+        match &self.targets {
+            DamageTargets::One(target) | DamageTargets::Many(target) => {
+                crate::Validate::validate(target, &profile)?;
+            }
+        }
+        if let Some(source) = &self.source {
+            crate::Validate::validate(source, &profile)?;
+        }
+        if matches!(&self.targets, DamageTargets::Many(_))
+            && let Some(center) = &self.centered_at
+        {
+            crate::Validate::validate(center, &profile)?;
+        }
+        validate_damage_amount(self.amount.as_fixed(), "Damage::try_run")?;
         validate::resource_location_shape(&self.damage_type, "Damage::try_run", "damage_type")?;
         Ok(self.run())
     }
+}
+
+fn validate_damage_amount(amount: f64, operation: &'static str) -> CommandResult<()> {
+    validate::finite(amount, operation, "amount")?;
+    if amount < 0.0 {
+        return Err(crate::error::CommandError::new(
+            operation,
+            "amount",
+            format!("must be at least zero, got `{amount}`"),
+        ));
+    }
+    Ok(())
 }
 
 fn damage_command(
@@ -2038,24 +2073,56 @@ mod tests {
     }
 
     #[test]
-    fn try_damage_rejects_non_finite_amount_and_bad_type() {
+    fn try_damage_rejects_negative_non_finite_amount_and_bad_type() {
+        assert!(
+            try_damage(
+                Target::entities().tag("invalid tag").nearest(),
+                1.0,
+                "minecraft:generic"
+            )
+            .is_err()
+        );
+        assert!(try_damage(Target::self_(), -1.0, "minecraft:generic").is_err());
         assert!(try_damage(Target::self_(), f64::NAN, "minecraft:generic").is_err());
         assert!(try_damage(Target::self_(), 5.0, "generic").is_err());
         assert!(try_damage(Target::self_(), 5.0, "minecraft:generic").is_ok());
     }
 
     #[test]
-    fn damage_amount_try_fixed_rejects_non_finite() {
+    fn damage_amount_try_fixed_rejects_negative_and_non_finite() {
+        assert!(DamageAmount::try_fixed(-1.0).is_err());
         assert!(DamageAmount::try_fixed(f64::NAN).is_err());
         assert!(DamageAmount::try_fixed(5.0).is_ok());
     }
 
     #[test]
-    fn damage_try_run_rejects_non_finite_amount() {
-        let result = Damage::new()
+    fn damage_try_run_rejects_negative_and_non_finite_amount() {
+        let non_finite = Damage::new()
             .amount(DamageAmount::Fixed(f64::NAN))
             .try_run();
-        assert!(result.is_err());
+        assert!(non_finite.is_err());
+        let negative = Damage::new().amount(DamageAmount::Fixed(-1.0)).try_run();
+        assert!(negative.is_err());
+    }
+
+    #[test]
+    fn damage_try_run_rejects_every_emitted_invalid_selector() {
+        let invalid = || Target::entities().tag("invalid tag").nearest();
+
+        assert!(
+            Damage::new()
+                .to(Target::entities().tag("invalid tag"))
+                .try_run()
+                .is_err()
+        );
+        assert!(Damage::new().source(invalid()).try_run().is_err());
+        assert!(
+            Damage::new()
+                .to(Target::entities())
+                .centered_at(invalid())
+                .try_run()
+                .is_err()
+        );
     }
 
     #[test]

@@ -102,7 +102,8 @@ pub use sand_commands::{
 };
 // Entity/player targeting
 pub use sand_commands::{
-    Damage as DamageBuilder, DamageAmount, DamageKind, GameMode, ScoreRange, SortOrder, Target,
+    AnyTarget, Damage as DamageBuilder, DamageAmount, DamageKind, GameMode, One, ScoreRange,
+    SortOrder, Target,
 };
 // Sound
 pub use sand_commands::{Sound, SoundSource, StopSoundCommand};
@@ -111,7 +112,9 @@ pub use sand_commands::{
     ChatColor, ClickEvent, EntityHoverId, HoverEvent, Text, TextCommand, TextComponent,
 };
 // NBT types — owned by sand-commands
-pub use sand_commands::{DataCommand, Nbt, NbtCompound, NbtPath, NbtRef, NbtValue, UntypedNbt};
+pub use sand_commands::{
+    DataCommand, Nbt, NbtCompound, NbtPath, NbtRef, NbtValue, ReadOnlyNbtRef, UntypedNbt,
+};
 // Scoreboard types — owned by sand-commands
 // Note: &Storage satisfies Objective::load_from's `impl Into<String>` parameter
 // via the `From<&Storage> for String` impl in mod data.

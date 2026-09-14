@@ -99,8 +99,8 @@ pub use cmd::{
     Actionbar, BlockState, Bossbar, BossbarColor, BossbarStyle, CloneBlocks, CloneMaskMode,
     CloneMode, Command, ConditionedExecute, DataCommand, ExecuteExt, Fill, FillMode, ItemSlot, Nbt,
     NbtCompound, NbtPath, NbtRef, NbtStoreKind, NbtValue, Objective, ObjectiveName, ParticleEffect,
-    ParticleSpread, RawCommand, RenderCommand, ScoreCmp, ScoreHolder, SetBlock, SetBlockMode,
-    Sound, SoundSource, Storage, Target, Title, TypedExecute, UntypedNbt, Validate,
+    ParticleSpread, RawCommand, ReadOnlyNbtRef, RenderCommand, ScoreCmp, ScoreHolder, SetBlock,
+    SetBlockMode, Sound, SoundSource, Storage, Target, Title, TypedExecute, UntypedNbt, Validate,
 };
 pub use component::try_export_components;
 pub use component::try_export_components_for_version;

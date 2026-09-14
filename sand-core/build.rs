@@ -6,6 +6,7 @@
 use sand_version::DEFAULT_CODEGEN_VERSION;
 
 fn main() {
+    println!("cargo:rustc-check-cfg=cfg(sand_placeholder_codegen)");
     // The default codegen target. Contributors get a working
     // `cargo test -p sand-core --lib` out of the box when this version is
     // codegen-available (cached server jar or network). Override with
@@ -38,6 +39,7 @@ fn main() {
     match sand_build::generate_to_dir(&version, &out_dir) {
         Ok(()) => {}
         Err(e) if allow_placeholders && !strict => {
+            println!("cargo:rustc-cfg=sand_placeholder_codegen");
             // Explicitly opted-in lenient mode: write placeholder files so the
             // ordinary include! sites still compile. Test-only code may refer
             // to absent generated symbols, so this guarantees `check`, not a

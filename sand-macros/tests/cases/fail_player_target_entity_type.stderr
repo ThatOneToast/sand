@@ -4,4 +4,4 @@ error[E0599]: no method named `entity_type_raw` found for struct `sand::prelude:
 6 |     let _ = Target::players().entity_type_raw("minecraft:zombie");
   |                               ^^^^^^^^^^^^^^^ method not found in `sand::prelude::Target<sand_commands::selector::PlayersOnly>`
   |
-  = note: the method was found for `sand::prelude::Target<sand_commands::selector::AnyTarget, A>`
+  = note: the method was found for `sand::prelude::Target<AnyTarget, A>`

@@ -153,8 +153,8 @@ pub use sand_core::item;
 
 /// Typed live inventory locations. [`inventory::ItemLocation`] is the canonical model;
 /// the entity/block factory handles in this module only construct locations.
-/// NBT reads and snapshots share [`data::NbtRef`], while live mutation and
-/// matching use vanilla `/item` and `execute if items`.
+/// Live item NBT is exposed through [`data::ReadOnlyNbtRef`], while mutation
+/// and matching use vanilla `/item` and `execute if items`.
 #[api(
     path = "sand::inventory",
     module = "sand",
@@ -252,22 +252,24 @@ pub mod entity {
         Adoption, AdoptionSource, AnyEntity, AttributeBinding, AttributeModifierBinding, Cooldown,
         CurrentHealthSync, CurveEvaluationError, CurveInputs, DEFAULT_FIXED_POINT_SCALE, Data,
         DerivedScoreEncoding, EffectBinding, EntityAction, EntityArchetype, EntityContext,
-        EntityCooldown, EntityCooldownAccessor, EntityDerivation, EntityDiagnostic, EntityEnum,
-        EntityEnumAccessor, EntityEnumValue, EntityEventId, EntityFlag, EntityFlagAccessor,
-        EntityKind, EntityName, EntityNbtBinding, EntityNbtProperty, EntityNbtType, EntityNbtValue,
+        EntityCooldown, EntityCooldownAccessor, EntityData, EntityDataRoot, EntityDerivation,
+        EntityDiagnostic, EntityEnum, EntityEnumAccessor, EntityEnumValue, EntityEquipmentHandle,
+        EntityEventId, EntityFlag, EntityFlagAccessor, EntityIdentity, EntityKind, EntityMounts,
+        EntityName, EntityNbtBinding, EntityNbtProperty, EntityNbtType, EntityNbtValue,
         EntityScope, EntityScore, EntityScoreAccessor, EntityState, EntityStateField, EntityTag,
         EntityTeam, EntityText, EntityTextSegment, EntityTimer, EntityTimerAccessor,
-        EntityTransition, EntityTransitionField, EnumEncoding, EquipmentBinding, FixedPoint,
-        FixedScore, FixedScoreAccessor, FixedScoreValue, FixedValue, Flag,
-        GlobalStateBundleOperations, HealthBinding, HealthResizePolicy, KeyedData, KnownEntityKind,
-        LivingEntityKind, MarkerKind, Migration, MutableLivingEntityKind, NameBinding,
-        NumericPropertySource, NumericStateField, NumericStateSource, OverflowPolicy,
-        OwnershipPolicy, PlayerKind, PropertyNameError, RawEntityProperty, RawEntityStateField,
-        RawPropertyAccess, RawStateBackend, ReconcilePolicy, RefreshPolicy, Relation,
-        RelationTraversal, RoundingPolicy, SafeEntityDataWriteKind, ScopedEntityRef, Score,
-        SpecialEntityPolicy, StatCurve, StateComposition, StateFieldDescriptor, StateFieldKind,
-        StatePredicate, StateQueryOperations, StateSchema, TagBinding, TargetExecution,
-        TeamBinding, ThresholdDirection, Timer, ZombieKind,
+        EntityTransform, EntityTransition, EntityTransitionField, EnumEncoding, EquipmentBinding,
+        EquipmentEntityKind, FixedPoint, FixedScore, FixedScoreAccessor, FixedScoreValue,
+        FixedValue, Flag, GlobalStateBundleOperations, HealthBinding, HealthResizePolicy,
+        KeyedData, KnownEntityKind, LivingEntity, LivingEntityKind, MarkerKind, Migration,
+        MountVehicleKind, MutableLivingEntityKind, NameBinding, NumericPropertySource,
+        NumericStateField, NumericStateSource, OverflowPolicy, OwnershipPolicy, PlayerKind,
+        PropertyNameError, RawEntityProperty, RawEntityStateField, RawPropertyAccess,
+        RawStateBackend, ReconcilePolicy, RefreshPolicy, Relation, RelationTraversal,
+        RoundingPolicy, SafeEntityDataWriteKind, ScopedEntityRef, Score, SpecialEntityPolicy,
+        StatCurve, StateComposition, StateFieldDescriptor, StateFieldKind, StatePredicate,
+        StateQueryOperations, StateSchema, TagBinding, TargetExecution, TeamBinding,
+        ThresholdDirection, Timer, ZombieKind,
     };
 }
 
@@ -537,8 +539,8 @@ pub mod text {
 )]
 pub mod data {
     pub use sand_core::{
-        DataCommand, Nbt, NbtCompound, NbtPath, NbtRef, NbtValue, StorageField, StorageSchema,
-        StorageVar, UntypedNbt,
+        DataCommand, Nbt, NbtCompound, NbtPath, NbtRef, NbtValue, ReadOnlyNbtRef, StorageField,
+        StorageSchema, StorageVar, UntypedNbt,
     };
 }
 

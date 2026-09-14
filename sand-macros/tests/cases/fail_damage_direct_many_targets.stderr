@@ -10,10 +10,10 @@ help: the following other types implement trait `sand_commands::selector::Single
  --> $WORKSPACE/sand-commands/src/selector.rs
   |
   | impl SingleTargetArgument for Target<AnyTarget, One> {}
-  | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ `sand_core::Target<sand_commands::selector::AnyTarget, sand_commands::selector::One>`
+  | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ `sand_core::Target<AnyTarget, One>`
 ...
   | impl SingleTargetArgument for Target<PlayersOnly, One> {}
-  | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ `sand_core::Target<sand_commands::selector::PlayersOnly, sand_commands::selector::One>`
+  | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ `sand_core::Target<sand_commands::selector::PlayersOnly, One>`
 note: required by a bound in `damage`
  --> $OUT_DIR[sand-core]/commands.rs
   |

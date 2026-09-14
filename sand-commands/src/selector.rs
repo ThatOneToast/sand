@@ -34,6 +34,7 @@ use crate::validate;
 pub struct Selector {
     base: TargetBase,
     args: Vec<SelectorArg>,
+    player_only: bool,
 }
 
 impl PartialEq for Selector {
@@ -78,8 +79,19 @@ enum TargetBase {
 }
 
 /// Marker for selector wrappers that are statically known to select one target.
+#[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::command::One",
+    aliases = ["sand::cmd::One", "sand::prelude::One", "sand::prelude::cmd::One"],
+    module = "sand::command",
+    summary = "Cardinality marker for a Target statically narrowed to one entity.",
+    context = "Target-producing methods such as nearest and limit(1) infer this marker; authors rarely need to name it directly.",
+    minecraft = "Allows command and entity capability signatures to reject many-target arguments for vanilla operations that require exactly one entity.",
+    use_when = ["Writing a generic signature that accepts only a statically single Target"],
+    avoid_when = ["Constructing selectors directly; use Target's narrowing methods"],
+    example = "use sand::prelude::*; let target: Target<_, One> = Target::nearest_player();",
+)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[doc(hidden)]
 pub enum One {}
 
 /// Marker for selector wrappers that may select multiple targets.
@@ -89,8 +101,24 @@ pub enum Many {}
 
 // ── Canonical target model ───────────────────────────────────────────────────
 
-/// Hidden category marker for targets that may select any entity.
-#[doc(hidden)]
+/// Category marker for targets that may select any non-statically-restricted entity.
+///
+/// Normal author code obtains this type through inference from
+/// [`Target::entities`]. It is public so capability APIs can reject a
+/// statically player-only target while still accepting runtime-unknown entity
+/// selectors.
+#[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::command::AnyTarget",
+    aliases = ["sand::cmd::AnyTarget", "sand::prelude::AnyTarget", "sand::prelude::cmd::AnyTarget"],
+    module = "sand::command",
+    summary = "Category marker for entity-wide targets that are not statically player-only.",
+    context = "Usually inferred from Target::entities; capability APIs use it to reject operations that are known illegal for player-only destinations.",
+    minecraft = "Preserves the entity-wide selector category without changing rendered selector text.",
+    use_when = ["Writing generic APIs that must exclude statically player-only targets"],
+    avoid_when = ["Constructing a target directly; use Target constructors and inference"],
+    example = "use sand::prelude::*; let target: Target<AnyTarget, One> = Target::entities().nearest();",
+)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum AnyTarget {}
 
@@ -343,15 +371,6 @@ impl Target<AnyTarget, One> {
         Self::from_selector(Selector::self_())
     }
 
-    /// A literal player name represented as a single entity target.
-    ///
-    /// Applying selector filters converts the literal to an equivalent
-    /// `@a[name=<name>,...,limit=1]` selector so no filter is discarded.
-    #[sand_macros::api(registry = sand_api_contract, path = "sand::command::Target::named", aliases = ["sand::cmd::Target::named", "sand::prelude::Target::named", "sand::prelude::cmd::Target::named"], module = "sand::command", summary = "Targets one literal player name as an entity.", context = "Creates a validated literal-name target with single cardinality. Applying a filter lowers it to a name-constrained @a selector while preserving single cardinality.", minecraft = "Emits the player name token when unfiltered, or @a[name=<name>,...,limit=1] when filtered.", use_when = ["Targeting a known literal player name in an entity-capable command"], avoid_when = ["Selecting players without a known literal name; use players"], params(name = "The literal player name."), returns = "A statically single entity target.", example = "let target = sand::command::Target::named(\"Steve\").tag(\"ready\");")]
-    pub fn named(name: impl Into<String>) -> Self {
-        Self::from_selector(Selector::player(name))
-    }
-
     /// Explicit unchecked single-entity selector syntax.
     #[sand_macros::api(registry = sand_api_contract, path = "sand::command::Target::raw_single", aliases = ["sand::cmd::Target::raw_single", "sand::prelude::Target::raw_single", "sand::prelude::cmd::Target::raw_single"], module = "sand::command", summary = "Creates an unchecked target asserted to select at most one entity.", context = "Advanced escape hatch for modded or future selector grammar; the caller supplies the cardinality assertion, which remains preserved when the target crosses internal command and score-holder representation boundaries.", minecraft = "Emits the supplied selector text verbatim.", use_when = ["Using single-target grammar Sand cannot model"], avoid_when = ["A typed narrowing method can prove cardinality"], params(selector = "The unchecked selector expression."), returns = "A target carrying a single-entity cardinality assertion.", example = "let target = sand::command::Target::raw_single(\"@e[modded=true,limit=1]\");")]
     pub fn raw_single(selector: impl Into<String>) -> Self {
@@ -422,6 +441,15 @@ impl Target<PlayersOnly, One> {
         Self::from_selector(Selector::random_player())
     }
 
+    /// A literal player name with its player-only category preserved.
+    ///
+    /// Applying selector filters converts the literal to an equivalent
+    /// `@a[name=<name>,...,limit=1]` selector so no filter is discarded.
+    #[sand_macros::api(registry = sand_api_contract, path = "sand::command::Target::named", aliases = ["sand::cmd::Target::named", "sand::prelude::Target::named", "sand::prelude::cmd::Target::named"], module = "sand::command", summary = "Targets one literal player name with player-only capability.", context = "Creates a validated literal-name target while preserving its statically known player category and single cardinality. Applying a filter lowers it to a name-constrained @a selector.", minecraft = "Emits the player name token when unfiltered, or @a[name=<name>,...,limit=1] when filtered.", use_when = ["Targeting a known literal player name"], avoid_when = ["Selecting players without a known literal name; use players"], params(name = "The literal player name."), returns = "A statically single, player-only target.", example = "let target = sand::command::Target::named(\"Steve\").tag(\"ready\");")]
+    pub fn named(name: impl Into<String>) -> Self {
+        Self::from_selector(Selector::player(name))
+    }
+
     /// A literal player name.
     ///
     /// Applying selector filters converts the literal to an equivalent
@@ -434,7 +462,7 @@ impl Target<PlayersOnly, One> {
     /// `@s` asserted by the author to be a player-bound executor.
     #[sand_macros::api(registry = sand_api_contract, path = "sand::command::Target::current_player", aliases = ["sand::cmd::Target::current_player", "sand::prelude::Target::current_player", "sand::prelude::cmd::Target::current_player"], module = "sand::command", summary = "Targets @s with an explicit player-only assertion.", context = "Use inside a player-bound event/query context when a command requires a player target; Target::self_ is the honest general entity form.", minecraft = "Emits @s.", use_when = ["The current executor is guaranteed to be a player"], avoid_when = ["The executor may be a non-player entity"], returns = "A statically single, player-only target.", example = "let target = sand::command::Target::current_player();")]
     pub fn current_player() -> Self {
-        Self::from_selector(Selector::self_())
+        Self::from_selector(Selector::self_().assert_player_only())
     }
 
     /// Explicit unchecked single-player selector syntax.
@@ -443,7 +471,7 @@ impl Target<PlayersOnly, One> {
     /// resolves to at most one entity, and that entity is a player.
     #[sand_macros::api(registry = sand_api_contract, path = "sand::command::Target::raw_single_player", aliases = ["sand::cmd::Target::raw_single_player", "sand::prelude::Target::raw_single_player", "sand::prelude::cmd::Target::raw_single_player"], module = "sand::command", summary = "Creates an unchecked target asserted to select at most one player.", context = "Advanced escape hatch for modded or future selector grammar; the caller supplies both the single-cardinality and player-category assertions. The player category is preserved for player-only commands, filters, and TargetExecution callbacks, while the single assertion survives score-holder conversion.", minecraft = "Emits the supplied selector text verbatim.", use_when = ["Using unsupported selector grammar known to select at most one player"], avoid_when = ["A typed player constructor or narrowing method can prove the selection"], params(selector = "The unchecked player selector expression."), returns = "A target carrying single-player category and cardinality assertions.", example = "let target = sand::command::Target::raw_single_player(\"@a[modded=true,limit=1]\");")]
     pub fn raw_single_player(selector: impl Into<String>) -> Self {
-        Self::from_selector(Selector::raw_single(selector))
+        Self::from_selector(Selector::raw_single(selector).assert_player_only())
     }
 }
 
@@ -714,6 +742,7 @@ impl Selector {
         Self {
             base: TargetBase::AllPlayers,
             args: vec![],
+            player_only: true,
         }
     }
 
@@ -722,6 +751,7 @@ impl Selector {
         Self {
             base: TargetBase::AllEntities,
             args: vec![],
+            player_only: false,
         }
     }
 
@@ -730,6 +760,7 @@ impl Selector {
         Self {
             base: TargetBase::NearestPlayer,
             args: vec![],
+            player_only: true,
         }
     }
 
@@ -738,6 +769,7 @@ impl Selector {
         Self {
             base: TargetBase::Self_,
             args: vec![],
+            player_only: false,
         }
     }
 
@@ -746,6 +778,7 @@ impl Selector {
         Self {
             base: TargetBase::RandomPlayer,
             args: vec![],
+            player_only: true,
         }
     }
 
@@ -754,6 +787,7 @@ impl Selector {
         Self {
             base: TargetBase::Player(name.into()),
             args: vec![],
+            player_only: true,
         }
     }
 
@@ -766,6 +800,7 @@ impl Selector {
         Self {
             base: TargetBase::Raw(selector.into()),
             args: vec![],
+            player_only: false,
         }
     }
 
@@ -775,7 +810,13 @@ impl Selector {
         Self {
             base: TargetBase::RawSingle(selector.into()),
             args: vec![],
+            player_only: false,
         }
+    }
+
+    fn assert_player_only(mut self) -> Self {
+        self.player_only = true;
+        self
     }
 }
 
@@ -1136,6 +1177,12 @@ impl Selector {
                 .args
                 .iter()
                 .any(|arg| matches!(arg, SelectorArg::Limit(1)))
+    }
+
+    /// Whether this retained low-level selector is unambiguously player-only.
+    #[doc(hidden)]
+    pub fn is_definitely_player_only(&self) -> bool {
+        self.player_only
     }
 }
 

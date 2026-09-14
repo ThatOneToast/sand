@@ -8,8 +8,8 @@ use sand_commands::{
 use sand_components::{AttributeType, EffectId, EquipmentSlot};
 
 use crate::cmd::{
-    Anchor, CommandError, CommandProfile, CommandResult, DamageKind, EffectGive, One, Rotation,
-    Target, Validate, Vec3,
+    Anchor, CommandProfile, CommandResult, DamageKind, EffectGive, One, Rotation, Target, Validate,
+    Vec3,
 };
 use crate::entity::kind::{
     EntityKind, EquipmentEntityKind, LivingEntityKind, MountVehicleKind, SafeEntityDataWriteKind,
@@ -694,7 +694,7 @@ impl<K: EntityKind> EntityMounts<K> {
             vehicle.validate(&profile)?;
             let vehicle_selector: Selector = vehicle.clone().into();
             if vehicle_selector.is_definitely_player_only() {
-                return Err(CommandError::new(
+                return Err(crate::cmd::CommandError::new(
                     "EntityMounts::mount_on",
                     "vehicle",
                     "players cannot be ride vehicles",

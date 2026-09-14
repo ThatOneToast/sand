@@ -925,7 +925,8 @@ pub struct NbtRef<T = UntypedNbt> {
     marker: PhantomData<fn() -> T>,
 }
 
-/// A typed NBT reference that permits observation and path traversal but not mutation.
+/// A typed NBT reference that permits observation, path traversal, and copying
+/// into another destination, but not mutation of its own target.
 ///
 /// This is used when vanilla exposes readable data whose target cannot safely be
 /// changed with `/data modify`, notably live player inventory data.
@@ -935,9 +936,9 @@ pub struct NbtRef<T = UntypedNbt> {
     path = "sand::data::ReadOnlyNbtRef",
     aliases = ["sand::cmd::ReadOnlyNbtRef", "sand::command::ReadOnlyNbtRef", "sand::prelude::ReadOnlyNbtRef", "sand::prelude::cmd::ReadOnlyNbtRef"],
     module = "sand::data",
-    summary = "A typed NBT reference restricted to observation and path traversal.",
-    context = "Use this view for readable vanilla data whose target cannot safely be mutated, such as live player inventory NBT.",
-    minecraft = "Builds data-get commands while making data-modify and data-remove unavailable at compile time.",
+    summary = "A typed NBT reference restricted to observation and source-side copying.",
+    context = "Use this view for readable vanilla data whose target cannot safely be mutated, such as live player inventory NBT; it may still copy an observed value into a separate writable destination.",
+    minecraft = "Builds data-get commands and may serve as the source of data modify on another destination, while source-side data-modify and data-remove remain unavailable at compile time.",
     use_when = ["Reading NBT from a target with vanilla mutation restrictions"],
     avoid_when = ["The target is safely writable; use NbtRef"],
     example = "use sand::prelude::*; let view = ItemLocation::PlayerMainHand.nbt(); let command = view.get();",
@@ -993,6 +994,28 @@ impl<T> ReadOnlyNbtRef<T> {
     #[sand_macros::api(registry = sand_api_contract, path = "sand::data::ReadOnlyNbtRef::get_scaled", aliases = ["sand::cmd::ReadOnlyNbtRef::get_scaled", "sand::command::ReadOnlyNbtRef::get_scaled", "sand::prelude::ReadOnlyNbtRef::get_scaled", "sand::prelude::cmd::ReadOnlyNbtRef::get_scaled"], module = "sand::data", kind = "method", summary = "Builds a scaled data query for this read-only reference.", context = "Observation is available without exposing data mutation methods.", minecraft = "Lowers to data get with a numeric scale.", use_when = ["Reading and scaling a numeric NBT value"], avoid_when = ["Mutating NBT"], params(scale = "The numeric result scale."), returns = "The scaled data-get command.", example = "use sand::prelude::*; let command = ItemLocation::PlayerMainHand.nbt().get_scaled(100.0);")]
     pub fn get_scaled(&self, scale: f64) -> DataCommand {
         self.reference.get_scaled(scale)
+    }
+
+    /// Copies this observed value into a writable typed NBT destination.
+    ///
+    /// The source remains read-only: this operation mutates only `destination`.
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::data::ReadOnlyNbtRef::copy_to",
+        aliases = ["sand::cmd::ReadOnlyNbtRef::copy_to", "sand::command::ReadOnlyNbtRef::copy_to", "sand::prelude::ReadOnlyNbtRef::copy_to", "sand::prelude::cmd::ReadOnlyNbtRef::copy_to"],
+        module = "sand::data",
+        kind = "method",
+        summary = "Copies an observed NBT value into a writable destination.",
+        context = "Read-only references may be data-copy sources because copying mutates only the supplied destination; source-side set, remove, and copy-from operations remain unavailable.",
+        minecraft = "Lowers through NbtRef::copy_from to data modify <destination> set from <source>.",
+        use_when = ["Persisting a whole or nested value from readable live NBT"],
+        avoid_when = ["Mutating the source target", "The destination is not safely writable"],
+        params(destination = "The writable typed NBT destination."),
+        returns = "The canonical data-modify command that copies from this source.",
+        example = "use sand::prelude::*; let source = ItemLocation::PlayerMainHand.nbt().typed_field::<i32>(\"count\"); let destination = Nbt::storage_raw(\"pack:cache\").typed_path::<i32>(NbtPath::new(\"count\")); let command = source.copy_to(&destination);",
+    )]
+    pub fn copy_to<U>(&self, destination: &NbtRef<U>) -> DataCommand {
+        destination.copy_from(&self.reference)
     }
 }
 

@@ -841,6 +841,14 @@ mod tests {
             mainhand.copy_to(&cache).to_string(),
             "data modify storage pack:cache last_item set from entity @s SelectedItem"
         );
+        assert_eq!(
+            mainhand
+                .nbt()
+                .typed_field::<i32>("count")
+                .copy_to(&cache.typed_field::<i32>("count"))
+                .to_string(),
+            "data modify storage pack:cache last_item.count set from entity @s SelectedItem.count"
+        );
 
         let block = ItemLocation::block(BlockPos::here()).slot(0).unwrap();
         assert_eq!(

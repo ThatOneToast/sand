@@ -38,11 +38,14 @@ inventory::collect!(EventPathEntry);
 /// Registry entry for a `#[datapack_component]`-annotated function.
 ///
 /// The `make` fn pointer is a zero-argument function that constructs the
-/// component and boxes it as a trait object. Registered at link time via
-/// `inventory::submit!` — no user wiring needed.
+/// definition's complete registration. Registered at link time via
+/// `inventory::submit!` — no user wiring needed. Expansion remains scoped to
+/// each exporter invocation.
 pub struct ComponentFactory {
-    /// Factory function that returns a boxed datapack component.
-    pub make: fn() -> Box<dyn crate::DatapackComponent>,
+    /// Stable logical owner used for deterministic execution and diagnostics.
+    pub owner: &'static str,
+    /// Factory function that returns the complete datapack registration.
+    pub make: fn() -> crate::DatapackRegistration,
 }
 inventory::collect!(ComponentFactory);
 

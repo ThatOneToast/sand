@@ -12,7 +12,7 @@
 use sand_components::dialog::{Dialog, DialogAction, DialogButton};
 use sand_core::component::export_components_json;
 use sand_core::function::ComponentFactory;
-use sand_core::{FunctionId, inventory};
+use sand_core::{DatapackRegistration, FunctionId, IntoDatapack, inventory};
 use std::sync::{LazyLock, Mutex};
 
 /// The real export path serializes every export through
@@ -28,7 +28,7 @@ fn function_id(value: &str) -> FunctionId {
     value.parse().expect("valid callback function ID")
 }
 
-fn callback_dialog() -> Box<dyn sand_core::DatapackComponent> {
+fn callback_dialog() -> DatapackRegistration {
     static DIALOG: LazyLock<Dialog> = LazyLock::new(|| {
         Dialog::multi_action_local("callback_menu")
             .button(
@@ -42,11 +42,11 @@ fn callback_dialog() -> Box<dyn sand_core::DatapackComponent> {
                 ))),
             )
     });
-    Box::new(DIALOG.clone())
+    DIALOG.clone().into_datapack()
 }
 
 inventory::submit! {
-    ComponentFactory { make: callback_dialog }
+    ComponentFactory { owner: "callback_dialog", make: callback_dialog }
 }
 
 fn record_content<'a>(records: &'a [serde_json::Value], path: &str) -> &'a str {

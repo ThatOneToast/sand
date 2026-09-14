@@ -36,7 +36,10 @@ use super::lifecycle::{
 use super::predicates::{
     collect_sand_player_state_predicates, player_state_predicate_json, sand_player_state_predicate,
 };
-use super::records::{ComponentRecord, ExportResult, component_to_record};
+use super::records::{
+    ComponentRecord, ExportResult, RegisteredComponent, component_to_record,
+    validate_objective_definitions, validate_unique_output_identities,
+};
 use super::schedules::emit_schedule_records;
 use super::tags::{dedupe_preserve_order, sort_function_tag_entries};
 use std::sync::{Arc, Mutex};
@@ -47,7 +50,7 @@ use std::sync::{Arc, Mutex};
 /// functions in the same test binary calling `try_export_components_json`
 /// on separate threads) must not interleave their hook install/restore or
 /// one could clobber or lose the other's saved previous hook.
-static PARTICIPANT_PANIC_HOOK_LOCK: Mutex<()> = Mutex::new(());
+static EXPORT_PANIC_HOOK_LOCK: Mutex<()> = Mutex::new(());
 
 /// Invoke `desc.make()` — the generated command-body factory for one
 /// `#[on_event]` handler — with a panic-catching boundary specifically for
@@ -69,7 +72,7 @@ static PARTICIPANT_PANIC_HOOK_LOCK: Mutex<()> = Mutex::new(());
 /// unrelated panic or lets export continue with partial/wrong output for
 /// one.
 fn invoke_event_handler_body(desc: &crate::function::EventDescriptor) -> ExportResult<Vec<String>> {
-    let _guard = PARTICIPANT_PANIC_HOOK_LOCK
+    let _guard = EXPORT_PANIC_HOOK_LOCK
         .lock()
         .unwrap_or_else(|poisoned| poisoned.into_inner());
 
@@ -100,6 +103,44 @@ fn invoke_event_handler_body(desc: &crate::function::EventDescriptor) -> ExportR
             }
         }
     }
+}
+
+fn invoke_component_factory(
+    factory: &crate::function::ComponentFactory,
+) -> ExportResult<crate::DatapackRegistration> {
+    let _guard = EXPORT_PANIC_HOOK_LOCK
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner());
+
+    let previous_hook: Arc<dyn Fn(&std::panic::PanicHookInfo<'_>) + Sync + Send> =
+        Arc::from(std::panic::take_hook());
+    let factory_thread = std::thread::current().id();
+    let hook_for_other_threads = Arc::clone(&previous_hook);
+    std::panic::set_hook(Box::new(move |info| {
+        if std::thread::current().id() != factory_thread {
+            (hook_for_other_threads)(info);
+        }
+    }));
+    let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| (factory.make)()));
+    std::panic::set_hook(Box::new(move |info| (previous_hook)(info)));
+
+    result.map_err(|payload| {
+        let panic_message = payload
+            .downcast_ref::<&str>()
+            .copied()
+            .or_else(|| payload.downcast_ref::<String>().map(String::as_str))
+            .unwrap_or("non-string panic payload");
+        ComponentExportError::ComponentValidation {
+            location: sand_components::ResourceLocation::new("sand", "registration")
+                .expect("fixed registration resource location is valid"),
+            kind: "registration".to_string(),
+            field: "factory".to_string(),
+            message: format!(
+                "component factory `{}` panicked while expanding its registration: {panic_message}",
+                factory.owner
+            ),
+        }
+    })
 }
 
 pub(crate) fn try_export_components_impl(
@@ -159,6 +200,9 @@ pub(crate) fn try_export_components_impl(
 
     let mut records: Vec<ComponentRecord> = Vec::new();
     let mut tag_map: BTreeMap<String, Vec<String>> = BTreeMap::new();
+    let mut registration_load_commands: Vec<(String, usize, String)> = Vec::new();
+    let mut registration_tick_commands: Vec<(String, usize, String)> = Vec::new();
+    let mut registration_tag_entries: Vec<(String, String)> = Vec::new();
 
     // ── FunctionDescriptors ───────────────────────────────────────────────────
     for desc in inventory::iter::<FunctionDescriptor>() {
@@ -175,18 +219,49 @@ pub(crate) fn try_export_components_impl(
 
     // ── ComponentFactories (fallible boundary) ────────────────────────────────
     //
-    // Collect every top-level component and its record, then expand each
+    // Execute every factory first so registration expansion is one complete,
+    // export-scoped compiler input. Then collect every top-level component and
+    // its record before expanding each
     // component's `nested_components()` (compound components such as
     // `TradeSet` and `VillagerTradePoolPatch` hoisting inline entries into
     // separate generated resources) via `records::expand_with_nested`, which
     // checks every nested key against the full top-level set *before* any
     // nested record is accepted — this makes collision detection between a
     // generated child and an explicit standalone component order-independent.
-    let mut top_level: Vec<(Box<dyn crate::DatapackComponent>, ComponentRecord)> = Vec::new();
-    for factory in inventory::iter::<ComponentFactory>() {
-        let comp = (factory.make)();
-        let record = component_to_record(comp.as_ref(), ctx)?;
-        top_level.push((comp, record));
+    let mut factories: Vec<_> = inventory::iter::<ComponentFactory>().collect();
+    factories.sort_by_key(|factory| factory.owner);
+    let registrations = factories
+        .into_iter()
+        .map(|factory| {
+            invoke_component_factory(factory).map(|registration| (factory, registration))
+        })
+        .collect::<ExportResult<Vec<_>>>()?;
+    let mut top_level = Vec::new();
+    for (factory, registration) in registrations {
+        let (components, lifecycle, function_tags) = registration.into_parts();
+        for (order, contribution) in lifecycle.into_iter().enumerate() {
+            let entry = (
+                factory.owner.to_string(),
+                order,
+                contribution.command().to_string(),
+            );
+            match contribution.phase() {
+                crate::registration::LifecyclePhase::Load => registration_load_commands.push(entry),
+                crate::registration::LifecyclePhase::Tick => registration_tick_commands.push(entry),
+            }
+        }
+        for contribution in function_tags {
+            let (tag, function) = contribution.into_parts();
+            registration_tag_entries.push((tag.to_string(), function.to_string()));
+        }
+        for component in components {
+            let record = component_to_record(component.as_ref(), ctx)?;
+            top_level.push(RegisteredComponent {
+                owner: factory.owner.to_string(),
+                component,
+                record,
+            });
+        }
     }
     records.extend(super::records::expand_with_nested(top_level, ctx)?);
 
@@ -2447,9 +2522,24 @@ pub(crate) fn try_export_components_impl(
             .player_tick_commands
             .extend(transition_plan.tick_commands);
         let transition_global_tick_commands = transition_plan.global_tick_commands;
-        let mut load_definitions: BTreeMap<String, (String, String)> = BTreeMap::new();
+        registration_load_commands
+            .sort_by(|left, right| left.0.cmp(&right.0).then_with(|| left.1.cmp(&right.1)));
+        registration_tick_commands
+            .sort_by(|left, right| left.0.cmp(&right.0).then_with(|| left.1.cmp(&right.1)));
 
-        for command in automatic.load_commands {
+        let mut load_definitions: BTreeMap<String, (String, String, String)> = BTreeMap::new();
+        let mut other_load_commands = Vec::new();
+        let load_inputs = automatic
+            .load_commands
+            .into_iter()
+            .map(|command| ("automatic state lifecycle".to_string(), command))
+            .chain(
+                registration_load_commands
+                    .into_iter()
+                    .map(|(owner, _, command)| (owner, command)),
+            );
+
+        for (owner, command) in load_inputs {
             let mut parts = command.splitn(6, ' ');
             let parsed = match (
                 parts.next(),
@@ -2476,27 +2566,27 @@ pub(crate) fn try_export_components_impl(
 
             if let Some((objective, criterion)) = parsed {
                 match load_definitions.get(&objective) {
-                    Some((existing, _)) if existing == &criterion => {}
-                    Some((existing, _)) => {
+                    Some((existing, _, _)) if existing == &criterion => {}
+                    Some((existing, _, existing_owner)) => {
                         return Err(lifecycle_export_error(format!(
-                            "conflicting objective `{objective}`: criterion `{existing}` versus `{criterion}`"
+                            "conflicting objective `{objective}`: `{existing_owner}` declares criterion `{existing}`, while `{owner}` declares `{criterion}`"
                         )));
                     }
                     None => {
-                        load_definitions.insert(objective, (criterion, command));
+                        load_definitions.insert(objective, (criterion, command, owner));
                     }
                 }
             } else {
-                return Err(lifecycle_export_error(format!(
-                    "invalid registered load command `{command}`"
-                )));
+                other_load_commands.push(command);
             }
         }
         let load_cmds: Vec<String> = load_definitions
             .into_values()
-            .map(|(_, command)| command)
+            .map(|(_, command, _)| command)
             .collect();
         let mut load_cmds = load_cmds;
+        other_load_commands = dedupe_preserve_order(other_load_commands);
+        load_cmds.append(&mut other_load_commands);
         load_cmds.append(&mut automatic.provision_commands);
         load_cmds.append(&mut automatic.global_init_commands);
         if !load_cmds.is_empty() {
@@ -2544,6 +2634,11 @@ pub(crate) fn try_export_components_impl(
         tick_cmds.extend(automatic.entity_tick_commands);
         tick_cmds.extend(automatic.global_tick_commands);
         tick_cmds.extend(transition_global_tick_commands);
+        tick_cmds.extend(
+            registration_tick_commands
+                .into_iter()
+                .map(|(_, _, command)| command),
+        );
         if !tick_cmds.is_empty() {
             let path = "__sand_lifecycle_tick";
             ensure_private_lifecycle_path_available(&records, path)?;
@@ -2586,6 +2681,7 @@ pub(crate) fn try_export_components_impl(
             )
         })
         .collect();
+    user_tag_entries.append(&mut registration_tag_entries);
     sort_function_tag_entries(&mut user_tag_entries);
     for (tag, function) in user_tag_entries {
         tag_map.entry(tag).or_default().push(function);
@@ -2632,6 +2728,9 @@ pub(crate) fn try_export_components_impl(
             .any(|r| r.content.contains(crate::function::SAND_LOCAL_NS)),
         "BUG: unresolved __sand_local sentinel found in exported records"
     );
+
+    validate_unique_output_identities(&records)?;
+    validate_objective_definitions(&records)?;
 
     for path in [
         "__sand_lifecycle_load",

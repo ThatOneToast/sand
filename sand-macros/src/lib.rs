@@ -1908,8 +1908,9 @@ fn expand_function(
 /// ## Plain `#[datapack_component]`
 ///
 /// The function must take no parameters and return a type that implements
-/// `sand_core::DatapackComponent`. It is automatically collected via
-/// `inventory` — no manual wiring needed.
+/// `sand_core::IntoDatapack`. Every `DatapackComponent` does so automatically,
+/// while higher-level features may return a complete multi-resource
+/// registration. It is collected via `inventory` — no manual wiring needed.
 ///
 /// ```rust,ignore
 /// #[datapack_component]
@@ -2069,7 +2070,7 @@ fn expand_component(func: ItemFn, flag: ComponentFlag) -> syn::Result<proc_macro
     }
 }
 
-/// Plain `#[datapack_component]` — returns a `DatapackComponent`.
+/// Plain `#[datapack_component]` — returns an `IntoDatapack` definition.
 fn expand_component_plain(func: ItemFn) -> syn::Result<proc_macro2::TokenStream> {
     let fn_name = &func.sig.ident;
     let vis = &func.vis;
@@ -2088,12 +2089,15 @@ fn expand_component_plain(func: ItemFn) -> syn::Result<proc_macro2::TokenStream>
 
         #[doc(hidden)]
         #[allow(dead_code)]
-        fn #factory_ident() -> ::std::boxed::Box<dyn ::sand::__private::DatapackComponent> {
-            ::std::boxed::Box::new(#fn_name())
+        fn #factory_ident() -> ::sand::__private::DatapackRegistration {
+            ::sand::__private::IntoDatapack::into_datapack(#fn_name())
         }
 
         ::sand::__private::inventory::submit!(
-            ::sand::__private::ComponentFactory { make: #factory_ident }
+            ::sand::__private::ComponentFactory {
+                owner: ::std::concat!(module_path!(), "::", stringify!(#fn_name)),
+                make: #factory_ident,
+            }
         );
     })
 }

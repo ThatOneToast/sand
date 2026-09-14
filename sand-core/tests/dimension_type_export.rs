@@ -1,5 +1,5 @@
-use sand_core::ComponentFactory;
 use sand_core::prelude::*;
+use sand_core::{ComponentFactory, IntoDatapack};
 
 fn skylands_type() -> DimensionType {
     DimensionType::overworld_like(
@@ -8,7 +8,7 @@ fn skylands_type() -> DimensionType {
 }
 
 inventory::submit! {
-    ComponentFactory { make: || Box::new(skylands_type()) }
+    ComponentFactory { owner: "dimension_type", make: || skylands_type().into_datapack() }
 }
 
 #[test]

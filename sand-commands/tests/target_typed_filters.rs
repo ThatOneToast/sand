@@ -2,7 +2,7 @@
 
 use sand_commands::selector::{AnyTarget, Many, One, PlayersOnly};
 use sand_commands::{
-    GameMode, ObjectiveName, RenderCommand, ScoreRange, SortOrder, Target, Validate,
+    GameMode, ObjectiveName, RenderCommand, ScoreRange, Selector, SortOrder, Target, Validate,
 };
 
 fn takes_single_entity(_: Target<AnyTarget, One>) {}
@@ -26,6 +26,17 @@ fn raw_single_player_preserves_both_type_assertions() {
     assert_eq!(target.to_string(), "@a[modded=true,limit=1]");
     assert!(target.try_build().is_ok());
     takes_single_player(target);
+}
+
+#[test]
+fn player_only_assertion_survives_explicit_category_erasure() {
+    let current: Target<AnyTarget, One> = Target::current_player().into();
+    let current: Selector = current.into();
+    assert!(current.is_definitely_player_only());
+
+    let raw: Target<AnyTarget, One> = Target::raw_single_player("@a[limit=1]").into();
+    let raw: Selector = raw.into();
+    assert!(raw.is_definitely_player_only());
 }
 
 #[test]
@@ -159,9 +170,9 @@ fn named_target_filters_are_rendered_and_remain_single() {
     );
     takes_single_player(player);
 
-    let entity = Target::named("Alex").tag("builder");
-    assert_eq!(entity.to_string(), "@a[name=Alex,tag=builder,limit=1]");
-    takes_single_entity(entity);
+    let named = Target::named("Alex").tag("builder");
+    assert_eq!(named.to_string(), "@a[name=Alex,tag=builder,limit=1]");
+    takes_single_player(named);
 
     assert_eq!(Target::named_player("Steve").to_string(), "Steve");
 }

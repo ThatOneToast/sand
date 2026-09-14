@@ -8,8 +8,8 @@ use sand_commands::{
 use sand_components::{AttributeType, EffectId, EquipmentSlot};
 
 use crate::cmd::{
-    Anchor, CommandProfile, CommandResult, DamageKind, EffectGive, One, Rotation, Target, Validate,
-    Vec3,
+    Anchor, CommandError, CommandProfile, CommandResult, DamageKind, EffectGive, One, Rotation,
+    Target, Validate, Vec3,
 };
 use crate::entity::kind::{
     EntityKind, EquipmentEntityKind, LivingEntityKind, MountVehicleKind, SafeEntityDataWriteKind,
@@ -634,6 +634,12 @@ impl<K: EquipmentEntityKind> EntityEquipmentHandle<K> {
 /// let zombie = EntityContext::<ZombieKind>::default();
 /// zombie.mounts().mount_on(Target::nearest_player());
 /// ```
+///
+/// ```compile_fail
+/// use sand::prelude::*;
+/// let zombie = EntityContext::<ZombieKind>::default();
+/// zombie.mounts().mount_on(Target::named("Steve"));
+/// ```
 #[derive(Debug, Clone)]
 #[sand_macros::api(
     registry = sand_api_contract,
@@ -686,6 +692,14 @@ impl<K: EntityKind> EntityMounts<K> {
             let profile = CommandProfile::unprofiled();
             self.selector.validate(&profile)?;
             vehicle.validate(&profile)?;
+            let vehicle_selector: Selector = vehicle.clone().into();
+            if vehicle_selector.is_definitely_player_only() {
+                return Err(CommandError::new(
+                    "EntityMounts::mount_on",
+                    "vehicle",
+                    "players cannot be ride vehicles",
+                ));
+            }
             Ok(crate::cmd::ride_mount(self.selector.clone(), vehicle).to_string())
         }
     }
@@ -1086,6 +1100,8 @@ mod tests {
                 .mount_on(Target::entities().tag("invalid tag").nearest())
                 .is_err()
         );
+        let erased_named_player: Target<AnyTarget, One> = Target::named("Steve").into();
+        assert!(zombie.mounts().mount_on(erased_named_player).is_err());
         let invalid_selector: Selector = Target::entities().tag("invalid tag").nearest().into();
         let invalid_identity = EntityIdentity::<ZombieKind>::new(invalid_selector);
         let tag = EntityTag::new("valid").unwrap();

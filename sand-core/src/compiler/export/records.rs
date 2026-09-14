@@ -173,8 +173,7 @@ fn expand_registered_component(
             })
         })
         .collect::<ExportResult<Vec<_>>>()?;
-    nested
-        .sort_by(|left, right| output_identity(&left.record).cmp(&output_identity(&right.record)));
+    nested.sort_by_key(|registered| output_identity(&registered.record));
 
     records.push(registered.record);
     for child in nested {

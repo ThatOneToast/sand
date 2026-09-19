@@ -34,6 +34,10 @@ cargo test --manifest-path examples/rpg_entity/Cargo.toml
         python3 -c 'import json, sys; json.load(sys.stdin)'
 )
 
+echo "=== External registration consumer (sand-only) ==="
+cargo fmt --manifest-path sand/tests/fixtures/registration/Cargo.toml -- --check
+CARGO_TARGET_DIR="$PWD/target" cargo test --locked --manifest-path sand/tests/fixtures/registration/Cargo.toml
+
 echo "=== Rustdoc ==="
 cargo doc --workspace --all-features --no-deps
 

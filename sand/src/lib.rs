@@ -340,6 +340,40 @@ pub mod component {
     pub use sand_core::components::*;
 }
 
+/// Advanced component registration: bundle resources, load/tick commands, and
+/// function-tag memberships behind one `#[datapack_component]` factory.
+///
+/// Ordinary resource builders already implement [`registration::IntoDatapack`].
+/// Custom bundle types implement it to return an inert registration; Sand
+/// expands and validates the bundle on each export. These authoring types are
+/// intentionally absent from [`prelude`]. Export records and aggregation state
+/// remain compiler implementation details.
+///
+/// ```
+/// use sand::{component::McFunction, datapack_component};
+/// use sand::registration::{DatapackRegistration, IntoDatapack, LifecycleContribution};
+///
+/// struct ExampleBundle;
+/// impl IntoDatapack for ExampleBundle {
+///     fn into_datapack(self) -> DatapackRegistration {
+///         DatapackRegistration::new()
+///             .component(McFunction::new("example:hello".parse().unwrap())
+///                 .command(sand::cmd::say("Hello").to_string()))
+///             .lifecycle(LifecycleContribution::load(
+///                 sand::cmd::say("Bundle loaded").to_string()))
+///     }
+/// }
+///
+/// #[datapack_component]
+/// fn example_bundle() -> ExampleBundle { ExampleBundle }
+/// ```
+#[api(path = "sand::registration", module = "sand", summary = "Registers bundles of resources and lifecycle or function-tag contributions.", context = "Custom component authors implement IntoDatapack when one definition contributes more than one resource.", minecraft = "Routes resources and load, tick, and function-tag contributions through Sand's canonical exporter.", use_when = ["Authoring a multi-resource component"], avoid_when = ["Returning one ordinary component builder"], example = "use sand::registration::{DatapackRegistration, IntoDatapack};")]
+pub mod registration {
+    pub use sand_core::registration::{
+        DatapackRegistration, FunctionTagContribution, IntoDatapack, LifecycleContribution,
+    };
+}
+
 /// Typed conditions used by `execute`, event guards, and grouped branches.
 /// [`condition::Condition`] is an opaque expression tree: construct it through
 /// typed score, selector, predicate, NBT, or item APIs, then compose it with

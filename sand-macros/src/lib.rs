@@ -1908,7 +1908,7 @@ fn expand_function(
 /// ## Plain `#[datapack_component]`
 ///
 /// The function must take no parameters and return a type that implements
-/// `sand_core::IntoDatapack`. Every `DatapackComponent` does so automatically,
+/// `sand::registration::IntoDatapack`. Every `DatapackComponent` does so automatically,
 /// while higher-level features may return a complete multi-resource
 /// registration. It is collected via `inventory` — no manual wiring needed.
 ///

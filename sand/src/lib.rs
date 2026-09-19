@@ -346,7 +346,11 @@ pub mod component {
 /// Ordinary resource builders already implement [`registration::IntoDatapack`].
 /// Custom bundle types implement it to return an inert registration; Sand
 /// expands and validates the bundle on each export. These authoring types are
-/// intentionally absent from [`prelude`]. Export records and aggregation state
+/// intentionally absent from [`prelude`]. [`registration::DatapackComponent`]
+/// also names generic or boxed single-resource inputs. Implementing a new JSON
+/// resource schema uses a direct `serde_json` dependency for its serializer;
+/// composing typed resources into a bundle needs only `sand`.
+/// Export records and aggregation state
 /// remain compiler implementation details.
 ///
 /// ```

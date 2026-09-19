@@ -34,6 +34,14 @@ pub enum ComponentContent {
 /// loot tables, predicates, and item modifiers. Each component knows its
 /// resource location and can serialize itself to the format Minecraft expects.
 ///
+/// # Custom JSON serialization
+///
+/// Implementing a new JSON resource schema uses `serde_json::Value` in
+/// [`Self::to_json`], so such implementations declare `serde_json` directly.
+/// This is JSON interoperability, not an internal Sand dependency. Bundles
+/// implementing `sand::registration::IntoDatapack` compose existing resource
+/// builders and require only the `sand` façade.
+///
 /// # Fallible export contract
 ///
 /// The [`DatapackComponent::validate`] and [`DatapackComponent::try_content`]

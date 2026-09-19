@@ -238,7 +238,9 @@ fn objective_definition(mut command: &str) -> Option<(&str, &str)> {
 /// criteria fail independently of registration or lifecycle order.
 pub(crate) fn validate_objective_definitions(records: &[ComponentRecord]) -> ExportResult<()> {
     let mut definitions = std::collections::BTreeMap::<String, (String, String)>::new();
-    for record in records.iter().filter(|record| record.dir == "function") {
+    for record in records.iter().filter(|record| {
+        record.dir == "function" && record.ext == "mcfunction" && record.content_type == "text"
+    }) {
         for line in record.content.lines() {
             let Some((objective, criterion)) = objective_definition(line) else {
                 continue;
@@ -294,6 +296,33 @@ mod tests {
         Advancement, AdvancementRewards, AdvancementTrigger, Criterion, DatapackComponent,
         ResourceLocation,
     };
+
+    #[test]
+    fn objective_validation_ignores_non_executable_record_content() {
+        let function = super::ComponentRecord {
+            namespace: "test".into(),
+            dir: "function".into(),
+            path: "real".into(),
+            ext: "mcfunction".into(),
+            content_type: "text".into(),
+            content: "scoreboard objectives add shared dummy".into(),
+        };
+        for (dir, ext, content_type) in [
+            ("function", "txt", "text"),
+            ("notes", "mcfunction", "text"),
+            ("function", "mcfunction", "copy"),
+        ] {
+            let other = super::ComponentRecord {
+                dir: dir.into(),
+                ext: ext.into(),
+                content_type: content_type.into(),
+                path: "other".into(),
+                content: "scoreboard objectives add shared trigger".into(),
+                ..function.clone()
+            };
+            super::validate_objective_definitions(&[function.clone(), other]).unwrap();
+        }
+    }
 
     #[test]
     fn objective_discovery_respects_execute_argument_boundaries() {

@@ -1,7 +1,7 @@
 use sand::datapack_component;
 use sand_core::{
-    DatapackRegistration, FunctionId, FunctionTagContribution, IntoDatapack, LifecycleContribution,
-    McFunction, ResourceLocation,
+    DatapackRegistration, FunctionId, FunctionRef, FunctionTagContribution, IntoDatapack,
+    LifecycleContribution, McFunction, ResourceLocation,
 };
 
 #[datapack_component]
@@ -13,6 +13,11 @@ fn ordinary_component() -> McFunction {
 #[datapack_component(Tag = "registration_export:feature_entrypoints")]
 fn descriptor_tag_member() {
     sand_core::cmd::say("descriptor tag member");
+}
+
+#[sand::function]
+fn local_tag_member() {
+    sand_core::cmd::say("local tag member");
 }
 
 struct FutureFeature;
@@ -40,6 +45,16 @@ impl IntoDatapack for FutureFeature {
             .lifecycle(LifecycleContribution::load("say registration load second"))
             .lifecycle(LifecycleContribution::tick("say registration tick first"))
             .lifecycle(LifecycleContribution::tick("say registration tick second"))
+            .function_tag(FunctionTagContribution::new(
+                ResourceLocation::new("registration_export", "feature_entrypoints").unwrap(),
+                FunctionId::custom(
+                    ResourceLocation::new("registration_export", "local_tag_member").unwrap(),
+                ),
+            ))
+            .function_tag(FunctionTagContribution::new(
+                ResourceLocation::new("__sand_local", "feature_entrypoints").unwrap(),
+                local_tag_member.function_id(),
+            ))
             .function_tag(FunctionTagContribution::new(
                 ResourceLocation::new("registration_export", "feature_entrypoints").unwrap(),
                 FunctionId::custom(
@@ -115,7 +130,8 @@ fn generalized_registration_uses_canonical_component_lifecycle_and_tag_output() 
         json["values"],
         serde_json::json!([
             "registration_export:bundle/alpha",
-            "registration_export:descriptor_tag_member"
+            "registration_export:descriptor_tag_member",
+            "registration_export:local_tag_member"
         ])
     );
 
@@ -141,13 +157,29 @@ fn repeated_and_concurrent_exports_are_byte_identical_and_isolated() {
         expected
     );
 
-    let exports: Vec<_> = (0..4)
-        .map(|_| {
-            std::thread::spawn(|| {
-                sand_core::try_export_components_json("registration_export").unwrap()
+    let expected_other = sand_core::try_export_components_json("other_export").unwrap();
+    assert_ne!(expected, expected_other);
+    let barrier = std::sync::Arc::new(std::sync::Barrier::new(4));
+    let threads: Vec<_> = (0..4)
+        .map(|index| {
+            let barrier = std::sync::Arc::clone(&barrier);
+            std::thread::spawn(move || {
+                barrier.wait();
+                let namespace = if index % 2 == 0 {
+                    "registration_export"
+                } else {
+                    "other_export"
+                };
+                sand_core::try_export_components_json(namespace).unwrap()
             })
         })
-        .map(|thread| thread.join().unwrap())
         .collect();
-    assert!(exports.iter().all(|export| export == &expected));
+    for (index, thread) in threads.into_iter().enumerate() {
+        let expected = if index % 2 == 0 {
+            &expected
+        } else {
+            &expected_other
+        };
+        assert_eq!(&thread.join().unwrap(), expected);
+    }
 }

@@ -204,43 +204,6 @@ pub(crate) fn validate_unique_output_identities(records: &[ComponentRecord]) -> 
     Ok(())
 }
 
-/// Validate scoreboard objective definitions across every generated function,
-/// regardless of which compiler path produced it. Identical declarations are
-/// harmless; different criteria for the same objective are never resolved by
-/// record or lifecycle order.
-fn execute_run_tail(command: &str) -> Option<&str> {
-    let bytes = command.as_bytes();
-    let mut quote = None;
-    let mut escaped = false;
-
-    for index in 0..bytes.len() {
-        let byte = bytes[index];
-        if let Some(delimiter) = quote {
-            if escaped {
-                escaped = false;
-            } else if byte == b'\\' {
-                escaped = true;
-            } else if byte == delimiter {
-                quote = None;
-            }
-            continue;
-        }
-
-        if byte == b'"' || byte == b'\'' {
-            quote = Some(byte);
-            continue;
-        }
-        let is_run = bytes.get(index..index + 3) == Some(b"run")
-            && index > 0
-            && bytes[index - 1].is_ascii_whitespace()
-            && bytes.get(index + 3).is_some_and(u8::is_ascii_whitespace);
-        if is_run {
-            return Some(command[index + 3..].trim_start());
-        }
-    }
-    None
-}
-
 fn objective_definition(mut command: &str) -> Option<(&str, &str)> {
     loop {
         let mut parts = command.split_whitespace();
@@ -258,12 +221,17 @@ fn objective_definition(mut command: &str) -> Option<(&str, &str)> {
                 Some(objective),
                 Some(criterion),
             ) => return Some((objective, criterion)),
-            (Some("execute"), _, _, _, _) => command = execute_run_tail(command)?,
+            (Some("execute"), _, _, _, _) => {
+                command = sand_commands::render::collected_execute_command(command)?
+            }
             _ => return None,
         }
     }
 }
 
+/// Validate objective definitions across generated functions, including nested
+/// recognized execute chains. Identical criteria are allowed; conflicting
+/// criteria fail independently of registration or lifecycle order.
 pub(crate) fn validate_objective_definitions(records: &[ComponentRecord]) -> ExportResult<()> {
     let mut definitions = std::collections::BTreeMap::<String, (String, String)>::new();
     for record in records.iter().filter(|record| record.dir == "function") {
@@ -322,6 +290,41 @@ mod tests {
         Advancement, AdvancementRewards, AdvancementTrigger, Criterion, DatapackComponent,
         ResourceLocation,
     };
+
+    #[test]
+    fn objective_discovery_respects_execute_argument_boundaries() {
+        for command in [
+            "execute as run run scoreboard objectives add shared trigger",
+            "execute if score @s run matches 0 run scoreboard objectives add shared trigger",
+            "execute store result score @s run run scoreboard objectives add shared trigger",
+            "execute if data storage test:data run run scoreboard objectives add shared trigger",
+            "execute as @s run execute at @s run scoreboard objectives add shared trigger",
+            r#"execute as @e[name="escaped \" run scoreboard objectives add fake dummy"] run scoreboard objectives add shared trigger"#,
+            r#"execute as @e[name='escaped \' run scoreboard objectives add fake dummy'] run scoreboard objectives add shared trigger"#,
+        ] {
+            let record = super::ComponentRecord {
+                namespace: "test".into(),
+                dir: "function".into(),
+                path: "conflict".into(),
+                ext: "mcfunction".into(),
+                content_type: "text".into(),
+                content: format!("scoreboard objectives add shared dummy\n{command}"),
+            };
+            let error = super::validate_objective_definitions(&[record]).unwrap_err();
+            assert!(
+                error.to_string().contains("conflicting objective `shared`"),
+                "{command}: {error}"
+            );
+        }
+        for command in [
+            r#"execute as @e[name="escaped \" run scoreboard objectives add fake dummy"] run say hi"#,
+            r#"execute as @e[nbt={Tags:[run, "scoreboard objectives add fake dummy"]}] run say hi"#,
+            "execute as @s run say run scoreboard objectives add fake dummy",
+            "execute future run scoreboard objectives add fake dummy",
+        ] {
+            assert_eq!(super::objective_definition(command), None, "{command}");
+        }
+    }
 
     #[test]
     fn invalid_advancement_fails_at_component_record_boundary_with_owner_context() {

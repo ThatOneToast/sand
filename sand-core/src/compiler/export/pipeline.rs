@@ -76,8 +76,7 @@ fn invoke_event_handler_body(desc: &crate::function::EventDescriptor) -> ExportR
         .lock()
         .unwrap_or_else(|poisoned| poisoned.into_inner());
 
-    let previous_hook: Arc<dyn Fn(&std::panic::PanicHookInfo<'_>) + Sync + Send> =
-        Arc::from(std::panic::take_hook());
+    let previous_hook = Arc::new(std::panic::take_hook());
     let hook_for_closure = Arc::clone(&previous_hook);
     std::panic::set_hook(Box::new(move |info| {
         if info
@@ -92,7 +91,10 @@ fn invoke_event_handler_body(desc: &crate::function::EventDescriptor) -> ExportR
     let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| (desc.make)()));
 
     // Restore exactly what was active before, regardless of outcome.
-    std::panic::set_hook(Box::new(move |info| (previous_hook)(info)));
+    drop(std::panic::take_hook());
+    std::panic::set_hook(Arc::try_unwrap(previous_hook).unwrap_or_else(|_| {
+        unreachable!("temporary panic hook was dropped before restoring the original")
+    }));
 
     match result {
         Ok(commands) => Ok(commands),
@@ -112,8 +114,7 @@ fn invoke_component_factory(
         .lock()
         .unwrap_or_else(|poisoned| poisoned.into_inner());
 
-    let previous_hook: Arc<dyn Fn(&std::panic::PanicHookInfo<'_>) + Sync + Send> =
-        Arc::from(std::panic::take_hook());
+    let previous_hook = Arc::new(std::panic::take_hook());
     let factory_thread = std::thread::current().id();
     let hook_for_other_threads = Arc::clone(&previous_hook);
     std::panic::set_hook(Box::new(move |info| {
@@ -122,7 +123,10 @@ fn invoke_component_factory(
         }
     }));
     let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| (factory.make)()));
-    std::panic::set_hook(Box::new(move |info| (previous_hook)(info)));
+    drop(std::panic::take_hook());
+    std::panic::set_hook(Arc::try_unwrap(previous_hook).unwrap_or_else(|_| {
+        unreachable!("temporary panic hook was dropped before restoring the original")
+    }));
 
     result.map_err(|payload| {
         let panic_message = payload
@@ -267,7 +271,10 @@ pub(crate) fn try_export_components_impl(
         }
         for contribution in function_tags {
             let (tag, function) = contribution.into_parts();
-            registration_tag_entries.push((tag.to_string(), function.to_string()));
+            registration_tag_entries.push((
+                resolve_local_refs(&tag.to_string(), namespace),
+                resolve_local_refs(&function.to_string(), namespace),
+            ));
         }
         for component in components {
             let record = component_to_record(component.as_ref(), ctx)?;

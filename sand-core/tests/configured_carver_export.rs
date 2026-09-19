@@ -1,6 +1,6 @@
-use sand_core::ComponentFactory;
 use sand_core::prelude::*;
 use sand_core::sand_components::worldgen::providers::{HeightProvider, VerticalAnchor};
+use sand_core::{ComponentFactory, IntoDatapack};
 
 fn shallow_cave() -> ConfiguredCarver {
     ConfiguredCarver::cave(
@@ -23,11 +23,11 @@ fn shallow_caves_biome() -> sand_core::Biome {
 }
 
 inventory::submit! {
-    ComponentFactory { make: || Box::new(shallow_cave()) }
+    ComponentFactory { owner: "configured_carver", make: || shallow_cave().into_datapack() }
 }
 
 inventory::submit! {
-    ComponentFactory { make: || Box::new(shallow_caves_biome()) }
+    ComponentFactory { owner: "configured_carver_biome", make: || shallow_caves_biome().into_datapack() }
 }
 
 #[test]

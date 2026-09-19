@@ -1,5 +1,5 @@
-use sand_core::ComponentFactory;
 use sand_core::prelude::*;
+use sand_core::{ComponentFactory, IntoDatapack};
 
 fn town_center_pool() -> TemplatePool {
     TemplatePool::new(
@@ -44,16 +44,16 @@ fn mossify_processors() -> ProcessorList {
 }
 
 inventory::submit! {
-    ComponentFactory { make: || Box::new(town_center_pool()) }
+    ComponentFactory { owner: "template_pool", make: || town_center_pool().into_datapack() }
 }
 inventory::submit! {
-    ComponentFactory { make: || Box::new(outpost_structure()) }
+    ComponentFactory { owner: "structure", make: || outpost_structure().into_datapack() }
 }
 inventory::submit! {
-    ComponentFactory { make: || Box::new(village_structure_set()) }
+    ComponentFactory { owner: "structure_set", make: || village_structure_set().into_datapack() }
 }
 inventory::submit! {
-    ComponentFactory { make: || Box::new(mossify_processors()) }
+    ComponentFactory { owner: "processor_list", make: || mossify_processors().into_datapack() }
 }
 
 fn find_record<'a>(

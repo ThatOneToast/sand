@@ -34,6 +34,24 @@ pub struct ComponentRecord {
 /// validation or serialization.
 pub type ExportResult<T> = std::result::Result<T, ComponentExportError>;
 
+type OutputIdentity = (String, String, String, String);
+
+fn output_identity(record: &ComponentRecord) -> OutputIdentity {
+    (
+        record.namespace.clone(),
+        record.dir.clone(),
+        record.path.clone(),
+        record.ext.clone(),
+    )
+}
+
+/// One resource returned by a logical registration owner.
+pub(crate) struct RegisteredComponent {
+    pub(crate) owner: String,
+    pub(crate) component: Box<dyn DatapackComponent>,
+    pub(crate) record: ComponentRecord,
+}
+
 /// Convert a single [`DatapackComponent`] into a [`ComponentRecord`],
 /// validating exactly once before any content is accepted, and checking
 /// version-gated features against the export context.
@@ -94,8 +112,9 @@ pub(crate) fn component_to_record(
 
 /// Expand a collected list of top-level components/records with each
 /// component's [`DatapackComponent::nested_components`], checking every
-/// nested (namespace, dir, path) key against the full top-level set *before*
-/// any nested record is accepted.
+/// nested `(namespace, directory, path, extension)` key against all previously
+/// expanded resources. The complete pass must succeed before any record is
+/// returned to the remainder of the exporter.
 ///
 /// This is the compound-component expansion pass used by
 /// [`super::pipeline::try_export_components_impl`] (`TradeSet`,
@@ -104,46 +123,151 @@ pub(crate) fn component_to_record(
 /// pure function so it can be unit-tested without registering components
 /// through the process-global `inventory` registry.
 pub(crate) fn expand_with_nested(
-    top_level: Vec<(Box<dyn DatapackComponent>, ComponentRecord)>,
+    mut top_level: Vec<RegisteredComponent>,
     ctx: Option<&super::ExportCtx>,
 ) -> ExportResult<Vec<ComponentRecord>> {
-    let mut seen_paths: std::collections::HashSet<(String, String, String)> = top_level
-        .iter()
-        .map(|(_, record)| {
-            (
-                record.namespace.clone(),
-                record.dir.clone(),
-                record.path.clone(),
-            )
-        })
-        .collect();
+    top_level.sort_by(|left, right| {
+        output_identity(&left.record)
+            .cmp(&output_identity(&right.record))
+            .then_with(|| left.owner.cmp(&right.owner))
+    });
 
+    let mut seen = std::collections::BTreeMap::<OutputIdentity, String>::new();
     let mut records = Vec::with_capacity(top_level.len());
-    for (comp, record) in top_level {
-        records.push(record);
-        for nested in comp.nested_components() {
-            let nested_record = component_to_record(nested.as_ref(), ctx)?;
-            let key = (
-                nested_record.namespace.clone(),
-                nested_record.dir.clone(),
-                nested_record.path.clone(),
-            );
-            if !seen_paths.insert(key.clone()) {
-                return Err(ComponentExportError::ComponentValidation {
-                    location: nested.resource_location().clone(),
-                    kind: nested_record.dir.clone(),
-                    field: "<generated>".to_string(),
-                    message: format!(
-                        "generated resource path `{}:{}/{}` collides with another component's \
-                         output — rename the entry key or the colliding component",
-                        key.0, key.1, key.2
-                    ),
-                });
-            }
-            records.push(nested_record);
-        }
+    for registered in top_level {
+        expand_registered_component(registered, ctx, &mut seen, &mut records)?;
     }
     Ok(records)
+}
+
+fn expand_registered_component(
+    registered: RegisteredComponent,
+    ctx: Option<&super::ExportCtx>,
+    seen: &mut std::collections::BTreeMap<OutputIdentity, String>,
+    records: &mut Vec<ComponentRecord>,
+) -> ExportResult<()> {
+    let key = output_identity(&registered.record);
+    if let Some(first_owner) = seen.get(&key) {
+        return Err(ComponentExportError::ComponentValidation {
+            location: registered.component.resource_location().clone(),
+            kind: registered.record.dir.clone(),
+            field: "<registration>".to_string(),
+            message: format!(
+                "datapack output `{}:{}/{}.{}` from `{}` collides with the same output contributed by `{first_owner}`",
+                key.0, key.1, key.2, key.3, registered.owner
+            ),
+        });
+    }
+    seen.insert(key, registered.owner.clone());
+
+    let mut nested = registered
+        .component
+        .nested_components()
+        .into_iter()
+        .map(|component| {
+            let record = component_to_record(component.as_ref(), ctx)?;
+            Ok(RegisteredComponent {
+                owner: registered.owner.clone(),
+                component,
+                record,
+            })
+        })
+        .collect::<ExportResult<Vec<_>>>()?;
+    nested.sort_by_key(|registered| output_identity(&registered.record));
+
+    records.push(registered.record);
+    for child in nested {
+        expand_registered_component(child, ctx, seen, records)?;
+    }
+    Ok(())
+}
+
+/// Reject any duplicate final output identity, including compiler-generated
+/// resources and explicit components, before the record stream reaches the
+/// filesystem writer.
+pub(crate) fn validate_unique_output_identities(records: &[ComponentRecord]) -> ExportResult<()> {
+    let mut seen = std::collections::BTreeSet::new();
+    for record in records {
+        let key = output_identity(record);
+        if !seen.insert(key.clone()) {
+            return Err(ComponentExportError::ComponentValidation {
+                location: sand_components::ResourceLocation::new(&key.0, &key.2)?,
+                kind: key.1.clone(),
+                field: "<output>".to_string(),
+                message: format!(
+                    "duplicate datapack output identity `{}:{}/{}.{}`; registrations and compiler-generated resources must have unique namespace, resource kind, path, and extension",
+                    key.0, key.1, key.2, key.3
+                ),
+            });
+        }
+    }
+    Ok(())
+}
+
+fn objective_definition(mut command: &str) -> Option<(&str, &str)> {
+    loop {
+        let mut parts = command.split_whitespace();
+        match (
+            parts.next(),
+            parts.next(),
+            parts.next(),
+            parts.next(),
+            parts.next(),
+        ) {
+            (
+                Some("scoreboard"),
+                Some("objectives"),
+                Some("add"),
+                Some(objective),
+                Some(criterion),
+            ) => return Some((objective, criterion)),
+            (Some("execute"), _, _, _, _) => {
+                command = sand_commands::render::collected_execute_command(command)?
+            }
+            (Some("return"), Some("run"), _, _, _) => {
+                let tail = command.trim_start().strip_prefix("return")?.trim_start();
+                command = tail.strip_prefix("run")?.trim_start();
+            }
+            _ => return None,
+        }
+    }
+}
+
+/// Validate objective definitions across generated functions, including nested
+/// recognized execute chains. Identical criteria are allowed; conflicting
+/// criteria fail independently of registration or lifecycle order.
+pub(crate) fn validate_objective_definitions(records: &[ComponentRecord]) -> ExportResult<()> {
+    let mut definitions = std::collections::BTreeMap::<String, (String, String)>::new();
+    for record in records.iter().filter(|record| {
+        record.dir == "function" && record.ext == "mcfunction" && record.content_type == "text"
+    }) {
+        for line in record.content.lines() {
+            let Some((objective, criterion)) = objective_definition(line) else {
+                continue;
+            };
+            let owner = format!("{}:{}/{}", record.namespace, record.dir, record.path);
+            match definitions.get(objective) {
+                Some((existing, _)) if existing == criterion => {}
+                Some((existing, existing_owner)) => {
+                    return Err(ComponentExportError::ComponentValidation {
+                        location: sand_components::ResourceLocation::new(
+                            &record.namespace,
+                            &record.path,
+                        )?,
+                        kind: record.dir.clone(),
+                        field: "<objective>".to_string(),
+                        message: format!(
+                            "conflicting objective `{objective}`: `{existing_owner}` declares criterion `{existing}`, while `{owner}` declares `{criterion}`"
+                        ),
+                    });
+                }
+                None => {
+                    definitions.insert(objective.to_string(), (criterion.to_string(), owner));
+                }
+            }
+        }
+    }
+    Ok(())
 }
 
 fn enrich_error(
@@ -172,6 +296,76 @@ mod tests {
         Advancement, AdvancementRewards, AdvancementTrigger, Criterion, DatapackComponent,
         ResourceLocation,
     };
+
+    #[test]
+    fn objective_validation_ignores_non_executable_record_content() {
+        let function = super::ComponentRecord {
+            namespace: "test".into(),
+            dir: "function".into(),
+            path: "real".into(),
+            ext: "mcfunction".into(),
+            content_type: "text".into(),
+            content: "scoreboard objectives add shared dummy".into(),
+        };
+        for (dir, ext, content_type) in [
+            ("function", "txt", "text"),
+            ("notes", "mcfunction", "text"),
+            ("function", "mcfunction", "copy"),
+        ] {
+            let other = super::ComponentRecord {
+                dir: dir.into(),
+                ext: ext.into(),
+                content_type: content_type.into(),
+                path: "other".into(),
+                content: "scoreboard objectives add shared trigger".into(),
+                ..function.clone()
+            };
+            super::validate_objective_definitions(&[function.clone(), other]).unwrap();
+        }
+    }
+
+    #[test]
+    fn objective_discovery_respects_execute_argument_boundaries() {
+        for command in [
+            "return run scoreboard objectives add shared trigger",
+            "execute as @s run return run scoreboard objectives add shared trigger",
+            "return run execute as @s run return run scoreboard objectives add shared trigger",
+            "  return  run  scoreboard objectives add shared trigger",
+            "execute if stopwatch test:watch 0..1 run scoreboard objectives add shared trigger",
+            "execute unless stopwatch test:watch 0..1 run scoreboard objectives add shared trigger",
+            "execute as run run scoreboard objectives add shared trigger",
+            "execute if score @s run matches 0 run scoreboard objectives add shared trigger",
+            "execute store result score @s run run scoreboard objectives add shared trigger",
+            "execute if data storage test:data run run scoreboard objectives add shared trigger",
+            "execute as @s run execute at @s run scoreboard objectives add shared trigger",
+            r#"execute as @e[name="escaped \" run scoreboard objectives add fake dummy"] run scoreboard objectives add shared trigger"#,
+            r#"execute as @e[name='escaped \' run scoreboard objectives add fake dummy'] run scoreboard objectives add shared trigger"#,
+        ] {
+            let record = super::ComponentRecord {
+                namespace: "test".into(),
+                dir: "function".into(),
+                path: "conflict".into(),
+                ext: "mcfunction".into(),
+                content_type: "text".into(),
+                content: format!("scoreboard objectives add shared dummy\n{command}"),
+            };
+            let error = super::validate_objective_definitions(&[record]).unwrap_err();
+            assert!(
+                error.to_string().contains("conflicting objective `shared`"),
+                "{command}: {error}"
+            );
+        }
+        for command in [
+            r#"execute as @e[name="escaped \" run scoreboard objectives add fake dummy"] run say hi"#,
+            r#"execute as @e[nbt={Tags:[run, "scoreboard objectives add fake dummy"]}] run say hi"#,
+            "execute as @s run say run scoreboard objectives add fake dummy",
+            "execute future run scoreboard objectives add fake dummy",
+            "execute if team red run scoreboard objectives add fake dummy",
+            "execute if team @s red run scoreboard objectives add fake dummy",
+        ] {
+            assert_eq!(super::objective_definition(command), None, "{command}");
+        }
+    }
 
     #[test]
     fn invalid_advancement_fails_at_component_record_boundary_with_owner_context() {
@@ -1147,6 +1341,19 @@ mod tests {
         }
     }
 
+    fn registered(
+        owner: &str,
+        component: impl super::DatapackComponent + 'static,
+    ) -> super::RegisteredComponent {
+        let component: Box<dyn super::DatapackComponent> = Box::new(component);
+        let record = component_to_record(component.as_ref(), None).unwrap();
+        super::RegisteredComponent {
+            owner: owner.to_string(),
+            component,
+            record,
+        }
+    }
+
     #[test]
     fn expand_with_nested_appends_nested_records_after_the_parent() {
         let parent = NestingComponent {
@@ -1156,9 +1363,7 @@ mod tests {
                 test_rl("test", "parent/child_b"),
             ],
         };
-        let parent_record = component_to_record(&parent, None).unwrap();
-        let top_level: Vec<(Box<dyn super::DatapackComponent>, super::ComponentRecord)> =
-            vec![(Box::new(parent), parent_record)];
+        let top_level = vec![registered("parent_factory", parent)];
 
         let records = super::expand_with_nested(top_level, None).unwrap();
         assert_eq!(records.len(), 3);
@@ -1172,19 +1377,15 @@ mod tests {
         let standalone = ValidJsonComponent {
             loc: test_rl("test", "parent/child_a"),
         };
-        let standalone_record = component_to_record(&standalone, None).unwrap();
-
         let parent = NestingComponent {
             loc: test_rl("test", "parent"),
             nested_locs: vec![test_rl("test", "parent/child_a")],
         };
-        let parent_record = component_to_record(&parent, None).unwrap();
-
         // Order-independent: the colliding standalone component is collected
         // *before* the compound component whose nested child collides with it.
-        let top_level: Vec<(Box<dyn super::DatapackComponent>, super::ComponentRecord)> = vec![
-            (Box::new(standalone), standalone_record),
-            (Box::new(parent), parent_record),
+        let top_level = vec![
+            registered("standalone_factory", standalone),
+            registered("parent_factory", parent),
         ];
 
         let err = super::expand_with_nested(top_level, None).unwrap_err();
@@ -1199,19 +1400,53 @@ mod tests {
             loc: test_rl("test", "parent_one"),
             nested_locs: vec![test_rl("test", "shared/child")],
         };
-        let parent_one_record = component_to_record(&parent_one, None).unwrap();
         let parent_two = NestingComponent {
             loc: test_rl("test", "parent_two"),
             nested_locs: vec![test_rl("test", "shared/child")],
         };
-        let parent_two_record = component_to_record(&parent_two, None).unwrap();
-
-        let top_level: Vec<(Box<dyn super::DatapackComponent>, super::ComponentRecord)> = vec![
-            (Box::new(parent_one), parent_one_record),
-            (Box::new(parent_two), parent_two_record),
+        let top_level = vec![
+            registered("parent_one_factory", parent_one),
+            registered("parent_two_factory", parent_two),
         ];
 
         let err = super::expand_with_nested(top_level, None).unwrap_err();
         assert!(err.to_string().contains("shared/child"));
+    }
+
+    #[test]
+    fn registration_component_order_is_independent_of_discovery_order() {
+        let forward = vec![
+            registered(
+                "z_factory",
+                ValidJsonComponent {
+                    loc: test_rl("test", "z"),
+                },
+            ),
+            registered(
+                "a_factory",
+                ValidJsonComponent {
+                    loc: test_rl("test", "a"),
+                },
+            ),
+        ];
+        let reverse = vec![
+            registered(
+                "a_factory",
+                ValidJsonComponent {
+                    loc: test_rl("test", "a"),
+                },
+            ),
+            registered(
+                "z_factory",
+                ValidJsonComponent {
+                    loc: test_rl("test", "z"),
+                },
+            ),
+        ];
+
+        assert_eq!(
+            super::expand_with_nested(forward, None).unwrap(),
+            super::expand_with_nested(reverse, None).unwrap()
+        );
     }
 }

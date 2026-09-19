@@ -1,5 +1,5 @@
-use sand_core::ComponentFactory;
 use sand_core::prelude::*;
+use sand_core::{ComponentFactory, IntoDatapack};
 
 fn ridges_noise() -> Noise {
     Noise::new(
@@ -21,11 +21,11 @@ fn ridge_density_function() -> DensityFunction {
 }
 
 inventory::submit! {
-    ComponentFactory { make: || Box::new(ridges_noise()) }
+    ComponentFactory { owner: "noise", make: || ridges_noise().into_datapack() }
 }
 
 inventory::submit! {
-    ComponentFactory { make: || Box::new(ridge_density_function()) }
+    ComponentFactory { owner: "density_function", make: || ridge_density_function().into_datapack() }
 }
 
 #[test]

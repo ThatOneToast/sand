@@ -219,16 +219,79 @@ fn validate_scoreboard_command(tokens: &[TopLevelToken<'_>]) -> CommandResult<()
     Ok(())
 }
 
+/// Locate the terminal command of a recognized collected `execute` chain.
+///
+/// Compiler validation uses this after typed commands have been rendered.
+/// Reuses the collected-command tokenizer so quoted and structured arguments
+/// stay opaque. Unknown operation grammar returns `None`, never a guessed
+/// boundary in an argument or arbitrary raw command text.
+#[doc(hidden)]
+pub fn collected_execute_command(line: &str) -> Option<&str> {
+    let tokens = tokenize_top_level(line)?;
+    let index = execute_run_index(&tokens)?;
+    Some(&line[tokens.get(index + 1)?.start..])
+}
+
+// Recognize operation boundaries, not arbitrary tokens named `run`: holders,
+// objectives, NBT paths, and other arguments may legitimately have that name.
+fn execute_run_index(tokens: &[TopLevelToken<'_>]) -> Option<usize> {
+    if !token_is(tokens, 0, "execute") {
+        return None;
+    }
+    let mut index = 1;
+    while index < tokens.len() {
+        let arg = |offset: usize| tokens.get(index + offset).map(|token| token.text);
+        let width = match arg(0)? {
+            "run" => return Some(index),
+            "as" | "at" | "align" | "anchored" | "in" | "on" | "summon" => 2,
+            "positioned" => match arg(1)? {
+                "as" | "over" => 3,
+                _ => 4,
+            },
+            "rotated" => 3,
+            "facing" => 4,
+            "if" | "unless" => match arg(1)? {
+                "entity" | "predicate" | "dimension" | "function" => 3,
+                "stopwatch" => 4,
+                "loaded" => 5,
+                "block" | "biome" => 6,
+                "blocks" => 12,
+                "score" => match arg(4)? {
+                    "matches" => 6,
+                    "=" | "<" | ">" | "<=" | ">=" => 7,
+                    _ => return None,
+                },
+                "data" => match arg(2)? {
+                    "entity" | "storage" => 5,
+                    "block" => 7,
+                    _ => return None,
+                },
+                "items" => match arg(2)? {
+                    "entity" => 6,
+                    "block" => 8,
+                    _ => return None,
+                },
+                _ => return None,
+            },
+            "store" if matches!(arg(1)?, "result" | "success") => match arg(2)? {
+                "score" | "bossbar" => 5,
+                "entity" | "storage" => 7,
+                "block" => 9,
+                _ => return None,
+            },
+            _ => return None,
+        };
+        index += width;
+    }
+    None
+}
+
 fn validate_execute_command(
     line: &str,
     tokens: &[TopLevelToken<'_>],
     profile: &CommandProfile,
 ) -> CommandResult<()> {
-    let run_index = tokens
-        .iter()
-        .enumerate()
-        .skip(1)
-        .find_map(|(index, token)| (token.text == "run").then_some(index));
+    let run_index = execute_run_index(tokens);
     if run_index == Some(1) {
         return Err(CommandError::new(
             "Execute",
@@ -252,9 +315,9 @@ fn validate_execute_command(
             "if" | "unless" if token_is(tokens, index + 1, "score") => {
                 index = validate_execute_score(tokens, index)?;
             }
-            // The fallback intentionally stops at syntax it cannot model with
-            // confidence, but a top-level `run` still safely delimits the
-            // nested command. Typed Execute retains structural validation.
+            // Stop argument validation where this pass cannot model it;
+            // execute_run_index independently recognizes operation boundaries.
+            // Typed Execute retains structural validation.
             _ => break,
         }
     }

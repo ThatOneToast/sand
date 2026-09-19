@@ -4,13 +4,15 @@
 //! (`crate::compiler::export`, split by phase in Phase 2 of ADR 001); this
 //! module keeps the long-standing public paths stable.
 
-// ── Unified traits ────────────────────────────────────────────────────────────
-// Re-export the canonical definitions from sand-components so the entire
-// workspace shares ONE set of traits.  All builders in sand-components already
-// implement these; McFunction (below) does too via crate::resource_location
-// which now resolves to sand_components::ResourceLocation.
+// ── Unified registration and resource traits ─────────────────────────────────
+// DatapackComponent remains the one-resource definition owned by
+// sand-components. IntoDatapack and DatapackRegistration live here because
+// they aggregate compiler behavior in addition to component files.
 
-pub use sand_components::component::{ComponentContent, DatapackComponent, IntoDatapack};
+pub use crate::registration::{
+    DatapackRegistration, FunctionTagContribution, IntoDatapack, LifecycleContribution,
+};
+pub use sand_components::component::{ComponentContent, DatapackComponent};
 pub use sand_components::error::SandError as ComponentExportError;
 pub use sand_version::{ComponentFeature, VersionCaps};
 

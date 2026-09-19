@@ -251,7 +251,8 @@ fn execute_run_index(tokens: &[TopLevelToken<'_>]) -> Option<usize> {
             "rotated" => 3,
             "facing" => 4,
             "if" | "unless" => match arg(1)? {
-                "entity" | "predicate" | "dimension" | "function" | "team" => 3,
+                "entity" | "predicate" | "dimension" | "function" => 3,
+                "stopwatch" => 4,
                 "loaded" => 5,
                 "block" | "biome" => 6,
                 "blocks" => 12,

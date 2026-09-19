@@ -331,6 +331,8 @@ mod tests {
             "execute as @s run return run scoreboard objectives add shared trigger",
             "return run execute as @s run return run scoreboard objectives add shared trigger",
             "  return  run  scoreboard objectives add shared trigger",
+            "execute if stopwatch test:watch 0..1 run scoreboard objectives add shared trigger",
+            "execute unless stopwatch test:watch 0..1 run scoreboard objectives add shared trigger",
             "execute as run run scoreboard objectives add shared trigger",
             "execute if score @s run matches 0 run scoreboard objectives add shared trigger",
             "execute store result score @s run run scoreboard objectives add shared trigger",
@@ -358,6 +360,8 @@ mod tests {
             r#"execute as @e[nbt={Tags:[run, "scoreboard objectives add fake dummy"]}] run say hi"#,
             "execute as @s run say run scoreboard objectives add fake dummy",
             "execute future run scoreboard objectives add fake dummy",
+            "execute if team red run scoreboard objectives add fake dummy",
+            "execute if team @s red run scoreboard objectives add fake dummy",
         ] {
             assert_eq!(super::objective_definition(command), None, "{command}");
         }

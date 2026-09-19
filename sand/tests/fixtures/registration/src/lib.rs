@@ -3,30 +3,38 @@ use sand::component::McFunction;
 use sand::datapack_component as component;
 use sand::prelude::{FunctionId, ResourceLocation};
 use sand::registration::{
-    DatapackRegistration, FunctionTagContribution, IntoDatapack, LifecycleContribution,
+    ComponentContent, DatapackComponent, DatapackRegistration, FunctionTagContribution,
+    IntoDatapack, LifecycleContribution,
 };
+
+fn resource<T: DatapackComponent + 'static>(value: T) -> DatapackRegistration {
+    DatapackRegistration::new().component(value)
+}
 
 struct ExampleBundle;
 
 impl IntoDatapack for ExampleBundle {
     fn into_datapack(self) -> DatapackRegistration {
-        DatapackRegistration::new()
-            .components([
-                McFunction::new("consumer:alpha".parse().unwrap())
-                    .command(sand::cmd::say("alpha").to_string()),
-                McFunction::new("consumer:zeta".parse().unwrap())
-                    .command(sand::cmd::say("zeta").to_string()),
-            ])
-            .lifecycle(LifecycleContribution::load(
-                sand::cmd::say("bundle load").to_string(),
-            ))
-            .lifecycle(LifecycleContribution::tick(
-                sand::cmd::say("bundle tick").to_string(),
-            ))
-            .function_tag(FunctionTagContribution::new(
-                ResourceLocation::new("consumer", "entries").unwrap(),
-                FunctionId::custom("consumer:alpha".parse().unwrap()),
-            ))
+        resource(
+            McFunction::new("consumer:generic".parse().unwrap())
+                .command(sand::cmd::say("generic resource").to_string()),
+        )
+        .components([
+            McFunction::new("consumer:alpha".parse().unwrap())
+                .command(sand::cmd::say("alpha").to_string()),
+            McFunction::new("consumer:zeta".parse().unwrap())
+                .command(sand::cmd::say("zeta").to_string()),
+        ])
+        .lifecycle(LifecycleContribution::load(
+            sand::cmd::say("bundle load").to_string(),
+        ))
+        .lifecycle(LifecycleContribution::tick(
+            sand::cmd::say("bundle tick").to_string(),
+        ))
+        .function_tag(FunctionTagContribution::new(
+            ResourceLocation::new("consumer", "entries").unwrap(),
+            FunctionId::custom("consumer:alpha".parse().unwrap()),
+        ))
     }
 }
 
@@ -43,9 +51,14 @@ fn ordinary_component() -> McFunction {
 
 #[test]
 fn facade_only_bundle_and_ordinary_component_export() {
+    assert_eq!(
+        ordinary_component().content(),
+        ComponentContent::Text("say ordinary".into())
+    );
     // This is Sand's supported build hook, not an exporter-internal API.
     let json = sand::advanced::try_export_components_json("consumer", "26.2").unwrap();
     for expected in [
+        "say generic resource",
         "say alpha",
         "say zeta",
         "say ordinary",

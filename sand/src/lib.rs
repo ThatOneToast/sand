@@ -369,6 +369,7 @@ pub mod component {
 /// ```
 #[api(path = "sand::registration", module = "sand", summary = "Registers bundles of resources and lifecycle or function-tag contributions.", context = "Custom component authors implement IntoDatapack when one definition contributes more than one resource.", minecraft = "Routes resources and load, tick, and function-tag contributions through Sand's canonical exporter.", use_when = ["Authoring a multi-resource component"], avoid_when = ["Returning one ordinary component builder"], example = "use sand::registration::{DatapackRegistration, IntoDatapack};")]
 pub mod registration {
+    pub use sand_components::{ComponentContent, DatapackComponent};
     pub use sand_core::registration::{
         DatapackRegistration, FunctionTagContribution, IntoDatapack, LifecycleContribution,
     };

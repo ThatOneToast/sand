@@ -224,6 +224,10 @@ fn objective_definition(mut command: &str) -> Option<(&str, &str)> {
             (Some("execute"), _, _, _, _) => {
                 command = sand_commands::render::collected_execute_command(command)?
             }
+            (Some("return"), Some("run"), _, _, _) => {
+                let tail = command.trim_start().strip_prefix("return")?.trim_start();
+                command = tail.strip_prefix("run")?.trim_start();
+            }
             _ => return None,
         }
     }
@@ -294,6 +298,10 @@ mod tests {
     #[test]
     fn objective_discovery_respects_execute_argument_boundaries() {
         for command in [
+            "return run scoreboard objectives add shared trigger",
+            "execute as @s run return run scoreboard objectives add shared trigger",
+            "return run execute as @s run return run scoreboard objectives add shared trigger",
+            "  return  run  scoreboard objectives add shared trigger",
             "execute as run run scoreboard objectives add shared trigger",
             "execute if score @s run matches 0 run scoreboard objectives add shared trigger",
             "execute store result score @s run run scoreboard objectives add shared trigger",

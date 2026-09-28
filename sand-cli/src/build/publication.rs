@@ -102,7 +102,15 @@ fn publish_with_install(
                 break;
             }
             ensure!(
-                !ancestor.exists() || ancestor.is_dir(),
+                !ancestor.exists()
+                    || ancestor.is_dir()
+                    || ancestor
+                        .strip_prefix(&destination)
+                        .ok()
+                        .and_then(Path::to_str)
+                        .is_some_and(
+                            |path| previous.contains_key(path) && !resources.contains_key(path)
+                        ),
                 "output parent is not a directory: {}",
                 ancestor.display()
             );
@@ -119,10 +127,12 @@ fn publish_with_install(
             copy_tree(&destination, &stage)?;
         }
         let mut manifest = OutputManifest::load(&stage);
+        let removed = manifest.prune_stale(&resources.keys().cloned().collect())?;
         for (path, bytes) in resources {
             manifest.write_if_changed(path, bytes)?;
         }
-        let summary = manifest.finish()?;
+        let mut summary = manifest.finish()?;
+        summary.removed += removed;
         let had_previous = destination.exists();
         if had_previous {
             std::fs::rename(&destination, &backup).context("back up previous pack")?;
@@ -189,15 +199,18 @@ fn copy_tree(source: &Path, destination: &Path) -> Result<()> {
             std::fs::create_dir(&target)?;
         } else {
             ensure!(entry.file_type().is_file(), "output changed during staging");
-            std::fs::copy(entry.path(), &target).context("copy existing output file")?;
-            // Preserve unchanged files' timestamps without hard links: staged
-            // writes must never mutate the currently published pack.
-            let metadata = entry.metadata()?;
-            let times = std::fs::FileTimes::new().set_modified(metadata.modified()?);
-            std::fs::OpenOptions::new()
+            let mut source_file = std::fs::File::open(entry.path())?;
+            let metadata = source_file.metadata()?;
+            let mut target_file = std::fs::OpenOptions::new()
                 .write(true)
-                .open(&target)?
-                .set_times(times)?;
+                .create_new(true)
+                .open(&target)?;
+            std::io::copy(&mut source_file, &mut target_file)
+                .context("copy existing output file")?;
+            // Apply metadata while the writable creation handle is still open,
+            // before restoring permissions that may make the copy read-only.
+            target_file.set_times(std::fs::FileTimes::new().set_modified(metadata.modified()?))?;
+            target_file.set_permissions(metadata.permissions())?;
         }
     }
     Ok(())
@@ -244,6 +257,62 @@ mod tests {
                 .modified()
                 .unwrap()
         );
+    }
+
+    #[test]
+    fn managed_file_can_become_a_directory_without_changing_pack_on_failure() {
+        let temp = tempfile::tempdir_in(std::env::temp_dir().canonicalize().unwrap()).unwrap();
+        let pack = temp.path().join("pack");
+        let old = resources(&[("data/demo/function/foo.mcfunction", "say old")]);
+        let new = resources(&[(
+            "data/demo/function/foo.mcfunction/bar.mcfunction",
+            "say new",
+        )]);
+        publish_pack(&pack, &old).unwrap();
+        let manifest = std::fs::read(pack.join(MANIFEST_FILE_NAME)).unwrap();
+        assert!(
+            publish_with_install(&pack, &new, |stage, _| {
+                assert_eq!(
+                    std::fs::read(stage.join(new.keys().next().unwrap()))?,
+                    b"say new"
+                );
+                anyhow::bail!("injected failure")
+            })
+            .is_err()
+        );
+        assert_eq!(
+            std::fs::read(pack.join(old.keys().next().unwrap())).unwrap(),
+            b"say old"
+        );
+        assert_eq!(
+            std::fs::read(pack.join(MANIFEST_FILE_NAME)).unwrap(),
+            manifest
+        );
+        let summary = publish_pack(&pack, &new).unwrap();
+        assert_eq!(summary.removed, 1);
+        assert_eq!(summary.written, 1);
+        assert_eq!(
+            std::fs::read(pack.join(new.keys().next().unwrap())).unwrap(),
+            b"say new"
+        );
+    }
+
+    #[test]
+    fn rebuild_preserves_read_only_unrelated_files_and_their_metadata() {
+        let temp = tempfile::tempdir_in(std::env::temp_dir().canonicalize().unwrap()).unwrap();
+        let pack = temp.path().join("pack");
+        publish_pack(&pack, &resources(&[("owned", "one")])).unwrap();
+        let note = pack.join("notes");
+        std::fs::write(&note, b"keep").unwrap();
+        let mut permissions = std::fs::metadata(&note).unwrap().permissions();
+        permissions.set_readonly(true);
+        std::fs::set_permissions(&note, permissions).unwrap();
+        let before = std::fs::metadata(&note).unwrap();
+        publish_pack(&pack, &resources(&[("owned", "two")])).unwrap();
+        assert_eq!(std::fs::read(&note).unwrap(), b"keep");
+        let after = std::fs::metadata(&note).unwrap();
+        assert_eq!(after.modified().unwrap(), before.modified().unwrap());
+        assert_eq!(after.permissions(), before.permissions());
     }
 
     #[test]
@@ -355,7 +424,8 @@ mod tests {
         let pack = temp.path().join("pack");
         publish_pack(&pack, &resources(&[("owned", "one")])).unwrap();
         assert!(publish_pack(&pack, &resources(&[("a", "one"), ("a/b", "two")])).is_err());
-        assert!(publish_pack(&pack, &resources(&[("owned/child", "two")])).is_err());
+        std::fs::write(pack.join("unmanaged"), b"mine").unwrap();
+        assert!(publish_pack(&pack, &resources(&[("unmanaged/child", "two")])).is_err());
         assert_eq!(std::fs::read(pack.join("owned")).unwrap(), b"one");
     }
 

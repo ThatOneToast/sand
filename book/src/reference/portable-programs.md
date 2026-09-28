@@ -54,7 +54,8 @@ compared score.
 
 Function references explicitly distinguish internal declarations from external
 functions. Internal references resolve across the complete program; external
-references declare a context requirement, but Sand cannot prove their existence
+references must not alias locally declared functions. They declare a context
+requirement, but Sand cannot prove their existence
 or behavior. A server body cannot access player self or call a player function
 until iteration establishes player context.
 

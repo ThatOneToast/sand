@@ -314,7 +314,17 @@ impl Validator<'_, '_> {
             FunctionReference::Internal { id } => {
                 (id, self.functions.get(&id.to_string()).copied())
             }
-            FunctionReference::External { id, context } => (id, Some(*context)),
+            FunctionReference::External { id, context } => {
+                if self.functions.contains_key(&id.to_string()) {
+                    self.errors.push(Diagnostic::error(
+                        "SAND_PROGRAM_REFERENCE",
+                        owner,
+                        ptr,
+                        "external function reference resolves to a declared internal function",
+                    ));
+                }
+                (id, Some(*context))
+            }
         };
         if !valid_id(id) || id.path().starts_with("__sand_") {
             self.errors.push(Diagnostic::error(

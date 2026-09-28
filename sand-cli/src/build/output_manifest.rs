@@ -18,7 +18,7 @@
 //! extra writes. Stale deletion additionally requires a matching on-disk hash.
 //! Transaction publication uses strict manifest loading and conflict checks.
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};
 
 use anyhow::{Context, Result, bail, ensure};
@@ -131,19 +131,11 @@ impl OutputManifest {
         Ok(true)
     }
 
-    /// Removes files the previous manifest tracked that were not written
-    /// this build (no longer generated), then atomically publishes the new
-    /// manifest. Returns a summary for diagnostics.
-    ///
-    /// Files this manifest never knew about (e.g. hand-placed by the user
-    /// next to generated output, or written before manifests existed) are
-    /// left alone — only previously-tracked, now-untracked entries are
-    /// removed. That keeps a first build after introducing manifests safe:
-    /// it cannot delete anything it didn't itself write and later drop.
-    pub fn finish(self) -> Result<ChangeSummary> {
+    /// Removes verified stale files before new paths can reuse them as directories.
+    pub(super) fn prune_stale(&mut self, retained: &BTreeSet<String>) -> Result<usize> {
         let mut removed = 0usize;
         for rel_path in self.previous.keys() {
-            if self.current.contains_key(rel_path) {
+            if retained.contains(rel_path) {
                 continue;
             }
             let path = self.root.join(rel_path);
@@ -159,6 +151,22 @@ impl OutputManifest {
             }
             removed += 1;
         }
+
+        self.previous.retain(|path, _| retained.contains(path));
+        Ok(removed)
+    }
+
+    /// Removes files the previous manifest tracked that were not written
+    /// this build (no longer generated), then atomically publishes the new
+    /// manifest. Returns a summary for diagnostics.
+    ///
+    /// Files this manifest never knew about (e.g. hand-placed by the user
+    /// next to generated output, or written before manifests existed) are
+    /// left alone — only previously-tracked, now-untracked entries are
+    /// removed. That keeps a first build after introducing manifests safe:
+    /// it cannot delete anything it didn't itself write and later drop.
+    pub fn finish(mut self) -> Result<ChangeSummary> {
+        let removed = self.prune_stale(&self.current.keys().cloned().collect())?;
 
         // `written` is exactly what write_if_changed recorded as actually
         // written this invocation -- never recomputed from hash comparison,

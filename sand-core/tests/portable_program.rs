@@ -365,3 +365,46 @@ fn input_and_generated_output_limits_fail_before_publication() {
     assert_eq!(error.code, "SAND_PROGRAM_LIMIT");
     assert!(error.message.contains("generated output"));
 }
+
+#[test]
+fn external_references_cannot_alias_declared_functions() {
+    for context in [ExecutionContext::Server, ExecutionContext::Player] {
+        let reference = FunctionReference::External {
+            id: "demo:increment".parse().unwrap(),
+            context,
+        };
+        for entry in ["call", "load", "tick", "custom"] {
+            let mut program = counter();
+            let pointer = if entry == "call" {
+                program.modules[0].functions[0].body = vec![Operation {
+                    action: Action::Call {
+                        function: reference.clone(),
+                    },
+                    origin: Some(serde_json::json!({"node":"alias"})),
+                }];
+                "/functions/0/body/0/action/function"
+            } else {
+                let tag = match entry {
+                    "load" => "minecraft:load",
+                    "tick" => "minecraft:tick",
+                    _ => "demo:custom",
+                };
+                program.modules[0].tags = vec![TagMembership {
+                    tag: tag.parse().unwrap(),
+                    function: reference.clone(),
+                }];
+                "/tags/0/function"
+            };
+            let errors = Compiler::check(&program).unwrap_err();
+            let error = errors
+                .iter()
+                .find(|error| error.code == "SAND_PROGRAM_REFERENCE")
+                .unwrap();
+            assert_eq!(error.module, "demo:counter_module");
+            assert_eq!(error.pointer, pointer);
+            if entry == "call" {
+                assert_eq!(error.origin.as_ref().unwrap()["node"], "alias");
+            }
+        }
+    }
+}

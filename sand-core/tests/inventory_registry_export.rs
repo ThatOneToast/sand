@@ -51,7 +51,7 @@ fn raw_line_pack_body() -> Vec<String> {
 }
 
 sand_core::inventory::submit! {
-    FunctionDescriptor { path: "raw_line", make: raw_line_pack_body }
+    FunctionDescriptor { context: sand::advanced::compiler::ExecutionContext::Server, path: "raw_line", make: raw_line_pack_body }
 }
 
 #[test]

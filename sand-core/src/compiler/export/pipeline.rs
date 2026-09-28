@@ -41,7 +41,6 @@ use super::records::{
     validate_objective_definitions, validate_unique_output_identities,
 };
 use super::schedules::emit_schedule_records;
-use super::tags::{dedupe_preserve_order, sort_function_tag_entries};
 use std::sync::{Arc, Mutex};
 
 /// Process-global lock guarding the panic-hook swap in
@@ -203,6 +202,7 @@ pub(crate) fn try_export_components_impl(
     let _dialog_callback_reset = DialogCallbackExportReset;
 
     let mut records: Vec<ComponentRecord> = Vec::new();
+    let mut function_contexts = BTreeMap::new();
     let mut tag_map: BTreeMap<String, Vec<String>> = BTreeMap::new();
     let mut registration_load_commands: Vec<(String, usize, String)> = Vec::new();
     let mut registration_tick_commands: Vec<(String, usize, String)> = Vec::new();
@@ -210,6 +210,7 @@ pub(crate) fn try_export_components_impl(
 
     // ── FunctionDescriptors ───────────────────────────────────────────────────
     for desc in inventory::iter::<FunctionDescriptor>() {
+        function_contexts.insert(format!("{namespace}:{}", desc.path), desc.context);
         let commands = (desc.make)();
         records.push(ComponentRecord {
             namespace: namespace.to_string(),
@@ -2544,173 +2545,18 @@ pub(crate) fn try_export_components_impl(
             .player_tick_commands
             .extend(transition_plan.tick_commands);
         let transition_global_tick_commands = transition_plan.global_tick_commands;
-        registration_load_commands
-            .sort_by(|left, right| left.0.cmp(&right.0).then_with(|| left.1.cmp(&right.1)));
-        registration_tick_commands
-            .sort_by(|left, right| left.0.cmp(&right.0).then_with(|| left.1.cmp(&right.1)));
-
-        let mut load_definitions: BTreeMap<String, (String, String, String)> = BTreeMap::new();
-        for command in automatic.load_commands {
-            let mut parts = command.splitn(6, ' ');
-            let parsed = match (
-                parts.next(),
-                parts.next(),
-                parts.next(),
-                parts.next(),
-                parts.next(),
-                parts.next(),
-            ) {
-                (
-                    Some("scoreboard"),
-                    Some("objectives"),
-                    Some("add"),
-                    Some(objective),
-                    Some(criterion),
-                    display_name,
-                ) if display_name
-                    .is_none_or(|json| serde_json::from_str::<serde_json::Value>(json).is_ok()) =>
-                {
-                    Some((objective.to_string(), criterion.to_string()))
-                }
-                _ => None,
-            };
-
-            if let Some((objective, criterion)) = parsed {
-                match load_definitions.get(&objective) {
-                    Some((existing, _, _)) if existing == &criterion => {}
-                    Some((existing, _, existing_owner)) => {
-                        return Err(lifecycle_export_error(format!(
-                            "conflicting objective `{objective}`: `{existing_owner}` declares criterion `{existing}`, while automatic state lifecycle declares `{criterion}`"
-                        )));
-                    }
-                    None => {
-                        load_definitions.insert(
-                            objective,
-                            (criterion, command, "automatic state lifecycle".to_string()),
-                        );
-                    }
-                }
-            } else {
-                return Err(lifecycle_export_error(format!(
-                    "invalid registered load command `{command}`"
-                )));
-            }
-        }
-        let mut registration_definitions: BTreeMap<String, (String, String)> = load_definitions
-            .iter()
-            .map(|(objective, (criterion, _, owner))| {
-                (objective.clone(), (criterion.clone(), owner.clone()))
-            })
-            .collect();
-        let mut load_cmds: Vec<String> = load_definitions
-            .into_values()
-            .map(|(_, command, _)| command)
-            .collect();
-        for (owner, _, command) in registration_load_commands {
-            let mut parts = command.splitn(6, ' ');
-            let parsed = match (
-                parts.next(),
-                parts.next(),
-                parts.next(),
-                parts.next(),
-                parts.next(),
-                parts.next(),
-            ) {
-                (
-                    Some("scoreboard"),
-                    Some("objectives"),
-                    Some("add"),
-                    Some(objective),
-                    Some(criterion),
-                    None,
-                ) => Some((objective.to_string(), criterion.to_string())),
-                _ => None,
-            };
-
-            if let Some((objective, criterion)) = parsed {
-                match registration_definitions.get(&objective) {
-                    Some((existing, _)) if existing == &criterion => {}
-                    Some((existing, existing_owner)) => {
-                        return Err(lifecycle_export_error(format!(
-                            "conflicting objective `{objective}`: `{existing_owner}` declares criterion `{existing}`, while `{owner}` declares `{criterion}`"
-                        )));
-                    }
-                    None => {
-                        registration_definitions.insert(objective, (criterion, owner));
-                    }
-                }
-            }
-            load_cmds.push(command);
-        }
-        load_cmds.append(&mut automatic.provision_commands);
-        load_cmds.append(&mut automatic.global_init_commands);
-        if !load_cmds.is_empty() {
-            let path = "__sand_lifecycle_load";
-            ensure_private_lifecycle_path_available(&records, path)?;
-            records.push(ComponentRecord {
-                namespace: namespace.to_string(),
-                dir: "function".to_string(),
-                path: path.to_string(),
-                ext: "mcfunction".to_string(),
-                content_type: "text".to_string(),
-                content: load_cmds.join("\n"),
-            });
-            tag_map
-                .entry("minecraft:load".to_string())
-                .or_default()
-                .push(format!("{namespace}:{path}"));
-        }
-
-        let init_path = "__sand_lifecycle_init";
-        if !automatic.player_init_commands.is_empty() {
-            ensure_private_lifecycle_path_available(&records, init_path)?;
-            records.push(ComponentRecord {
-                namespace: namespace.to_string(),
-                dir: "function".to_string(),
-                path: init_path.to_string(),
-                ext: "mcfunction".to_string(),
-                content_type: "text".to_string(),
-                content: automatic.player_init_commands.join("\n"),
-            });
-        }
-
-        let mut tick_cmds = Vec::new();
-        if !automatic.player_init_commands.is_empty() {
-            tick_cmds.push(format!(
-                "execute as @a run function {namespace}:{init_path}"
-            ));
-        }
-        tick_cmds.extend(
-            automatic
-                .player_tick_commands
-                .into_iter()
-                .map(|command| format!("execute as @a run {command}")),
-        );
-        tick_cmds.extend(automatic.entity_tick_commands);
-        tick_cmds.extend(automatic.global_tick_commands);
-        tick_cmds.extend(transition_global_tick_commands);
-        tick_cmds.extend(
-            registration_tick_commands
-                .into_iter()
-                .map(|(_, _, command)| command),
-        );
-        if !tick_cmds.is_empty() {
-            let path = "__sand_lifecycle_tick";
-            ensure_private_lifecycle_path_available(&records, path)?;
-            records.push(ComponentRecord {
-                namespace: namespace.to_string(),
-                dir: "function".to_string(),
-                path: path.to_string(),
-                ext: "mcfunction".to_string(),
-                content_type: "text".to_string(),
-                content: tick_cmds.join("\n"),
-            });
-            tag_map
-                .entry("minecraft:tick".to_string())
-                .or_default()
-                .push(format!("{namespace}:{path}"));
-        }
+        super::lifecycle::assemble_lifecycle(
+            namespace,
+            &mut records,
+            &mut tag_map,
+            automatic,
+            registration_load_commands,
+            registration_tick_commands,
+            transition_global_tick_commands,
+        )?;
     }
+
+    super::lifecycle::initialize_player_entries(&mut records, &function_contexts, namespace);
 
     // ── Dynamic anonymous functions (branches from all make() calls above) ───
     // Must run AFTER every desc.make() call so branches registered by event
@@ -2737,31 +2583,7 @@ pub(crate) fn try_export_components_impl(
         })
         .collect();
     user_tag_entries.append(&mut registration_tag_entries);
-    sort_function_tag_entries(&mut user_tag_entries);
-    for (tag, function) in user_tag_entries {
-        tag_map.entry(tag).or_default().push(function);
-    }
-
-    // ── Finalize tag_map → records ────────────────────────────────────────────
-    for (tag_rl, values) in tag_map {
-        let (tag_ns, tag_path) = match tag_rl.split_once(':') {
-            Some((ns, path)) => (ns.to_string(), path.to_string()),
-            None => (namespace.to_string(), tag_rl.clone()),
-        };
-        // Registration can reach the same lifecycle tag through multiple
-        // framework paths. Preserve first-seen execution order while emitting
-        // each function reference only once.
-        let values = dedupe_preserve_order(values);
-        let json = serde_json::json!({ "values": values });
-        records.push(ComponentRecord {
-            namespace: tag_ns,
-            dir: "tags/function".to_string(),
-            path: tag_path,
-            ext: "json".to_string(),
-            content_type: "text".to_string(),
-            content: serde_json::to_string_pretty(&json).unwrap(),
-        });
-    }
+    super::tags::assemble_tags(namespace, &mut records, tag_map, user_tag_entries);
 
     // ── Resolve local sentinels → real namespace ──────────────────────────────
     // Sentinel patterns written by Sand-generated code:

@@ -138,19 +138,23 @@ pub enum StateFieldKind {
     path = "sand::entity::StateFieldDescriptor",
     aliases = ["sand::prelude::StateFieldDescriptor"],
     module = "sand::entity",
-    summary = "Static metadata for one schema field.",
-    context = "Static metadata for one schema field. This declaration belongs to Sand's typed entity model. Semantic definitions are public; selector rendering, validation bookkeeping, and compiler lowering remain internal.",
+    summary = "Borrowed metadata for one schema field.",
+    context = "Borrowed metadata for one schema field. This declaration belongs to Sand's typed entity model. Semantic definitions are public; selector rendering, validation bookkeeping, and compiler lowering remain internal.",
     minecraft = "Sand validates this definition and lowers it to entity-scoped selectors, scoreboards, NBT operations, and generated lifecycle functions as required.",
     use_when = ["Defining or using typed entity behavior in a Sand datapack"],
     avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
     example = "use sand::entity::StateFieldDescriptor;",
     fields(bounds = "Optional inclusive bounds.", default = "Initial score assigned only when the value is missing.", kind = "Storage/behavior family.", name = "Rust-facing field name."),
 )]
-/// Static metadata for one schema field.
+/// Borrowed metadata for one schema field.
+///
+/// Derived Rust schemas use static field names; compiler-owned definitions may
+/// borrow their names for the duration of a lowering pass. The lifetime does
+/// not change field initialization, bounds, or storage behavior.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct StateFieldDescriptor {
+pub struct StateFieldDescriptor<'a> {
     /// Rust-facing field name.
-    pub name: &'static str,
+    pub name: &'a str,
     /// Storage/behavior family.
     pub kind: StateFieldKind,
     /// Initial score assigned only when the value is missing.
@@ -159,7 +163,7 @@ pub struct StateFieldDescriptor {
     pub bounds: Option<(i32, i32)>,
 }
 
-impl StateFieldDescriptor {
+impl<'a> StateFieldDescriptor<'a> {
     /// Construct field metadata.
     #[sand_macros::api(
         registry = sand_api_contract,
@@ -178,7 +182,7 @@ impl StateFieldDescriptor {
     )]
     #[must_use]
     pub const fn new(
-        name: &'static str,
+        name: &'a str,
         kind: StateFieldKind,
         default: i32,
         bounds: Option<(i32, i32)>,
@@ -215,7 +219,7 @@ pub struct StateSchema {
     /// Current version; zero is reserved for an uninitialized entity.
     pub version: u32,
     /// Fields in source declaration order.
-    pub fields: &'static [StateFieldDescriptor],
+    pub fields: &'static [StateFieldDescriptor<'static>],
 }
 
 impl StateSchema {
@@ -943,7 +947,7 @@ pub trait EntityStateField: Copy + 'static {
         returns = "The `StateFieldDescriptor` value produced to static field metadata.",
         example = "use sand::prelude::*;\n\nfn demonstrate<T: sand::entity::EntityStateField>(entity_state_field_value: T)  {\n    let descriptor = entity_state_field_value.descriptor();\n}",
     )]
-    fn descriptor(self) -> StateFieldDescriptor;
+    fn descriptor(self) -> StateFieldDescriptor<'static>;
 
     /// Stable identity of the State component that owns this field.
     #[sand_macros::api(
@@ -1069,7 +1073,7 @@ pub struct StateFieldReference {
     pub(crate) field: String,
     pub(crate) objective: String,
     pub(crate) dirty_objective: String,
-    pub(crate) descriptor: StateFieldDescriptor,
+    pub(crate) descriptor: StateFieldDescriptor<'static>,
 }
 
 /// A State field whose value participates in logical numeric expressions.
@@ -1285,7 +1289,7 @@ impl StatePredicate {
 pub struct EntityScore<T = i32> {
     namespace: &'static str,
     schema: &'static str,
-    descriptor: StateFieldDescriptor,
+    descriptor: StateFieldDescriptor<'static>,
     _marker: PhantomData<fn() -> T>,
 }
 
@@ -1326,7 +1330,7 @@ pub type Score = EntityScore<i32>;
 pub struct FixedScore {
     namespace: &'static str,
     schema: &'static str,
-    descriptor: StateFieldDescriptor,
+    descriptor: StateFieldDescriptor<'static>,
     scale: i32,
 }
 
@@ -1419,7 +1423,7 @@ impl FixedScore {
 impl EntityStateField for FixedScore {
     type Accessor = FixedScoreAccessor;
 
-    fn descriptor(self) -> StateFieldDescriptor {
+    fn descriptor(self) -> StateFieldDescriptor<'static> {
         self.descriptor
     }
 
@@ -1801,7 +1805,7 @@ impl<T: 'static> EntityScore<T> {
 
 impl<T: 'static> EntityStateField for EntityScore<T> {
     type Accessor = EntityScoreAccessor<T>;
-    fn descriptor(self) -> StateFieldDescriptor {
+    fn descriptor(self) -> StateFieldDescriptor<'static> {
         self.descriptor
     }
     fn component_id(self) -> String {
@@ -2040,7 +2044,7 @@ impl EntityScoreValue {
 pub struct EntityFlag {
     namespace: &'static str,
     schema: &'static str,
-    descriptor: StateFieldDescriptor,
+    descriptor: StateFieldDescriptor<'static>,
 }
 
 #[sand_macros::api(registry = sand_api_contract, path = "sand::entity::Flag", aliases = ["sand::prelude::Flag"], module = "sand::entity", summary = "Canonical boolean field marker for #[derive(State)] declarations.", context = "The State derive turns this declaration marker into a scoped EntityFlag handle.", minecraft = "Lowers to a zero-or-one scoreboard field in the derived schema.", use_when = ["Declaring boolean gameplay state"], avoid_when = ["Managing a standalone scoreboard flag; use sand::advanced::state::Flag"], example = "#[derive(State)] struct Combat { active: Flag }")]
@@ -2125,7 +2129,7 @@ impl EntityFlag {
 
 impl EntityStateField for EntityFlag {
     type Accessor = EntityFlagAccessor;
-    fn descriptor(self) -> StateFieldDescriptor {
+    fn descriptor(self) -> StateFieldDescriptor<'static> {
         self.descriptor
     }
     fn component_id(self) -> String {
@@ -2267,7 +2271,7 @@ impl EntityFlagAccessor {
 pub struct EntityEnum<T: EntityEnumValue> {
     namespace: &'static str,
     schema: &'static str,
-    descriptor: StateFieldDescriptor,
+    descriptor: StateFieldDescriptor<'static>,
     _marker: PhantomData<fn() -> T>,
 }
 
@@ -2747,7 +2751,7 @@ impl<T: EntityEnumValue> EntityEnum<T> {
 
 impl<T: EntityEnumValue> EntityStateField for EntityEnum<T> {
     type Accessor = EntityEnumAccessor<T>;
-    fn descriptor(self) -> StateFieldDescriptor {
+    fn descriptor(self) -> StateFieldDescriptor<'static> {
         self.descriptor
     }
     fn component_id(self) -> String {
@@ -2865,7 +2869,7 @@ impl<T: EntityEnumValue> EntityEnumAccessor<T> {
 pub struct EntityTimer {
     namespace: &'static str,
     schema: &'static str,
-    descriptor: StateFieldDescriptor,
+    descriptor: StateFieldDescriptor<'static>,
 }
 
 #[sand_macros::api(registry = sand_api_contract, path = "sand::entity::Timer", aliases = ["sand::prelude::Timer"], module = "sand::entity", summary = "Canonical timer field marker for #[derive(State)] declarations.", context = "The State derive turns this declaration marker into a scoped EntityTimer handle.", minecraft = "Lowers to a non-negative auto-tickable scoreboard field.", use_when = ["Declaring timer gameplay state"], avoid_when = ["Managing a standalone timer; use sand::advanced::state::Timer"], example = "#[derive(State)] struct Combat { elapsed: Timer }")]
@@ -2930,7 +2934,7 @@ impl EntityTimer {
 
 impl EntityStateField for EntityTimer {
     type Accessor = EntityTimerAccessor;
-    fn descriptor(self) -> StateFieldDescriptor {
+    fn descriptor(self) -> StateFieldDescriptor<'static> {
         self.descriptor
     }
     fn component_id(self) -> String {
@@ -3140,7 +3144,7 @@ impl EntityCooldown {
 
 impl EntityStateField for EntityCooldown {
     type Accessor = EntityCooldownAccessor;
-    fn descriptor(self) -> StateFieldDescriptor {
+    fn descriptor(self) -> StateFieldDescriptor<'static> {
         self.0.descriptor
     }
     fn component_id(self) -> String {

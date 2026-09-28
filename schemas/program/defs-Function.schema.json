@@ -1,0 +1,28 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "An explicitly named function with an ordered typed body.",
+  "properties": {
+    "body": {
+      "description": "Operations execute in authored order.",
+      "items": {
+        "$ref": "defs-Operation.schema.json"
+      },
+      "type": "array"
+    },
+    "context": {
+      "$ref": "defs-ExecutionContext.schema.json",
+      "description": "Executor context required by every caller."
+    },
+    "id": {
+      "description": "Explicit namespaced function identity.",
+      "type": "string"
+    }
+  },
+  "required": [
+    "id",
+    "context",
+    "body"
+  ],
+  "type": "object"
+}

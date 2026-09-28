@@ -1,0 +1,16 @@
+{
+  "id": "demo:state_module",
+  "states": [
+    {
+      "id": "demo:counter",
+      "scope": "player",
+      "revision": 1,
+      "fields": [
+        {
+          "name": "value",
+          "default": 0
+        }
+      ]
+    }
+  ]
+}

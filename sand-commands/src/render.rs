@@ -19,6 +19,15 @@ pub fn validate_collected_line(line: &str, profile: &CommandProfile) -> CommandR
     crate::display::validate_registered_line(line, profile)?;
     crate::text::validate_registered_line(line, profile)?;
     crate::effect::validate_registered_line(line, profile)?;
+    validate_standalone_line(line, profile)
+}
+
+/// Validate line integrity and supported syntax without consulting Rust's
+/// export-scoped typed-node registries. Owned compiler backends validate their
+/// typed nodes directly before using this final text boundary; explicit raw
+/// operations receive only these documented syntactic checks.
+pub fn validate_standalone_line(line: &str, profile: &CommandProfile) -> CommandResult<String> {
+    validate_line_integrity(line)?;
     let trimmed = line.trim_start();
     if trimmed.starts_with('$') {
         return Ok(line.to_string());

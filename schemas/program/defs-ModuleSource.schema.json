@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "anyOf": [
+    {
+      "$ref": "defs-Module.schema.json",
+      "description": "A module embedded in the envelope."
+    },
+    {
+      "description": "A path resolved by an explicit host resolver.",
+      "type": "string"
+    }
+  ],
+  "description": "An embedded module or a manifest-relative local module document path."
+}

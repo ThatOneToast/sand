@@ -1,0 +1,422 @@
+{
+  "$defs": {
+    "Action": {
+      "description": "Supported typed gameplay operations. Raw commands require explicit opt-in.",
+      "oneOf": [
+        {
+          "additionalProperties": false,
+          "description": "Assign an integer player-self State field.",
+          "properties": {
+            "op": {
+              "const": "score_set",
+              "type": "string"
+            },
+            "score": {
+              "$ref": "#/$defs/FieldReference"
+            },
+            "value": {
+              "format": "int32",
+              "type": "integer"
+            }
+          },
+          "required": [
+            "op",
+            "score",
+            "value"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "Add an integer to a player-self State field.",
+          "properties": {
+            "op": {
+              "const": "score_add",
+              "type": "string"
+            },
+            "score": {
+              "$ref": "#/$defs/FieldReference"
+            },
+            "value": {
+              "format": "int32",
+              "type": "integer"
+            }
+          },
+          "required": [
+            "op",
+            "score",
+            "value"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "Evaluate the comparison once and execute exactly one ordered body.",
+          "properties": {
+            "condition": {
+              "$ref": "#/$defs/ScoreComparison"
+            },
+            "op": {
+              "const": "branch",
+              "type": "string"
+            },
+            "otherwise": {
+              "default": [],
+              "items": {
+                "$ref": "#/$defs/Operation"
+              },
+              "type": "array"
+            },
+            "then": {
+              "items": {
+                "$ref": "#/$defs/Operation"
+              },
+              "type": "array"
+            }
+          },
+          "required": [
+            "op",
+            "condition",
+            "then"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "Execute the body as each player without changing positional context.",
+          "properties": {
+            "body": {
+              "items": {
+                "$ref": "#/$defs/Operation"
+              },
+              "type": "array"
+            },
+            "op": {
+              "const": "players",
+              "type": "string"
+            }
+          },
+          "required": [
+            "op",
+            "body"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "Invoke a named function with a checked execution-context requirement.",
+          "properties": {
+            "function": {
+              "$ref": "#/$defs/FunctionReference"
+            },
+            "op": {
+              "const": "call",
+              "type": "string"
+            }
+          },
+          "required": [
+            "op",
+            "function"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "Explicit escape hatch; only command-line safety and syntax are checked.",
+          "properties": {
+            "command": {
+              "type": "string"
+            },
+            "op": {
+              "const": "raw",
+              "type": "string"
+            }
+          },
+          "required": [
+            "op",
+            "command"
+          ],
+          "type": "object"
+        }
+      ]
+    },
+    "ExecutionContext": {
+      "description": "Minimum executor context required by a function or external call.",
+      "oneOf": [
+        {
+          "const": "server",
+          "description": "Does not access player self; callable in either context.",
+          "type": "string"
+        },
+        {
+          "const": "player",
+          "description": "Requires a player executor; entry initializes player State.",
+          "type": "string"
+        }
+      ]
+    },
+    "FieldReference": {
+      "additionalProperties": false,
+      "description": "A field reference binds a field identity to its declaring State.",
+      "properties": {
+        "field": {
+          "description": "Field name within that State.",
+          "type": "string"
+        },
+        "state": {
+          "description": "Declaring State identity.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "state",
+        "field"
+      ],
+      "type": "object"
+    },
+    "Function": {
+      "additionalProperties": false,
+      "description": "An explicitly named function with an ordered typed body.",
+      "properties": {
+        "body": {
+          "description": "Operations execute in authored order.",
+          "items": {
+            "$ref": "#/$defs/Operation"
+          },
+          "type": "array"
+        },
+        "context": {
+          "$ref": "#/$defs/ExecutionContext",
+          "description": "Executor context required by every caller."
+        },
+        "id": {
+          "description": "Explicit namespaced function identity.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "context",
+        "body"
+      ],
+      "type": "object"
+    },
+    "FunctionReference": {
+      "description": "A function reference distinguishes locally checked and external behavior.",
+      "oneOf": [
+        {
+          "additionalProperties": false,
+          "description": "Resolves against this complete program before emission.",
+          "properties": {
+            "id": {
+              "description": "Function identity declared in any module.",
+              "type": "string"
+            },
+            "kind": {
+              "const": "internal",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind",
+            "id"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "Explicit interoperability; existence and behavior cannot be verified.",
+          "properties": {
+            "context": {
+              "$ref": "#/$defs/ExecutionContext",
+              "description": "Context required by the external implementation."
+            },
+            "id": {
+              "description": "External function identity.",
+              "type": "string"
+            },
+            "kind": {
+              "const": "external",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind",
+            "id",
+            "context"
+          ],
+          "type": "object"
+        }
+      ]
+    },
+    "Operation": {
+      "additionalProperties": false,
+      "description": "A gameplay operation with optional host-provided source provenance.",
+      "properties": {
+        "action": {
+          "$ref": "#/$defs/Action",
+          "description": "Typed operation performed in the current executor context."
+        },
+        "origin": {
+          "description": "DSL span or editor node/port metadata; never part of resource identity."
+        }
+      },
+      "required": [
+        "action"
+      ],
+      "type": "object"
+    },
+    "ScoreComparison": {
+      "additionalProperties": false,
+      "description": "Inclusive integer comparison bounds for a player State score.",
+      "properties": {
+        "max": {
+          "description": "Inclusive upper bound; omission means unbounded above.",
+          "format": "int32",
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "min": {
+          "description": "Inclusive lower bound; omission means unbounded below.",
+          "format": "int32",
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "score": {
+          "$ref": "#/$defs/FieldReference",
+          "description": "Player-self score to compare."
+        }
+      },
+      "required": [
+        "score"
+      ],
+      "type": "object"
+    },
+    "ScoreField": {
+      "additionalProperties": false,
+      "description": "An integer State field. Defaults other than zero are not yet portable.",
+      "properties": {
+        "default": {
+          "default": 0,
+          "description": "Initial value, applied only when missing.",
+          "format": "int32",
+          "type": "integer"
+        },
+        "name": {
+          "description": "Field identity within its owning State.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "name"
+      ],
+      "type": "object"
+    },
+    "State": {
+      "additionalProperties": false,
+      "description": "Revision-one, zero-default player score State using canonical ownership.",
+      "properties": {
+        "fields": {
+          "description": "Named integer score fields.",
+          "items": {
+            "$ref": "#/$defs/ScoreField"
+          },
+          "type": "array"
+        },
+        "id": {
+          "description": "Namespaced State identity.",
+          "type": "string"
+        },
+        "revision": {
+          "description": "State schema revision, currently 1; distinct from protocol revision.",
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "scope": {
+          "description": "Must be `player` in protocol v1.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "scope",
+        "revision",
+        "fields"
+      ],
+      "type": "object"
+    },
+    "TagMembership": {
+      "additionalProperties": false,
+      "description": "A typed membership edge; load/tick tags require server-callable functions.",
+      "properties": {
+        "function": {
+          "$ref": "#/$defs/FunctionReference",
+          "description": "Internal or external member function."
+        },
+        "tag": {
+          "description": "Function tag identity.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "tag",
+        "function"
+      ],
+      "type": "object"
+    }
+  },
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "One named owner of declarations and ordered lifecycle contributions.",
+  "properties": {
+    "functions": {
+      "description": "Named functions, including declarations unreachable from tags.",
+      "items": {
+        "$ref": "#/$defs/Function"
+      },
+      "type": "array"
+    },
+    "id": {
+      "description": "Explicit semantic identity, independent of source filename.",
+      "type": "string"
+    },
+    "load": {
+      "description": "Server-context bodies run at load in authored order.",
+      "items": {
+        "$ref": "#/$defs/Operation"
+      },
+      "type": "array"
+    },
+    "states": {
+      "description": "Player State definitions owned by this module.",
+      "items": {
+        "$ref": "#/$defs/State"
+      },
+      "type": "array"
+    },
+    "tags": {
+      "description": "Typed function-tag membership.",
+      "items": {
+        "$ref": "#/$defs/TagMembership"
+      },
+      "type": "array"
+    },
+    "tick": {
+      "description": "Server-context bodies run each tick in authored order.",
+      "items": {
+        "$ref": "#/$defs/Operation"
+      },
+      "type": "array"
+    }
+  },
+  "required": [
+    "id"
+  ],
+  "title": "Module",
+  "type": "object"
+}

@@ -1714,6 +1714,10 @@ fn build_cmd_body(block: &syn::Block) -> syn::Result<proc_macro2::TokenStream> {
 /// uppercase letters, whitespace, and multiple colons are rejected at compile
 /// time with a diagnostic pointing at the offending literal.
 ///
+/// Add `context = player` after an explicit path to declare a player-only
+/// entry point. Sand prefixes canonical player State initialization before its
+/// body; callers must establish a player executor. The default is server context.
+///
 /// The annotated function must not take runtime arguments: its body is compiled
 /// as authoring code that produces Minecraft commands during the Sand build.
 #[proc_macro_attribute]
@@ -1723,7 +1727,7 @@ pub fn function(attr: TokenStream, item: TokenStream) -> TokenStream {
     let expected = expected_public_function(&func);
 
     match attr
-        .and_then(|path| expand_function(func, path))
+        .and_then(|(path, player)| expand_function(func, path, player))
         .and_then(|tokens| validate_preserved_public_surface(&tokens, expected).map(|()| tokens))
     {
         Ok(tokens) => tokens.into(),
@@ -1802,14 +1806,40 @@ fn validate_macro_resource_path(lit: &LitStr, context: &str) -> syn::Result<()> 
     Ok(())
 }
 
-fn parse_function_attr(attr: TokenStream) -> syn::Result<Option<String>> {
-    if attr.is_empty() {
-        return Ok(None);
-    }
-
-    let path = syn::parse::<LitStr>(attr)?;
-    validate_macro_resource_path(&path, "#[function(...)]")?;
-    Ok(Some(path.value()))
+fn parse_function_attr(attr: TokenStream) -> syn::Result<(Option<String>, bool)> {
+    use syn::parse::Parser;
+    let parser = |input: syn::parse::ParseStream| {
+        if input.is_empty() {
+            return Ok((None, false));
+        }
+        let path: LitStr = input.parse()?;
+        validate_macro_resource_path(&path, "#[function(...)]")?;
+        let mut player = false;
+        if !input.is_empty() {
+            input.parse::<syn::Token![,]>()?;
+            let key: syn::Ident = input.parse()?;
+            if key != "context" {
+                return Err(syn::Error::new_spanned(
+                    key,
+                    "expected context = player or context = server",
+                ));
+            }
+            input.parse::<syn::Token![=]>()?;
+            let value: syn::Ident = input.parse()?;
+            player = match value.to_string().as_str() {
+                "player" => true,
+                "server" => false,
+                _ => {
+                    return Err(syn::Error::new_spanned(
+                        value,
+                        "expected player or server context",
+                    ));
+                }
+            };
+        }
+        Ok((Some(path.value()), player))
+    };
+    parser.parse(attr)
 }
 
 fn function_descriptor_path(fn_name: &syn::Ident, explicit: Option<String>) -> String {
@@ -1826,7 +1856,13 @@ fn function_descriptor_path(fn_name: &syn::Ident, explicit: Option<String>) -> S
 fn expand_function(
     func: ItemFn,
     explicit_path: Option<String>,
+    player: bool,
 ) -> syn::Result<proc_macro2::TokenStream> {
+    let context = if player {
+        quote!(::sand::advanced::compiler::ExecutionContext::Player)
+    } else {
+        quote!(::sand::advanced::compiler::ExecutionContext::Server)
+    };
     let fn_name = &func.sig.ident;
     let fn_name_str = function_descriptor_path(fn_name, explicit_path.clone());
     // Store the full path (with namespace if given) for FunctionRef resolution.
@@ -1888,6 +1924,7 @@ fn expand_function(
         ::sand::__private::inventory::submit!(
             ::sand::__private::FunctionDescriptor {
                 path: #fn_name_str,
+                context: #context,
                 make: #factory_ident,
             }
         );
@@ -2133,6 +2170,7 @@ fn expand_component_tag(func: ItemFn, tag: &str) -> syn::Result<proc_macro2::Tok
         ::sand::__private::inventory::submit!(
             ::sand::__private::FunctionDescriptor {
                 path: #fn_name_str,
+                context: ::sand::advanced::compiler::ExecutionContext::Server,
                 make: #fn_make_ident,
             }
         );
@@ -3637,6 +3675,7 @@ fn expand_run_fn(input: TokenStream) -> syn::Result<proc_macro2::TokenStream> {
                     ::sand::__private::inventory::submit!(
                         ::sand::__private::FunctionDescriptor {
                             path: #path_lit,
+                            context: ::sand::advanced::compiler::ExecutionContext::Server,
                             make: #fn_ident,
                         }
                     );

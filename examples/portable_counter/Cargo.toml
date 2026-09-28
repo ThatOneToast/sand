@@ -1,0 +1,16 @@
+[package]
+name = "portable-counter"
+version = "0.0.0"
+edition = "2024"
+rust-version = "1.96.0"
+publish = false
+
+[workspace]
+
+[dependencies]
+sand = { path = "../../sand" }
+
+[[bin]]
+name = "sand_export"
+path = "src/bin/sand_export.rs"
+doc = false

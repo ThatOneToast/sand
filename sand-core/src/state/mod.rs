@@ -9,6 +9,7 @@ pub mod cooldown;
 pub mod flag;
 pub mod flow;
 pub mod lifecycle;
+pub(crate) mod owned;
 pub(crate) mod registry;
 pub mod score;
 pub mod storage;

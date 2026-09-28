@@ -24,6 +24,8 @@ struct Cli {
 
 #[derive(Subcommand)]
 enum Commands {
+    /// Compile or inspect portable gameplay programs
+    Program(sand_cli::program::ProgramArgs),
     /// Inspect Sand's supported public API contracts
     Api(api_cmd::ApiArgs),
     /// Report the current project and installed API identity for tools and agents
@@ -211,6 +213,7 @@ fn main() {
 fn run() -> Result<()> {
     let cli = Cli::parse();
     match cli.command {
+        Commands::Program(args) => sand_cli::program::run(args),
         Commands::Api(args) => api_cmd::run(args),
         Commands::Context { profile, format } => {
             let catalog = api_cmd::installed_catalog()?;

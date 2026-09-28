@@ -3400,6 +3400,7 @@ fn valid_derive_helper(
     let has = |derive: &str| context.derives.contains(derive);
     match name {
         "serde" => has("Serialize") || has("Deserialize"),
+        "schemars" => has("JsonSchema"),
         "error" => {
             has("Error")
                 && matches!(
@@ -3590,6 +3591,7 @@ fn trait_only_derive(name: &str) -> bool {
             | "Eq"
             | "Error"
             | "Hash"
+            | "JsonSchema"
             | "Ord"
             | "Parser"
             | "PartialEq"
@@ -3614,6 +3616,7 @@ fn trusted_qualified_derive(path: &syn::Path) -> bool {
             if matches!(
                 (crate_name.as_str(), name.as_str()),
                 ("serde", "Serialize" | "Deserialize")
+                    | ("schemars", "JsonSchema")
                     | ("thiserror", "Error")
                     | ("clap", "Args" | "Parser" | "Subcommand" | "ValueEnum")
                     | ("sand", "EntityStateEnum" | "SandStorage" | "State")
@@ -3657,6 +3660,7 @@ fn trusted_macro_import(name: &str, path: &[String]) -> bool {
                 && matches!(
                     (crate_name.as_str(), name),
                     ("serde", "Serialize" | "Deserialize")
+                    | ("schemars", "JsonSchema")
                         | ("thiserror", "Error")
                         | ("clap", "Args" | "Parser" | "Subcommand" | "ValueEnum")
                         | ("sand", "EntityStateEnum" | "SandStorage" | "State" | "api" | "armor_event" | "datapack_component" | "entity_archetype" | "on_event" | "function" | "custom_item" | "schedule")

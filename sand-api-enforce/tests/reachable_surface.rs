@@ -3386,3 +3386,39 @@ fn api_producing_derive_inside_generated_transcriber_requires_provider() {
         Err(ReachabilityError::InvalidApiProducerProvider { expected, .. }) if expected.is_empty()
     ));
 }
+
+#[test]
+fn json_schema_derive_is_trait_only_and_helpers_require_the_derive() {
+    for (source, valid) in [
+        (
+            "use schemars::JsonSchema; #[derive(JsonSchema)] #[schemars(deny_unknown_fields)] pub struct Input { #[schemars(with = \"String\")] pub id: String }",
+            true,
+        ),
+        (
+            "#[derive(schemars::JsonSchema)] pub struct Input { pub id: String }",
+            true,
+        ),
+        (
+            "#[schemars(deny_unknown_fields)] pub struct Input { pub id: String }",
+            false,
+        ),
+        (
+            "#[derive(untrusted::JsonSchema)] pub struct Input { pub id: String }",
+            false,
+        ),
+    ] {
+        let directory = tempfile::tempdir().unwrap();
+        let facade = directory.path().join("facade.rs");
+        fs::write(&facade, source).unwrap();
+        let graph = SurfaceGraph::load(
+            [SourceCrate {
+                name: "facade".into(),
+                root: facade,
+            }],
+            [],
+            [],
+        )
+        .unwrap();
+        assert_eq!(graph.reachable_from("facade").is_ok(), valid, "{source}");
+    }
+}

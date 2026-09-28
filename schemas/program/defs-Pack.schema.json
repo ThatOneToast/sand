@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Metadata shared by all resources in one pack.",
+  "properties": {
+    "description": {
+      "description": "Human-readable description emitted into pack.mcmeta.",
+      "type": "string"
+    },
+    "namespace": {
+      "description": "Namespace for compiler lifecycle resources.",
+      "type": "string"
+    }
+  },
+  "required": [
+    "namespace",
+    "description"
+  ],
+  "type": "object"
+}

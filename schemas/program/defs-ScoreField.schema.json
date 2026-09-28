@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "An integer State field. Defaults other than zero are not yet portable.",
+  "properties": {
+    "default": {
+      "default": 0,
+      "description": "Initial value, applied only when missing.",
+      "format": "int32",
+      "type": "integer"
+    },
+    "name": {
+      "description": "Field identity within its owning State.",
+      "type": "string"
+    }
+  },
+  "required": [
+    "name"
+  ],
+  "type": "object"
+}

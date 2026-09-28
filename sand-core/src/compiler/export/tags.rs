@@ -25,6 +25,41 @@ pub(crate) fn sort_function_tag_entries(entries: &mut [(String, String)]) {
     });
 }
 
+/// Finalize explicit tag memberships after compiler lifecycle work.
+pub(crate) fn assemble_tags(
+    namespace: &str,
+    records: &mut Vec<super::records::ComponentRecord>,
+    mut tag_map: std::collections::BTreeMap<String, Vec<String>>,
+    mut user_tag_entries: Vec<(String, String)>,
+) {
+    use super::records::ComponentRecord;
+    sort_function_tag_entries(&mut user_tag_entries);
+    for (tag, function) in user_tag_entries {
+        tag_map.entry(tag).or_default().push(function);
+    }
+
+    // ── Finalize tag_map → records ────────────────────────────────────────────
+    for (tag_rl, values) in tag_map {
+        let (tag_ns, tag_path) = match tag_rl.split_once(':') {
+            Some((ns, path)) => (ns.to_string(), path.to_string()),
+            None => (namespace.to_string(), tag_rl.clone()),
+        };
+        // Registration can reach the same lifecycle tag through multiple
+        // framework paths. Preserve first-seen execution order while emitting
+        // each function reference only once.
+        let values = dedupe_preserve_order(values);
+        let json = serde_json::json!({ "values": values });
+        records.push(ComponentRecord {
+            namespace: tag_ns,
+            dir: "tags/function".to_string(),
+            path: tag_path,
+            ext: "json".to_string(),
+            content_type: "text".to_string(),
+            content: serde_json::to_string_pretty(&json).unwrap(),
+        });
+    }
+}
+
 #[cfg(test)]
 mod tests {
     #[test]

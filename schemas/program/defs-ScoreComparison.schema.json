@@ -1,0 +1,31 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Inclusive integer comparison bounds for a player State score.",
+  "properties": {
+    "max": {
+      "description": "Inclusive upper bound; omission means unbounded above.",
+      "format": "int32",
+      "type": [
+        "integer",
+        "null"
+      ]
+    },
+    "min": {
+      "description": "Inclusive lower bound; omission means unbounded below.",
+      "format": "int32",
+      "type": [
+        "integer",
+        "null"
+      ]
+    },
+    "score": {
+      "$ref": "defs-FieldReference.schema.json",
+      "description": "Player-self score to compare."
+    }
+  },
+  "required": [
+    "score"
+  ],
+  "type": "object"
+}

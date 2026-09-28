@@ -64,3 +64,20 @@ pub fn try_export_components_json(namespace: &str, mc_version: &str) -> Result<S
         resolved.is_fallback,
     )?)
 }
+
+/// Owned program model and stateless compiler for external authoring frontends.
+///
+/// Decode strict JSON or construct a Program, then check or compile with an
+/// explicit target. Host adapters own module resolution and pack publication.
+#[api(
+    registry = sand_api_contract, path = "sand::advanced::compiler", module = "sand::advanced",
+    summary = "Compiles owned gameplay programs without Rust collection or host I/O.",
+    context = "External languages and editors submit typed programs with explicit targets and module contents.",
+    minecraft = "Returns validated deterministic datapack resources using canonical State lifecycle behavior.",
+    use_when = ["Embedding Sand in a DSL, node editor, or schema-guided tool"],
+    avoid_when = ["Ordinary Rust datapacks can use the prelude and sand build"],
+    example = "let schema = sand::advanced::compiler::Compiler::schema();"
+)]
+pub mod compiler {
+    pub use crate::compiler::program::*;
+}

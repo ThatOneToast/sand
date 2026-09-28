@@ -17,15 +17,14 @@ fn build_mcmeta(
     supported_formats: Option<PackSupportedFormats>,
     overlays: &[PackOverlay],
 ) -> serde_json::Value {
-    let mut pack = serde_json::json!({
-        "pack_format": pack_format,
-        "description": description,
-    });
+    let mut mcmeta = sand_components::pack_metadata::base(description, pack_format);
     if let Some(formats) = supported_formats {
-        pack["supported_formats"] = formats.to_json();
+        let pack = mcmeta["pack"].as_object_mut().expect("base pack object");
+        pack.remove("min_format");
+        pack.remove("max_format");
+        pack.insert("supported_formats".into(), formats.to_json());
     }
 
-    let mut mcmeta = serde_json::json!({ "pack": pack });
     if !overlays.is_empty() {
         let entries: Vec<serde_json::Value> = overlays.iter().map(PackOverlay::to_json).collect();
         mcmeta["overlays"] = serde_json::json!({ "entries": entries });
@@ -43,15 +42,7 @@ fn pack_mcmeta_bytes(
     supported_formats: Option<PackSupportedFormats>,
     overlays: &[PackOverlay],
 ) -> Result<Vec<u8>> {
-    let mut pack_body = build_mcmeta(description, pack_format, supported_formats, overlays);
-    // Vanilla requires explicit supported-format bounds for modern packs.
-    // Retain pack_format for older tooling while pinning this generated pack
-    // to the exact verified profile used by Sand, unless the project already
-    // configured its own `supported_formats`.
-    if pack_format > 81 && supported_formats.is_none() {
-        pack_body["pack"]["min_format"] = pack_format.into();
-        pack_body["pack"]["max_format"] = pack_format.into();
-    }
+    let pack_body = build_mcmeta(description, pack_format, supported_formats, overlays);
     Ok(serde_json::to_string_pretty(&pack_body)?.into_bytes())
 }
 

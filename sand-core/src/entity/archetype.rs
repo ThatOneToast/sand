@@ -2200,7 +2200,7 @@ struct ResolvedArchetypeField {
     objective: String,
     dirty_objective: String,
     component_dirty_objective: String,
-    descriptor: crate::entity::state::StateFieldDescriptor,
+    descriptor: crate::entity::state::StateFieldDescriptor<'static>,
 }
 
 struct ArchetypeFields {

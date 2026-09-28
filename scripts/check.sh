@@ -38,6 +38,9 @@ echo "=== External registration consumer (sand-only) ==="
 cargo fmt --manifest-path sand/tests/fixtures/registration/Cargo.toml -- --check
 CARGO_TARGET_DIR="$PWD/target" cargo test --locked --manifest-path sand/tests/fixtures/registration/Cargo.toml
 
+echo "=== Portable program frontends and schema drift ==="
+scripts/check-program.sh
+
 echo "=== Rustdoc ==="
 cargo doc --workspace --all-features --no-deps
 

@@ -1,0 +1,35 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Revision-one, zero-default player score State using canonical ownership.",
+  "properties": {
+    "fields": {
+      "description": "Named integer score fields.",
+      "items": {
+        "$ref": "defs-ScoreField.schema.json"
+      },
+      "type": "array"
+    },
+    "id": {
+      "description": "Namespaced State identity.",
+      "type": "string"
+    },
+    "revision": {
+      "description": "State schema revision, currently 1; distinct from protocol revision.",
+      "format": "uint32",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "scope": {
+      "description": "Must be `player` in protocol v1.",
+      "type": "string"
+    }
+  },
+  "required": [
+    "id",
+    "scope",
+    "revision",
+    "fields"
+  ],
+  "type": "object"
+}

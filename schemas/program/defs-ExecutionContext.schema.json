@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "Minimum executor context required by a function or external call.",
+  "oneOf": [
+    {
+      "const": "server",
+      "description": "Does not access player self; callable in either context.",
+      "type": "string"
+    },
+    {
+      "const": "player",
+      "description": "Requires a player executor; entry initializes player State.",
+      "type": "string"
+    }
+  ]
+}

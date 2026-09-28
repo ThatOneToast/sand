@@ -871,7 +871,7 @@ pub(crate) fn derive_state(input: DeriveInput) -> syn::Result<proc_macro2::Token
             #(#constants)*
 
             #[doc(hidden)]
-            const __SAND_LIFECYCLE_FIELDS: &'static [::sand::__private::StateLifecycleDescriptor] = &[
+            const __SAND_LIFECYCLE_FIELDS: &'static [::sand::__private::StateLifecycleDescriptor<'static>] = &[
                 #(#lifecycle_fields),*
             ];
 
@@ -887,7 +887,7 @@ pub(crate) fn derive_state(input: DeriveInput) -> syn::Result<proc_macro2::Token
 
             #fields_docs
             /// Field metadata in declaration order.
-            pub const FIELDS: &'static [::sand::__private::StateFieldDescriptor] = &[
+            pub const FIELDS: &'static [::sand::__private::StateFieldDescriptor<'static>] = &[
                 #(#descriptors),*
             ];
 

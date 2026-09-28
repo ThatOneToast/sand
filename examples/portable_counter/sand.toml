@@ -1,0 +1,4 @@
+[pack]
+namespace = "demo"
+description = "Player counter"
+mc_version = "26.2"

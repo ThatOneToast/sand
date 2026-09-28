@@ -1,0 +1,1 @@
+execute as @a run function demo:__sand_lifecycle_init

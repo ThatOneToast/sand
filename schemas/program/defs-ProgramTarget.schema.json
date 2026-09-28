@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "A target supplied explicitly by the host, never inferred from environment.",
+  "properties": {
+    "minecraft": {
+      "description": "Exact release such as `26.2`; `latest` is not portable.",
+      "type": "string"
+    }
+  },
+  "required": [
+    "minecraft"
+  ],
+  "type": "object"
+}

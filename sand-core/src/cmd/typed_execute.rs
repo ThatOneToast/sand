@@ -39,7 +39,7 @@ use crate::condition::Condition;
     aliases = ["sand::cmd::ConditionedExecute", "sand::prelude::ConditionedExecute", "sand::prelude::cmd::ConditionedExecute"],
     module = "sand::command",
     summary = "An execute chain paired with a typed [`Condition`].",
-    context = "An execute chain paired with a typed [`Condition`]. Created by [`ExecuteExt::when`] or [`ExecuteExt::unless`]. Call [`run`](ConditionedExecute::run) to finalize into `Vec<String>`.",
+    context = "An execute chain paired with a typed [`Condition`]. Created by [`ExecuteExt::when`] or [`ExecuteExt::unless`]. Call [`run`](ConditionedExecute::run) to finalize into [`Actions`](crate::cmd::Actions).",
     minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
     use_when = ["Constructing Minecraft commands through Sand's typed command model"],
     avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
@@ -48,7 +48,7 @@ use crate::condition::Condition;
 /// An execute chain paired with a typed [`Condition`].
 ///
 /// Created by [`ExecuteExt::when`] or [`ExecuteExt::unless`].
-/// Call [`run`](ConditionedExecute::run) to finalize into `Vec<String>`.
+/// Call [`run`](ConditionedExecute::run) to finalize into [`Actions`](crate::cmd::Actions).
 pub struct ConditionedExecute {
     prefix: Execute,
     cond: Condition,
@@ -142,19 +142,19 @@ impl ConditionedExecute {
 /// ```
 pub trait ExecuteExt: Sized {
     /// Attach a typed condition — returns a [`ConditionedExecute`] whose
-    /// [`run`](ConditionedExecute::run) produces `Vec<String>`.
+    /// [`run`](ConditionedExecute::run) produces [`Actions`](crate::cmd::Actions).
     #[sand_macros::api(
         registry = sand_api_contract,
         path = "sand::command::ExecuteExt::when",
         aliases = ["sand::cmd::ExecuteExt::when", "sand::prelude::ExecuteExt::when", "sand::prelude::cmd::ExecuteExt::when"],
         module = "sand::command",
-        summary = "Attach a typed condition — returns a [`ConditionedExecute`] whose [`run`](ConditionedExecute::run) produces `Vec<String>`.",
-        context = "Attach a typed condition — returns a [`ConditionedExecute`] whose [`run`](ConditionedExecute::run) produces `Vec<String>`. This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
+        summary = "Attach a typed condition — returns a [`ConditionedExecute`] whose [`run`](ConditionedExecute::run) produces [`Actions`](crate::cmd::Actions).",
+        context = "Attach a typed condition — returns a [`ConditionedExecute`] whose [`run`](ConditionedExecute::run) produces [`Actions`](crate::cmd::Actions). This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
         minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        params(cond = "`cond` provides the condition that gates the operation used to attach a typed condition — returns a [`ConditionedExecute`] whose [`run`](ConditionedExecute::run) produces `Vec<String>`."),
-        returns = "Attach a typed condition — returns a [`ConditionedExecute`] whose [`run`](ConditionedExecute::run) produces `Vec<String>`.",
+        params(cond = "`cond` provides the condition that gates the operation used to attach a typed condition — returns a [`ConditionedExecute`] whose [`run`](ConditionedExecute::run) produces [`Actions`](crate::cmd::Actions)."),
+        returns = "Attach a typed condition — returns a [`ConditionedExecute`] whose [`run`](ConditionedExecute::run) produces [`Actions`](crate::cmd::Actions).",
         example = "use sand::prelude::*;\n\nfn demonstrate<T: sand::command::ExecuteExt>(execute_ext_value: T, cond: sand::condition::Condition)  {\n    let when = execute_ext_value.when(cond);\n}",
     )]
     fn when(self, cond: Condition) -> ConditionedExecute;

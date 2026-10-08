@@ -837,6 +837,7 @@ mod tests {
             "@r",
             "@e[type=minecraft:zombie,limit=1]",
             "@p[tag=ready]",
+            r#"@e[name="Boss Mob",limit=1]"#,
         ] {
             let expression = StatCurve::from(input.bind_to(holder, false));
             let lowered = expression

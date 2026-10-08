@@ -705,6 +705,33 @@ enum SelectorArg {
     Dz(f64),
 }
 
+/// Brigadier permits a small ASCII alphabet outside quoted strings.
+fn unquoted_name_character(value: char) -> bool {
+    value.is_ascii_alphanumeric() || matches!(value, '_' | '-' | '.' | '+')
+}
+
+/// Encode a literal entity name, keeping selector punctuation inside quotes.
+fn render_name(value: &str) -> String {
+    if !value.is_empty() && value.chars().all(unquoted_name_character) {
+        value.into()
+    } else {
+        format!("\"{}\"", value.replace('\\', "\\\\").replace('"', "\\\""))
+    }
+}
+
+/// Whitespace is legal in a quoted name; control characters cannot be commands.
+fn validate_name(value: &str) -> CommandResult<()> {
+    if value.chars().any(char::is_control) {
+        Err(CommandError::new(
+            "Selector",
+            "name",
+            "entity names cannot contain control characters",
+        ))
+    } else {
+        Ok(())
+    }
+}
+
 impl fmt::Display for SelectorArg {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
@@ -712,8 +739,8 @@ impl fmt::Display for SelectorArg {
             Self::NotTag(v) => write!(f, "tag=!{v}"),
             Self::Team(v) => write!(f, "team={v}"),
             Self::NotTeam(v) => write!(f, "team=!{v}"),
-            Self::Name(v) => write!(f, "name={v}"),
-            Self::NotName(v) => write!(f, "name=!{v}"),
+            Self::Name(v) => write!(f, "name={}", render_name(v)),
+            Self::NotName(v) => write!(f, "name=!{}", render_name(v)),
             Self::Type(v) => write!(f, "type={v}"),
             Self::NotType(v) => write!(f, "type=!{v}"),
             Self::Limit(v) => write!(f, "limit={v}"),
@@ -853,13 +880,13 @@ impl Selector {
         self
     }
 
-    /// `name=<name>` — select only entities with the exact display name.
+    /// Select entities with this literal display name; quote and escape it as needed.
     pub fn name(mut self, name: impl Into<String>) -> Self {
         self.args.push(SelectorArg::Name(name.into()));
         self
     }
 
-    /// `name=!<name>` — select only entities WITHOUT the given display name.
+    /// Exclude this literal display name; quote and escape it as needed.
     pub fn not_name(mut self, name: impl Into<String>) -> Self {
         self.args.push(SelectorArg::NotName(name.into()));
         self
@@ -1245,11 +1272,11 @@ impl Validate for Selector {
                         ));
                     }
                     positive_name = true;
-                    validate::no_whitespace_or_control(v, "Selector", "name")?;
+                    validate_name(v)?;
                     ("name+", None)
                 }
                 SelectorArg::NotName(v) => {
-                    validate::no_whitespace_or_control(v, "Selector", "name")?;
+                    validate_name(v)?;
                     ("name-", None)
                 }
                 SelectorArg::Type(v) => {

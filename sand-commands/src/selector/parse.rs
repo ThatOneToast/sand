@@ -33,10 +33,10 @@ pub(super) fn selector(value: &str) -> Option<Selector> {
                 || SelectorArg::Team(value.into()),
                 |v| SelectorArg::NotTeam(v.into()),
             ),
-            "name" => negated.map_or_else(
-                || SelectorArg::Name(value.into()),
-                |v| SelectorArg::NotName(v.into()),
-            ),
+            "name" => match negated {
+                Some(value) => SelectorArg::NotName(parse_name(value)?),
+                None => SelectorArg::Name(parse_name(value)?),
+            },
             "type" => negated.map_or_else(
                 || SelectorArg::Type(value.into()),
                 |v| SelectorArg::NotType(v.into()),
@@ -67,6 +67,36 @@ pub(super) fn selector(value: &str) -> Option<Selector> {
         });
     }
     Some(selector)
+}
+
+/// Decode a complete Brigadier string into the canonical literal name.
+/// Only the active quote delimiter and backslash may be escaped.
+fn parse_name(value: &str) -> Option<String> {
+    let Some(delimiter @ ('\'' | '"')) = value.chars().next() else {
+        return value
+            .chars()
+            .all(unquoted_name_character)
+            .then(|| value.into());
+    };
+    let mut result = String::new();
+    let mut escaped = false;
+    let mut characters = value[1..].chars();
+    while let Some(character) = characters.next() {
+        if escaped {
+            if character != delimiter && character != '\\' {
+                return None;
+            }
+            result.push(character);
+            escaped = false;
+        } else if character == '\\' {
+            escaped = true;
+        } else if character == delimiter {
+            return characters.next().is_none().then_some(result);
+        } else {
+            result.push(character);
+        }
+    }
+    None
 }
 
 // Commas inside score maps, SNBT lists/compounds, and quoted strings are values,
@@ -154,5 +184,89 @@ mod tests {
                 "{value}"
             );
         }
+    }
+}
+
+#[cfg(test)]
+mod name_tests {
+    use super::*;
+    use crate::ScoreHolder;
+
+    #[test]
+    fn quoted_names_round_trip_as_canonical_literals() {
+        for (text, expected) in [
+            (
+                r#"@e[name="Boss Mob",limit=1]"#,
+                r#"@e[name="Boss Mob",limit=1]"#,
+            ),
+            (
+                "@e[name='Boss Mob',limit=1]",
+                r#"@e[name="Boss Mob",limit=1]"#,
+            ),
+            (
+                r#"@e[name=!"Friendly Mob",limit=1]"#,
+                r#"@e[name=!"Friendly Mob",limit=1]"#,
+            ),
+            (
+                r#"@e[name="Boss \"One\"\\Path",limit=1]"#,
+                r#"@e[name="Boss \"One\"\\Path",limit=1]"#,
+            ),
+            (
+                r#"@e[name="Boss,limit=20",limit=1]"#,
+                r#"@e[name="Boss,limit=20",limit=1]"#,
+            ),
+            (r#"@e[name="",limit=1]"#, r#"@e[name="",limit=1]"#),
+        ] {
+            let parsed = selector(text).unwrap();
+            parsed.validate(&CommandProfile::unprofiled()).unwrap();
+            assert_eq!(parsed.to_string(), expected);
+            ScoreHolder::compat(text.into())
+                .validate_single(&CommandProfile::unprofiled())
+                .unwrap();
+            assert_eq!(selector(expected).unwrap().to_string(), expected);
+        }
+    }
+
+    #[test]
+    fn invalid_name_strings_do_not_bypass_compatibility_validation() {
+        for text in [
+            r#"@e[name="Boss\q",limit=1]"#,
+            r#"@e[name="Boss"junk,limit=1]"#,
+            r#"@e[name="Boss,limit=1]"#,
+            "@e[name=Boss Mob,limit=1]",
+            "@e[name=\"Boss\nMob\",limit=1]",
+        ] {
+            assert!(selector(text).is_none(), "{text}");
+            assert!(
+                ScoreHolder::compat(text.into())
+                    .validate_single(&CommandProfile::unprofiled())
+                    .is_err()
+            );
+        }
+    }
+
+    #[test]
+    fn typed_names_are_literals_and_cannot_add_selector_arguments() {
+        for name in [
+            "Boss Mob",
+            "Boss,limit=20",
+            "a] run kill @a",
+            "Boss \"One\"\\Path",
+            "雪",
+        ] {
+            let target = Selector::all_entities().name(name).limit(1);
+            target.validate(&CommandProfile::unprofiled()).unwrap();
+            let rendered = target.to_string();
+            let parsed = selector(&rendered).unwrap();
+            assert_eq!(parsed.args.len(), 2);
+            assert!(matches!(&parsed.args[0], SelectorArg::Name(actual) if actual == name));
+            assert_eq!(parsed.to_string(), rendered);
+        }
+        assert!(
+            Selector::all_entities()
+                .name("bad\nname")
+                .validate(&CommandProfile::unprofiled())
+                .is_err()
+        );
     }
 }

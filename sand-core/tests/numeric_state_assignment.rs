@@ -39,6 +39,7 @@ fn assign_numbers() {
         let state = item.numbers;
         mcfunction![
             state.destination.set(state.source);
+            when(state.source.matches(0..).unwrap()).then_all(state.destination.set(state.source));
             state.result.set(StatCurve::add([
                 StatCurve::from(state.fraction),
                 StatCurve::constant(1.25),

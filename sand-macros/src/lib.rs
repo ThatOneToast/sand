@@ -563,8 +563,8 @@ pub fn state_lifecycle(attr: TokenStream, item: TokenStream) -> TokenStream {
 /// A free tick system has exactly one simply named query parameter. Write
 /// command-producing expressions as statements. The outer system body is
 /// declarative and returns nothing; an `each` or `current` closure returns the
-/// `Vec<String>` produced by typed State operations (or explicitly builds and
-/// returns one when it combines several operations). The query parameter name
+/// actions produced by typed State operations. Use `Actions` to collect several
+/// operations in one callback. The query parameter name
 /// is a reusable marker: each direct `each` or `current` operation borrows it
 /// and accepts a fresh `FnOnce` closure, so a system can issue several operations.
 /// Its name cannot be shadowed inside the system body because it identifies the typed
@@ -1008,12 +1008,12 @@ impl Fold for StateSystemQueryLowering {
         if call.method == "each" {
             syn::parse_quote_spanned! {call.method.span()=>
                 #(#attrs)*
-                ::sand::__private::lower_system_query_each::<#query_ty, _>(#arguments)
+                ::sand::__private::lower_system_query_each::<#query_ty, _, _>(#arguments)
             }
         } else {
             syn::parse_quote_spanned! {call.method.span()=>
                 #(#attrs)*
-                ::sand::__private::lower_system_query_current::<#query_ty, _>(#arguments)
+                ::sand::__private::lower_system_query_current::<#query_ty, _, _>(#arguments)
             }
         }
     }
@@ -1222,7 +1222,7 @@ fn expand_state_system_function(
         #(#registration_attrs)*
         #(#factory_lint_attrs)*
         #[doc(hidden)]
-        fn #factory() -> Vec<String> {
+        fn #factory() -> ::sand::command::Actions {
             let _: ::std::marker::PhantomData<#query_ty> = ::std::marker::PhantomData;
             #body
         }
@@ -1412,13 +1412,13 @@ fn expand_state_system_impl(
                     #[doc(hidden)]
                     #[allow(non_camel_case_types)]
                     trait #body_trait {
-                        fn make(__sand_event: #lifted_event_ty) -> Vec<String>;
+                        fn make(__sand_event: #lifted_event_ty) -> ::sand::command::Actions;
                     }
 
                     #(#registration_attrs)*
                     impl #body_trait for #self_ty {
                         #(#body_lint_attrs)*
-                        fn make(#event_argument) -> Vec<String> {
+                        fn make(#event_argument) -> ::sand::command::Actions {
                             #query_assertion
                             #event_body
                         }
@@ -1473,13 +1473,13 @@ fn expand_state_system_impl(
                 #[doc(hidden)]
                 #[allow(non_camel_case_types)]
                 trait #body_trait {
-                    fn make() -> Vec<String>;
+                    fn make() -> ::sand::command::Actions;
                 }
 
                 #(#registration_attrs)*
                 impl #body_trait for #self_ty {
                     #(#body_lint_attrs)*
-                    fn make() -> Vec<String> {
+                    fn make() -> ::sand::command::Actions {
                         ::sand::__private::assert_system_query_parameter::<#query_ty>();
                         #body
                     }
@@ -1487,7 +1487,7 @@ fn expand_state_system_impl(
 
                 #(#registration_attrs)*
                 #[doc(hidden)]
-                fn #factory() -> Vec<String> {
+                fn #factory() -> ::sand::command::Actions {
                     <#self_ty as #body_trait>::make()
                 }
                 #(#registration_attrs)*
@@ -1507,14 +1507,15 @@ fn expand_state_system_impl(
 // ── Body transformation ───────────────────────────────────────────────────────
 
 /// Convert a `#[function]` / `#[datapack_component(Tick|Load|Tag)]` block into the
-/// `Vec<String>` construction the build pipeline expects.
+/// structured `Actions` collection the build pipeline expects.
 ///
 /// All expressions — with or without a trailing `;` — and macro invocations are
 /// routed through [`IntoCommands::into_commands`](::sand::__private::IntoCommands),
 /// which accepts:
 ///
 /// - `String` / `&str` → single command
-/// - `Vec<String>` → extends with all commands (call a helper fn directly)
+/// - `Actions` → retains structured operations returned by gameplay helpers
+/// - `Vec<String>` → collects existing command text at the raw interoperability boundary
 /// - typed command builders from `sand_core::cmd` / `sand_commands`
 /// - `mcfunction![…]` → extends with all commands the macro produces for
 ///   advanced command collection
@@ -1525,7 +1526,7 @@ fn expand_state_system_impl(
 /// ```rust,ignore
 /// #[function]
 /// pub fn load() {
-///     init_scoreboards();       // fn returning Vec<String> — commands extended
+///     init_scoreboards();       // fn returning Actions — operations collected
 ///     cmd::say("pack loaded");  // typed command expression
 ///     cmd::raw("function other_pack:api/run"); // explicit escape hatch
 /// }
@@ -1553,7 +1554,7 @@ fn command_body_expr(expr: &syn::Expr) -> syn::Result<proc_macro2::TokenStream> 
         )),
         _ => Ok(quote! {
             __cmds.extend(
-                ::sand::__private::IntoCommands::into_commands(#expr)
+                [::sand::__private::IntoCommands::into_commands(#expr)]
             );
         }),
     }
@@ -1590,13 +1591,13 @@ fn build_cmd_body(block: &syn::Block) -> syn::Result<proc_macro2::TokenStream> {
                 });
             }
             // Every macro invocation goes through IntoCommands so that
-            // `mcfunction![…]` (returns Vec<String>) extends the list and
+            // `mcfunction![…]` (returns Actions) extends the list and
             // single-command macros still work.
             syn::Stmt::Macro(mac) => {
                 let inner = &mac.mac;
                 pieces.push(quote! {
                     __cmds.extend(
-                        ::sand::__private::IntoCommands::into_commands(#inner)
+                        [::sand::__private::IntoCommands::into_commands(#inner)]
                     );
                 });
             }
@@ -1604,8 +1605,7 @@ fn build_cmd_body(block: &syn::Block) -> syn::Result<proc_macro2::TokenStream> {
     }
 
     Ok(quote! {
-        let mut __cmds: ::std::vec::Vec<::std::string::String> =
-            ::std::vec::Vec::new();
+        let mut __cmds = ::sand::command::Actions::default();
         #(#pieces)*
         __cmds
     })
@@ -1838,13 +1838,13 @@ fn expand_function(
 
     Ok(quote! {
         #(#attrs)*
-        #vis fn #fn_name() -> ::std::vec::Vec<::std::string::String> {
+        #vis fn #fn_name() -> ::sand::command::Actions {
             #body
         }
 
         #[doc(hidden)]
         #[allow(dead_code)]
-        fn #factory_ident() -> ::std::vec::Vec<::std::string::String> {
+        fn #factory_ident() -> ::sand::command::Actions {
             #fn_name()
         }
 
@@ -2090,13 +2090,13 @@ fn expand_component_tag(func: ItemFn, tag: &str) -> syn::Result<proc_macro2::Tok
 
     Ok(quote! {
         #(#attrs)*
-        #vis fn #fn_name() -> ::std::vec::Vec<::std::string::String> {
+        #vis fn #fn_name() -> ::sand::command::Actions {
             #body
         }
 
         #[doc(hidden)]
         #[allow(dead_code)]
-        fn #fn_make_ident() -> ::std::vec::Vec<::std::string::String> {
+        fn #fn_make_ident() -> ::sand::command::Actions {
             #fn_name()
         }
 
@@ -2586,14 +2586,14 @@ fn expand_event_with_path(
     // generated zero-argument Minecraft function.
     let preamble = quote! {
         #(#fn_attrs)*
-        #vis fn #fn_name() -> ::std::vec::Vec<::std::string::String> {
+        #vis fn #fn_name() -> ::sand::command::Actions {
             let #event_binding_pattern = #event_binding_tokens;
             #(#event_binding_uses)*
             #body
         }
 
         #[doc(hidden)]
-        fn #fn_make_ident() -> ::std::vec::Vec<::std::string::String> {
+        fn #fn_make_ident() -> ::sand::command::Actions {
             #fn_name()
         }
     };
@@ -3457,13 +3457,13 @@ fn expand_armor_event(attr: ArmorEventAttr, func: ItemFn) -> syn::Result<proc_ma
 
     Ok(quote! {
         #(#attrs)*
-        #vis fn #fn_name() -> ::std::vec::Vec<::std::string::String> {
+        #vis fn #fn_name() -> ::sand::command::Actions {
             #body
         }
 
         #[doc(hidden)]
         #[allow(dead_code)]
-        fn #factory_ident() -> ::std::vec::Vec<::std::string::String> {
+        fn #factory_ident() -> ::sand::command::Actions {
             #fn_name()
         }
 
@@ -3601,7 +3601,7 @@ fn expand_run_fn(input: TokenStream) -> syn::Result<proc_macro2::TokenStream> {
             );
             Ok(quote! {
                 {
-                    fn #fn_ident() -> ::std::vec::Vec<::std::string::String> {
+                    fn #fn_ident() -> ::sand::command::Actions {
                         #cmd_body
                     }
 
@@ -3782,13 +3782,13 @@ fn expand_schedule(func: ItemFn, attr: ScheduleAttr) -> syn::Result<proc_macro2:
 
     Ok(quote! {
         #(#attrs)*
-        #vis fn #fn_name() -> ::std::vec::Vec<::std::string::String> {
+        #vis fn #fn_name() -> ::sand::command::Actions {
             #body
         }
 
         #[doc(hidden)]
         #[allow(dead_code)]
-        fn #fn_make_ident() -> ::std::vec::Vec<::std::string::String> {
+        fn #fn_make_ident() -> ::sand::command::Actions {
             #fn_name()
         }
 

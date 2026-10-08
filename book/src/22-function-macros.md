@@ -9,7 +9,7 @@ spelling is checked before the datapack is written.
 use sand::prelude::*;
 
 #[function("greet")]
-fn greet() -> Vec<String> {
+fn greet() {
     let args = FunctionMacroArgs::new(["player", "count"]).unwrap();
     let player = args.variable("player").unwrap();
     let count = args.variable("count").unwrap();
@@ -22,7 +22,7 @@ fn greet() -> Vec<String> {
 }
 
 #[function("run_greeting")]
-fn run_greeting() -> Vec<String> {
+fn run_greeting() {
     let args = FunctionMacroArgs::new(["player", "count"]).unwrap();
     let values = Nbt::storage(ResourceLocation::new("trailforge", "runtime").unwrap())
         .path("greeting");

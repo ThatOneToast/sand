@@ -70,7 +70,20 @@ static EXPORT_PANIC_HOOK_LOCK: Mutex<()> = Mutex::new(());
 /// [`std::panic::resume_unwind`] — this boundary never silently swallows an
 /// unrelated panic or lets export continue with partial/wrong output for
 /// one.
-fn invoke_event_handler_body(desc: &crate::function::EventDescriptor) -> ExportResult<Vec<String>> {
+fn invoke_event_handler_body(
+    desc: &crate::function::EventDescriptor,
+    namespace: &str,
+    custom_backend: Option<&CustomDispatchBackend>,
+) -> ExportResult<Vec<String>> {
+    let body_path = if matches!(
+        &desc.dispatch,
+        crate::function::EventDispatch::Advancement { .. }
+    ) || matches!(custom_backend, Some(CustomDispatchBackend::Advancement(_)))
+    {
+        format!("{}/body", desc.path)
+    } else {
+        desc.path.to_owned()
+    };
     let _guard = EXPORT_PANIC_HOOK_LOCK
         .lock()
         .unwrap_or_else(|poisoned| poisoned.into_inner());
@@ -96,7 +109,9 @@ fn invoke_event_handler_body(desc: &crate::function::EventDescriptor) -> ExportR
     }));
 
     match result {
-        Ok(commands) => Ok(commands),
+        Ok(commands) => commands.lower(&sand_components::ResourceLocation::new(
+            namespace, &body_path,
+        )?),
         Err(payload) => {
             match payload.downcast::<crate::participant::diagnostic::MissingParticipantPanic>() {
                 Ok(panic) => Err(participant_accessor_panic_export_error(desc.path, &panic)),
@@ -144,6 +159,31 @@ fn invoke_component_factory(
             ),
         }
     })
+}
+
+fn lower_state_system_body(
+    system: &crate::function::StateSystemDescriptor,
+    namespace: &str,
+) -> ExportResult<Vec<String>> {
+    (system.make)()
+        .lower(&sand_components::ResourceLocation::new(
+            namespace,
+            "__sand_system",
+        )?)
+        .map_err(|error| match error {
+            ComponentExportError::ComponentValidation {
+                location,
+                kind,
+                field,
+                message,
+            } => ComponentExportError::ComponentValidation {
+                location,
+                kind,
+                field,
+                message: format!("State system `{}`: {message}", system.id),
+            },
+            error => error,
+        })
 }
 
 pub(crate) fn try_export_components_impl(
@@ -211,7 +251,9 @@ pub(crate) fn try_export_components_impl(
     // ── FunctionDescriptors ───────────────────────────────────────────────────
     for desc in inventory::iter::<FunctionDescriptor>() {
         function_contexts.insert(format!("{namespace}:{}", desc.path), desc.context);
-        let commands = (desc.make)();
+        let commands = (desc.make)().lower(&sand_components::ResourceLocation::new(
+            namespace, desc.path,
+        )?)?;
         records.push(ComponentRecord {
             namespace: namespace.to_string(),
             dir: "function".to_string(),
@@ -353,11 +395,29 @@ pub(crate) fn try_export_components_impl(
     for desc in inventory::iter::<EventDescriptor>() {
         // Always emit the handler function body first. Routed through
         // `invoke_event_handler_body` (#280 item 2) rather than calling
-        // `(desc.make)()` directly, so a `MissingParticipantPanic` raised by
+        // `(desc.make)().lower(&sand_components::ResourceLocation::new(namespace, desc.path)?)?` directly, so a `MissingParticipantPanic` raised by
         // an infallible participant accessor inside this handler's body
         // becomes a structured `SAND-EVENT-PARTICIPANT` diagnostic instead
         // of an unhandled panic.
-        let commands = invoke_event_handler_body(desc)?;
+        let custom_backend = match &desc.dispatch {
+            EventDispatch::Custom {
+                make_trigger,
+                make_condition,
+                make_tick,
+                make_chain,
+                make_tracked,
+                ..
+            } => Some(resolve_custom_dispatch_backend(
+                make_trigger(),
+                make_condition(),
+                make_tick(),
+                make_chain(),
+                make_tracked(),
+                desc.path,
+            )),
+            _ => None,
+        };
+        let commands = invoke_event_handler_body(desc, namespace, custom_backend.as_ref())?;
 
         match &desc.dispatch {
             // ── Advancement-backed ────────────────────────────────────────────
@@ -616,30 +676,19 @@ pub(crate) fn try_export_components_impl(
 
             // ── Custom SandEvent ─────────────────────────────────────────────
             EventDispatch::Custom {
-                make_trigger,
-                make_condition,
-                make_tick,
-                make_chain,
-                make_tracked,
                 make_participants,
                 revoke,
                 event_type_id,
                 event_type_name,
                 make_setup,
+                ..
             } => {
                 // Evaluate all factories once so we can distinguish "none
                 // returned Some" from "more than one returned Some" — see
                 // #121. One dispatch strategy silently winning over another
                 // would export a working-looking datapack that doesn't match
                 // what the `SandEvent` impl actually declared.
-                match resolve_custom_dispatch_backend(
-                    make_trigger(),
-                    make_condition(),
-                    make_tick(),
-                    make_chain(),
-                    make_tracked(),
-                    desc.path,
-                ) {
+                match custom_backend.expect("custom dispatch is resolved before body lowering") {
                     CustomDispatchBackend::Tracked(transition) => {
                         // Reusable tracked-transition dispatch for a generic
                         // `SandEvent` (e.g. `EffectStarted<Speed>`). Shares
@@ -890,7 +939,9 @@ pub(crate) fn try_export_components_impl(
 
     // ── ArmorEventDescriptors (legacy #[armor_event]) ─────────────────────────
     for desc in inventory::iter::<ArmorEventDescriptor>() {
-        let commands = (desc.make)();
+        let commands = (desc.make)().lower(&sand_components::ResourceLocation::new(
+            namespace, desc.path,
+        )?)?;
         records.push(ComponentRecord {
             namespace: namespace.to_string(),
             dir: "function".to_string(),
@@ -2182,7 +2233,7 @@ pub(crate) fn try_export_components_impl(
                 system.id
             )));
         }
-        let body = (system.make)();
+        let body = lower_state_system_body(system, namespace)?;
         if let Some((every, existing)) = system_ids.get(system.id) {
             if *every != system.every || existing != &body {
                 return Err(lifecycle_export_error(format!(
@@ -2565,7 +2616,7 @@ pub(crate) fn try_export_components_impl(
     // Must run AFTER every desc.make() call so branches registered by event
     // bodies, schedule bodies, armor handlers, etc. are all captured.
     // The loop handles chains: draining can trigger further registrations.
-    drain_dynamic_functions_into(&mut records, namespace);
+    drain_dynamic_functions_into(&mut records, namespace)?;
 
     // ── Dialog callback dispatcher ────────────────────────────────────────────
     // Must run after ComponentFactory and other make() calls so callbacks
@@ -2750,5 +2801,97 @@ mod state_system_planning_tests {
             ])
             .is_none()
         );
+    }
+}
+
+#[cfg(test)]
+mod action_owner_tests {
+    use super::*;
+    use crate::function::{EventDescriptor, EventDispatch};
+
+    fn invalid_body() -> crate::ir::Actions {
+        crate::ir::Actions(vec![crate::ir::Cmd::Execute {
+            operations: vec![],
+            run: Box::new(crate::ir::Cmd::Raw("say invalid".into())),
+        }])
+    }
+
+    #[test]
+    fn system_action_errors_keep_structured_fields_and_system_identity() {
+        let system = crate::function::StateSystemDescriptor {
+            id: "game::regenerate",
+            every: 1,
+            make: invalid_body,
+        };
+        let error = lower_state_system_body(&system, "example").unwrap_err();
+        match error {
+            ComponentExportError::ComponentValidation {
+                location,
+                kind,
+                field,
+                message,
+            } => {
+                assert_eq!(location.to_string(), "example:__sand_system");
+                assert_eq!(kind, "function");
+                assert_eq!(field, "actions[0].operations");
+                assert!(message.starts_with("State system `game::regenerate`: "));
+                assert!(message.contains("SAND-COMMAND-EXECUTE-EMPTY"));
+            }
+            other => panic!("unexpected diagnostic: {other}"),
+        }
+        assert!(matches!(
+            lower_state_system_body(&system, "INVALID"),
+            Err(ComponentExportError::InvalidNamespace(_))
+        ));
+    }
+
+    #[test]
+    fn advancement_action_errors_name_the_authored_body_resource() {
+        let typed = EventDispatch::Advancement {
+            make_trigger: || crate::AdvancementTrigger::Tick,
+            revoke: || true,
+            guard: None,
+            make_participants: crate::participant::EventParticipantPlan::new,
+            event_type_name: || "test event",
+        };
+        let custom = EventDispatch::Custom {
+            make_trigger: || Some(crate::AdvancementTrigger::Tick),
+            make_condition: || None,
+            make_tick: || None,
+            make_chain: || None,
+            make_tracked: || None,
+            revoke: || true,
+            event_type_id: std::any::TypeId::of::<()>,
+            event_type_name: || "test event",
+            make_participants: crate::participant::EventParticipantPlan::new,
+            make_setup: crate::events::EventSetup::none,
+        };
+        for (dispatch, backend) in [
+            (typed, None),
+            (
+                custom,
+                Some(CustomDispatchBackend::Advancement(
+                    crate::AdvancementTrigger::Tick,
+                )),
+            ),
+        ] {
+            let descriptor = EventDescriptor {
+                path: "on_event",
+                id_override: None,
+                make: invalid_body,
+                dispatch,
+            };
+            let error =
+                invoke_event_handler_body(&descriptor, "example", backend.as_ref()).unwrap_err();
+            match error {
+                ComponentExportError::ComponentValidation {
+                    location, field, ..
+                } => {
+                    assert_eq!(location.to_string(), "example:on_event/body");
+                    assert_eq!(field, "actions[0].operations");
+                }
+                other => panic!("unexpected diagnostic: {other}"),
+            }
+        }
     }
 }

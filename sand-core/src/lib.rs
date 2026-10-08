@@ -472,18 +472,23 @@ pub use inventory;
 #[doc(hidden)]
 pub use serde_json;
 
-/// Build a `Vec<String>` of Minecraft commands.
+/// Collect structured Minecraft actions for a function body.
 ///
 /// Accepts semicolon-separated expressions. String literals are used as-is;
-/// any value implementing [`std::fmt::Display`] (including command builders
-/// from [`crate::cmd`]) is serialized via `.to_string()`.
+/// command builders and nested action collections use [`crate::IntoCommands`].
+/// Structured operations retain their validation until export.
 ///
 /// # Examples
 /// ```
 /// use sand_core::mcfunction;
 /// let cmds = mcfunction!["say hello world"; r#"give @a diamond 1"#];
-/// assert_eq!(cmds[0], "say hello world");
-/// assert_eq!(cmds.len(), 2);
+/// use sand_core::McFunction;
+/// use sand_core::component::{DatapackComponent, ComponentContent};
+/// let function = McFunction::new("example:hello".parse().unwrap()).commands(cmds);
+/// let ComponentContent::Text(output) = function.try_content().unwrap() else {
+///     panic!("functions emit text");
+/// };
+/// assert_eq!(output.lines().collect::<Vec<_>>(), ["say hello world", "give @a diamond 1"]);
 /// ```
 ///
 /// With command builders:
@@ -497,9 +502,9 @@ pub use serde_json;
 #[macro_export]
 macro_rules! mcfunction {
     ($($cmd:expr);* $(;)?) => {{
-        let mut _commands: Vec<String> = Vec::new();
+        let mut _commands = $crate::ir::Actions::default();
         $(
-            _commands.extend($crate::IntoCommands::into_commands($cmd));
+            _commands.extend([$crate::IntoCommands::into_commands($cmd)]);
         )*
         _commands
     }};

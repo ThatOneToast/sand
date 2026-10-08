@@ -2,6 +2,9 @@
 //! execution-scoped contexts, typed relationship traversal, and scoped
 //! bindings that preserve context across traversal.
 
+#[path = "support/actions.rs"]
+mod actions;
+use actions::emitted;
 use std::sync::Mutex;
 
 use sand_commands::Target;
@@ -27,6 +30,7 @@ fn each_lowers_target_iteration_without_a_manual_execute_chain() {
         .nearest()
         .each(|entity| vec![entity.add_tag(&tag("observed"))]);
 
+    let cmds = emitted(cmds);
     assert_eq!(cmds.len(), 1);
     assert!(cmds[0].starts_with(
         "execute as @e[type=minecraft:zombie,tag=!friendly,distance=..15,sort=nearest,limit=1] at @s run function __sand_local:sand/entity_query/"
@@ -50,6 +54,7 @@ fn nested_relationship_traversal_retains_original_context() {
             })
         });
 
+    let cmds = emitted(cmds);
     assert_eq!(cmds.len(), 1);
     let outer = &cmds[0];
     assert!(
@@ -59,7 +64,10 @@ fn nested_relationship_traversal_retains_original_context() {
     // Drain the generated helper functions and confirm the scoped tag/
     // untag pair wraps the relation traversal, and that the relation
     // traversal refers back to the *tagged* entity, not `@s`.
-    let generated = sand_core::function::drain_dyn_fns();
+    let generated = sand_core::function::drain_dyn_fns()
+        .into_iter()
+        .map(|(path, body)| (path, emitted(body)))
+        .collect::<Vec<_>>();
     let outer_fn = generated
         .iter()
         .find(|(path, _)| outer.ends_with(path))
@@ -93,6 +101,7 @@ fn player_target_each_binds_a_player_context() {
         .nearest()
         .each(|player| vec![player.add_tag(&tag("chosen"))]);
 
+    let cmds = emitted(cmds);
     assert_eq!(cmds.len(), 1);
     assert!(cmds[0].starts_with(
         "execute as @a[tag=ready,sort=nearest,limit=1] at @s run function __sand_local:sand/entity_query/"
@@ -104,6 +113,7 @@ fn raw_single_player_each_binds_a_player_context() {
     let cmds = Target::raw_single_player("@a[modded=true,limit=1]")
         .each(|player: &EntityContext<PlayerKind>| vec![player.add_tag(&tag("chosen"))]);
 
+    let cmds = emitted(cmds);
     assert_eq!(cmds.len(), 1);
     assert!(cmds[0].starts_with(
         "execute as @a[modded=true,limit=1] at @s run function __sand_local:sand/entity_query/"
@@ -123,8 +133,12 @@ fn passengers_relation_is_many_cardinality_and_iterates_via_each() {
                 .unwrap()
         });
 
+    let cmds = emitted(cmds);
     assert_eq!(cmds.len(), 1);
-    let generated = sand_core::function::drain_dyn_fns();
+    let generated = sand_core::function::drain_dyn_fns()
+        .into_iter()
+        .map(|(path, body)| (path, emitted(body)))
+        .collect::<Vec<_>>();
     let outer_fn = generated
         .iter()
         .find(|(path, _)| cmds[0].ends_with(path))

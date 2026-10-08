@@ -45,7 +45,7 @@ sand_core::inventory::submit! {
     EventDescriptor {
         path: "first_shared_event_handler",
         id_override: None,
-        make: || Vec::new(),
+        make: || sand::command::Actions::default(),
         dispatch: EventDispatch::Custom {
             make_trigger: no_trigger,
             make_condition: no_condition,
@@ -65,7 +65,7 @@ sand_core::inventory::submit! {
     EventDescriptor {
         path: "conflicting_shared_event_handler",
         id_override: None,
-        make: || Vec::new(),
+        make: || sand::command::Actions::default(),
         dispatch: EventDispatch::Custom {
             make_trigger: no_trigger,
             make_condition: no_condition,

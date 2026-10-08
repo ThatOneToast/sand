@@ -1,3 +1,4 @@
+mod actions_support;
 use sand_core::event::vanilla::PlayerLevelsUp;
 use sand_core::events::PlayerLevelUpEvent;
 use sand_core::prelude::*;
@@ -18,7 +19,7 @@ pub fn on_levels_up_alias(event: Event<PlayerLevelsUp>) {
 
 fn main() {
     // Handler body should contain the scoreboard add command.
-    let commands = on_level_up();
+    let commands = actions_support::emitted(on_level_up());
     assert!(
         commands
             .iter()

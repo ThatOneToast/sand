@@ -26,7 +26,7 @@ static DASH_CD: Cooldown = Cooldown::new("dash_cd", Ticks::new(40));
 
 // ── Load ──────────────────────────────────────────────────────────────────────
 
-fn load_commands() -> Vec<String> {
+fn load_commands() -> sand_core::cmd::Actions {
     mcfunction![
         MANA.define();
         CASTING.define();
@@ -37,7 +37,7 @@ fn load_commands() -> Vec<String> {
 
 // ── Tick ──────────────────────────────────────────────────────────────────────
 
-fn tick_commands() -> Vec<String> {
+fn tick_commands() -> sand_core::cmd::Actions {
     let mut cmds = mcfunction![
         DASH_CD.tick_all_players();
         MANA.add("@a", 1);
@@ -136,16 +136,25 @@ fn complex_act_commands() -> Vec<String> {
 
 // ── Main ──────────────────────────────────────────────────────────────────────
 
+fn emitted(actions: sand_core::cmd::Actions) -> Vec<String> {
+    use sand_core::{ComponentContent, DatapackComponent, McFunction};
+    let resource = McFunction::new("spell:preview".parse().unwrap()).commands(actions);
+    let ComponentContent::Text(content) = resource.try_content().unwrap() else {
+        unreachable!("functions export text");
+    };
+    content.lines().map(str::to_owned).collect()
+}
+
 fn main() {
     println!("=== Spell System — Sand batch-2 example ===\n");
 
     println!("--- load ---");
-    for cmd in load_commands() {
+    for cmd in emitted(load_commands()) {
         println!("  {cmd}");
     }
 
     println!("\n--- tick ---");
-    for cmd in tick_commands() {
+    for cmd in emitted(tick_commands()) {
         println!("  {cmd}");
     }
 

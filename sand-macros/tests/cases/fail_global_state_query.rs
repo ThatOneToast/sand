@@ -8,7 +8,7 @@ struct GameState {
 
 #[system]
 fn wrong(query: GameState) {
-    query.each(|_| Vec::new());
+    query.each(|_| sand::command::Actions::default());
 }
 
 fn main() {}

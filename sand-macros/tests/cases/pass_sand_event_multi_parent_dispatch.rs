@@ -1,5 +1,6 @@
 #![allow(refining_impl_trait)]
 
+mod actions_support;
 use sand_core::condition::Condition;
 use sand_core::events::{SandEvent, SandEventDispatch};
 use sand_core::prelude::*;
@@ -43,6 +44,6 @@ fn on_all(_event: AllChild) {
 }
 
 fn main() {
-    assert!(!on_any().is_empty());
-    assert!(!on_all().is_empty());
+    assert!(!actions_support::emitted(on_any()).is_empty());
+    assert!(!actions_support::emitted(on_all()).is_empty());
 }

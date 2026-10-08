@@ -1,5 +1,6 @@
 #![allow(refining_impl_trait)]
 
+mod actions_support;
 use sand_core::condition::Condition;
 use sand_core::events::{
     PersistentEventCondition, PersistentSandEvent, SandEvent, SandEventDispatch,
@@ -46,5 +47,5 @@ fn on_child(_event: Child) {
 }
 
 fn main() {
-    assert!(!on_child().is_empty());
+    assert!(!actions_support::emitted(on_child()).is_empty());
 }

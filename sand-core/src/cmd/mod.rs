@@ -59,6 +59,8 @@
 
 // ── Internal modules (sand-core-specific) ─────────────────────────────────────
 
+pub use crate::ir::Actions;
+
 mod data;
 mod effect;
 mod fn_macros;

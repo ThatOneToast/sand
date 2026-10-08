@@ -16,6 +16,9 @@
 //!    retaining its existing authoring API and output.
 
 pub use sand_commands::{ConditionIr, ExecuteOp, ExecuteStoreTarget};
+mod numeric;
+#[doc(hidden)]
+pub use numeric::NumericWrite;
 
 /// An ordered sequence of authored operations awaiting compiler lowering.
 ///
@@ -93,24 +96,25 @@ impl Actions {
         &self,
         location: &sand_components::ResourceLocation,
     ) -> sand_components::error::Result<Vec<String>> {
-        self.0
-            .iter()
-            .enumerate()
-            .map(|(index, command)| {
-                command.try_render().map_err(|error| {
-                    sand_components::SandError::ComponentValidation {
-                        location: location.clone(),
-                        kind: "function".into(),
-                        field: format!("actions[{index}].{}", error.field),
-                        message: error.to_string(),
-                    }
+        let mut output = Vec::new();
+        for (index, command) in self.0.iter().enumerate() {
+            let rendered = command
+                .lower_for_export(location)
+                .and_then(|commands| {
+                    commands
+                        .into_iter()
+                        .map(|command| command.try_render())
+                        .collect::<sand_commands::CommandResult<Vec<_>>>()
                 })
-            })
-            .collect()
-    }
-
-    pub(crate) fn render(self) -> Vec<String> {
-        self.0.into_iter().map(|command| command.render()).collect()
+                .map_err(|error| sand_components::SandError::ComponentValidation {
+                    location: location.clone(),
+                    kind: "function".into(),
+                    field: format!("actions[{index}].{}", error.field),
+                    message: error.to_string(),
+                })?;
+            output.extend(rendered);
+        }
+        Ok(output)
     }
 }
 
@@ -274,8 +278,17 @@ pub enum Cmd {
         run: Box<Cmd>,
     },
 
+    /// A gameplay numeric assignment awaiting destination-aware lowering.
+    #[doc(hidden)]
+    NumericWrite(Box<NumericWrite>),
+
     /// `# <text>` — a comment line (not a real Minecraft command, but emitted in .mcfunction files).
     Comment(String),
+}
+
+fn nested_run_error(mut error: sand_commands::CommandError) -> sand_commands::CommandError {
+    error.field = format!("run.{}", error.field);
+    error
 }
 
 fn raw_command_may_return(line: &str) -> bool {
@@ -300,6 +313,48 @@ fn raw_command_may_return(line: &str) -> bool {
 }
 
 impl Cmd {
+    fn lower_for_export(
+        &self,
+        owner: &sand_components::ResourceLocation,
+    ) -> sand_commands::CommandResult<Vec<Self>> {
+        Ok(match self {
+            Self::NumericWrite(write) => return write.lower(owner),
+            Self::WithScoreOperands { operands, run } => {
+                for operand in operands {
+                    operand.register_owned_setup();
+                }
+                return run.lower_for_export(owner);
+            }
+            Self::Execute { operations, run } => vec![Self::Execute {
+                operations: operations.clone(),
+                run: Box::new(
+                    run.lower_single_for_export(owner)
+                        .map_err(nested_run_error)?,
+                ),
+            }],
+            Self::ReturnRun(run) => vec![Self::ReturnRun(Box::new(
+                run.lower_single_for_export(owner)
+                    .map_err(nested_run_error)?,
+            ))],
+            command => vec![command.clone()],
+        })
+    }
+
+    fn lower_single_for_export(
+        &self,
+        owner: &sand_components::ResourceLocation,
+    ) -> sand_commands::CommandResult<Self> {
+        let mut commands = self.lower_for_export(owner)?;
+        if commands.len() == 1 {
+            Ok(commands.remove(0))
+        } else {
+            Ok(Self::AnonymousFunction {
+                prefix: "sand/action_sequence".into(),
+                body: Actions(commands),
+            })
+        }
+    }
+
     fn has_macro_line(&self) -> bool {
         match self {
             Self::Raw(text) => text.lines().any(|line| line.trim_start().starts_with('$')),
@@ -388,6 +443,13 @@ impl Cmd {
                 format!("execute {operation_text} run {run_text}")
             }
 
+            Self::NumericWrite(_) => {
+                return Err(sand_commands::CommandError::new(
+                    "numeric assignment",
+                    "value",
+                    "numeric actions require function export lowering",
+                ));
+            }
             Self::Comment(text) => format!("# {text}"),
         };
         Ok(rendered)

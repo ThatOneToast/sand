@@ -201,6 +201,11 @@ pub mod __private {
         execute.with_operation(operation)
     }
 
+    /// Projects an existing typed holder for compiler-owned executor binding.
+    pub fn score_holder_selector(holder: &crate::ScoreHolder) -> Option<&crate::Selector> {
+        holder.entity_selector()
+    }
+
     /// Converts a legacy score-holder string at Sand's internal compatibility boundary.
     pub fn score_holder_compat(value: String) -> crate::ScoreHolder {
         crate::ScoreHolder::compat(value)

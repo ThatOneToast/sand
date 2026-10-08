@@ -1,3 +1,5 @@
+#[path = "support/actions.rs"]
+mod actions;
 use sand::prelude::*;
 
 #[derive(State)]
@@ -127,9 +129,7 @@ fn shared_components_remain_reusable_and_cleanup_is_composition_scoped() {
     assert!(first_cleanup.contains(&SharedState::shared.objective()));
     assert!(first_cleanup.contains(&FirstOnly::value.objective()));
     assert!(!first_cleanup.contains(&SecondOnly::value.objective()));
-    let component_dirty = SharedState::shared
-        .bind()
-        .set(1)
+    let component_dirty = actions::emitted(SharedState::shared.bind().set(1))
         .into_iter()
         .last()
         .and_then(|command| command.split_whitespace().nth(4).map(str::to_owned))

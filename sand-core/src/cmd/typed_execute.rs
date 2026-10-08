@@ -310,11 +310,12 @@ mod tests {
 
     #[test]
     fn when_single_condition() {
-        let cmds = Execute::new()
-            .as_(Selector::all_players())
-            .when(MANA.of("@s").gte(25))
-            .run("say enough mana")
-            .render();
+        let cmds = crate::ir::test_support::emitted(
+            Execute::new()
+                .as_(Selector::all_players())
+                .when(MANA.of("@s").gte(25))
+                .run("say enough mana"),
+        );
         assert_eq!(cmds.len(), 1);
         assert_eq!(
             cmds[0],
@@ -324,10 +325,11 @@ mod tests {
 
     #[test]
     fn unless_condition() {
-        let cmds = Execute::new()
-            .unless(CASTING.of("@s").is_true())
-            .run("say not casting")
-            .render();
+        let cmds = crate::ir::test_support::emitted(
+            Execute::new()
+                .unless(CASTING.of("@s").is_true())
+                .run("say not casting"),
+        );
         assert_eq!(cmds.len(), 1);
         assert!(
             cmds[0].contains("unless score @s casting matches 1"),
@@ -338,22 +340,24 @@ mod tests {
 
     #[test]
     fn when_any_expands() {
-        let cmds = Execute::new()
-            .as_(Selector::all_players())
-            .when(any![MANA.of("@s").gte(25), MANA.of("@s").gte(50),])
-            .run("say ok")
-            .render();
+        let cmds = crate::ir::test_support::emitted(
+            Execute::new()
+                .as_(Selector::all_players())
+                .when(any![MANA.of("@s").gte(25), MANA.of("@s").gte(50),])
+                .run("say ok"),
+        );
         assert_eq!(cmds.len(), 2, "any! should produce 2 commands");
     }
 
     #[test]
     fn when_all_macro() {
-        let cmds = Execute::new()
-            .as_(Selector::all_players())
-            .at(Selector::self_())
-            .when(all![MANA.of("@s").gte(25), CASTING.of("@s").is_false(),])
-            .run("say ready")
-            .render();
+        let cmds = crate::ir::test_support::emitted(
+            Execute::new()
+                .as_(Selector::all_players())
+                .at(Selector::self_())
+                .when(all![MANA.of("@s").gte(25), CASTING.of("@s").is_false(),])
+                .run("say ready"),
+        );
         assert_eq!(cmds.len(), 1);
         assert!(cmds[0].contains("if score @s mana"), "got: {}", cmds[0]);
         assert!(cmds[0].contains("if score @s casting"), "got: {}", cmds[0]);
@@ -361,23 +365,25 @@ mod tests {
 
     #[test]
     fn nested_any_in_all_via_execute() {
-        let cmds = Execute::new()
-            .when(all![
-                MANA.of("@s").gte(25),
-                any![CASTING.of("@s").is_false(), CASTING.of("@s").is_true(),],
-            ])
-            .run("say ok")
-            .render();
+        let cmds = crate::ir::test_support::emitted(
+            Execute::new()
+                .when(all![
+                    MANA.of("@s").gte(25),
+                    any![CASTING.of("@s").is_false(), CASTING.of("@s").is_true(),],
+                ])
+                .run("say ok"),
+        );
         assert_eq!(cmds.len(), 2, "all![a, any![b,c]] gives 2 commands");
     }
 
     #[test]
     fn and_when_chaining() {
-        let cmds = Execute::new()
-            .when(MANA.of("@s").gte(25))
-            .and_when(CASTING.of("@s").is_false())
-            .run("say ok")
-            .render();
+        let cmds = crate::ir::test_support::emitted(
+            Execute::new()
+                .when(MANA.of("@s").gte(25))
+                .and_when(CASTING.of("@s").is_false())
+                .run("say ok"),
+        );
         assert_eq!(cmds.len(), 1);
         assert!(cmds[0].contains("if score @s mana"), "got: {}", cmds[0]);
         assert!(cmds[0].contains("if score @s casting"), "got: {}", cmds[0]);
@@ -400,10 +406,11 @@ mod tests {
     #[test]
     fn golden_spell_execute() {
         // Matches the documented spell system pattern exactly
-        let cmds = TypedExecute::as_players_at_self()
-            .when(all![MANA.of("@s").gte(25), CASTING.of("@s").is_false(),])
-            .run("function example:dash")
-            .render();
+        let cmds = crate::ir::test_support::emitted(
+            TypedExecute::as_players_at_self()
+                .when(all![MANA.of("@s").gte(25), CASTING.of("@s").is_false(),])
+                .run("function example:dash"),
+        );
         assert_eq!(cmds.len(), 1);
         assert_eq!(
             cmds[0],

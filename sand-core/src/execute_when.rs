@@ -768,7 +768,7 @@ mod tests {
 
     #[test]
     fn when_score_then_one() {
-        let cmds = when(MANA.of("@s").gte(25)).then_one("say ok").render();
+        let cmds = crate::ir::test_support::emitted(when(MANA.of("@s").gte(25)).then_one("say ok"));
         assert_eq!(
             cmds,
             vec!["execute if score @s mana matches 25.. run say ok"]
@@ -777,9 +777,8 @@ mod tests {
 
     #[test]
     fn unless_flag_then_one() {
-        let cmds = unless(CASTING.of("@s").is_true())
-            .then_one("say ok")
-            .render();
+        let cmds =
+            crate::ir::test_support::emitted(unless(CASTING.of("@s").is_true()).then_one("say ok"));
         assert_eq!(
             cmds,
             vec!["execute unless score @s casting matches 1 run say ok"]
@@ -788,9 +787,9 @@ mod tests {
 
     #[test]
     fn when_then_one_is_direct() {
-        let cmds = when(MANA.of("@s").gte(25))
-            .then_one("say enough mana")
-            .render();
+        let cmds = crate::ir::test_support::emitted(
+            when(MANA.of("@s").gte(25)).then_one("say enough mana"),
+        );
         assert_eq!(cmds.len(), 1);
         assert!(
             cmds[0].contains("execute if score @s mana"),
@@ -927,9 +926,8 @@ mod tests {
 
     #[test]
     fn unless_flag_polarity() {
-        let cmds = unless(CASTING.of("@s").is_true())
-            .then_one("say ok")
-            .render();
+        let cmds =
+            crate::ir::test_support::emitted(unless(CASTING.of("@s").is_true()).then_one("say ok"));
         assert_eq!(
             cmds,
             vec!["execute unless score @s casting matches 1 run say ok"]
@@ -938,12 +936,13 @@ mod tests {
 
     #[test]
     fn unless_any_de_morgan() {
-        let cmds = unless(Condition::any([
-            CASTING.of("@s").is_true(),
-            CASTING.of("@s").is_false(),
-        ]))
-        .then_one("say ok")
-        .render();
+        let cmds = crate::ir::test_support::emitted(
+            unless(Condition::any([
+                CASTING.of("@s").is_true(),
+                CASTING.of("@s").is_false(),
+            ]))
+            .then_one("say ok"),
+        );
         assert_eq!(cmds.len(), 1, "NOT(a OR b) chains into one command");
         assert!(cmds[0].contains("unless"), "got: {}", cmds[0]);
     }
@@ -1026,13 +1025,14 @@ mod tests {
 
     #[test]
     fn when_all() {
-        let cmds = when(Condition::all([
-            MANA.of("@s").gte(25),
-            DASH.ready("@s"),
-            CASTING.of("@s").is_false(),
-        ]))
-        .then_one("say ready to cast")
-        .render();
+        let cmds = crate::ir::test_support::emitted(
+            when(Condition::all([
+                MANA.of("@s").gte(25),
+                DASH.ready("@s"),
+                CASTING.of("@s").is_false(),
+            ]))
+            .then_one("say ready to cast"),
+        );
         assert_eq!(cmds.len(), 1);
         let cmd = &cmds[0];
         assert!(cmd.starts_with("execute "), "got: {cmd}");
@@ -1044,20 +1044,21 @@ mod tests {
 
     #[test]
     fn when_any_expands() {
-        let cmds = when(Condition::any([
-            MANA.of("@s").gte(25),
-            MANA.of("@s").gte(50),
-        ]))
-        .then_one("say ok")
-        .render();
+        let cmds = crate::ir::test_support::emitted(
+            when(Condition::any([
+                MANA.of("@s").gte(25),
+                MANA.of("@s").gte(50),
+            ]))
+            .then_one("say ok"),
+        );
         assert_eq!(cmds.len(), 2, "Any should expand to two commands");
     }
 
     #[test]
     fn when_predicate() {
-        let cmds = when(Condition::predicate_raw("my_pack:can_cast"))
-            .then_one("say ok")
-            .render();
+        let cmds = crate::ir::test_support::emitted(
+            when(Condition::predicate_raw("my_pack:can_cast")).then_one("say ok"),
+        );
         assert_eq!(
             cmds,
             vec!["execute if predicate my_pack:can_cast run say ok"]
@@ -1066,17 +1067,17 @@ mod tests {
 
     #[test]
     fn when_entity() {
-        let cmds = when(Condition::entity_raw("@s[tag=ready]"))
-            .then_one("say ok")
-            .render();
+        let cmds = crate::ir::test_support::emitted(
+            when(Condition::entity_raw("@s[tag=ready]")).then_one("say ok"),
+        );
         assert_eq!(cmds, vec!["execute if entity @s[tag=ready] run say ok"]);
     }
 
     #[test]
     fn nested_not() {
-        let cmds = when(!(MANA.of("@s").gte(25)))
-            .then_one("say low mana")
-            .render();
+        let cmds = crate::ir::test_support::emitted(
+            when(!(MANA.of("@s").gte(25))).then_one("say low mana"),
+        );
         assert_eq!(
             cmds,
             vec!["execute unless score @s mana matches 25.. run say low mana"]
@@ -1085,7 +1086,8 @@ mod tests {
 
     #[test]
     fn when_cooldown_ready() {
-        let cmds = when(DASH.ready("@s")).then_one("say dash ready").render();
+        let cmds =
+            crate::ir::test_support::emitted(when(DASH.ready("@s")).then_one("say dash ready"));
         assert_eq!(
             cmds,
             vec!["execute if score @s dash matches 0 run say dash ready"]
@@ -1099,7 +1101,7 @@ mod tests {
             DASH.ready("@s"),
             CASTING.of("@s").is_false(),
         ]);
-        let cmds = when(cond).then_one("say cast").render();
+        let cmds = crate::ir::test_support::emitted(when(cond).then_one("say cast"));
         assert_eq!(cmds.len(), 1);
         assert_eq!(
             cmds[0],
@@ -1109,9 +1111,9 @@ mod tests {
 
     #[test]
     fn all_macro_sugar() {
-        let cmds = when(all![MANA.of("@s").gte(25), CASTING.of("@s").is_false(),])
-            .then_one("say ok")
-            .render();
+        let cmds = crate::ir::test_support::emitted(
+            when(all![MANA.of("@s").gte(25), CASTING.of("@s").is_false(),]).then_one("say ok"),
+        );
         assert_eq!(cmds.len(), 1);
         assert!(cmds[0].contains("if score @s mana"), "got: {}", cmds[0]);
         assert!(cmds[0].contains("if score @s casting"), "got: {}", cmds[0]);
@@ -1119,20 +1121,21 @@ mod tests {
 
     #[test]
     fn any_macro_sugar() {
-        let cmds = when(any![MANA.of("@s").gte(25), MANA.of("@s").gte(50),])
-            .then_one("say ok")
-            .render();
+        let cmds = crate::ir::test_support::emitted(
+            when(any![MANA.of("@s").gte(25), MANA.of("@s").gte(50),]).then_one("say ok"),
+        );
         assert_eq!(cmds.len(), 2, "any! should expand to 2 commands");
     }
 
     #[test]
     fn nested_any_in_all_via_macros() {
-        let cmds = when(all![
-            MANA.of("@s").gte(25),
-            any![CASTING.of("@s").is_false(), DASH.ready("@s"),],
-        ])
-        .then_one("say ready")
-        .render();
+        let cmds = crate::ir::test_support::emitted(
+            when(all![
+                MANA.of("@s").gte(25),
+                any![CASTING.of("@s").is_false(), DASH.ready("@s"),],
+            ])
+            .then_one("say ready"),
+        );
         assert_eq!(cmds.len(), 2, "all![a, any![b,c]] should give 2 commands");
         assert!(
             cmds.iter().all(|c| c.contains("if score @s mana")),
@@ -1146,9 +1149,9 @@ mod tests {
         static MANA2: ScoreVar<i32> = ScoreVar::new("mana2");
         let cmds = mcfunction![
             MANA2.define();
-            when(MANA2.of("@s").gte(25)).then_one("say enough mana").render();
-        ]
-        .render();
+            when(MANA2.of("@s").gte(25)).then_one("say enough mana");
+        ];
+        let cmds = crate::ir::test_support::emitted(cmds);
         assert_eq!(cmds[0], "scoreboard objectives add mana2 dummy");
         assert!(
             cmds[1].contains("if score @s mana2 matches 25.."),
@@ -1165,8 +1168,8 @@ mod tests {
         reset_dynamic_branch_registry_for_test();
         let cmds = if_(CASTING.of("@s").is_true())
             .then_all(["say already casting"])
-            .into_commands()
-            .render();
+            .into_commands();
+        let cmds = crate::ir::test_support::emitted(cmds);
         assert_eq!(cmds.len(), 1, "if_ with no else: one parent command");
         assert!(
             cmds[0].contains("execute if score @s casting matches 1"),

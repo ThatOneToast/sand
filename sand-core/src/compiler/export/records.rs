@@ -250,6 +250,7 @@ fn objective_definition(mut command: &str) -> Option<(&str, &str)> {
 /// recognized execute chains. Identical criteria are allowed; conflicting
 /// criteria fail independently of registration or lifecycle order.
 pub(crate) fn validate_objective_definitions(records: &[ComponentRecord]) -> ExportResult<()> {
+    let numeric = crate::function::numeric_objective_owners();
     let mut definitions = std::collections::BTreeMap::<String, (String, String)>::new();
     for record in records.iter().filter(|record| {
         record.dir == "function" && record.ext == "mcfunction" && record.content_type == "text"
@@ -259,6 +260,21 @@ pub(crate) fn validate_objective_definitions(records: &[ComponentRecord]) -> Exp
                 continue;
             };
             let owner = format!("{}:{}/{}", record.namespace, record.dir, record.path);
+            if let Some(logical) = numeric.get(objective)
+                && (record.path != "__sand_score_init" || definitions.contains_key(objective))
+            {
+                return Err(ComponentExportError::ComponentValidation {
+                    location: sand_components::ResourceLocation::new(
+                        &record.namespace,
+                        &record.path,
+                    )?,
+                    kind: record.dir.clone(),
+                    field: "<objective>".into(),
+                    message: format!(
+                        "objective `{objective}` declared by `{owner}` collides with generated numeric storage `{logical}`"
+                    ),
+                });
+            }
             match definitions.get(objective) {
                 Some((existing, _)) if existing == criterion => {}
                 Some((existing, existing_owner)) => {

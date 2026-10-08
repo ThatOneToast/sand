@@ -637,6 +637,13 @@ pub(crate) enum LoweringStrategy {
     CustomCallback,
 }
 
+/// Operations evaluated only after a piecewise arm is selected.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct LoweredCurveBranch {
+    operations: Vec<LoweredCurveOperation>,
+    result: String,
+}
+
 /// Exporter-facing fixed-point operation produced by
 /// [`StatCurve::lower_scoreboard`].
 ///
@@ -740,7 +747,7 @@ pub(crate) enum LoweredCurveOperation {
         /// Value below the first band.
         below: FixedValue,
     },
-    /// Select one precomputed branch using inclusive upper bounds.
+    /// Select and evaluate one branch using inclusive upper bounds.
     ///
     /// The operation represents a balanced decision tree even though the
     /// branch list is stored in sorted semantic order.
@@ -749,10 +756,10 @@ pub(crate) enum LoweredCurveOperation {
         destination: String,
         /// Input score objective.
         input: String,
-        /// Sorted `(inclusive maximum, branch result objective)` pairs.
-        branches: Vec<(FixedValue, String)>,
-        /// Result objective used above the last bound.
-        fallback: String,
+        /// Sorted `(inclusive maximum, deferred branch)` pairs.
+        branches: Vec<(FixedValue, LoweredCurveBranch)>,
+        /// Deferred branch used above the last bound.
+        fallback: LoweredCurveBranch,
     },
     /// Read a bounded table keyed by a whole scoreboard value.
     ///
@@ -809,7 +816,7 @@ pub(crate) enum LoweredCurveOperation {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct LoweredCurve {
     target_objective: String,
-    scratch_objectives: Vec<String>,
+    scratch_objectives: Vec<sand_commands::ObjectiveName>,
     operations: Vec<LoweredCurveOperation>,
     strategy: LoweringStrategy,
 }
@@ -822,8 +829,7 @@ impl LoweredCurve {
     }
 
     /// Generated dummy objectives required at load, in lexical order.
-    #[must_use]
-    pub(crate) fn scratch_objectives(&self) -> &[String] {
+    pub(crate) fn scratch_objectives(&self) -> &[sand_commands::ObjectiveName] {
         &self.scratch_objectives
     }
 
@@ -962,7 +968,33 @@ impl CurveInput {
     }
 }
 
+impl From<i32> for StatCurve {
+    fn from(value: i32) -> Self {
+        Self::constant(f64::from(value))
+    }
+}
+
+impl From<f64> for StatCurve {
+    fn from(value: f64) -> Self {
+        Self::constant(value)
+    }
+}
+
 impl StatCurve {
+    pub(crate) fn direct_source_scale(&self) -> Option<i64> {
+        match &self.kind {
+            CurveKind::Input(input) => Some(i64::from(input.storage_scale)),
+            _ => None,
+        }
+    }
+
+    pub(crate) fn constant_value(&self) -> Option<f64> {
+        match self.kind {
+            CurveKind::Constant(value) => Some(value),
+            _ => None,
+        }
+    }
+
     pub(crate) fn bound_state(field: impl NumericStateField, holder: &'static str) -> Self {
         let mut input = CurveInput::typed(field);
         input.holder = Some(sand_commands::__private::score_holder_compat(holder.into()));
@@ -2090,7 +2122,7 @@ struct CurveLoweringBuilder<'a> {
     fixed: FixedPoint,
     scratch_prefix: &'a str,
     next_scratch: usize,
-    scratch_objectives: BTreeSet<String>,
+    scratch_objectives: BTreeSet<sand_commands::ObjectiveName>,
     operations: Vec<LoweredCurveOperation>,
 }
 
@@ -2098,11 +2130,9 @@ impl CurveLoweringBuilder<'_> {
     fn scratch(&mut self) -> String {
         let logical = format!("{}.curve.{}", self.scratch_prefix, self.next_scratch);
         self.next_scratch += 1;
-        let objective = sand_commands::ObjectiveName::logical(logical)
-            .as_str()
-            .to_string();
+        let objective = sand_commands::ObjectiveName::logical(logical);
         self.scratch_objectives.insert(objective.clone());
-        objective
+        objective.to_string()
     }
 
     fn constant(&mut self, value: f64, derivation: &str) -> Result<String, EntityDiagnostic> {
@@ -2113,6 +2143,13 @@ impl CurveLoweringBuilder<'_> {
             value,
         });
         Ok(destination)
+    }
+
+    fn lower_branch(&mut self, curve: &StatCurve) -> Result<LoweredCurveBranch, EntityDiagnostic> {
+        let start = self.operations.len();
+        let result = self.lower(curve)?;
+        let operations = self.operations.split_off(start);
+        Ok(LoweredCurveBranch { operations, result })
     }
 
     fn lower(&mut self, curve: &StatCurve) -> Result<String, EntityDiagnostic> {
@@ -2259,10 +2296,10 @@ impl CurveLoweringBuilder<'_> {
                     lowered_branches.push((
                         self.fixed
                             .encode(*maximum, self.scratch_prefix, "piecewise_maximum")?,
-                        self.lower(branch)?,
+                        self.lower_branch(branch)?,
                     ));
                 }
-                let fallback = self.lower(fallback)?;
+                let fallback = self.lower_branch(fallback)?;
                 self.operations
                     .push(LoweredCurveOperation::SelectPiecewise {
                         destination: destination.clone(),
@@ -2928,7 +2965,7 @@ mod tests {
             first
                 .scratch_objectives()
                 .iter()
-                .all(|name| name.len() <= 16)
+                .all(|name| name.as_str().len() <= 16)
         );
         assert!(first.operations().iter().any(|operation| matches!(
             operation,

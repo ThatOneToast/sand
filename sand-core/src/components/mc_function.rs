@@ -176,8 +176,8 @@ impl DatapackComponent for McFunction {
     fn to_json(&self) -> Value {
         Value::Array(
             self.commands
-                .clone()
-                .render()
+                .lower(&self.location)
+                .expect("function actions must validate before infallible serialization")
                 .iter()
                 .map(|c| Value::String(c.clone()))
                 .collect(),
@@ -185,7 +185,8 @@ impl DatapackComponent for McFunction {
     }
 
     fn content(&self) -> ComponentContent {
-        ComponentContent::Text(self.commands.clone().render().join("\n"))
+        self.try_content()
+            .expect("function actions must validate before infallible serialization")
     }
 
     fn component_dir(&self) -> &'static str {

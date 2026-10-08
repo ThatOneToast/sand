@@ -1234,18 +1234,20 @@ impl fmt::Display for Selector {
 
 impl Selector {
     pub(crate) fn is_statically_single(&self) -> bool {
-        matches!(self.base, TargetBase::RawSingle(_))
-            || matches!(
-                self.base,
-                TargetBase::NearestPlayer
-                    | TargetBase::Self_
-                    | TargetBase::RandomPlayer
-                    | TargetBase::Player(_)
-            )
-            || self
-                .args
-                .iter()
-                .any(|arg| matches!(arg, SelectorArg::Limit(1)))
+        if let Some(limit) = self.args.iter().find_map(|arg| match arg {
+            SelectorArg::Limit(limit) => Some(*limit),
+            _ => None,
+        }) {
+            return limit == 1;
+        }
+        matches!(
+            self.base,
+            TargetBase::RawSingle(_)
+                | TargetBase::NearestPlayer
+                | TargetBase::Self_
+                | TargetBase::RandomPlayer
+                | TargetBase::Player(_)
+        )
     }
 
     /// Whether this retained low-level selector is unambiguously player-only.
@@ -1289,6 +1291,7 @@ impl Validate for Selector {
         let mut singleton_keys = std::collections::BTreeSet::new();
         let mut positive_name = matches!(self.base, TargetBase::Player(_));
         let mut positive_type = false;
+        let mut negative_gamemode = false;
         for arg in &self.args {
             let (key, value): (&str, Option<&str>) = match arg {
                 SelectorArg::Tag(v) | SelectorArg::NotTag(v) => {
@@ -1344,13 +1347,15 @@ impl Validate for Selector {
                         self.base,
                         TargetBase::AllPlayers
                             | TargetBase::AllEntities
+                            | TargetBase::NearestPlayer
+                            | TargetBase::RandomPlayer
                             | TargetBase::Raw(_)
                             | TargetBase::RawSingle(_)
                     ) {
                         return Err(CommandError::new(
                             "Selector",
                             "limit",
-                            "`limit` is only applicable to `@a` and `@e` selector bases",
+                            "`limit` is only applicable to `@a`, `@e`, `@p`, and `@r` selector bases",
                         ));
                     }
                     if *v <= 0 {
@@ -1367,13 +1372,15 @@ impl Validate for Selector {
                         self.base,
                         TargetBase::AllPlayers
                             | TargetBase::AllEntities
+                            | TargetBase::NearestPlayer
+                            | TargetBase::RandomPlayer
                             | TargetBase::Raw(_)
                             | TargetBase::RawSingle(_)
                     ) {
                         return Err(CommandError::new(
                             "Selector",
                             "sort",
-                            "`sort` is only applicable to `@a` and `@e` selector bases",
+                            "`sort` is only applicable to `@a`, `@e`, `@p`, and `@r` selector bases",
                         ));
                     }
                     ("sort", None)
@@ -1405,7 +1412,26 @@ impl Validate for Selector {
                             format!("unknown vanilla gamemode `{v}`"),
                         ));
                     }
-                    ("gamemode", None)
+                    if v.starts_with('!') {
+                        if singleton_keys.contains("gamemode") {
+                            return Err(CommandError::new(
+                                "Selector",
+                                "gamemode",
+                                "positive and negative gamemode filters cannot be combined",
+                            ));
+                        }
+                        negative_gamemode = true;
+                        ("gamemode-", None)
+                    } else {
+                        if negative_gamemode {
+                            return Err(CommandError::new(
+                                "Selector",
+                                "gamemode",
+                                "positive and negative gamemode filters cannot be combined",
+                            ));
+                        }
+                        ("gamemode", None)
+                    }
                 }
                 SelectorArg::Scores(v) => {
                     validate_scores(v)?;
@@ -1424,7 +1450,7 @@ impl Validate for Selector {
                 }
                 SelectorArg::Nbt(v) => {
                     validate_snbt_compound(v.strip_prefix('!').unwrap_or(v))?;
-                    ("nbt", None)
+                    ("nbt*", None)
                 }
                 SelectorArg::Predicate(v) => {
                     validate::resource_location_shape(
@@ -1432,7 +1458,7 @@ impl Validate for Selector {
                         "Selector",
                         "predicate",
                     )?;
-                    ("predicate", None)
+                    ("predicate*", None)
                 }
                 SelectorArg::X(v) => {
                     validate::finite(*v, "Selector", "x")?;

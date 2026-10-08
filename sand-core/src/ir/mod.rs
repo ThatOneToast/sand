@@ -271,6 +271,26 @@ pub enum Cmd {
     Comment(String),
 }
 
+fn raw_command_may_return(line: &str) -> bool {
+    let line = line.trim_start();
+    let mut command = line.strip_prefix('$').unwrap_or(line);
+    loop {
+        let verb = command.split_whitespace().next().unwrap_or("");
+        match verb {
+            "return" => return true,
+            "execute" => {
+                let Some(inner) = sand_commands::render::collected_execute_command(command) else {
+                    // Unknown or macro-generated operation grammar cannot prove
+                    // that the scoped body continues to its cleanup command.
+                    return true;
+                };
+                command = inner;
+            }
+            _ => return verb.contains("$("),
+        }
+    }
+}
+
 impl Cmd {
     fn has_macro_line(&self) -> bool {
         match self {
@@ -284,15 +304,9 @@ impl Cmd {
         match self {
             Self::ReturnRun(_) => true,
             Self::Execute { run, .. } => run.may_return_from_frame(),
-            // Raw commands are an escape hatch. Be conservative when their
-            // command verb is itself substituted, or a return appears in text.
-            Self::Raw(text) => text.lines().any(|line| {
-                let line = line.trim_start();
-                let line = line.strip_prefix('$').unwrap_or(line);
-                line.split_whitespace().any(|word| word == "return")
-                    || line.starts_with("$(")
-                    || line.contains("run $(")
-            }),
+            // Inspect command positions through the canonical execute parser;
+            // quoted arguments and ordinary words such as `say return` are data.
+            Self::Raw(text) => text.lines().any(raw_command_may_return),
             _ => false,
         }
     }
@@ -383,6 +397,28 @@ mod tests {
 
     fn render(cmd: Cmd) -> String {
         cmd.render()
+    }
+
+    #[test]
+    fn raw_return_detection_uses_command_positions() {
+        for line in [
+            "$say return $(name)",
+            "$execute if score @s return matches 1 run say return $(name)",
+            r#"$tellraw @s {"text":"return $(name)"}"#,
+            "say execute run return 0",
+        ] {
+            assert!(!raw_command_may_return(line), "{line}");
+        }
+        for line in [
+            "return fail",
+            "$return $(result)",
+            "$execute as @s run return $(result)",
+            "execute as @s run execute at @s run return 0",
+            "$execute $(operations) run say unknown",
+            "$$(command)",
+        ] {
+            assert!(raw_command_may_return(line), "{line}");
+        }
     }
 
     #[test]

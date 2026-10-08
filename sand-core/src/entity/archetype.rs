@@ -948,67 +948,6 @@ where
         crate::entity::property::EntityTag::generated(external_tag(&self.id.to_string()))
     }
 
-    /// Call the generated attach/initialize function for the current `@s`.
-    ///
-    /// This command is execution-scoped. It does not create or return a
-    /// persistent entity reference.
-    #[sand_macros::api(
-        registry = sand_api_contract,
-        path = "sand::entity::EntityArchetype::attach",
-        aliases = ["sand::prelude::EntityArchetype::attach"],
-        module = "sand::entity",
-        kind = "method",
-        summary = "Call the generated attach/initialize function for the current `@s`.",
-        context = "Call the generated attach/initialize function for the current `@s`. This command is execution-scoped. It does not create or return a persistent entity reference.",
-        minecraft = "This command is execution-scoped. It does not create or return a persistent entity reference.",
-        use_when = ["Call the generated attach/initialize function for the current `@s`."],
-        avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
-        returns = "The string value produced to call the generated attach/initialize function for the current `@s`.",
-        example = "use sand::prelude::*; fn commands<K: KnownEntityKind>(archetype: &EntityArchetype<K>) { let _ = archetype.attach(); }",
-    )]
-    #[must_use]
-    pub fn attach(&self) -> String {
-        format!(
-            "function {}:{}/initialize",
-            self.id.namespace(),
-            generated_root(&self.id.to_string())
-        )
-    }
-
-    /// Summon this archetype and initialize the newly created entity.
-    ///
-    /// Vanilla's `execute summon` binds the new entity directly to `@s`, so
-    /// no selector, temporary tag, or global scratch identity is required.
-    /// Only summonable kinds support this operation; players must be adopted.
-    #[sand_macros::api(
-        registry = sand_api_contract,
-        path = "sand::entity::EntityArchetype::summon",
-        aliases = ["sand::prelude::EntityArchetype::summon"],
-        module = "sand::entity",
-        kind = "method",
-        summary = "Summon this archetype and initialize the newly created entity.",
-        context = "Summon this archetype and initialize the newly created entity. Vanilla's `execute summon` binds the new entity directly to `@s`, so no selector, temporary tag, or global scratch identity is required.",
-        minecraft = "Sand validates this definition and lowers it to entity-scoped selectors, scoreboards, NBT operations, and generated lifecycle functions as required.",
-        use_when = ["Defining or using typed entity behavior in a Sand datapack"],
-        avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
-        returns = "The ordered values produced to summon this archetype and initialize the newly created entity.",
-        example = "use sand::prelude::*; fn commands<K: SummonableEntityKind>(archetype: &EntityArchetype<K>) { let _ = archetype.summon(); }",
-    )]
-    #[must_use]
-    pub fn summon(&self) -> Vec<String>
-    where
-        K: crate::entity::SummonableEntityKind,
-    {
-        let entity_type = K::entity_type();
-        vec![format!(
-            "execute summon {entity_type} run {}",
-            self.attach()
-        )]
-    }
-
-    /// Erase Rust marker types for inventory-based exporter registration.
-    #[doc(hidden)]
-    #[must_use]
     pub(crate) fn definition(&self) -> ArchetypeDefinition {
         ArchetypeDefinition {
             id: self.id.clone(),
@@ -1028,18 +967,6 @@ where
             components: self.components.clone(),
         }
     }
-}
-
-/// Erases an archetype's marker types for proc-macro registration.
-///
-/// This is public only so generated code can cross the crate boundary through
-/// `sand::__private`; it is not part of the author-facing entity API.
-#[doc(hidden)]
-pub fn registered_definition<K>(archetype: &EntityArchetype<K>) -> ArchetypeDefinition
-where
-    K: KnownEntityKind,
-{
-    archetype.definition()
 }
 
 impl<K> EntityArchetype<K>
@@ -2008,7 +1935,7 @@ impl EntityDerivation {
     }
 }
 
-/// Link-time archetype factory submitted by `#[entity_archetype]`.
+/// Link-time archetype factory submitted by `#[derive(Archetype)]`.
 pub struct EntityArchetypeDescriptor {
     /// Build a fresh type-erased definition for one export.
     pub make: fn() -> Result<ArchetypeDefinition, EntityDiagnostic>,
@@ -5700,15 +5627,13 @@ mod tests {
 
     #[test]
     fn summon_uses_direct_typed_execute_summon_without_scratch_identity() {
-        let archetype =
-            EntityArchetype::<ZombieKind>::new(ResourceLocation::new("rpg", "summoned").unwrap())
-                .components::<MobState>();
-        let commands = archetype.summon();
+        let id = ResourceLocation::new("rpg", "summoned").unwrap();
+        let commands = concrete::summon::<ZombieKind>(&id, sand_commands::Vec3::here());
         assert_eq!(
             commands,
             vec![format!(
-                "execute summon minecraft:zombie run {}",
-                archetype.attach()
+                "execute positioned ~ ~ ~ summon minecraft:zombie run function rpg:{}/initialize",
+                generated_root("rpg:summoned"),
             )]
         );
     }
@@ -6334,7 +6259,7 @@ pub trait ArchetypeOperations: concrete::Declaration {
     returns = "Canonical initialization commands for the current executor.",
 )]
     fn attach(_entity: crate::entity::EntityContext<Self::Kind>) -> Vec<String> {
-        concrete::attach(&Self::archetype_id())
+        concrete::attach::<Self::Kind>(&Self::archetype_id())
     }
     /// Clean up this archetype while retaining components owned by other attached archetypes.
     #[sand_macros::api(
@@ -6352,7 +6277,7 @@ pub trait ArchetypeOperations: concrete::Declaration {
     returns = "Canonical cleanup commands preserving shared component ownership.",
 )]
     fn detach(_entity: crate::entity::EntityContext<Self::Kind>) -> Vec<String> {
-        concrete::detach(&Self::archetype_id())
+        concrete::detach::<Self::Kind>(&Self::archetype_id())
     }
     /// Test current entity kind and archetype membership at Minecraft runtime.
     #[sand_macros::api(

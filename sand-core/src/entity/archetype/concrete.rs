@@ -3,9 +3,9 @@
 use super::{ArchetypeDefinition, EntityArchetype, generated_root, initialized_tag};
 use crate::entity::{EntityDiagnostic, KnownEntityKind, SummonableEntityKind};
 use crate::ir::{Cmd, ConditionIr, ExecuteOp};
-use sand_commands::Vec3;
 #[doc(hidden)]
-pub use sand_commands::{Selector, TargetArgument};
+pub use sand_commands::Selector;
+use sand_commands::{TargetArgument, Vec3};
 use sand_components::ResourceLocation;
 
 /// Check that native configuration retained the declaration's identity and
@@ -45,7 +45,10 @@ fn lifecycle(id: &ResourceLocation, phase: &str) -> Cmd {
 }
 
 /// Summon at the authored position and initialize exactly the new executor.
-pub fn summon<K: SummonableEntityKind>(id: &ResourceLocation, position: Vec3) -> Vec<String> {
+pub(crate) fn summon<K: SummonableEntityKind>(
+    id: &ResourceLocation,
+    position: Vec3,
+) -> Vec<String> {
     vec![
         Cmd::Execute {
             operations: vec![
@@ -59,13 +62,35 @@ pub fn summon<K: SummonableEntityKind>(id: &ResourceLocation, position: Vec3) ->
 }
 
 /// Attach the declaration to a statically proven current entity kind.
-pub fn attach(id: &ResourceLocation) -> Vec<String> {
-    vec![lifecycle(id, "initialize").render()]
+pub(crate) fn attach<K: KnownEntityKind>(id: &ResourceLocation) -> Vec<String> {
+    vec![
+        Cmd::Execute {
+            operations: vec![
+                ExecuteOp::If(ConditionIr::Entity(
+                    Selector::self_().entity_type(K::entity_type()),
+                )),
+                ExecuteOp::Unless(ConditionIr::Entity(
+                    Selector::self_().tag(initialized_tag(&id.to_string())),
+                )),
+            ],
+            run: Box::new(lifecycle(id, "initialize")),
+        }
+        .render(),
+    ]
 }
 
 /// Run canonical cleanup, including shared-component ownership guards.
-pub fn detach(id: &ResourceLocation) -> Vec<String> {
-    vec![lifecycle(id, "cleanup").render()]
+pub(crate) fn detach<K: KnownEntityKind>(id: &ResourceLocation) -> Vec<String> {
+    vec![
+        Cmd::Execute {
+            operations: vec![ExecuteOp::If(ConditionIr::Entity(selection::<K>(
+                id,
+                Selector::self_(),
+            )))],
+            run: Box::new(lifecycle(id, "cleanup")),
+        }
+        .render(),
+    ]
 }
 
 /// Select the existing archetype membership without introducing a new query
@@ -78,7 +103,7 @@ pub fn selection<K: KnownEntityKind>(id: &ResourceLocation, selector: Selector) 
 
 /// Adopt selected entities once, preserving the author's selection and checking
 /// each executor's actual kind instead of replacing a conflicting type filter.
-pub fn adopt<K: KnownEntityKind>(
+pub(crate) fn adopt<K: KnownEntityKind>(
     id: &ResourceLocation,
     targets: impl TargetArgument,
 ) -> Vec<String> {
@@ -89,6 +114,9 @@ pub fn adopt<K: KnownEntityKind>(
                 ExecuteOp::At(Selector::self_()),
                 ExecuteOp::If(ConditionIr::Entity(
                     Selector::self_().entity_type(K::entity_type()),
+                )),
+                ExecuteOp::Unless(ConditionIr::Entity(
+                    Selector::self_().tag(initialized_tag(&id.to_string())),
                 )),
             ],
             run: Box::new(lifecycle(id, "initialize")),

@@ -77,8 +77,7 @@ pub use sand_macros::{Archetype, EntityStateEnum, State, StateBundle, StateEnum,
 /// generated code; `#[function]`/`#[datapack_component]`/`#[on_event]` bodies are only
 /// meaningful when compiled through `sand build`.
 pub use sand_macros::{
-    armor_event, custom_item, datapack_component, entity_archetype, function, on_event, run_fn,
-    schedule,
+    armor_event, custom_item, datapack_component, function, on_event, run_fn, schedule,
 };
 
 /// Canonical typed handle accepted wherever Sand refers to a datapack function.

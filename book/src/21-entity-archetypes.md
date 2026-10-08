@@ -92,9 +92,9 @@ when no native behavior is needed. This callback keeps the existing typed
 builder available without requiring a second configuration trait or repeating
 identity and composition in every behavior implementation.
 
-`#[entity_archetype]` and `EntityArchetype<K>` remain available for advanced
-programmatic definitions. The concrete declaration is the normal authoring
-entry point.
+`EntityArchetype<K>` is the typed configuration builder received by the
+callback. Declare and register archetypes through `#[derive(Archetype)]`;
+the former factory attribute and builder attach/summon endpoints are removed.
 
 The adoption scan remains constrained to `minecraft:zombie`. A Sand-owned
 marker makes initialization idempotent. Scans see loaded chunks only, while

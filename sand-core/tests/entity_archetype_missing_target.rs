@@ -14,11 +14,17 @@ struct Unrelated {
     value: Score,
 }
 
-#[entity_archetype]
-fn missing_target() -> EntityArchetype<ZombieKind> {
-    EntityArchetype::new("cf_missing_target:seeker".parse().unwrap())
-        .components::<Progression>()
-        .derive(Unrelated::value, StatCurve::state(Progression::level))
+#[derive(Archetype)]
+#[archetype(id = "cf_missing_target:seeker", entity = ZombieKind, configure = Self::configure)]
+#[allow(dead_code)]
+struct MissingTarget {
+    progression: Progression,
+}
+
+impl MissingTarget {
+    fn configure(archetype: EntityArchetype<ZombieKind>) -> EntityArchetype<ZombieKind> {
+        archetype.derive(Unrelated::value, StatCurve::state(Progression::level))
+    }
 }
 
 #[test]

@@ -14,13 +14,20 @@ struct Scaling {
     power: Score,
 }
 
-#[entity_archetype]
-fn cross_component_cycle() -> EntityArchetype<ZombieKind> {
-    EntityArchetype::new("cf_cycle:cycle".parse().unwrap())
-        .components::<Progression>()
-        .components::<Scaling>()
-        .derive(Progression::level, StatCurve::state(Scaling::power))
-        .derive(Scaling::power, StatCurve::state(Progression::level))
+#[derive(Archetype)]
+#[archetype(id = "cf_cycle:cycle", entity = ZombieKind, configure = Self::configure)]
+#[allow(dead_code)]
+struct CrossComponentCycle {
+    progression: Progression,
+    scaling: Scaling,
+}
+
+impl CrossComponentCycle {
+    fn configure(archetype: EntityArchetype<ZombieKind>) -> EntityArchetype<ZombieKind> {
+        archetype
+            .derive(Progression::level, StatCurve::state(Scaling::power))
+            .derive(Scaling::power, StatCurve::state(Progression::level))
+    }
 }
 
 #[test]

@@ -14,11 +14,17 @@ struct Unrelated {
     value: Score,
 }
 
-#[entity_archetype]
-fn missing_name_field() -> EntityArchetype<ZombieKind> {
-    EntityArchetype::new("cf_missing_name:seeker".parse().unwrap())
-        .components::<Progression>()
-        .name(EntityName::new().state(Unrelated::value, ChatColor::Red))
+#[derive(Archetype)]
+#[archetype(id = "cf_missing_name:seeker", entity = ZombieKind, configure = Self::configure)]
+#[allow(dead_code)]
+struct MissingNameField {
+    progression: Progression,
+}
+
+impl MissingNameField {
+    fn configure(archetype: EntityArchetype<ZombieKind>) -> EntityArchetype<ZombieKind> {
+        archetype.name(EntityName::new().state(Unrelated::value, ChatColor::Red))
+    }
 }
 
 #[test]

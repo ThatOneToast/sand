@@ -76,20 +76,13 @@ fn concrete_declarations_export_the_canonical_composition_and_queries() {
                 body.contains("type=minecraft:zombie,tag=__sand.a.") && body.contains("scores=")
             }))
     );
-    let shared_objective = format!(
-        "scoreboard objectives add {} dummy",
-        Combat::health.objective()
-    );
-    assert_eq!(
-        records
-            .iter()
-            .filter_map(|record| record["content"].as_str())
-            .flat_map(str::lines)
-            .filter(|line| *line == shared_objective)
-            .count(),
-        1
-    );
     let seeker = Seeker::on(EntityContext::<ZombieKind>::default());
+    let guard = Guard::on(EntityContext::<ZombieKind>::default());
+    // Both archetypes expose the same physical component objective and dirty
+    // marker; provisioning the same objective from several lifecycle helpers
+    // does not create separate State storage.
+    assert_eq!(seeker.combat.health.set(7), guard.combat.health.set(7));
+    assert!(seeker.combat.health.set(7)[0].contains(&Combat::health.objective()));
     assert!(seeker.combat.health.add(1)[0].contains("scoreboard players add @s"));
     assert!(seeker.growth.progression.level.add(1)[0].contains("scoreboard players add @s"));
     let _: EntityContext<ZombieKind> = seeker.entity();
@@ -103,5 +96,34 @@ fn concrete_declarations_export_the_canonical_composition_and_queries() {
 #[test]
 fn adoption_preserves_a_conflicting_selection_instead_of_retargeting_it() {
     let commands = Seeker::adopt(Target::entities().entity_type(vanilla::EntityType::Skeleton));
-    assert!(commands[0].starts_with("execute as @e[type=minecraft:skeleton] at @s if entity @s[type=minecraft:zombie] run function concrete:"));
+    assert!(commands[0].starts_with("execute as @e[type=minecraft:skeleton] at @s if entity @s[type=minecraft:zombie] unless entity @s[tag=__sand.a."));
+}
+
+#[test]
+fn lifecycle_calls_guard_membership_before_invoking_callbacks_or_cleanup() {
+    let attach = Seeker::attach(Default::default());
+    let detach = Seeker::detach(Default::default());
+    let adopt = Seeker::adopt(Target::entities());
+    assert_eq!(attach.len(), 1);
+    assert_eq!(detach.len(), 1);
+    assert_eq!(adopt.len(), 1);
+    let marker = attach[0]
+        .split("unless entity @s[tag=")
+        .nth(1)
+        .unwrap()
+        .split(']')
+        .next()
+        .unwrap();
+    assert!(
+        attach[0].starts_with("execute if entity @s[type=minecraft:zombie] unless entity @s[tag=")
+    );
+    assert!(attach[0].ends_with("/initialize"));
+    assert!(adopt[0].contains(&format!("unless entity @s[tag={marker}] run function")));
+    assert!(detach[0].starts_with(&format!(
+        "execute if entity @s[type=minecraft:zombie,tag={marker}] run function"
+    )));
+    assert!(detach[0].ends_with("/cleanup"));
+    // The same membership bit gates both entry and exit; independently attached
+    // State cannot enter cleanup without membership, and repeat attachment cannot
+    // rerun the native initializer or callback.
 }

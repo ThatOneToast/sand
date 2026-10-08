@@ -34,39 +34,56 @@ struct SecondOnly {
     value: Score,
 }
 
-#[entity_archetype]
-fn duplicate_composition() -> EntityArchetype<ZombieKind> {
-    EntityArchetype::new(
-        ResourceLocation::new("duplicate_component", "duplicate_composition").unwrap(),
-    )
-    .components::<PrimaryState>()
-    .components::<RepeatsPrimary>()
+#[derive(Archetype)]
+#[archetype(id = "duplicate_component:duplicate_composition", entity = ZombieKind, configure = Self::configure)]
+#[allow(dead_code)]
+struct DuplicateComposition {
+    repeats_primary: RepeatsPrimary,
 }
 
-#[entity_archetype]
-fn first_shared_archetype() -> EntityArchetype<ZombieKind> {
-    EntityArchetype::new("duplicate_component:first".parse().unwrap())
-        .components::<SharedState>()
-        .components::<FirstOnly>()
+impl DuplicateComposition {
+    fn configure(archetype: EntityArchetype<ZombieKind>) -> EntityArchetype<ZombieKind> {
+        archetype
+    }
 }
 
-#[entity_archetype]
-fn second_shared_archetype() -> EntityArchetype<ZombieKind> {
-    EntityArchetype::new("duplicate_component:second".parse().unwrap())
-        .components::<SharedState>()
-        .components::<SecondOnly>()
+#[derive(Archetype)]
+#[archetype(id = "duplicate_component:first", entity = ZombieKind, configure = Self::configure)]
+#[allow(dead_code)]
+struct FirstSharedArchetype {
+    shared_state: SharedState,
+    first_only: FirstOnly,
+}
+
+impl FirstSharedArchetype {
+    fn configure(archetype: EntityArchetype<ZombieKind>) -> EntityArchetype<ZombieKind> {
+        archetype
+    }
+}
+
+#[derive(Archetype)]
+#[archetype(id = "duplicate_component:second", entity = ZombieKind, configure = Self::configure)]
+#[allow(dead_code)]
+struct SecondSharedArchetype {
+    shared_state: SharedState,
+    second_only: SecondOnly,
+}
+
+impl SecondSharedArchetype {
+    fn configure(archetype: EntityArchetype<ZombieKind>) -> EntityArchetype<ZombieKind> {
+        archetype
+    }
 }
 
 #[test]
-fn duplicate_component_and_bundle_flatten_deterministically() {
+fn nested_component_composition_exports_deterministically() {
     let first = sand_core::try_export_components_json("duplicate_component").unwrap();
     let second = sand_core::try_export_components_json("duplicate_component").unwrap();
     assert_eq!(first, second);
     assert_eq!(
-        duplicate_composition()
-            .summon()
+        DuplicateComposition::summon(Vec3::here())
             .iter()
-            .filter(|command| command.contains("execute summon"))
+            .filter(|command| command.contains("summon minecraft:zombie"))
             .count(),
         1
     );

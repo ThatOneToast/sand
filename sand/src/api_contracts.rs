@@ -153,22 +153,6 @@ register! {
 }
 
 register! {
-    path: "sand::entity_archetype",
-    aliases: ["sand::prelude::entity_archetype"],
-    module: "sand",
-    kind: Macro,
-    signature: "#[entity_archetype]",
-    summary: "Registers a typed entity-archetype factory.",
-    context: "The attribute links a component-first EntityArchetype definition to Sand's lifecycle registry so composed State lifecycle, native behavior, and derived values are evaluated consistently.",
-    minecraft: "Generates the functions and periodic checks required to maintain the declared archetype for loaded entities.",
-    use_when: ["Declaring reusable behavior and state for a Minecraft entity kind"],
-    avoid_when: ["Issuing a one-time selector command without archetype lifecycle behavior"],
-    params: [],
-    returns: None,
-    example: "#[sand::entity_archetype]\nfn zombie() -> sand::entity::EntityArchetype<ZombieKind> { todo!() }"
-}
-
-register! {
     path: "sand::State",
     aliases: ["sand::prelude::State", "sand::state::State"],
     module: "sand",

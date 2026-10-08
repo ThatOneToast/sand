@@ -79,11 +79,18 @@ struct LivingRuntimeState {
     timer: EntityTimer,
 }
 
-#[entity_archetype]
-fn composed_state_archetype() -> EntityArchetype<ZombieKind> {
-    EntityArchetype::new(ResourceLocation::new("statepack", "composed_state_archetype").unwrap())
-        .components::<LivingRuntimeState>()
-        .components::<OptionalMarker>()
+#[derive(Archetype)]
+#[archetype(id = "statepack:composed_state_archetype", entity = ZombieKind, configure = Self::configure)]
+#[allow(dead_code)]
+struct ComposedStateArchetype {
+    living_runtime_state: LivingRuntimeState,
+    optional_marker: OptionalMarker,
+}
+
+impl ComposedStateArchetype {
+    fn configure(archetype: EntityArchetype<ZombieKind>) -> EntityArchetype<ZombieKind> {
+        archetype
+    }
 }
 
 #[allow(dead_code)]

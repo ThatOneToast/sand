@@ -43,3 +43,31 @@ fn registered_function_macro_exports_typed_placeholders_and_call() {
         "function macro_test:greet with storage macro_test:runtime greeting"
     );
 }
+
+#[function("scoped_greeting")]
+fn scoped_greeting() {
+    let player = sand_core::entity::EntityContext::<sand_core::entity::PlayerKind>::default();
+    sand_core::entity::EntityScope::bind(&player, |_| {
+        let args = FunctionMacroArgs::new(["player"]).unwrap();
+        args.line("say scoped $(player)").unwrap()
+    });
+}
+
+#[test]
+fn scoped_macro_lines_keep_the_argument_bearing_function_and_cleanup() {
+    let first = try_export_components_json("macro_test").unwrap();
+    assert_eq!(first, try_export_components_json("macro_test").unwrap());
+    let records: Vec<serde_json::Value> = serde_json::from_str(&first).unwrap();
+    let body = records
+        .iter()
+        .find(|record| record["path"] == "scoped_greeting")
+        .unwrap()["content"]
+        .as_str()
+        .unwrap();
+    let lines: Vec<_> = body.lines().collect();
+    assert_eq!(lines.len(), 3);
+    assert!(lines[0].starts_with("tag @s add __sand_scope_"));
+    assert_eq!(lines[1], "$say scoped $(player)");
+    assert!(lines[2].starts_with("tag @e[tag=__sand_scope_"));
+    assert!(lines[2].contains(" remove __sand_scope_"));
+}

@@ -56,6 +56,9 @@ fn entity_filters_render_on_one_value() {
         .volume(8.0, 4.0, 8.0)
         .predicate_raw("demo:is_hostile")
         .predicate_raw("!demo:is_friendly");
+    target
+        .validate(&sand_commands::CommandProfile::unprofiled())
+        .unwrap();
 
     assert_eq!(
         target.to_string(),

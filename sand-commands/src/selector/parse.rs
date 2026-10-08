@@ -380,3 +380,63 @@ mod advancement_tests {
         }
     }
 }
+
+#[cfg(test)]
+mod repeated_predicate_tests {
+    use super::*;
+    use crate::ScoreHolder;
+
+    #[test]
+    fn repeated_predicates_remain_valid_single_entity_sources() {
+        let text = "@e[predicate=demo:is_hostile,predicate=!demo:is_friendly,limit=1]";
+        let parsed = selector(text).unwrap();
+        parsed.validate(&CommandProfile::unprofiled()).unwrap();
+        assert_eq!(parsed.to_string(), text);
+        ScoreHolder::compat(text.into())
+            .validate_single(&CommandProfile::unprofiled())
+            .unwrap();
+    }
+}
+
+#[cfg(test)]
+mod selector_cardinality_tests {
+    use super::*;
+    use crate::ScoreHolder;
+
+    #[test]
+    fn repeated_native_filters_and_explicit_single_limits_preserve_cardinality() {
+        for text in [
+            "@e[nbt={OnGround:1b},nbt=!{NoAI:1b},limit=1]",
+            "@a[gamemode=!creative,gamemode=!spectator,limit=1]",
+            "@p[limit=1,sort=furthest]",
+            "@r[limit=1,sort=nearest]",
+        ] {
+            let parsed = selector(text).unwrap();
+            parsed.validate(&CommandProfile::unprofiled()).unwrap();
+            assert_eq!(parsed.to_string(), text);
+            ScoreHolder::compat(text.into())
+                .validate_single(&CommandProfile::unprofiled())
+                .unwrap();
+        }
+        for text in ["@p[limit=2]", "@r[limit=2]"] {
+            let parsed = selector(text).unwrap();
+            parsed.validate(&CommandProfile::unprofiled()).unwrap();
+            assert!(!parsed.is_statically_single());
+            assert!(
+                ScoreHolder::compat(text.into())
+                    .validate_single(&CommandProfile::unprofiled())
+                    .is_err()
+            );
+        }
+        for text in [
+            "@s[limit=1]",
+            "@a[gamemode=creative,gamemode=survival,limit=1]",
+        ] {
+            assert!(
+                ScoreHolder::compat(text.into())
+                    .validate_single(&CommandProfile::unprofiled())
+                    .is_err()
+            );
+        }
+    }
+}

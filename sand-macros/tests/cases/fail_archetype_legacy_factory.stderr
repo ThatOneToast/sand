@@ -1,0 +1,5 @@
+error[E0433]: cannot find `entity_archetype` in `sand`
+ --> tests/cases/fail_archetype_legacy_factory.rs:2:9
+  |
+2 | #[sand::entity_archetype]
+  |         ^^^^^^^^^^^^^^^^ could not find `entity_archetype` in `sand`

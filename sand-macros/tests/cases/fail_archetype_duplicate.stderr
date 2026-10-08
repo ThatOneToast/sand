@@ -1,0 +1,5 @@
+error[E0080]: evaluation panicked: [SAND-ARCHETYPE] `Bad` fields `direct` and `nested` contain the same State component
+ --> tests/cases/fail_archetype_duplicate.rs:7:10
+  |
+7 | #[derive(Archetype)]
+  |          ^^^^^^^^^ evaluation of `_` failed here

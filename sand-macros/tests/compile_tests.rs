@@ -166,3 +166,10 @@ fn api_contract_compile_tests() {
     t.compile_fail("tests/cases/fail_api_members_on_function.rs");
     t.compile_fail("tests/cases/fail_api_public_tuple_field.rs");
 }
+
+#[test]
+fn concrete_archetype_compile_tests() {
+    let t = trybuild::TestCases::new();
+    t.pass("tests/cases/pass_concrete_archetype.rs");
+    t.compile_fail("tests/cases/fail_archetype_*.rs");
+}

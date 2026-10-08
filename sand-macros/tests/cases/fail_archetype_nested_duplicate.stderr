@@ -1,0 +1,5 @@
+error[E0080]: evaluation panicked: [SAND-ARCHETYPE] `Bad` field `nested` repeats a State component inside its nested composition
+ --> tests/cases/fail_archetype_nested_duplicate.rs:7:10
+  |
+7 | #[derive(Archetype)]
+  |          ^^^^^^^^^ evaluation of `_` failed here

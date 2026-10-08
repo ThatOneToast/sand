@@ -14,14 +14,20 @@ struct Unrelated {
     value: Score,
 }
 
-#[entity_archetype]
-fn missing_adoption_field() -> EntityArchetype<ZombieKind> {
-    EntityArchetype::new("cf_missing_adoption:seeker".parse().unwrap())
-        .components::<Attached>()
-        .adopt(
+#[derive(Archetype)]
+#[archetype(id = "cf_missing_adoption:seeker", entity = ZombieKind, configure = Self::configure)]
+#[allow(dead_code)]
+struct MissingAdoptionField {
+    attached: Attached,
+}
+
+impl MissingAdoptionField {
+    fn configure(archetype: EntityArchetype<ZombieKind>) -> EntityArchetype<ZombieKind> {
+        archetype.adopt(
             Adoption::natural()
                 .where_state(Unrelated::value.matches(1..).expect("valid score range")),
         )
+    }
 }
 
 #[test]

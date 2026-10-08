@@ -14,11 +14,17 @@ struct Unrelated {
     value: Score,
 }
 
-#[entity_archetype]
-fn missing_curve_input() -> EntityArchetype<ZombieKind> {
-    EntityArchetype::new("cf_missing_input:seeker".parse().unwrap())
-        .components::<Combat>()
-        .derive(Combat::maximum, StatCurve::state(Unrelated::value))
+#[derive(Archetype)]
+#[archetype(id = "cf_missing_input:seeker", entity = ZombieKind, configure = Self::configure)]
+#[allow(dead_code)]
+struct MissingCurveInput {
+    combat: Combat,
+}
+
+impl MissingCurveInput {
+    fn configure(archetype: EntityArchetype<ZombieKind>) -> EntityArchetype<ZombieKind> {
+        archetype.derive(Combat::maximum, StatCurve::state(Unrelated::value))
+    }
 }
 
 #[test]

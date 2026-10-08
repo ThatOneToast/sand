@@ -195,11 +195,18 @@ pub fn detach_status() {
     Status::detach(EntityContext::<ZombieKind>::default());
 }
 
-#[entity_archetype]
-pub fn armored_zombie() -> EntityArchetype<ZombieKind> {
-    EntityArchetype::new(ResourceLocation::new("rpg", "armored_zombie").unwrap())
-        .components::<Character>()
+#[derive(Archetype)]
+#[archetype(id = "rpg:armored_zombie", entity = ZombieKind, configure = Self::configure)]
+#[allow(dead_code)]
+pub struct ArmoredZombie {
+    pub character: Character,
+}
+
+impl ArmoredZombie {
+    fn configure(archetype: EntityArchetype<ZombieKind>) -> EntityArchetype<ZombieKind> {
+    archetype
         .adopt(Adoption::natural_and_external().every(Ticks::new(20)))
+    }
 }
 
 #[function]

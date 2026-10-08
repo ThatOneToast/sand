@@ -48,46 +48,59 @@ struct NestedStats {
     scaling: Scaling,
 }
 
-#[entity_archetype]
-fn valid_component_first() -> EntityArchetype<ZombieKind> {
-    EntityArchetype::new("cf_valid:seeker".parse().unwrap())
-        .components::<NestedStats>()
-        .components::<Conditions>()
-        .components::<Progression>()
-        .derive(
-            Combat::maximum,
-            StatCurve::linear(StatCurve::state(Progression::level), 2.0, 18.0),
-        )
-        .derive(
-            Scaling::power,
-            StatCurve::linear(StatCurve::state(Combat::maximum), 1.0, 0.0),
-        )
-        .health(
-            HealthBinding::new(Combat::maximum)
-                .current_health(Combat::current, CurrentHealthSync::Bidirectional),
-        )
-        .effect_when(
-            Conditions::weakened,
-            EffectBinding::new(
-                StatusEffectId::minecraft("weakness").unwrap(),
-                Ticks::seconds(5),
-            ),
-        )
-        .name(
-            EntityName::new()
-                .text(Text::new("Lv. ").gold())
-                .state(Progression::level, ChatColor::Yellow)
-                .text(Text::new(" [").gray())
-                .state(Combat::current, ChatColor::Red)
-                .text(Text::new("]").gray())
-                .refresh_every(Ticks::new(5)),
-        )
+#[derive(Archetype)]
+#[archetype(id = "cf_valid:seeker", entity = ZombieKind, configure = Self::configure)]
+#[allow(dead_code)]
+struct ValidComponentFirst {
+    nested_stats: NestedStats,
+    conditions: Conditions,
 }
 
-#[entity_archetype]
-fn shared_progression_user() -> EntityArchetype<ZombieKind> {
-    EntityArchetype::new("cf_valid:progression_observer".parse().unwrap())
-        .components::<Progression>()
+impl ValidComponentFirst {
+    fn configure(archetype: EntityArchetype<ZombieKind>) -> EntityArchetype<ZombieKind> {
+        archetype
+            .derive(
+                Combat::maximum,
+                StatCurve::linear(StatCurve::state(Progression::level), 2.0, 18.0),
+            )
+            .derive(
+                Scaling::power,
+                StatCurve::linear(StatCurve::state(Combat::maximum), 1.0, 0.0),
+            )
+            .health(
+                HealthBinding::new(Combat::maximum)
+                    .current_health(Combat::current, CurrentHealthSync::Bidirectional),
+            )
+            .effect_when(
+                Conditions::weakened,
+                EffectBinding::new(
+                    StatusEffectId::minecraft("weakness").unwrap(),
+                    Ticks::seconds(5),
+                ),
+            )
+            .name(
+                EntityName::new()
+                    .text(Text::new("Lv. ").gold())
+                    .state(Progression::level, ChatColor::Yellow)
+                    .text(Text::new(" [").gray())
+                    .state(Combat::current, ChatColor::Red)
+                    .text(Text::new("]").gray())
+                    .refresh_every(Ticks::new(5)),
+            )
+    }
+}
+
+#[derive(Archetype)]
+#[archetype(id = "cf_valid:progression_observer", entity = ZombieKind, configure = Self::configure)]
+#[allow(dead_code)]
+struct SharedProgressionUser {
+    progression: Progression,
+}
+
+impl SharedProgressionUser {
+    fn configure(archetype: EntityArchetype<ZombieKind>) -> EntityArchetype<ZombieKind> {
+        archetype
+    }
 }
 
 #[test]

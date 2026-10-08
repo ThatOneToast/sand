@@ -65,7 +65,7 @@ pub use sand_macros::system;
 /// `State` validates schema metadata, generates concrete bound views, and
 /// registers scope-aware lifecycle metadata; `EntityStateEnum` maps fieldless
 /// enum variants to scoreboard integers.
-pub use sand_macros::{EntityStateEnum, State, StateBundle, StateEnum, StateQuery};
+pub use sand_macros::{Archetype, EntityStateEnum, State, StateBundle, StateEnum, StateQuery};
 /// `#[function]`, `#[datapack_component]`, `#[on_event]`, `#[custom_item]`, `#[armor_event]`,
 /// `#[schedule]`, and `run_fn!` — the attribute and function-like macros that
 /// turn ordinary Rust functions into datapack functions, lifecycle hooks
@@ -77,8 +77,7 @@ pub use sand_macros::{EntityStateEnum, State, StateBundle, StateEnum, StateQuery
 /// generated code; `#[function]`/`#[datapack_component]`/`#[on_event]` bodies are only
 /// meaningful when compiled through `sand build`.
 pub use sand_macros::{
-    armor_event, custom_item, datapack_component, entity_archetype, function, on_event, run_fn,
-    schedule,
+    armor_event, custom_item, datapack_component, function, on_event, run_fn, schedule,
 };
 
 /// Canonical typed handle accepted wherever Sand refers to a datapack function.
@@ -225,16 +224,20 @@ pub mod state {
 ///     max_health: EntityScore<i32>,
 /// }
 ///
-/// #[entity_archetype]
-/// fn zombie() -> EntityArchetype<ZombieKind> {
-///     EntityArchetype::new(ResourceLocation::new("demo", "zombie").unwrap())
-///         .components::<Mob>()
+/// #[derive(Archetype)]
+/// #[archetype(id = "demo:zombie", entity = Zombie, configure = Self::configure)]
+/// struct Zombie { mob: Mob }
+///
+/// impl Zombie {
+/// fn configure(archetype: EntityArchetype<ZombieKind>) -> EntityArchetype<ZombieKind> {
+///     archetype
 ///         .adopt(Adoption::natural_and_external().every(Ticks::new(5)))
 ///         .derive(
 ///             Mob::max_health,
 ///             StatCurve::linear(StatCurve::state(Mob::level), 2.0, 18.0),
 ///         )
 ///         .health(HealthBinding::new(Mob::max_health))
+/// }
 /// }
 /// ```
 #[api(
@@ -249,27 +252,27 @@ pub mod state {
 )]
 pub mod entity {
     pub use sand_core::entity::{
-        Adoption, AdoptionSource, AnyEntity, AttributeBinding, AttributeModifierBinding, Cooldown,
-        CurrentHealthSync, CurveEvaluationError, CurveInputs, DEFAULT_FIXED_POINT_SCALE, Data,
-        DerivedScoreEncoding, EffectBinding, EntityAction, EntityArchetype, EntityContext,
-        EntityCooldown, EntityCooldownAccessor, EntityData, EntityDataRoot, EntityDerivation,
-        EntityDiagnostic, EntityEnum, EntityEnumAccessor, EntityEnumValue, EntityEquipmentHandle,
-        EntityEventId, EntityFlag, EntityFlagAccessor, EntityIdentity, EntityKind, EntityMounts,
-        EntityName, EntityNbtBinding, EntityNbtProperty, EntityNbtType, EntityNbtValue,
-        EntityScope, EntityScore, EntityScoreAccessor, EntityState, EntityStateField, EntityTag,
-        EntityTeam, EntityText, EntityTextSegment, EntityTimer, EntityTimerAccessor,
-        EntityTransform, EntityTransition, EntityTransitionField, EnumEncoding, EquipmentBinding,
-        EquipmentEntityKind, FixedPoint, FixedScore, FixedScoreAccessor, FixedScoreValue,
-        FixedValue, Flag, GlobalStateBundleOperations, HealthBinding, HealthResizePolicy,
-        KeyedData, KnownEntityKind, LivingEntity, LivingEntityKind, MarkerKind, Migration,
-        MountVehicleKind, MutableLivingEntityKind, NameBinding, NumericPropertySource,
-        NumericStateField, NumericStateSource, OverflowPolicy, OwnershipPolicy, PlayerKind,
-        PropertyNameError, RawEntityProperty, RawEntityStateField, RawPropertyAccess,
-        RawStateBackend, ReconcilePolicy, RefreshPolicy, Relation, RelationTraversal,
-        RoundingPolicy, SafeEntityDataWriteKind, ScopedEntityRef, Score, SpecialEntityPolicy,
-        StatCurve, StateComposition, StateFieldDescriptor, StateFieldKind, StatePredicate,
-        StateQueryOperations, StateSchema, TagBinding, TargetExecution, TeamBinding,
-        ThresholdDirection, Timer, ZombieKind,
+        Adoption, AdoptionSource, AnyEntity, ArchetypeOperations, AttributeBinding,
+        AttributeModifierBinding, Cooldown, CurrentHealthSync, CurveEvaluationError, CurveInputs,
+        DEFAULT_FIXED_POINT_SCALE, Data, DerivedScoreEncoding, EffectBinding, EntityAction,
+        EntityArchetype, EntityContext, EntityCooldown, EntityCooldownAccessor, EntityData,
+        EntityDataRoot, EntityDerivation, EntityDiagnostic, EntityEnum, EntityEnumAccessor,
+        EntityEnumValue, EntityEquipmentHandle, EntityEventId, EntityFlag, EntityFlagAccessor,
+        EntityIdentity, EntityKind, EntityMounts, EntityName, EntityNbtBinding, EntityNbtProperty,
+        EntityNbtType, EntityNbtValue, EntityScope, EntityScore, EntityScoreAccessor, EntityState,
+        EntityStateField, EntityTag, EntityTeam, EntityText, EntityTextSegment, EntityTimer,
+        EntityTimerAccessor, EntityTransform, EntityTransition, EntityTransitionField,
+        EnumEncoding, EquipmentBinding, EquipmentEntityKind, FixedPoint, FixedScore,
+        FixedScoreAccessor, FixedScoreValue, FixedValue, Flag, GlobalStateBundleOperations,
+        HealthBinding, HealthResizePolicy, KeyedData, KnownEntityKind, LivingEntity,
+        LivingEntityKind, MarkerKind, Migration, MountVehicleKind, MutableLivingEntityKind,
+        NameBinding, NumericPropertySource, NumericStateField, NumericStateSource, OverflowPolicy,
+        OwnershipPolicy, PlayerKind, PropertyNameError, RawEntityProperty, RawEntityStateField,
+        RawPropertyAccess, RawStateBackend, ReconcilePolicy, RefreshPolicy, Relation,
+        RelationTraversal, RoundingPolicy, SafeEntityDataWriteKind, ScopedEntityRef, Score,
+        SpecialEntityPolicy, StatCurve, StateComposition, StateFieldDescriptor, StateFieldKind,
+        StatePredicate, StateQueryOperations, StateSchema, SummonableEntityKind, TagBinding,
+        TargetExecution, TeamBinding, ThresholdDirection, Timer, ZombieKind,
     };
 }
 

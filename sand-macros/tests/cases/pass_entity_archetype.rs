@@ -8,13 +8,20 @@ struct ZombieState {
     level: EntityScore<i32>,
 }
 
-#[entity_archetype]
-fn zombie() -> EntityArchetype<ZombieKind> {
-    EntityArchetype::new(ResourceLocation::new("rpg", "zombie").unwrap())
-        .components::<ZombieState>()
+#[derive(Archetype)]
+#[archetype(id = "rpg:zombie", entity = ZombieKind, configure = Self::configure)]
+#[allow(dead_code)]
+struct Zombie {
+    zombie_state: ZombieState,
+}
+
+impl Zombie {
+    fn configure(archetype: EntityArchetype<ZombieKind>) -> EntityArchetype<ZombieKind> {
+    archetype
         .adopt(Adoption::natural_and_external())
+    }
 }
 
 fn main() {
-    assert_eq!(zombie().id().to_string(), "rpg:zombie");
+    assert!(Zombie::summon(Vec3::here())[0].contains("summon minecraft:zombie"));
 }

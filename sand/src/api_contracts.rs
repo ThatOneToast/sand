@@ -153,22 +153,6 @@ register! {
 }
 
 register! {
-    path: "sand::entity_archetype",
-    aliases: ["sand::prelude::entity_archetype"],
-    module: "sand",
-    kind: Macro,
-    signature: "#[entity_archetype]",
-    summary: "Registers a typed entity-archetype factory.",
-    context: "The attribute links a component-first EntityArchetype definition to Sand's lifecycle registry so composed State lifecycle, native behavior, and derived values are evaluated consistently.",
-    minecraft: "Generates the functions and periodic checks required to maintain the declared archetype for loaded entities.",
-    use_when: ["Declaring reusable behavior and state for a Minecraft entity kind"],
-    avoid_when: ["Issuing a one-time selector command without archetype lifecycle behavior"],
-    params: [],
-    returns: None,
-    example: "#[sand::entity_archetype]\nfn zombie() -> sand::entity::EntityArchetype<ZombieKind> { todo!() }"
-}
-
-register! {
     path: "sand::State",
     aliases: ["sand::prelude::State", "sand::state::State"],
     module: "sand",
@@ -214,6 +198,22 @@ register! {
     params: [],
     returns: None,
     example: "#[derive(sand::StateEnum)]\nenum Phase { Idle, Alert }"
+}
+
+register! {
+    path: "sand::Archetype",
+    aliases: ["sand::prelude::Archetype"],
+    module: "sand",
+    kind: Macro,
+    signature: "#[derive(Archetype)]",
+    summary: "Declares a concrete entity archetype from named State components and bundles.",
+    context: "The declaration owns its identity and entity kind once, generates a concrete bound component view and creation/attachment methods, and participates in ordinary State systems. Optional native configuration uses the existing archetype builder without changing the declared composition.",
+    minecraft: "Reuses canonical component initialization, native bindings, shared-component cleanup and membership-filtered queries; it creates no parallel State storage or durable Rust entity reference.",
+    use_when: ["Declaring a named gameplay object", "Using concrete archetypes in typed systems"],
+    avoid_when: ["Declaring reusable data without entity-native behavior; derive State or StateBundle"],
+    params: [],
+    returns: None,
+    example: "#[derive(sand::Archetype)]\n#[archetype(id = \"demo:seeker\", entity = Zombie)]\nstruct Seeker { combat: Combat }"
 }
 
 register! {

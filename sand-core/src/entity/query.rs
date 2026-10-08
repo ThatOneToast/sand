@@ -16,6 +16,16 @@ pub enum StateQueryScope {
     Player,
 }
 
+impl StateQueryScope {
+    /// Canonical selector root for generated State query expansion.
+    pub fn selector(self) -> Selector {
+        match self {
+            Self::Entity => Selector::all_entities(),
+            Self::Player => Selector::all_players(),
+        }
+    }
+}
+
 /// Scope proof for State components and bundles that can be queried as an
 /// entity collection. Global State deliberately does not implement this
 /// contract.
@@ -83,7 +93,7 @@ where
 
     fn each(body: impl FnOnce(Self::Item) -> Vec<String>) -> Vec<String> {
         lower_state_query_each(
-            <T::Scope as QueryableStateScope>::QUERY_SCOPE,
+            <T::Scope as QueryableStateScope>::QUERY_SCOPE.selector(),
             T::presence_requirements(),
             Vec::new(),
             T::bind_member("@s"),
@@ -93,6 +103,7 @@ where
 
     fn current(body: impl FnOnce(Self::Item) -> Vec<String>) -> Vec<String> {
         lower_state_query_current(
+            None,
             T::presence_requirements(),
             Vec::new(),
             T::bind_member("@s"),
@@ -210,7 +221,7 @@ where
 /// implementations.
 #[doc(hidden)]
 pub fn lower_state_query_each<Item>(
-    scope: StateQueryScope,
+    mut selector: Selector,
     mut requirements: Vec<(String, u32)>,
     mut forbidden: Vec<(String, u32)>,
     item: Item,
@@ -221,10 +232,6 @@ pub fn lower_state_query_each<Item>(
     forbidden.sort();
     forbidden.dedup();
 
-    let mut selector = match scope {
-        StateQueryScope::Entity => Selector::all_entities(),
-        StateQueryScope::Player => Selector::all_players(),
-    };
     for (objective, version) in requirements {
         selector = selector
             .score_typed(
@@ -235,7 +242,7 @@ pub fn lower_state_query_each<Item>(
             .expect("State queries contain unique presence filters");
     }
 
-    let inner = guard_state_query_commands(body(item), &[], &forbidden);
+    let inner = guard_state_query_commands(body(item), None, &[], &forbidden);
     if inner.is_empty() {
         return Vec::new();
     }
@@ -248,6 +255,7 @@ pub fn lower_state_query_each<Item>(
 /// Canonical current-executor lowering shared by every generated State query.
 #[doc(hidden)]
 pub fn lower_state_query_current<Item>(
+    context: Option<Selector>,
     mut requirements: Vec<(String, u32)>,
     mut forbidden: Vec<(String, u32)>,
     item: Item,
@@ -257,11 +265,12 @@ pub fn lower_state_query_current<Item>(
     requirements.dedup();
     forbidden.sort();
     forbidden.dedup();
-    guard_state_query_commands(body(item), &requirements, &forbidden)
+    guard_state_query_commands(body(item), context.as_ref(), &requirements, &forbidden)
 }
 
 fn guard_state_query_commands(
     commands: Vec<String>,
+    context: Option<&Selector>,
     requirements: &[(String, u32)],
     forbidden: &[(String, u32)],
 ) -> Vec<String> {
@@ -272,6 +281,9 @@ fn guard_state_query_commands(
                 .iter()
                 .map(|(objective, version)| format!("if score @s {objective} matches {version}"))
                 .collect::<Vec<_>>();
+            if let Some(selector) = context {
+                guards.insert(0, format!("if entity {selector}"));
+            }
             guards.extend(forbidden.iter().map(|(objective, version)| {
                 format!("unless score @s {objective} matches {version}")
             }));
@@ -375,10 +387,43 @@ fn lower_each<K: crate::entity::kind::EntityKind>(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::entity::KnownEntityKind;
     use crate::entity::state::{EntityFlag, EntityScore, EntityStateField};
 
     fn tag(value: &str) -> crate::entity::EntityTag {
         crate::entity::EntityTag::new(value).unwrap()
+    }
+
+    #[test]
+    fn state_query_preserves_an_archetype_selector_and_component_presence() {
+        let selector = Selector::all_entities()
+            .entity_type(crate::entity::ZombieKind::entity_type())
+            .tag("archetype_member");
+        let commands =
+            lower_state_query_each(selector, vec![("component".into(), 2)], vec![], (), |_| {
+                vec!["say member".into()]
+            });
+        assert!(commands[0].starts_with(
+            "execute as @e[type=minecraft:zombie,tag=archetype_member,scores={component=2}] at @s run function "
+        ));
+    }
+
+    #[test]
+    fn current_query_checks_membership_without_changing_executor() {
+        let commands = lower_state_query_current(
+            Some(Selector::self_().tag("archetype_member")),
+            vec![("component".into(), 2)],
+            vec![],
+            (),
+            |_| vec!["say first".into(), "say second".into()],
+        );
+        assert_eq!(
+            commands,
+            [
+                "execute if entity @s[tag=archetype_member] if score @s component matches 2 run say first",
+                "execute if entity @s[tag=archetype_member] if score @s component matches 2 run say second",
+            ]
+        );
     }
 
     #[test]

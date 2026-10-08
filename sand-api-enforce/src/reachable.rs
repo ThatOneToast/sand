@@ -3632,8 +3632,8 @@ fn trusted_qualified_attribute(path: &syn::Path) -> bool {
             if matches!(
                 (crate_name.as_str(), name.as_str()),
                 ("diagnostic", "on_unimplemented")
-                    | ("sand", "api" | "armor_event" | "datapack_component" | "entity_archetype" | "on_event" | "function" | "custom_item" | "schedule")
-                    | ("sand_macros", "api" | "armor_event" | "datapack_component" | "entity_archetype" | "on_event" | "function" | "custom_item" | "schedule")
+                    | ("sand", "api" | "armor_event" | "datapack_component" | "on_event" | "function" | "custom_item" | "schedule")
+                    | ("sand_macros", "api" | "armor_event" | "datapack_component" | "on_event" | "function" | "custom_item" | "schedule")
             )
     )
 }
@@ -3644,7 +3644,6 @@ fn shape_preserving_sand_attribute(name: &str) -> bool {
         "api"
             | "armor_event"
             | "datapack_component"
-            | "entity_archetype"
             | "on_event"
             | "function"
             | "custom_item"
@@ -3663,8 +3662,8 @@ fn trusted_macro_import(name: &str, path: &[String]) -> bool {
                     | ("schemars", "JsonSchema")
                         | ("thiserror", "Error")
                         | ("clap", "Args" | "Parser" | "Subcommand" | "ValueEnum")
-                        | ("sand", "EntityStateEnum" | "SandStorage" | "State" | "api" | "armor_event" | "datapack_component" | "entity_archetype" | "on_event" | "function" | "custom_item" | "schedule")
-                        | ("sand_macros", "EntityStateEnum" | "SandStorage" | "State" | "api" | "armor_event" | "datapack_component" | "entity_archetype" | "on_event" | "function" | "custom_item" | "schedule")
+                        | ("sand", "EntityStateEnum" | "SandStorage" | "State" | "api" | "armor_event" | "datapack_component" | "on_event" | "function" | "custom_item" | "schedule")
+                        | ("sand_macros", "EntityStateEnum" | "SandStorage" | "State" | "api" | "armor_event" | "datapack_component" | "on_event" | "function" | "custom_item" | "schedule")
                 )
     ) || matches!(
         path,

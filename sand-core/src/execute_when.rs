@@ -157,6 +157,27 @@ impl Conditional {
         }
     }
 
+    fn execute_actions(&self, negated: bool, actions: Actions) -> Actions {
+        let mut output = Actions::default();
+        for action in actions.0 {
+            output.extend([self.setup.clone().into_commands()]);
+            for clauses in self.condition.to_ir_plans(negated) {
+                output.0.push(if clauses.is_empty() {
+                    action.clone()
+                } else {
+                    crate::ir::Cmd::Execute {
+                        operations: clauses
+                            .into_iter()
+                            .map(|clause| clause.into_operation())
+                            .collect(),
+                        run: Box::new(action.clone()),
+                    }
+                });
+            }
+        }
+        output
+    }
+
     fn execute_commands(&self, negated: bool, run: &str) -> Vec<String> {
         let mut commands = self.setup.clone();
         commands.extend(self.condition.execute_commands(negated, run));
@@ -343,14 +364,13 @@ impl WhenBuilder {
         minecraft = "Emits one execute if ... run line per supplied command, repeating any condition command plan each time.",
         use_when = ["Every command intentionally requires a fresh condition evaluation"],
         avoid_when = ["All commands must run after one successful check", "Repeated evaluation or setup would be wasteful"],
-        params(cmds = "The displayable commands to wrap with separate condition checks."),
-        returns = "The independently conditioned command lines in input order.",
+        params(cmds = "The actions to wrap with separate condition checks."),
+        returns = "The independently conditioned structured actions in input order.",
         example = "when(condition).then_each([\"say first\", \"say second\"])"
     )]
-    pub fn then_each(self, cmds: impl IntoIterator<Item = impl std::fmt::Display>) -> Vec<String> {
-        cmds.into_iter()
-            .flat_map(|cmd| self.cond.execute_commands(false, &cmd.to_string()))
-            .collect()
+    pub fn then_each(self, cmds: impl IntoIterator<Item = impl IntoCommands>) -> Actions {
+        let actions = cmds.into_iter().map(IntoCommands::into_commands).collect();
+        self.cond.execute_actions(false, actions)
     }
 }
 
@@ -478,14 +498,13 @@ impl UnlessBuilder {
         minecraft = "Emits one execute unless ... run line per supplied command, repeating any condition command plan each time.",
         use_when = ["Every command intentionally requires a fresh failed-condition evaluation"],
         avoid_when = ["All commands must run after one failed check", "Repeated evaluation or setup would be wasteful"],
-        params(cmds = "The displayable commands to wrap with separate negative checks."),
-        returns = "The independently conditioned command lines in input order.",
+        params(cmds = "The actions to wrap with separate negative checks."),
+        returns = "The independently conditioned structured actions in input order.",
         example = "unless(condition).then_each([\"say first\", \"say second\"])"
     )]
-    pub fn then_each(self, cmds: impl IntoIterator<Item = impl std::fmt::Display>) -> Vec<String> {
-        cmds.into_iter()
-            .flat_map(|cmd| self.cond.execute_commands(true, &cmd.to_string()))
-            .collect()
+    pub fn then_each(self, cmds: impl IntoIterator<Item = impl IntoCommands>) -> Actions {
+        let actions = cmds.into_iter().map(IntoCommands::into_commands).collect();
+        self.cond.execute_actions(true, actions)
     }
 }
 
@@ -969,8 +988,41 @@ mod tests {
     // ── then_each (per-command, explicit opt-in) ──────────────────────────────
 
     #[test]
+    fn per_command_branches_accept_collections_and_retain_validation() {
+        for negated in [false, true] {
+            let body = crate::mcfunction!["say first"; "return 0"];
+            let actions = if negated {
+                unless(MANA.of("@s").gte(25)).then_each(body)
+            } else {
+                when(MANA.of("@s").gte(25)).then_each(body)
+            };
+            let output = crate::ir::test_support::emitted(actions);
+            assert_eq!(output.len(), 2);
+            assert!(output[0].ends_with("run say first"));
+            assert!(output[1].ends_with("run return 0"));
+            let invalid = Actions(vec![crate::ir::Cmd::Execute {
+                operations: vec![],
+                run: Box::new(crate::ir::Cmd::Raw("say invalid".into())),
+            }]);
+            let actions = if negated {
+                unless(MANA.of("@s").gte(25)).then_each(invalid)
+            } else {
+                when(MANA.of("@s").gte(25)).then_each(invalid)
+            };
+            let error = actions
+                .lower(&"test:per_command".parse().unwrap())
+                .unwrap_err();
+            assert!(error.to_string().contains("actions[0].run.operations"));
+        }
+    }
+
+    #[test]
     fn when_then_each_wraps_each() {
-        let cmds = when(MANA.of("@s").gte(25)).then_each(["say first", "say second", "say third"]);
+        let cmds = crate::ir::test_support::emitted(when(MANA.of("@s").gte(25)).then_each([
+            "say first",
+            "say second",
+            "say third",
+        ]));
         assert_eq!(cmds.len(), 3, "then_each wraps each separately: {cmds:?}");
         assert!(
             cmds[0].contains("execute if score @s mana matches 25.. run say first"),
@@ -991,7 +1043,9 @@ mod tests {
 
     #[test]
     fn unless_then_each_wraps_each() {
-        let cmds = unless(CASTING.of("@s").is_true()).then_each(["say a", "say b"]);
+        let cmds = crate::ir::test_support::emitted(
+            unless(CASTING.of("@s").is_true()).then_each(["say a", "say b"]),
+        );
         assert_eq!(cmds.len(), 2);
         assert!(
             cmds[0].contains("execute unless score @s casting"),

@@ -185,7 +185,7 @@ pub fn grapple_core_recipe() -> ShapedRecipe {
 
 // ANCHOR: entity_capabilities
 /// A façade-only example that discovers entity operations from the context.
-pub fn capability_facade_example() -> Vec<String> {
+pub fn capability_facade_example() -> Actions {
     let active = EntityTag::new("trail_active").unwrap();
 
     Target::players().each(|player| {
@@ -490,15 +490,33 @@ mod tests {
     }
 
     #[test]
-    fn tick_regenerates_and_warns() {
+    fn tick_drives_stamina_recovery_and_readiness() {
         let cmds = emitted(tick());
         assert!(
             cmds.iter().any(|c| c.contains("Grapple ready")),
             "readiness actionbar: {cmds:?}"
         );
         assert!(
-            cmds.iter().any(|c| c.contains("Catch your breath")),
-            "damage warning: {cmds:?}"
+            cmds.iter().any(|command| {
+                command.starts_with("execute as @a ")
+                    && command.contains("matches 50..")
+                    && command.ends_with("run function trail:recover")
+            }),
+            "recovery at half stamina: {cmds:?}"
+        );
+        let recovery = emitted(recover());
+        assert!(
+            recovery
+                .iter()
+                .any(|command| command.starts_with("tellraw @s ")
+                    && command.contains("You feel steady again.")),
+            "recovery feedback: {recovery:?}"
+        );
+        assert!(
+            cmds.iter().any(|command| command.contains("matches ..99")
+                && command.contains("run scoreboard players add @s ")
+                && command.ends_with(" 10")),
+            "stamina regeneration: {cmds:?}"
         );
     }
 

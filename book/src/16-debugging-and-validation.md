@@ -14,7 +14,7 @@ through `McFunction::try_content` before asserting on command output:
 
 ```rust,ignore
 #[test]
-fn tick_regenerates_and_warns() {
+fn tick_drives_recovery_and_readiness() {
     use sand::registration::{ComponentContent, DatapackComponent};
     let function = sand::component::McFunction::new("test:tick".parse().unwrap())
         .commands(tick());
@@ -27,8 +27,8 @@ fn tick_regenerates_and_warns() {
         "readiness actionbar: {cmds:?}"
     );
     assert!(
-        cmds.iter().any(|c| c.contains("Catch your breath")),
-        "damage warning: {cmds:?}"
+        cmds.iter().any(|c| c.ends_with("run function trail:recover")),
+        "recovery dispatch: {cmds:?}"
     );
 }
 ```

@@ -86,7 +86,9 @@
 //! ]);
 //! ```
 
+use crate::IntoCommands;
 use crate::condition::Condition;
+use crate::ir::Actions;
 
 /// A condition with commands that must run before it is evaluated.
 ///
@@ -180,7 +182,7 @@ fn reset_branch_counter_for_tests() {
 /// Register commands as an anonymous branch function and return its path.
 ///
 /// Uses `__sand_local:` sentinel so the namespace is resolved at export time.
-fn register_branch(commands: Vec<String>) -> String {
+fn register_branch(commands: impl IntoCommands) -> String {
     let path = crate::register_dyn_fn_dedup("sand/branches", commands);
     format!("__sand_local:{path}")
 }
@@ -299,8 +301,9 @@ impl WhenBuilder {
     /// The branch function is called once under the condition. All commands run
     /// in order, regardless of whether they mutate the condition.
     ///
-    /// Accepts any value implementing [`Display`](std::fmt::Display) — use raw strings,
-    /// [`cmd`](crate::cmd) builders, or any other display-able command type.
+    /// Accepts [`IntoCommands`] values, including `mcfunction!` action collections,
+    /// typed command builders, and explicit raw command text. Structured branch
+    /// operations remain intact until export validation.
     ///
     /// ```rust,ignore
     /// when(HAS_CELLS.of("@s").is_true()).then_all([
@@ -313,15 +316,15 @@ impl WhenBuilder {
         path = "sand::execute_when::WhenBuilder::then_all",
         summary = "Runs a command collection in one grouped positive branch.",
         context = "Grouping evaluates the condition once before entering an anonymous helper, so commands that mutate the condition do not suppress later commands.",
-        minecraft = "Registers the rendered commands as a generated function and emits execute if ... run function for it.",
+        minecraft = "Retains the authored actions in a generated function and emits execute if ... run function for it.",
         use_when = ["Several commands must run in order under one successful check", "Branch commands may mutate the tested state"],
         avoid_when = ["Each command intentionally needs a fresh condition check", "Only one direct command is needed"],
-        params(cmds = "The displayable Minecraft commands to place in the grouped branch."),
+        params(cmds = "The authored actions or command values to place in the grouped branch."),
         returns = "The setup and conditional helper-call lines for the parent function.",
         example = "when(condition).then_all([\"say first\", \"say second\"])"
     )]
-    pub fn then_all(self, cmds: impl IntoIterator<Item = impl std::fmt::Display>) -> Vec<String> {
-        let commands: Vec<String> = cmds.into_iter().map(|c| c.to_string()).collect();
+    pub fn then_all(self, cmds: impl IntoIterator<Item = impl IntoCommands>) -> Vec<String> {
+        let commands: Actions = cmds.into_iter().map(IntoCommands::into_commands).collect();
         let branch_ref = register_branch(commands);
         self.cond
             .execute_commands(false, &format!("function {branch_ref}"))
@@ -452,15 +455,15 @@ impl UnlessBuilder {
         path = "sand::execute_when::UnlessBuilder::then_all",
         summary = "Runs a command collection in one grouped negative branch.",
         context = "Grouping evaluates the condition once before entering an anonymous helper, so commands that change it do not suppress later commands.",
-        minecraft = "Registers the rendered commands as a generated function and emits execute unless ... run function for it.",
+        minecraft = "Retains the authored actions in a generated function and emits execute unless ... run function for it.",
         use_when = ["Several commands must run in order after one failed check", "Branch commands may mutate the tested state"],
         avoid_when = ["Each command intentionally needs a fresh condition check", "Only one direct command is needed"],
-        params(cmds = "The displayable Minecraft commands to place in the grouped negative branch."),
+        params(cmds = "The authored actions or command values to place in the grouped negative branch."),
         returns = "The setup and conditional helper-call lines for the parent function.",
         example = "unless(condition).then_all([\"say first\", \"say second\"])"
     )]
-    pub fn then_all(self, cmds: impl IntoIterator<Item = impl std::fmt::Display>) -> Vec<String> {
-        let commands: Vec<String> = cmds.into_iter().map(|c| c.to_string()).collect();
+    pub fn then_all(self, cmds: impl IntoIterator<Item = impl IntoCommands>) -> Vec<String> {
+        let commands: Actions = cmds.into_iter().map(IntoCommands::into_commands).collect();
         let branch_ref = register_branch(commands);
         self.cond
             .execute_commands(true, &format!("function {branch_ref}"))
@@ -508,21 +511,21 @@ impl IfBuilder {
     /// Specify the commands to run when the condition holds.
     ///
     /// Returns an [`IfThenBuilder`] where you can optionally attach an `.else_all(...)`.
-    /// Accepts any value implementing [`Display`](std::fmt::Display).
+    /// Accepts [`IntoCommands`] values and retains structured operations until export.
     #[sand_macros::api(
         registry = sand_api_contract,
         path = "sand::execute_when::IfBuilder::then_all",
         summary = "Defines the grouped success arm of a conditional branch.",
         context = "The returned builder can be emitted as a positive-only branch through IntoCommands or completed with a mutually exclusive else_all arm.",
-        minecraft = "Renders and stores the commands for an anonymous success function; the condition is evaluated when the returned builder is consumed.",
+        minecraft = "Stores the authored actions for an anonymous success function; the condition is evaluated when the returned builder is consumed.",
         use_when = ["Several success commands must share one condition decision", "An else arm may be attached afterward"],
         avoid_when = ["A single direct conditional command is sufficient", "Each success command needs a fresh condition check"],
-        params(cmds = "The displayable Minecraft commands for the grouped success arm."),
+        params(cmds = "The authored actions or command values for the grouped success arm."),
         returns = "A builder carrying the condition and registered success-arm input, ready for optional else completion.",
         example = "if_(condition).then_all([\"say yes\"])"
     )]
-    pub fn then_all(self, cmds: impl IntoIterator<Item = impl std::fmt::Display>) -> IfThenBuilder {
-        let then_cmds: Vec<String> = cmds.into_iter().map(|c| c.to_string()).collect();
+    pub fn then_all(self, cmds: impl IntoIterator<Item = impl IntoCommands>) -> IfThenBuilder {
+        let then_cmds: Actions = cmds.into_iter().map(IntoCommands::into_commands).collect();
         IfThenBuilder {
             cond: self.cond,
             then_cmds,
@@ -544,7 +547,7 @@ impl IfBuilder {
 #[must_use = "an IfThenBuilder must be emitted with IntoCommands or completed with else_all"]
 pub struct IfThenBuilder {
     cond: Conditional,
-    then_cmds: Vec<String>,
+    then_cmds: Actions,
 }
 
 impl IfThenBuilder {
@@ -566,12 +569,12 @@ impl IfThenBuilder {
         minecraft = "Registers success and failure functions, snapshots the typed condition as zero or one in Sand's internal temporary scoreboard, and dispatches exactly one matching branch. A success wrapper marks the decision consumed after nested calls return.",
         use_when = ["Exactly one of two command sequences must run from a typed condition", "Either arm may mutate the state tested by the condition"],
         avoid_when = ["Only a positive or negative branch is required", "The choice belongs in Rust generation-time control flow"],
-        params(cmds = "The displayable Minecraft commands for the grouped failure arm."),
+        params(cmds = "The authored actions or command values for the grouped failure arm."),
         returns = "Setup commands followed by one call to the generated single-decision dispatcher.",
         example = "if_(condition).then_all([\"say yes\"]).else_all([\"say no\"])"
     )]
-    pub fn else_all(self, cmds: impl IntoIterator<Item = impl std::fmt::Display>) -> Vec<String> {
-        let else_cmds: Vec<String> = cmds.into_iter().map(|c| c.to_string()).collect();
+    pub fn else_all(self, cmds: impl IntoIterator<Item = impl IntoCommands>) -> Vec<String> {
+        let else_cmds: Actions = cmds.into_iter().map(IntoCommands::into_commands).collect();
         let then_ref = register_branch(self.then_cmds);
         let else_ref = register_branch(else_cmds);
         crate::state::score::request_expression_temp();
@@ -726,13 +729,65 @@ pub fn if_(cond: impl Into<Conditional>) -> IfBuilder {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::IntoCommands;
     use crate::condition::Condition;
+    use crate::ir::Actions;
     use crate::state::{Cooldown, Flag, ScoreVar, Ticks};
     use crate::{all, any};
 
     static MANA: ScoreVar<i32> = ScoreVar::new("mana");
     static CASTING: Flag = Flag::new("casting");
     static DASH: Cooldown = Cooldown::new("dash", Ticks::new(60));
+
+    #[test]
+    fn grouped_branches_retain_action_validation_until_export() {
+        let builders: [fn(Actions) -> Actions; 4] = [
+            |body| {
+                when(CASTING.of("@s").is_true())
+                    .then_all(body)
+                    .into_commands()
+            },
+            |body| {
+                unless(CASTING.of("@s").is_true())
+                    .then_all(body)
+                    .into_commands()
+            },
+            |body| {
+                if_(CASTING.of("@s").is_true())
+                    .then_all(body)
+                    .into_commands()
+            },
+            |body| {
+                if_(CASTING.of("@s").is_true())
+                    .then_all(["say success"])
+                    .else_all(body)
+                    .into_commands()
+            },
+        ];
+        for build in builders {
+            let _ = crate::function::drain_dyn_fns();
+            let invalid = Actions(vec![crate::ir::Cmd::Execute {
+                operations: vec![],
+                run: Box::new(crate::ir::Cmd::Raw("say invalid".into())),
+            }]);
+            let parent = build(crate::mcfunction![invalid; "say after"]);
+            let _ = crate::ir::test_support::emitted(parent);
+            let errors = crate::function::drain_dyn_fns()
+                .into_iter()
+                .filter_map(|(path, body)| {
+                    let owner = sand_components::ResourceLocation::new("game", path).unwrap();
+                    body.lower(&owner).err().map(|error| error.to_string())
+                })
+                .collect::<Vec<_>>();
+            assert_eq!(errors.len(), 1);
+            assert!(errors[0].contains("game:sand/branches/"), "{}", errors[0]);
+            assert!(
+                errors[0].contains("SAND-COMMAND-EXECUTE-EMPTY"),
+                "{}",
+                errors[0]
+            );
+        }
+    }
 
     // The dynamic-function registry is thread-local (see
     // `crate::function`), so each test thread already has an isolated

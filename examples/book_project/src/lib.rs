@@ -89,7 +89,7 @@ pub fn tick() {
                 ])
                 .run(command)
         })
-        .collect::<Vec<_>>();
+        .collect::<Actions>();
     state
         .regen
         .start(Ticks::seconds(2))
@@ -99,7 +99,7 @@ pub fn tick() {
                 .when(state.regen.elapsed())
                 .run(command)
         })
-        .collect::<Vec<_>>();
+        .collect::<Actions>();
 
     // Exhaustion clears once stamina recovers past half.
     TypedExecute::as_players()
@@ -198,13 +198,13 @@ pub fn capability_facade_example() -> Actions {
             .duration(Ticks::seconds(1))
             .particles(false);
 
-        let mut commands = vec![
-            player.identity().add_tag(&active).unwrap(),
+        let mut commands = mcfunction![
+            player.identity().add_tag(&active).unwrap();
             player
                 .transform()
                 .face_position(Vec3::absolute(0.0, 80.0, 0.0))
-                .unwrap(),
-            first_hotbar_slot.nbt().get().to_string(),
+                .unwrap();
+            first_hotbar_slot.nbt().get().to_string();
         ];
         commands.extend(
             TypedExecute::as_self_at_self()

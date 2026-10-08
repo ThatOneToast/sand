@@ -2349,7 +2349,7 @@ fn compile_definition_with_claims(
     let mut repair_refresh_commands = Vec::new();
 
     let derivations = compile_derivations(definition, &fields, &root, &marker)?;
-    objectives.extend(derivations.objectives);
+    let derivation_objectives = derivations.objectives;
     functions.extend(derivations.functions);
     records.extend(derivations.records);
     initialize_commands.extend(derivations.initialize_commands.iter().cloned());
@@ -2696,7 +2696,11 @@ fn compile_definition_with_claims(
             &retaining_markers,
         ));
     }
-    for objective in &objectives {
+    for objective in objectives.iter().map(String::as_str).chain(
+        derivation_objectives
+            .iter()
+            .map(sand_commands::ObjectiveName::as_str),
+    ) {
         if !component_objectives.contains(objective) {
             cleanup_commands.push(format!("scoreboard players reset @s {objective}"));
         }
@@ -2915,6 +2919,8 @@ fn compile_definition_with_claims(
             tick_functions.push(format!("{}:{path}", definition.id.namespace()));
         }
     }
+
+    merge_derivation_objectives(&id, &mut objectives, derivation_objectives)?;
 
     // Property/derivation compilation can add objectives after the load
     // record is first reserved. Materialize the complete sorted set last.
@@ -3210,9 +3216,39 @@ struct PropertyCompilation {
 struct DerivationCompilation {
     records: Vec<crate::component::ComponentRecord>,
     functions: Vec<String>,
-    objectives: Vec<String>,
+    objectives: Vec<sand_commands::ObjectiveName>,
     initialize_commands: Vec<String>,
     refresh_function: Option<String>,
+}
+
+/// Keep generated logical identities until every other archetype resource is
+/// known, so neither another scratch nor a live State field can alias them.
+fn merge_derivation_objectives(
+    owner: &str,
+    existing: &mut BTreeSet<String>,
+    generated: Vec<sand_commands::ObjectiveName>,
+) -> Result<(), EntityDiagnostic> {
+    let mut identities = std::collections::BTreeMap::new();
+    for objective in generated {
+        let name = objective.as_str().to_owned();
+        let logical = objective.logical_name().to_owned();
+        let other = if existing.contains(&name) {
+            Some(format!("{owner} State or runtime objective `{name}`"))
+        } else {
+            identities
+                .insert(name.clone(), logical.clone())
+                .filter(|previous| previous != &logical)
+        };
+        if let Some(other) = other {
+            return Err(EntityDiagnostic::ResourceCollision {
+                resource: format!("scoreboard objective {name}"),
+                first: other,
+                second: logical,
+            });
+        }
+    }
+    existing.extend(identities.into_keys());
+    Ok(())
 }
 
 fn compile_derivations(
@@ -3278,9 +3314,7 @@ fn compile_derivations(
         let target = derivation.target.objective();
         let target_dirty = derivation.target.dirty_objective();
         let derivation_dirty =
-            sand_commands::ObjectiveName::logical(format!("{id}.derive.{index}.dirty"))
-                .as_str()
-                .to_string();
+            sand_commands::ObjectiveName::logical(format!("{id}.derive.{index}.dirty"));
         objectives.insert(derivation_dirty.clone());
         let curve_references = derivation.curve.field_references();
         for input in derivation.curve.inputs() {
@@ -3309,22 +3343,21 @@ fn compile_derivations(
         // Commit the actual property only after arithmetic and scale
         // conversion succeed; a runtime overflow must leave it untouched.
         let calculated =
-            sand_commands::ObjectiveName::logical(format!("{id}.derive.{index}.result"))
-                .to_string();
+            sand_commands::ObjectiveName::logical(format!("{id}.derive.{index}.result"));
         objectives.insert(calculated.clone());
         let lowered = derivation.curve.lower_scoreboard(
-            &calculated,
+            calculated.as_str(),
             &format!("{id}.derive.{index}"),
             derivation.fixed,
         )?;
-        objectives.extend(lowered.scratch_objectives().iter().map(ToString::to_string));
+        objectives.extend(lowered.scratch_objectives().iter().cloned());
         let path = format!("{root}/derive/{index}");
         let rendered = render_lowered_curve(
             NumericContext::new(&definition.id, &sand_commands::ScoreHolder::self_())?,
             &path,
             &lowered,
         )?;
-        objectives.extend(rendered.objectives.into_iter().map(|name| name.to_string()));
+        objectives.extend(rendered.objectives);
         functions.push(path.clone());
         functions.extend(rendered.functions);
         records.extend(rendered.records);
@@ -3335,17 +3368,13 @@ fn compile_derivations(
                 NumericContext::new(&definition.id, &sand_commands::ScoreHolder::self_())?,
                 &mut conversion_objectives,
                 &mut commands,
-                &calculated,
+                calculated.as_str(),
                 derivation.fixed.scale(),
                 derivation.target_scale,
                 RoundingPolicy::NearestTiesAwayFromZero,
                 index,
             )?;
-            objectives.extend(
-                conversion_objectives
-                    .into_iter()
-                    .map(|name| name.to_string()),
-            );
+            objectives.extend(conversion_objectives);
         }
         commands.push(format!(
             "scoreboard players operation @s {target} = @s {calculated}"
@@ -5345,6 +5374,33 @@ mod tests {
             .to_string();
         assert!(error.contains("#global"), "{error}");
         assert!(error.contains("cross-holder change observation"), "{error}");
+    }
+
+    #[test]
+    fn derivation_storage_rejects_live_and_generated_objective_aliases() {
+        let result = sand_commands::ObjectiveName::logical("rpg:mob.derive.0.result");
+        let mut live = BTreeSet::from([result.to_string()]);
+        let error =
+            merge_derivation_objectives("rpg:mob", &mut live, vec![result.clone()]).unwrap_err();
+        assert!(matches!(error, EntityDiagnostic::ResourceCollision { .. }));
+        assert!(error.to_string().contains("rpg:mob.derive.0.result"));
+        let alias = sand_commands::ObjectiveName::logical(result.to_string());
+        let mut generated = BTreeSet::new();
+        assert!(
+            merge_derivation_objectives("rpg:mob", &mut generated, vec![result.clone(), alias])
+                .is_err()
+        );
+        assert!(
+            generated.is_empty(),
+            "failed allocation does not leak resources"
+        );
+        merge_derivation_objectives(
+            "rpg:mob",
+            &mut generated,
+            vec![result.clone(), result.clone()],
+        )
+        .unwrap();
+        assert_eq!(generated, BTreeSet::from([result.to_string()]));
     }
 
     #[test]

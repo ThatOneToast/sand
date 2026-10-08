@@ -42,8 +42,8 @@ pub(super) fn selector(value: &str) -> Option<Selector> {
                 None => SelectorArg::Name(parse_name(value)?),
             },
             "type" => negated.map_or_else(
-                || SelectorArg::Type(value.into()),
-                |v| SelectorArg::NotType(v.into()),
+                || SelectorArg::Type(entity_type(value)),
+                |v| SelectorArg::NotType(entity_type(v)),
             ),
             "limit" => SelectorArg::Limit(value.parse().ok()?),
             "sort" => SelectorArg::Sort(match value {
@@ -61,7 +61,10 @@ pub(super) fn selector(value: &str) -> Option<Selector> {
             "scores" => SelectorArg::Scores(value.strip_prefix('{')?.strip_suffix('}')?.into()),
             "advancements" => SelectorArg::Advancements(advancements(value)?),
             "nbt" => SelectorArg::Nbt(value.into()),
-            "predicate" => SelectorArg::Predicate(value.into()),
+            "predicate" => SelectorArg::Predicate(negated.map_or_else(
+                || resource_location(value),
+                |v| format!("!{}", resource_location(v)),
+            )),
             "x" => SelectorArg::X(value.parse().ok()?),
             "y" => SelectorArg::Y(value.parse().ok()?),
             "z" => SelectorArg::Z(value.parse().ok()?),
@@ -74,6 +77,21 @@ pub(super) fn selector(value: &str) -> Option<Selector> {
     Some(selector)
 }
 
+fn resource_location(value: &str) -> String {
+    if value.contains(':') {
+        value.into()
+    } else {
+        format!("minecraft:{value}")
+    }
+}
+
+fn entity_type(value: &str) -> String {
+    value.strip_prefix('#').map_or_else(
+        || resource_location(value),
+        |tag| format!("#{}", resource_location(tag)),
+    )
+}
+
 fn advancements(value: &str) -> Option<std::collections::BTreeMap<String, AdvancementMatch>> {
     let inner = value.strip_prefix('{')?.strip_suffix('}')?.trim();
     let mut filters = std::collections::BTreeMap::new();
@@ -82,8 +100,8 @@ fn advancements(value: &str) -> Option<std::collections::BTreeMap<String, Advanc
     }
     for entry in split_arguments(inner)? {
         let (name, progress) = entry.split_once('=')?;
-        let name = name.trim();
-        validate::resource_location_shape(name, "Selector", "advancements").ok()?;
+        let name = resource_location(name.trim());
+        validate::resource_location_shape(&name, "Selector", "advancements").ok()?;
         let progress = progress.trim();
         let progress = if let Some(criteria) = progress.strip_prefix('{') {
             let criteria = criteria.strip_suffix('}')?.trim();
@@ -102,7 +120,7 @@ fn advancements(value: &str) -> Option<std::collections::BTreeMap<String, Advanc
         } else {
             AdvancementMatch::Complete(progress.parse().ok()?)
         };
-        if filters.insert(name.into(), progress).is_some() {
+        if filters.insert(name, progress).is_some() {
             return None;
         }
     }
@@ -482,5 +500,78 @@ mod empty_scores_and_team_tests {
                 "{text}"
             );
         }
+    }
+}
+
+#[cfg(test)]
+mod integer_range_tests {
+    use super::*;
+    #[test]
+    fn integer_selector_ranges_use_bounded_integer_grammar() {
+        for text in [
+            "@s[scores={points=-2147483648..2147483647}]",
+            "@s[level=0..2147483647]",
+            "@s[scores={points=..-1}]",
+        ] {
+            selector(text)
+                .unwrap()
+                .validate(&CommandProfile::unprofiled())
+                .unwrap();
+        }
+        for text in [
+            "@s[scores={points=1.0}]",
+            "@s[scores={points=1e3}]",
+            "@s[level=1e3]",
+            "@s[level=1.0]",
+            "@s[scores={points=2147483648}]",
+            "@s[scores={points=-2147483649}]",
+            "@s[level=0..2147483648]",
+            "@s[scores={points=+1}]",
+        ] {
+            assert!(
+                selector(text)
+                    .unwrap()
+                    .validate(&CommandProfile::unprofiled())
+                    .is_err(),
+                "{text}"
+            );
+        }
+    }
+}
+
+#[cfg(test)]
+mod default_namespace_tests {
+    use super::*;
+    use crate::ScoreHolder;
+    #[test]
+    fn resource_filters_normalize_the_default_minecraft_namespace() {
+        for (source, expected) in [
+            (
+                "@e[type=zombie,limit=1]",
+                "@e[type=minecraft:zombie,limit=1]",
+            ),
+            (
+                "@e[type=!#undead,limit=1]",
+                "@e[type=!#minecraft:undead,limit=1]",
+            ),
+            (
+                "@s[predicate=ready,predicate=!blocked]",
+                "@s[predicate=minecraft:ready,predicate=!minecraft:blocked]",
+            ),
+            (
+                "@s[advancements={story/root=true}]",
+                "@s[advancements={minecraft:story/root=true}]",
+            ),
+        ] {
+            let parsed = selector(source).unwrap();
+            parsed.validate(&CommandProfile::unprofiled()).unwrap();
+            assert_eq!(parsed.to_string(), expected);
+            ScoreHolder::compat(source.into())
+                .validate_single(&CommandProfile::unprofiled())
+                .unwrap();
+        }
+        assert!(
+            selector("@s[advancements={story/root=true,minecraft:story/root=false}]").is_none()
+        );
     }
 }

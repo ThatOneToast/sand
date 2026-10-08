@@ -83,6 +83,55 @@ pub(crate) fn render_lowered_curve(
             } => commands.push(format!(
                 "scoreboard players operation {holder} {destination} = {holder} {source}"
             )),
+            LoweredCurveOperation::NbtToFixed {
+                destination,
+                target,
+                path,
+                scale,
+                overflow,
+            } => {
+                require_scoreboard_overflow(context, lowered, *overflow)?;
+                use crate::ir::{Cmd, ExecuteOp, ExecuteStoreTarget};
+                use sand_commands::nbt::NbtRefLowering;
+                let success = ObjectiveName::logical(format!(
+                    "{}.native.{destination}.success",
+                    context.owner
+                ));
+                objectives.insert(success.clone());
+                let reference =
+                    sand_commands::NbtRef::<f64>::__from_parts(target.clone(), path.clone());
+                let command = Cmd::Execute {
+                    operations: vec![
+                        ExecuteOp::StoreSuccess(ExecuteStoreTarget::Score {
+                            holder: holder.clone(),
+                            objective: success.to_string(),
+                        }),
+                        ExecuteOp::StoreResult(ExecuteStoreTarget::Score {
+                            holder: holder.clone(),
+                            objective: destination.clone(),
+                        }),
+                    ],
+                    run: Box::new(Cmd::Data(reference.get_scaled(*scale as f64))),
+                };
+                commands.push(command.try_render().map_err(|error| {
+                    EntityDiagnostic::InvalidRawExtension {
+                        archetype: context.owner.to_string(),
+                        extension: "native numeric read".into(),
+                        detail: error.to_string(),
+                    }
+                })?);
+                commands.push(format!(
+                    "execute unless score {holder} {success} matches 1 run return fail"
+                ));
+                // Vanilla's native command result is an i32. At its extrema a
+                // valid boundary cannot be distinguished from clamping, so fail
+                // conservatively instead of committing a possibly clipped value.
+                for boundary in [i32::MIN, i32::MAX] {
+                    commands.push(format!(
+                        "execute if score {holder} {destination} matches {boundary} run return fail"
+                    ));
+                }
+            }
             LoweredCurveOperation::ScoreToFixed {
                 destination,
                 source,

@@ -411,6 +411,9 @@ impl<K: LivingEntityKind> LivingEntity<K> {
         }
     }
 
+    /// Read the native Health field through a typed entity-data capability.
+    /// Pass this value to a State numeric setter or convert it to
+    /// [`StatCurve`](super::StatCurve) for arithmetic; sampling occurs at runtime.
     #[sand_macros::api(
         registry = sand_api_contract,
         path = "sand::entity::LivingEntity::health",
@@ -784,9 +787,72 @@ impl<K: EntityKind> EntityMounts<K> {
     avoid_when = ["Keeping an entity identity across ticks"],
     example = "use sand::prelude::*;",
 )]
+/// Numeric fields (`i8`, `i16`, `i32`, `i64`, `f32`, and `f64`) convert into
+/// [`StatCurve`](super::StatCurve), so State assignments and arithmetic can read
+/// them without constructing a `data get` command. Native reads retain the
+/// addressed entity and path until export and never grant write access.
+///
+/// Minecraft samples a native read by scaling it to the curve precision and
+/// flooring its command result. Subsequent arithmetic and destination conversion
+/// use the curve's rounding policy. Missing reads and extreme i32 results abort
+/// the assignment; exact i32 extrema are also rejected because they cannot be
+/// distinguished from a clipped native result. Native inputs are not currently
+/// observable dependencies for cached archetype derivations.
+///
+/// ```compile_fail
+/// use sand::prelude::*;
+/// let entity = EntityContext::<PlayerKind>::default();
+/// let invalid = StatCurve::from(entity.data().field::<String>("CustomName"));
+/// ```
 pub struct EntityData<K, T = UntypedNbt> {
     reference: NbtRef<T>,
     marker: PhantomData<fn() -> K>,
+}
+
+// Numeric NBT enters the same expression model as State; other NBT remains
+// a typed data reference and cannot accidentally become arithmetic.
+fn numeric_entity_data<K: EntityKind, T>(value: EntityData<K, T>) -> super::StatCurve {
+    use sand_commands::nbt::NbtRefLowering;
+    super::StatCurve::native_nbt(
+        value.reference.__location().clone(),
+        value.reference.path_value().clone(),
+    )
+}
+
+impl<K: EntityKind> From<EntityData<K, i8>> for super::StatCurve {
+    fn from(value: EntityData<K, i8>) -> Self {
+        numeric_entity_data(value)
+    }
+}
+
+impl<K: EntityKind> From<EntityData<K, i16>> for super::StatCurve {
+    fn from(value: EntityData<K, i16>) -> Self {
+        numeric_entity_data(value)
+    }
+}
+
+impl<K: EntityKind> From<EntityData<K, i32>> for super::StatCurve {
+    fn from(value: EntityData<K, i32>) -> Self {
+        numeric_entity_data(value)
+    }
+}
+
+impl<K: EntityKind> From<EntityData<K, i64>> for super::StatCurve {
+    fn from(value: EntityData<K, i64>) -> Self {
+        numeric_entity_data(value)
+    }
+}
+
+impl<K: EntityKind> From<EntityData<K, f32>> for super::StatCurve {
+    fn from(value: EntityData<K, f32>) -> Self {
+        numeric_entity_data(value)
+    }
+}
+
+impl<K: EntityKind> From<EntityData<K, f64>> for super::StatCurve {
+    fn from(value: EntityData<K, f64>) -> Self {
+        numeric_entity_data(value)
+    }
 }
 
 /// Player entity NBT is readable but not mutable through this façade.

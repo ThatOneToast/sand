@@ -7,6 +7,7 @@ struct Machine(
     BTreeMap<String, i32>,
     BTreeMap<String, Vec<String>>,
     Option<bool>,
+    BTreeMap<String, f64>,
 );
 impl Machine {
     fn get(&self, holder: &str, objective: &str) -> i32 {
@@ -32,18 +33,55 @@ impl Machine {
             }
             "execute" => {
                 if command[1] == "store" {
-                    assert_eq!(&command[1..4], &["store", "success", "score"]);
-                    assert_eq!(command[6], "run");
-                    let inner = &command[7..];
-                    let success = if inner[0] == "function" {
-                        self.call(inner[1])
+                    let mut stores = Vec::new();
+                    let mut i = 1;
+                    while command[i] == "store" {
+                        assert_eq!(command[i + 2], "score");
+                        stores.push((
+                            command[i + 1],
+                            format!("{} {}", command[i + 3], command[i + 4]),
+                        ));
+                        i += 5;
+                    }
+                    assert_eq!(command[i], "run");
+                    let inner = &command[i + 1..];
+                    let (success, result) = if inner[0] == "function" {
+                        let success = self.call(inner[1]);
+                        (success, i32::from(success))
+                    } else if inner[0] == "data" {
+                        assert_eq!(inner[1], "get");
+                        let value = self
+                            .3
+                            .get(&format!("{} {} {}", inner[2], inner[3], inner[4]));
+                        (
+                            value.is_some(),
+                            value.map_or(0, |value| {
+                                (value * inner[5].parse::<f64>().unwrap()).floor() as i32
+                            }),
+                        )
                     } else {
                         assert_eq!(&inner[..3], &["scoreboard", "players", "operation"]);
                         let present = self.0.contains_key(&format!("{} {}", inner[6], inner[7]));
-                        present && self.run(inner)
+                        let success = present && self.run(inner);
+                        (
+                            success,
+                            if success {
+                                self.get(inner[3], inner[4])
+                            } else {
+                                0
+                            },
+                        )
                     };
-                    self.0
-                        .insert(format!("{} {}", command[4], command[5]), i32::from(success));
+                    for (kind, key) in stores {
+                        self.0.insert(
+                            key,
+                            if kind == "success" {
+                                i32::from(success)
+                            } else {
+                                result
+                            },
+                        );
+                    }
                     return true;
                 }
                 let mut i = 1;
@@ -432,4 +470,52 @@ fn piecewise_evaluates_only_the_selected_arm_and_propagates_failure() {
             );
         }
     }
+}
+
+#[test]
+fn native_numeric_read_quantizes_and_preserves_destination_on_failed_read() {
+    use crate::entity::{EntityContext, FixedPoint, PlayerKind, StatCurve};
+    let owner = "test:native".parse().unwrap();
+    let holder = sand_commands::ScoreHolder::fake("#scratch");
+    let curve = StatCurve::from(EntityContext::<PlayerKind>::default().living().health());
+    let lowered = curve
+        .lower_scoreboard("result", "test:native", FixedPoint::default())
+        .unwrap();
+    let rendered = render_lowered_curve(
+        NumericContext::new(&owner, &holder).unwrap(),
+        "native",
+        &lowered,
+    )
+    .unwrap();
+    let mut machine = Machine::default();
+    machine.0.insert("#scratch result".into(), 123);
+    for (value, expected) in [
+        (2.755, 2755),
+        (-2.755, -2755),
+        (1.2345, 1234),
+        (-1.2345, -1235),
+        (0.0, 0),
+    ] {
+        machine.3.insert("entity @s Health".into(), value);
+        assert!(machine.execute(&rendered.commands));
+        assert_eq!(machine.get("#scratch", "result"), expected);
+    }
+    machine.0.insert("#scratch result".into(), 123);
+    for value in [None, Some(1.0e20), Some(-1.0e20)] {
+        if let Some(value) = value {
+            machine.3.insert("entity @s Health".into(), value);
+        } else {
+            machine.3.remove("entity @s Health");
+        }
+        assert!(!machine.execute(&rendered.commands));
+        assert_eq!(machine.get("#scratch", "result"), 123);
+    }
+    let error = curve
+        .validate_entity_inputs("test:mob", "health")
+        .unwrap_err();
+    assert!(
+        error
+            .to_string()
+            .contains("change observation is not supported")
+    );
 }

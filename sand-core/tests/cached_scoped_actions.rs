@@ -6,7 +6,10 @@ static BODY: OnceLock<Actions> = OnceLock::new();
 
 fn body() -> Actions {
     BODY.get_or_init(|| {
+        let shared = when(sand_core::state::Flag::new("cached_ready").of("@s").is_true()).then_all(["say shared across depths"]);
         mcfunction![
+        shared.clone();
+        unless(sand_core::state::Flag::new("cached_ready").of("@s").is_true()).then_all(shared);
         when(sand_core::state::Flag::new("cached_ready").of("@s").is_true()).then_all(["say cached when"]);
         unless(sand_core::state::Flag::new("cached_ready").of("@s").is_true()).then_all(["say cached unless"]);
         if_(sand_core::state::Flag::new("cached_ready").of("@s").is_true()).then_all(["say cached if"]);
@@ -80,6 +83,7 @@ fn prebuilt_and_reused_scopes_export_all_owned_helpers() {
         "cached else",
         "staged first",
         "staged last",
+        "shared across depths",
     ] {
         assert!(
             functions

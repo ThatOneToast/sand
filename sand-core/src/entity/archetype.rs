@@ -24,7 +24,9 @@ use sand_components::ResourceLocation;
 use crate::component::ComponentRecord;
 #[cfg(test)]
 use crate::entity::curve::LoweredCurveOperation;
-use crate::entity::curve::scoreboard::{append_scale_conversion, render_lowered_curve};
+use crate::entity::curve::scoreboard::{
+    NumericContext, append_scale_conversion, render_lowered_curve,
+};
 use crate::entity::curve::{FixedPoint, OverflowPolicy, RoundingPolicy, StatCurve};
 use crate::entity::diagnostic::EntityDiagnostic;
 use crate::entity::kind::{KnownEntityKind, MutableLivingEntityKind, SafeEntityDataWriteKind};
@@ -3304,7 +3306,11 @@ fn compile_derivations(
         )?;
         objectives.extend(lowered.scratch_objectives().iter().cloned());
         let path = format!("{root}/derive/{index}");
-        let rendered = render_lowered_curve(&definition.id, &path, &lowered)?;
+        let rendered = render_lowered_curve(
+            NumericContext::new(&definition.id, &sand_commands::ScoreHolder::self_())?,
+            &path,
+            &lowered,
+        )?;
         objectives.extend(rendered.objectives);
         functions.push(path.clone());
         functions.extend(rendered.functions);
@@ -3313,7 +3319,7 @@ fn compile_derivations(
         if derivation.fixed.scale() != derivation.target_scale {
             let mut conversion_objectives = BTreeSet::new();
             append_scale_conversion(
-                &definition.id,
+                NumericContext::new(&definition.id, &sand_commands::ScoreHolder::self_())?,
                 &mut conversion_objectives,
                 &mut commands,
                 &target,

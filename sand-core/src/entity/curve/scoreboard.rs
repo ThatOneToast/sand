@@ -79,6 +79,10 @@ pub(crate) fn render_lowered_curve(
             } => {
                 require_scoreboard_overflow(context, lowered, *overflow)?;
                 let source_holder = source_holder.clone().unwrap_or_else(|| holder.to_string());
+                // A missing optional State score makes the copy fail without
+                // updating its target. Clear persistent scratch first so a
+                // later evaluation cannot inherit a previous source value.
+                commands.push(format!("scoreboard players set {holder} {destination} 0"));
                 commands.push(format!(
                     "scoreboard players operation {holder} {destination} = {source_holder} {source}"
                 ));
@@ -789,6 +793,16 @@ mod tests {
                 line.starts_with("scoreboard players operation #scratch ")
                     && line.ends_with(&format!("= {holder} {}", input.objective()))
             }));
+        }
+        for (index, command) in output.commands.iter().enumerate() {
+            if command.contains("= #left ") || command.contains("= #right ") {
+                let destination = command.split_whitespace().nth(4).unwrap();
+                assert_eq!(
+                    output.commands[index - 1],
+                    format!("scoreboard players set #scratch {destination} 0"),
+                    "an absent source must not reuse a previous evaluation's scratch score"
+                );
+            }
         }
         assert!(lowered.operations().iter().any(|op| matches!(
             op,

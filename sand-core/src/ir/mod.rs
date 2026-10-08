@@ -16,6 +16,9 @@
 //!    retaining its existing authoring API and output.
 
 pub use sand_commands::{ConditionIr, ExecuteOp, ExecuteStoreTarget};
+mod numeric;
+#[doc(hidden)]
+pub use numeric::NumericWrite;
 
 /// An ordered sequence of authored operations awaiting compiler lowering.
 ///
@@ -89,20 +92,17 @@ impl Actions {
             .iter()
             .enumerate()
             .map(|(index, command)| {
-                command.try_render().map_err(|error| {
-                    sand_components::SandError::ComponentValidation {
+                command
+                    .lower_for_export(location)
+                    .and_then(|command| command.try_render())
+                    .map_err(|error| sand_components::SandError::ComponentValidation {
                         location: location.clone(),
                         kind: "function".into(),
                         field: format!("actions[{index}].{}", error.field),
                         message: error.to_string(),
-                    }
-                })
+                    })
             })
             .collect()
-    }
-
-    pub(crate) fn render(self) -> Vec<String> {
-        self.0.into_iter().map(|command| command.render()).collect()
     }
 }
 
@@ -255,11 +255,37 @@ pub enum Cmd {
         run: Box<Cmd>,
     },
 
+    /// A gameplay numeric assignment awaiting destination-aware lowering.
+    #[doc(hidden)]
+    NumericWrite(Box<NumericWrite>),
+
     /// `# <text>` — a comment line (not a real Minecraft command, but emitted in .mcfunction files).
     Comment(String),
 }
 
+fn nested_run_error(mut error: sand_commands::CommandError) -> sand_commands::CommandError {
+    error.field = format!("run.{}", error.field);
+    error
+}
+
 impl Cmd {
+    fn lower_for_export(
+        &self,
+        owner: &sand_components::ResourceLocation,
+    ) -> sand_commands::CommandResult<Self> {
+        match self {
+            Self::NumericWrite(write) => write.lower(owner),
+            Self::Execute { operations, run } => Ok(Self::Execute {
+                operations: operations.clone(),
+                run: Box::new(run.lower_for_export(owner).map_err(nested_run_error)?),
+            }),
+            Self::ReturnRun(run) => Ok(Self::ReturnRun(Box::new(
+                run.lower_for_export(owner).map_err(nested_run_error)?,
+            ))),
+            command => Ok(command.clone()),
+        }
+    }
+
     /// Render this command after typed validation against Sand's 26+ command baseline.
     pub fn try_render(&self) -> sand_commands::CommandResult<String> {
         let rendered = match self {
@@ -308,6 +334,13 @@ impl Cmd {
                 format!("execute {operation_text} run {run_text}")
             }
 
+            Self::NumericWrite(_) => {
+                return Err(sand_commands::CommandError::new(
+                    "numeric assignment",
+                    "value",
+                    "numeric actions require function export lowering",
+                ));
+            }
             Self::Comment(text) => format!("# {text}"),
         };
         Ok(rendered)

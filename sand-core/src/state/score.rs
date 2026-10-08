@@ -372,6 +372,11 @@ pub(crate) fn request_expression_temp() {
 #[doc(hidden)]
 pub fn drain_internal_score_setup() -> Vec<String> {
     let mut commands = drain_constant_setup();
+    commands.extend(
+        crate::function::take_numeric_objectives()
+            .into_iter()
+            .map(|objective| format!("scoreboard objectives add {objective} dummy")),
+    );
     if crate::function::take_internal_score_temp_request() {
         commands.insert(
             0,

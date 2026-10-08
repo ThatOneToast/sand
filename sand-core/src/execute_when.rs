@@ -1118,8 +1118,8 @@ mod tests {
         let cmds = mcfunction![
             MANA2.define();
             when(MANA2.of("@s").gte(25)).then_one("say enough mana");
-        ]
-        .render();
+        ];
+        let cmds = crate::ir::test_support::emitted(cmds);
         assert_eq!(cmds[0], "scoreboard objectives add mana2 dummy");
         assert!(
             cmds[1].contains("if score @s mana2 matches 25.."),
@@ -1136,8 +1136,8 @@ mod tests {
         reset_dynamic_branch_registry_for_test();
         let cmds = if_(CASTING.of("@s").is_true())
             .then_all(["say already casting"])
-            .into_commands()
-            .render();
+            .into_commands();
+        let cmds = crate::ir::test_support::emitted(cmds);
         assert_eq!(cmds.len(), 1, "if_ with no else: one parent command");
         assert!(
             cmds[0].contains("execute if score @s casting matches 1"),

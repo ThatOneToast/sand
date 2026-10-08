@@ -2442,27 +2442,6 @@ pub(crate) fn try_export_components_impl(
         }
     }
 
-    // ── Dynamic anonymous functions (branches from all make() calls above) ───
-    // ── Compiler-managed score constants / expression temporaries ───────────
-    // Score operands are registered while user factories execute, so this must
-    // run after all factory/event processing and before tags are finalized.
-    let score_setup = crate::state::score::drain_internal_score_setup();
-    if !score_setup.is_empty() {
-        let path = "__sand_score_init";
-        records.push(ComponentRecord {
-            namespace: namespace.to_string(),
-            dir: "function".to_string(),
-            path: path.to_string(),
-            ext: "mcfunction".to_string(),
-            content_type: "text".to_string(),
-            content: score_setup.join("\n"),
-        });
-        tag_map
-            .entry("minecraft:load".to_string())
-            .or_default()
-            .push(format!("{namespace}:{path}"));
-    }
-
     // ── Tracked transitions + typed-state lifecycle ───────────────────────────
     // Link-time declarations are rebuilt on every export. Manual registries are
     // still drained after all factories so existing registration paths remain
@@ -2589,6 +2568,26 @@ pub(crate) fn try_export_components_impl(
     // export-scope lock/reset guards are acquired at the top of this
     // function — see `_dialog_callback_lock` / `_dialog_callback_reset`.
     drain_dialog_callbacks_into(&mut records, &mut tag_map, namespace);
+
+    // ── Compiler-managed score constants / expression temporaries ───────────
+    // Structured helper lowering can allocate numeric working objectives.
+    // Finish every factory and dynamic helper before draining initialization.
+    let score_setup = crate::state::score::drain_internal_score_setup();
+    if !score_setup.is_empty() {
+        let path = "__sand_score_init";
+        records.push(ComponentRecord {
+            namespace: namespace.to_string(),
+            dir: "function".to_string(),
+            path: path.to_string(),
+            ext: "mcfunction".to_string(),
+            content_type: "text".to_string(),
+            content: score_setup.join("\n"),
+        });
+        tag_map
+            .entry("minecraft:load".to_string())
+            .or_default()
+            .push(format!("{namespace}:{path}"));
+    }
 
     // ── FunctionTagDescriptors ────────────────────────────────────────────────
     // Append user-declared function tag entries after Sand-owned setup/dispatcher

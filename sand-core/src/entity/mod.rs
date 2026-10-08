@@ -45,9 +45,9 @@ pub mod relation;
 pub mod state;
 
 pub use archetype::{
-    Adoption, AdoptionSource, DerivedScoreEncoding, EntityAction, EntityArchetype,
-    EntityDerivation, EntityTransition, EntityTransitionField, Migration, ReconcilePolicy,
-    SpecialEntityPolicy, ThresholdDirection,
+    Adoption, AdoptionSource, ArchetypeOperations, DerivedScoreEncoding, EntityAction,
+    EntityArchetype, EntityDerivation, EntityTransition, EntityTransitionField, Migration,
+    ReconcilePolicy, SpecialEntityPolicy, ThresholdDirection,
 };
 pub use capability::{
     EntityData, EntityDataRoot, EntityEquipmentHandle, EntityIdentity, EntityMounts,
@@ -61,7 +61,8 @@ pub use curve::{
 pub use diagnostic::EntityDiagnostic;
 pub use kind::{
     AnyEntity, EntityKind, EquipmentEntityKind, KnownEntityKind, LivingEntityKind, MarkerKind,
-    MountVehicleKind, MutableLivingEntityKind, PlayerKind, SafeEntityDataWriteKind, ZombieKind,
+    MountVehicleKind, MutableLivingEntityKind, PlayerKind, SafeEntityDataWriteKind,
+    SummonableEntityKind, ZombieKind,
 };
 pub use property::{
     AttributeBinding, AttributeModifierBinding, CurrentHealthSync, EffectBinding, EntityEventId,

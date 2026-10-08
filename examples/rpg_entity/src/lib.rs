@@ -79,9 +79,16 @@ pub fn infect() {
     Combat::sick.bind().enable();
 }
 
-/// Natural/external Zombie archetype registered into the export.
-#[entity_archetype]
-pub fn rpg_zombie() -> EntityArchetype<ZombieKind> {
+/// Concrete RPG Zombie composition with native behavior configured below.
+#[derive(Archetype)]
+#[archetype(id = "rpg:plagued_zombie", entity = Zombie, configure = Self::configure)]
+pub struct PlaguedZombie {
+    pub progression: Progression,
+    pub combat: Combat,
+}
+
+impl PlaguedZombie {
+fn configure(archetype: EntityArchetype<ZombieKind>) -> EntityArchetype<ZombieKind> {
     let health_curve = StatCurve::multiply([
         StatCurve::linear(StatCurve::state(Progression::level), 2.0, 18.0),
         StatCurve::enum_mapping(
@@ -100,9 +107,7 @@ pub fn rpg_zombie() -> EntityArchetype<ZombieKind> {
         .state(Progression::level, ChatColor::Yellow)
         .text(Text::new(" Plagued Zombie").dark_green());
 
-    EntityArchetype::new(ResourceLocation::new("rpg", "plagued_zombie").unwrap())
-        .components::<Progression>()
-        .components::<Combat>()
+    archetype
         .version(2)
         .adopt(
             Adoption::natural_and_external()
@@ -149,6 +154,14 @@ pub fn rpg_zombie() -> EntityArchetype<ZombieKind> {
             EntityTransition::flag_enabled(Combat::sick),
             EntityAction::Run("rpg:sickness_started".parse::<FunctionId>().unwrap()),
         )
+}
+
+}
+
+/// Spawn one initialized RPG Zombie at the current execution position.
+#[function]
+pub fn spawn() {
+    PlaguedZombie::summon(Vec3::here());
 }
 
 /// Export hook used by the standard `sand_export` binary.

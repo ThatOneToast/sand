@@ -217,6 +217,22 @@ register! {
 }
 
 register! {
+    path: "sand::Archetype",
+    aliases: ["sand::prelude::Archetype"],
+    module: "sand",
+    kind: Macro,
+    signature: "#[derive(Archetype)]",
+    summary: "Declares a concrete entity archetype from named State components and bundles.",
+    context: "The declaration owns its identity and entity kind once, generates a concrete bound component view and creation/attachment methods, and participates in ordinary State systems. Optional native configuration uses the existing archetype builder without changing the declared composition.",
+    minecraft: "Reuses canonical component initialization, native bindings, shared-component cleanup and membership-filtered queries; it creates no parallel State storage or durable Rust entity reference.",
+    use_when: ["Declaring a named gameplay object", "Using concrete archetypes in typed systems"],
+    avoid_when: ["Declaring reusable data without entity-native behavior; derive State or StateBundle"],
+    params: [],
+    returns: None,
+    example: "#[derive(sand::Archetype)]\n#[archetype(id = \"demo:seeker\", entity = Zombie)]\nstruct Seeker { combat: Combat }"
+}
+
+register! {
     path: "sand::StateBundle",
     aliases: ["sand::prelude::StateBundle", "sand::state::StateBundle"],
     module: "sand",

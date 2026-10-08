@@ -32,6 +32,10 @@ struct Case {
 
 const CORPUS: &[Case] = &[
     Case {
+        query: "declare concrete archetype",
+        expect: Expect::Exact("sand::Archetype"),
+    },
+    Case {
         query: "nearby entities",
         expect: Expect::Exact("sand::command::Target::nearby"),
     },

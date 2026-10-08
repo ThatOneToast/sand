@@ -1,37 +1,37 @@
 schema_version=1
 configuration=all-supported-features,current-target
 minecraft_version=26.2
-total=11000
+total=11011
 kind associated_const=17
 kind associated_type=3
 kind attribute_macro=10
 kind constant=2
-kind derive_macro=6
+kind derive_macro=7
 kind enum=166
-kind field=707
+kind field=709
 kind function=512
 kind function_like_macro=1
 kind macro=3
 kind method=2693
 kind module=30
 kind struct=938
-kind trait=40
-kind trait_method=80
+kind trait=42
+kind trait_method=85
 kind type_alias=6
-kind variant=5786
+kind variant=5787
 origin generator:generated_commands=1233
 origin generator:generated_effect_registry_enums=95
 origin generator:generated_event_markers=25
 origin generator:generated_registries=4867
 origin generator:generated_registry_ids=154
-origin source=4626
+origin source=4637
 advanced-source module=sand::advanced state=enforced tier=advanced provider=source precedence=100 recursive=true active=true items=322 contracted=322 aliases=- features=-
 build-source module=sand::build state=enforced tier=ordinary provider=source precedence=100 recursive=true active=true items=164 contracted=164 aliases=- features=-
 command-source module=sand::command state=enforced tier=ordinary provider=source precedence=50 recursive=true active=true items=724 contracted=724 aliases=sand::cmd,sand::prelude features=-
 component-source module=sand::component state=enforced tier=ordinary provider=source precedence=50 recursive=true active=true items=1513 contracted=1513 aliases=sand::prelude features=-
 condition-source module=sand::condition state=enforced tier=ordinary provider=source precedence=50 recursive=true active=true items=12 contracted=12 aliases=sand::prelude features=-
 data-source module=sand::data state=enforced tier=ordinary provider=source precedence=100 recursive=true active=true items=152 contracted=152 aliases=sand::prelude features=-
-entity-source module=sand::entity state=enforced tier=ordinary provider=source precedence=50 recursive=true active=true items=726 contracted=726 aliases=sand::prelude features=-
+entity-source module=sand::entity state=enforced tier=ordinary provider=source precedence=50 recursive=true active=true items=736 contracted=736 aliases=sand::prelude features=-
 event-source module=sand::event state=enforced tier=ordinary provider=source precedence=50 recursive=true active=true items=117 contracted=117 aliases=sand::prelude features=-
 events-source module=sand::events state=enforced tier=ordinary provider=source precedence=100 recursive=true active=true items=149 contracted=149 aliases=sand::prelude features=-
 execute-when-source module=sand::execute_when state=enforced tier=ordinary provider=source precedence=50 recursive=true active=true items=22 contracted=22 aliases=sand::prelude features=-
@@ -48,9 +48,9 @@ participant-source module=sand::participant state=enforced tier=ordinary provide
 predicate-source module=sand::predicate state=enforced tier=ordinary provider=source precedence=100 recursive=true active=true items=119 contracted=119 aliases=sand::component,sand::prelude features=-
 registration-source module=sand::registration state=enforced tier=advanced provider=source precedence=50 recursive=true active=true items=32 contracted=32 aliases=- features=-
 resource-ref-source module=sand::resource_ref state=enforced tier=ordinary provider=source precedence=200 recursive=true active=true items=9 contracted=9 aliases=- features=-
-root-source module=sand state=enforced tier=ordinary provider=source precedence=100 recursive=false active=true items=43 contracted=43 aliases=sand::prelude features=-
+root-source module=sand state=enforced tier=ordinary provider=source precedence=100 recursive=false active=true items=44 contracted=44 aliases=sand::prelude features=-
 state-source module=sand::state state=enforced tier=ordinary provider=source precedence=50 recursive=true active=true items=39 contracted=39 aliases=sand::prelude features=-
 text-source module=sand::text state=enforced tier=ordinary provider=source precedence=100 recursive=true active=true items=93 contracted=93 aliases=sand::prelude features=-
 version-source module=sand::version state=enforced tier=ordinary provider=source precedence=50 recursive=true active=true items=62 contracted=62 aliases=sand::prelude features=-
 vfx-source module=sand::vfx state=enforced tier=ordinary provider=source precedence=100 recursive=true active=true items=47 contracted=47 aliases=- features=-
-totals pending_scopes=0 pending_items=0 enforced_items=11000 pending_scope_ceiling=0 pending_item_ceiling=0
+totals pending_scopes=0 pending_items=0 enforced_items=11011 pending_scope_ceiling=0 pending_item_ceiling=0

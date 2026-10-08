@@ -153,6 +153,26 @@ pub trait KnownEntityKind: EntityKind {
     fn entity_type() -> sand_components::EntityTypeId;
 }
 
+#[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::entity::SummonableEntityKind",
+    aliases = ["sand::prelude::SummonableEntityKind"],
+    module = "sand::entity",
+    summary = "A known entity kind that vanilla Minecraft can summon.",
+    context = "ZombieKind and MarkerKind support creation; PlayerKind supports existing-player operations but cannot be summoned.",
+    minecraft = "Restricts archetype creation to valid execute summon entity kinds.",
+    use_when = ["Declaring and using a concrete gameplay archetype"],
+    avoid_when = ["Representing a persistent Rust reference to a Minecraft entity"],
+    example = "use sand::entity::SummonableEntityKind;",
+)]
+/// A known kind that supports vanilla entity creation.
+///
+/// Players are existing connection-owned entities. They may be selected and
+/// attached to an archetype, but cannot be created with `execute summon`.
+pub trait SummonableEntityKind: KnownEntityKind {}
+impl SummonableEntityKind for ZombieKind {}
+impl SummonableEntityKind for MarkerKind {}
+
 impl KnownEntityKind for PlayerKind {
     fn entity_type() -> sand_components::EntityTypeId {
         sand_components::EntityTypeId::minecraft("player")

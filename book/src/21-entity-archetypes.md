@@ -59,28 +59,87 @@ and never resets a valid value or creates a second copy.
 
 ## Compose The Archetype
 
-`#[entity_archetype]` registers an immutable factory. The only type parameter
-is the Minecraft entity kind:
+Declare the gameplay object as a Rust type. Its fields name the existing
+components, and its attribute declares the identity and entity kind once:
 
 ```rust
-#[entity_archetype]
-fn seeker() -> EntityArchetype<ZombieKind> {
-    EntityArchetype::new("rpg:seeker".parse().unwrap())
-        .components::<Progression>()
-        .components::<Combat>()
-        .components::<Conditions>()
-        .adopt(Adoption::natural_and_external().every(Ticks::new(5)))
-        .reconcile(ReconcilePolicy::WhenDirty)
+#[derive(Archetype)]
+#[archetype(id = "rpg:seeker", entity = Zombie, configure = Self::configure)]
+pub struct Seeker {
+    pub progression: Progression,
+    pub combat: Combat,
+    pub conditions: Conditions,
+}
+
+impl Seeker {
+    fn configure(archetype: EntityArchetype<ZombieKind>) -> EntityArchetype<ZombieKind> {
+        archetype
+            .adopt(Adoption::natural_and_external().every(Ticks::new(5)))
+            .reconcile(ReconcilePolicy::WhenDirty)
+    }
 }
 ```
 
-`.components::<B>()` also accepts a nested `StateBundle`. Sand flattens bundles
-in declaration order and deduplicates repeated component identities. It does
-not merge schemas: every component continues to own its storage and lifecycle.
+Fields also accept nested `StateBundle` types and marker State. Each flattened
+component retains its own storage and lifecycle. Repeating a component across
+fields is rejected with the declaration and conflicting field names.
+
+The optional `configure` callback receives the already composed definition.
+It uses ordinary Rust to attach native bindings, curves, migrations, and policy.
+It must return that declaration with the same identity and component list;
+export rejects replacement identities or extra components. Omit `configure`
+when no native behavior is needed. This callback keeps the existing typed
+builder available without requiring a second configuration trait or repeating
+identity and composition in every behavior implementation.
+
+`#[entity_archetype]` and `EntityArchetype<K>` remain available for advanced
+programmatic definitions. The concrete declaration is the normal authoring
+entry point.
 
 The adoption scan remains constrained to `minecraft:zombie`. A Sand-owned
 marker makes initialization idempotent. Scans see loaded chunks only, while
 scoreboard state survives unloading and reconciliation resumes after load.
+
+## Create, Adopt, And Access A Concrete Object
+
+```rust
+#[function]
+fn spawn_seeker() {
+    Seeker::summon(Vec3::here());
+}
+
+#[function]
+fn adopt_nearby() {
+    Seeker::adopt(Target::entities().within_blocks(32.0));
+}
+
+#[system(tick, every = 20)]
+fn level_seekers(query: Seeker) {
+    query.each(|seeker| seeker.progression.level.add(1));
+}
+```
+
+The prelude imports `ArchetypeOperations`, which supplies these concrete-type
+operations. Summoning requires `SummonableEntityKind` and initializes only the
+newly created entity. Player archetypes can adopt existing players but cannot
+summon them. Explicit adoption keeps
+the caller's selection and initializes matching Zombies at their own positions;
+a conflicting entity filter selects nothing rather than being overwritten.
+Both paths use canonical initialization, migrations, and native bindings.
+
+An archetype system query selects its entity kind, membership marker, and
+required component presence. It uses the same query lowering as `StateQuery`.
+`query.current(...)` checks the current executor without changing it.
+
+`Seeker::on(entity)` returns a named `SeekerBound` view with `progression`,
+`combat`, and `conditions` fields. `Seeker::attach(entity)`, `detach(entity)`,
+and `is_attached(entity)` accept the declared kind's `EntityContext`. Detaching
+preserves a component retained by another archetype. `on` does not attach
+missing State, and `is_attached` returns a runtime `Condition`.
+
+These handles address the current Minecraft executor. They are not persistent
+Rust references and must not be retained across an executor change. Use
+`seeker.entity()` to access that executor's typed capabilities.
 
 ## Derive Across Components
 
@@ -88,7 +147,7 @@ The normal derivation API takes a typed target and a curve. Its stable identity
 and stored representation come from the State field metadata:
 
 ```rust
-let archetype = seeker().derive(
+let archetype = archetype.derive(
     Combat::max_health,
     StatCurve::linear(StatCurve::state(Progression::level), 2.0, 18.0),
 );

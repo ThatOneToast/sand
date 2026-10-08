@@ -715,6 +715,29 @@ pub const fn state_bundle_trees_overlap(left: &StateBundleTree, right: &StateBun
     }
 }
 
+/// Detect repeated canonical components anywhere within one nested bundle tree.
+#[doc(hidden)]
+pub const fn state_bundle_tree_has_duplicates(tree: &StateBundleTree) -> bool {
+    let StateBundleTree::Bundle(items) = tree else {
+        return false;
+    };
+    let mut left = 0;
+    while left < items.len() {
+        if state_bundle_tree_has_duplicates(&items[left]) {
+            return true;
+        }
+        let mut right = left + 1;
+        while right < items.len() {
+            if state_bundle_trees_overlap(&items[left], &items[right]) {
+                return true;
+            }
+            right += 1;
+        }
+        left += 1;
+    }
+    false
+}
+
 const fn const_str_eq(left: &str, right: &str) -> bool {
     let left = left.as_bytes();
     let right = right.as_bytes();

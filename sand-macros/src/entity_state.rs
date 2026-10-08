@@ -1558,7 +1558,7 @@ pub(crate) fn derive_query(input: DeriveInput) -> syn::Result<proc_macro2::Token
                 let mut forbidden: Vec<(String, u32)> = Vec::new();
                 #(#forbidden)*
                 ::sand::__private::lower_state_query_each(
-                    #query_scope_value,
+                    (#query_scope_value).selector(),
                     requirements,
                     forbidden,
                     #item_ident { #(#item_values),* },
@@ -1574,6 +1574,7 @@ pub(crate) fn derive_query(input: DeriveInput) -> syn::Result<proc_macro2::Token
                 let mut forbidden: Vec<(String, u32)> = Vec::new();
                 #(#forbidden)*
                 ::sand::__private::lower_state_query_current(
+                    None,
                     requirements,
                     forbidden,
                     #item_ident { #(#item_values),* },
@@ -1702,7 +1703,7 @@ fn parse_query_field_mode(field: &syn::Field) -> syn::Result<QueryFieldMode> {
 }
 
 #[allow(clippy::too_many_arguments)]
-fn generated_contract(
+pub(crate) fn generated_contract(
     target: String,
     kind: GeneratedApiKind,
     summary: impl Into<String>,
@@ -1731,7 +1732,7 @@ fn generated_contract(
     }
 }
 
-fn generated_contract_docs(contract: &GeneratedApiContract) -> proc_macro2::TokenStream {
+pub(crate) fn generated_contract_docs(contract: &GeneratedApiContract) -> proc_macro2::TokenStream {
     let lines = render_generated_rustdoc(contract);
     let lines = lines
         .iter()

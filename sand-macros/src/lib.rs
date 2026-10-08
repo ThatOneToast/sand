@@ -54,6 +54,7 @@ use syn::visit::{self, Visit};
 use syn::{ItemFn, LitStr, parse_macro_input, token};
 
 mod api_contract;
+mod archetype;
 mod entity_state;
 
 /// Capability policy for macros which replace one author declaration or emit
@@ -326,6 +327,30 @@ pub fn registry_id(input: TokenStream) -> TokenStream {
 #[proc_macro_derive(State, attributes(state))]
 pub fn derive_state(input: TokenStream) -> TokenStream {
     entity_state::derive_state(parse_macro_input!(input as syn::DeriveInput))
+        .unwrap_or_else(syn::Error::into_compile_error)
+        .into()
+}
+
+/// Declare a concrete entity archetype from named State and StateBundle fields.
+///
+/// `#[archetype(id = "demo:seeker", entity = Zombie)]` owns the identity and
+/// kind once. The generated type provides summon, adopt, attach, detach, and
+/// `on` methods, and can be used directly as a `#[system]` query. Its bound
+/// view exposes the declared components without allocating duplicate State.
+///
+/// Optional `configure = Self::configure` selects an ordinary Rust function
+/// that accepts and returns `EntityArchetype<ZombieKind>` for native bindings
+/// and lifecycle policy. Configuration must retain the declared identity and
+/// component composition. Bound views refer only to the current executor.
+///
+/// ```rust,ignore
+/// #[derive(Archetype)]
+/// #[archetype(id = "demo:seeker", entity = Zombie)]
+/// struct Seeker { combat: Combat }
+/// ```
+#[proc_macro_derive(Archetype, attributes(archetype))]
+pub fn derive_archetype(input: TokenStream) -> TokenStream {
+    archetype::derive(parse_macro_input!(input as syn::DeriveInput))
         .unwrap_or_else(syn::Error::into_compile_error)
         .into()
 }

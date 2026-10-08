@@ -1,0 +1,12 @@
+error[E0603]: struct `PrivateBound` is private
+ --> tests/cases/fail_archetype_private_bound.rs:8:28
+  |
+8 | fn main() { let _: hidden::PrivateBound; }
+  |                            ^^^^^^^^^^^^ private struct
+  |
+note: the struct `PrivateBound` is defined here
+ --> tests/cases/fail_archetype_private_bound.rs:4:14
+  |
+4 |     #[derive(Archetype)]
+  |              ^^^^^^^^^
+  = note: this error originates in the derive macro `Archetype` (in Nightly builds, run with -Z macro-backtrace for more info)

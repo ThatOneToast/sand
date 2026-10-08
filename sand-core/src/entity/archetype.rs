@@ -13,6 +13,9 @@
 //! scanned; their scoreboard state remains attached and reconciliation resumes
 //! when they are observed again.
 
+#[doc(hidden)]
+pub mod concrete;
+
 use std::collections::BTreeSet;
 use std::marker::PhantomData;
 
@@ -976,6 +979,7 @@ where
     ///
     /// Vanilla's `execute summon` binds the new entity directly to `@s`, so
     /// no selector, temporary tag, or global scratch identity is required.
+    /// Only summonable kinds support this operation; players must be adopted.
     #[sand_macros::api(
         registry = sand_api_contract,
         path = "sand::entity::EntityArchetype::summon",
@@ -988,10 +992,13 @@ where
         use_when = ["Defining or using typed entity behavior in a Sand datapack"],
         avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
         returns = "The ordered values produced to summon this archetype and initialize the newly created entity.",
-        example = "use sand::prelude::*; fn commands<K: KnownEntityKind>(archetype: &EntityArchetype<K>) { let _ = archetype.summon(); }",
+        example = "use sand::prelude::*; fn commands<K: SummonableEntityKind>(archetype: &EntityArchetype<K>) { let _ = archetype.summon(); }",
     )]
     #[must_use]
-    pub fn summon(&self) -> Vec<String> {
+    pub fn summon(&self) -> Vec<String>
+    where
+        K: crate::entity::SummonableEntityKind,
+    {
         let entity_type = K::entity_type();
         vec![format!(
             "execute summon {entity_type} run {}",
@@ -6252,3 +6259,124 @@ mod tests {
         assert_eq!(error.code(), "SAND-ENTITY-RANGE");
     }
 }
+
+#[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::entity::ArchetypeOperations",
+    aliases = ["sand::prelude::ArchetypeOperations"],
+    module = "sand::entity",
+    summary = "Creation and lifecycle operations for a concrete derived archetype.",
+    context = "Archetype derive supplies one typed identity and component declaration. These operations use canonical initialization, migration, and shared-component cleanup. Import the prelude to call them on a concrete archetype type.",
+    minecraft = "Commands address the current executor or explicitly selected entities and reuse the archetype compiler lifecycle without allocating another copy of State.",
+    use_when = ["Declaring and using a concrete gameplay archetype"],
+    avoid_when = ["Representing a persistent Rust reference to a Minecraft entity"],
+    example = "use sand::prelude::*; // Seeker::summon(Vec3::here());",
+)]
+/// Creation and lifecycle operations on a concrete `#[derive(Archetype)]` type.
+///
+/// Import the prelude to use `Seeker::summon`, `adopt`, `attach`, `detach`, and
+/// `is_attached`. Every operation uses the declaration's kind and identity.
+/// Bound component access comes from the generated `Seeker::on` method.
+/// Player archetypes support attachment and selection, but not summoning.
+pub trait ArchetypeOperations: concrete::Declaration {
+    /// Summon one entity at a typed position and initialize its declared composition.
+    #[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::entity::ArchetypeOperations::summon",
+    aliases = ["sand::prelude::ArchetypeOperations::summon"],
+    module = "sand::entity",
+    summary = "Summon one entity at a typed position and initialize its declared composition.",
+    context = "Archetype derive supplies one typed identity and component declaration. These operations use canonical initialization, migration, and shared-component cleanup. Import the prelude to call them on a concrete archetype type.",
+    minecraft = "Commands address the current executor or explicitly selected entities and reuse the archetype compiler lifecycle without allocating another copy of State.",
+    use_when = ["Declaring and using a concrete gameplay archetype"],
+    avoid_when = ["Representing a persistent Rust reference to a Minecraft entity"],
+    example = "use sand::entity::ArchetypeOperations;",
+    params(position = "The spawn position in the caller dimension and coordinate frame."),
+    returns = "Ordered commands binding only the newly created entity.",
+)]
+    fn summon(position: sand_commands::Vec3) -> Vec<String>
+    where
+        Self::Kind: crate::entity::SummonableEntityKind,
+    {
+        concrete::summon::<Self::Kind>(&Self::archetype_id(), position)
+    }
+    /// Attach the archetype once to selected entities of its declared kind.
+    #[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::entity::ArchetypeOperations::adopt",
+    aliases = ["sand::prelude::ArchetypeOperations::adopt"],
+    module = "sand::entity",
+    summary = "Attach the archetype once to selected entities of its declared kind.",
+    context = "Archetype derive supplies one typed identity and component declaration. These operations use canonical initialization, migration, and shared-component cleanup. Import the prelude to call them on a concrete archetype type.",
+    minecraft = "Commands address the current executor or explicitly selected entities and reuse the archetype compiler lifecycle without allocating another copy of State.",
+    use_when = ["Declaring and using a concrete gameplay archetype"],
+    avoid_when = ["Representing a persistent Rust reference to a Minecraft entity"],
+    example = "use sand::entity::ArchetypeOperations;",
+    params(targets = "The existing selection; conflicting entity-kind filters select nothing rather than being replaced."),
+    returns = "Idempotent initialization commands at each selected entity position.",
+)]
+    fn adopt(targets: impl sand_commands::TargetArgument) -> Vec<String> {
+        concrete::adopt::<Self::Kind>(&Self::archetype_id(), targets)
+    }
+    /// Initialize the typed current entity without resetting existing component State.
+    #[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::entity::ArchetypeOperations::attach",
+    aliases = ["sand::prelude::ArchetypeOperations::attach"],
+    module = "sand::entity",
+    summary = "Initialize the typed current entity without resetting existing component State.",
+    context = "Archetype derive supplies one typed identity and component declaration. These operations use canonical initialization, migration, and shared-component cleanup. Import the prelude to call them on a concrete archetype type.",
+    minecraft = "Commands address the current executor or explicitly selected entities and reuse the archetype compiler lifecycle without allocating another copy of State.",
+    use_when = ["Declaring and using a concrete gameplay archetype"],
+    avoid_when = ["Representing a persistent Rust reference to a Minecraft entity"],
+    example = "use sand::entity::ArchetypeOperations;",
+    params(_entity = "The execution-scoped current entity of the declared kind."),
+    returns = "Canonical initialization commands for the current executor.",
+)]
+    fn attach(_entity: crate::entity::EntityContext<Self::Kind>) -> Vec<String> {
+        concrete::attach(&Self::archetype_id())
+    }
+    /// Clean up this archetype while retaining components owned by other attached archetypes.
+    #[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::entity::ArchetypeOperations::detach",
+    aliases = ["sand::prelude::ArchetypeOperations::detach"],
+    module = "sand::entity",
+    summary = "Clean up this archetype while retaining components owned by other attached archetypes.",
+    context = "Archetype derive supplies one typed identity and component declaration. These operations use canonical initialization, migration, and shared-component cleanup. Import the prelude to call them on a concrete archetype type.",
+    minecraft = "Commands address the current executor or explicitly selected entities and reuse the archetype compiler lifecycle without allocating another copy of State.",
+    use_when = ["Declaring and using a concrete gameplay archetype"],
+    avoid_when = ["Representing a persistent Rust reference to a Minecraft entity"],
+    example = "use sand::entity::ArchetypeOperations;",
+    params(_entity = "The execution-scoped current entity to detach."),
+    returns = "Canonical cleanup commands preserving shared component ownership.",
+)]
+    fn detach(_entity: crate::entity::EntityContext<Self::Kind>) -> Vec<String> {
+        concrete::detach(&Self::archetype_id())
+    }
+    /// Test current entity kind and archetype membership at Minecraft runtime.
+    #[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::entity::ArchetypeOperations::is_attached",
+    aliases = ["sand::prelude::ArchetypeOperations::is_attached"],
+    module = "sand::entity",
+    summary = "Test current entity kind and archetype membership at Minecraft runtime.",
+    context = "Archetype derive supplies one typed identity and component declaration. These operations use canonical initialization, migration, and shared-component cleanup. Import the prelude to call them on a concrete archetype type.",
+    minecraft = "Commands address the current executor or explicitly selected entities and reuse the archetype compiler lifecycle without allocating another copy of State.",
+    use_when = ["Declaring and using a concrete gameplay archetype"],
+    avoid_when = ["Representing a persistent Rust reference to a Minecraft entity"],
+    example = "use sand::entity::ArchetypeOperations;",
+    params(_entity = "The execution-scoped current entity to test."),
+    returns = "A runtime Condition rather than a Rust boolean.",
+)]
+    fn is_attached(
+        _entity: crate::entity::EntityContext<Self::Kind>,
+    ) -> crate::condition::Condition {
+        crate::condition::Condition::entity(concrete::selection::<Self::Kind>(
+            &Self::archetype_id(),
+            sand_commands::Selector::self_(),
+        ))
+    }
+}
+
+impl<T: concrete::Declaration> ArchetypeOperations for T {}

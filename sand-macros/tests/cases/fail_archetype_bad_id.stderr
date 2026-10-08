@@ -1,0 +1,5 @@
+error: [SAND-ARCHETYPE] id must be a valid namespace:path resource identity
+ --> tests/cases/fail_archetype_bad_id.rs:3:18
+  |
+3 | #[archetype(id = "test:../escape", entity = Zombie)]
+  |                  ^^^^^^^^^^^^^^^^

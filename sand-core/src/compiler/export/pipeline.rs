@@ -161,6 +161,31 @@ fn invoke_component_factory(
     })
 }
 
+fn lower_state_system_body(
+    system: &crate::function::StateSystemDescriptor,
+    namespace: &str,
+) -> ExportResult<Vec<String>> {
+    (system.make)()
+        .lower(&sand_components::ResourceLocation::new(
+            namespace,
+            "__sand_system",
+        )?)
+        .map_err(|error| match error {
+            ComponentExportError::ComponentValidation {
+                location,
+                kind,
+                field,
+                message,
+            } => ComponentExportError::ComponentValidation {
+                location,
+                kind,
+                field,
+                message: format!("State system `{}`: {message}", system.id),
+            },
+            error => error,
+        })
+}
+
 pub(crate) fn try_export_components_impl(
     namespace: &str,
     ctx: Option<&ExportCtx>,
@@ -2208,14 +2233,7 @@ pub(crate) fn try_export_components_impl(
                 system.id
             )));
         }
-        let body = (system.make)()
-            .lower(&sand_components::ResourceLocation::new(
-                namespace,
-                "__sand_system",
-            )?)
-            .map_err(|error| {
-                lifecycle_export_error(format!("State system `{}`: {error}", system.id))
-            })?;
+        let body = lower_state_system_body(system, namespace)?;
         if let Some((every, existing)) = system_ids.get(system.id) {
             if *every != system.every || existing != &body {
                 return Err(lifecycle_export_error(format!(
@@ -2796,6 +2814,35 @@ mod action_owner_tests {
             operations: vec![],
             run: Box::new(crate::ir::Cmd::Raw("say invalid".into())),
         }])
+    }
+
+    #[test]
+    fn system_action_errors_keep_structured_fields_and_system_identity() {
+        let system = crate::function::StateSystemDescriptor {
+            id: "game::regenerate",
+            every: 1,
+            make: invalid_body,
+        };
+        let error = lower_state_system_body(&system, "example").unwrap_err();
+        match error {
+            ComponentExportError::ComponentValidation {
+                location,
+                kind,
+                field,
+                message,
+            } => {
+                assert_eq!(location.to_string(), "example:__sand_system");
+                assert_eq!(kind, "function");
+                assert_eq!(field, "actions[0].operations");
+                assert!(message.starts_with("State system `game::regenerate`: "));
+                assert!(message.contains("SAND-COMMAND-EXECUTE-EMPTY"));
+            }
+            other => panic!("unexpected diagnostic: {other}"),
+        }
+        assert!(matches!(
+            lower_state_system_body(&system, "INVALID"),
+            Err(ComponentExportError::InvalidNamespace(_))
+        ));
     }
 
     #[test]

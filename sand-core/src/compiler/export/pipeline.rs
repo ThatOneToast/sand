@@ -2586,7 +2586,9 @@ pub(crate) fn try_export_components_impl(
         tag_map
             .entry("minecraft:load".to_string())
             .or_default()
-            .push(format!("{namespace}:{path}"));
+            // Lowering happens late, but these objectives must exist before
+            // any generated lifecycle function can execute numeric actions.
+            .insert(0, format!("{namespace}:{path}"));
     }
 
     // ── FunctionTagDescriptors ────────────────────────────────────────────────

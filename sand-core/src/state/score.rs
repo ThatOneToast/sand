@@ -46,6 +46,25 @@ module = "sand::advanced::state",
 pub struct ScoreOperand {
     pub(crate) selector: String,
     pub(crate) objective: String,
+    setup: Option<ScoreOperandSetup>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+enum ScoreOperandSetup {
+    Constant(i32),
+    ExpressionTemporary,
+}
+
+impl ScoreOperand {
+    pub(crate) fn register_owned_setup(&self) {
+        match self.setup {
+            Some(ScoreOperandSetup::Constant(value)) => {
+                register_constant(&self.objective, &self.selector, value);
+            }
+            Some(ScoreOperandSetup::ExpressionTemporary) => request_expression_temp(),
+            None => {}
+        }
+    }
 }
 use crate::state::storage::StorageField;
 
@@ -274,6 +293,7 @@ impl<T> ScoreConst<T> {
         ScoreOperand {
             selector: holder,
             objective,
+            setup: Some(ScoreOperandSetup::Constant(self.value)),
         }
     }
 }
@@ -315,6 +335,7 @@ fn score_constant_operand(prefix: &str, value: i32) -> ScoreOperand {
     ScoreOperand {
         selector: holder,
         objective,
+        setup: Some(ScoreOperandSetup::Constant(value)),
     }
 }
 
@@ -1322,6 +1343,7 @@ impl<'a, T> ScoreRef<'a, T> {
         ScoreOperand {
             selector: self.selector.clone(),
             objective: self.obj(),
+            setup: None,
         }
     }
 
@@ -2464,11 +2486,13 @@ impl<T> ScoreExpr<T> {
     }
 
     fn lowered(self, condition: Condition) -> Conditional {
-        request_expression_temp();
         let temp = ScoreOperand {
             selector: self.base.selector.clone(),
             objective: SCORE_EXPRESSION_TEMP_OBJECTIVE.to_string(),
+            setup: Some(ScoreOperandSetup::ExpressionTemporary),
         };
+        let mut operands = vec![temp.clone(), self.base.clone()];
+        operands.extend(self.steps.iter().map(|(_, operand)| operand.clone()));
         let mut setup = vec![format!(
             "scoreboard players operation {} {} = {} {}",
             temp.selector, temp.objective, self.base.selector, self.base.objective
@@ -2483,6 +2507,11 @@ impl<T> ScoreExpr<T> {
                 right.objective
             )
         }));
+        let mut setup = crate::IntoCommands::into_commands(setup);
+        setup.0[0] = crate::ir::Cmd::WithScoreOperands {
+            operands,
+            run: Box::new(setup.0[0].clone()),
+        };
         Conditional::with_setup(setup, condition)
     }
 
@@ -2490,6 +2519,7 @@ impl<T> ScoreExpr<T> {
         ScoreOperand {
             selector: self.base.selector.clone(),
             objective: SCORE_EXPRESSION_TEMP_OBJECTIVE.to_string(),
+            setup: Some(ScoreOperandSetup::ExpressionTemporary),
         }
     }
 

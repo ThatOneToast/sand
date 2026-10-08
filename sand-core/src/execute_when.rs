@@ -105,13 +105,13 @@ use crate::ir::Actions;
 )]
 #[must_use = "a Conditional has no effect until passed to a branch builder"]
 pub struct Conditional {
-    setup: Vec<String>,
+    setup: Actions,
     condition: Condition,
 }
 
 impl Conditional {
     #[doc(hidden)]
-    pub(crate) fn with_setup(setup: Vec<String>, condition: Condition) -> Self {
+    pub(crate) fn with_setup(setup: Actions, condition: Condition) -> Self {
         Self { setup, condition }
     }
 
@@ -157,8 +157,17 @@ impl Conditional {
 
     fn execute_actions(&self, negated: bool, actions: Actions) -> Actions {
         let mut output = Actions::default();
+        let operands = self.condition.score_operands();
         for action in actions.0 {
-            output.extend([self.setup.clone().into_commands()]);
+            let action = if operands.is_empty() {
+                action
+            } else {
+                crate::ir::Cmd::WithScoreOperands {
+                    operands: operands.clone(),
+                    run: Box::new(action),
+                }
+            };
+            output.extend([self.setup.clone()]);
             for clauses in self.condition.to_ir_plans(negated) {
                 output.0.push(if clauses.is_empty() {
                     action.clone()
@@ -175,18 +184,12 @@ impl Conditional {
         }
         output
     }
-
-    fn execute_commands(&self, negated: bool, run: &str) -> Vec<String> {
-        let mut commands = self.setup.clone();
-        commands.extend(self.condition.execute_commands(negated, run));
-        commands
-    }
 }
 
 impl From<Condition> for Conditional {
     fn from(condition: Condition) -> Self {
         Self {
-            setup: Vec::new(),
+            setup: Actions::default(),
             condition,
         }
     }
@@ -287,6 +290,7 @@ impl WhenBuilder {
     /// Always emit a single `execute if … run <cmd>` line (no branch function).
     ///
     /// Use when you want one command wrapped in the condition, with no grouping.
+    /// The returned actions retain score setup requirements when cached or reused.
     #[sand_macros::api(
         registry = sand_api_contract,
         path = "sand::execute_when::WhenBuilder::then_one",
@@ -296,11 +300,12 @@ impl WhenBuilder {
         use_when = ["Running exactly one command when a condition succeeds"],
         avoid_when = ["Several commands must share one condition evaluation", "A named or generated helper function is required"],
         params(cmd = "The displayable Minecraft command to run on success."),
-        returns = "The setup and conditional command lines for the parent function.",
+        returns = "Owned actions retaining setup requirements and the conditional command until export.",
         example = "when(condition).then_one(\"say ready\")"
     )]
-    pub fn then_one(self, cmd: impl std::fmt::Display) -> Vec<String> {
-        self.cond.execute_commands(false, &cmd.to_string())
+    pub fn then_one(self, cmd: impl std::fmt::Display) -> Actions {
+        self.cond
+            .execute_actions(false, cmd.to_string().into_commands())
     }
 
     /// Collect all commands into a branch function, always (even for one command).
@@ -428,6 +433,7 @@ impl UnlessBuilder {
     }
 
     /// Always emit a single `execute unless … run <cmd>` line (no branch function).
+    /// The returned actions retain score setup requirements when cached or reused.
     #[sand_macros::api(
         registry = sand_api_contract,
         path = "sand::execute_when::UnlessBuilder::then_one",
@@ -437,11 +443,12 @@ impl UnlessBuilder {
         use_when = ["Running exactly one command when a condition fails"],
         avoid_when = ["Several commands must share one condition evaluation", "A named or generated helper function is required"],
         params(cmd = "The displayable Minecraft command to run when the condition fails."),
-        returns = "The setup and conditional command lines for the parent function.",
+        returns = "Owned actions retaining setup requirements and the conditional command until export.",
         example = "unless(condition).then_one(\"say unavailable\")"
     )]
-    pub fn then_one(self, cmd: impl std::fmt::Display) -> Vec<String> {
-        self.cond.execute_commands(true, &cmd.to_string())
+    pub fn then_one(self, cmd: impl std::fmt::Display) -> Actions {
+        self.cond
+            .execute_actions(true, cmd.to_string().into_commands())
     }
 
     /// Collect all commands into a branch function called once under `unless`.
@@ -780,7 +787,7 @@ mod tests {
 
     #[test]
     fn when_score_then_one() {
-        let cmds = when(MANA.of("@s").gte(25)).then_one("say ok");
+        let cmds = when(MANA.of("@s").gte(25)).then_one("say ok").render();
         assert_eq!(
             cmds,
             vec!["execute if score @s mana matches 25.. run say ok"]
@@ -789,7 +796,9 @@ mod tests {
 
     #[test]
     fn unless_flag_then_one() {
-        let cmds = unless(CASTING.of("@s").is_true()).then_one("say ok");
+        let cmds = unless(CASTING.of("@s").is_true())
+            .then_one("say ok")
+            .render();
         assert_eq!(
             cmds,
             vec!["execute unless score @s casting matches 1 run say ok"]
@@ -798,7 +807,9 @@ mod tests {
 
     #[test]
     fn when_then_one_is_direct() {
-        let cmds = when(MANA.of("@s").gte(25)).then_one("say enough mana");
+        let cmds = when(MANA.of("@s").gte(25))
+            .then_one("say enough mana")
+            .render();
         assert_eq!(cmds.len(), 1);
         assert!(
             cmds[0].contains("execute if score @s mana"),
@@ -935,7 +946,9 @@ mod tests {
 
     #[test]
     fn unless_flag_polarity() {
-        let cmds = unless(CASTING.of("@s").is_true()).then_one("say ok");
+        let cmds = unless(CASTING.of("@s").is_true())
+            .then_one("say ok")
+            .render();
         assert_eq!(
             cmds,
             vec!["execute unless score @s casting matches 1 run say ok"]
@@ -948,7 +961,8 @@ mod tests {
             CASTING.of("@s").is_true(),
             CASTING.of("@s").is_false(),
         ]))
-        .then_one("say ok");
+        .then_one("say ok")
+        .render();
         assert_eq!(cmds.len(), 1, "NOT(a OR b) chains into one command");
         assert!(cmds[0].contains("unless"), "got: {}", cmds[0]);
     }
@@ -1036,7 +1050,8 @@ mod tests {
             DASH.ready("@s"),
             CASTING.of("@s").is_false(),
         ]))
-        .then_one("say ready to cast");
+        .then_one("say ready to cast")
+        .render();
         assert_eq!(cmds.len(), 1);
         let cmd = &cmds[0];
         assert!(cmd.starts_with("execute "), "got: {cmd}");
@@ -1052,13 +1067,16 @@ mod tests {
             MANA.of("@s").gte(25),
             MANA.of("@s").gte(50),
         ]))
-        .then_one("say ok");
+        .then_one("say ok")
+        .render();
         assert_eq!(cmds.len(), 2, "Any should expand to two commands");
     }
 
     #[test]
     fn when_predicate() {
-        let cmds = when(Condition::predicate_raw("my_pack:can_cast")).then_one("say ok");
+        let cmds = when(Condition::predicate_raw("my_pack:can_cast"))
+            .then_one("say ok")
+            .render();
         assert_eq!(
             cmds,
             vec!["execute if predicate my_pack:can_cast run say ok"]
@@ -1067,13 +1085,17 @@ mod tests {
 
     #[test]
     fn when_entity() {
-        let cmds = when(Condition::entity_raw("@s[tag=ready]")).then_one("say ok");
+        let cmds = when(Condition::entity_raw("@s[tag=ready]"))
+            .then_one("say ok")
+            .render();
         assert_eq!(cmds, vec!["execute if entity @s[tag=ready] run say ok"]);
     }
 
     #[test]
     fn nested_not() {
-        let cmds = when(!(MANA.of("@s").gte(25))).then_one("say low mana");
+        let cmds = when(!(MANA.of("@s").gte(25)))
+            .then_one("say low mana")
+            .render();
         assert_eq!(
             cmds,
             vec!["execute unless score @s mana matches 25.. run say low mana"]
@@ -1082,7 +1104,7 @@ mod tests {
 
     #[test]
     fn when_cooldown_ready() {
-        let cmds = when(DASH.ready("@s")).then_one("say dash ready");
+        let cmds = when(DASH.ready("@s")).then_one("say dash ready").render();
         assert_eq!(
             cmds,
             vec!["execute if score @s dash matches 0 run say dash ready"]
@@ -1096,7 +1118,7 @@ mod tests {
             DASH.ready("@s"),
             CASTING.of("@s").is_false(),
         ]);
-        let cmds = when(cond).then_one("say cast");
+        let cmds = when(cond).then_one("say cast").render();
         assert_eq!(cmds.len(), 1);
         assert_eq!(
             cmds[0],
@@ -1106,8 +1128,9 @@ mod tests {
 
     #[test]
     fn all_macro_sugar() {
-        let cmds =
-            when(all![MANA.of("@s").gte(25), CASTING.of("@s").is_false(),]).then_one("say ok");
+        let cmds = when(all![MANA.of("@s").gte(25), CASTING.of("@s").is_false(),])
+            .then_one("say ok")
+            .render();
         assert_eq!(cmds.len(), 1);
         assert!(cmds[0].contains("if score @s mana"), "got: {}", cmds[0]);
         assert!(cmds[0].contains("if score @s casting"), "got: {}", cmds[0]);
@@ -1115,7 +1138,9 @@ mod tests {
 
     #[test]
     fn any_macro_sugar() {
-        let cmds = when(any![MANA.of("@s").gte(25), MANA.of("@s").gte(50),]).then_one("say ok");
+        let cmds = when(any![MANA.of("@s").gte(25), MANA.of("@s").gte(50),])
+            .then_one("say ok")
+            .render();
         assert_eq!(cmds.len(), 2, "any! should expand to 2 commands");
     }
 
@@ -1125,7 +1150,8 @@ mod tests {
             MANA.of("@s").gte(25),
             any![CASTING.of("@s").is_false(), DASH.ready("@s"),],
         ])
-        .then_one("say ready");
+        .then_one("say ready")
+        .render();
         assert_eq!(cmds.len(), 2, "all![a, any![b,c]] should give 2 commands");
         assert!(
             cmds.iter().all(|c| c.contains("if score @s mana")),
@@ -1139,7 +1165,7 @@ mod tests {
         static MANA2: ScoreVar<i32> = ScoreVar::new("mana2");
         let cmds = mcfunction![
             MANA2.define();
-            when(MANA2.of("@s").gte(25)).then_one("say enough mana");
+            when(MANA2.of("@s").gte(25)).then_one("say enough mana").render();
         ]
         .render();
         assert_eq!(cmds[0], "scoreboard objectives add mana2 dummy");

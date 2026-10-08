@@ -246,6 +246,13 @@ pub enum Cmd {
     /// Keeping the body here makes cached actions independent of registry lifetime.
     AnonymousFunction { prefix: String, body: Actions },
 
+    /// Retain compiler-managed scoreboard requirements alongside a command.
+    /// Operands replay their owned setup during each export, including cached bodies.
+    WithScoreOperands {
+        operands: Vec<crate::state::score::ScoreOperand>,
+        run: Box<Cmd>,
+    },
+
     /// Return immediately with the result of one nested command.
     ReturnRun(Box<Cmd>),
 
@@ -295,7 +302,9 @@ impl Cmd {
     fn has_macro_line(&self) -> bool {
         match self {
             Self::Raw(text) => text.lines().any(|line| line.trim_start().starts_with('$')),
-            Self::Execute { run, .. } | Self::ReturnRun(run) => run.has_macro_line(),
+            Self::Execute { run, .. }
+            | Self::ReturnRun(run)
+            | Self::WithScoreOperands { run, .. } => run.has_macro_line(),
             _ => false,
         }
     }
@@ -303,7 +312,9 @@ impl Cmd {
     fn may_return_from_frame(&self) -> bool {
         match self {
             Self::ReturnRun(_) => true,
-            Self::Execute { run, .. } => run.may_return_from_frame(),
+            Self::Execute { run, .. } | Self::WithScoreOperands { run, .. } => {
+                run.may_return_from_frame()
+            }
             // Inspect command positions through the canonical execute parser;
             // quoted arguments and ordinary words such as `say return` are data.
             Self::Raw(text) => text.lines().any(raw_command_may_return),
@@ -327,6 +338,12 @@ impl Cmd {
                 }
                 let path = crate::function::register_dyn_fn_dedup(prefix, body.clone());
                 format!("function {}:{path}", crate::function::SAND_LOCAL_NS)
+            }
+            Self::WithScoreOperands { operands, run } => {
+                for operand in operands {
+                    operand.register_owned_setup();
+                }
+                run.try_render()?
             }
             Self::ReturnRun(command) => {
                 let rendered = command.try_render().map_err(|mut error| {

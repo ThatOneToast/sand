@@ -49,8 +49,7 @@ fn nested_relationship_traversal_retains_original_context() {
             EntityScope::bind(arrow, |arrow_ref| {
                 arrow_ref
                     .owner()
-                    .if_player(|_owner| vec![arrow_ref.add_tag(&tag("special"))])
-                    .unwrap()
+                    .if_player(|_owner| sand::mcfunction![arrow_ref.add_tag(&tag("special"))])
             })
         });
 
@@ -78,7 +77,11 @@ fn nested_relationship_traversal_retains_original_context() {
         "tag add, relation traversal, tag remove"
     );
     assert!(outer_fn.1[0].starts_with("tag @s add __sand_scope_"));
-    assert!(outer_fn.1[1].starts_with(
+    let scope_fn = generated
+        .iter()
+        .find(|(path, _)| outer_fn.1[1].ends_with(path))
+        .expect("scope body should run in a helper before cleanup");
+    assert!(scope_fn.1[0].starts_with(
         "execute on owner if entity @s[type=minecraft:player] run function __sand_local:"
     ));
     assert!(outer_fn.1[2].starts_with("tag @e[tag=__sand_scope_"));
@@ -86,7 +89,7 @@ fn nested_relationship_traversal_retains_original_context() {
 
     let relation_fn = generated
         .iter()
-        .find(|(path, _)| outer_fn.1[1].ends_with(path))
+        .find(|(path, _)| scope_fn.1[0].ends_with(path))
         .expect("relation traversal function should be registered");
     // The tag command inside the relation branch targets the scoped entity
     // by tag, not `@s` (which is now the owner).
@@ -129,8 +132,7 @@ fn passengers_relation_is_many_cardinality_and_iterates_via_each() {
         .expect("a positive limit is valid")
         .each(|boat| {
             boat.passengers()
-                .each(|passenger| vec![passenger.add_tag(&tag("aboard"))])
-                .unwrap()
+                .each(|passenger| sand::mcfunction![passenger.add_tag(&tag("aboard"))])
         });
 
     let cmds = emitted(cmds);

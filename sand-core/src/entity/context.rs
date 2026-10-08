@@ -1,5 +1,7 @@
 //! Execution-scoped entity context and relationship-preserving scoped bindings.
 
+use crate::IntoCommands;
+use crate::ir::{Actions, Cmd};
 use std::marker::PhantomData;
 
 use sand_commands::Selector;
@@ -426,8 +428,8 @@ impl EntityContext<PlayerKind> {
     aliases = ["sand::prelude::ScopedEntityRef"],
     module = "sand::entity",
     summary = "A stable reference to a specific entity, preserved across relationship traversal (which reassigns `@s`).",
-    context = "A stable reference to a specific entity, preserved across relationship traversal (which reassigns `@s`). Backed by a uniquely namespaced temporary tag added to the bound entity for the lifetime of the [`EntityScope::bind`] call and removed again at the end of the generated command list. The tag name is derived from the Rust call site's file, line, and column, so distinct call sites do not collide and repeated/concurrent exports produce identical output; the add/remove pair is emitted as an unconditional straight-line prefix/suffix around the caller's body (Sand's command DSL has no early-return branching), so cleanup always executes exactly once, synchronously, before control returns to whatever iterated to this entity. This is honest about scope: a `ScopedEntityRef` is only valid for the duration of the single generated command chain it was created in. It is not a persistent, storable, cross-tick entity reference.",
-    minecraft = "Backed by a uniquely namespaced temporary tag added to the bound entity for the lifetime of the [`EntityScope::bind`] call and removed again at the end of the generated command list. The tag name is derived from the Rust call site's file, line, and column, so distinct call sites do not collide and repeated/concurrent exports produce identical output; the add/remove pair is emitted as an unconditional straight-line prefix/suffix around the caller's body (Sand's command DSL has no early-return branching), so cleanup always executes exactly once, synchronously, before control returns to whatever iterated to this entity.",
+    context = "A stable reference to a specific entity, preserved across relationship traversal (which reassigns `@s`). Backed by a uniquely namespaced temporary tag added to the bound entity for the lifetime of the [`EntityScope::bind`] call and removed again at the end of the generated command list. The tag name is derived from the Rust call site's file, line, and column, so distinct call sites do not collide and repeated/concurrent exports produce identical output; the add/remove pair surrounds a helper call for the callback body, so a return inside that body still reaches cleanup in the calling function. This is honest about scope: a `ScopedEntityRef` is only valid for the duration of the single generated command chain it was created in. It is not a persistent, storable, cross-tick entity reference.",
+    minecraft = "Backed by a uniquely namespaced temporary tag added to the bound entity for the lifetime of the [`EntityScope::bind`] call and removed again at the end of the generated command list. The tag name is derived from the Rust call site's file, line, and column, so distinct call sites do not collide and repeated/concurrent exports produce identical output; the add/remove pair surrounds a helper call for the callback body, so a return inside that body still reaches cleanup in the calling function.",
     use_when = ["Defining or using typed entity behavior in a Sand datapack"],
     avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
     example = "use sand::entity::ScopedEntityRef;",
@@ -440,10 +442,9 @@ impl EntityContext<PlayerKind> {
 /// the end of the generated command list. The tag name is derived from the
 /// Rust call site's file, line, and column, so distinct call sites do not
 /// collide and repeated/concurrent exports produce identical output; the
-/// add/remove pair is emitted as an unconditional straight-line prefix/suffix
-/// around the caller's body (Sand's command DSL has no early-return
-/// branching), so cleanup always executes exactly once, synchronously,
-/// before control returns to whatever iterated to this entity.
+/// add/remove pair surrounds a helper call for the callback body. A return
+/// inside that body exits its helper, so cleanup still runs in the calling
+/// function before the surrounding iteration continues.
 ///
 /// This is honest about scope: a `ScopedEntityRef` is only valid for the
 /// duration of the single generated command chain it was created in. It is
@@ -832,10 +833,7 @@ impl EntityScope {
     ///     arrow_ref
     ///         .owner()
     ///         .if_player(|owner| vec![owner.identity().add_tag(&EntityTag::new("shot_by_owner").unwrap()).unwrap()])
-    ///         .unwrap()
     /// });
-    /// assert!(cmds[0].starts_with("tag @s add __sand_scope_"));
-    /// assert!(cmds.last().unwrap().starts_with("tag @e[tag=__sand_scope_"));
     /// ```
     #[sand_macros::api(
         registry = sand_api_contract,
@@ -850,13 +848,13 @@ impl EntityScope {
         avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
         params(_ctx = "`ctx` is used to tag the entity currently bound to `@s` with a unique, collision-safe temporary tag, run `body` with a [`ScopedEntityRef`] that can reach that entity again by tag (even after `@s` has changed via relation traversal inside `body`), then remove the tag.", body = "Tag the entity currently bound to `@s` with a unique, collision-safe temporary tag, run `body` with a [`ScopedEntityRef`] that can reach that entity again by tag (even after `@s` has changed via relation traversal inside `body`), then remove the tag."),
         returns = "The ordered values produced to tag the entity currently bound to `@s` with a unique, collision-safe temporary tag, run `body` with a [`ScopedEntityRef`] that can reach that entity again by tag (even after `@s` has changed via relation traversal inside `body`), then remove the tag.",
-        example = "use sand::prelude::*;\nlet ctx: EntityContext<AnyEntity> = EntityContext::default();\nlet tag = EntityTag::new(\"shot_by_owner\").unwrap();\nlet cmds = EntityScope::bind(&ctx, |arrow_ref| {\narrow_ref.owner().if_player(|owner| vec![owner.identity().add_tag(&tag).unwrap()]).unwrap()\n});\nassert!(cmds[0].starts_with(\"tag @s add __sand_scope_\"));",
+        example = "use sand::prelude::*;\nlet ctx: EntityContext<AnyEntity> = EntityContext::default();\nlet tag = EntityTag::new(\"shot_by_owner\").unwrap();\nlet cmds = EntityScope::bind(&ctx, |arrow_ref| {\narrow_ref.owner().if_player(|owner| vec![owner.identity().add_tag(&tag).unwrap()])\n});",
     )]
     #[track_caller]
-    pub fn bind<K: EntityKind>(
+    pub fn bind<K: EntityKind, R: IntoCommands>(
         _ctx: &EntityContext<K>,
-        body: impl FnOnce(&ScopedEntityRef<K>) -> Vec<String>,
-    ) -> Vec<String> {
+        body: impl FnOnce(&ScopedEntityRef<K>) -> R,
+    ) -> Actions {
         let location = std::panic::Location::caller();
         let logical = format!(
             "{}:{}:{}",
@@ -873,21 +871,24 @@ impl EntityScope {
             _kind: PhantomData,
         };
 
-        let body_cmds = body(&scoped);
-        if body_cmds.is_empty() {
-            return Vec::new();
+        let body_cmds = body(&scoped).into_commands();
+        if body_cmds.0.is_empty() {
+            return Actions::default();
         }
 
-        let mut cmds = Vec::with_capacity(body_cmds.len() + 2);
-        cmds.push(sand_commands::builtins::tag_add(
+        let mut cmds = Actions::default();
+        cmds.extend([sand_commands::builtins::tag_add(
             Selector::self_(),
             tag.clone(),
-        ));
-        cmds.extend(body_cmds);
-        cmds.push(sand_commands::builtins::tag_remove(
+        )]);
+        // A return inside the callback must return from its helper, not skip
+        // cleanup in the function that owns the temporary binding.
+        let path = crate::function::register_dyn_fn_dedup("sand/entity_scope", body_cmds);
+        cmds.extend([Actions(vec![Cmd::Function(format!("__sand_local:{path}"))])]);
+        cmds.extend([sand_commands::builtins::tag_remove(
             Selector::all_entities().tag(&tag),
             tag,
-        ));
+        )]);
         cmds
     }
 }
@@ -920,13 +921,20 @@ mod tests {
     #[test]
     fn scoped_ref_targets_by_tag_not_self() {
         let ctx: EntityContext<AnyEntity> = EntityContext::new();
-        let cmds = EntityScope::bind(&ctx, |scoped| vec![scoped.add_tag(&tag("special"))]);
+        let cmds = crate::ir::test_support::emitted(EntityScope::bind(&ctx, |scoped| {
+            vec![scoped.add_tag(&tag("special"))]
+        }));
         assert_eq!(cmds.len(), 3);
         assert!(cmds[0].starts_with("tag @s add __sand_scope_"));
         let scope_tag = cmds[0].strip_prefix("tag @s add ").unwrap();
+        let generated = crate::ir::test_support::drain_emitted();
+        let (_, body) = generated
+            .iter()
+            .find(|(path, _)| cmds[1].ends_with(path))
+            .unwrap();
         assert_eq!(
-            cmds[1],
-            format!("tag @e[tag={scope_tag},limit=1] add special")
+            body,
+            &[format!("tag @e[tag={scope_tag},limit=1] add special")]
         );
         assert_eq!(
             cmds[2],
@@ -935,9 +943,66 @@ mod tests {
     }
 
     #[test]
+    fn scope_body_return_cannot_skip_binding_cleanup() {
+        let ctx: EntityContext<AnyEntity> = EntityContext::new();
+        let commands = crate::ir::test_support::emitted(EntityScope::bind(
+            &ctx,
+            |_| crate::mcfunction!["return 0"; "say unreachable"],
+        ));
+        let scope_tag = commands[0].strip_prefix("tag @s add ").unwrap();
+        assert!(commands[1].starts_with("function __sand_local:sand/entity_scope/"));
+        assert_eq!(
+            commands[2],
+            format!("tag @e[tag={scope_tag}] remove {scope_tag}")
+        );
+        assert_eq!(commands.len(), 3);
+        let generated = crate::ir::test_support::drain_emitted();
+        let (_, body) = generated
+            .iter()
+            .find(|(path, _)| commands[1].ends_with(path))
+            .unwrap();
+        assert_eq!(body, &["return 0", "say unreachable"]);
+    }
+
+    #[test]
+    fn nested_scope_and_relation_keep_structured_validation_until_export() {
+        let _ = crate::function::drain_dyn_fns();
+        let ctx: EntityContext<AnyEntity> = EntityContext::new();
+        let commands = EntityScope::bind(&ctx, |bound| {
+            bound.owner().if_player(|_| {
+                Actions(vec![Cmd::Execute {
+                    operations: vec![],
+                    run: Box::new(Cmd::Raw("say invalid".into())),
+                }])
+            })
+        });
+        let _ = crate::ir::test_support::emitted(commands);
+        let generated = crate::function::drain_dyn_fns();
+        let errors = generated
+            .into_iter()
+            .filter_map(|(path, body)| {
+                let owner = sand_components::ResourceLocation::new("game", path).unwrap();
+                body.lower(&owner).err().map(|error| error.to_string())
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(errors.len(), 1);
+        assert!(
+            errors[0].contains("game:sand/entity_relation/owner/"),
+            "{}",
+            errors[0]
+        );
+        assert!(
+            errors[0].contains("SAND-COMMAND-EXECUTE-EMPTY"),
+            "{}",
+            errors[0]
+        );
+    }
+
+    #[test]
     fn empty_scope_body_emits_no_commands() {
         let ctx: EntityContext<AnyEntity> = EntityContext::new();
-        let cmds = EntityScope::bind(&ctx, |_scoped| Vec::new());
+        let cmds =
+            crate::ir::test_support::emitted(EntityScope::bind(&ctx, |_scoped| Actions::default()));
         assert!(cmds.is_empty());
     }
 
@@ -946,13 +1011,18 @@ mod tests {
         let ctx: EntityContext<AnyEntity> = EntityContext::new();
         let a = EntityScope::bind(&ctx, |scoped| vec![scoped.add_tag(&tag("a"))]);
         let b = EntityScope::bind(&ctx, |scoped| vec![scoped.add_tag(&tag("a"))]);
-        assert_ne!(a[0], b[0]);
+        assert_ne!(
+            crate::ir::test_support::emitted(a)[0],
+            crate::ir::test_support::emitted(b)[0]
+        );
     }
 
     #[test]
     fn same_call_site_is_repeat_export_deterministic() {
         fn build(ctx: &EntityContext<AnyEntity>) -> Vec<String> {
-            EntityScope::bind(ctx, |scoped| vec![scoped.add_tag(&tag("a"))])
+            crate::ir::test_support::emitted(EntityScope::bind(ctx, |scoped| {
+                vec![scoped.add_tag(&tag("a"))]
+            }))
         }
         let ctx: EntityContext<AnyEntity> = EntityContext::new();
         assert_eq!(build(&ctx), build(&ctx));

@@ -56,16 +56,13 @@ fn scoped_capabilities_keep_the_bound_selector_across_relationship_traversal() {
         .unwrap_or_else(std::sync::PoisonError::into_inner);
     let zombie = EntityContext::<ZombieKind>::default();
     let commands = emitted(EntityScope::bind(&zombie, |bound| {
-        bound
-            .owner()
-            .if_player(|owner| {
-                vec![
-                    owner.living().clear_effects(),
-                    bound.transform().teleport_to(Target::self_()).unwrap(),
-                    bound.data().field::<i32>("Air").set(300).to_string(),
-                ]
-            })
-            .unwrap()
+        bound.owner().if_player(|owner| {
+            vec![
+                owner.living().clear_effects(),
+                bound.transform().teleport_to(Target::self_()).unwrap(),
+                bound.data().field::<i32>("Air").set(300).to_string(),
+            ]
+        })
     }));
 
     let scoped_tag = commands[0]
@@ -75,7 +72,11 @@ fn scoped_capabilities_keep_the_bound_selector_across_relationship_traversal() {
         .into_iter()
         .map(|(path, body)| (path, emitted(body)))
         .collect::<Vec<_>>();
-    let relation_call = &commands[1];
+    let scope_body = generated
+        .iter()
+        .find(|(path, _)| commands[1].ends_with(path))
+        .expect("scope body is isolated so early returns cannot skip cleanup");
+    let relation_call = &scope_body.1[0];
     let body = generated
         .iter()
         .find(|(path, _)| relation_call.ends_with(path))

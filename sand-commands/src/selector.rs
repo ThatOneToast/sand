@@ -1697,14 +1697,10 @@ fn validate_scores(value: &str) -> CommandResult<()> {
                 format!("expected `objective=range`, got `{entry}`"),
             ));
         };
-        validate::no_whitespace_or_control(objective, "Selector", "scores.objective")?;
-        if objective.len() > 16 {
-            return Err(CommandError::new(
-                "Selector",
-                "scores.objective",
-                format!("objective `{objective}` exceeds 16 characters"),
-            ));
-        }
+        let _ = crate::ObjectiveName::try_dynamic(objective).map_err(|mut error| {
+            error.field = format!("scores.objective.{}", error.field);
+            error
+        })?;
         if !objectives.insert(objective) {
             return Err(CommandError::new(
                 "Selector",

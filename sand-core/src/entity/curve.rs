@@ -637,6 +637,13 @@ pub(crate) enum LoweringStrategy {
     CustomCallback,
 }
 
+/// Operations evaluated only after a piecewise arm is selected.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct LoweredCurveBranch {
+    operations: Vec<LoweredCurveOperation>,
+    result: String,
+}
+
 /// Exporter-facing fixed-point operation produced by
 /// [`StatCurve::lower_scoreboard`].
 ///
@@ -740,7 +747,7 @@ pub(crate) enum LoweredCurveOperation {
         /// Value below the first band.
         below: FixedValue,
     },
-    /// Select one precomputed branch using inclusive upper bounds.
+    /// Select and evaluate one branch using inclusive upper bounds.
     ///
     /// The operation represents a balanced decision tree even though the
     /// branch list is stored in sorted semantic order.
@@ -749,10 +756,10 @@ pub(crate) enum LoweredCurveOperation {
         destination: String,
         /// Input score objective.
         input: String,
-        /// Sorted `(inclusive maximum, branch result objective)` pairs.
-        branches: Vec<(FixedValue, String)>,
-        /// Result objective used above the last bound.
-        fallback: String,
+        /// Sorted `(inclusive maximum, deferred branch)` pairs.
+        branches: Vec<(FixedValue, LoweredCurveBranch)>,
+        /// Deferred branch used above the last bound.
+        fallback: LoweredCurveBranch,
     },
     /// Read a bounded table keyed by a whole scoreboard value.
     ///
@@ -2138,6 +2145,13 @@ impl CurveLoweringBuilder<'_> {
         Ok(destination)
     }
 
+    fn lower_branch(&mut self, curve: &StatCurve) -> Result<LoweredCurveBranch, EntityDiagnostic> {
+        let start = self.operations.len();
+        let result = self.lower(curve)?;
+        let operations = self.operations.split_off(start);
+        Ok(LoweredCurveBranch { operations, result })
+    }
+
     fn lower(&mut self, curve: &StatCurve) -> Result<String, EntityDiagnostic> {
         let destination = self.scratch();
         match &curve.kind {
@@ -2282,10 +2296,10 @@ impl CurveLoweringBuilder<'_> {
                     lowered_branches.push((
                         self.fixed
                             .encode(*maximum, self.scratch_prefix, "piecewise_maximum")?,
-                        self.lower(branch)?,
+                        self.lower_branch(branch)?,
                     ));
                 }
-                let fallback = self.lower(fallback)?;
+                let fallback = self.lower_branch(fallback)?;
                 self.operations
                     .push(LoweredCurveOperation::SelectPiecewise {
                         destination: destination.clone(),

@@ -3,22 +3,45 @@ use super::*;
 use std::collections::BTreeMap;
 
 #[derive(Default)]
-struct Machine(BTreeMap<String, i32>);
+struct Machine(
+    BTreeMap<String, i32>,
+    BTreeMap<String, Vec<String>>,
+    Option<bool>,
+);
 impl Machine {
     fn get(&self, holder: &str, objective: &str) -> i32 {
         self.0[&format!("{holder} {objective}")]
     }
     fn run(&mut self, command: &[&str]) -> bool {
         match command[0] {
-            "return" => false,
+            "return" => {
+                let success = match command[1] {
+                    "fail" => false,
+                    "run" => {
+                        assert_eq!(command[2], "function");
+                        self.call(command[3])
+                    }
+                    _ => true,
+                };
+                self.2 = Some(success);
+                false
+            }
+            "function" => {
+                self.call(command[1]);
+                true
+            }
             "execute" => {
                 if command[1] == "store" {
                     assert_eq!(&command[1..4], &["store", "success", "score"]);
                     assert_eq!(command[6], "run");
                     let inner = &command[7..];
-                    assert_eq!(&inner[..3], &["scoreboard", "players", "operation"]);
-                    let present = self.0.contains_key(&format!("{} {}", inner[6], inner[7]));
-                    let success = present && self.run(inner);
+                    let success = if inner[0] == "function" {
+                        self.call(inner[1])
+                    } else {
+                        assert_eq!(&inner[..3], &["scoreboard", "players", "operation"]);
+                        let present = self.0.contains_key(&format!("{} {}", inner[6], inner[7]));
+                        present && self.run(inner)
+                    };
                     self.0
                         .insert(format!("{} {}", command[4], command[5]), i32::from(success));
                     return true;
@@ -100,6 +123,18 @@ impl Machine {
             }
             other => panic!("unsupported command {other}"),
         }
+    }
+    fn call(&mut self, function: &str) -> bool {
+        let commands = self
+            .1
+            .get(function)
+            .expect("generated function exists")
+            .clone();
+        let parent_return = self.2.take();
+        let completed = self.execute(&commands);
+        let success = self.2.take().unwrap_or(completed);
+        self.2 = parent_return;
+        success
     }
     fn execute(&mut self, commands: &[String]) -> bool {
         commands
@@ -336,4 +371,65 @@ fn random_source_is_resolved_once_for_read_and_success() {
             .any(|line| line.starts_with("execute store success score ")
                 && line.ends_with(&format!("= @r {}", field.objective())))
     );
+}
+
+#[test]
+fn piecewise_evaluates_only_the_selected_arm_and_propagates_failure() {
+    use crate::entity::{FixedPoint, StatCurve};
+    let owner = "test:piecewise".parse().unwrap();
+    let holder = sand_commands::ScoreHolder::self_();
+    let context = NumericContext::new(&owner, &holder).unwrap();
+    let missing = StatCurve::input_raw("missing");
+    let overflow = StatCurve::multiply([StatCurve::input_raw("large"), StatCurve::constant(2.0)]);
+    for bad in [missing, overflow] {
+        for bad_is_fallback in [false, true] {
+            let good = StatCurve::piecewise(
+                StatCurve::input_raw("selector"),
+                vec![(0.0, StatCurve::constant(7.0))],
+                StatCurve::constant(9.0),
+            );
+            let (arm, fallback) = if bad_is_fallback {
+                (good, bad.clone())
+            } else {
+                (bad.clone(), good)
+            };
+            let curve =
+                StatCurve::piecewise(StatCurve::input_raw("selector"), vec![(0.0, arm)], fallback);
+            let lowered = curve
+                .lower_scoreboard("result", "test:piecewise", FixedPoint::default())
+                .unwrap();
+            let rendered = render_lowered_curve(context, "piecewise", &lowered).unwrap();
+            let mut machine = Machine::default();
+            for record in rendered.records {
+                assert_eq!(record.dir, "function");
+                machine.1.insert(
+                    format!("{}:{}", record.namespace, record.path),
+                    record.content.lines().map(str::to_owned).collect(),
+                );
+            }
+            machine.0.insert("@s result".into(), 123);
+            machine.0.insert("@s large".into(), i32::MAX);
+            machine
+                .0
+                .insert("@s selector".into(), if bad_is_fallback { 0 } else { 1 });
+            assert!(
+                machine.execute(&rendered.commands),
+                "unselected bad arm must not execute"
+            );
+            let expected = if bad_is_fallback { 7000 } else { 9000 };
+            assert_eq!(machine.get("@s", "result"), expected);
+            machine
+                .0
+                .insert("@s selector".into(), if bad_is_fallback { 1 } else { 0 });
+            assert!(
+                !machine.execute(&rendered.commands),
+                "selected bad arm must abort"
+            );
+            assert_eq!(
+                machine.get("@s", "result"),
+                expected,
+                "failed assignment must preserve destination"
+            );
+        }
+    }
 }

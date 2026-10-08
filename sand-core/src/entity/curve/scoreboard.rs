@@ -273,8 +273,20 @@ pub(crate) fn render_lowered_curve(
                     &values,
                     &mut records,
                     &mut functions,
-                );
-                commands.push(format!("function {}:{base}", context.owner.namespace()));
+                    &mut objectives,
+                )?;
+                let success = ObjectiveName::logical(format!(
+                    "{}.piecewise.{destination}.success",
+                    context.owner
+                ));
+                objectives.insert(success.clone());
+                commands.push(format!(
+                    "execute store success score {holder} {success} run function {}:{base}",
+                    context.owner.namespace()
+                ));
+                commands.push(format!(
+                    "execute unless score {holder} {success} matches 1 run return fail"
+                ));
             }
             LoweredCurveOperation::LookupTable {
                 destination,
@@ -527,17 +539,32 @@ fn build_piecewise_tree(
     input: &str,
     destination: &str,
     boundaries: &[i32],
-    values: &[String],
+    values: &[super::LoweredCurveBranch],
     records: &mut Vec<crate::component::ComponentRecord>,
     functions: &mut Vec<String>,
-) {
+    objectives: &mut BTreeSet<ObjectiveName>,
+) -> Result<(), EntityDiagnostic> {
     let holder = context.holder;
     functions.push(path.to_owned());
     let commands = if boundaries.is_empty() {
-        vec![format!(
+        let branch = &values[0];
+        let lowered = LoweredCurve {
+            target_objective: destination.into(),
+            scratch_objectives: Vec::new(),
+            operations: branch.operations.clone(),
+            strategy: super::LoweringStrategy::ScoreboardArithmetic,
+        };
+        let rendered = render_lowered_curve(context, path, &lowered)?;
+        records.extend(rendered.records);
+        functions.extend(rendered.functions);
+        objectives.extend(rendered.objectives);
+        let mut commands = rendered.commands;
+        commands.push(format!(
             "scoreboard players operation {holder} {destination} = {holder} {}",
-            values[0]
-        )]
+            branch.result
+        ));
+        commands.push("return 1".into());
+        commands
     } else {
         let middle = boundaries.len() / 2;
         let boundary = boundaries[middle];
@@ -552,7 +579,8 @@ fn build_piecewise_tree(
             &values[..middle + 1],
             records,
             functions,
-        );
+            objectives,
+        )?;
         build_piecewise_tree(
             context,
             &right,
@@ -562,25 +590,24 @@ fn build_piecewise_tree(
             &values[middle + 1..],
             records,
             functions,
-        );
-        let mut commands = vec![format!(
-            "execute if score {holder} {input} matches ..{boundary} run function {}:{left}",
-            context.owner.namespace()
-        )];
-        if boundary < i32::MAX {
-            commands.push(format!(
-                "execute if score {holder} {input} matches {}.. run function {}:{right}",
-                boundary + 1,
+            objectives,
+        )?;
+        // Each decision returns the selected child's success, including a
+        // failure caused by a missing input or checked arithmetic overflow.
+        vec![
+            format!(
+                "execute if score {holder} {input} matches ..{boundary} run return run function {}:{left}",
                 context.owner.namespace()
-            ));
-        }
-        commands
+            ),
+            format!("return run function {}:{right}", context.owner.namespace()),
+        ]
     };
     records.push(ComponentRecord::function(
         context.owner.namespace(),
         path,
         commands,
     ));
+    Ok(())
 }
 
 fn capture_discrete_input(

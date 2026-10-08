@@ -20,6 +20,19 @@ struct NumberPlayers {
     numbers: Numbers,
 }
 
+static COLLIDING_OBJECTIVE: std::sync::Mutex<Option<String>> = std::sync::Mutex::new(None);
+
+#[function]
+fn declare_user_objective() {
+    let command = COLLIDING_OBJECTIVE
+        .lock()
+        .unwrap()
+        .as_ref()
+        .map(|objective| format!("scoreboard objectives add {objective} dummy"))
+        .unwrap_or_else(|| "# no user objective".to_string());
+    command;
+}
+
 #[function]
 fn assign_numbers() {
     NumberPlayers::each(|item| {
@@ -56,6 +69,16 @@ fn runtime_assignments_provision_scratch_before_lifecycle_and_export_stably() {
         })
         .collect();
     assert_eq!(helpers.len(), 2);
+    let scratch = helpers[0]["content"]
+        .as_str()
+        .unwrap()
+        .lines()
+        .find(|line| line.starts_with("scoreboard players set "))
+        .unwrap()
+        .split_whitespace()
+        .nth(4)
+        .unwrap()
+        .to_owned();
     let copied = helpers
         .iter()
         .find(|record| {
@@ -122,4 +145,21 @@ fn runtime_assignments_provision_scratch_before_lifecycle_and_export_stably() {
         .unwrap();
     let tag: serde_json::Value = serde_json::from_str(load["content"].as_str().unwrap()).unwrap();
     assert_eq!(tag["values"][0], "numeric:__sand_score_init");
+
+    *COLLIDING_OBJECTIVE.lock().unwrap() = Some(scratch.clone());
+    let error = sand_core::try_export_components_json("numeric")
+        .unwrap_err()
+        .to_string();
+    *COLLIDING_OBJECTIVE.lock().unwrap() = None;
+    assert!(error.contains(&scratch), "{error}");
+    assert!(
+        error.contains("collides with generated numeric storage"),
+        "{error}"
+    );
+    assert!(error.contains("declare_user_objective"), "{error}");
+    assert_eq!(
+        first,
+        sand_core::try_export_components_json("numeric").unwrap(),
+        "failed ownership validation must not leak registry state"
+    );
 }

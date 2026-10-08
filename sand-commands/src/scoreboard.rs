@@ -394,7 +394,7 @@ impl<K, A> From<crate::selector::Target<K, A>> for ScoreHolder {
 ///   objective name cannot use) is deterministically hashed to a stable
 ///   ≤16-character token. The original logical name is retained for
 ///   diagnostics via [`ObjectiveName::logical_name`].
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 #[must_use = "objective names do nothing until passed to a scoreboard command"]
 pub struct ObjectiveName {
     emitted: Cow<'static, str>,

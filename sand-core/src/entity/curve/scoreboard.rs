@@ -8,6 +8,7 @@ use super::{LoweredCurve, LoweredCurveOperation, OverflowPolicy, RoundingPolicy}
 use crate::component::ComponentRecord;
 use crate::entity::diagnostic::EntityDiagnostic;
 use crate::resource_ref::FunctionId;
+use sand_commands::ObjectiveName;
 use sand_components::ResourceLocation;
 use std::collections::BTreeSet;
 
@@ -55,7 +56,7 @@ pub(crate) struct RenderedCurve {
     pub(crate) commands: Vec<String>,
     pub(crate) records: Vec<crate::component::ComponentRecord>,
     pub(crate) functions: Vec<String>,
-    pub(crate) objectives: Vec<String>,
+    pub(crate) objectives: Vec<ObjectiveName>,
 }
 
 pub(crate) fn render_lowered_curve(
@@ -584,33 +585,32 @@ fn build_piecewise_tree(
 
 fn capture_discrete_input(
     context: NumericContext<'_>,
-    objectives: &mut BTreeSet<String>,
+    objectives: &mut BTreeSet<ObjectiveName>,
     commands: &mut Vec<String>,
     input: &str,
     index: usize,
 ) -> String {
     let source = context.input_holder;
     let destination =
-        sand_commands::ObjectiveName::logical(format!("{}.input.{index}.{input}", context.owner))
-            .to_string();
+        sand_commands::ObjectiveName::logical(format!("{}.input.{index}.{input}", context.owner));
     objectives.insert(destination.clone());
     append_score_read(
         context,
         objectives,
         commands,
-        &destination,
+        destination.as_str(),
         &source.to_string(),
         input,
         index,
     );
-    destination
+    destination.to_string()
 }
 
 /// Capture one scoreboard read and its success in the same Minecraft command.
 /// A nondeterministic selector must never be re-evaluated by a separate guard.
 fn append_score_read(
     context: NumericContext<'_>,
-    objectives: &mut BTreeSet<String>,
+    objectives: &mut BTreeSet<ObjectiveName>,
     commands: &mut Vec<String>,
     destination: &str,
     source_holder: &str,
@@ -621,8 +621,7 @@ fn append_score_read(
     let success = sand_commands::ObjectiveName::logical(format!(
         "{}.read.{index}.{destination}.success",
         context.owner
-    ))
-    .to_string();
+    ));
     objectives.insert(success.clone());
     commands.push(format!("scoreboard players set {holder} {destination} 0"));
     commands.push(format!("execute store success score {holder} {success} run scoreboard players operation {holder} {destination} = {source_holder} {source}"));
@@ -665,7 +664,7 @@ fn require_scoreboard_overflow(
 /// apart from MIN * -1 (whose JVM division also wraps), guarded explicitly.
 fn append_checked_arithmetic(
     context: NumericContext<'_>,
-    objectives: &mut BTreeSet<String>,
+    objectives: &mut BTreeSet<ObjectiveName>,
     commands: &mut Vec<String>,
     destination: &str,
     operand: &str,
@@ -678,7 +677,6 @@ fn append_checked_arithmetic(
             "{}.checked.{index}.{destination}.{role}",
             context.owner
         ))
-        .to_string()
     };
     let left = scratch("left");
     let right = scratch("right");
@@ -717,7 +715,7 @@ fn append_checked_arithmetic(
 
 fn append_scaled_division(
     context: NumericContext<'_>,
-    objectives: &mut BTreeSet<String>,
+    objectives: &mut BTreeSet<ObjectiveName>,
     commands: &mut Vec<String>,
     destination: &str,
     divisor: i64,
@@ -743,7 +741,7 @@ fn append_scaled_division(
 #[allow(clippy::too_many_arguments)] // Lowering keeps each scoreboard operand explicit.
 pub(crate) fn append_scale_conversion(
     context: NumericContext<'_>,
-    objectives: &mut BTreeSet<String>,
+    objectives: &mut BTreeSet<ObjectiveName>,
     commands: &mut Vec<String>,
     destination: &str,
     source_scale: i64,
@@ -801,7 +799,7 @@ fn gcd(mut left: i64, mut right: i64) -> i64 {
 
 fn append_score_division(
     context: NumericContext<'_>,
-    objectives: &mut BTreeSet<String>,
+    objectives: &mut BTreeSet<ObjectiveName>,
     commands: &mut Vec<String>,
     destination: &str,
     divisor: &str,
@@ -826,8 +824,6 @@ fn append_score_division(
             "{}.division.{index}.{destination}.{role}",
             context.owner
         ))
-        .as_str()
-        .to_string()
     };
     let original = scratch("original");
     let remainder = scratch("remainder");
@@ -909,13 +905,12 @@ fn constant_objective(
     context: NumericContext<'_>,
     role: &str,
     value: i64,
-) -> Result<String, EntityDiagnostic> {
+) -> Result<ObjectiveName, EntityDiagnostic> {
     scoreboard_value(context, role, value)?;
-    Ok(
-        sand_commands::ObjectiveName::logical(format!("{}.{}.{}", context.owner, role, value))
-            .as_str()
-            .to_string(),
-    )
+    Ok(sand_commands::ObjectiveName::logical(format!(
+        "{}.{}.{}",
+        context.owner, role, value
+    )))
 }
 
 #[cfg(test)]

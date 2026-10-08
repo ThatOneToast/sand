@@ -3317,14 +3317,14 @@ fn compile_derivations(
             &format!("{id}.derive.{index}"),
             derivation.fixed,
         )?;
-        objectives.extend(lowered.scratch_objectives().iter().cloned());
+        objectives.extend(lowered.scratch_objectives().iter().map(ToString::to_string));
         let path = format!("{root}/derive/{index}");
         let rendered = render_lowered_curve(
             NumericContext::new(&definition.id, &sand_commands::ScoreHolder::self_())?,
             &path,
             &lowered,
         )?;
-        objectives.extend(rendered.objectives);
+        objectives.extend(rendered.objectives.into_iter().map(|name| name.to_string()));
         functions.push(path.clone());
         functions.extend(rendered.functions);
         records.extend(rendered.records);
@@ -3341,7 +3341,11 @@ fn compile_derivations(
                 RoundingPolicy::NearestTiesAwayFromZero,
                 index,
             )?;
-            objectives.extend(conversion_objectives);
+            objectives.extend(
+                conversion_objectives
+                    .into_iter()
+                    .map(|name| name.to_string()),
+            );
         }
         commands.push(format!(
             "scoreboard players operation @s {target} = @s {calculated}"

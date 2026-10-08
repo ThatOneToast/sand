@@ -70,7 +70,7 @@ impl NumericWrite {
                 objective: self.objective.to_string(),
                 value: crate::entity::state::encode_fixed(value, self.scale, self.bounds),
             })];
-            self.append_bounds_and_dirty(&mut commands, &destination, owner);
+            self.append_bounds_and_dirty(&mut commands, &destination, owner)?;
             return Ok(bind_destination(commands, selector));
         }
 
@@ -104,10 +104,10 @@ impl NumericWrite {
             .map_err(|error| numeric_error(error, owner))?;
         let rendered = render_lowered_curve(context, &path, &lowered)
             .map_err(|error| numeric_error(error, owner))?;
-        let mut objectives: BTreeSet<String> =
+        let mut objectives: BTreeSet<ObjectiveName> =
             lowered.scratch_objectives().iter().cloned().collect();
         objectives.extend(rendered.objectives);
-        objectives.insert(result.as_str().to_owned());
+        objectives.insert(result.clone());
         let mut commands = rendered.commands;
         append_scale_conversion(
             context,
@@ -130,12 +130,12 @@ impl NumericWrite {
             source: working.to_string(),
             source_obj: result.to_string(),
         })];
-        self.append_bounds_and_dirty(&mut commit, &destination, owner);
+        self.append_bounds_and_dirty(&mut commit, &destination, owner)?;
         body.0.extend(bind_destination(commit, selector));
         for record in rendered.records {
             crate::function::register_dyn_fn(record.path, record.content);
         }
-        crate::function::request_numeric_objectives(objectives);
+        crate::function::request_numeric_objectives(objectives)?;
         crate::function::register_dyn_fn(path.clone(), body);
         Ok(vec![Cmd::Function(format!(
             "{}:{path}",
@@ -148,7 +148,7 @@ impl NumericWrite {
         commands: &mut Vec<Cmd>,
         holder: &ScoreHolder,
         owner: &ResourceLocation,
-    ) {
+    ) -> CommandResult<()> {
         if let Some((min, max)) = self.bounds {
             if holder
                 .validate_single(&CommandProfile::unprofiled())
@@ -164,7 +164,7 @@ impl NumericWrite {
                         "{owner}.numeric_bound.{}.{value}",
                         self.objective
                     ));
-                    crate::function::request_numeric_objectives([bound.to_string()]);
+                    crate::function::request_numeric_objectives([bound.clone()])?;
                     commands.push(Cmd::ScorePlayers(ScorePlayersOp::Set {
                         selector: "#value".into(),
                         objective: bound.to_string(),
@@ -209,6 +209,7 @@ impl NumericWrite {
                 value: 1,
             }));
         }
+        Ok(())
     }
 }
 
@@ -424,6 +425,25 @@ mod tests {
                 }
             }
         }
+    }
+
+    #[test]
+    fn logical_objective_collisions_are_rejected_and_export_scoped() {
+        let emitted;
+        {
+            let _scope = ExportFunctionRegistryScope::enter();
+            let first = ObjectiveName::logical("test:a deliberately long numeric scratch identity");
+            emitted = first.to_string();
+            let second = ObjectiveName::logical(emitted.clone());
+            assert_ne!(first.logical_name(), second.logical_name());
+            assert_eq!(first.as_str(), second.as_str());
+            crate::function::request_numeric_objectives([first]).unwrap();
+            let error = crate::function::request_numeric_objectives([second]).unwrap_err();
+            assert!(error.to_string().contains("collides between"));
+        }
+        let _scope = ExportFunctionRegistryScope::enter();
+        assert!(crate::function::numeric_objective_owners().is_empty());
+        crate::function::request_numeric_objectives([ObjectiveName::logical(emitted)]).unwrap();
     }
 
     #[test]

@@ -809,7 +809,7 @@ pub(crate) enum LoweredCurveOperation {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct LoweredCurve {
     target_objective: String,
-    scratch_objectives: Vec<String>,
+    scratch_objectives: Vec<sand_commands::ObjectiveName>,
     operations: Vec<LoweredCurveOperation>,
     strategy: LoweringStrategy,
 }
@@ -822,8 +822,7 @@ impl LoweredCurve {
     }
 
     /// Generated dummy objectives required at load, in lexical order.
-    #[must_use]
-    pub(crate) fn scratch_objectives(&self) -> &[String] {
+    pub(crate) fn scratch_objectives(&self) -> &[sand_commands::ObjectiveName] {
         &self.scratch_objectives
     }
 
@@ -2116,7 +2115,7 @@ struct CurveLoweringBuilder<'a> {
     fixed: FixedPoint,
     scratch_prefix: &'a str,
     next_scratch: usize,
-    scratch_objectives: BTreeSet<String>,
+    scratch_objectives: BTreeSet<sand_commands::ObjectiveName>,
     operations: Vec<LoweredCurveOperation>,
 }
 
@@ -2124,11 +2123,9 @@ impl CurveLoweringBuilder<'_> {
     fn scratch(&mut self) -> String {
         let logical = format!("{}.curve.{}", self.scratch_prefix, self.next_scratch);
         self.next_scratch += 1;
-        let objective = sand_commands::ObjectiveName::logical(logical)
-            .as_str()
-            .to_string();
+        let objective = sand_commands::ObjectiveName::logical(logical);
         self.scratch_objectives.insert(objective.clone());
-        objective
+        objective.to_string()
     }
 
     fn constant(&mut self, value: f64, derivation: &str) -> Result<String, EntityDiagnostic> {
@@ -2954,7 +2951,7 @@ mod tests {
             first
                 .scratch_objectives()
                 .iter()
-                .all(|name| name.len() <= 16)
+                .all(|name| name.as_str().len() <= 16)
         );
         assert!(first.operations().iter().any(|operation| matches!(
             operation,

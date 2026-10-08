@@ -22,9 +22,16 @@
 //!     cmd::say("Hello from Sand");
 //! }
 //!
-//! // `#[function]`-tagged functions return the commands they emit, so
-//! // ordinary Rust tests can assert on generated output directly:
-//! assert_eq!(hello(), vec!["say Hello from Sand"]);
+//! // Function bodies retain structured actions until resource emission.
+//! // Tests can assert on the emitted Minecraft function:
+//! use sand::component::McFunction;
+//! use sand::registration::{ComponentContent, DatapackComponent};
+//!
+//! let resource = McFunction::new("example:hello".parse().unwrap()).commands(hello());
+//! let ComponentContent::Text(output) = resource.try_content().unwrap() else {
+//!     panic!("functions emit text");
+//! };
+//! assert_eq!(output.trim(), "say Hello from Sand");
 //! ```
 //!
 //! # Where to look
@@ -47,8 +54,8 @@
 //! and exported through `sand build` (or `sand_export`, the binary that
 //! `sand build` generates for your project). Calling a `#[function]`-tagged
 //! Rust function directly (e.g. from a unit test) just returns the
-//! `Vec<String>` of Minecraft commands it would emit — useful for asserting
-//! on generated command output, as `examples/book_project` does — but the
+//! [`command::Actions`] describing its body. Tests can emit those actions
+//! through [`component::McFunction`] to inspect Minecraft output, but the
 //! function is only wired into the datapack's actual `.mcfunction` files
 //! through the export pipeline.
 
@@ -97,7 +104,7 @@ pub use sand_macros::SandStorage;
 // ── Declarative macros (defined in the implementation crate) ─────────────────
 
 /// `all!`/`any!` compose typed [`condition::Condition`]s (all-of / any-of);
-/// `mcfunction!` builds a `Vec<String>` of commands from semicolon-separated
+/// `mcfunction!` builds structured [`command::Actions`] from semicolon-separated
 /// expressions. These expression macros are defined in the implementation
 /// crate and re-exported here so `sand::` is the only path authors need.
 pub use sand_core::{all, any, mcfunction};
@@ -113,7 +120,7 @@ pub mod prelude;
 /// block/NBT operations, and free functions like `cmd::say`/`cmd::tellraw`.
 /// Reach for this when the [`prelude`] doesn't already have the command
 /// builder you need, or when you want to name the module explicitly (e.g. in
-/// generic code taking `impl Fn() -> Vec<String>`). Every command builder
+/// generic code taking `impl Fn() -> command::Actions`). Every command builder
 /// implements `Display`, so `.to_string()` (or letting `mcfunction!`/
 /// `#[function]` collect it) produces the literal Minecraft command text.
 pub use sand_core::cmd as command;

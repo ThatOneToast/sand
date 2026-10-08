@@ -262,3 +262,72 @@ pub(crate) fn initialize_player_entries(
         }
     }
 }
+
+/// Server lifecycle tags must not directly invoke known player-only entries.
+/// Resolve local references before checking so both registration and descriptor
+/// contributions follow the same declared function context contract.
+pub(crate) fn validate_server_lifecycle_tags(
+    namespace: &str,
+    tags: &std::collections::BTreeMap<String, Vec<String>>,
+    entries: &[(String, String)],
+    contexts: &std::collections::BTreeMap<
+        String,
+        crate::compiler::program::model::ExecutionContext,
+    >,
+) -> ExportResult<()> {
+    for (tag, function) in tags
+        .iter()
+        .flat_map(|(tag, functions)| functions.iter().map(move |function| (tag, function)))
+        .chain(entries.iter().map(|(tag, function)| (tag, function)))
+    {
+        let tag = super::functions::resolve_local_refs(tag, namespace);
+        let function = super::functions::resolve_local_refs(function, namespace);
+        if matches!(tag.as_str(), "minecraft:load" | "minecraft:tick")
+            && contexts.get(&function)
+                == Some(&crate::compiler::program::model::ExecutionContext::Player)
+        {
+            return Err(lifecycle_export_error(format!(
+                "server lifecycle tag `{tag}` cannot invoke player-context function `{function}`; register a server-context wrapper that selects players"
+            )));
+        }
+    }
+    Ok(())
+}
+
+#[cfg(test)]
+mod context_tests {
+    use super::*;
+    use crate::compiler::program::model::ExecutionContext;
+    use std::collections::BTreeMap;
+
+    #[test]
+    fn lifecycle_members_obey_context_after_local_resolution() {
+        let contexts = BTreeMap::from([
+            ("pack:player".into(), ExecutionContext::Player),
+            ("pack:server".into(), ExecutionContext::Server),
+        ]);
+        for tag in ["minecraft:load", "minecraft:tick"] {
+            for function in ["pack:player", "__sand_local:player"] {
+                let entries = vec![(tag.into(), function.into())];
+                assert!(
+                    validate_server_lifecycle_tags("pack", &BTreeMap::new(), &entries, &contexts)
+                        .is_err()
+                );
+                let tags = BTreeMap::from([(tag.into(), vec![function.into()])]);
+                assert!(validate_server_lifecycle_tags("pack", &tags, &[], &contexts).is_err());
+            }
+            let entries = vec![
+                (tag.into(), "pack:server".into()),
+                (tag.into(), "external:unknown".into()),
+            ];
+            validate_server_lifecycle_tags("pack", &BTreeMap::new(), &entries, &contexts).unwrap();
+        }
+        validate_server_lifecycle_tags(
+            "pack",
+            &BTreeMap::new(),
+            &[("pack:custom".into(), "pack:player".into())],
+            &contexts,
+        )
+        .unwrap();
+    }
+}

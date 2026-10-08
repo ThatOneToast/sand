@@ -192,6 +192,14 @@ fn insert_output(
             ),
         )]);
     }
+    if let Some(segment) = path.split('/').find(|segment| !portable_segment(segment)) {
+        return Err(vec![Diagnostic::error(
+            "SAND_PROGRAM_PATH",
+            "",
+            "",
+            format!("generated resource path contains non-portable segment `{segment}`: `{path}`"),
+        )]);
+    }
     if output.len() >= limits::RESOURCES
         || bytes.len() > limits::DOCUMENT_BYTES
         || output.values().map(Vec::len).sum::<usize>() + bytes.len() > limits::OUTPUT_BYTES
@@ -218,6 +226,21 @@ fn insert_output(
     }
     output.insert(path, bytes);
     Ok(())
+}
+
+// Windows device names remain reserved with any extension. Reject them on
+// every host so check/compile results remain portable and deterministic.
+fn portable_segment(segment: &str) -> bool {
+    let basename = segment
+        .split('.')
+        .next()
+        .unwrap_or_default()
+        .to_ascii_lowercase();
+    !segment.ends_with(['.', ' '])
+        && !matches!(basename.as_str(), "con" | "prn" | "aux" | "nul")
+        && !((basename.starts_with("com") || basename.starts_with("lpt"))
+            && basename.len() == 4
+            && matches!(basename.as_bytes()[3], b'1'..=b'9'))
 }
 
 fn reference_id(reference: &FunctionReference) -> String {

@@ -2586,6 +2586,12 @@ pub(crate) fn try_export_components_impl(
         })
         .collect();
     user_tag_entries.append(&mut registration_tag_entries);
+    super::lifecycle::validate_server_lifecycle_tags(
+        namespace,
+        &tag_map,
+        &user_tag_entries,
+        &function_contexts,
+    )?;
     super::tags::assemble_tags(namespace, &mut records, tag_map, user_tag_entries);
 
     // ── Resolve local sentinels → real namespace ──────────────────────────────

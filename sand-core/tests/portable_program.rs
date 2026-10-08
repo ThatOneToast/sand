@@ -575,3 +575,42 @@ fn format_diagnostics_identify_each_invalid_envelope_field() {
         assert_eq!(actual, pointers);
     }
 }
+
+#[test]
+fn resource_paths_reject_windows_reserved_segments_on_every_host() {
+    let mut program = counter();
+    program.modules[0].tags.clear();
+    program.modules[0].functions = vec![Function {
+        id: "demo:safe".parse().unwrap(),
+        context: ExecutionContext::Server,
+        body: vec![],
+    }];
+    for path in [
+        "con",
+        "prn.extra",
+        "aux/entry",
+        "nul",
+        "com1",
+        "com9/entry",
+        "lpt1",
+        "lpt9.more",
+        "folder./entry",
+    ] {
+        program.modules[0].functions[0].id = format!("demo:{path}").parse().unwrap();
+        let errors = Compiler::check(&program).unwrap_err();
+        assert!(
+            errors
+                .iter()
+                .any(|error| error.code == "SAND_PROGRAM_PATH"
+                    && error.message.contains("non-portable")),
+            "{path}: {errors:?}"
+        );
+        assert!(Compiler::compile(&program).is_err());
+    }
+    for path in ["console", "com0", "com10", "lpt0", "null", "folder/entry"] {
+        program.modules[0].functions[0].id = format!("demo:{path}").parse().unwrap();
+        Compiler::check(&program).unwrap();
+    }
+    program.modules[0].functions[0].id = "con:entry".parse().unwrap();
+    assert!(Compiler::check(&program).is_err());
+}

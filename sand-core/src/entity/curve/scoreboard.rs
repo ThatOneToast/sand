@@ -95,14 +95,15 @@ pub(crate) fn render_lowered_curve(
                 let source_holder = source_holder
                     .clone()
                     .unwrap_or_else(|| context.input_holder.to_string());
-                commands.push(format!("execute unless score {source_holder} {source} matches -2147483648..2147483647 run return fail"));
-                // A missing optional State score makes the copy fail without
-                // updating its target. Clear persistent scratch first so a
-                // later evaluation cannot inherit a previous source value.
-                commands.push(format!("scoreboard players set {holder} {destination} 0"));
-                commands.push(format!(
-                    "scoreboard players operation {holder} {destination} = {source_holder} {source}"
-                ));
+                append_score_read(
+                    context,
+                    &mut objectives,
+                    &mut commands,
+                    destination,
+                    &source_holder,
+                    source,
+                    index,
+                );
                 append_scale_conversion(
                     context,
                     &mut objectives,
@@ -589,18 +590,45 @@ fn capture_discrete_input(
     index: usize,
 ) -> String {
     let source = context.input_holder;
-    let holder = context.holder;
     let destination =
         sand_commands::ObjectiveName::logical(format!("{}.input.{index}.{input}", context.owner))
             .to_string();
     objectives.insert(destination.clone());
-    commands.push(format!(
-        "execute unless score {source} {input} matches -2147483648..2147483647 run return fail"
-    ));
-    commands.push(format!(
-        "scoreboard players operation {holder} {destination} = {source} {input}"
-    ));
+    append_score_read(
+        context,
+        objectives,
+        commands,
+        &destination,
+        &source.to_string(),
+        input,
+        index,
+    );
     destination
+}
+
+/// Capture one scoreboard read and its success in the same Minecraft command.
+/// A nondeterministic selector must never be re-evaluated by a separate guard.
+fn append_score_read(
+    context: NumericContext<'_>,
+    objectives: &mut BTreeSet<String>,
+    commands: &mut Vec<String>,
+    destination: &str,
+    source_holder: &str,
+    source: &str,
+    index: usize,
+) {
+    let holder = context.holder;
+    let success = sand_commands::ObjectiveName::logical(format!(
+        "{}.read.{index}.{destination}.success",
+        context.owner
+    ))
+    .to_string();
+    objectives.insert(success.clone());
+    commands.push(format!("scoreboard players set {holder} {destination} 0"));
+    commands.push(format!("execute store success score {holder} {success} run scoreboard players operation {holder} {destination} = {source_holder} {source}"));
+    commands.push(format!(
+        "execute unless score {holder} {success} matches 1 run return fail"
+    ));
 }
 
 fn scoreboard_value(
@@ -917,13 +945,14 @@ mod tests {
         .unwrap();
         for holder in ["#left", "#right"] {
             assert!(output.commands.iter().any(|line| {
-                line.starts_with("scoreboard players operation #scratch ")
+                line.contains("run scoreboard players operation #scratch ")
                     && line.ends_with(&format!("= {holder} {}", input.objective()))
             }));
         }
         for (index, command) in output.commands.iter().enumerate() {
             if command.contains("= #left ") || command.contains("= #right ") {
-                let destination = command.split_whitespace().nth(4).unwrap();
+                let copy = command.split_once("run ").unwrap().1;
+                let destination = copy.split_whitespace().nth(4).unwrap();
                 assert_eq!(
                     output.commands[index - 1],
                     format!("scoreboard players set #scratch {destination} 0"),

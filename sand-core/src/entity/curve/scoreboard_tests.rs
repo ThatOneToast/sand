@@ -12,6 +12,17 @@ impl Machine {
         match command[0] {
             "return" => false,
             "execute" => {
+                if command[1] == "store" {
+                    assert_eq!(&command[1..4], &["store", "success", "score"]);
+                    assert_eq!(command[6], "run");
+                    let inner = &command[7..];
+                    assert_eq!(&inner[..3], &["scoreboard", "players", "operation"]);
+                    let present = self.0.contains_key(&format!("{} {}", inner[6], inner[7]));
+                    let success = present && self.run(inner);
+                    self.0
+                        .insert(format!("{} {}", command[4], command[5]), i32::from(success));
+                    return true;
+                }
                 let mut i = 1;
                 while command[i] != "run" {
                     let negate = command[i] == "unless";
@@ -281,12 +292,17 @@ fn unbound_inputs_keep_the_caller_when_scratch_uses_a_fake_holder() {
         let output = render_lowered_curve(context, "caller", &lowered).unwrap();
         assert!(
             output.commands.iter().any(|line| line
-                .starts_with("scoreboard players operation #value ")
+                .contains("run scoreboard players operation #value ")
                 && line.ends_with("= @s mana")),
             "{curve:?}"
         );
-        assert!(output.commands.iter().any(|line| line
-            == "execute unless score @s mana matches -2147483648..2147483647 run return fail"));
+        assert!(
+            output
+                .commands
+                .iter()
+                .any(|line| line.starts_with("execute unless score #value ")
+                    && line.ends_with("matches 1 run return fail"))
+        );
         assert!(
             !output
                 .commands
@@ -294,4 +310,30 @@ fn unbound_inputs_keep_the_caller_when_scratch_uses_a_fake_holder() {
                 .any(|line| line.ends_with("= #value mana"))
         );
     }
+}
+
+#[test]
+fn random_source_is_resolved_once_for_read_and_success() {
+    use crate::entity::{EntityStateField, FixedPoint, FixedScore, StatCurve};
+    let owner = "test:random_read".parse().unwrap();
+    let holder = sand_commands::ScoreHolder::self_();
+    let field = FixedScore::__new("test", "combat", "source", 100, 0, None);
+    let lowered = StatCurve::from(field.bind_to("@r", false))
+        .lower_scoreboard("result", "test:random_read", FixedPoint::default())
+        .unwrap();
+    let output = render_lowered_curve(
+        NumericContext::new(&owner, &holder).unwrap(),
+        "random_read",
+        &lowered,
+    )
+    .unwrap();
+    let text = output.commands.join("\n");
+    assert_eq!(text.matches("@r").count(), 1);
+    assert!(
+        output
+            .commands
+            .iter()
+            .any(|line| line.starts_with("execute store success score ")
+                && line.ends_with(&format!("= @r {}", field.objective())))
+    );
 }

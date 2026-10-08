@@ -3306,8 +3306,14 @@ fn compile_derivations(
                 "execute if score @s {source_dirty} matches 1 run scoreboard players set @s {derivation_dirty} 1"
             ));
         }
+        // Commit the actual property only after arithmetic and scale
+        // conversion succeed; a runtime overflow must leave it untouched.
+        let calculated =
+            sand_commands::ObjectiveName::logical(format!("{id}.derive.{index}.result"))
+                .to_string();
+        objectives.insert(calculated.clone());
         let lowered = derivation.curve.lower_scoreboard(
-            &target,
+            &calculated,
             &format!("{id}.derive.{index}"),
             derivation.fixed,
         )?;
@@ -3329,7 +3335,7 @@ fn compile_derivations(
                 NumericContext::new(&definition.id, &sand_commands::ScoreHolder::self_())?,
                 &mut conversion_objectives,
                 &mut commands,
-                &target,
+                &calculated,
                 derivation.fixed.scale(),
                 derivation.target_scale,
                 RoundingPolicy::NearestTiesAwayFromZero,
@@ -3337,6 +3343,9 @@ fn compile_derivations(
             )?;
             objectives.extend(conversion_objectives);
         }
+        commands.push(format!(
+            "scoreboard players operation @s {target} = @s {calculated}"
+        ));
         append_destination_bounds(
             &mut commands,
             &target,

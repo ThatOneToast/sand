@@ -962,7 +962,33 @@ impl CurveInput {
     }
 }
 
+impl From<i32> for StatCurve {
+    fn from(value: i32) -> Self {
+        Self::constant(f64::from(value))
+    }
+}
+
+impl From<f64> for StatCurve {
+    fn from(value: f64) -> Self {
+        Self::constant(value)
+    }
+}
+
 impl StatCurve {
+    pub(crate) fn direct_source_scale(&self) -> Option<i64> {
+        match &self.kind {
+            CurveKind::Input(input) => Some(i64::from(input.storage_scale)),
+            _ => None,
+        }
+    }
+
+    pub(crate) fn constant_value(&self) -> Option<f64> {
+        match self.kind {
+            CurveKind::Constant(value) => Some(value),
+            _ => None,
+        }
+    }
+
     pub(crate) fn bound_state(field: impl NumericStateField, holder: &'static str) -> Self {
         let mut input = CurveInput::typed(field);
         input.holder = Some(sand_commands::__private::score_holder_compat(holder.into()));

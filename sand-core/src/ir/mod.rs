@@ -88,21 +88,25 @@ impl Actions {
         &self,
         location: &sand_components::ResourceLocation,
     ) -> sand_components::error::Result<Vec<String>> {
-        self.0
-            .iter()
-            .enumerate()
-            .map(|(index, command)| {
-                command
-                    .lower_for_export(location)
-                    .and_then(|command| command.try_render())
-                    .map_err(|error| sand_components::SandError::ComponentValidation {
-                        location: location.clone(),
-                        kind: "function".into(),
-                        field: format!("actions[{index}].{}", error.field),
-                        message: error.to_string(),
-                    })
-            })
-            .collect()
+        let mut output = Vec::new();
+        for (index, command) in self.0.iter().enumerate() {
+            let rendered = command
+                .lower_for_export(location)
+                .and_then(|commands| {
+                    commands
+                        .into_iter()
+                        .map(|command| command.try_render())
+                        .collect::<sand_commands::CommandResult<Vec<_>>>()
+                })
+                .map_err(|error| sand_components::SandError::ComponentValidation {
+                    location: location.clone(),
+                    kind: "function".into(),
+                    field: format!("actions[{index}].{}", error.field),
+                    message: error.to_string(),
+                })?;
+            output.extend(rendered);
+        }
+        Ok(output)
     }
 }
 
@@ -276,17 +280,36 @@ impl Cmd {
     fn lower_for_export(
         &self,
         owner: &sand_components::ResourceLocation,
-    ) -> sand_commands::CommandResult<Self> {
-        match self {
-            Self::NumericWrite(write) => write.lower(owner),
-            Self::Execute { operations, run } => Ok(Self::Execute {
+    ) -> sand_commands::CommandResult<Vec<Self>> {
+        Ok(match self {
+            Self::NumericWrite(write) => return write.lower(owner),
+            Self::Execute { operations, run } => vec![Self::Execute {
                 operations: operations.clone(),
-                run: Box::new(run.lower_for_export(owner).map_err(nested_run_error)?),
-            }),
-            Self::ReturnRun(run) => Ok(Self::ReturnRun(Box::new(
-                run.lower_for_export(owner).map_err(nested_run_error)?,
-            ))),
-            command => Ok(command.clone()),
+                run: Box::new(
+                    run.lower_single_for_export(owner)
+                        .map_err(nested_run_error)?,
+                ),
+            }],
+            Self::ReturnRun(run) => vec![Self::ReturnRun(Box::new(
+                run.lower_single_for_export(owner)
+                    .map_err(nested_run_error)?,
+            ))],
+            command => vec![command.clone()],
+        })
+    }
+
+    fn lower_single_for_export(
+        &self,
+        owner: &sand_components::ResourceLocation,
+    ) -> sand_commands::CommandResult<Self> {
+        let mut commands = self.lower_for_export(owner)?;
+        if commands.len() == 1 {
+            Ok(commands.remove(0))
+        } else {
+            Ok(Self::AnonymousFunction {
+                prefix: "sand/action_sequence".into(),
+                body: Actions(commands),
+            })
         }
     }
 

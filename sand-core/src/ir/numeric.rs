@@ -29,7 +29,7 @@ pub struct NumericWrite {
 }
 
 impl NumericWrite {
-    pub(super) fn lower(&self, owner: &ResourceLocation) -> CommandResult<Cmd> {
+    pub(super) fn lower(&self, owner: &ResourceLocation) -> CommandResult<Vec<Cmd>> {
         let profile = CommandProfile::unprofiled();
         self.holder.validate_single(&profile)?;
         self.objective.validate(&profile)?;
@@ -44,6 +44,36 @@ impl NumericWrite {
             ));
         }
 
+        // A selector such as @r must be evaluated once for the write, bounds,
+        // and dirty marking. Evaluate inputs in the caller's context first,
+        // then bind only the destination commit to the selected entity.
+        let selector = sand_commands::__private::score_holder_selector(&self.holder)
+            .filter(|selector| selector.to_string() != "@s")
+            .cloned();
+        let destination = if selector.is_some() {
+            ScoreHolder::self_()
+        } else {
+            self.holder.clone()
+        };
+        let working = if selector.is_some() {
+            ScoreHolder::fake("#value")
+        } else {
+            self.holder.clone()
+        };
+
+        if let Some(value) = self.value.constant_value() {
+            if value.is_nan() {
+                return Err(numeric_error("numeric value must not be NaN", owner));
+            }
+            let mut commands = vec![Cmd::ScorePlayers(ScorePlayersOp::Set {
+                selector: destination.to_string(),
+                objective: self.objective.to_string(),
+                value: crate::entity::state::encode_fixed(value, self.scale, self.bounds),
+            })];
+            self.append_bounds_and_dirty(&mut commands, &destination);
+            return Ok(bind_destination(commands, selector));
+        }
+
         // Use the same identity allocator as structured dynamic helpers. A
         // conflicting generated body remains visible to export collision checks.
         let namespace_key =
@@ -54,12 +84,21 @@ impl NumericWrite {
         );
         let resource = ResourceLocation::new(crate::function::SAND_LOCAL_NS, &path)
             .map_err(|error| numeric_error(error, owner))?;
-        let context = NumericContext::new(&resource, &self.holder)
+        let context = NumericContext::new(&resource, &working)
             .map_err(|error| numeric_error(error, owner))?;
         let result = ObjectiveName::logical(format!("{resource}.result"));
+        // Direct reads already have an exact stored representation. Retain it
+        // until destination conversion instead of multiplying an i32 score by
+        // the default expression precision and introducing avoidable overflow.
+        let fixed = if let Some(scale) = self.value.direct_source_scale() {
+            FixedPoint::new(scale, self.fixed.rounding(), self.fixed.overflow())
+                .map_err(|error| numeric_error(error, owner))?
+        } else {
+            self.fixed
+        };
         let lowered = self
             .value
-            .lower_scoreboard(result.as_str(), &resource.to_string(), self.fixed)
+            .lower_scoreboard(result.as_str(), &resource.to_string(), fixed)
             .map_err(|error| numeric_error(error, owner))?;
         let rendered = render_lowered_curve(context, &path, &lowered)
             .map_err(|error| numeric_error(error, owner))?;
@@ -73,7 +112,7 @@ impl NumericWrite {
             &mut objectives,
             &mut commands,
             result.as_str(),
-            self.fixed.scale(),
+            fixed.scale(),
             i64::from(self.scale),
             self.fixed.rounding(),
             lowered.operations().len(),
@@ -82,29 +121,43 @@ impl NumericWrite {
 
         // Preserve arithmetic precision until the final destination conversion.
         let mut body = crate::IntoCommands::into_commands(commands);
-        body.0.push(Cmd::ScorePlayers(ScorePlayersOp::Operation {
-            target: self.holder.to_string(),
+        let mut commit = vec![Cmd::ScorePlayers(ScorePlayersOp::Operation {
+            target: destination.to_string(),
             target_obj: self.objective.to_string(),
             op: super::ScoreOpKind::Assign,
-            source: self.holder.to_string(),
+            source: working.to_string(),
             source_obj: result.to_string(),
-        }));
+        })];
+        self.append_bounds_and_dirty(&mut commit, &destination);
+        body.0.extend(bind_destination(commit, selector));
+        for record in rendered.records {
+            crate::function::register_dyn_fn(record.path, record.content);
+        }
+        crate::function::request_numeric_objectives(objectives);
+        crate::function::register_dyn_fn(path.clone(), body);
+        Ok(vec![Cmd::Function(format!(
+            "{}:{path}",
+            crate::function::SAND_LOCAL_NS
+        ))])
+    }
+
+    fn append_bounds_and_dirty(&self, commands: &mut Vec<Cmd>, holder: &ScoreHolder) {
         if let Some((min, max)) = self.bounds {
             for (range, value) in [
                 (min.checked_sub(1).map(|limit| format!("..{limit}")), min),
                 (max.checked_add(1).map(|limit| format!("{limit}..")), max),
             ] {
                 if let Some(range) = range {
-                    body.0.push(Cmd::Execute {
+                    commands.push(Cmd::Execute {
                         operations: vec![sand_commands::ExecuteOp::If(
                             sand_commands::ConditionIr::ScoreMatches {
-                                holder: self.holder.clone(),
+                                holder: holder.clone(),
                                 objective: self.objective.to_string(),
                                 range,
                             },
                         )],
                         run: Box::new(Cmd::ScorePlayers(ScorePlayersOp::Set {
-                            selector: self.holder.to_string(),
+                            selector: holder.to_string(),
                             objective: self.objective.to_string(),
                             value,
                         })),
@@ -113,21 +166,25 @@ impl NumericWrite {
             }
         }
         for objective in &self.dirty {
-            body.0.push(Cmd::ScorePlayers(ScorePlayersOp::Set {
-                selector: self.holder.to_string(),
+            commands.push(Cmd::ScorePlayers(ScorePlayersOp::Set {
+                selector: holder.to_string(),
                 objective: objective.to_string(),
                 value: 1,
             }));
         }
-        for record in rendered.records {
-            crate::function::register_dyn_fn(record.path, record.content);
-        }
-        crate::function::request_numeric_objectives(objectives);
-        crate::function::register_dyn_fn(path.clone(), body);
-        Ok(Cmd::Function(format!(
-            "{}:{path}",
-            crate::function::SAND_LOCAL_NS
-        )))
+    }
+}
+
+fn bind_destination(commands: Vec<Cmd>, selector: Option<sand_commands::Selector>) -> Vec<Cmd> {
+    match selector {
+        Some(selector) => vec![Cmd::Execute {
+            operations: vec![sand_commands::ExecuteOp::As(selector)],
+            run: Box::new(Cmd::AnonymousFunction {
+                prefix: "sand/numeric_commit".into(),
+                body: Actions(commands),
+            }),
+        }],
+        None => commands,
     }
 }
 
@@ -209,6 +266,65 @@ mod tests {
     }
 
     #[test]
+    fn selected_destination_is_bound_once_without_rebinding_source_reads() {
+        for constant in [false, true] {
+            let _scope = ExportFunctionRegistryScope::enter();
+            let source = FixedScore::__new("test", "combat", "source", 100, 0, None);
+            let target = FixedScore::__new("test", "combat", "target", 100, 0, Some((0, 500)));
+            let destination = target.bind_to("@r", true);
+            let body = if constant {
+                destination.set(1.25)
+            } else {
+                destination.set(source.bind())
+            };
+            crate::function::register_dyn_fn("outer".into(), body);
+            let mut records = Vec::new();
+            crate::compiler::export::functions::drain_dynamic_functions_into(&mut records, "test")
+                .unwrap();
+            let all = records
+                .iter()
+                .map(|record| record.content.as_str())
+                .collect::<Vec<_>>()
+                .join("\n");
+            assert_eq!(
+                all.matches("@r").count(),
+                1,
+                "the destination selector must run only once"
+            );
+            assert!(all.contains("execute as @r run function"));
+            let commit = records
+                .iter()
+                .find(|record| record.path.starts_with("sand/numeric_commit/"))
+                .unwrap();
+            assert!(
+                commit
+                    .content
+                    .contains(&format!("@s {}", target.objective()))
+            );
+            assert!(commit.content.contains(&format!(
+                "scoreboard players set @s {} 1",
+                target.dirty_objective()
+            )));
+            if !constant {
+                let numeric = records
+                    .iter()
+                    .find(|record| record.path.starts_with("sand/numeric/"))
+                    .unwrap();
+                assert!(
+                    numeric
+                        .content
+                        .contains(&format!("= @s {}", source.objective())),
+                    "source reads must retain the original executor before destination binding"
+                );
+                assert!(
+                    commit.content.contains("= #value "),
+                    "the bound commit reads stable scratch"
+                );
+            }
+        }
+    }
+
+    #[test]
     fn numeric_validation_is_deferred_and_retains_gameplay_owner() {
         let _scope = ExportFunctionRegistryScope::enter();
         let body = assignment(StatCurve::constant(f64::NAN));
@@ -227,9 +343,11 @@ mod tests {
     fn numeric_scratch_isolated_between_pack_namespaces() {
         fn objectives(namespace: &str) -> BTreeSet<String> {
             let _scope = ExportFunctionRegistryScope::enter();
-            assignment(StatCurve::constant(1.25))
-                .lower(&ResourceLocation::new(namespace, "calculate").unwrap())
-                .unwrap();
+            assignment(StatCurve::from(
+                FixedScore::__new("test", "combat", "power", 100, 0, None).bind(),
+            ))
+            .lower(&ResourceLocation::new(namespace, "calculate").unwrap())
+            .unwrap();
             crate::function::take_numeric_objectives()
         }
         let first = objectives("first");
@@ -242,9 +360,11 @@ mod tests {
     fn numeric_initialization_does_not_escape_an_export_scope() {
         {
             let _scope = ExportFunctionRegistryScope::enter();
-            assignment(StatCurve::constant(1.25))
-                .lower(&"game:calculate".parse().unwrap())
-                .unwrap();
+            assignment(StatCurve::from(
+                FixedScore::__new("test", "combat", "power", 100, 0, None).bind(),
+            ))
+            .lower(&"game:calculate".parse().unwrap())
+            .unwrap();
             // Simulate a later export failure before either registry is drained.
         }
         let _scope = ExportFunctionRegistryScope::enter();

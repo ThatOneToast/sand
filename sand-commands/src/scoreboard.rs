@@ -281,6 +281,13 @@ impl ScoreHolder {
         }
     }
 
+    pub(crate) fn entity_selector(&self) -> Option<&Selector> {
+        match &self.0 {
+            ScoreHolderKind::Entity(selector) => Some(selector),
+            _ => None,
+        }
+    }
+
     pub(crate) fn from_compat(value: String) -> Self {
         Self::compat(value)
     }

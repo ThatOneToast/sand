@@ -103,9 +103,15 @@ pub(crate) fn render_lowered_curve(
                 overflow,
             } => {
                 require_scoreboard_overflow(context, lowered, *overflow)?;
-                commands.push(format!(
-                    "scoreboard players operation {holder} {destination} += {holder} {source}"
-                ));
+                append_checked_arithmetic(
+                    context,
+                    &mut objectives,
+                    &mut commands,
+                    destination,
+                    &format!("{holder} {source}"),
+                    false,
+                    index,
+                );
             }
             LoweredCurveOperation::MultiplyFixed {
                 destination,
@@ -115,9 +121,15 @@ pub(crate) fn render_lowered_curve(
                 overflow,
             } => {
                 require_scoreboard_overflow(context, lowered, *overflow)?;
-                commands.push(format!(
-                    "scoreboard players operation {holder} {destination} *= {holder} {factor}"
-                ));
+                append_checked_arithmetic(
+                    context,
+                    &mut objectives,
+                    &mut commands,
+                    destination,
+                    &format!("{holder} {factor}"),
+                    true,
+                    index,
+                );
                 append_scaled_division(
                     context,
                     &mut objectives,
@@ -143,9 +155,15 @@ pub(crate) fn render_lowered_curve(
                 let constant = constant_objective(context, "curve_scale", *scale)?;
                 objectives.insert(constant.clone());
                 commands.push(format!("scoreboard players set #value {constant} {scale}"));
-                commands.push(format!(
-                    "scoreboard players operation {holder} {destination} *= #value {constant}"
-                ));
+                append_checked_arithmetic(
+                    context,
+                    &mut objectives,
+                    &mut commands,
+                    destination,
+                    &format!("#value {constant}"),
+                    true,
+                    index,
+                );
                 append_score_division(
                     context,
                     &mut objectives,
@@ -569,6 +587,61 @@ fn require_scoreboard_overflow(
     }
 }
 
+/// Check Minecraft's wrapping arithmetic before committing the operation.
+/// Multiplication is reversible by division exactly when its product fits,
+/// apart from MIN * -1 (whose JVM division also wraps), guarded explicitly.
+fn append_checked_arithmetic(
+    context: NumericContext<'_>,
+    objectives: &mut BTreeSet<String>,
+    commands: &mut Vec<String>,
+    destination: &str,
+    operand: &str,
+    multiply: bool,
+    index: usize,
+) {
+    let holder = context.holder;
+    let scratch = |role| {
+        sand_commands::ObjectiveName::logical(format!(
+            "{}.checked.{index}.{destination}.{role}",
+            context.owner
+        ))
+        .to_string()
+    };
+    let left = scratch("left");
+    let right = scratch("right");
+    let result = scratch("result");
+    objectives.extend([left.clone(), right.clone(), result.clone()]);
+    commands.push(format!(
+        "scoreboard players operation {holder} {left} = {holder} {destination}"
+    ));
+    commands.push(format!(
+        "scoreboard players operation {holder} {right} = {operand}"
+    ));
+    commands.push(format!(
+        "scoreboard players operation {holder} {result} = {holder} {left}"
+    ));
+    let operation = if multiply { "*=" } else { "+=" };
+    commands.push(format!(
+        "scoreboard players operation {holder} {result} {operation} {holder} {right}"
+    ));
+    if multiply {
+        let quotient = scratch("quotient");
+        objectives.insert(quotient.clone());
+        commands.push(format!("execute if score {holder} {left} matches -2147483648 if score {holder} {right} matches -1 run return fail"));
+        commands.push(format!(
+            "scoreboard players operation {holder} {quotient} = {holder} {result}"
+        ));
+        commands.push(format!("execute unless score {holder} {right} matches 0 run scoreboard players operation {holder} {quotient} /= {holder} {right}"));
+        commands.push(format!("execute unless score {holder} {right} matches 0 unless score {holder} {quotient} = {holder} {left} run return fail"));
+    } else {
+        commands.push(format!("execute if score {holder} {left} matches 0.. if score {holder} {right} matches 0.. if score {holder} {result} matches ..-1 run return fail"));
+        commands.push(format!("execute if score {holder} {left} matches ..-1 if score {holder} {right} matches ..-1 if score {holder} {result} matches 0.. run return fail"));
+    }
+    commands.push(format!(
+        "scoreboard players operation {holder} {destination} = {holder} {result}"
+    ));
+}
+
 fn append_scaled_division(
     context: NumericContext<'_>,
     objectives: &mut BTreeSet<String>,
@@ -605,7 +678,6 @@ pub(crate) fn append_scale_conversion(
     rounding: RoundingPolicy,
     index: usize,
 ) -> Result<(), EntityDiagnostic> {
-    let holder = context.holder;
     debug_assert!(source_scale > 0 && target_scale > 0);
     let common = gcd(source_scale, target_scale);
     let multiplier = target_scale / common;
@@ -621,9 +693,15 @@ pub(crate) fn append_scale_conversion(
         commands.push(format!(
             "scoreboard players set #value {objective} {multiplier}"
         ));
-        commands.push(format!(
-            "scoreboard players operation {holder} {destination} *= #value {objective}"
-        ));
+        append_checked_arithmetic(
+            context,
+            objectives,
+            commands,
+            destination,
+            &format!("#value {objective}"),
+            true,
+            index,
+        );
     }
     if divisor != 1 {
         append_scaled_division(
@@ -678,26 +756,21 @@ fn append_score_division(
         .to_string()
     };
     let original = scratch("original");
-    let product = scratch("product");
     let remainder = scratch("remainder");
-    objectives.extend([original.clone(), product.clone(), remainder.clone()]);
+    objectives.extend([original.clone(), remainder.clone()]);
     commands.push(format!(
         "scoreboard players operation {holder} {original} = {holder} {destination}"
     ));
     commands.push(format!(
         "scoreboard players operation {holder} {destination} /= {divisor}"
     ));
-    commands.push(format!(
-        "scoreboard players operation {holder} {product} = {holder} {destination}"
-    ));
-    commands.push(format!(
-        "scoreboard players operation {holder} {product} *= {divisor}"
-    ));
+    // Minecraft's remainder already uses floor division semantics. Computing
+    // quotient * divisor can overflow for negative dividends near i32::MIN.
     commands.push(format!(
         "scoreboard players operation {holder} {remainder} = {holder} {original}"
     ));
     commands.push(format!(
-        "scoreboard players operation {holder} {remainder} -= {holder} {product}"
+        "scoreboard players operation {holder} {remainder} %= {divisor}"
     ));
     match rounding {
         RoundingPolicy::Floor => {}
@@ -960,3 +1033,7 @@ mod tests {
         }
     }
 }
+
+#[cfg(test)]
+#[path = "scoreboard_tests.rs"]
+mod arithmetic_tests;

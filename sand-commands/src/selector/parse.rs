@@ -6,11 +6,15 @@ pub(super) fn selector(value: &str) -> Option<Selector> {
     if value.chars().any(char::is_control) {
         return None;
     }
-    let (base, arguments) = value.split_once('[')?;
-    let arguments = arguments.strip_suffix(']')?;
+    let (base, arguments) = if let Some((base, arguments)) = value.split_once('[') {
+        (base, arguments.strip_suffix(']')?)
+    } else {
+        (value, "")
+    };
     let mut selector = match base {
         "@s" => Selector::self_(),
         "@p" => Selector::nearest_player(),
+        "@n" => Selector::nearest_entity(),
         "@r" => Selector::random_player(),
         "@a" => Selector::all_players(),
         "@e" => Selector::all_entities(),
@@ -409,6 +413,9 @@ mod selector_cardinality_tests {
             "@e[nbt={OnGround:1b},nbt=!{NoAI:1b},limit=1]",
             "@a[gamemode=!creative,gamemode=!spectator,limit=1]",
             "@p[limit=1,sort=furthest]",
+            "@n",
+            "@n[type=minecraft:zombie]",
+            "@n[limit=1,sort=random]",
             "@r[limit=1,sort=nearest]",
         ] {
             let parsed = selector(text).unwrap();
@@ -418,7 +425,7 @@ mod selector_cardinality_tests {
                 .validate_single(&CommandProfile::unprofiled())
                 .unwrap();
         }
-        for text in ["@p[limit=2]", "@r[limit=2]"] {
+        for text in ["@p[limit=2]", "@r[limit=2]", "@n[limit=2]"] {
             let parsed = selector(text).unwrap();
             parsed.validate(&CommandProfile::unprofiled()).unwrap();
             assert!(!parsed.is_statically_single());
@@ -436,6 +443,43 @@ mod selector_cardinality_tests {
                 ScoreHolder::compat(text.into())
                     .validate_single(&CommandProfile::unprofiled())
                     .is_err()
+            );
+        }
+    }
+}
+
+#[cfg(test)]
+mod empty_scores_and_team_tests {
+    use super::*;
+    use crate::ScoreHolder;
+
+    #[test]
+    fn empty_scores_and_repeated_negative_teams_are_valid() {
+        for text in [
+            "@s[scores={}]",
+            "@s[team=red,team=!blue,team=!green]",
+            "@s[team=]",
+        ] {
+            ScoreHolder::compat(text.into())
+                .validate_single(&CommandProfile::unprofiled())
+                .unwrap();
+        }
+    }
+
+    #[test]
+    fn duplicate_positive_teams_and_malformed_score_entries_are_rejected() {
+        for text in [
+            "@s[team=red,team=blue]",
+            "@s[team=,team=red]",
+            "@s[scores={broken}]",
+            "@s[scores={points=}]",
+            "@s[scores={points=1,}]",
+        ] {
+            assert!(
+                ScoreHolder::compat(text.into())
+                    .validate_single(&CommandProfile::unprofiled())
+                    .is_err(),
+                "{text}"
             );
         }
     }

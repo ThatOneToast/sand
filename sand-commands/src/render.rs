@@ -407,7 +407,8 @@ fn validate_single_score_holder(
     } else {
         None
     };
-    if matches!(holder, "@a" | "@e")
+    if limit.is_some_and(|limit| limit != 1)
+        || matches!(holder, "@a" | "@e")
         || ((holder.starts_with("@a[") || holder.starts_with("@e[")) && limit != Some(1))
     {
         return Err(CommandError::new(
@@ -423,7 +424,9 @@ fn validate_single_score_holder(
 
 pub(crate) fn validate_selector_token(token: &str) -> CommandResult<Option<&str>> {
     let bytes = token.as_bytes();
-    if bytes.len() < 2 || bytes[0] != b'@' || !matches!(bytes[1], b'a' | b'e' | b'p' | b's' | b'r')
+    if bytes.len() < 2
+        || bytes[0] != b'@'
+        || !matches!(bytes[1], b'a' | b'e' | b'p' | b's' | b'r' | b'n')
     {
         return Err(CommandError::new(
             "Selector",
@@ -748,5 +751,36 @@ mod tests {
         assert_eq!(tokens[0].text, "tellraw");
         assert_eq!(tokens[1].text, "@a");
         assert_eq!(tokens[2].text, &line[tokens[2].start..]);
+    }
+}
+
+#[cfg(test)]
+mod nearest_entity_tests {
+    use super::*;
+
+    #[test]
+    fn collected_numeric_sources_honor_nearest_entity_and_explicit_limits() {
+        let profile = CommandProfile::unprofiled();
+        for holder in [
+            "@n",
+            "@n[type=minecraft:zombie]",
+            "@p[limit=1]",
+            "@r[limit=1]",
+        ] {
+            validate_collected_line(
+                &format!("execute if score {holder} value matches 1 run say yes"),
+                &profile,
+            )
+            .unwrap();
+        }
+        for holder in ["@n[limit=2]", "@p[limit=2]", "@r[limit=2]"] {
+            assert!(
+                validate_collected_line(
+                    &format!("execute if score {holder} value matches 1 run say yes"),
+                    &profile
+                )
+                .is_err()
+            );
+        }
     }
 }

@@ -1,3 +1,6 @@
+#[path = "support/actions.rs"]
+mod action_support;
+
 use sand_commands::NbtValue;
 use sand_core::prelude::*;
 use sand_core::{StorageField, StorageSchema};
@@ -68,7 +71,7 @@ fn storage_schema_and_fields_emit_commands() {
         "data remove storage arcane:players player.magic.mana"
     );
     assert_eq!(
-        when(MANA.exists()).then_one("say present"),
+        action_support::emitted(when(MANA.exists()).then_one("say present")),
         ["execute if data storage arcane:players player.magic.mana run say present"]
     );
 }

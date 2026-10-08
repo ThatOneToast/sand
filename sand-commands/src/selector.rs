@@ -68,6 +68,8 @@ enum TargetBase {
     AllEntities,
     #[doc = "Selects the nearest player form of the target base Minecraft command value."]
     NearestPlayer,
+    /// Nearest entity, including non-player entities (`@n`).
+    NearestEntity,
     #[doc = "Selects the self  form of the target base Minecraft command value."]
     Self_,
     #[doc = "Selects the random player form of the target base Minecraft command value."]
@@ -806,6 +808,14 @@ impl Selector {
         parse::selector(value)
     }
 
+    pub(crate) fn nearest_entity() -> Self {
+        Self {
+            base: TargetBase::NearestEntity,
+            args: vec![],
+            player_only: false,
+        }
+    }
+
     /// `@a` — all players currently connected to the server.
     pub fn all_players() -> Self {
         Self {
@@ -1189,6 +1199,7 @@ impl fmt::Display for Selector {
             TargetBase::AllPlayers => "@a",
             TargetBase::AllEntities => "@e",
             TargetBase::NearestPlayer => "@p",
+            TargetBase::NearestEntity => "@n",
             TargetBase::Self_ => "@s",
             TargetBase::RandomPlayer => "@r",
             TargetBase::Player(n) if self.args.is_empty() => return write!(f, "{n}"),
@@ -1244,6 +1255,7 @@ impl Selector {
             self.base,
             TargetBase::RawSingle(_)
                 | TargetBase::NearestPlayer
+                | TargetBase::NearestEntity
                 | TargetBase::Self_
                 | TargetBase::RandomPlayer
                 | TargetBase::Player(_)
@@ -1291,6 +1303,7 @@ impl Validate for Selector {
         let mut singleton_keys = std::collections::BTreeSet::new();
         let mut positive_name = matches!(self.base, TargetBase::Player(_));
         let mut positive_type = false;
+        let mut positive_team = false;
         let mut negative_gamemode = false;
         for arg in &self.args {
             let (key, value): (&str, Option<&str>) = match arg {
@@ -1298,7 +1311,19 @@ impl Validate for Selector {
                     validate_optional_token(v, "tag")?;
                     ("tag*", None)
                 }
-                SelectorArg::Team(v) | SelectorArg::NotTeam(v) => {
+                SelectorArg::Team(v) => {
+                    if positive_team {
+                        return Err(CommandError::new(
+                            "Selector",
+                            "team",
+                            "duplicate positive `team` arguments are contradictory",
+                        ));
+                    }
+                    positive_team = true;
+                    validate_optional_token(v, "team")?;
+                    ("team*", None)
+                }
+                SelectorArg::NotTeam(v) => {
                     validate_optional_token(v, "team")?;
                     ("team*", None)
                 }
@@ -1348,6 +1373,7 @@ impl Validate for Selector {
                         TargetBase::AllPlayers
                             | TargetBase::AllEntities
                             | TargetBase::NearestPlayer
+                            | TargetBase::NearestEntity
                             | TargetBase::RandomPlayer
                             | TargetBase::Raw(_)
                             | TargetBase::RawSingle(_)
@@ -1355,7 +1381,7 @@ impl Validate for Selector {
                         return Err(CommandError::new(
                             "Selector",
                             "limit",
-                            "`limit` is only applicable to `@a`, `@e`, `@p`, and `@r` selector bases",
+                            "`limit` is only applicable to `@a`, `@e`, `@p`, `@r`, and `@n` selector bases",
                         ));
                     }
                     if *v <= 0 {
@@ -1373,6 +1399,7 @@ impl Validate for Selector {
                         TargetBase::AllPlayers
                             | TargetBase::AllEntities
                             | TargetBase::NearestPlayer
+                            | TargetBase::NearestEntity
                             | TargetBase::RandomPlayer
                             | TargetBase::Raw(_)
                             | TargetBase::RawSingle(_)
@@ -1380,7 +1407,7 @@ impl Validate for Selector {
                         return Err(CommandError::new(
                             "Selector",
                             "sort",
-                            "`sort` is only applicable to `@a`, `@e`, `@p`, and `@r` selector bases",
+                            "`sort` is only applicable to `@a`, `@e`, `@p`, `@r`, and `@n` selector bases",
                         ));
                     }
                     ("sort", None)
@@ -1638,7 +1665,9 @@ fn validate_snbt_compound(value: &str) -> CommandResult<()> {
 }
 
 fn validate_scores(value: &str) -> CommandResult<()> {
-    validate::non_empty(value, "Selector", "scores")?;
+    if value.trim().is_empty() {
+        return Ok(());
+    }
     let mut objectives = std::collections::BTreeSet::new();
     for entry in value.split(',') {
         let Some((objective, range)) = entry.split_once('=') else {

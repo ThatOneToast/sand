@@ -205,6 +205,17 @@ pub(crate) enum ConditionKind {
 }
 
 impl Condition {
+    pub(crate) fn score_operands(&self) -> Vec<crate::state::score::ScoreOperand> {
+        match &self.kind {
+            ConditionKind::ScoreCompare { left, right, .. } => vec![left.clone(), right.clone()],
+            ConditionKind::Not(condition) => condition.score_operands(),
+            ConditionKind::All(conditions) | ConditionKind::Any(conditions) => {
+                conditions.iter().flat_map(Self::score_operands).collect()
+            }
+            _ => Vec::new(),
+        }
+    }
+
     pub(crate) fn kind(&self) -> &ConditionKind {
         &self.kind
     }

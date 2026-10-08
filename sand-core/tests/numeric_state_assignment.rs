@@ -1,5 +1,9 @@
 //! Runtime State assignments use the canonical numeric engine and export lifecycle.
 use sand::prelude::*;
+use sand_core::state::{ScoreConst, ScoreVar};
+
+static GATE: ScoreVar = ScoreVar::new("assignment_gate");
+static THRESHOLD: ScoreConst = ScoreConst::new("assignment_threshold", 1);
 
 #[allow(dead_code)]
 #[derive(State)]
@@ -39,6 +43,8 @@ fn assign_numbers() {
         let state = item.numbers;
         mcfunction![
             state.destination.set(state.source);
+            when(GATE.of("@s").expr().gte_score(THRESHOLD.ref_()))
+                .then_each(state.destination.set(state.source));
             when(state.source.matches(0..).unwrap()).then_all(state.destination.set(state.source));
             state.result.set(StatCurve::add([
                 StatCurve::from(state.fraction),
@@ -146,6 +152,14 @@ fn runtime_assignments_provision_scratch_before_lifecycle_and_export_stably() {
         .unwrap();
     let tag: serde_json::Value = serde_json::from_str(load["content"].as_str().unwrap()).unwrap();
     assert_eq!(tag["values"][0], "numeric:__sand_score_init");
+    let initializer = functions
+        .iter()
+        .find(|record| record["path"] == "__sand_score_init")
+        .unwrap()["content"]
+        .as_str()
+        .unwrap();
+    assert!(initializer.contains("scoreboard objectives add __sand_tmp dummy"));
+    assert!(initializer.contains("scoreboard objectives add sand_consts dummy"));
 
     *COLLIDING_OBJECTIVE.lock().unwrap() = Some(scratch.clone());
     let error = sand_core::try_export_components_json("numeric")

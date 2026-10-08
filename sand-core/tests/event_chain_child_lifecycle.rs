@@ -98,7 +98,7 @@ sand_core::inventory::submit! {
     EventDescriptor {
         path: "on_parent",
         id_override: None,
-        make: on_parent_body,
+        make: || sand::component::IntoCommands::into_commands(on_parent_body()),
         dispatch: EventDispatch::Custom {
             make_trigger: no_trigger,
             make_condition: no_condition,
@@ -146,7 +146,7 @@ sand_core::inventory::submit! {
     EventDescriptor {
         path: "on_single_plan_child",
         id_override: None,
-        make: on_single_plan_child_body,
+        make: || sand::component::IntoCommands::into_commands(on_single_plan_child_body()),
         dispatch: EventDispatch::Custom {
             make_trigger: no_trigger,
             make_condition: no_condition,
@@ -191,7 +191,7 @@ sand_core::inventory::submit! {
     EventDescriptor {
         path: "on_unconditional_lifecycle_child",
         id_override: None,
-        make: on_unconditional_lifecycle_child_body,
+        make: || sand::component::IntoCommands::into_commands(on_unconditional_lifecycle_child_body()),
         dispatch: EventDispatch::Custom {
             make_trigger: no_trigger,
             make_condition: no_condition,
@@ -238,7 +238,7 @@ sand_core::inventory::submit! {
     EventDescriptor {
         path: "on_multi_plan_lifecycle_child",
         id_override: None,
-        make: on_multi_plan_lifecycle_child_body,
+        make: || sand::component::IntoCommands::into_commands(on_multi_plan_lifecycle_child_body()),
         dispatch: EventDispatch::Custom {
             make_trigger: no_trigger,
             make_condition: no_condition,
@@ -283,7 +283,7 @@ sand_core::inventory::submit! {
     EventDescriptor {
         path: "on_unsatisfiable_lifecycle_child",
         id_override: None,
-        make: on_unsatisfiable_lifecycle_child_body,
+        make: || sand::component::IntoCommands::into_commands(on_unsatisfiable_lifecycle_child_body()),
         dispatch: EventDispatch::Custom {
             make_trigger: no_trigger,
             make_condition: no_condition,
@@ -341,7 +341,7 @@ sand_core::inventory::submit! {
     EventDescriptor {
         path: "on_nested_a",
         id_override: None,
-        make: on_nested_a_body,
+        make: || sand::component::IntoCommands::into_commands(on_nested_a_body()),
         dispatch: EventDispatch::Custom {
             make_trigger: no_trigger,
             make_condition: no_condition,
@@ -393,7 +393,7 @@ sand_core::inventory::submit! {
     EventDescriptor {
         path: "on_nested_b",
         id_override: None,
-        make: on_nested_b_body,
+        make: || sand::component::IntoCommands::into_commands(on_nested_b_body()),
         dispatch: EventDispatch::Custom {
             make_trigger: no_trigger,
             make_condition: no_condition,
@@ -435,7 +435,7 @@ sand_core::inventory::submit! {
     EventDescriptor {
         path: "on_nested_c",
         id_override: None,
-        make: on_nested_c_body,
+        make: || sand::component::IntoCommands::into_commands(on_nested_c_body()),
         dispatch: EventDispatch::Custom {
             make_trigger: no_trigger,
             make_condition: no_condition,

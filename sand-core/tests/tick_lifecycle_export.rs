@@ -102,7 +102,7 @@ sand_core::inventory::submit! {
     EventDescriptor {
         path: "zzz_jump_handler",
         id_override: None,
-        make: zzz_jump_handler_body,
+        make: || sand::component::IntoCommands::into_commands(zzz_jump_handler_body()),
         dispatch: EventDispatch::Custom {
             make_trigger: no_trigger,
             make_condition: no_condition,
@@ -122,7 +122,7 @@ sand_core::inventory::submit! {
     EventDescriptor {
         path: "aaa_jump_handler",
         id_override: None,
-        make: aaa_jump_handler_body,
+        make: || sand::component::IntoCommands::into_commands(aaa_jump_handler_body()),
         dispatch: EventDispatch::Custom {
             make_trigger: no_trigger,
             make_condition: no_condition,
@@ -161,7 +161,7 @@ sand_core::inventory::submit! {
     EventDescriptor {
         path: "every_tick_handler",
         id_override: None,
-        make: every_tick_handler_body,
+        make: || sand::component::IntoCommands::into_commands(every_tick_handler_body()),
         dispatch: EventDispatch::Custom {
             make_trigger: no_trigger,
             make_condition: no_condition,
@@ -204,7 +204,7 @@ sand_core::inventory::submit! {
     EventDescriptor {
         path: "or_condition_handler",
         id_override: None,
-        make: or_condition_handler_body,
+        make: || sand::component::IntoCommands::into_commands(or_condition_handler_body()),
         dispatch: EventDispatch::Custom {
             make_trigger: no_trigger,
             make_condition: no_condition,
@@ -259,7 +259,7 @@ sand_core::inventory::submit! {
     EventDescriptor {
         path: "never_fires_handler",
         id_override: None,
-        make: never_fires_handler_body,
+        make: || sand::component::IntoCommands::into_commands(never_fires_handler_body()),
         dispatch: EventDispatch::Custom {
             make_trigger: no_trigger,
             make_condition: no_condition,

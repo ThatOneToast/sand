@@ -47,7 +47,7 @@ macro_rules! submit_collision {
             EventDescriptor {
                 path: $path,
                 id_override: None,
-                make: $make,
+                make: || sand::component::IntoCommands::into_commands($make()),
                 dispatch: EventDispatch::Custom {
                     make_trigger: no_trigger,
                     make_condition: no_condition,

@@ -16,7 +16,7 @@ sand_core::inventory::submit! {
         path: "every_tick_schedule",
         total_ticks: 20,
         every: 1,
-        make: every_tick_body,
+        make: || sand::component::IntoCommands::into_commands(every_tick_body()),
     }
 }
 
@@ -25,7 +25,7 @@ sand_core::inventory::submit! {
         path: "interval_schedule",
         total_ticks: 80,
         every: 5,
-        make: interval_body,
+        make: || sand::component::IntoCommands::into_commands(interval_body()),
     }
 }
 

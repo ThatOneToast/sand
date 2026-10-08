@@ -67,7 +67,7 @@ sand_core::inventory::submit! {
     EventDescriptor {
         path: "on_custom_advancement_with_weapon",
         id_override: None,
-        make: body,
+        make: || sand::component::IntoCommands::into_commands(body()),
         dispatch: EventDispatch::Custom {
             make_trigger: trigger,
             make_condition: no_condition,

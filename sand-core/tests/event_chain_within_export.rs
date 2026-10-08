@@ -162,7 +162,7 @@ macro_rules! submit_handler {
                 EventDescriptor {
                     path: $path,
                     id_override: None,
-                    make: body,
+                    make: || sand::component::IntoCommands::into_commands(body()),
                     dispatch: EventDispatch::Custom {
                         make_trigger: no_trigger,
                         make_condition: no_condition,
@@ -216,7 +216,7 @@ sand_core::inventory::submit! {
     EventDescriptor {
         path: "on_current",
         id_override: None,
-        make: current_body,
+        make: || sand::component::IntoCommands::into_commands(current_body()),
         dispatch: EventDispatch::Custom {
             make_trigger: no_trigger,
             make_condition: no_condition,
@@ -252,7 +252,7 @@ sand_core::inventory::submit! {
     EventDescriptor {
         path: "on_other",
         id_override: None,
-        make: other_body,
+        make: || sand::component::IntoCommands::into_commands(other_body()),
         dispatch: EventDispatch::Custom {
             make_trigger: no_trigger,
             make_condition: no_condition,
@@ -290,7 +290,7 @@ macro_rules! submit_root {
                 EventDescriptor {
                     path: $path,
                     id_override: None,
-                    make: body,
+                    make: || sand::component::IntoCommands::into_commands(body()),
                     dispatch: EventDispatch::Custom {
                         make_trigger: no_trigger,
                         make_condition: no_condition,

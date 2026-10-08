@@ -18,7 +18,7 @@ sand_core::inventory::submit! {
     EventDescriptor {
         path: "death_handler",
         id_override: None,
-        make: death_handler,
+        make: || sand::component::IntoCommands::into_commands(death_handler()),
         dispatch: EventDispatch::DeathTick,
     }
 }
@@ -29,7 +29,7 @@ sand_core::inventory::submit! {
     EventDescriptor {
         path: "respawn_handler_b",
         id_override: None,
-        make: respawn_handler_b,
+        make: || sand::component::IntoCommands::into_commands(respawn_handler_b()),
         dispatch: EventDispatch::RespawnTick,
     }
 }
@@ -38,7 +38,7 @@ sand_core::inventory::submit! {
     EventDescriptor {
         path: "respawn_handler_a",
         id_override: None,
-        make: respawn_handler_a,
+        make: || sand::component::IntoCommands::into_commands(respawn_handler_a()),
         dispatch: EventDispatch::RespawnTick,
     }
 }

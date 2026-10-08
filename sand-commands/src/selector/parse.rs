@@ -631,3 +631,34 @@ mod compound_and_decimal_tests {
         }
     }
 }
+
+#[cfg(test)]
+mod score_objective_tests {
+    use super::*;
+    use crate::ScoreHolder;
+    #[test]
+    fn score_map_keys_follow_canonical_objective_validation() {
+        for objective in [
+            "",
+            "bad/name",
+            "bad:name",
+            "bad$name",
+            "über",
+            "name_that_is_too_long",
+        ] {
+            let text = format!("@s[scores={{{objective}=1}}]");
+            assert!(
+                ScoreHolder::compat(text.clone())
+                    .validate_single(&CommandProfile::unprofiled())
+                    .is_err(),
+                "{text}"
+            );
+        }
+        for objective in ["points", "A_1-2.3+4", "sixteen_chars_16"] {
+            let text = format!("@s[scores={{{objective}=1}}]");
+            ScoreHolder::compat(text)
+                .validate_single(&CommandProfile::unprofiled())
+                .unwrap();
+        }
+    }
+}

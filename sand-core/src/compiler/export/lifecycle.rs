@@ -69,7 +69,7 @@ pub(crate) fn assemble_lifecycle(
     mut registration_load_commands: Vec<(String, usize, String)>,
     mut registration_tick_commands: Vec<(String, usize, String)>,
     transition_global_tick_commands: Vec<String>,
-) -> ExportResult<()> {
+) -> ExportResult<Option<String>> {
     use std::collections::BTreeMap;
     registration_load_commands
         .sort_by(|left, right| left.0.cmp(&right.0).then_with(|| left.1.cmp(&right.1)));
@@ -237,27 +237,23 @@ pub(crate) fn assemble_lifecycle(
             .or_default()
             .push(format!("{namespace}:{path}"));
     }
-    Ok(())
+    Ok((!automatic.player_init_commands.is_empty()).then(|| format!("{namespace}:{init_path}")))
 }
 
 /// Initialize canonical player State at declared player-context entry points.
 pub(crate) fn initialize_player_entries(
     records: &mut [ComponentRecord],
     entries: &std::collections::BTreeMap<String, crate::compiler::program::model::ExecutionContext>,
-    namespace: &str,
+    initializer: Option<&str>,
 ) {
-    if !records.iter().any(|record| {
-        record.namespace == namespace
-            && record.dir == "function"
-            && record.path == "__sand_lifecycle_init"
-    }) {
+    let Some(initializer) = initializer else {
         return;
-    }
+    };
     for record in records.iter_mut().filter(|record| record.dir == "function") {
         if entries.get(&format!("{}:{}", record.namespace, record.path))
             == Some(&crate::compiler::program::model::ExecutionContext::Player)
         {
-            let prefix = format!("function {namespace}:__sand_lifecycle_init");
+            let prefix = format!("function {initializer}");
             record.content = if record.content.is_empty() {
                 prefix
             } else {

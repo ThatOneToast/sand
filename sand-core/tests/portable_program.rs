@@ -408,3 +408,69 @@ fn external_references_cannot_alias_declared_functions() {
         }
     }
 }
+
+#[test]
+fn compiled_resources_reject_file_ancestor_collisions_in_either_order() {
+    for reverse in [false, true] {
+        let mut program = counter();
+        let module = &mut program.modules[0];
+        module.functions = ["demo:foo", "demo:foo.mcfunction/bar"]
+            .into_iter()
+            .map(|id| Function {
+                id: id.parse().unwrap(),
+                context: ExecutionContext::Server,
+                body: vec![],
+            })
+            .collect();
+        module.tags.clear();
+        if reverse {
+            module.functions.reverse();
+        }
+        let errors = Compiler::check(&program).unwrap_err();
+        assert!(
+            errors
+                .iter()
+                .any(|error| error.code == "SAND_PROGRAM_COLLISION")
+        );
+        assert!(Compiler::compile(&program).is_err());
+    }
+}
+
+#[test]
+fn lifecycle_helpers_are_owned_by_the_pack_namespace() {
+    let mut program = counter();
+    program.modules[0].functions.clear();
+    program.modules[0].tags.clear();
+    program.modules[0].tick = vec![operation(Action::Players {
+        body: vec![operation(Action::ScoreAdd {
+            score: FieldReference {
+                state: "demo:counter".parse().unwrap(),
+                field: "value".into(),
+            },
+            value: 1,
+        })],
+    })];
+    let mut helper_paths = Vec::new();
+    for namespace in ["first", "second"] {
+        program.pack.namespace = namespace.into();
+        let pack = Compiler::compile(&program).unwrap();
+        let (path, body) = pack
+            .resources
+            .iter()
+            .find(|(path, _)| path.contains("/__sand_program/"))
+            .unwrap();
+        assert!(path.starts_with(&format!("data/{namespace}/function/")));
+        assert!(
+            String::from_utf8_lossy(body)
+                .starts_with(&format!("function {namespace}:__sand_lifecycle_init\n"))
+        );
+        let tick = String::from_utf8_lossy(
+            &pack.resources[&format!("data/{namespace}/function/__sand_lifecycle_tick.mcfunction")],
+        );
+        assert!(tick.contains(&format!(
+            "execute as @a run function {namespace}:__sand_program/"
+        )));
+        helper_paths.push(path.clone());
+    }
+    assert_ne!(helper_paths[0], helper_paths[1]);
+}

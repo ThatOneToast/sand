@@ -39,6 +39,7 @@ pub(super) fn lower(
     let init = (!automatic.player_init_commands.is_empty())
         .then(|| format!("{}:__sand_lifecycle_init", program.pack.namespace));
     let mut lower = Lower {
+        namespace: program.pack.namespace.clone(),
         records: Vec::new(),
         init,
         bytes: 0,
@@ -96,7 +97,7 @@ pub(super) fn lower(
         );
     }
     let mut tag_map = BTreeMap::new();
-    lifecycle::assemble_lifecycle(
+    let player_initializer = lifecycle::assemble_lifecycle(
         &program.pack.namespace,
         &mut lower.records,
         &mut tag_map,
@@ -106,7 +107,11 @@ pub(super) fn lower(
         Vec::new(),
     )
     .map_err(|e| error(e.to_string()))?;
-    lifecycle::initialize_player_entries(&mut lower.records, &entries, &program.pack.namespace);
+    lifecycle::initialize_player_entries(
+        &mut lower.records,
+        &entries,
+        player_initializer.as_deref(),
+    );
     tags::assemble_tags(
         &program.pack.namespace,
         &mut lower.records,
@@ -152,14 +157,20 @@ fn insert_output(
             "generated output limit exceeded",
         )]);
     }
-    if output.insert(path, bytes).is_some() {
+    let prefix = format!("{path}/");
+    if output.contains_key(&path)
+        || output.keys().any(|existing| {
+            existing.starts_with(&prefix) || path.starts_with(&format!("{existing}/"))
+        })
+    {
         return Err(vec![Diagnostic::error(
             "SAND_PROGRAM_COLLISION",
             "",
             "",
-            "generated resource collision",
+            format!("generated resource file/directory collision at `{path}`"),
         )]);
     }
+    output.insert(path, bytes);
     Ok(())
 }
 
@@ -175,12 +186,13 @@ fn objective(score: &FieldReference) -> String {
         .as_str()
         .to_owned()
 }
-fn helper(owner: &str, path: &str, role: &str) -> String {
+fn helper(namespace: &str, owner: &str, path: &str, role: &str) -> String {
     // Injective hex encoding avoids ambiguity between namespace/path segments.
     let identity: String = owner.bytes().map(|byte| format!("{byte:02x}")).collect();
-    format!("sand:__sand_program/{identity}/{path}/{role}")
+    format!("{namespace}:__sand_program/{identity}/{path}/{role}")
 }
 struct Lower {
+    namespace: String,
     records: Vec<ComponentRecord>,
     init: Option<String>,
     bytes: usize,
@@ -260,7 +272,7 @@ impl Lower {
                     {
                         reference_id(function)
                     } else {
-                        let id = helper(owner, &path, "players");
+                        let id = helper(&self.namespace, owner, &path, "players");
                         let mut lines = self.body(
                             body,
                             owner,
@@ -286,9 +298,9 @@ impl Lower {
                     then,
                     otherwise,
                 } => {
-                    let yes = helper(owner, &path, "then");
-                    let no = helper(owner, &path, "otherwise");
-                    let decision = helper(owner, &path, "branch");
+                    let yes = helper(&self.namespace, owner, &path, "then");
+                    let no = helper(&self.namespace, owner, &path, "otherwise");
+                    let decision = helper(&self.namespace, owner, &path, "branch");
                     let yes_body = self.body(
                         then,
                         owner,

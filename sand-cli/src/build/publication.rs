@@ -93,8 +93,29 @@ fn publish_with_install(
     }
     for path in resources.keys() {
         let actual = destination.join(path);
+        if actual.is_dir() {
+            // Only directories implied by verified stale files are owned.
+            // Unmanaged files and even unrelated empty directories must survive.
+            for entry in walkdir::WalkDir::new(&actual).follow_links(false) {
+                let entry = entry.context("inspect directory-to-file transition")?;
+                let relative = entry
+                    .path()
+                    .strip_prefix(&destination)?
+                    .to_str()
+                    .context("output path is not UTF-8")?;
+                let owned = if entry.file_type().is_dir() {
+                    let prefix = format!("{relative}/");
+                    previous
+                        .keys()
+                        .any(|old| old.starts_with(&prefix) && !resources.contains_key(old))
+                } else {
+                    previous.contains_key(relative) && !resources.contains_key(relative)
+                };
+                ensure!(owned, "unmanaged output conflict: {relative}");
+            }
+        }
         ensure!(
-            !actual.exists() || previous.contains_key(path),
+            !actual.exists() || actual.is_dir() || previous.contains_key(path),
             "unmanaged output conflict: {path}"
         );
         for ancestor in actual.ancestors().skip(1) {
@@ -129,6 +150,15 @@ fn publish_with_install(
         let mut manifest = OutputManifest::load(&stage);
         let removed = manifest.prune_stale(&resources.keys().cloned().collect())?;
         for (path, bytes) in resources {
+            let actual = stage.join(path);
+            if actual.is_dir() {
+                // Stale files were hash-checked and removed above. Remove only
+                // empty directories; never recursively erase remaining files.
+                for entry in walkdir::WalkDir::new(&actual).contents_first(true) {
+                    let entry = entry?;
+                    std::fs::remove_dir(entry.path())?;
+                }
+            }
             manifest.write_if_changed(path, bytes)?;
         }
         let mut summary = manifest.finish()?;
@@ -295,6 +325,54 @@ mod tests {
             std::fs::read(pack.join(new.keys().next().unwrap())).unwrap(),
             b"say new"
         );
+    }
+
+    #[test]
+    fn managed_directory_can_become_a_file_with_rollback_and_conflict_protection() {
+        let temp = tempfile::tempdir_in(std::env::temp_dir().canonicalize().unwrap()).unwrap();
+        let pack = temp.path().join("pack");
+        let parent = "data/demo/function/foo.mcfunction";
+        let child = "data/demo/function/foo.mcfunction/nested/bar.mcfunction";
+        let old = resources(&[(child, "say old")]);
+        let new = resources(&[(parent, "say new")]);
+        publish_pack(&pack, &old).unwrap();
+        let manifest = std::fs::read(pack.join(MANIFEST_FILE_NAME)).unwrap();
+        for directory in [false, true] {
+            let unrelated = pack.join(parent).join("unmanaged");
+            if directory {
+                std::fs::create_dir(&unrelated).unwrap();
+            } else {
+                std::fs::write(&unrelated, "mine").unwrap();
+            }
+            assert!(
+                publish_pack(&pack, &new)
+                    .unwrap_err()
+                    .to_string()
+                    .contains("unmanaged")
+            );
+            assert!(unrelated.exists());
+            if directory {
+                std::fs::remove_dir(unrelated).unwrap();
+            } else {
+                std::fs::remove_file(unrelated).unwrap();
+            }
+        }
+        assert!(
+            publish_with_install(&pack, &new, |stage, _| {
+                assert_eq!(std::fs::read(stage.join(parent))?, b"say new");
+                anyhow::bail!("injected failure")
+            })
+            .is_err()
+        );
+        assert_eq!(std::fs::read(pack.join(child)).unwrap(), b"say old");
+        assert_eq!(
+            std::fs::read(pack.join(MANIFEST_FILE_NAME)).unwrap(),
+            manifest
+        );
+        let summary = publish_pack(&pack, &new).unwrap();
+        assert_eq!(summary.removed, 1);
+        assert_eq!(summary.written, 1);
+        assert_eq!(std::fs::read(pack.join(parent)).unwrap(), b"say new");
     }
 
     #[test]

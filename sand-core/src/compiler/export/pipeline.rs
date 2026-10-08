@@ -2545,7 +2545,7 @@ pub(crate) fn try_export_components_impl(
             .player_tick_commands
             .extend(transition_plan.tick_commands);
         let transition_global_tick_commands = transition_plan.global_tick_commands;
-        super::lifecycle::assemble_lifecycle(
+        let player_initializer = super::lifecycle::assemble_lifecycle(
             namespace,
             &mut records,
             &mut tag_map,
@@ -2554,9 +2554,12 @@ pub(crate) fn try_export_components_impl(
             registration_tick_commands,
             transition_global_tick_commands,
         )?;
+        super::lifecycle::initialize_player_entries(
+            &mut records,
+            &function_contexts,
+            player_initializer.as_deref(),
+        );
     }
-
-    super::lifecycle::initialize_player_entries(&mut records, &function_contexts, namespace);
 
     // ── Dynamic anonymous functions (branches from all make() calls above) ───
     // Must run AFTER every desc.make() call so branches registered by event

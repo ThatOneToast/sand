@@ -54,8 +54,7 @@ fn traversal() -> TraversalBound {
 }
 
 fn grapple_range() -> NbtRef<i32> {
-    Nbt::storage(ResourceLocation::new("trail", "data").unwrap())
-        .typed_path("config.grapple_range")
+    Nbt::storage(ResourceLocation::new("trail", "data").unwrap()).typed_path("config.grapple_range")
 }
 // ANCHOR_END: state
 
@@ -90,7 +89,7 @@ pub fn tick() {
                 ])
                 .run(command)
         })
-        .collect::<Vec<_>>();
+        .collect::<Actions>();
     state
         .regen
         .start(Ticks::seconds(2))
@@ -100,7 +99,7 @@ pub fn tick() {
                 .when(state.regen.elapsed())
                 .run(command)
         })
-        .collect::<Vec<_>>();
+        .collect::<Actions>();
 
     // Exhaustion clears once stamina recovers past half.
     TypedExecute::as_players()
@@ -186,7 +185,7 @@ pub fn grapple_core_recipe() -> ShapedRecipe {
 
 // ANCHOR: entity_capabilities
 /// A façade-only example that discovers entity operations from the context.
-pub fn capability_facade_example() -> Vec<String> {
+pub fn capability_facade_example() -> Actions {
     let active = EntityTag::new("trail_active").unwrap();
 
     Target::players().each(|player| {
@@ -199,13 +198,13 @@ pub fn capability_facade_example() -> Vec<String> {
             .duration(Ticks::seconds(1))
             .particles(false);
 
-        let mut commands = vec![
-            player.identity().add_tag(&active).unwrap(),
+        let mut commands = mcfunction![
+            player.identity().add_tag(&active).unwrap();
             player
                 .transform()
                 .face_position(Vec3::absolute(0.0, 80.0, 0.0))
-                .unwrap(),
-            first_hotbar_slot.nbt().get().to_string(),
+                .unwrap();
+            first_hotbar_slot.nbt().get().to_string();
         ];
         commands.extend(
             TypedExecute::as_self_at_self()
@@ -471,9 +470,19 @@ pub fn __sand_export(namespace: &str, mc_version: &str) {
 mod tests {
     use super::*;
 
+    fn emitted(actions: Actions) -> Vec<String> {
+        use sand::registration::{ComponentContent, DatapackComponent};
+        let function =
+            sand::component::McFunction::new("test:body".parse().unwrap()).commands(actions);
+        let ComponentContent::Text(content) = function.try_content().unwrap() else {
+            panic!("a function must export text");
+        };
+        content.lines().map(str::to_owned).collect()
+    }
+
     #[test]
     fn load_seeds_storage() {
-        let cmds = load();
+        let cmds = emitted(load());
         assert!(
             cmds.iter().any(|c| c.contains("storage trail:data")),
             "seeds storage: {cmds:?}"
@@ -481,21 +490,39 @@ mod tests {
     }
 
     #[test]
-    fn tick_regenerates_and_warns() {
-        let cmds = tick();
+    fn tick_drives_stamina_recovery_and_readiness() {
+        let cmds = emitted(tick());
         assert!(
             cmds.iter().any(|c| c.contains("Grapple ready")),
             "readiness actionbar: {cmds:?}"
         );
         assert!(
-            cmds.iter().any(|c| c.contains("Catch your breath")),
-            "damage warning: {cmds:?}"
+            cmds.iter().any(|command| {
+                command.starts_with("execute as @a ")
+                    && command.contains("matches 50..")
+                    && command.ends_with("run function trail:recover")
+            }),
+            "recovery at half stamina: {cmds:?}"
+        );
+        let recovery = emitted(recover());
+        assert!(
+            recovery
+                .iter()
+                .any(|command| command.starts_with("tellraw @s ")
+                    && command.contains("You feel steady again.")),
+            "recovery feedback: {recovery:?}"
+        );
+        assert!(
+            cmds.iter().any(|command| command.contains("matches ..99")
+                && command.contains("run scoreboard players add @s ")
+                && command.ends_with(" 10")),
+            "stamina regeneration: {cmds:?}"
         );
     }
 
     #[test]
     fn grapple_execute_pays_stamina_and_plays_vfx() {
-        let cmds = grapple_execute();
+        let cmds = emitted(grapple_execute());
         assert!(
             cmds.iter().any(|c| c.contains("scoreboard players remove")),
             "pays stamina: {cmds:?}"

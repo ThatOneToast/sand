@@ -17,6 +17,103 @@
 
 pub use sand_commands::{ConditionIr, ExecuteOp, ExecuteStoreTarget};
 
+/// An ordered sequence of authored operations awaiting compiler lowering.
+///
+/// Sand function macros collect these values at build time. They describe
+/// Minecraft runtime work; constructing or combining them does not execute it.
+/// Keep them intact when composing gameplay helpers so validation retains the
+/// structured operations before the exporter emits command text.
+#[derive(Debug, Clone, Default)]
+#[must_use = "authored actions must be returned or collected into a Sand function"]
+#[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::command::Actions",
+    aliases = ["sand::cmd::Actions", "sand::prelude::Actions", "sand::prelude::cmd::Actions"],
+    module = "sand::command",
+    summary = "An ordered sequence of authored operations awaiting compiler lowering.",
+    context = "Function macros collect these build-time values into Minecraft runtime bodies. Gameplay helpers can return Actions without exposing command strings or compiler IR variants.",
+    minecraft = "The exporter validates and lowers each operation in authored order before emitting mcfunction resources.",
+    use_when = ["Returning composed gameplay operations from a Rust helper"],
+    avoid_when = ["Representing an operation that has already executed in Minecraft"],
+    example = "use sand::command::Actions; fn empty() -> Actions { Actions::default() }",
+)]
+pub struct Actions(pub(crate) Vec<Cmd>);
+
+impl sand_components::function::FunctionBody for Actions {}
+
+impl<A: crate::IntoCommands> Extend<A> for Actions {
+    fn extend<T: IntoIterator<Item = A>>(&mut self, actions: T) {
+        for action in actions {
+            self.0.extend(action.into_commands().0);
+        }
+    }
+}
+
+impl IntoIterator for Actions {
+    type Item = Actions;
+    type IntoIter = std::vec::IntoIter<Actions>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.0
+            .into_iter()
+            .map(|node| Actions(vec![node]))
+            .collect::<Vec<_>>()
+            .into_iter()
+    }
+}
+
+impl FromIterator<Actions> for Actions {
+    fn from_iter<T: IntoIterator<Item = Actions>>(actions: T) -> Self {
+        let mut body = Self::default();
+        body.extend(actions);
+        body
+    }
+}
+
+impl Actions {
+    pub(crate) fn has_macro_lines(&self) -> bool {
+        self.0.iter().any(Cmd::has_macro_line)
+    }
+
+    pub(crate) fn may_return_from_frame(&self) -> bool {
+        self.0.iter().any(Cmd::may_return_from_frame)
+    }
+
+    pub(crate) fn identity(&self) -> String {
+        // Retain variant distinctions: raw and typed nodes may render the same
+        // text while requiring different validation. This identity contains no
+        // process-local handles or source provenance.
+        format!("{:?}", self.0)
+    }
+
+    // Preserve the canonical component error (including resource ownership) at
+    // this export boundary, as DatapackComponent::try_content requires.
+    #[allow(clippy::result_large_err)]
+    pub(crate) fn lower(
+        &self,
+        location: &sand_components::ResourceLocation,
+    ) -> sand_components::error::Result<Vec<String>> {
+        self.0
+            .iter()
+            .enumerate()
+            .map(|(index, command)| {
+                command.try_render().map_err(|error| {
+                    sand_components::SandError::ComponentValidation {
+                        location: location.clone(),
+                        kind: "function".into(),
+                        field: format!("actions[{index}].{}", error.field),
+                        message: error.to_string(),
+                    }
+                })
+            })
+            .collect()
+    }
+
+    pub(crate) fn render(self) -> Vec<String> {
+        self.0.into_iter().map(|command| command.render()).collect()
+    }
+}
+
 // ── ScoreOpKind ───────────────────────────────────────────────────────────────
 
 /// Vanilla scoreboard player operation symbol.
@@ -145,6 +242,17 @@ pub enum Cmd {
     /// `function <id>`
     Function(String),
 
+    /// An owned anonymous function whose resource is registered during export.
+    /// Keeping the body here makes cached actions independent of registry lifetime.
+    AnonymousFunction { prefix: String, body: Actions },
+
+    /// Retain compiler-managed scoreboard requirements alongside a command.
+    /// Operands replay their owned setup during each export, including cached bodies.
+    WithScoreOperands {
+        operands: Vec<crate::state::score::ScoreOperand>,
+        run: Box<Cmd>,
+    },
+
     /// Return immediately with the result of one nested command.
     ReturnRun(Box<Cmd>),
 
@@ -170,14 +278,81 @@ pub enum Cmd {
     Comment(String),
 }
 
+fn raw_command_may_return(line: &str) -> bool {
+    let line = line.trim_start();
+    let mut command = line.strip_prefix('$').unwrap_or(line);
+    loop {
+        command = command.strip_prefix("minecraft:").unwrap_or(command);
+        let verb = command.split_whitespace().next().unwrap_or("");
+        match verb {
+            "return" => return true,
+            "execute" => {
+                let Some(inner) = sand_commands::render::collected_execute_command(command) else {
+                    // Unknown or macro-generated operation grammar cannot prove
+                    // that the scoped body continues to its cleanup command.
+                    return true;
+                };
+                command = inner;
+            }
+            _ => return verb.contains("$("),
+        }
+    }
+}
+
 impl Cmd {
+    fn has_macro_line(&self) -> bool {
+        match self {
+            Self::Raw(text) => text.lines().any(|line| line.trim_start().starts_with('$')),
+            Self::Execute { run, .. }
+            | Self::ReturnRun(run)
+            | Self::WithScoreOperands { run, .. } => run.has_macro_line(),
+            _ => false,
+        }
+    }
+
+    fn may_return_from_frame(&self) -> bool {
+        match self {
+            Self::ReturnRun(_) => true,
+            Self::Execute { run, .. } | Self::WithScoreOperands { run, .. } => {
+                run.may_return_from_frame()
+            }
+            // Inspect command positions through the canonical execute parser;
+            // quoted arguments and ordinary words such as `say return` are data.
+            Self::Raw(text) => text.lines().any(raw_command_may_return),
+            _ => false,
+        }
+    }
+
     /// Render this command after typed validation against Sand's 26+ command baseline.
     pub fn try_render(&self) -> sand_commands::CommandResult<String> {
         let rendered = match self {
             Self::Raw(s) => s.clone(),
 
             Self::Function(id) => format!("function {id}"),
-            Self::ReturnRun(command) => format!("return run {}", command.try_render()?),
+            Self::AnonymousFunction { prefix, body } => {
+                if body.has_macro_lines() {
+                    return Err(sand_commands::CommandError::new(
+                        "anonymous function",
+                        "macro arguments",
+                        "macro lines cannot move into a helper without an argument source; keep them in the argument-bearing function or call an explicit function with FunctionMacroArgs::call_with; scoped macro bodies cannot return early",
+                    ));
+                }
+                let path = crate::function::register_dyn_fn_dedup(prefix, body.clone());
+                format!("function {}:{path}", crate::function::SAND_LOCAL_NS)
+            }
+            Self::WithScoreOperands { operands, run } => {
+                for operand in operands {
+                    operand.register_owned_setup();
+                }
+                run.try_render()?
+            }
+            Self::ReturnRun(command) => {
+                let rendered = command.try_render().map_err(|mut error| {
+                    error.field = format!("run.{}", error.field);
+                    error
+                })?;
+                format!("return run {rendered}")
+            }
 
             Self::ScoreDefine {
                 objective,
@@ -206,7 +381,10 @@ impl Cmd {
                     .map(ExecuteOp::render)
                     .collect::<Vec<_>>()
                     .join(" ");
-                let run_text = run.try_render()?;
+                let run_text = run.try_render().map_err(|mut error| {
+                    error.field = format!("run.{}", error.field);
+                    error
+                })?;
                 format!("execute {operation_text} run {run_text}")
             }
 
@@ -237,6 +415,32 @@ mod tests {
 
     fn render(cmd: Cmd) -> String {
         cmd.render()
+    }
+
+    #[test]
+    fn raw_return_detection_uses_command_positions() {
+        for line in [
+            "$say return $(name)",
+            "$minecraft:say return $(name)",
+            "$execute if score @s return matches 1 run say return $(name)",
+            r#"$tellraw @s {"text":"return $(name)"}"#,
+            "say execute run return 0",
+        ] {
+            assert!(!raw_command_may_return(line), "{line}");
+        }
+        for line in [
+            "$minecraft:return $(result)",
+            "$minecraft:execute as @s run return $(result)",
+            "$execute as @s run minecraft:return $(result)",
+            "return fail",
+            "$return $(result)",
+            "$execute as @s run return $(result)",
+            "execute as @s run execute at @s run return 0",
+            "$execute $(operations) run say unknown",
+            "$$(command)",
+        ] {
+            assert!(raw_command_may_return(line), "{line}");
+        }
     }
 
     #[test]
@@ -429,5 +633,49 @@ mod tests {
         for (kind, expected) in ops {
             assert_eq!(kind.as_str(), expected);
         }
+    }
+}
+
+#[cfg(test)]
+mod nested_validation_tests {
+    use super::*;
+
+    #[test]
+    fn validation_retains_every_nested_run_path() {
+        let body = Actions(vec![Cmd::ReturnRun(Box::new(Cmd::Execute {
+            operations: vec![ExecuteOp::As(sand_commands::Selector::self_())],
+            run: Box::new(Cmd::Execute {
+                operations: vec![],
+                run: Box::new(Cmd::Raw("say invalid".into())),
+            }),
+        }))]);
+        let error = body.lower(&"test:nested".parse().unwrap()).unwrap_err();
+        assert!(error.to_string().contains("actions[0].run.run.operations"));
+    }
+}
+
+#[cfg(test)]
+pub(crate) mod test_support {
+    pub(crate) fn emitted(actions: impl crate::IntoCommands) -> Vec<String> {
+        actions
+            .into_commands()
+            .lower(&"test:body".parse().unwrap())
+            .unwrap()
+    }
+
+    pub(crate) fn drain_emitted() -> Vec<(String, Vec<String>)> {
+        let mut result = Vec::new();
+        loop {
+            let pending = crate::function::drain_dyn_fns();
+            if pending.is_empty() {
+                break;
+            }
+            result.extend(
+                pending
+                    .into_iter()
+                    .map(|(path, body)| (path, emitted(body))),
+            );
+        }
+        result
     }
 }

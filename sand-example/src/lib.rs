@@ -25,6 +25,17 @@ use sand_macros::{datapack_component, function, run_fn};
 pub(crate) mod test_support {
     use std::sync::{Mutex, MutexGuard, OnceLock};
 
+    /// Inspect the actual resource text emitted from an authored action body.
+    pub(crate) fn emitted(actions: impl sand_core::IntoCommands) -> Vec<String> {
+        use sand_core::{ComponentContent, DatapackComponent, McFunction};
+        let resource =
+            McFunction::new("test:body".parse().unwrap()).commands(actions.into_commands());
+        let ComponentContent::Text(content) = resource.try_content().unwrap() else {
+            panic!("a function must export text");
+        };
+        content.lines().map(str::to_owned).collect()
+    }
+
     pub(crate) fn dyn_fn_test_lock() -> MutexGuard<'static, ()> {
         static LOCK: OnceLock<Mutex<()>> = OnceLock::new();
         LOCK.get_or_init(|| Mutex::new(())).lock().unwrap()
@@ -133,17 +144,17 @@ mod tests {
 
     #[test]
     fn mcfunction_macro_single_command() {
-        let cmds = sand_core::mcfunction!["say hello"];
+        let cmds = crate::test_support::emitted(sand_core::mcfunction!["say hello"]);
         assert_eq!(cmds, vec!["say hello".to_string()]);
     }
 
     #[test]
     fn mcfunction_macro_multiple_commands() {
-        let cmds = sand_core::mcfunction![
+        let cmds = crate::test_support::emitted(sand_core::mcfunction![
             "say hello";
             "give @a diamond 1";
             r#"tellraw @a {"text":"hi"}"#;
-        ];
+        ]);
         assert_eq!(cmds.len(), 3);
         assert_eq!(cmds[1], "give @a diamond 1");
     }
@@ -152,7 +163,7 @@ mod tests {
 
     #[test]
     fn function_macro_returns_commands() {
-        let cmds = hello_world();
+        let cmds = crate::test_support::emitted(hello_world());
         assert_eq!(cmds.len(), 2);
         assert!(cmds[0].contains("tellraw"));
         assert!(cmds[1].contains("playsound"));
@@ -179,7 +190,7 @@ mod tests {
 
     #[test]
     fn run_fn_produces_execute_function_command() {
-        let cmds = execute_example();
+        let cmds = crate::test_support::emitted(execute_example());
         assert_eq!(cmds.len(), 1);
         assert_eq!(
             cmds[0],
@@ -203,13 +214,13 @@ mod tests {
         let descriptor = inventory::iter::<FunctionDescriptor>()
             .find(|d| d.path == "greet_inline")
             .expect("greet_inline descriptor not registered");
-        let cmds = (descriptor.make)();
+        let cmds = crate::test_support::emitted((descriptor.make)());
         assert_eq!(cmds, vec!["say Welcome from the inline function!"]);
     }
 
     #[test]
     fn run_fn_path_only_name_resolves_pack_namespace_without_panicking() {
-        let cmds = execute_path_only_example();
+        let cmds = crate::test_support::emitted(execute_path_only_example());
         assert_eq!(cmds.len(), 1);
         assert_eq!(
             cmds[0],
@@ -233,7 +244,7 @@ mod tests {
         let descriptor = inventory::iter::<FunctionDescriptor>()
             .find(|d| d.path == "helpers/path_only_greet")
             .expect("helpers/path_only_greet descriptor not registered");
-        let cmds = (descriptor.make)();
+        let cmds = crate::test_support::emitted((descriptor.make)());
         assert_eq!(
             cmds,
             vec!["say Welcome from the path-only inline function!"]
@@ -245,7 +256,7 @@ mod tests {
         let _guard = test_support::dyn_fn_test_lock();
         let _ = sand_core::drain_dyn_fns(); // clear any leftover state from this thread
 
-        let cmds = execute_anonymous_example();
+        let cmds = crate::test_support::emitted(execute_anonymous_example());
         assert_eq!(cmds.len(), 1);
         assert!(
             cmds[0].starts_with("execute as @a run function hello_world:__anon/fn_"),
@@ -256,7 +267,7 @@ mod tests {
         assert_eq!(drained.len(), 1);
         assert!(drained[0].0.starts_with("__anon/fn_"), "{drained:?}");
         assert_eq!(
-            drained[0].1,
+            crate::test_support::emitted(drained[0].1.clone()),
             vec!["say Welcome from the anonymous inline function!"]
         );
     }
@@ -267,7 +278,7 @@ mod tests {
             .find(|d| d.path == "hello_world")
             .expect("hello_world descriptor not registered");
 
-        let commands = (descriptor.make)();
+        let commands = crate::test_support::emitted((descriptor.make)());
         assert_eq!(commands.len(), 2);
         assert!(commands[0].contains("tellraw"));
     }

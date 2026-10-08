@@ -32,9 +32,9 @@ fn tag_values(records: &[serde_json::Value], path: &str) -> Vec<String> {
 fn proof_events_share_one_lifecycle_managed_tracker_and_export_stably() {
     // Force the example module into this integration binary and verify normal
     // typed handler functions remain callable.
-    assert!(!on_start_sneaking().is_empty());
-    assert!(!on_start_sneaking_audit().is_empty());
-    assert!(!on_stop_sneaking().is_empty());
+    assert!(on_start_sneaking().into_iter().next().is_some());
+    assert!(on_start_sneaking_audit().into_iter().next().is_some());
+    assert!(on_stop_sneaking().into_iter().next().is_some());
 
     let first = sand_core::try_export_components_json("transitionpack").unwrap();
     let second = sand_core::try_export_components_json("transitionpack").unwrap();

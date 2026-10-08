@@ -1,3 +1,6 @@
+#[path = "support/actions.rs"]
+mod actions;
+use actions::emitted;
 use sand::prelude::*;
 
 #[allow(dead_code)]
@@ -343,10 +346,11 @@ fn derived_state_lifecycle_is_scoped_deterministic_and_deduplicated() {
 fn state_query_lowers_required_optional_and_forbidden_presence_at_runtime() {
     let charge = EntityRuntimeState::charge.objective();
     let invocation = RuntimeEntities::each(|item| {
-        let mut commands = item.runtime.charge.add(1);
-        commands.extend(item.marker(|_| vec!["say optional marker".into()]));
+        let mut commands = sand::component::IntoCommands::into_commands(item.runtime.charge.add(1));
+        commands.extend(item.marker(|_| sand::mcfunction![sand::cmd::say("optional marker")]));
         commands
     });
+    let invocation = emitted(invocation);
     assert_eq!(invocation.len(), 1);
     let required =
         <EntityRuntimeState as sand::__private::StateBundleMember>::presence_requirements();
@@ -356,7 +360,7 @@ fn state_query_lowers_required_optional_and_forbidden_presence_at_runtime() {
 
     let generated = sand_core::drain_dyn_fns()
         .into_iter()
-        .map(|(_, commands)| commands.join("\n"))
+        .map(|(_, commands)| emitted(commands).join("\n"))
         .find(|content| content.contains("say optional marker"))
         .expect("query callback should be emitted as a generated function");
     let forbidden =
@@ -376,6 +380,7 @@ fn state_query_lowers_required_optional_and_forbidden_presence_at_runtime() {
 #[test]
 fn state_query_current_filters_an_event_executor_without_scanning() {
     let commands = RuntimeEntities::current(|item| item.runtime.charge.add(1));
+    let commands = emitted(commands);
     assert!(!commands.is_empty());
     let required =
         <EntityRuntimeState as sand::__private::StateBundleMember>::presence_requirements();
@@ -400,6 +405,7 @@ fn scoped_states_query_directly_with_concrete_bound_views() {
     let entity = <EntityRuntimeState as sand::__private::StateQuerySpec>::each(|runtime| {
         runtime.charge.add(1)
     });
+    let entity = emitted(entity);
     assert_eq!(entity.len(), 1);
     assert!(entity[0].starts_with("execute as @e[scores={"));
     assert!(entity[0].contains(&format!("{}=1", entity_requirement[0].0)));
@@ -409,20 +415,23 @@ fn scoped_states_query_directly_with_concrete_bound_views() {
     let living = <LivingRuntimeState as sand::__private::StateQuerySpec>::each(|runtime| {
         runtime.timer.tick()
     });
+    let living = emitted(living);
     assert!(living[0].starts_with("execute as @e[scores={"));
     assert!(living[0].contains(&format!("{}=1", living_requirement[0].0)));
 
     let player_requirement =
         <PlayerState as sand::__private::StateBundleMember>::presence_requirements();
     let player = <PlayerState as sand::__private::StateQuerySpec>::each(|state| state.mana.add(1));
+    let player = emitted(player);
     assert!(player[0].starts_with("execute as @a[scores={"));
     assert!(player[0].contains(&format!("{}=1", player_requirement[0].0)));
 
     let marker_requirement =
         <OptionalMarker as sand::__private::StateBundleMember>::presence_requirements();
     let marker = <OptionalMarker as sand::__private::StateQuerySpec>::each(|_marker| {
-        vec!["say dead marker".into()]
+        vec!["say dead marker".to_owned()]
     });
+    let marker = emitted(marker);
     assert!(marker[0].contains(&format!("{}=3", marker_requirement[0].0)));
 }
 
@@ -433,6 +442,7 @@ fn direct_state_current_guards_presence_without_a_scan() {
     let commands = <EntityRuntimeState as sand::__private::StateQuerySpec>::current(|runtime| {
         runtime.charge.add(1)
     });
+    let commands = emitted(commands);
     assert!(!commands.is_empty());
     assert!(commands.iter().all(|command| {
         command.starts_with(&format!(
@@ -449,14 +459,14 @@ fn direct_and_one_field_queries_have_equivalent_presence_lowering() {
         runtime.charge.add(1)
     });
     let wrapped = RuntimeOnly::each(|item| item.runtime.charge.add(1));
-    assert_eq!(direct, wrapped);
+    assert_eq!(emitted(direct), emitted(wrapped));
 
     let direct_current =
         <EntityRuntimeState as sand::__private::StateQuerySpec>::current(|runtime| {
             runtime.charge.add(1)
         });
     let wrapped_current = RuntimeOnly::current(|item| item.runtime.charge.add(1));
-    assert_eq!(direct_current, wrapped_current);
+    assert_eq!(emitted(direct_current), emitted(wrapped_current));
 }
 
 #[test]
@@ -470,6 +480,8 @@ fn direct_bundles_require_every_flattened_component() {
     let requirements =
         <RuntimeBundle as sand::__private::StateBundleMember>::presence_requirements();
     assert_eq!(requirements.len(), 2);
+    let flat = emitted(flat);
+    let nested = emitted(nested);
     for (objective, version) in requirements {
         assert!(flat[0].contains(&format!("{objective}={version}")));
         assert!(nested[0].contains(&format!("{objective}={version}")));
@@ -478,6 +490,7 @@ fn direct_bundles_require_every_flattened_component() {
     let current = <NestedRuntimeBundle as sand::__private::StateQuerySpec>::current(|bundle| {
         bundle.components.runtime.charge.add(1)
     });
+    let current = emitted(current);
     assert!(
         current
             .iter()
@@ -503,6 +516,7 @@ fn attachment_and_detachment_share_the_direct_query_presence_identity() {
     assert!(detach.iter().any(|command| {
         command.contains(&format!("scoreboard players reset @s {}", requirement[0].0))
     }));
+    let query = emitted(query);
     assert!(query[0].contains(&format!("{}={}", requirement[0].0, requirement[0].1)));
     assert!(!query[0].contains(&EntityRuntimeState::charge.objective()));
 }

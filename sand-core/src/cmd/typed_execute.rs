@@ -14,13 +14,13 @@
 //! static MANA: ScoreVar<i32> = ScoreVar::new("mana");
 //!
 //! // Single command
-//! let cmds: Vec<String> = TypedExecute::as_players()
+//! let cmds: sand_core::cmd::Actions = TypedExecute::as_players()
 //!     .at(Target::self_())
 //!     .when(MANA.of("@s").gte(25))
 //!     .run("say enough mana");
 //!
 //! // any! expansion → 2 commands
-//! let cmds: Vec<String> = TypedExecute::as_players()
+//! let cmds: sand_core::cmd::Actions = TypedExecute::as_players()
 //!     .when(any![MANA.of("@s").gte(25), MANA.of("@s").gte(50)])
 //!     .run("say ok");
 //! ```
@@ -39,7 +39,7 @@ use crate::condition::Condition;
     aliases = ["sand::cmd::ConditionedExecute", "sand::prelude::ConditionedExecute", "sand::prelude::cmd::ConditionedExecute"],
     module = "sand::command",
     summary = "An execute chain paired with a typed [`Condition`].",
-    context = "An execute chain paired with a typed [`Condition`]. Created by [`ExecuteExt::when`] or [`ExecuteExt::unless`]. Call [`run`](ConditionedExecute::run) to finalize into `Vec<String>`.",
+    context = "An execute chain paired with a typed [`Condition`]. Created by [`ExecuteExt::when`] or [`ExecuteExt::unless`]. Call [`run`](ConditionedExecute::run) to finalize into [`Actions`](crate::cmd::Actions).",
     minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
     use_when = ["Constructing Minecraft commands through Sand's typed command model"],
     avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
@@ -48,7 +48,7 @@ use crate::condition::Condition;
 /// An execute chain paired with a typed [`Condition`].
 ///
 /// Created by [`ExecuteExt::when`] or [`ExecuteExt::unless`].
-/// Call [`run`](ConditionedExecute::run) to finalize into `Vec<String>`.
+/// Call [`run`](ConditionedExecute::run) to finalize into [`Actions`](crate::cmd::Actions).
 pub struct ConditionedExecute {
     prefix: Execute,
     cond: Condition,
@@ -83,8 +83,8 @@ impl ConditionedExecute {
 
     /// Finalize the execute chain.
     ///
-    /// Returns one command per expanded plan.  A simple score condition gives
-    /// one string; `any![...]` gives N strings.
+    /// Returns owned actions for each expanded plan. Conditions and their
+    /// score setup remain intact when the result is cached across exports.
     ///
     /// Accepts any `Display` value — raw `&str`, owned `String`, or any
     /// command builder.
@@ -94,32 +94,22 @@ impl ConditionedExecute {
         aliases = ["sand::cmd::ConditionedExecute::run", "sand::prelude::ConditionedExecute::run", "sand::prelude::cmd::ConditionedExecute::run"],
         module = "sand::command",
         kind = "method",
-        summary = "Finalize the execute chain. Returns one command per expanded plan.  A simple score condition gives one string; `any![...]` gives N strings.",
-        context = "Finalize the execute chain. Returns one command per expanded plan.  A simple score condition gives one string; `any![...]` gives N strings. Accepts any `Display` value — raw `&str`, owned `String`, or any command builder.",
-        minecraft = "Returns one command per expanded plan.  A simple score condition gives one string; `any![...]` gives N strings.",
+        summary = "Finalize the execute chain. Returns owned actions for each expanded plan, retaining score setup across exports.",
+        context = "Finalize the execute chain. Returns owned actions for each expanded plan, retaining score setup across exports. Accepts any `Display` value — raw `&str`, owned `String`, or any command builder.",
+        minecraft = "Returns owned actions for each expanded plan, retaining score setup across exports.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        params(cmd = "`cmd` is used to finalize the execute chain. Returns one command per expanded plan. A simple score condition gives one string; `any![...]` gives N strings."),
-        returns = "Returns one command per expanded plan.  A simple score condition gives one string; `any![...]` gives N strings.",
+        params(cmd = "The displayable command to run under each expanded condition plan."),
+        returns = "Returns owned actions for each expanded plan, retaining score setup across exports.",
         example = "use std::fmt;\nuse sand::prelude::*;\n\nfn demonstrate(conditioned_execute_value: sand::command::ConditionedExecute, cmd: impl fmt::Display)  {\n    let values = conditioned_execute_value.run(cmd);\n}",
     )]
-    pub fn run(self, cmd: impl fmt::Display) -> Vec<String> {
-        let cmd_str = cmd.to_string();
-        self.cond
-            .to_ir_plans(self.negated)
-            .into_iter()
-            .map(|clauses| {
-                clauses
-                    .into_iter()
-                    .fold(self.prefix.clone(), |execute, clause| {
-                        sand_commands::__private::execute_with_operation(
-                            execute,
-                            clause.into_operation(),
-                        )
-                    })
-                    .run(&cmd_str)
-            })
-            .collect()
+    pub fn run(self, cmd: impl fmt::Display) -> crate::ir::Actions {
+        use crate::IntoCommands;
+        self.cond.guard_actions(
+            self.negated,
+            self.prefix.operations(),
+            cmd.to_string().into_commands(),
+        )
     }
 }
 
@@ -152,19 +142,19 @@ impl ConditionedExecute {
 /// ```
 pub trait ExecuteExt: Sized {
     /// Attach a typed condition — returns a [`ConditionedExecute`] whose
-    /// [`run`](ConditionedExecute::run) produces `Vec<String>`.
+    /// [`run`](ConditionedExecute::run) produces [`Actions`](crate::cmd::Actions).
     #[sand_macros::api(
         registry = sand_api_contract,
         path = "sand::command::ExecuteExt::when",
         aliases = ["sand::cmd::ExecuteExt::when", "sand::prelude::ExecuteExt::when", "sand::prelude::cmd::ExecuteExt::when"],
         module = "sand::command",
-        summary = "Attach a typed condition — returns a [`ConditionedExecute`] whose [`run`](ConditionedExecute::run) produces `Vec<String>`.",
-        context = "Attach a typed condition — returns a [`ConditionedExecute`] whose [`run`](ConditionedExecute::run) produces `Vec<String>`. This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
+        summary = "Attach a typed condition — returns a [`ConditionedExecute`] whose [`run`](ConditionedExecute::run) produces [`Actions`](crate::cmd::Actions).",
+        context = "Attach a typed condition — returns a [`ConditionedExecute`] whose [`run`](ConditionedExecute::run) produces [`Actions`](crate::cmd::Actions). This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
         minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        params(cond = "`cond` provides the condition that gates the operation used to attach a typed condition — returns a [`ConditionedExecute`] whose [`run`](ConditionedExecute::run) produces `Vec<String>`."),
-        returns = "Attach a typed condition — returns a [`ConditionedExecute`] whose [`run`](ConditionedExecute::run) produces `Vec<String>`.",
+        params(cond = "`cond` provides the condition that gates the operation used to attach a typed condition — returns a [`ConditionedExecute`] whose [`run`](ConditionedExecute::run) produces [`Actions`](crate::cmd::Actions)."),
+        returns = "Attach a typed condition — returns a [`ConditionedExecute`] whose [`run`](ConditionedExecute::run) produces [`Actions`](crate::cmd::Actions).",
         example = "use sand::prelude::*;\n\nfn demonstrate<T: sand::command::ExecuteExt>(execute_ext_value: T, cond: sand::condition::Condition)  {\n    let when = execute_ext_value.when(cond);\n}",
     )]
     fn when(self, cond: Condition) -> ConditionedExecute;
@@ -323,7 +313,8 @@ mod tests {
         let cmds = Execute::new()
             .as_(Selector::all_players())
             .when(MANA.of("@s").gte(25))
-            .run("say enough mana");
+            .run("say enough mana")
+            .render();
         assert_eq!(cmds.len(), 1);
         assert_eq!(
             cmds[0],
@@ -335,7 +326,8 @@ mod tests {
     fn unless_condition() {
         let cmds = Execute::new()
             .unless(CASTING.of("@s").is_true())
-            .run("say not casting");
+            .run("say not casting")
+            .render();
         assert_eq!(cmds.len(), 1);
         assert!(
             cmds[0].contains("unless score @s casting matches 1"),
@@ -349,7 +341,8 @@ mod tests {
         let cmds = Execute::new()
             .as_(Selector::all_players())
             .when(any![MANA.of("@s").gte(25), MANA.of("@s").gte(50),])
-            .run("say ok");
+            .run("say ok")
+            .render();
         assert_eq!(cmds.len(), 2, "any! should produce 2 commands");
     }
 
@@ -359,7 +352,8 @@ mod tests {
             .as_(Selector::all_players())
             .at(Selector::self_())
             .when(all![MANA.of("@s").gte(25), CASTING.of("@s").is_false(),])
-            .run("say ready");
+            .run("say ready")
+            .render();
         assert_eq!(cmds.len(), 1);
         assert!(cmds[0].contains("if score @s mana"), "got: {}", cmds[0]);
         assert!(cmds[0].contains("if score @s casting"), "got: {}", cmds[0]);
@@ -372,7 +366,8 @@ mod tests {
                 MANA.of("@s").gte(25),
                 any![CASTING.of("@s").is_false(), CASTING.of("@s").is_true(),],
             ])
-            .run("say ok");
+            .run("say ok")
+            .render();
         assert_eq!(cmds.len(), 2, "all![a, any![b,c]] gives 2 commands");
     }
 
@@ -381,7 +376,8 @@ mod tests {
         let cmds = Execute::new()
             .when(MANA.of("@s").gte(25))
             .and_when(CASTING.of("@s").is_false())
-            .run("say ok");
+            .run("say ok")
+            .render();
         assert_eq!(cmds.len(), 1);
         assert!(cmds[0].contains("if score @s mana"), "got: {}", cmds[0]);
         assert!(cmds[0].contains("if score @s casting"), "got: {}", cmds[0]);
@@ -406,7 +402,8 @@ mod tests {
         // Matches the documented spell system pattern exactly
         let cmds = TypedExecute::as_players_at_self()
             .when(all![MANA.of("@s").gte(25), CASTING.of("@s").is_false(),])
-            .run("function example:dash");
+            .run("function example:dash")
+            .render();
         assert_eq!(cmds.len(), 1);
         assert_eq!(
             cmds[0],

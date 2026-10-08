@@ -1,3 +1,4 @@
+mod actions_support;
 use sand_macros::datapack_component;
 use sand_core::mcfunction;
 
@@ -9,7 +10,7 @@ fn handle_death() {
 }
 
 fn main() {
-    let cmds = handle_death();
+    let cmds = actions_support::emitted(handle_death());
     assert_eq!(cmds.len(), 1);
     assert_eq!(cmds[0], "say death handler");
 }

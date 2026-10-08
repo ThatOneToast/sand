@@ -1,3 +1,4 @@
+mod actions_support;
 use sand_macros::function;
 use sand_core::mcfunction;
 
@@ -9,7 +10,7 @@ fn bar() {
 }
 
 fn main() {
-    let cmds = bar();
+    let cmds = actions_support::emitted(bar());
     assert_eq!(cmds.len(), 1);
     assert_eq!(cmds[0], "say hello from foo/bar");
 }

@@ -83,19 +83,19 @@ fn statement_cfg_is_preserved(_query: Dead) {
 #[system]
 #[cfg_attr(debug_assertions, inline)]
 fn nongating_cfg_attr_stays_on_endpoint(query: Dead) {
-    query.each(|_dead| Vec::new());
+    query.each(|_dead| sand::command::Actions::default());
 }
 
 #[system]
 #[cfg_attr(debug_assertions, cfg(any()), inline)]
 fn mixed_cfg_attr_keeps_only_gate(query: MissingCfgAttrQuery) {
-    query.each(|_| Vec::new());
+    query.each(|_| sand::command::Actions::default());
 }
 
 #[system]
 #[cfg(any())]
 fn cfg_disabled_free_system(query: MissingFreeQuery) {
-    query.each(|_| Vec::new());
+    query.each(|_| sand::command::Actions::default());
 }
 
 struct DirectSystems;
@@ -188,7 +188,7 @@ impl DirectSystems {
     #[tick]
     #[cfg_attr(debug_assertions, inline)]
     fn nongating_cfg_attr_method(query: Dead) {
-        query.each(|_dead| Vec::new());
+        query.each(|_dead| sand::command::Actions::default());
     }
 }
 
@@ -212,13 +212,13 @@ impl DirectSystems {
     #[tick]
     #[cfg(any())]
     fn cfg_disabled_tick_method(query: MissingTickQuery) {
-        query.each(|_| Vec::new());
+        query.each(|_| sand::command::Actions::default());
     }
 
     #[event(MissingEvent)]
     #[cfg(any())]
     fn cfg_disabled_event_method(_event: MissingEvent, query: MissingEventQuery) {
-        query.each(|_| Vec::new());
+        query.each(|_| sand::command::Actions::default());
     }
 }
 
@@ -227,7 +227,7 @@ impl DirectSystems {
 impl MissingImplSystems {
     #[tick]
     fn cfg_disabled_impl(query: MissingImplQuery) {
-        query.each(|_| Vec::new());
+        query.each(|_| sand::command::Actions::default());
     }
 }
 
@@ -260,10 +260,10 @@ fn main() {
     let _: fn(DirectPulse) = DirectSystems::self_event_type;
     let _: fn(LivingHealth) = OtherDirectSystems::grouped_tick;
     let _: fn(DirectPulse, PlayerHealth) = OtherDirectSystems::current;
-    let _: Vec<String> = <EntityCombat as sand::__private::StateQuerySpec>::each(|combat| {
+    let _: Actions = <EntityCombat as sand::__private::StateQuerySpec>::each(|combat| {
         combat.health.health.add(1)
     });
-    let _: Vec<String> =
+    let _: Actions =
         <NestedEntityCombat as sand::__private::StateQuerySpec>::current(|nested| {
             nested.combat.health.health.add(1)
     });
@@ -276,13 +276,13 @@ fn source_level_methods(
     player: PlayerHealth,
     marker: Dead,
 ) {
-    let _: Vec<String> = entity.each(|health| health.health.add(1));
-    let _: Vec<String> = living.current(|health| health.health.add(1));
-    let _: Vec<String> = player.each(|health| health.health.add(1));
-    let _: Vec<String> = StateQueryOperations::each(&marker, |_dead| vec!["say dead".into()]);
+    let _: Actions = entity.each(|health| health.health.add(1));
+    let _: Actions = living.current(|health| health.health.add(1));
+    let _: Actions = player.each(|health| health.health.add(1));
+    let _: Actions = StateQueryOperations::each(&marker, |_dead| vec!["say dead".to_owned()]);
 }
 
 #[allow(dead_code)]
 fn source_level_bundle_methods(bundle: NestedEntityCombat) {
-    let _: Vec<String> = bundle.each(|nested| nested.combat.health.health.add(1));
+    let _: Actions = bundle.each(|nested| nested.combat.health.health.add(1));
 }

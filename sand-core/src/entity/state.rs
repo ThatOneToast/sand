@@ -2686,7 +2686,7 @@ fn keyed_path(path: &str) -> String {
 fn keyed_data_call(storage: &str, macro_body: String) -> Vec<String> {
     let path = crate::function::register_dyn_fn_dedup(
         "sand/state_data/keyed",
-        macro_body.lines().map(str::to_owned).collect(),
+        macro_body.lines().map(str::to_owned).collect::<Vec<_>>(),
     );
     let args = "__sand_owner";
     let mut commands = (0..4)
@@ -3330,6 +3330,20 @@ fn mutation<F: EntityStateField + ComponentDirtyField>(
     commands
 }
 
+// Bound State reads join the canonical expression model without losing the
+// source holder or converting its stored units into a second numeric type.
+impl<T: 'static> From<EntityScoreAccessor<T>> for super::StatCurve {
+    fn from(source: EntityScoreAccessor<T>) -> Self {
+        Self::bound_state(source.field, source.holder)
+    }
+}
+
+impl From<FixedScoreAccessor> for super::StatCurve {
+    fn from(source: FixedScoreAccessor) -> Self {
+        Self::bound_state(source.field, source.holder)
+    }
+}
+
 impl NumericStateSource for i32 {
     fn append_numeric_operation(
         self,
@@ -3870,7 +3884,7 @@ mod tests {
                 .iter()
                 .all(|command| !command.contains("data modify entity"))
         );
-        let helpers = crate::function::drain_dyn_fns();
+        let helpers = crate::ir::test_support::drain_emitted();
         assert_eq!(helpers.len(), 1);
         assert!(helpers[0].1[0].contains("owners[{uuid:[I;$(u0),$(u1),$(u2),$(u3)]}]"));
     }

@@ -1543,17 +1543,23 @@ fn validate_range(value: &str, field: &'static str, allow_float: bool) -> Comman
         if part.is_empty() {
             return Ok(None);
         }
-        let n = part.parse::<f64>().map_err(|_| {
-            CommandError::new("Selector", field, format!("invalid range bound `{part}`"))
-        })?;
-        validate::finite(n, "Selector", field)?;
-        if !allow_float && n.fract() != 0.0 {
-            return Err(CommandError::new(
-                "Selector",
-                field,
-                "range requires integer bounds",
-            ));
-        }
+        let invalid =
+            || CommandError::new("Selector", field, format!("invalid range bound `{part}`"));
+        let n = if allow_float {
+            let n = part.parse::<f64>().map_err(|_| invalid())?;
+            validate::finite(n, "Selector", field)?;
+            n
+        } else {
+            if !part
+                .strip_prefix('-')
+                .unwrap_or(part)
+                .bytes()
+                .all(|c| c.is_ascii_digit())
+            {
+                return Err(invalid());
+            }
+            f64::from(part.parse::<i32>().map_err(|_| invalid())?)
+        };
         Ok(Some(n))
     };
     let (min, max) = if let Some((a, b)) = value.split_once("..") {

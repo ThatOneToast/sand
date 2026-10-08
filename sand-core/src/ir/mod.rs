@@ -282,6 +282,7 @@ fn raw_command_may_return(line: &str) -> bool {
     let line = line.trim_start();
     let mut command = line.strip_prefix('$').unwrap_or(line);
     loop {
+        command = command.strip_prefix("minecraft:").unwrap_or(command);
         let verb = command.split_whitespace().next().unwrap_or("");
         match verb {
             "return" => return true,
@@ -420,6 +421,7 @@ mod tests {
     fn raw_return_detection_uses_command_positions() {
         for line in [
             "$say return $(name)",
+            "$minecraft:say return $(name)",
             "$execute if score @s return matches 1 run say return $(name)",
             r#"$tellraw @s {"text":"return $(name)"}"#,
             "say execute run return 0",
@@ -427,6 +429,9 @@ mod tests {
             assert!(!raw_command_may_return(line), "{line}");
         }
         for line in [
+            "$minecraft:return $(result)",
+            "$minecraft:execute as @s run return $(result)",
+            "$execute as @s run minecraft:return $(result)",
             "return fail",
             "$return $(result)",
             "$execute as @s run return $(result)",

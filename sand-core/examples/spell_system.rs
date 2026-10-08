@@ -54,7 +54,7 @@ fn tick_commands() -> sand_core::cmd::Actions {
 
 // ── Fireball spell ────────────────────────────────────────────────────────────
 
-fn fireball_commands() -> Vec<String> {
+fn fireball_commands() -> sand_core::cmd::Actions {
     let has_mana = MANA.of("@s").gte(30);
     let not_casting = CASTING.of("@s").is_false();
 
@@ -70,15 +70,15 @@ fn fireball_commands() -> Vec<String> {
             "{direction:[0.0,0.0,1.0],ExplosionPower:2}",
         ));
 
-    cmds.push(MANA.remove("@s", 30));
-    cmds.push(CASTING.enable("@s"));
-    cmds.push(ACTIVE_SPELL.set_string("fireball"));
+    cmds.extend([MANA.remove("@s", 30)]);
+    cmds.extend([CASTING.enable("@s")]);
+    cmds.extend([ACTIVE_SPELL.set_string("fireball")]);
     cmds
 }
 
 // ── Heal spell ────────────────────────────────────────────────────────────────
 
-fn heal_commands() -> Vec<String> {
+fn heal_commands() -> sand_core::cmd::Actions {
     let has_mana = MANA.of("@s").gte(20);
 
     TypedExecute::as_self_at_self().when(has_mana).run(
@@ -111,7 +111,7 @@ fn maybe_welcome_dialog(profile: &VersionProfile) -> Option<Dialog> {
 
 // ── Active spell default via NBT existence check ───────────────────────────────
 
-fn active_spell_init() -> Vec<String> {
+fn active_spell_init() -> sand_core::cmd::Actions {
     // If no active_spell stored yet, default it to "none"
     let has_active = ACTIVE_SPELL.exists();
     TypedExecute::as_self_at_self()
@@ -121,7 +121,7 @@ fn active_spell_init() -> Vec<String> {
 
 // ── Complex condition combinator showcase ─────────────────────────────────────
 
-fn complex_act_commands() -> Vec<String> {
+fn complex_act_commands() -> sand_core::cmd::Actions {
     let high_mana = MANA.of("@s").gte(50);
     let not_casting = CASTING.of("@s").is_false();
     let dash_ready = DASH_CD.ready("@s");
@@ -159,22 +159,22 @@ fn main() {
     }
 
     println!("\n--- fireball ---");
-    for cmd in fireball_commands() {
+    for cmd in emitted(fireball_commands()) {
         println!("  {cmd}");
     }
 
     println!("\n--- heal ---");
-    for cmd in heal_commands() {
+    for cmd in emitted(heal_commands()) {
         println!("  {cmd}");
     }
 
     println!("\n--- active_spell init (NBT existence) ---");
-    for cmd in active_spell_init() {
+    for cmd in emitted(active_spell_init()) {
         println!("  {cmd}");
     }
 
     println!("\n--- complex act condition (any/all nesting) ---");
-    for cmd in complex_act_commands() {
+    for cmd in emitted(complex_act_commands()) {
         println!("  {cmd}");
     }
 

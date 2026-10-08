@@ -57,6 +57,27 @@ class Programs(unittest.TestCase):
                                   "--output", str(self.cwd / "split"), "--include-files"])
         self.assertEqual({key: value.encode() for key, value in response["file_contents"].items()}, GOLDEN)
 
+    def test_long_owners_publish_helpers_with_bounded_path_segments(self):
+        program = counter()
+        module = program["modules"][0]
+        module["id"] = "demo:" + "a" * 100 + "/" + "b" * 100
+        players = {"action": {"op": "players", "body": []}}
+        module["functions"] = [
+            {"id": "demo:" + "c" * 180 + "/" + suffix,
+             "context": "server", "body": [players]}
+            for suffix in ["first", "second"]
+        ]
+        module["tags"] = []
+        module["load"] = [players]
+        module["tick"] = [players]
+        files = self.compile(program)
+        helpers = [path for path in files if "/__sand_program/" in path]
+        self.assertEqual(len(helpers), 4)
+        for path in helpers:
+            self.assertTrue(all(len(part.encode()) <= 255 for part in path.split("/")))
+        module["functions"].reverse()
+        self.assertEqual(self.compile(program, "reversed"), files)
+
     def test_domain_schemas_resolve_entirely_offline(self):
         root = ROOT / "schemas/program"
         registry = Registry().with_resources(

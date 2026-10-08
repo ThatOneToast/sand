@@ -474,3 +474,56 @@ fn lifecycle_helpers_are_owned_by_the_pack_namespace() {
     }
     assert_ne!(helper_paths[0], helper_paths[1]);
 }
+
+#[test]
+fn long_owner_ids_generate_bounded_distinct_and_order_independent_helpers() {
+    let mut program = counter();
+    let players = operation(Action::Players { body: vec![] });
+    let module = &mut program.modules[0];
+    module.id = format!("demo:{}/{}", "a".repeat(100), "b".repeat(100))
+        .parse()
+        .unwrap();
+    module.functions.clear();
+    module.tags.clear();
+    module.load = vec![players.clone()];
+    module.tick = vec![players.clone()];
+    for suffix in ["first", "second"] {
+        module.functions.push(Function {
+            id: format!("demo:{}/{suffix}", "a".repeat(180))
+                .parse()
+                .unwrap(),
+            context: ExecutionContext::Server,
+            body: vec![players.clone()],
+        });
+    }
+    let expected = Compiler::compile(&program).unwrap().resources;
+    let helpers: Vec<_> = expected
+        .keys()
+        .filter(|path| path.contains("/__sand_program/"))
+        .collect();
+    assert_eq!(helpers.len(), 4);
+    for path in helpers {
+        assert!(
+            path.split('/').all(|segment| segment.len() <= 255),
+            "{path}"
+        );
+        assert!(path.len() < 1024, "{path}");
+    }
+    program.modules[0].functions.reverse();
+    assert_eq!(Compiler::compile(&program).unwrap().resources, expected);
+}
+
+#[test]
+fn authored_resource_names_include_the_extension_in_the_filesystem_limit() {
+    let mut program = counter();
+    program.modules[0].tags.clear();
+    program.modules[0].functions = vec![Function {
+        id: format!("demo:{}", "x".repeat(244)).parse().unwrap(),
+        context: ExecutionContext::Server,
+        body: vec![],
+    }];
+    Compiler::check(&program).unwrap();
+    program.modules[0].functions[0].id = format!("demo:{}", "x".repeat(245)).parse().unwrap();
+    let errors = Compiler::check(&program).unwrap_err();
+    assert!(errors.iter().any(|error| error.code == "SAND_PROGRAM_PATH"));
+}

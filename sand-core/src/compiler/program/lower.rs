@@ -1,7 +1,7 @@
 //! Typed gameplay lowering with local, deterministic helper allocation.
 use super::{diagnostic::Diagnostic, limits, model::*};
 use crate::compiler::export::{
-    lifecycle,
+    identities, lifecycle,
     records::{self, ComponentRecord},
     tags,
 };
@@ -38,8 +38,38 @@ pub(super) fn lower(
     })?;
     let init = (!automatic.player_init_commands.is_empty())
         .then(|| format!("{}:__sand_lifecycle_init", program.pack.namespace));
+    let owners: Vec<String> = program
+        .modules
+        .iter()
+        .flat_map(|module| {
+            module
+                .functions
+                .iter()
+                .map(|function| function.id.to_string())
+                .chain([
+                    format!("module/{}/load", module.id),
+                    format!("module/{}/tick", module.id),
+                ])
+        })
+        .collect();
+    let helper_keys = identities::allocate_collision_safe_keys(
+        owners.iter().map(String::as_str),
+        |owner, attempt| {
+            sand_commands::scoreboard::hash_objective_name(&format!("{owner}#{attempt}"))
+        },
+        |_, _| Ok(()),
+        |owner, previous, key| {
+            vec![Diagnostic::error(
+                "SAND_PROGRAM_COLLISION",
+                "",
+                "",
+                format!("portable helper key `{key}` collides between `{owner}` and `{previous}`"),
+            )]
+        },
+    )?;
     let mut lower = Lower {
         namespace: program.pack.namespace.clone(),
+        helper_keys,
         records: Vec::new(),
         init,
         bytes: 0,
@@ -146,6 +176,14 @@ fn insert_output(
     path: String,
     bytes: Vec<u8>,
 ) -> Result<(), Vec<Diagnostic>> {
+    if path.split('/').any(|segment| segment.len() > 255) {
+        return Err(vec![Diagnostic::error(
+            "SAND_PROGRAM_PATH",
+            "",
+            "",
+            format!("generated resource path segment exceeds 255 bytes: `{path}`"),
+        )]);
+    }
     if output.len() >= limits::RESOURCES
         || bytes.len() > limits::DOCUMENT_BYTES
         || output.values().map(Vec::len).sum::<usize>() + bytes.len() > limits::OUTPUT_BYTES
@@ -186,13 +224,14 @@ fn objective(score: &FieldReference) -> String {
         .as_str()
         .to_owned()
 }
-fn helper(namespace: &str, owner: &str, path: &str, role: &str) -> String {
-    // Injective hex encoding avoids ambiguity between namespace/path segments.
-    let identity: String = owner.bytes().map(|byte| format!("{byte:02x}")).collect();
-    format!("{namespace}:__sand_program/{identity}/{path}/{role}")
+fn helper(namespace: &str, key: &str, path: &str, role: &str) -> String {
+    // Export-local allocation bounds this segment while detecting and resolving
+    // hash collisions independently of declaration order.
+    format!("{namespace}:__sand_program/{key}/{path}/{role}")
 }
 struct Lower {
     namespace: String,
+    helper_keys: BTreeMap<String, String>,
     records: Vec<ComponentRecord>,
     init: Option<String>,
     bytes: usize,
@@ -272,7 +311,8 @@ impl Lower {
                     {
                         reference_id(function)
                     } else {
-                        let id = helper(&self.namespace, owner, &path, "players");
+                        let id =
+                            helper(&self.namespace, &self.helper_keys[owner], &path, "players");
                         let mut lines = self.body(
                             body,
                             owner,
@@ -298,9 +338,15 @@ impl Lower {
                     then,
                     otherwise,
                 } => {
-                    let yes = helper(&self.namespace, owner, &path, "then");
-                    let no = helper(&self.namespace, owner, &path, "otherwise");
-                    let decision = helper(&self.namespace, owner, &path, "branch");
+                    let yes = helper(&self.namespace, &self.helper_keys[owner], &path, "then");
+                    let no = helper(
+                        &self.namespace,
+                        &self.helper_keys[owner],
+                        &path,
+                        "otherwise",
+                    );
+                    let decision =
+                        helper(&self.namespace, &self.helper_keys[owner], &path, "branch");
                     let yes_body = self.body(
                         then,
                         owner,

@@ -185,7 +185,7 @@ pub fn grapple_core_recipe() -> ShapedRecipe {
 
 // ANCHOR: entity_capabilities
 /// A façade-only example that discovers entity operations from the context.
-pub fn capability_facade_example() -> Vec<String> {
+pub fn capability_facade_example() -> Actions {
     let active = EntityTag::new("trail_active").unwrap();
 
     Target::players().each(|player| {

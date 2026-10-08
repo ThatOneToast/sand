@@ -241,8 +241,8 @@ single State operation directly, or use `mcfunction!` to combine operations:
 ```rust
 query.each(|fighter| {
     mcfunction![
-        fighter.combat.attack.damage.add(1),
-        fighter.status(|status| status.poison_time.tick()),
+        fighter.combat.attack.damage.add(1);
+        fighter.status(|status| status.poison_time.tick());
     ]
 });
 ```

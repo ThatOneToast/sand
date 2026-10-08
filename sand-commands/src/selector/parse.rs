@@ -1,0 +1,158 @@
+//! Parse supported legacy selector text into the canonical typed selector.
+//! Unknown grammar stays rejected at checked score-holder boundaries.
+use super::*;
+
+pub(super) fn selector(value: &str) -> Option<Selector> {
+    if value.chars().any(char::is_control) {
+        return None;
+    }
+    let (base, arguments) = value.split_once('[')?;
+    let arguments = arguments.strip_suffix(']')?;
+    let mut selector = match base {
+        "@s" => Selector::self_(),
+        "@p" => Selector::nearest_player(),
+        "@r" => Selector::random_player(),
+        "@a" => Selector::all_players(),
+        "@e" => Selector::all_entities(),
+        _ => return None,
+    };
+    if arguments.is_empty() {
+        return Some(selector);
+    }
+    for argument in split_arguments(arguments)? {
+        let (key, value) = argument.split_once('=')?;
+        let key = key.trim();
+        let value = value.trim();
+        let negated = value.strip_prefix('!');
+        selector.args.push(match key {
+            "tag" => negated.map_or_else(
+                || SelectorArg::Tag(value.into()),
+                |v| SelectorArg::NotTag(v.into()),
+            ),
+            "team" => negated.map_or_else(
+                || SelectorArg::Team(value.into()),
+                |v| SelectorArg::NotTeam(v.into()),
+            ),
+            "name" => negated.map_or_else(
+                || SelectorArg::Name(value.into()),
+                |v| SelectorArg::NotName(v.into()),
+            ),
+            "type" => negated.map_or_else(
+                || SelectorArg::Type(value.into()),
+                |v| SelectorArg::NotType(v.into()),
+            ),
+            "limit" => SelectorArg::Limit(value.parse().ok()?),
+            "sort" => SelectorArg::Sort(match value {
+                "nearest" => SortOrder::Nearest,
+                "furthest" => SortOrder::Furthest,
+                "random" => SortOrder::Random,
+                "arbitrary" => SortOrder::Arbitrary,
+                _ => return None,
+            }),
+            "distance" => SelectorArg::Distance(value.into()),
+            "level" => SelectorArg::Level(value.into()),
+            "x_rotation" => SelectorArg::XRotation(value.into()),
+            "y_rotation" => SelectorArg::YRotation(value.into()),
+            "gamemode" => SelectorArg::Gamemode(value.into()),
+            "scores" => SelectorArg::Scores(value.strip_prefix('{')?.strip_suffix('}')?.into()),
+            "nbt" => SelectorArg::Nbt(value.into()),
+            "predicate" => SelectorArg::Predicate(value.into()),
+            "x" => SelectorArg::X(value.parse().ok()?),
+            "y" => SelectorArg::Y(value.parse().ok()?),
+            "z" => SelectorArg::Z(value.parse().ok()?),
+            "dx" => SelectorArg::Dx(value.parse().ok()?),
+            "dy" => SelectorArg::Dy(value.parse().ok()?),
+            "dz" => SelectorArg::Dz(value.parse().ok()?),
+            _ => return None,
+        });
+    }
+    Some(selector)
+}
+
+// Commas inside score maps, SNBT lists/compounds, and quoted strings are values,
+// not selector argument separators. Reject unbalanced or trailing syntax.
+fn split_arguments(value: &str) -> Option<Vec<&str>> {
+    let mut parts = Vec::new();
+    let mut start = 0;
+    let mut nested = Vec::new();
+    let mut quote = None;
+    let mut escaped = false;
+    for (index, character) in value.char_indices() {
+        if let Some(delimiter) = quote {
+            if escaped {
+                escaped = false;
+            } else if character == '\\' {
+                escaped = true;
+            } else if character == delimiter {
+                quote = None;
+            }
+            continue;
+        }
+        match character {
+            '\'' | '"' => quote = Some(character),
+            '{' => nested.push('}'),
+            '[' => nested.push(']'),
+            '}' | ']' => {
+                if nested.pop()? != character {
+                    return None;
+                }
+            }
+            ',' if nested.is_empty() => {
+                parts.push(&value[start..index]);
+                start = index + 1;
+            }
+            _ => {}
+        }
+    }
+    if quote.is_some() || !nested.is_empty() || escaped {
+        return None;
+    }
+    parts.push(&value[start..]);
+    Some(parts)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::ScoreHolder;
+
+    #[test]
+    fn parsed_single_selectors_retain_supported_filters() {
+        for value in [
+            "@e[type=minecraft:zombie,limit=1]",
+            "@p[tag=ready]",
+            "@a[scores={mana=1..,health=..20},limit=1]",
+            "@e[nbt={Text:'a,b',Values:[1,2]},limit=1]",
+        ] {
+            let parsed = selector(value).expect("supported selector syntax");
+            parsed.validate(&CommandProfile::unprofiled()).unwrap();
+            assert_eq!(parsed.to_string(), value);
+            ScoreHolder::compat(value.into())
+                .validate_single(&CommandProfile::unprofiled())
+                .unwrap();
+        }
+    }
+
+    #[test]
+    fn parsing_does_not_turn_ambiguous_or_invalid_text_into_single_holders() {
+        for value in [
+            "@e[type=minecraft:zombie]",
+            "@e[limit=2]",
+            "@e[limit=1,limit=2]",
+            "@e[nbt={Text:'limit=1'}]",
+            "@e[limit=1] run say injected",
+            "@e[limit=1]\nkill @s",
+            "@e[nbt={Text:'a,b},limit=1]",
+            "@e[unknown=true,limit=1]",
+            "@e[limit=1,]",
+            "@e[nbt={x:[1,2}},limit=1]",
+        ] {
+            assert!(
+                ScoreHolder::compat(value.into())
+                    .validate_single(&CommandProfile::unprofiled())
+                    .is_err(),
+                "{value}"
+            );
+        }
+    }
+}

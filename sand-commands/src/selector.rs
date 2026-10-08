@@ -1,5 +1,7 @@
 //! Entity/player selector (`@a`, `@e`, `@s`, etc.) with a typed builder API.
 
+mod parse;
+
 use std::fmt;
 use std::marker::PhantomData;
 
@@ -737,6 +739,10 @@ impl fmt::Display for SelectorArg {
 // ── Constructor methods ───────────────────────────────────────────────────────
 
 impl Selector {
+    pub(crate) fn parse_compat(value: &str) -> Option<Self> {
+        parse::selector(value)
+    }
+
     /// `@a` — all players currently connected to the server.
     pub fn all_players() -> Self {
         Self {

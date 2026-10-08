@@ -8,24 +8,21 @@
 
 use std::collections::{BTreeMap, BTreeSet};
 
-use super::records::ExportResult;
-use crate::component::ComponentExportError;
-
 /// Number of deterministic candidates available to one logical owner.
 pub(crate) const IDENTITY_PROBE_LIMIT: u32 = 64;
 
 /// Allocate one unique generated key for each logical owner.
-pub(crate) fn allocate_collision_safe_keys<'a, I, S, V, C>(
+pub(crate) fn allocate_collision_safe_keys<'a, I, S, V, C, E>(
     owners: I,
     source: S,
     validate: V,
     collision: C,
-) -> ExportResult<BTreeMap<String, String>>
+) -> Result<BTreeMap<String, String>, E>
 where
     I: IntoIterator<Item = &'a str>,
     S: Fn(&str, u32) -> String,
-    V: Fn(&str, &str) -> ExportResult<()>,
-    C: Fn(&str, &str, &str) -> ComponentExportError,
+    V: Fn(&str, &str) -> Result<(), E>,
+    C: Fn(&str, &str, &str) -> E,
 {
     let unique: BTreeSet<&str> = owners.into_iter().collect();
     let mut claimed: BTreeMap<String, &str> = BTreeMap::new();
@@ -57,6 +54,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::component::ComponentExportError;
 
     fn error(owner: &str, previous: &str, key: &str) -> ComponentExportError {
         ComponentExportError::ComponentValidation {

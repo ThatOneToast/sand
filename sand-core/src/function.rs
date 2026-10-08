@@ -15,6 +15,7 @@ pub(crate) const SAND_LOCAL_NS: &str = "__sand_local";
 ///   string literals and dynamic [`crate::Command`] builder values.
 pub struct FunctionDescriptor {
     pub path: &'static str,
+    pub context: crate::advanced::compiler::ExecutionContext,
     pub make: fn() -> Vec<String>,
 }
 

@@ -16,3 +16,5 @@ sand-vanilla-audit/dist
 scripts/vanilla-semantic-client/node_modules/
 __pycache__/
 *.py[cod]
+
+examples/portable_counter/dist/

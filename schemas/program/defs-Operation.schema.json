@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "A gameplay operation with optional host-provided source provenance.",
+  "properties": {
+    "action": {
+      "$ref": "defs-Action.schema.json",
+      "description": "Typed operation performed in the current executor context."
+    },
+    "origin": {
+      "description": "DSL span or editor node/port metadata; never part of resource identity."
+    }
+  },
+  "required": [
+    "action"
+  ],
+  "type": "object"
+}

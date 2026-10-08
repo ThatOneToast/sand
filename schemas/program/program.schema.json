@@ -1,0 +1,48 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "A complete compilation request with explicit protocol and target metadata.",
+  "properties": {
+    "format": {
+      "description": "Must be `sand.program`.",
+      "type": "string"
+    },
+    "format_version": {
+      "description": "Portable protocol revision; currently 1.",
+      "format": "uint32",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "modules": {
+      "description": "Flat module declarations. Resolved programs contain no paths.",
+      "items": {
+        "$ref": "defs-ModuleSource.schema.json"
+      },
+      "type": "array"
+    },
+    "pack": {
+      "$ref": "defs-Pack.schema.json",
+      "description": "Pack identity and description."
+    },
+    "requires": {
+      "description": "Capabilities required by this input, checked independently of actual use.",
+      "items": {
+        "type": "string"
+      },
+      "type": "array"
+    },
+    "target": {
+      "$ref": "defs-ProgramTarget.schema.json",
+      "description": "Exact verified Minecraft release."
+    }
+  },
+  "required": [
+    "format",
+    "format_version",
+    "target",
+    "pack",
+    "modules"
+  ],
+  "title": "Program",
+  "type": "object"
+}

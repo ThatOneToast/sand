@@ -83,6 +83,9 @@ jobs:
       - name: Workspace tests
         run: cargo test --workspace --all-features --verbose
 
+      - name: Portable program frontends and schema drift
+        run: scripts/check-program.sh
+
       - name: External registration consumer (sand-only)
         run: |
           cargo fmt --manifest-path sand/tests/fixtures/registration/Cargo.toml -- --check

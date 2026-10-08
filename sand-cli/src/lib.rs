@@ -29,3 +29,6 @@ pub mod project_context;
 pub mod run_cmd;
 #[doc(hidden)]
 pub mod scaffold;
+
+#[doc(hidden)]
+pub mod program;

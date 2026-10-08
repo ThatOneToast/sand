@@ -1,0 +1,49 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "A function reference distinguishes locally checked and external behavior.",
+  "oneOf": [
+    {
+      "additionalProperties": false,
+      "description": "Resolves against this complete program before emission.",
+      "properties": {
+        "id": {
+          "description": "Function identity declared in any module.",
+          "type": "string"
+        },
+        "kind": {
+          "const": "internal",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "id"
+      ],
+      "type": "object"
+    },
+    {
+      "additionalProperties": false,
+      "description": "Explicit interoperability; existence and behavior cannot be verified.",
+      "properties": {
+        "context": {
+          "$ref": "defs-ExecutionContext.schema.json",
+          "description": "Context required by the external implementation."
+        },
+        "id": {
+          "description": "External function identity.",
+          "type": "string"
+        },
+        "kind": {
+          "const": "external",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "id",
+        "context"
+      ],
+      "type": "object"
+    }
+  ]
+}

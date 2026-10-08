@@ -1,0 +1,50 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "One named owner of declarations and ordered lifecycle contributions.",
+  "properties": {
+    "functions": {
+      "description": "Named functions, including declarations unreachable from tags.",
+      "items": {
+        "$ref": "defs-Function.schema.json"
+      },
+      "type": "array"
+    },
+    "id": {
+      "description": "Explicit semantic identity, independent of source filename.",
+      "type": "string"
+    },
+    "load": {
+      "description": "Server-context bodies run at load in authored order.",
+      "items": {
+        "$ref": "defs-Operation.schema.json"
+      },
+      "type": "array"
+    },
+    "states": {
+      "description": "Player State definitions owned by this module.",
+      "items": {
+        "$ref": "defs-State.schema.json"
+      },
+      "type": "array"
+    },
+    "tags": {
+      "description": "Typed function-tag membership.",
+      "items": {
+        "$ref": "defs-TagMembership.schema.json"
+      },
+      "type": "array"
+    },
+    "tick": {
+      "description": "Server-context bodies run each tick in authored order.",
+      "items": {
+        "$ref": "defs-Operation.schema.json"
+      },
+      "type": "array"
+    }
+  },
+  "required": [
+    "id"
+  ],
+  "type": "object"
+}

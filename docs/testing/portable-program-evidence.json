@@ -1,0 +1,83 @@
+{
+  "minecraft": "26.2",
+  "tick_mode": "frozen automatic ticks; three explicitly invoked lifecycle/tick pairs",
+  "checks": {
+    "server_startup": {
+      "passed": true,
+      "evidence": "[20:25:45] [Server thread/INFO]: Selecting global world spawn...\n[20:25:46] [Server thread/INFO]: Loading 0 persistent chunks...\n[20:25:46] [Server thread/INFO]: Preparing spawn area: 100%\n[20:25:46] [Server thread/INFO]: Time elapsed: 1503 ms\n[20:25:46] [Server thread/INFO]: Done (1.710s)! For help, type \"help\"\n"
+    },
+    "pack_loaded": {
+      "passed": true,
+      "evidence": [
+        "There are 3 data pack(s) enabled: [vanilla (built-in)], [file/demo (world)], [file/portable_audit (world)]There are no more data packs available"
+      ]
+    },
+    "automatic_ticks_frozen": {
+      "passed": true,
+      "evidence": "The game is frozen"
+    },
+    "two_real_players_explicit_ticks": {
+      "passed": true,
+      "evidence": {
+        "#done": 1,
+        "#direct": 1,
+        "#presence": 1,
+        "#one": 4,
+        "#two": 3
+      }
+    },
+    "reload_preserves_scores": {
+      "passed": true,
+      "evidence": {
+        "before": [
+          4,
+          3
+        ],
+        "after": [
+          4,
+          3
+        ]
+      }
+    },
+    "joining_player_isolated": {
+      "passed": true,
+      "evidence": [
+        1,
+        4,
+        3
+      ]
+    }
+  },
+  "server_log_tail": [
+    "[20:25:50] [RCON Client /127.0.0.1 #16/INFO]: Thread RCON Client /127.0.0.1 shutting down\n",
+    "[20:25:50] [RCON Listener #1/INFO]: Thread RCON Client /127.0.0.1 started\n",
+    "[20:25:50] [RCON Client /127.0.0.1 #17/INFO]: Thread RCON Client /127.0.0.1 shutting down\n",
+    "[20:25:50] [Server thread/INFO]: CounterNew[/127.0.0.1:50237] logged in with entity id 33 at (9.5, 75.0, -4.5)\n",
+    "[20:25:50] [Server thread/INFO]: CounterNew joined the game\n",
+    "[20:25:50] [RCON Listener #1/INFO]: Thread RCON Client /127.0.0.1 started\n",
+    "[20:25:50] [Server thread/INFO]: [CounterNew: Running function demo:increment]\n",
+    "[20:25:50] [RCON Client /127.0.0.1 #18/INFO]: Thread RCON Client /127.0.0.1 shutting down\n",
+    "[20:25:50] [Server thread/INFO]: CounterNew lost connection: Timed out\n",
+    "[20:25:50] [Server thread/INFO]: CounterNew left the game\n",
+    "[20:25:50] [RCON Listener #1/INFO]: Thread RCON Client /127.0.0.1 started\n",
+    "[20:25:50] [RCON Client /127.0.0.1 #19/INFO]: Thread RCON Client /127.0.0.1 shutting down\n",
+    "[20:25:50] [RCON Listener #1/INFO]: Thread RCON Client /127.0.0.1 started\n",
+    "[20:25:50] [RCON Client /127.0.0.1 #20/INFO]: Thread RCON Client /127.0.0.1 shutting down\n",
+    "[20:25:50] [RCON Listener #1/INFO]: Thread RCON Client /127.0.0.1 started\n",
+    "[20:25:50] [RCON Client /127.0.0.1 #21/INFO]: Thread RCON Client /127.0.0.1 shutting down\n",
+    "[20:25:50] [RCON Listener #1/INFO]: Thread RCON Client /127.0.0.1 started\n",
+    "[20:25:50] [Server thread/INFO]: [Rcon: Stopping the server]\n",
+    "[20:25:50] [RCON Client /127.0.0.1 #22/INFO]: Thread RCON Client /127.0.0.1 shutting down\n",
+    "[20:25:50] [Server thread/INFO]: Stopping server\n",
+    "[20:25:50] [Server thread/INFO]: Saving players\n",
+    "[20:25:50] [Server thread/INFO]: Saving worlds\n",
+    "[20:25:50] [Server thread/INFO]: Saving chunks for level 'ServerLevel[world]'/minecraft:overworld\n",
+    "[20:25:50] [Server thread/INFO]: Saving chunks for level 'ServerLevel[world]'/minecraft:the_end\n",
+    "[20:25:50] [Server thread/INFO]: Saving chunks for level 'ServerLevel[world]'/minecraft:the_nether\n",
+    "[20:25:50] [Server thread/INFO]: ThreadedAnvilChunkStorage (world): All chunks are saved\n",
+    "[20:25:50] [Server thread/INFO]: ThreadedAnvilChunkStorage (DIM1): All chunks are saved\n",
+    "[20:25:50] [Server thread/INFO]: ThreadedAnvilChunkStorage (DIM-1): All chunks are saved\n",
+    "[20:25:50] [Server thread/INFO]: ThreadedAnvilChunkStorage: All dimensions are saved\n",
+    "[20:25:50] [Server thread/INFO]: Thread RCON Listener stopped\n"
+  ]
+}

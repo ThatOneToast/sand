@@ -1,0 +1,52 @@
+{
+  "id": "demo:counter_module",
+  "functions": [
+    {
+      "id": "demo:tick",
+      "context": "server",
+      "body": [
+        {
+          "action": {
+            "op": "players",
+            "body": [
+              {
+                "action": {
+                  "op": "call",
+                  "function": {
+                    "kind": "internal",
+                    "id": "demo:increment"
+                  }
+                }
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "demo:increment",
+      "context": "player",
+      "body": [
+        {
+          "action": {
+            "op": "score_add",
+            "score": {
+              "state": "demo:counter",
+              "field": "value"
+            },
+            "value": 1
+          }
+        }
+      ]
+    }
+  ],
+  "tags": [
+    {
+      "tag": "minecraft:tick",
+      "function": {
+        "kind": "internal",
+        "id": "demo:tick"
+      }
+    }
+  ]
+}

@@ -1,0 +1,78 @@
+{
+  "format": "sand.program",
+  "format_version": 1,
+  "target": {
+    "minecraft": "26.2"
+  },
+  "pack": {
+    "namespace": "demo",
+    "description": "Player counter"
+  },
+  "modules": [
+    {
+      "id": "demo:counter_module",
+      "states": [
+        {
+          "id": "demo:counter",
+          "scope": "player",
+          "revision": 1,
+          "fields": [
+            {
+              "name": "value",
+              "default": 0
+            }
+          ]
+        }
+      ],
+      "functions": [
+        {
+          "id": "demo:tick",
+          "context": "server",
+          "body": [
+            {
+              "action": {
+                "op": "players",
+                "body": [
+                  {
+                    "action": {
+                      "op": "call",
+                      "function": {
+                        "kind": "internal",
+                        "id": "demo:increment"
+                      }
+                    }
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "id": "demo:increment",
+          "context": "server",
+          "body": [
+            {
+              "action": {
+                "op": "score_add",
+                "score": {
+                  "state": "demo:counter",
+                  "field": "value"
+                },
+                "value": 1
+              }
+            }
+          ]
+        }
+      ],
+      "tags": [
+        {
+          "tag": "minecraft:tick",
+          "function": {
+            "kind": "internal",
+            "id": "demo:tick"
+          }
+        }
+      ]
+    }
+  ]
+}

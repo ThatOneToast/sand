@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "A typed membership edge; load/tick tags require server-callable functions.",
+  "properties": {
+    "function": {
+      "$ref": "defs-FunctionReference.schema.json",
+      "description": "Internal or external member function."
+    },
+    "tag": {
+      "description": "Function tag identity.",
+      "type": "string"
+    }
+  },
+  "required": [
+    "tag",
+    "function"
+  ],
+  "type": "object"
+}

@@ -6,3 +6,5 @@
 //! under [`export`]. The public paths in [`crate::component`] are unchanged.
 
 pub(crate) mod export;
+
+pub(crate) mod program;

@@ -145,6 +145,9 @@ pub enum Cmd {
     /// `function <id>`
     Function(String),
 
+    /// Return immediately with the result of one nested command.
+    ReturnRun(Box<Cmd>),
+
     /// `scoreboard objectives add <objective> <criterion>`
     ScoreDefine {
         objective: String,
@@ -174,6 +177,7 @@ impl Cmd {
             Self::Raw(s) => s.clone(),
 
             Self::Function(id) => format!("function {id}"),
+            Self::ReturnRun(command) => format!("return run {}", command.try_render()?),
 
             Self::ScoreDefine {
                 objective,

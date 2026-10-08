@@ -1,0 +1,141 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "Supported typed gameplay operations. Raw commands require explicit opt-in.",
+  "oneOf": [
+    {
+      "additionalProperties": false,
+      "description": "Assign an integer player-self State field.",
+      "properties": {
+        "op": {
+          "const": "score_set",
+          "type": "string"
+        },
+        "score": {
+          "$ref": "defs-FieldReference.schema.json"
+        },
+        "value": {
+          "format": "int32",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "op",
+        "score",
+        "value"
+      ],
+      "type": "object"
+    },
+    {
+      "additionalProperties": false,
+      "description": "Add an integer to a player-self State field.",
+      "properties": {
+        "op": {
+          "const": "score_add",
+          "type": "string"
+        },
+        "score": {
+          "$ref": "defs-FieldReference.schema.json"
+        },
+        "value": {
+          "format": "int32",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "op",
+        "score",
+        "value"
+      ],
+      "type": "object"
+    },
+    {
+      "additionalProperties": false,
+      "description": "Evaluate the comparison once and execute exactly one ordered body.",
+      "properties": {
+        "condition": {
+          "$ref": "defs-ScoreComparison.schema.json"
+        },
+        "op": {
+          "const": "branch",
+          "type": "string"
+        },
+        "otherwise": {
+          "default": [],
+          "items": {
+            "$ref": "defs-Operation.schema.json"
+          },
+          "type": "array"
+        },
+        "then": {
+          "items": {
+            "$ref": "defs-Operation.schema.json"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "op",
+        "condition",
+        "then"
+      ],
+      "type": "object"
+    },
+    {
+      "additionalProperties": false,
+      "description": "Execute the body as each player without changing positional context.",
+      "properties": {
+        "body": {
+          "items": {
+            "$ref": "defs-Operation.schema.json"
+          },
+          "type": "array"
+        },
+        "op": {
+          "const": "players",
+          "type": "string"
+        }
+      },
+      "required": [
+        "op",
+        "body"
+      ],
+      "type": "object"
+    },
+    {
+      "additionalProperties": false,
+      "description": "Invoke a named function with a checked execution-context requirement.",
+      "properties": {
+        "function": {
+          "$ref": "defs-FunctionReference.schema.json"
+        },
+        "op": {
+          "const": "call",
+          "type": "string"
+        }
+      },
+      "required": [
+        "op",
+        "function"
+      ],
+      "type": "object"
+    },
+    {
+      "additionalProperties": false,
+      "description": "Explicit escape hatch; only command-line safety and syntax are checked.",
+      "properties": {
+        "command": {
+          "type": "string"
+        },
+        "op": {
+          "const": "raw",
+          "type": "string"
+        }
+      },
+      "required": [
+        "op",
+        "command"
+      ],
+      "type": "object"
+    }
+  ]
+}

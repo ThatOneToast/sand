@@ -3,6 +3,7 @@ mod explain;
 mod export;
 pub mod output_manifest;
 pub mod package;
+pub mod publication;
 pub mod records;
 pub mod timing;
 pub mod validate;
@@ -24,7 +25,7 @@ use crate::pack_format::pack_format_for;
 use config::{cargo_target_dir, resolve_mc_version};
 use explain::{RebuildExplanation, observe_exporter_rebuild};
 use export::{ExportBuildPlan, Exporter, run_exporter};
-use output_manifest::{ChangeSummary, OutputManifest};
+use output_manifest::ChangeSummary;
 use package::zip_dir;
 use records::ComponentRecord;
 use timing::{Phase, Timings};
@@ -354,18 +355,10 @@ pub fn run_with_options(options: BuildOptions) -> Result<()> {
         worldbuild_output.as_ref(),
     )?;
 
-    // 6-7. Write pack.mcmeta and every generated file through the output
-    //    manifest (issue #347 Phase 7): unchanged content is left untouched
-    //    (mtime included), changed content is rewritten atomically, and
-    //    anything the previous build wrote that this build no longer
-    //    produces is removed. See output_manifest.rs.
+    // Publish the fully validated output set as one staged transaction.
+    // Ownership checks preserve unrelated files and reject edited outputs.
     let change_summary = timings.record(Phase::DatapackWriting, || {
-        std::fs::create_dir_all(&dist)?;
-        let mut manifest = OutputManifest::load(&dist);
-        for (rel_path, bytes) in &outputs {
-            manifest.write_if_changed(rel_path, bytes)?;
-        }
-        manifest.finish()
+        publication::publish_pack(&dist, &outputs)
     })?;
 
     write_server_config(&dist, worldbuild_output.as_ref())?;
@@ -640,7 +633,6 @@ fn merge_function_tag_json(existing: &str, addition: &str) -> Result<String> {
 mod tests {
     use std::path::{Path, PathBuf};
 
-    use super::output_manifest::OutputManifest;
     use super::package::zip_dir;
     use super::records::{ComponentContentType, ComponentRecord, OutputExt};
     use super::validate::{
@@ -718,7 +710,7 @@ mod tests {
 
     #[test]
     fn worldbuild_outputs_share_manifest_ownership_and_prune_across_profiles() {
-        let dir = tempfile::tempdir().unwrap();
+        let dir = tempfile::tempdir_in(std::env::temp_dir().canonicalize().unwrap()).unwrap();
         let config = parse_config("audit").unwrap();
         let dev = WorldBuildOutput {
             resources: vec![world_resource("dimension", "dev_only", "{}")],
@@ -729,21 +721,12 @@ mod tests {
         let dev_outputs =
             prepare_datapack_outputs(dir.path(), &config, 61, &[], Some(&dev)).unwrap();
         let pack_root = dir.path().join("dist/audit");
-        std::fs::create_dir_all(&pack_root).unwrap();
-        let mut first = OutputManifest::load(&pack_root);
-        for (path, bytes) in dev_outputs {
-            first.write_if_changed(&path, &bytes).unwrap();
-        }
-        first.finish().unwrap();
+        super::publication::publish_pack(&pack_root, &dev_outputs).unwrap();
         let stale = pack_root.join("data/audit/dimension/dev_only.json");
         assert!(stale.exists());
 
         let release_outputs = prepare_datapack_outputs(dir.path(), &config, 61, &[], None).unwrap();
-        let mut second = OutputManifest::load(&pack_root);
-        for (path, bytes) in release_outputs {
-            second.write_if_changed(&path, &bytes).unwrap();
-        }
-        let summary = second.finish().unwrap();
+        let summary = super::publication::publish_pack(&pack_root, &release_outputs).unwrap();
         assert!(!stale.exists());
         assert_eq!(summary.removed, 1);
     }

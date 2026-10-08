@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "A field reference binds a field identity to its declaring State.",
+  "properties": {
+    "field": {
+      "description": "Field name within that State.",
+      "type": "string"
+    },
+    "state": {
+      "description": "Declaring State identity.",
+      "type": "string"
+    }
+  },
+  "required": [
+    "state",
+    "field"
+  ],
+  "type": "object"
+}

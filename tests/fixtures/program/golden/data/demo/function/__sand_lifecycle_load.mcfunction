@@ -1,0 +1,4 @@
+scoreboard objectives add s02252f5fe4679ec dummy
+scoreboard objectives add s048b722efdc0917 dummy
+scoreboard objectives add sd5409a75751a99c dummy
+scoreboard objectives add sffe99bc0114fb8b dummy

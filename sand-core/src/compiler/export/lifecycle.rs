@@ -59,3 +59,275 @@ pub(crate) fn ensure_private_transition_path_available(
     }
     Ok(())
 }
+
+/// Assemble owned lifecycle contributions after frontend collection.
+pub(crate) fn assemble_lifecycle(
+    namespace: &str,
+    records: &mut Vec<ComponentRecord>,
+    tag_map: &mut std::collections::BTreeMap<String, Vec<String>>,
+    mut automatic: crate::state::registry::AutomaticLifecycle,
+    mut registration_load_commands: Vec<(String, usize, String)>,
+    mut registration_tick_commands: Vec<(String, usize, String)>,
+    transition_global_tick_commands: Vec<String>,
+) -> ExportResult<Option<String>> {
+    use std::collections::BTreeMap;
+    registration_load_commands
+        .sort_by(|left, right| left.0.cmp(&right.0).then_with(|| left.1.cmp(&right.1)));
+    registration_tick_commands
+        .sort_by(|left, right| left.0.cmp(&right.0).then_with(|| left.1.cmp(&right.1)));
+
+    let mut load_definitions: BTreeMap<String, (String, String, String)> = BTreeMap::new();
+    for command in automatic.load_commands {
+        let mut parts = command.splitn(6, ' ');
+        let parsed = match (
+            parts.next(),
+            parts.next(),
+            parts.next(),
+            parts.next(),
+            parts.next(),
+            parts.next(),
+        ) {
+            (
+                Some("scoreboard"),
+                Some("objectives"),
+                Some("add"),
+                Some(objective),
+                Some(criterion),
+                display_name,
+            ) if display_name
+                .is_none_or(|json| serde_json::from_str::<serde_json::Value>(json).is_ok()) =>
+            {
+                Some((objective.to_string(), criterion.to_string()))
+            }
+            _ => None,
+        };
+
+        if let Some((objective, criterion)) = parsed {
+            match load_definitions.get(&objective) {
+                Some((existing, _, _)) if existing == &criterion => {}
+                Some((existing, _, existing_owner)) => {
+                    return Err(lifecycle_export_error(format!(
+                        "conflicting objective `{objective}`: `{existing_owner}` declares criterion `{existing}`, while automatic state lifecycle declares `{criterion}`"
+                    )));
+                }
+                None => {
+                    load_definitions.insert(
+                        objective,
+                        (criterion, command, "automatic state lifecycle".to_string()),
+                    );
+                }
+            }
+        } else {
+            return Err(lifecycle_export_error(format!(
+                "invalid registered load command `{command}`"
+            )));
+        }
+    }
+    let mut registration_definitions: BTreeMap<String, (String, String)> = load_definitions
+        .iter()
+        .map(|(objective, (criterion, _, owner))| {
+            (objective.clone(), (criterion.clone(), owner.clone()))
+        })
+        .collect();
+    let mut load_cmds: Vec<String> = load_definitions
+        .into_values()
+        .map(|(_, command, _)| command)
+        .collect();
+    for (owner, _, command) in registration_load_commands {
+        let mut parts = command.splitn(6, ' ');
+        let parsed = match (
+            parts.next(),
+            parts.next(),
+            parts.next(),
+            parts.next(),
+            parts.next(),
+            parts.next(),
+        ) {
+            (
+                Some("scoreboard"),
+                Some("objectives"),
+                Some("add"),
+                Some(objective),
+                Some(criterion),
+                None,
+            ) => Some((objective.to_string(), criterion.to_string())),
+            _ => None,
+        };
+
+        if let Some((objective, criterion)) = parsed {
+            match registration_definitions.get(&objective) {
+                Some((existing, _)) if existing == &criterion => {}
+                Some((existing, existing_owner)) => {
+                    return Err(lifecycle_export_error(format!(
+                        "conflicting objective `{objective}`: `{existing_owner}` declares criterion `{existing}`, while `{owner}` declares `{criterion}`"
+                    )));
+                }
+                None => {
+                    registration_definitions.insert(objective, (criterion, owner));
+                }
+            }
+        }
+        load_cmds.push(command);
+    }
+    load_cmds.append(&mut automatic.provision_commands);
+    load_cmds.append(&mut automatic.global_init_commands);
+    if !load_cmds.is_empty() {
+        let path = "__sand_lifecycle_load";
+        ensure_private_lifecycle_path_available(records, path)?;
+        records.push(ComponentRecord {
+            namespace: namespace.to_string(),
+            dir: "function".to_string(),
+            path: path.to_string(),
+            ext: "mcfunction".to_string(),
+            content_type: "text".to_string(),
+            content: load_cmds.join("\n"),
+        });
+        tag_map
+            .entry("minecraft:load".to_string())
+            .or_default()
+            .push(format!("{namespace}:{path}"));
+    }
+
+    let init_path = "__sand_lifecycle_init";
+    if !automatic.player_init_commands.is_empty() {
+        ensure_private_lifecycle_path_available(records, init_path)?;
+        records.push(ComponentRecord {
+            namespace: namespace.to_string(),
+            dir: "function".to_string(),
+            path: init_path.to_string(),
+            ext: "mcfunction".to_string(),
+            content_type: "text".to_string(),
+            content: automatic.player_init_commands.join("\n"),
+        });
+    }
+
+    let mut tick_cmds = Vec::new();
+    if !automatic.player_init_commands.is_empty() {
+        tick_cmds.push(format!(
+            "execute as @a run function {namespace}:{init_path}"
+        ));
+    }
+    tick_cmds.extend(
+        automatic
+            .player_tick_commands
+            .into_iter()
+            .map(|command| format!("execute as @a run {command}")),
+    );
+    tick_cmds.extend(automatic.entity_tick_commands);
+    tick_cmds.extend(automatic.global_tick_commands);
+    tick_cmds.extend(transition_global_tick_commands);
+    tick_cmds.extend(
+        registration_tick_commands
+            .into_iter()
+            .map(|(_, _, command)| command),
+    );
+    if !tick_cmds.is_empty() {
+        let path = "__sand_lifecycle_tick";
+        ensure_private_lifecycle_path_available(records, path)?;
+        records.push(ComponentRecord {
+            namespace: namespace.to_string(),
+            dir: "function".to_string(),
+            path: path.to_string(),
+            ext: "mcfunction".to_string(),
+            content_type: "text".to_string(),
+            content: tick_cmds.join("\n"),
+        });
+        tag_map
+            .entry("minecraft:tick".to_string())
+            .or_default()
+            .push(format!("{namespace}:{path}"));
+    }
+    Ok((!automatic.player_init_commands.is_empty()).then(|| format!("{namespace}:{init_path}")))
+}
+
+/// Initialize canonical player State at declared player-context entry points.
+pub(crate) fn initialize_player_entries(
+    records: &mut [ComponentRecord],
+    entries: &std::collections::BTreeMap<String, crate::compiler::program::model::ExecutionContext>,
+    initializer: Option<&str>,
+) {
+    let Some(initializer) = initializer else {
+        return;
+    };
+    for record in records.iter_mut().filter(|record| record.dir == "function") {
+        if entries.get(&format!("{}:{}", record.namespace, record.path))
+            == Some(&crate::compiler::program::model::ExecutionContext::Player)
+        {
+            let prefix = format!("function {initializer}");
+            record.content = if record.content.is_empty() {
+                prefix
+            } else {
+                format!("{prefix}\n{}", record.content)
+            };
+        }
+    }
+}
+
+/// Server lifecycle tags must not directly invoke known player-only entries.
+/// Resolve local references before checking so both registration and descriptor
+/// contributions follow the same declared function context contract.
+pub(crate) fn validate_server_lifecycle_tags(
+    namespace: &str,
+    tags: &std::collections::BTreeMap<String, Vec<String>>,
+    entries: &[(String, String)],
+    contexts: &std::collections::BTreeMap<
+        String,
+        crate::compiler::program::model::ExecutionContext,
+    >,
+) -> ExportResult<()> {
+    for (tag, function) in tags
+        .iter()
+        .flat_map(|(tag, functions)| functions.iter().map(move |function| (tag, function)))
+        .chain(entries.iter().map(|(tag, function)| (tag, function)))
+    {
+        let tag = super::functions::resolve_local_refs(tag, namespace);
+        let function = super::functions::resolve_local_refs(function, namespace);
+        if matches!(tag.as_str(), "minecraft:load" | "minecraft:tick")
+            && contexts.get(&function)
+                == Some(&crate::compiler::program::model::ExecutionContext::Player)
+        {
+            return Err(lifecycle_export_error(format!(
+                "server lifecycle tag `{tag}` cannot invoke player-context function `{function}`; register a server-context wrapper that selects players"
+            )));
+        }
+    }
+    Ok(())
+}
+
+#[cfg(test)]
+mod context_tests {
+    use super::*;
+    use crate::compiler::program::model::ExecutionContext;
+    use std::collections::BTreeMap;
+
+    #[test]
+    fn lifecycle_members_obey_context_after_local_resolution() {
+        let contexts = BTreeMap::from([
+            ("pack:player".into(), ExecutionContext::Player),
+            ("pack:server".into(), ExecutionContext::Server),
+        ]);
+        for tag in ["minecraft:load", "minecraft:tick"] {
+            for function in ["pack:player", "__sand_local:player"] {
+                let entries = vec![(tag.into(), function.into())];
+                assert!(
+                    validate_server_lifecycle_tags("pack", &BTreeMap::new(), &entries, &contexts)
+                        .is_err()
+                );
+                let tags = BTreeMap::from([(tag.into(), vec![function.into()])]);
+                assert!(validate_server_lifecycle_tags("pack", &tags, &[], &contexts).is_err());
+            }
+            let entries = vec![
+                (tag.into(), "pack:server".into()),
+                (tag.into(), "external:unknown".into()),
+            ];
+            validate_server_lifecycle_tags("pack", &BTreeMap::new(), &entries, &contexts).unwrap();
+        }
+        validate_server_lifecycle_tags(
+            "pack",
+            &BTreeMap::new(),
+            &[("pack:custom".into(), "pack:player".into())],
+            &contexts,
+        )
+        .unwrap();
+    }
+}

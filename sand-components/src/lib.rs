@@ -221,3 +221,6 @@ pub use worldgen::{
     SpawnEntry, SpawnOverride, SpreadType, Structure, StructureEntry, StructurePlacement,
     StructureSet, TemplatePool, TerrainAdaptation, VerticalAnchor,
 };
+
+#[doc(hidden)]
+pub mod pack_metadata;

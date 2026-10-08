@@ -4306,7 +4306,9 @@ mod tests {
 
         let grouped = module(catalog, "sand::advanced").unwrap();
         assert!(grouped.contains("Functions\n  sand::advanced::try_export_components_json"));
-        assert!(grouped.contains("Modules\n  sand::advanced::state"));
+        assert!(grouped.contains("Modules\n  sand::advanced::compiler"));
+        assert!(grouped.contains("  sand::advanced::state"));
+        assert!(show(catalog, "sand::advanced::compiler::Compiler").is_ok());
         assert!(show(catalog, "sand::advanced::state::ScoreVar").is_ok());
 
         let entries = catalog
@@ -4317,7 +4319,7 @@ mod tests {
                     || entry.canonical_path.starts_with("sand::advanced::")
             })
             .collect::<Vec<_>>();
-        assert_eq!(entries.len(), 227);
+        assert_eq!(entries.len(), 322);
     }
 
     #[test]

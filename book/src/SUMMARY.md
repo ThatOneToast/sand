@@ -50,6 +50,7 @@
 
 # Reference
 
+- [Portable Programs And Embedding](reference/portable-programs.md)
 - [CLI For Coding Agents](reference/agent-cli.md)
 - [Vanilla Limitations](reference/vanilla-limitations.md)
 - [Version Support](reference/version-support.md)

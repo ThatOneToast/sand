@@ -26,22 +26,22 @@ pub enum StateScope {
 
 /// Compiler descriptor for one scoreboard-backed component field.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct StateLifecycleDescriptor {
+pub struct StateLifecycleDescriptor<'a> {
     /// Resolved objective name.
-    pub objective: &'static str,
+    pub objective: &'a str,
     /// Vanilla scoreboard criterion.
-    pub criterion: &'static str,
+    pub criterion: &'a str,
     /// Optional objective display name.
-    pub display_name: Option<&'static str>,
+    pub display_name: Option<&'a str>,
     /// Field metadata shared with the generated typed handle.
-    pub field: StateFieldDescriptor,
+    pub field: StateFieldDescriptor<'a>,
     /// Whether this timer/cooldown decrements once per lifecycle tick.
     pub auto_tick: bool,
 }
 
-impl StateLifecycleDescriptor {
+impl<'a> StateLifecycleDescriptor<'a> {
     /// Construct lifecycle metadata for one field.
-    pub const fn new(objective: &'static str, field: StateFieldDescriptor) -> Self {
+    pub const fn new(objective: &'a str, field: StateFieldDescriptor<'a>) -> Self {
         Self {
             objective,
             criterion: "dummy",
@@ -52,13 +52,13 @@ impl StateLifecycleDescriptor {
     }
 
     /// Override the vanilla scoreboard criterion.
-    pub const fn criterion(mut self, criterion: &'static str) -> Self {
+    pub const fn criterion(mut self, criterion: &'a str) -> Self {
         self.criterion = criterion;
         self
     }
 
     /// Set the objective display name.
-    pub const fn display_name(mut self, display_name: &'static str) -> Self {
+    pub const fn display_name(mut self, display_name: &'a str) -> Self {
         self.display_name = Some(display_name);
         self
     }
@@ -70,25 +70,29 @@ impl StateLifecycleDescriptor {
     }
 }
 
-/// Link-time descriptor for one independently attachable State component.
+/// Borrowed descriptor for one independently attachable State component.
+///
+/// Rust derives register static instances in inventory. Owned compiler inputs
+/// borrow their metadata for one lifecycle pass, sharing the same objective
+/// collision checks and initialization rules without static allocation.
 #[derive(Debug, Clone, Copy)]
-pub struct StateDescriptor {
+pub struct StateDescriptor<'a> {
     /// Stable logical `namespace:name` identity.
-    pub id: &'static str,
+    pub id: &'a str,
     /// Current schema version. Zero is reserved for absence.
     pub version: u32,
     /// Owner scope.
     pub scope: StateScope,
     /// Presence/version objective.
-    pub presence_objective: &'static str,
+    pub presence_objective: &'a str,
     /// Player-only explicit-detachment suppression objective.
-    pub suppression_objective: &'static str,
+    pub suppression_objective: &'a str,
     /// Fields in declaration order.
-    pub fields: &'static [StateLifecycleDescriptor],
+    pub fields: &'a [StateLifecycleDescriptor<'a>],
     /// Ordered component-version transitions.
-    pub migrations: &'static [StateMigrationDescriptor],
+    pub migrations: &'a [StateMigrationDescriptor],
     /// Component-owned typed storage paths.
-    pub data_fields: &'static [StateDataFieldDescriptor],
+    pub data_fields: &'a [StateDataFieldDescriptor],
 }
 
 /// One contiguous component presence/version transition.
@@ -104,18 +108,18 @@ impl StateMigrationDescriptor {
     }
 }
 
-impl StateDescriptor {
+impl<'a> StateDescriptor<'a> {
     /// Construct an immutable component descriptor.
     #[allow(clippy::too_many_arguments)]
     pub const fn new(
-        id: &'static str,
+        id: &'a str,
         version: u32,
         scope: StateScope,
-        presence_objective: &'static str,
-        suppression_objective: &'static str,
-        fields: &'static [StateLifecycleDescriptor],
-        migrations: &'static [StateMigrationDescriptor],
-        data_fields: &'static [StateDataFieldDescriptor],
+        presence_objective: &'a str,
+        suppression_objective: &'a str,
+        fields: &'a [StateLifecycleDescriptor<'a>],
+        migrations: &'a [StateMigrationDescriptor],
+        data_fields: &'a [StateDataFieldDescriptor],
     ) -> Self {
         Self {
             id,
@@ -130,7 +134,7 @@ impl StateDescriptor {
     }
 }
 
-inventory::collect!(StateDescriptor);
+inventory::collect!(StateDescriptor<'static>);
 
 /// Link-time callbacks emitted by `#[state_lifecycle]`.
 #[doc(hidden)]
@@ -217,13 +221,47 @@ pub(crate) struct AutomaticLifecycle {
 
 /// Resolve all link-time component declarations.
 pub(crate) fn automatic_lifecycle() -> Result<AutomaticLifecycle, String> {
-    automatic_lifecycle_from(inventory::iter::<StateDescriptor>.into_iter().copied())
+    let mut hooks = BTreeMap::<String, &StateHookDescriptor>::new();
+    for hook in inventory::iter::<StateHookDescriptor> {
+        let id = (hook.schema)().id();
+        if hooks.insert(id.clone(), hook).is_some() {
+            return Err(format!(
+                "multiple #[state_lifecycle] implementations registered for `{id}`"
+            ));
+        }
+    }
+    // Collection adapts the supported callback-free slice into owned data.
+    // Other Rust declarations retain their descriptor/hook path. Both are
+    // lowered together so objective collisions and ordering remain global.
+    let mut owned = Vec::new();
+    let mut rust_only = Vec::new();
+    for descriptor in inventory::iter::<StateDescriptor>.into_iter().copied() {
+        if !hooks.contains_key(descriptor.id)
+            && let Ok(state) = crate::compiler::program::model::State::try_from(descriptor)
+        {
+            owned.push(state);
+        } else {
+            rust_only.push(descriptor);
+        }
+    }
+    super::owned::with_descriptors(&owned, |mut descriptors| {
+        descriptors.extend(rust_only);
+        automatic_lifecycle_with_hooks(descriptors, &hooks)
+    })
 }
 
-fn automatic_lifecycle_from(
-    declarations: impl IntoIterator<Item = StateDescriptor>,
+#[cfg(test)]
+fn automatic_lifecycle_from<'a>(
+    declarations: impl IntoIterator<Item = StateDescriptor<'a>>,
 ) -> Result<AutomaticLifecycle, String> {
-    let mut components = BTreeMap::<&'static str, StateDescriptor>::new();
+    automatic_lifecycle_with_hooks(declarations, &BTreeMap::new())
+}
+
+pub(super) fn automatic_lifecycle_with_hooks<'a>(
+    declarations: impl IntoIterator<Item = StateDescriptor<'a>>,
+    hooks: &BTreeMap<String, &StateHookDescriptor>,
+) -> Result<AutomaticLifecycle, String> {
+    let mut components = BTreeMap::<&'a str, StateDescriptor<'a>>::new();
     for declaration in declarations {
         match components.get(declaration.id) {
             Some(existing) if descriptor_eq(existing, &declaration) => {}
@@ -240,15 +278,6 @@ fn automatic_lifecycle_from(
     }
 
     let mut output = AutomaticLifecycle::default();
-    let mut hooks = BTreeMap::<String, &StateHookDescriptor>::new();
-    for hook in inventory::iter::<StateHookDescriptor> {
-        let id = (hook.schema)().id();
-        if hooks.insert(id.clone(), hook).is_some() {
-            return Err(format!(
-                "multiple #[state_lifecycle] implementations registered for `{id}`"
-            ));
-        }
-    }
     let mut objectives = BTreeMap::<String, (String, String)>::new();
     for component in components.values() {
         let hook = hooks.get(component.id).copied();

@@ -15,13 +15,13 @@
 //! Correctness never depends on file mtimes — only on content hashes
 //! ([`sand_build::fingerprint::hash_bytes`]), and a missing or corrupt
 //! manifest falls back to "treat everything as new," which can only cost
-//! extra writes, never produce wrong output or delete something it
-//! shouldn't.
+//! extra writes. Stale deletion additionally requires a matching on-disk hash.
+//! Transaction publication uses strict manifest loading and conflict checks.
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};
 
-use anyhow::{Context, Result};
+use anyhow::{Context, Result, bail, ensure};
 use sand_build::fingerprint::hash_bytes;
 use serde::{Deserialize, Serialize};
 
@@ -78,7 +78,13 @@ impl OutputManifest {
         let previous = std::fs::read(root.join(MANIFEST_FILE_NAME))
             .ok()
             .and_then(|bytes| serde_json::from_slice::<ManifestFile>(&bytes).ok())
-            .filter(|manifest| manifest.schema_version == MANIFEST_SCHEMA_VERSION)
+            .filter(|manifest| {
+                manifest.schema_version == MANIFEST_SCHEMA_VERSION
+                    && manifest
+                        .entries
+                        .keys()
+                        .all(|path| validate_resource_path(path).is_ok())
+            })
             .map(|manifest| manifest.entries)
             .unwrap_or_default();
         Self {
@@ -99,13 +105,15 @@ impl OutputManifest {
     /// joined onto `root` verbatim via [`Path::join`], which accepts `/` on
     /// every platform Sand supports.
     pub fn write_if_changed(&mut self, rel_path: &str, bytes: &[u8]) -> Result<bool> {
+        validate_resource_path(rel_path)?;
+        reject_symlink_ancestors(&self.root.join(rel_path))?;
         let hash = hash_bytes(bytes);
         let dest = self.root.join(rel_path);
         let unchanged = self
             .previous
             .get(rel_path)
             .is_some_and(|prev| prev == &hash)
-            && dest.exists();
+            && std::fs::read(&dest).is_ok_and(|actual| hash_bytes(&actual) == hash);
         self.current.insert(rel_path.to_string(), hash);
         if unchanged {
             return Ok(false);
@@ -123,6 +131,31 @@ impl OutputManifest {
         Ok(true)
     }
 
+    /// Removes verified stale files before new paths can reuse them as directories.
+    pub(super) fn prune_stale(&mut self, retained: &BTreeSet<String>) -> Result<usize> {
+        let mut removed = 0usize;
+        for rel_path in self.previous.keys() {
+            if retained.contains(rel_path) {
+                continue;
+            }
+            let path = self.root.join(rel_path);
+            reject_symlink_ancestors(&path)?;
+            if path.exists() {
+                ensure!(
+                    hash_bytes(&std::fs::read(&path)?) == self.previous[rel_path],
+                    "stale managed output was modified: {rel_path}"
+                );
+                std::fs::remove_file(&path).with_context(|| {
+                    format!("failed to remove stale output '{}'", path.display())
+                })?;
+            }
+            removed += 1;
+        }
+
+        self.previous.retain(|path, _| retained.contains(path));
+        Ok(removed)
+    }
+
     /// Removes files the previous manifest tracked that were not written
     /// this build (no longer generated), then atomically publishes the new
     /// manifest. Returns a summary for diagnostics.
@@ -132,20 +165,8 @@ impl OutputManifest {
     /// left alone — only previously-tracked, now-untracked entries are
     /// removed. That keeps a first build after introducing manifests safe:
     /// it cannot delete anything it didn't itself write and later drop.
-    pub fn finish(self) -> Result<ChangeSummary> {
-        let mut removed = 0usize;
-        for rel_path in self.previous.keys() {
-            if self.current.contains_key(rel_path) {
-                continue;
-            }
-            let path = self.root.join(rel_path);
-            if path.exists() {
-                std::fs::remove_file(&path).with_context(|| {
-                    format!("failed to remove stale output '{}'", path.display())
-                })?;
-            }
-            removed += 1;
-        }
+    pub fn finish(mut self) -> Result<ChangeSummary> {
+        let removed = self.prune_stale(&self.current.keys().cloned().collect())?;
 
         // `written` is exactly what write_if_changed recorded as actually
         // written this invocation -- never recomputed from hash comparison,
@@ -170,11 +191,77 @@ impl OutputManifest {
     }
 }
 
+/// Validates a portable pack-relative path before it is joined to a root.
+/// The ownership manifest is reserved and cannot itself be a generated resource.
+pub(super) fn validate_resource_path(path: &str) -> Result<()> {
+    ensure!(
+        !path.is_empty() && !path.contains(['\\', ':', '\0']),
+        "unsafe output path: {path:?}"
+    );
+    ensure!(
+        path.split('/')
+            .all(|part| !part.is_empty() && part != "." && part != ".."),
+        "unsafe output path: {path:?}"
+    );
+    ensure!(
+        path.split('/').next() != Some(MANIFEST_FILE_NAME),
+        "reserved output path: {path}"
+    );
+    Ok(())
+}
+
+/// Rejects symlinks even when they occur in an existing ancestor of a missing
+/// destination. This is a preflight policy, not protection against concurrent
+/// hostile filesystem mutation.
+pub(crate) fn reject_symlink_ancestors(path: &Path) -> Result<()> {
+    for ancestor in path.ancestors() {
+        match std::fs::symlink_metadata(ancestor) {
+            Ok(metadata) => ensure!(
+                !metadata.file_type().is_symlink(),
+                "symlink output path: {}",
+                ancestor.display()
+            ),
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
+            Err(error) => {
+                return Err(error)
+                    .with_context(|| format!("inspect output path '{}'", ancestor.display()));
+            }
+        }
+    }
+    Ok(())
+}
+
+/// Reads ownership strictly for transaction publication. Unlike legacy builds,
+/// an existing corrupt manifest is an error: it cannot authorize replacement.
+pub(super) fn read_ownership(root: &Path) -> Result<BTreeMap<String, String>> {
+    let path = root.join(MANIFEST_FILE_NAME);
+    reject_symlink_ancestors(&path)?;
+    let bytes = match std::fs::read(&path) {
+        Ok(bytes) => bytes,
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(BTreeMap::new()),
+        Err(error) => return Err(error).context("read output ownership manifest"),
+    };
+    let manifest: ManifestFile =
+        serde_json::from_slice(&bytes).context("invalid output ownership manifest")?;
+    ensure!(
+        manifest.schema_version == MANIFEST_SCHEMA_VERSION,
+        "unsupported output ownership manifest revision"
+    );
+    for (path, hash) in &manifest.entries {
+        validate_resource_path(path)?;
+        if hash.len() != hash_bytes(b"").len() || !hash.bytes().all(|b| b.is_ascii_hexdigit()) {
+            bail!("invalid ownership hash for {path}");
+        }
+    }
+    Ok(manifest.entries)
+}
+
 /// Writes `bytes` to `dest` via a same-directory temp file followed by a
 /// rename, so concurrent readers (or a process crash) never observe a
 /// partially written file at `dest`. The temp file lives next to `dest` so
 /// the rename stays within one filesystem (required for it to be atomic).
 fn atomic_write(dest: &Path, bytes: &[u8]) -> Result<()> {
+    reject_symlink_ancestors(dest)?;
     let parent = dest
         .parent()
         .with_context(|| format!("output path '{}' has no parent", dest.display()))?;
@@ -182,13 +269,31 @@ fn atomic_write(dest: &Path, bytes: &[u8]) -> Result<()> {
         .file_name()
         .and_then(|name| name.to_str())
         .with_context(|| format!("output path '{}' has no file name", dest.display()))?;
-    let tmp_path = parent.join(format!(
-        ".{file_name}.sand-tmp-{}-{}",
-        std::process::id(),
-        tmp_nonce()
-    ));
-    std::fs::write(&tmp_path, bytes)
-        .with_context(|| format!("failed to write temp file for '{}'", dest.display()))?;
+    let (tmp_path, mut file) = loop {
+        let path = parent.join(format!(
+            ".{file_name}.sand-tmp-{}-{}",
+            std::process::id(),
+            tmp_nonce()
+        ));
+        match std::fs::OpenOptions::new()
+            .write(true)
+            .create_new(true)
+            .open(&path)
+        {
+            Ok(file) => break (path, file),
+            Err(error) if error.kind() == std::io::ErrorKind::AlreadyExists => continue,
+            Err(error) => {
+                return Err(error)
+                    .with_context(|| format!("create temporary output for '{}'", dest.display()));
+            }
+        }
+    };
+    if let Err(error) = std::io::Write::write_all(&mut file, bytes) {
+        let _ = std::fs::remove_file(&tmp_path);
+        return Err(error)
+            .with_context(|| format!("write temporary output for '{}'", dest.display()));
+    }
+    drop(file);
     std::fs::rename(&tmp_path, dest).with_context(|| {
         // Best-effort cleanup so a rename failure doesn't leave the temp
         // file behind forever; ignore the cleanup's own result since the
@@ -214,7 +319,7 @@ mod tests {
 
     #[test]
     fn first_build_writes_every_file_and_reports_none_unchanged() {
-        let dir = tempfile::tempdir().unwrap();
+        let dir = tempfile::tempdir_in(std::env::temp_dir().canonicalize().unwrap()).unwrap();
         let mut manifest = OutputManifest::load(dir.path());
 
         assert!(manifest.write_if_changed("a.txt", b"one").unwrap());
@@ -233,7 +338,7 @@ mod tests {
 
     #[test]
     fn identical_rebuild_touches_no_files() {
-        let dir = tempfile::tempdir().unwrap();
+        let dir = tempfile::tempdir_in(std::env::temp_dir().canonicalize().unwrap()).unwrap();
         let mut first = OutputManifest::load(dir.path());
         first.write_if_changed("a.txt", b"one").unwrap();
         first.finish().unwrap();
@@ -269,7 +374,7 @@ mod tests {
     /// hash is identical to what the manifest last recorded.
     #[test]
     fn restoring_an_out_of_band_deleted_file_counts_as_written_not_unchanged() {
-        let dir = tempfile::tempdir().unwrap();
+        let dir = tempfile::tempdir_in(std::env::temp_dir().canonicalize().unwrap()).unwrap();
         let mut first = OutputManifest::load(dir.path());
         first.write_if_changed("a.txt", b"one").unwrap();
         first.write_if_changed("b.txt", b"two").unwrap();
@@ -307,8 +412,25 @@ mod tests {
     }
 
     #[test]
+    fn matching_manifest_hash_does_not_hide_modified_file_bytes() {
+        let dir = tempfile::tempdir_in(std::env::temp_dir().canonicalize().unwrap()).unwrap();
+        let mut first = OutputManifest::load(dir.path());
+        first.write_if_changed("a.txt", b"generated").unwrap();
+        first.finish().unwrap();
+        std::fs::write(dir.path().join("a.txt"), b"modified").unwrap();
+
+        let mut next = OutputManifest::load(dir.path());
+        assert!(next.write_if_changed("a.txt", b"generated").unwrap());
+        assert_eq!(next.finish().unwrap().written, 1);
+        assert_eq!(
+            std::fs::read(dir.path().join("a.txt")).unwrap(),
+            b"generated"
+        );
+    }
+
+    #[test]
     fn changed_content_is_rewritten() {
-        let dir = tempfile::tempdir().unwrap();
+        let dir = tempfile::tempdir_in(std::env::temp_dir().canonicalize().unwrap()).unwrap();
         let mut first = OutputManifest::load(dir.path());
         first.write_if_changed("a.txt", b"one").unwrap();
         first.finish().unwrap();
@@ -325,7 +447,7 @@ mod tests {
 
     #[test]
     fn no_longer_generated_file_is_removed() {
-        let dir = tempfile::tempdir().unwrap();
+        let dir = tempfile::tempdir_in(std::env::temp_dir().canonicalize().unwrap()).unwrap();
         let mut first = OutputManifest::load(dir.path());
         first.write_if_changed("a.txt", b"one").unwrap();
         first.write_if_changed("b.txt", b"two").unwrap();
@@ -344,7 +466,7 @@ mod tests {
 
     #[test]
     fn missing_manifest_falls_back_to_full_write_without_deleting_anything() {
-        let dir = tempfile::tempdir().unwrap();
+        let dir = tempfile::tempdir_in(std::env::temp_dir().canonicalize().unwrap()).unwrap();
         // A file already exists on disk that the (nonexistent) manifest
         // never tracked -- e.g. a hand-placed file, or output from before
         // manifests existed.
@@ -364,7 +486,7 @@ mod tests {
 
     #[test]
     fn corrupt_manifest_falls_back_safely_instead_of_failing() {
-        let dir = tempfile::tempdir().unwrap();
+        let dir = tempfile::tempdir_in(std::env::temp_dir().canonicalize().unwrap()).unwrap();
         std::fs::write(dir.path().join(MANIFEST_FILE_NAME), b"not json at all{{{").unwrap();
 
         let mut manifest = OutputManifest::load(dir.path());
@@ -377,7 +499,7 @@ mod tests {
 
     #[test]
     fn mismatched_schema_version_is_treated_as_absent() {
-        let dir = tempfile::tempdir().unwrap();
+        let dir = tempfile::tempdir_in(std::env::temp_dir().canonicalize().unwrap()).unwrap();
         let stale = serde_json::json!({
             "schema_version": MANIFEST_SCHEMA_VERSION + 1,
             "entries": { "a.txt": "deadbeef" },
@@ -402,7 +524,7 @@ mod tests {
 
     #[test]
     fn manifest_round_trips_through_disk() {
-        let dir = tempfile::tempdir().unwrap();
+        let dir = tempfile::tempdir_in(std::env::temp_dir().canonicalize().unwrap()).unwrap();
         let mut first = OutputManifest::load(dir.path());
         first.write_if_changed("a.txt", b"one").unwrap();
         first.finish().unwrap();

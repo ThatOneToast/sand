@@ -176,12 +176,20 @@ fn insert_output(
     path: String,
     bytes: Vec<u8>,
 ) -> Result<(), Vec<Diagnostic>> {
-    if path.split('/').any(|segment| segment.len() > 255) {
+    if path.len() > limits::RESOURCE_PATH_BYTES
+        || path
+            .split('/')
+            .any(|segment| segment.len() > limits::RESOURCE_SEGMENT_BYTES)
+    {
         return Err(vec![Diagnostic::error(
             "SAND_PROGRAM_PATH",
             "",
             "",
-            format!("generated resource path segment exceeds 255 bytes: `{path}`"),
+            format!(
+                "generated resource path exceeds the {}-byte path or {}-byte segment limit: `{path}`",
+                limits::RESOURCE_PATH_BYTES,
+                limits::RESOURCE_SEGMENT_BYTES
+            ),
         )]);
     }
     if output.len() >= limits::RESOURCES

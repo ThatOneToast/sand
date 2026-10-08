@@ -197,7 +197,8 @@ impl Compiler {
             "limits": { "document_bytes": limits::DOCUMENT_BYTES, "input_bytes": limits::INPUT_BYTES,
                 "modules": limits::MODULES, "json_depth": limits::JSON_DEPTH, "operation_depth": limits::OP_DEPTH,
                 "declarations": limits::DECLARATIONS, "operations": limits::OPERATIONS,
-                "resources": limits::RESOURCES, "resource_bytes": limits::DOCUMENT_BYTES, "output_bytes": limits::OUTPUT_BYTES }
+                "resources": limits::RESOURCES, "resource_path_bytes": limits::RESOURCE_PATH_BYTES,
+                "resource_segment_bytes": limits::RESOURCE_SEGMENT_BYTES, "resource_bytes": limits::DOCUMENT_BYTES, "output_bytes": limits::OUTPUT_BYTES }
         })
     }
 }

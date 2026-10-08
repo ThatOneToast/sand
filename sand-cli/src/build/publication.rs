@@ -6,7 +6,7 @@
 //! concurrent writers are deliberately not promised; callers must serialize
 //! publication to a destination.
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 use std::path::Path;
 use std::sync::atomic::{AtomicU64, Ordering};
 
@@ -81,6 +81,7 @@ fn publish_with_install(
         inspect_tree(&destination)?;
     }
     // Verify all managed files, including stale ones, before copying or writing.
+    let mut verified = BTreeSet::new();
     for (path, hash) in &previous {
         let actual = destination.join(path);
         if actual.exists() {
@@ -89,6 +90,7 @@ fn publish_with_install(
                 hash_bytes(&std::fs::read(&actual)?) == *hash,
                 "managed output was modified: {path}"
             );
+            verified.insert(path.as_str());
         }
     }
     for path in resources.keys() {
@@ -105,9 +107,9 @@ fn publish_with_install(
                     .context("output path is not UTF-8")?;
                 let owned = if entry.file_type().is_dir() {
                     let prefix = format!("{relative}/");
-                    previous
-                        .keys()
-                        .any(|old| old.starts_with(&prefix) && !resources.contains_key(old))
+                    verified
+                        .iter()
+                        .any(|old| old.starts_with(&prefix) && !resources.contains_key(*old))
                 } else {
                     previous.contains_key(relative) && !resources.contains_key(relative)
                 };
@@ -144,9 +146,11 @@ fn publish_with_install(
     let mut rollback_failed = false;
     let result = (|| {
         std::fs::create_dir(&stage)?;
-        if destination.exists() {
-            copy_tree(&destination, &stage)?;
-        }
+        let directories = if destination.exists() {
+            copy_tree(&destination, &stage)?
+        } else {
+            Vec::new()
+        };
         let mut manifest = OutputManifest::load(&stage);
         let removed = manifest.prune_stale(&resources.keys().cloned().collect())?;
         for (path, bytes) in resources {
@@ -163,6 +167,7 @@ fn publish_with_install(
         }
         let mut summary = manifest.finish()?;
         summary.removed += removed;
+        restore_directories(directories)?;
         let had_previous = destination.exists();
         if had_previous {
             std::fs::rename(&destination, &backup).context("back up previous pack")?;
@@ -185,9 +190,44 @@ fn publish_with_install(
     })();
     // Never erase the sole surviving good pack after a rollback failure.
     if !rollback_failed {
-        let _ = std::fs::remove_dir_all(&transaction);
+        remove_transaction(&transaction);
     }
     result
+}
+
+fn remove_transaction(path: &Path) {
+    // Only disposable staging/backup copies remain here. Restore owner write
+    // access so copied read-only directories cannot strand private backups.
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        for entry in walkdir::WalkDir::new(path)
+            .follow_links(false)
+            .into_iter()
+            .flatten()
+        {
+            if entry.file_type().is_dir()
+                && let Ok(metadata) = entry.metadata()
+            {
+                let mode = metadata.permissions().mode() | 0o700;
+                let _ =
+                    std::fs::set_permissions(entry.path(), std::fs::Permissions::from_mode(mode));
+            }
+        }
+    }
+    #[cfg(windows)]
+    for entry in walkdir::WalkDir::new(path)
+        .follow_links(false)
+        .into_iter()
+        .flatten()
+    {
+        if let Ok(metadata) = entry.metadata() {
+            let mut permissions = metadata.permissions();
+            permissions.set_readonly(false);
+            let _ = std::fs::set_permissions(entry.path(), permissions);
+        }
+    }
+    let _ = std::fs::remove_dir_all(path);
 }
 
 fn create_transaction(parent: &Path) -> Result<std::path::PathBuf> {
@@ -198,7 +238,13 @@ fn create_transaction(parent: &Path) -> Result<std::path::PathBuf> {
             std::process::id(),
             NONCE.fetch_add(1, Ordering::Relaxed)
         ));
-        match std::fs::create_dir(&candidate) {
+        let mut builder = std::fs::DirBuilder::new();
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::DirBuilderExt;
+            builder.mode(0o700);
+        }
+        match builder.create(&candidate) {
             Ok(()) => return Ok(candidate),
             Err(error) if error.kind() == std::io::ErrorKind::AlreadyExists => continue,
             Err(error) => return Err(error).context("create sibling output staging directory"),
@@ -218,15 +264,47 @@ fn inspect_tree(root: &Path) -> Result<()> {
     Ok(())
 }
 
-fn copy_tree(source: &Path, destination: &Path) -> Result<()> {
-    for entry in walkdir::WalkDir::new(source)
-        .min_depth(1)
-        .follow_links(false)
-    {
+struct DirectoryMetadata {
+    path: std::path::PathBuf,
+    metadata: std::fs::Metadata,
+}
+
+fn restore_directories(directories: Vec<DirectoryMetadata>) -> Result<()> {
+    // Descendants and the output manifest must be complete before restrictive
+    // directory modes are restored, including the pack root itself.
+    for directory in directories.into_iter().rev() {
+        if !directory.path.is_dir() {
+            continue; // A verified managed directory-to-file transition.
+        }
+        let mut options = std::fs::OpenOptions::new();
+        options.read(true);
+        #[cfg(windows)]
+        {
+            use std::os::windows::fs::OpenOptionsExt;
+            // Directory handles require BACKUP_SEMANTICS; timestamps require
+            // FILE_WRITE_ATTRIBUTES rather than data-write access.
+            options.custom_flags(0x02000000).access_mode(0x100);
+        }
+        let handle = options.open(&directory.path)?;
+        handle.set_times(std::fs::FileTimes::new().set_modified(directory.metadata.modified()?))?;
+        handle.set_permissions(directory.metadata.permissions())?;
+    }
+    Ok(())
+}
+
+fn copy_tree(source: &Path, destination: &Path) -> Result<Vec<DirectoryMetadata>> {
+    let mut directories = Vec::new();
+    for entry in walkdir::WalkDir::new(source).follow_links(false) {
         let entry = entry.context("copy existing pack")?;
         let target = destination.join(entry.path().strip_prefix(source)?);
         if entry.file_type().is_dir() {
-            std::fs::create_dir(&target)?;
+            if entry.depth() != 0 {
+                std::fs::create_dir(&target)?;
+            }
+            directories.push(DirectoryMetadata {
+                path: target,
+                metadata: entry.metadata()?,
+            });
         } else {
             ensure!(entry.file_type().is_file(), "output changed during staging");
             let mut source_file = std::fs::File::open(entry.path())?;
@@ -243,7 +321,7 @@ fn copy_tree(source: &Path, destination: &Path) -> Result<()> {
             target_file.set_permissions(metadata.permissions())?;
         }
     }
-    Ok(())
+    Ok(directories)
 }
 
 #[cfg(test)]
@@ -373,6 +451,80 @@ mod tests {
         assert_eq!(summary.removed, 1);
         assert_eq!(summary.written, 1);
         assert_eq!(std::fs::read(pack.join(parent)).unwrap(), b"say new");
+    }
+
+    #[test]
+    fn missing_stale_file_does_not_authorize_removing_an_empty_directory() {
+        let temp = tempfile::tempdir_in(std::env::temp_dir().canonicalize().unwrap()).unwrap();
+        let pack = temp.path().join("pack");
+        publish_pack(&pack, &resources(&[("a/b", "old")])).unwrap();
+        std::fs::remove_file(pack.join("a/b")).unwrap();
+        let manifest = std::fs::read(pack.join(MANIFEST_FILE_NAME)).unwrap();
+        let error = publish_pack(&pack, &resources(&[("a", "new")])).unwrap_err();
+        assert!(error.to_string().contains("unmanaged output conflict"));
+        assert!(pack.join("a").is_dir());
+        assert_eq!(
+            std::fs::read(pack.join(MANIFEST_FILE_NAME)).unwrap(),
+            manifest
+        );
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn directory_permissions_and_times_survive_publication_and_rollback() {
+        use std::os::unix::fs::PermissionsExt;
+        let temp = tempfile::tempdir_in(std::env::temp_dir().canonicalize().unwrap()).unwrap();
+        let pack = temp.path().join("pack");
+        let old = resources(&[("owned", "old")]);
+        let new = resources(&[("owned", "new")]);
+        publish_pack(&pack, &old).unwrap();
+        let private = pack.join("private");
+        let readonly = private.join("readonly");
+        std::fs::create_dir_all(&readonly).unwrap();
+        std::fs::write(readonly.join("note"), "secret").unwrap();
+        let modified = std::time::UNIX_EPOCH + std::time::Duration::from_secs(123456789);
+        for (path, mode) in [(&pack, 0o700), (&private, 0o700), (&readonly, 0o555)] {
+            let handle = std::fs::File::open(path).unwrap();
+            handle
+                .set_times(std::fs::FileTimes::new().set_modified(modified))
+                .unwrap();
+            handle
+                .set_permissions(std::fs::Permissions::from_mode(mode))
+                .unwrap();
+        }
+        let verify = |root: &Path| {
+            for (relative, mode) in [("", 0o700), ("private", 0o700), ("private/readonly", 0o555)] {
+                let metadata = std::fs::metadata(root.join(relative)).unwrap();
+                assert_eq!(metadata.permissions().mode() & 0o777, mode);
+                assert_eq!(metadata.modified().unwrap(), modified);
+            }
+            assert_eq!(
+                std::fs::read(root.join("private/readonly/note")).unwrap(),
+                b"secret"
+            );
+        };
+        assert!(
+            publish_with_install(&pack, &new, |stage, _| {
+                verify(stage);
+                assert_eq!(
+                    std::fs::metadata(stage.parent().unwrap())?
+                        .permissions()
+                        .mode()
+                        & 0o777,
+                    0o700
+                );
+                anyhow::bail!("injected failure")
+            })
+            .is_err()
+        );
+        verify(&pack);
+        assert_eq!(std::fs::read_dir(temp.path()).unwrap().count(), 1);
+        assert_eq!(std::fs::read(pack.join("owned")).unwrap(), b"old");
+        publish_pack(&pack, &new).unwrap();
+        verify(&pack);
+        assert_eq!(std::fs::read_dir(temp.path()).unwrap().count(), 1);
+        assert_eq!(std::fs::read(pack.join("owned")).unwrap(), b"new");
+        std::fs::set_permissions(readonly, std::fs::Permissions::from_mode(0o700)).unwrap();
     }
 
     #[test]

@@ -7,7 +7,15 @@ pub(super) fn validate(
     program: &Program,
 ) -> Result<crate::version::VersionProfile, Vec<Diagnostic>> {
     let mut errors = Vec::new();
-    if program.format != "sand.program" || program.format_version != 1 {
+    if program.format != "sand.program" {
+        errors.push(Diagnostic::error(
+            "SAND_PROGRAM_VERSION",
+            "",
+            "/format",
+            "expected sand.program format",
+        ));
+    }
+    if program.format_version != 1 {
         errors.push(Diagnostic::error(
             "SAND_PROGRAM_VERSION",
             "",

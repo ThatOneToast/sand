@@ -527,3 +527,51 @@ fn authored_resource_names_include_the_extension_in_the_filesystem_limit() {
     let errors = Compiler::check(&program).unwrap_err();
     assert!(errors.iter().any(|error| error.code == "SAND_PROGRAM_PATH"));
 }
+
+#[test]
+fn complete_resource_path_limits_are_reported_and_enforced() {
+    let limit = Compiler::capabilities()["limits"]["resource_path_bytes"]
+        .as_u64()
+        .unwrap() as usize;
+    let mut program = counter();
+    let overhead = "data/demo/function/".len() + ".mcfunction".len();
+    let count = limit - overhead;
+    let path = format!(
+        "{}{}",
+        "a/".repeat((count - 1) / 2),
+        "x".repeat(1 + (count - 1) % 2)
+    );
+    program.modules[0].tags.clear();
+    program.modules[0].functions = vec![Function {
+        id: format!("demo:{path}").parse().unwrap(),
+        context: ExecutionContext::Server,
+        body: vec![],
+    }];
+    Compiler::check(&program).unwrap();
+    for path in [format!("{path}x"), format!("{}x", "a/".repeat(2500))] {
+        program.modules[0].functions[0].id = format!("demo:{path}").parse().unwrap();
+        let errors = Compiler::compile(&program).unwrap_err();
+        assert!(errors.iter().any(|error| error.code == "SAND_PROGRAM_PATH"));
+        assert!(Compiler::check(&program).is_err());
+    }
+}
+
+#[test]
+fn format_diagnostics_identify_each_invalid_envelope_field() {
+    for (format, version, pointers) in [
+        ("wrong", 1, vec!["/format"]),
+        ("sand.program", 2, vec!["/format_version"]),
+        ("wrong", 2, vec!["/format", "/format_version"]),
+    ] {
+        let mut program = counter();
+        program.format = format.into();
+        program.format_version = version;
+        let errors = Compiler::check(&program).unwrap_err();
+        let actual: Vec<_> = errors
+            .iter()
+            .filter(|error| error.code == "SAND_PROGRAM_VERSION")
+            .map(|error| error.pointer.as_str())
+            .collect();
+        assert_eq!(actual, pointers);
+    }
+}

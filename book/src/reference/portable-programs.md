@@ -130,6 +130,10 @@ Each UTF-8 document is limited to 1 MiB, complete input to 8 MiB and modules to
 operations 100,000. Generated packs allow 10,000 resources, 1 MiB per resource
 and 32 MiB total. All limits apply together. Constructed programs obey semantic,
 depth/count and generated-output limits too.
+Generated resource paths are limited to 768 UTF-8 bytes relative to the pack
+root, with at most 255 bytes per segment including file extensions. Capability
+discovery reports both bounds. Publication adapters must still account for the
+length of their chosen destination root.
 
 Raw operations require `"requires": ["raw_commands"]`. They receive line safety
 and supported syntax checks; Sand cannot prove their State, context or reference

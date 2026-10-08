@@ -87,6 +87,10 @@ at most 64 modules per program; JSON nesting to 64 and operation nesting to 32;
 Byte limits apply before parsing, depth/count limits during traversal, and output
 limits before adding generated resources. Constructed Programs obey the same
 semantic/count/depth/output limits. Limits produce machine-readable diagnostics.
+Generated resource paths are limited to 768 UTF-8 bytes relative to the pack
+root, with at most 255 bytes per segment including file extensions. Capability
+discovery reports both bounds. Publication adapters must still account for the
+length of their chosen destination root.
 
 ## Local adapter and publication
 

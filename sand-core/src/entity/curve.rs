@@ -32,6 +32,8 @@
 //! # Ok::<(), Box<dyn std::error::Error>>(())
 //! ```
 
+pub(crate) mod scoreboard;
+
 use std::collections::{BTreeMap, BTreeSet};
 use std::fmt;
 use std::sync::Arc;

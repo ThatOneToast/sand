@@ -6,13 +6,22 @@ static BODY: OnceLock<Actions> = OnceLock::new();
 
 fn body() -> Actions {
     BODY.get_or_init(|| {
+        mcfunction![
+        when(sand_core::state::Flag::new("cached_ready").of("@s").is_true()).then_all(["say cached when"]);
+        unless(sand_core::state::Flag::new("cached_ready").of("@s").is_true()).then_all(["say cached unless"]);
+        if_(sand_core::state::Flag::new("cached_ready").of("@s").is_true()).then_all(["say cached if"]);
+        if_(sand_core::state::Flag::new("cached_ready").of("@s").is_true())
+            .then_all(["say cached then", "return fail"])
+            .else_all(["say cached else"]);
+        when(sand_core::state::Flag::new("cached_ready").of("@s").is_true()).and_then("say staged first").then("say staged last");
         Target::players().each(|player| {
             EntityScope::bind(player, |bound| {
                 bound
                     .owner()
                     .if_present(|_| mcfunction!["say retained body"; "return 0"])
             })
-        })
+        });
+        ]
     })
     .clone()
 }
@@ -48,6 +57,7 @@ fn prebuilt_and_reused_scopes_export_all_owned_helpers() {
         })
         .collect();
     for prefix in [
+        "sand/branches/",
         "sand/entity_scope/",
         "sand/entity_relation/owner/",
         "sand/entity_query/",
@@ -62,6 +72,22 @@ fn prebuilt_and_reused_scopes_export_all_owned_helpers() {
             .values()
             .any(|body| body.contains("say retained body"))
     );
+    for message in [
+        "cached when",
+        "cached unless",
+        "cached if",
+        "cached then",
+        "cached else",
+        "staged first",
+        "staged last",
+    ] {
+        assert!(
+            functions
+                .values()
+                .any(|body| body.lines().any(|line| line == format!("say {message}"))),
+            "missing cached branch body {message}"
+        );
+    }
     for body in functions.values() {
         for line in body.lines() {
             if let Some((_, target)) = line.rsplit_once("function ") {

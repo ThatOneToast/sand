@@ -566,9 +566,18 @@ pub(crate) mod test_support {
     }
 
     pub(crate) fn drain_emitted() -> Vec<(String, Vec<String>)> {
-        crate::function::drain_dyn_fns()
-            .into_iter()
-            .map(|(path, body)| (path, emitted(body)))
-            .collect()
+        let mut result = Vec::new();
+        loop {
+            let pending = crate::function::drain_dyn_fns();
+            if pending.is_empty() {
+                break;
+            }
+            result.extend(
+                pending
+                    .into_iter()
+                    .map(|(path, body)| (path, emitted(body))),
+            );
+        }
+        result
     }
 }

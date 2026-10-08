@@ -19,33 +19,42 @@ static BONUS: Flag = Flag::new("evt_test_bonus");
 /// Simulate what an `#[on_event]` body does when the export pipeline calls
 /// `(desc.make)()` — after the early drain in the old code had already run.
 fn simulate_event_body_when() -> Vec<String> {
-    let mut cmds = Vec::new();
+    let mut cmds = sand_core::ir::Actions::default();
     cmds.extend(when(MANA.of("@s").gte(25)).then_all(["say mana ok", "say branch works"]));
-    cmds
+    emitted(cmds)
 }
 
 fn simulate_event_body_unless() -> Vec<String> {
-    let mut cmds = Vec::new();
+    let mut cmds = sand_core::ir::Actions::default();
     cmds.extend(unless(CASTING.of("@s").is_true()).then_all(["say not casting", "say can start"]));
-    cmds
+    emitted(cmds)
 }
 
 fn simulate_event_body_if_else() -> Vec<String> {
-    let mut cmds = Vec::new();
+    let mut cmds = sand_core::ir::Actions::default();
     cmds.extend(
         if_(BONUS.of("@s").is_true())
             .then_all(["say has bonus"])
             .else_all(["say no bonus"]),
     );
-    cmds
+    emitted(cmds)
 }
 
 /// Drain the registry and return all registered branches.
 fn drain_branches() -> Vec<(String, Vec<String>)> {
-    sand_core::drain_dyn_fns()
-        .into_iter()
-        .map(|(path, body)| (path, emitted(body)))
-        .collect()
+    let mut result = Vec::new();
+    loop {
+        let pending = sand_core::drain_dyn_fns();
+        if pending.is_empty() {
+            break;
+        }
+        result.extend(
+            pending
+                .into_iter()
+                .map(|(path, body)| (path, emitted(body))),
+        );
+    }
+    result
 }
 
 use std::sync::{Mutex, OnceLock};
@@ -128,8 +137,8 @@ fn if_else_branches_survive_after_event_make() {
     let branches = drain_branches();
     assert_eq!(
         branches.len(),
-        4,
-        "if_/else_all should register success, failure, success-wrapper, and dispatcher functions: {branches:?}"
+        3,
+        "if_/else_all should register success, failure, and dispatcher functions: {branches:?}"
     );
     assert!(
         branches
@@ -147,23 +156,24 @@ fn if_else_branches_survive_after_event_make() {
     let dispatcher = branches
         .iter()
         .find(|(_, cmds)| {
-            cmds.first()
-                .is_some_and(|command| command.starts_with("scoreboard players set #sand_if_"))
+            cmds.first().is_some_and(|command| {
+                command.starts_with(
+                    "execute if score @s evt_test_bonus matches 1 run return run function",
+                )
+            })
         })
         .expect("single-decision dispatcher not found");
     assert!(
-        dispatcher
-            .1
-            .first()
-            .is_some_and(|command| command.starts_with("scoreboard players set #sand_if_")),
-        "dispatcher initializes one decision score: {dispatcher:?}"
+        dispatcher.1.first().is_some_and(|command| command
+            .starts_with("execute if score @s evt_test_bonus matches 1 run return run function")),
+        "dispatcher returns immediately through the success arm: {dispatcher:?}"
     );
     assert!(
         dispatcher
             .1
             .last()
-            .is_some_and(|command| command.contains("matches 0 run function")),
-        "dispatcher failure arm uses the snapshotted decision: {dispatcher:?}"
+            .is_some_and(|command| command.starts_with("return run function")),
+        "dispatcher has one fallback for an unmatched condition: {dispatcher:?}"
     );
 
     // The event calls the dispatcher once; it cannot re-test after either arm.

@@ -640,7 +640,8 @@ pub(crate) enum LoweringStrategy {
 /// Exporter-facing fixed-point operation produced by
 /// [`StatCurve::lower_scoreboard`].
 ///
-/// Operations are ordered and refer to entity score objectives on `@s`.
+/// Operations are ordered and use the lowering context for working scores.
+/// Bound inputs can read a distinct, validated source holder.
 /// Keeping rounding and overflow explicit lets the Minecraft backend expand
 /// the small arithmetic operations according to the selected version profile
 /// instead of baking host arithmetic into command strings.
@@ -668,6 +669,8 @@ pub(crate) enum LoweredCurveOperation {
         destination: String,
         /// Existing numeric State objective.
         source: String,
+        /// Explicit bound source, or the lowering context for unbound inputs.
+        source_holder: Option<String>,
         /// Number of source scoreboard units per logical unit.
         source_scale: i64,
         /// Number of destination scoreboard units per logical unit.
@@ -867,6 +870,10 @@ impl fmt::Debug for CustomCurve {
 /// Constructors intentionally accept typed curves and fixed-point constants,
 /// rather than command strings. Call [`Self::validate`] before export; Sand
 /// chooses the compact Minecraft backend internally.
+///
+/// Bound `Score` and `FixedScore` accessors convert through [`From`], retaining
+/// their source holder and declared scale. `StatCurve::from(state.amount)` is
+/// a runtime read description; it does not inspect live Minecraft state in Rust.
 #[derive(Clone, Debug)]
 pub struct StatCurve {
     kind: CurveKind,
@@ -919,11 +926,19 @@ enum CurveKind {
 #[derive(Clone, Debug)]
 struct CurveInput {
     objective: String,
+    holder: Option<sand_commands::ScoreHolder>,
     storage_scale: i32,
     field: Option<super::state::StateFieldReference>,
 }
 
 impl CurveInput {
+    fn key(&self) -> String {
+        match &self.holder {
+            Some(holder) => format!("{holder} {}", self.objective),
+            None => self.objective.clone(),
+        }
+    }
+
     fn typed(field: impl super::EntityStateField) -> Self {
         let storage_scale = match field.descriptor().kind {
             super::state::StateFieldKind::Fixed(scale) => scale,
@@ -931,6 +946,7 @@ impl CurveInput {
         };
         Self {
             objective: field.objective(),
+            holder: None,
             storage_scale,
             field: Some(field.field_reference()),
         }
@@ -939,6 +955,7 @@ impl CurveInput {
     fn raw(objective: impl Into<String>) -> Self {
         Self {
             objective: objective.into(),
+            holder: None,
             storage_scale: 1,
             field: None,
         }
@@ -946,6 +963,44 @@ impl CurveInput {
 }
 
 impl StatCurve {
+    pub(crate) fn bound_state(field: impl NumericStateField, holder: &'static str) -> Self {
+        let mut input = CurveInput::typed(field);
+        input.holder = Some(if holder == "@s" {
+            sand_commands::ScoreHolder::self_()
+        } else {
+            sand_commands::ScoreHolder::fake(holder)
+        });
+        Self {
+            kind: CurveKind::Input(input),
+        }
+    }
+
+    pub(crate) fn validate_entity_inputs(
+        &self,
+        owner: &str,
+        property: &str,
+    ) -> Result<(), EntityDiagnostic> {
+        let mut unsupported = None;
+        self.visit_inputs(&mut |input| {
+            if let Some(holder) = &input.holder
+                && holder.to_string() != "@s"
+            {
+                unsupported = Some(holder.to_string());
+            }
+        });
+        if let Some(holder) = unsupported {
+            return Err(EntityDiagnostic::UnsupportedProfile {
+                archetype: owner.into(),
+                property: property.into(),
+                profile: "archetype-reconciliation".into(),
+                reason: format!(
+                    "bound numeric source `{holder}` is outside the current entity; cross-holder change observation is not supported"
+                ),
+            });
+        }
+        Ok(())
+    }
+
     /// Creates a fixed derived value.
     #[sand_macros::api(
         registry = sand_api_contract,
@@ -1560,8 +1615,8 @@ impl StatCurve {
     /// [`sand_commands::ObjectiveName::logical`]. Input names in the curve are
     /// interpreted as existing objective names.
     ///
-    /// The returned plan is execution-scoped to the entity at `@s`. It does
-    /// not allocate global score holders or persistent selector references.
+    /// The backend supplies the working score holder. Bound State inputs
+    /// retain their explicit source holder; unbound inputs use that context.
     pub(crate) fn lower_scoreboard(
         &self,
         target_objective: &str,
@@ -1597,6 +1652,10 @@ impl StatCurve {
     }
 
     /// Returns all referenced named inputs in lexical order.
+    ///
+    /// Unbound inputs use their objective name. A bound State input uses
+    /// `<holder> <objective>` so two holders of one field remain distinct in
+    /// [`CurveInputs`] when evaluating an expression outside Minecraft.
     #[sand_macros::api(
         registry = sand_api_contract,
         path = "sand::entity::StatCurve::inputs",
@@ -1618,7 +1677,7 @@ impl StatCurve {
         inputs
     }
 
-    /// Typed State fields referenced by this curve, keyed by objective.
+    /// Typed State fields referenced by this curve, keyed by input identity.
     #[doc(hidden)]
     pub(crate) fn field_references(&self) -> BTreeMap<String, super::state::StateFieldReference> {
         let mut references = BTreeMap::new();
@@ -1636,7 +1695,17 @@ impl StatCurve {
             CurveKind::Constant(value) => {
                 fixed.encode(*value, archetype, derivation)?;
             }
-            CurveKind::Input(_) => {}
+            CurveKind::Input(input) => {
+                if let Some(holder) = &input.holder {
+                    holder
+                        .validate_single(&sand_commands::CommandProfile::unprofiled())
+                        .map_err(|error| EntityDiagnostic::InvalidRawExtension {
+                            archetype: archetype.into(),
+                            extension: derivation.into(),
+                            detail: format!("invalid bound numeric source: {error}"),
+                        })?;
+                }
+            }
             CurveKind::Linear {
                 input,
                 slope,
@@ -1764,11 +1833,11 @@ impl StatCurve {
             CurveKind::Constant(value) => Ok(fixed.encode(*value, archetype, derivation)?),
             CurveKind::Input(input) => {
                 inputs
-                    .get(&input.objective)
+                    .get(&input.key())
                     .ok_or_else(|| CurveEvaluationError::MissingInput {
                         archetype: archetype.into(),
                         derivation: derivation.into(),
-                        input: input.objective.clone(),
+                        input: input.key(),
                     })
             }
             CurveKind::Linear {
@@ -1874,7 +1943,7 @@ impl StatCurve {
                 entries,
                 fallback,
             } => {
-                let value = required_input(inputs, &input.objective, archetype, derivation)?;
+                let value = required_input(inputs, &input.key(), archetype, derivation)?;
                 let key = fixed.decode_score(value, archetype, derivation)?;
                 Ok(fixed.encode(
                     entries
@@ -1890,7 +1959,7 @@ impl StatCurve {
                 entries,
                 fallback,
             } => {
-                let value = required_input(inputs, &input.objective, archetype, derivation)?;
+                let value = required_input(inputs, &input.key(), archetype, derivation)?;
                 let key = fixed.decode_score(value, archetype, derivation)?;
                 let mapped = i32::try_from(key)
                     .ok()
@@ -1908,7 +1977,7 @@ impl StatCurve {
                 disabled,
                 enabled,
             } => {
-                let value = required_input(inputs, &input.objective, archetype, derivation)?;
+                let value = required_input(inputs, &input.key(), archetype, derivation)?;
                 Ok(fixed.encode(
                     if value.0 == 0 { *disabled } else { *enabled },
                     archetype,
@@ -1963,84 +2032,60 @@ impl StatCurve {
     }
 
     fn collect_inputs(&self, inputs: &mut BTreeSet<String>) {
-        match &self.kind {
-            CurveKind::Input(input)
-            | CurveKind::Lookup { input, .. }
-            | CurveKind::EnumMap { input, .. }
-            | CurveKind::FlagMap { input, .. } => {
-                inputs.insert(input.objective.clone());
-            }
-            CurveKind::Linear { input, .. } | CurveKind::Stepped { input, .. } => {
-                input.collect_inputs(inputs);
-            }
-            CurveKind::Add(curves) | CurveKind::Multiply(curves) => {
-                for curve in curves {
-                    curve.collect_inputs(inputs);
-                }
-            }
-            CurveKind::Ratio {
-                numerator,
-                denominator,
-            } => {
-                numerator.collect_inputs(inputs);
-                denominator.collect_inputs(inputs);
-            }
-            CurveKind::Piecewise {
-                input,
-                branches,
-                fallback,
-            } => {
-                input.collect_inputs(inputs);
-                for (_, branch) in branches {
-                    branch.collect_inputs(inputs);
-                }
-                fallback.collect_inputs(inputs);
-            }
-            CurveKind::Custom(custom) => inputs.extend(custom.inputs.iter().cloned()),
-            CurveKind::Constant(_) => {}
-        }
+        self.visit_inputs(&mut |input| {
+            inputs.insert(input.key());
+        });
     }
 
     fn collect_field_references(
         &self,
         references: &mut BTreeMap<String, super::state::StateFieldReference>,
     ) {
+        self.visit_inputs(&mut |input| {
+            if let Some(field) = &input.field {
+                references.insert(input.key(), field.clone());
+            }
+        });
+    }
+
+    fn visit_inputs(&self, visit: &mut impl FnMut(&CurveInput)) {
         match &self.kind {
             CurveKind::Input(input)
             | CurveKind::Lookup { input, .. }
             | CurveKind::EnumMap { input, .. }
-            | CurveKind::FlagMap { input, .. } => {
-                if let Some(field) = &input.field {
-                    references.insert(input.objective.clone(), field.clone());
-                }
-            }
+            | CurveKind::FlagMap { input, .. } => visit(input),
             CurveKind::Linear { input, .. } | CurveKind::Stepped { input, .. } => {
-                input.collect_field_references(references);
+                input.visit_inputs(visit)
             }
             CurveKind::Add(curves) | CurveKind::Multiply(curves) => {
                 for curve in curves {
-                    curve.collect_field_references(references);
+                    curve.visit_inputs(visit);
                 }
             }
             CurveKind::Ratio {
                 numerator,
                 denominator,
             } => {
-                numerator.collect_field_references(references);
-                denominator.collect_field_references(references);
+                numerator.visit_inputs(visit);
+                denominator.visit_inputs(visit);
             }
             CurveKind::Piecewise {
                 input,
                 branches,
                 fallback,
             } => {
-                input.collect_field_references(references);
-                for (_, curve) in branches {
-                    curve.collect_field_references(references);
+                input.visit_inputs(visit);
+                for (_, branch) in branches {
+                    branch.visit_inputs(visit);
                 }
-                fallback.collect_field_references(references);
+                fallback.visit_inputs(visit);
             }
-            CurveKind::Constant(_) | CurveKind::Custom(_) => {}
+            CurveKind::Custom(custom) => {
+                for input in &custom.inputs {
+                    visit(&CurveInput::raw(input));
+                }
+            }
+            CurveKind::Constant(_) => {}
         }
     }
 }
@@ -2088,6 +2133,7 @@ impl CurveLoweringBuilder<'_> {
                 self.operations.push(LoweredCurveOperation::ScoreToFixed {
                     destination: destination.clone(),
                     source: source.objective.clone(),
+                    source_holder: source.holder.as_ref().map(ToString::to_string),
                     source_scale: i64::from(source.storage_scale),
                     target_scale: self.fixed.scale(),
                     rounding: self.fixed.rounding(),

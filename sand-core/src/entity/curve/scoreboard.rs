@@ -71,14 +71,16 @@ pub(crate) fn render_lowered_curve(
             LoweredCurveOperation::ScoreToFixed {
                 destination,
                 source,
+                source_holder,
                 source_scale,
                 target_scale,
                 rounding,
                 overflow,
             } => {
                 require_scoreboard_overflow(context, lowered, *overflow)?;
+                let source_holder = source_holder.clone().unwrap_or_else(|| holder.to_string());
                 commands.push(format!(
-                    "scoreboard players operation {holder} {destination} = {holder} {source}"
+                    "scoreboard players operation {holder} {destination} = {source_holder} {source}"
                 ));
                 append_scale_conversion(
                     context,
@@ -762,6 +764,67 @@ mod tests {
     use super::*;
     use crate::entity::{FixedPoint, FixedScore, StatCurve};
     use sand_commands::ScoreHolder;
+
+    #[test]
+    fn bound_sources_keep_their_holder_and_scale_in_a_separate_working_context() {
+        use crate::entity::EntityStateField;
+        let owner = "game:calculate".parse().unwrap();
+        let input = FixedScore::__new("game", "combat", "power", 100, 125, None);
+        let expression = StatCurve::add([
+            StatCurve::from(input.bind_to("#left", false)),
+            StatCurve::from(input.bind_to("#right", false)),
+        ]);
+        let working = ScoreHolder::fake("#scratch");
+        let lowered = expression
+            .lower_scoreboard("result", "game:calculate", FixedPoint::default())
+            .unwrap();
+        let output = render_lowered_curve(
+            NumericContext::new(&owner, &working).unwrap(),
+            "numeric/calculate",
+            &lowered,
+        )
+        .unwrap();
+        for holder in ["#left", "#right"] {
+            assert!(output.commands.iter().any(|line| {
+                line.starts_with("scoreboard players operation #scratch ")
+                    && line.ends_with(&format!("= {holder} {}", input.objective()))
+            }));
+        }
+        assert!(lowered.operations().iter().any(|op| matches!(
+            op,
+            LoweredCurveOperation::ScoreToFixed {
+                source_scale: 100,
+                target_scale: 1000,
+                ..
+            }
+        )));
+        let keys = expression.inputs();
+        assert_eq!(keys.len(), 2);
+        let mut inputs = crate::entity::CurveInputs::new();
+        for key in keys {
+            let value = if key.starts_with("#left ") { 2 } else { 5 };
+            inputs
+                .insert_score(key, value, FixedPoint::default(), "game:calculate", "sum")
+                .unwrap();
+        }
+        let value = expression
+            .evaluate(&inputs, FixedPoint::default(), "game:calculate", "sum")
+            .unwrap();
+        assert_eq!(value.as_f64(FixedPoint::default()), 7.0);
+    }
+
+    #[test]
+    fn invalid_bound_source_is_rejected_before_command_emission() {
+        use crate::entity::EntityStateField;
+        let input = FixedScore::__new("game", "combat", "power", 100, 125, None);
+        for holder in ["bad holder", "@a", "@s\nkill @s"] {
+            let expression = StatCurve::from(input.bind_to(holder, false));
+            let error = expression
+                .lower_scoreboard("result", "game:calculate", FixedPoint::default())
+                .unwrap_err();
+            assert!(error.to_string().contains("invalid bound numeric source"));
+        }
+    }
 
     #[test]
     fn server_holder_preserves_numeric_operations_and_generated_branches() {

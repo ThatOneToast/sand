@@ -3330,6 +3330,20 @@ fn mutation<F: EntityStateField + ComponentDirtyField>(
     commands
 }
 
+// Bound State reads join the canonical expression model without losing the
+// source holder or converting its stored units into a second numeric type.
+impl<T: 'static> From<EntityScoreAccessor<T>> for super::StatCurve {
+    fn from(source: EntityScoreAccessor<T>) -> Self {
+        Self::bound_state(source.field, source.holder)
+    }
+}
+
+impl From<FixedScoreAccessor> for super::StatCurve {
+    fn from(source: FixedScoreAccessor) -> Self {
+        Self::bound_state(source.field, source.holder)
+    }
+}
+
 impl NumericStateSource for i32 {
     fn append_numeric_operation(
         self,

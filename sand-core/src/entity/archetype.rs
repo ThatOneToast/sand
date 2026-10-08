@@ -3227,6 +3227,9 @@ fn compile_derivations(
     let mut graph = DependencyGraph::new();
     let mut targets = BTreeSet::new();
     for derivation in &definition.derivations {
+        derivation
+            .curve
+            .validate_entity_inputs(&id, &derivation.name)?;
         let target = derivation.target.objective();
         fields.resolve_reference(
             definition,
@@ -3241,8 +3244,12 @@ fn compile_derivations(
             });
         }
         graph.add_node(target.clone());
+        let references = derivation.curve.field_references();
         for input in derivation.curve.inputs() {
-            graph.add_dependency(input, target.clone());
+            let objective = references
+                .get(&input)
+                .map_or(input.clone(), |field| field.objective.clone());
+            graph.add_dependency(objective, target.clone());
         }
     }
     let order = graph.topological_order(&definition.id.to_string())?;
@@ -5280,6 +5287,51 @@ mod tests {
         );
         assert!(ratio.contains(&format!("*= @s {}", HEALTH.objective())));
         assert!(ratio.contains("matches 1.. run scoreboard players operation"));
+    }
+
+    #[test]
+    fn bound_current_sources_preserve_derivation_output_and_cycle_detection() {
+        let base = EntityArchetype::<ZombieKind>::new(
+            ResourceLocation::new("rpg", "bound_inputs").unwrap(),
+        )
+        .components::<MobState>();
+        let unbound = base
+            .clone()
+            .derive(HEALTH, StatCurve::state(LEVEL))
+            .definition();
+        let bound = base
+            .clone()
+            .derive(HEALTH, StatCurve::from(LEVEL.bind()))
+            .definition();
+        assert_eq!(
+            compile_definition(&unbound, &profile()).unwrap().records,
+            compile_definition(&bound, &profile()).unwrap().records
+        );
+        let cycle = base
+            .derive(HEALTH, StatCurve::from(LEVEL.bind()))
+            .derive(LEVEL, StatCurve::from(HEALTH.bind()))
+            .definition();
+        let error = compile_definition(&cycle, &profile())
+            .unwrap_err()
+            .to_string();
+        assert!(error.contains("cycle"), "{error}");
+        assert!(error.contains(&LEVEL.objective()), "{error}");
+        assert!(error.contains(&HEALTH.objective()), "{error}");
+    }
+
+    #[test]
+    fn archetype_derivations_reject_unobserved_cross_holder_sources() {
+        let definition = EntityArchetype::<ZombieKind>::new(
+            ResourceLocation::new("rpg", "foreign_input").unwrap(),
+        )
+        .components::<MobState>()
+        .derive(HEALTH, StatCurve::from(LEVEL.bind_to("#global", false)))
+        .definition();
+        let error = compile_definition(&definition, &profile())
+            .unwrap_err()
+            .to_string();
+        assert!(error.contains("#global"), "{error}");
+        assert!(error.contains("cross-holder change observation"), "{error}");
     }
 
     #[test]

@@ -669,6 +669,14 @@ pub(crate) enum LoweredCurveOperation {
         /// Source score objective.
         source: String,
     },
+    /// Read one native numeric NBT value at the working fixed-point scale.
+    NbtToFixed {
+        destination: String,
+        target: sand_commands::DataTarget,
+        path: sand_commands::NbtPath,
+        scale: i64,
+        overflow: OverflowPolicy,
+    },
     /// Convert a numeric State field from its storage scale to the curve's
     /// working scale.
     ScoreToFixed {
@@ -930,18 +938,36 @@ enum CurveKind {
 }
 
 #[derive(Clone, Debug)]
-struct CurveInput {
-    objective: String,
-    holder: Option<sand_commands::ScoreHolder>,
-    storage_scale: i32,
-    field: Option<super::state::StateFieldReference>,
+enum CurveInput {
+    Score {
+        objective: String,
+        holder: Option<sand_commands::ScoreHolder>,
+        storage_scale: i32,
+        field: Option<super::state::StateFieldReference>,
+    },
+    Nbt {
+        target: sand_commands::DataTarget,
+        path: sand_commands::NbtPath,
+    },
 }
 
 impl CurveInput {
     fn key(&self) -> String {
-        match &self.holder {
-            Some(holder) => format!("{holder} {}", self.objective),
-            None => self.objective.clone(),
+        match self {
+            Self::Score {
+                objective,
+                holder: Some(holder),
+                ..
+            } => format!("{holder} {objective}"),
+            Self::Score { objective, .. } => objective.clone(),
+            Self::Nbt { target, path } => format!("nbt {target} {path}"),
+        }
+    }
+
+    fn score_objective(&self) -> &str {
+        match self {
+            Self::Score { objective, .. } => objective,
+            Self::Nbt { .. } => unreachable!("discrete mapping constructors require a State score"),
         }
     }
 
@@ -950,7 +976,7 @@ impl CurveInput {
             super::state::StateFieldKind::Fixed(scale) => scale,
             _ => 1,
         };
-        Self {
+        Self::Score {
             objective: field.objective(),
             holder: None,
             storage_scale,
@@ -959,7 +985,7 @@ impl CurveInput {
     }
 
     fn raw(objective: impl Into<String>) -> Self {
-        Self {
+        Self::Score {
             objective: objective.into(),
             holder: None,
             storage_scale: 1,
@@ -981,9 +1007,20 @@ impl From<f64> for StatCurve {
 }
 
 impl StatCurve {
+    pub(crate) fn native_nbt(
+        target: sand_commands::DataTarget,
+        path: sand_commands::NbtPath,
+    ) -> Self {
+        Self {
+            kind: CurveKind::Input(CurveInput::Nbt { target, path }),
+        }
+    }
+
     pub(crate) fn direct_source_scale(&self) -> Option<i64> {
         match &self.kind {
-            CurveKind::Input(input) => Some(i64::from(input.storage_scale)),
+            CurveKind::Input(CurveInput::Score { storage_scale, .. }) => {
+                Some(i64::from(*storage_scale))
+            }
             _ => None,
         }
     }
@@ -997,7 +1034,9 @@ impl StatCurve {
 
     pub(crate) fn bound_state(field: impl NumericStateField, holder: &'static str) -> Self {
         let mut input = CurveInput::typed(field);
-        input.holder = Some(sand_commands::__private::score_holder_compat(holder.into()));
+        if let CurveInput::Score { holder: source, .. } = &mut input {
+            *source = Some(sand_commands::__private::score_holder_compat(holder.into()));
+        }
         Self {
             kind: CurveKind::Input(input),
         }
@@ -1009,12 +1048,13 @@ impl StatCurve {
         property: &str,
     ) -> Result<(), EntityDiagnostic> {
         let mut unsupported = None;
-        self.visit_inputs(&mut |input| {
-            if let Some(holder) = &input.holder
-                && holder.to_string() != "@s"
-            {
-                unsupported = Some(holder.to_string());
-            }
+        self.visit_inputs(&mut |input| match input {
+            CurveInput::Score {
+                holder: Some(holder),
+                ..
+            } if holder.to_string() != "@s" => unsupported = Some(holder.to_string()),
+            CurveInput::Nbt { .. } => unsupported = Some(input.key()),
+            _ => {}
         });
         if let Some(holder) = unsupported {
             return Err(EntityDiagnostic::UnsupportedProfile {
@@ -1022,7 +1062,7 @@ impl StatCurve {
                 property: property.into(),
                 profile: "archetype-reconciliation".into(),
                 reason: format!(
-                    "bound numeric source `{holder}` is outside the current entity; cross-holder change observation is not supported"
+                    "numeric source `{holder}` cannot be observed by archetype reconciliation; native or cross-holder change observation is not supported; only current-entity State scores are supported"
                 ),
             });
         }
@@ -1683,7 +1723,8 @@ impl StatCurve {
     ///
     /// Unbound inputs use their objective name. A bound State input uses
     /// `<holder> <objective>` so two holders of one field remain distinct in
-    /// [`CurveInputs`] when evaluating an expression outside Minecraft.
+    /// [`CurveInputs`] when evaluating an expression outside Minecraft. Native
+    /// numeric reads use `nbt <target> <path>` and consume a supplied fixed value.
     #[sand_macros::api(
         registry = sand_api_contract,
         path = "sand::entity::StatCurve::inputs",
@@ -1724,7 +1765,11 @@ impl StatCurve {
                 fixed.encode(*value, archetype, derivation)?;
             }
             CurveKind::Input(input) => {
-                if let Some(holder) = &input.holder {
+                if let CurveInput::Score {
+                    holder: Some(holder),
+                    ..
+                } = input
+                {
                     holder
                         .validate_single(&sand_commands::CommandProfile::unprofiled())
                         .map_err(|error| EntityDiagnostic::InvalidRawExtension {
@@ -2070,7 +2115,10 @@ impl StatCurve {
         references: &mut BTreeMap<String, super::state::StateFieldReference>,
     ) {
         self.visit_inputs(&mut |input| {
-            if let Some(field) = &input.field {
+            if let CurveInput::Score {
+                field: Some(field), ..
+            } = input
+            {
                 references.insert(input.key(), field.clone());
             }
         });
@@ -2162,17 +2210,33 @@ impl CurveLoweringBuilder<'_> {
                     value,
                 });
             }
-            CurveKind::Input(source) => {
-                self.operations.push(LoweredCurveOperation::ScoreToFixed {
-                    destination: destination.clone(),
-                    source: source.objective.clone(),
-                    source_holder: source.holder.as_ref().map(ToString::to_string),
-                    source_scale: i64::from(source.storage_scale),
-                    target_scale: self.fixed.scale(),
-                    rounding: self.fixed.rounding(),
-                    overflow: self.fixed.overflow(),
-                });
-            }
+            CurveKind::Input(source) => match source {
+                CurveInput::Score {
+                    objective,
+                    holder,
+                    storage_scale,
+                    ..
+                } => {
+                    self.operations.push(LoweredCurveOperation::ScoreToFixed {
+                        destination: destination.clone(),
+                        source: objective.clone(),
+                        source_holder: holder.as_ref().map(ToString::to_string),
+                        source_scale: i64::from(*storage_scale),
+                        target_scale: self.fixed.scale(),
+                        rounding: self.fixed.rounding(),
+                        overflow: self.fixed.overflow(),
+                    });
+                }
+                CurveInput::Nbt { target, path } => {
+                    self.operations.push(LoweredCurveOperation::NbtToFixed {
+                        destination: destination.clone(),
+                        target: target.clone(),
+                        path: path.clone(),
+                        scale: self.fixed.scale(),
+                        overflow: self.fixed.overflow(),
+                    })
+                }
+            },
             CurveKind::Linear {
                 input,
                 slope,
@@ -2325,7 +2389,7 @@ impl CurveLoweringBuilder<'_> {
                     .collect::<Result<Vec<_>, EntityDiagnostic>>()?;
                 self.operations.push(LoweredCurveOperation::LookupTable {
                     destination: destination.clone(),
-                    input: input.objective.clone(),
+                    input: input.score_objective().to_owned(),
                     entries,
                     fallback: self.fixed.encode(
                         *fallback,
@@ -2351,7 +2415,7 @@ impl CurveLoweringBuilder<'_> {
                     .collect::<Result<Vec<_>, EntityDiagnostic>>()?;
                 self.operations.push(LoweredCurveOperation::SelectEnum {
                     destination: destination.clone(),
-                    input: input.objective.clone(),
+                    input: input.score_objective().to_owned(),
                     entries,
                     fallback: self
                         .fixed
@@ -2365,7 +2429,7 @@ impl CurveLoweringBuilder<'_> {
             } => {
                 self.operations.push(LoweredCurveOperation::SelectFlag {
                     destination: destination.clone(),
-                    input: input.objective.clone(),
+                    input: input.score_objective().to_owned(),
                     disabled: self
                         .fixed
                         .encode(*disabled, self.scratch_prefix, "flag_disabled")?,

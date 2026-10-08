@@ -5410,12 +5410,28 @@ mod tests {
             .iter()
             .find(|record| record.path.ends_with("/derive/0"))
             .unwrap();
-        assert!(derive.content.lines().any(|line| {
-            line.contains("matches 0..") && line.contains("run scoreboard players add")
-        }));
-        assert!(!derive.content.lines().any(|line| {
-            line.contains("matches ..-1") && line.contains("run scoreboard players add")
-        }));
+        let commit_prefix = format!(
+            "scoreboard players operation @s {} = @s ",
+            SPEED.objective()
+        );
+        let calculated = derive
+            .content
+            .lines()
+            .find_map(|line| line.strip_prefix(&commit_prefix))
+            .unwrap();
+        let increment = format!("run scoreboard players add @s {calculated} 1");
+        assert!(
+            derive
+                .content
+                .lines()
+                .any(|line| { line.contains("matches 0..") && line.ends_with(&increment) })
+        );
+        assert!(
+            !derive
+                .content
+                .lines()
+                .any(|line| { line.contains("matches ..-1") && line.ends_with(&increment) })
+        );
     }
 
     #[test]

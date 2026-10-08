@@ -17,7 +17,12 @@ impl Machine {
                     let negate = command[i] == "unless";
                     assert!(matches!(command[i], "if" | "unless"));
                     assert_eq!(command[i + 1], "score");
-                    let left = self.get(command[i + 2], command[i + 3]);
+                    let left = self
+                        .0
+                        .get(&format!("{} {}", command[i + 2], command[i + 3]))
+                        .copied();
+                    let present = left.is_some();
+                    let left = left.unwrap_or(0);
                     let condition = if command[i + 4] == "matches" {
                         let range = command[i + 5];
                         i += 6;
@@ -38,7 +43,7 @@ impl Machine {
                         i += 7;
                         matched
                     };
-                    if condition == negate {
+                    if (condition && present) == negate {
                         return true;
                     }
                 }
@@ -177,7 +182,21 @@ fn emitted_rounding_handles_minimum_score_without_intermediate_overflow() {
         )
         .unwrap();
         for left in [i32::MIN, i32::MIN + 1, -15, -5, -1, 0, 1, 5, 15, i32::MAX] {
-            for right in [1, 2, 3, 10, 1000, i32::MAX] {
+            for right in [
+                i32::MIN,
+                -i32::MAX,
+                -1000,
+                -10,
+                -3,
+                -2,
+                -1,
+                1,
+                2,
+                3,
+                10,
+                1000,
+                i32::MAX,
+            ] {
                 let ratio = f64::from(left) / f64::from(right);
                 let expected = match rounding {
                     RoundingPolicy::Floor => ratio.floor(),
@@ -189,6 +208,11 @@ fn emitted_rounding_handles_minimum_score_without_intermediate_overflow() {
                 let mut machine = Machine::default();
                 machine.0.insert("@s value".into(), left);
                 machine.0.insert("@s divisor".into(), right);
+                if left == i32::MIN && right == -1 {
+                    assert!(!machine.execute(&commands));
+                    assert_eq!(machine.get("@s", "value"), left);
+                    continue;
+                }
                 assert!(machine.execute(&commands));
                 assert_eq!(
                     machine.get("@s", "value"),
@@ -197,5 +221,77 @@ fn emitted_rounding_handles_minimum_score_without_intermediate_overflow() {
                 );
             }
         }
+    }
+}
+
+#[test]
+fn missing_numeric_source_aborts_without_committing_or_reusing_scratch() {
+    use crate::entity::{EntityScore, EntityStateField, FixedPoint, StatCurve};
+    let owner = "test:missing".parse().unwrap();
+    let holder = sand_commands::ScoreHolder::self_();
+    let input = EntityScore::<i32>::__new(
+        "test",
+        "combat",
+        "source",
+        crate::entity::state::StateFieldKind::Score,
+        0,
+        None,
+    );
+    let lowered = StatCurve::from(input.bind())
+        .lower_scoreboard("result", "test:missing", FixedPoint::default())
+        .unwrap();
+    let output = render_lowered_curve(
+        NumericContext::new(&owner, &holder).unwrap(),
+        "missing",
+        &lowered,
+    )
+    .unwrap();
+    let mut machine = Machine::default();
+    machine.0.insert("@s result".into(), 123);
+    assert!(!machine.execute(&output.commands));
+    assert_eq!(machine.get("@s", "result"), 123);
+    machine.0.insert(format!("@s {}", input.objective()), 2);
+    assert!(machine.execute(&output.commands));
+    assert_eq!(machine.get("@s", "result"), 2000);
+    machine.0.remove(&format!("@s {}", input.objective()));
+    assert!(!machine.execute(&output.commands));
+    assert_eq!(machine.get("@s", "result"), 2000);
+}
+
+#[test]
+fn unbound_inputs_keep_the_caller_when_scratch_uses_a_fake_holder() {
+    use crate::entity::{FixedPoint, StatCurve};
+    let owner = "test:caller".parse().unwrap();
+    let scratch = sand_commands::ScoreHolder::fake("#value");
+    let caller = sand_commands::ScoreHolder::self_();
+    let context = NumericContext::new(&owner, &scratch)
+        .unwrap()
+        .with_input_holder(&caller)
+        .unwrap();
+    for curve in [
+        StatCurve::input_raw("mana"),
+        StatCurve::stepped(StatCurve::input_raw("mana"), vec![(1.0, 2.0)], 0.0),
+        StatCurve::lookup_raw("mana", vec![(1, 2.0)], 0.0),
+        StatCurve::enum_mapping_raw("mana", vec![(1, 2.0)], 0.0),
+        StatCurve::flag_mapping_raw("mana", 0.0, 2.0),
+    ] {
+        let lowered = curve
+            .lower_scoreboard("result", "test:caller", FixedPoint::default())
+            .unwrap();
+        let output = render_lowered_curve(context, "caller", &lowered).unwrap();
+        assert!(
+            output.commands.iter().any(|line| line
+                .starts_with("scoreboard players operation #value ")
+                && line.ends_with("= @s mana")),
+            "{curve:?}"
+        );
+        assert!(output.commands.iter().any(|line| line
+            == "execute unless score @s mana matches -2147483648..2147483647 run return fail"));
+        assert!(
+            !output
+                .commands
+                .iter()
+                .any(|line| line.ends_with("= #value mana"))
+        );
     }
 }

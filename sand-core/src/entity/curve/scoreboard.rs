@@ -19,6 +19,7 @@ use std::collections::BTreeSet;
 pub(crate) struct NumericContext<'a> {
     owner: &'a ResourceLocation,
     holder: &'a sand_commands::ScoreHolder,
+    input_holder: &'a sand_commands::ScoreHolder,
 }
 
 impl<'a> NumericContext<'a> {
@@ -33,7 +34,20 @@ impl<'a> NumericContext<'a> {
                 extension: "numeric execution context".into(),
                 detail: error.to_string(),
             })?;
-        Ok(Self { owner, holder })
+        Ok(Self {
+            owner,
+            holder,
+            input_holder: holder,
+        })
+    }
+
+    pub(crate) fn with_input_holder(
+        mut self,
+        holder: &'a sand_commands::ScoreHolder,
+    ) -> Result<Self, EntityDiagnostic> {
+        Self::new(self.owner, holder)?;
+        self.input_holder = holder;
+        Ok(self)
     }
 }
 
@@ -78,7 +92,10 @@ pub(crate) fn render_lowered_curve(
                 overflow,
             } => {
                 require_scoreboard_overflow(context, lowered, *overflow)?;
-                let source_holder = source_holder.clone().unwrap_or_else(|| holder.to_string());
+                let source_holder = source_holder
+                    .clone()
+                    .unwrap_or_else(|| context.input_holder.to_string());
+                commands.push(format!("execute unless score {source_holder} {source} matches -2147483648..2147483647 run return fail"));
                 // A missing optional State score makes the copy fail without
                 // updating its target. Clear persistent scratch first so a
                 // later evaluation cannot inherit a previous source value.
@@ -263,6 +280,8 @@ pub(crate) fn render_lowered_curve(
                 entries,
                 fallback,
             } => {
+                let input =
+                    capture_discrete_input(context, &mut objectives, &mut commands, input, index);
                 let mut encoded = Vec::new();
                 for (key, value) in entries {
                     encoded.push((
@@ -276,7 +295,7 @@ pub(crate) fn render_lowered_curve(
                 build_exact_tree(
                     context,
                     &base,
-                    input,
+                    &input,
                     destination,
                     &encoded,
                     fallback,
@@ -291,6 +310,8 @@ pub(crate) fn render_lowered_curve(
                 entries,
                 fallback,
             } => {
+                let input =
+                    capture_discrete_input(context, &mut objectives, &mut commands, input, index);
                 let mut encoded = Vec::new();
                 for (encoding, value) in entries {
                     encoded.push((
@@ -304,7 +325,7 @@ pub(crate) fn render_lowered_curve(
                 build_exact_tree(
                     context,
                     &base,
-                    input,
+                    &input,
                     destination,
                     &encoded,
                     fallback,
@@ -319,6 +340,8 @@ pub(crate) fn render_lowered_curve(
                 disabled,
                 enabled,
             } => {
+                let input =
+                    capture_discrete_input(context, &mut objectives, &mut commands, input, index);
                 commands.push(format!(
                     "execute if score {holder} {input} matches 0 run scoreboard players set {holder} {destination} {}",
                     scoreboard_value(context, lowered.target_objective(), disabled.units())?
@@ -558,6 +581,28 @@ fn build_piecewise_tree(
     ));
 }
 
+fn capture_discrete_input(
+    context: NumericContext<'_>,
+    objectives: &mut BTreeSet<String>,
+    commands: &mut Vec<String>,
+    input: &str,
+    index: usize,
+) -> String {
+    let source = context.input_holder;
+    let holder = context.holder;
+    let destination =
+        sand_commands::ObjectiveName::logical(format!("{}.input.{index}.{input}", context.owner))
+            .to_string();
+    objectives.insert(destination.clone());
+    commands.push(format!(
+        "execute unless score {source} {input} matches -2147483648..2147483647 run return fail"
+    ));
+    commands.push(format!(
+        "scoreboard players operation {holder} {destination} = {source} {input}"
+    ));
+    destination
+}
+
 fn scoreboard_value(
     context: NumericContext<'_>,
     derivation: &str,
@@ -744,9 +789,10 @@ fn append_score_division(
     };
     if dynamic_divisor {
         commands.push(format!(
-            "execute unless score {divisor} matches 1.. run return fail"
+            "execute if score {divisor} matches 0 run return fail"
         ));
     }
+    commands.push(format!("execute if score {holder} {destination} matches -2147483648 if score {divisor} matches -1 run return fail"));
     let scratch = |role: &str| {
         sand_commands::ObjectiveName::logical(format!(
             "{}.division.{index}.{destination}.{role}",
@@ -775,10 +821,10 @@ fn append_score_division(
     match rounding {
         RoundingPolicy::Floor => {}
         RoundingPolicy::TowardZero => commands.push(format!(
-            "execute if score {holder} {original} matches ..-1 if score {holder} {remainder} matches 1.. run scoreboard players add {holder} {destination} 1"
+            "execute if score {holder} {destination} matches ..-1 unless score {holder} {remainder} matches 0 run scoreboard players add {holder} {destination} 1"
         )),
         RoundingPolicy::Ceiling => commands.push(format!(
-            "execute if score {holder} {remainder} matches 1.. run scoreboard players add {holder} {destination} 1"
+            "execute unless score {holder} {remainder} matches 0 run scoreboard players add {holder} {destination} 1"
         )),
         RoundingPolicy::NearestTiesAwayFromZero | RoundingPolicy::NearestTiesToEven => {
             let half = scratch("half_divisor");
@@ -798,12 +844,20 @@ fn append_score_division(
             commands.push(format!(
                 "scoreboard players operation {holder} {divisor_parity} %= #value {two}"
             ));
+            let negative_one = constant_objective(context, "curve_negative_one", -1)?;
+            objectives.insert(negative_one.clone());
+            commands.push(format!("scoreboard players set #value {negative_one} -1"));
+            // floor(b / 2) differs from -floor(abs(b) / 2) for negative odd b.
+            // Halve before negating so i32::MIN remains representable.
+            commands.push(format!("execute if score {divisor} matches ..-1 unless score {holder} {divisor_parity} matches 0 run scoreboard players add {holder} {half} 1"));
+            commands.push(format!("execute if score {holder} {half} matches ..-1 run scoreboard players operation {holder} {half} *= #value {negative_one}"));
+            commands.push(format!("execute if score {holder} {remainder} matches ..-1 run scoreboard players operation {holder} {remainder} *= #value {negative_one}"));
             commands.push(format!(
                 "execute if score {holder} {remainder} > {holder} {half} run scoreboard players add {holder} {destination} 1"
             ));
             if rounding == RoundingPolicy::NearestTiesAwayFromZero {
                 commands.push(format!(
-                    "execute if score {holder} {original} matches 0.. if score {holder} {remainder} = {holder} {half} if score {holder} {divisor_parity} matches 0 run scoreboard players add {holder} {destination} 1"
+                    "execute if score {holder} {destination} matches 0.. if score {holder} {remainder} = {holder} {half} if score {holder} {divisor_parity} matches 0 run scoreboard players add {holder} {destination} 1"
                 ));
             } else {
                 let parity = scratch("parity");
@@ -1014,8 +1068,8 @@ mod tests {
             output
                 .commands
                 .iter()
-                .any(|line| line.starts_with("execute unless score #value ")
-                    && line.ends_with("matches 1.. run return fail"))
+                .any(|line| line.starts_with("execute if score #value ")
+                    && line.ends_with("matches 0 run return fail"))
         );
         assert!(!output.commands.iter().any(|line| line.contains("@s")));
     }

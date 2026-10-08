@@ -84,7 +84,9 @@ impl NumericWrite {
         );
         let resource = ResourceLocation::new(crate::function::SAND_LOCAL_NS, &path)
             .map_err(|error| numeric_error(error, owner))?;
+        let caller = ScoreHolder::self_();
         let context = NumericContext::new(&resource, &working)
+            .and_then(|context| context.with_input_holder(&caller))
             .map_err(|error| numeric_error(error, owner))?;
         let result = ObjectiveName::logical(format!("{resource}.result"));
         // Direct reads already have an exact stored representation. Retain it

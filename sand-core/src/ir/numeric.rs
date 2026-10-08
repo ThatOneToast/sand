@@ -31,7 +31,7 @@ pub struct NumericWrite {
 impl NumericWrite {
     pub(super) fn lower(&self, owner: &ResourceLocation) -> CommandResult<Vec<Cmd>> {
         let profile = CommandProfile::unprofiled();
-        self.holder.validate_single(&profile)?;
+        self.holder.validate(&profile)?;
         self.objective.validate(&profile)?;
         for objective in &self.dirty {
             objective.validate(&profile)?;
@@ -55,7 +55,7 @@ impl NumericWrite {
         } else {
             self.holder.clone()
         };
-        let working = if selector.is_some() {
+        let working = if selector.is_some() || self.holder.validate_single(&profile).is_err() {
             ScoreHolder::fake("#value")
         } else {
             self.holder.clone()
@@ -70,7 +70,7 @@ impl NumericWrite {
                 objective: self.objective.to_string(),
                 value: crate::entity::state::encode_fixed(value, self.scale, self.bounds),
             })];
-            self.append_bounds_and_dirty(&mut commands, &destination);
+            self.append_bounds_and_dirty(&mut commands, &destination, owner);
             return Ok(bind_destination(commands, selector));
         }
 
@@ -130,7 +130,7 @@ impl NumericWrite {
             source: working.to_string(),
             source_obj: result.to_string(),
         })];
-        self.append_bounds_and_dirty(&mut commit, &destination);
+        self.append_bounds_and_dirty(&mut commit, &destination, owner);
         body.0.extend(bind_destination(commit, selector));
         for record in rendered.records {
             crate::function::register_dyn_fn(record.path, record.content);
@@ -143,27 +143,62 @@ impl NumericWrite {
         ))])
     }
 
-    fn append_bounds_and_dirty(&self, commands: &mut Vec<Cmd>, holder: &ScoreHolder) {
+    fn append_bounds_and_dirty(
+        &self,
+        commands: &mut Vec<Cmd>,
+        holder: &ScoreHolder,
+        owner: &ResourceLocation,
+    ) {
         if let Some((min, max)) = self.bounds {
-            for (range, value) in [
-                (min.checked_sub(1).map(|limit| format!("..{limit}")), min),
-                (max.checked_add(1).map(|limit| format!("{limit}..")), max),
-            ] {
-                if let Some(range) = range {
-                    commands.push(Cmd::Execute {
-                        operations: vec![sand_commands::ExecuteOp::If(
-                            sand_commands::ConditionIr::ScoreMatches {
-                                holder: holder.clone(),
+            if holder
+                .validate_single(&CommandProfile::unprofiled())
+                .is_err()
+            {
+                // Wildcard score holders cannot appear in score conditions.
+                // Scoreboard min/max operations apply the bound to each target.
+                for (value, op) in [
+                    (min, super::ScoreOpKind::Max),
+                    (max, super::ScoreOpKind::Min),
+                ] {
+                    let bound = ObjectiveName::logical(format!(
+                        "{owner}.numeric_bound.{}.{value}",
+                        self.objective
+                    ));
+                    crate::function::request_numeric_objectives([bound.to_string()]);
+                    commands.push(Cmd::ScorePlayers(ScorePlayersOp::Set {
+                        selector: "#value".into(),
+                        objective: bound.to_string(),
+                        value,
+                    }));
+                    commands.push(Cmd::ScorePlayers(ScorePlayersOp::Operation {
+                        target: holder.to_string(),
+                        target_obj: self.objective.to_string(),
+                        op,
+                        source: "#value".into(),
+                        source_obj: bound.to_string(),
+                    }));
+                }
+            } else {
+                for (range, value) in [
+                    (min.checked_sub(1).map(|limit| format!("..{limit}")), min),
+                    (max.checked_add(1).map(|limit| format!("{limit}..")), max),
+                ] {
+                    if let Some(range) = range {
+                        commands.push(Cmd::Execute {
+                            operations: vec![sand_commands::ExecuteOp::If(
+                                sand_commands::ConditionIr::ScoreMatches {
+                                    holder: holder.clone(),
+                                    objective: self.objective.to_string(),
+                                    range,
+                                },
+                            )],
+                            run: Box::new(Cmd::ScorePlayers(ScorePlayersOp::Set {
+                                selector: holder.to_string(),
                                 objective: self.objective.to_string(),
-                                range,
-                            },
-                        )],
-                        run: Box::new(Cmd::ScorePlayers(ScorePlayersOp::Set {
-                            selector: holder.to_string(),
-                            objective: self.objective.to_string(),
-                            value,
-                        })),
-                    });
+                                value,
+                            })),
+                        });
+                    }
                 }
             }
         }
@@ -322,6 +357,71 @@ mod tests {
                     commit.content.contains("= #value "),
                     "the bound commit reads stable scratch"
                 );
+            }
+        }
+    }
+
+    #[test]
+    fn multi_entity_and_wildcard_destinations_preserve_assignment_support() {
+        for holder in ["@a", "@e", "*"] {
+            for constant in [false, true] {
+                let _scope = ExportFunctionRegistryScope::enter();
+                let field = FixedScore::__new("test", "combat", "target", 100, 0, Some((0, 500)));
+                let destination = field.bind_to(holder, true);
+                let actions = if constant {
+                    destination.set(10)
+                } else {
+                    destination.set(field.bind())
+                };
+                crate::function::register_dyn_fn("outer".into(), actions);
+                let mut records = Vec::new();
+                crate::compiler::export::functions::drain_dynamic_functions_into(
+                    &mut records,
+                    "test",
+                )
+                .unwrap();
+                let all = records
+                    .iter()
+                    .map(|record| record.content.as_str())
+                    .collect::<Vec<_>>()
+                    .join("\n");
+                if holder == "*" {
+                    assert!(
+                        !all.contains("score *"),
+                        "wildcards are not legal score conditions"
+                    );
+                    assert!(all.contains(&format!(
+                        "scoreboard players operation * {} > #value ",
+                        field.objective()
+                    )));
+                    assert!(all.contains(&format!(
+                        "scoreboard players operation * {} < #value ",
+                        field.objective()
+                    )));
+                    assert!(all.contains(&format!(
+                        "scoreboard players set * {} 1",
+                        field.dirty_objective()
+                    )));
+                } else {
+                    assert_eq!(
+                        all.matches(&format!("execute as {holder} run function"))
+                            .count(),
+                        1
+                    );
+                    let commit = records
+                        .iter()
+                        .find(|record| record.path.starts_with("sand/numeric_commit/"))
+                        .unwrap();
+                    assert!(
+                        commit
+                            .content
+                            .contains(&format!("if score @s {} matches 501..", field.objective()))
+                    );
+                    assert!(commit.content.contains(&format!(
+                        "scoreboard players set @s {} 1",
+                        field.dirty_objective()
+                    )));
+                }
             }
         }
     }

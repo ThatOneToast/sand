@@ -270,3 +270,33 @@ mod name_tests {
         );
     }
 }
+
+#[cfg(test)]
+mod nbt_tests {
+    use super::*;
+    use crate::ScoreHolder;
+
+    #[test]
+    fn negated_compounds_preserve_filter_and_single_holder_validation() {
+        for text in ["@e[nbt=!{NoAI:1b},limit=1]", "@e[nbt={NoAI:1b},limit=1]"] {
+            let parsed = selector(text).unwrap();
+            parsed.validate(&CommandProfile::unprofiled()).unwrap();
+            assert_eq!(parsed.to_string(), text);
+            ScoreHolder::compat(text.into())
+                .validate_single(&CommandProfile::unprofiled())
+                .unwrap();
+        }
+        for text in [
+            "@e[nbt=!!{NoAI:1b},limit=1]",
+            "@e[nbt=!1b,limit=1]",
+            "@e[nbt=!{NoAI:1b,limit=1]",
+        ] {
+            assert!(
+                ScoreHolder::compat(text.into())
+                    .validate_single(&CommandProfile::unprofiled())
+                    .is_err(),
+                "{text}"
+            );
+        }
+    }
+}

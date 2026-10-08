@@ -29,6 +29,14 @@ where
 /// Implemented by [`FunctionId`] and by Rust function items registered with
 /// `#[function]`. Plain strings are intentionally excluded; APIs that need an
 /// unsupported raw function token expose a separately named `_raw` method.
+///
+/// Unrelated Rust functions are rejected at compile time:
+/// ```compile_fail
+/// use sand_components::function::FunctionRef;
+/// fn enabled() -> bool { true }
+/// fn requires_function(_: impl FunctionRef) {}
+/// requires_function(enabled);
+/// ```
 #[sand_macros::api(
     registry = sand_api_contract,
     path = "sand::FunctionRef",
@@ -71,9 +79,17 @@ impl FunctionRef for &FunctionId {
     }
 }
 
+/// Compiler marker for the structured body produced by Sand function macros.
+///
+/// Implemented by Sand's action collection. Unrelated zero-argument Rust
+/// functions are not datapack function references.
+#[doc(hidden)]
+pub trait FunctionBody {}
+
 impl<F, Body> FunctionRef for F
 where
     F: Fn() -> Body + Copy + 'static,
+    Body: FunctionBody,
 {
     fn function_id(self) -> FunctionId {
         let path = registered_path_for_function_value(self).unwrap_or_else(|| {
@@ -98,7 +114,12 @@ mod tests {
     #[test]
     fn pointer_sized_capturing_closure_panics_without_interpreting_capture_as_pointer() {
         let captured = 7_usize;
-        let closure = move || vec![captured.to_string()];
+        struct TestBody;
+        impl super::FunctionBody for TestBody {}
+        let closure = move || {
+            std::hint::black_box(captured);
+            TestBody
+        };
         assert_eq!(
             std::mem::size_of_val(&closure),
             std::mem::size_of::<fn() -> Vec<String>>()

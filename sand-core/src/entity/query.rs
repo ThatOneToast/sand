@@ -464,7 +464,7 @@ mod tests {
         let owner = "test:optional_state".parse().unwrap();
         let error = commands.lower(&owner).unwrap_err().to_string();
         assert!(error.contains("test:optional_state"), "{error}");
-        assert!(error.contains("actions[0]"), "{error}");
+        assert!(error.contains("actions[0].run.operations"), "{error}");
         assert!(error.contains("SAND-COMMAND-EXECUTE-EMPTY"), "{error}");
     }
 

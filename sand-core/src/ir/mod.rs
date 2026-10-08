@@ -39,6 +39,8 @@ pub use sand_commands::{ConditionIr, ExecuteOp, ExecuteStoreTarget};
 )]
 pub struct Actions(pub(crate) Vec<Cmd>);
 
+impl sand_components::function::FunctionBody for Actions {}
+
 impl<A: crate::IntoCommands> Extend<A> for Actions {
     fn extend<T: IntoIterator<Item = A>>(&mut self, actions: T) {
         for action in actions {
@@ -264,7 +266,13 @@ impl Cmd {
             Self::Raw(s) => s.clone(),
 
             Self::Function(id) => format!("function {id}"),
-            Self::ReturnRun(command) => format!("return run {}", command.try_render()?),
+            Self::ReturnRun(command) => {
+                let rendered = command.try_render().map_err(|mut error| {
+                    error.field = format!("run.{}", error.field);
+                    error
+                })?;
+                format!("return run {rendered}")
+            }
 
             Self::ScoreDefine {
                 objective,
@@ -293,7 +301,10 @@ impl Cmd {
                     .map(ExecuteOp::render)
                     .collect::<Vec<_>>()
                     .join(" ");
-                let run_text = run.try_render()?;
+                let run_text = run.try_render().map_err(|mut error| {
+                    error.field = format!("run.{}", error.field);
+                    error
+                })?;
                 format!("execute {operation_text} run {run_text}")
             }
 
@@ -516,6 +527,24 @@ mod tests {
         for (kind, expected) in ops {
             assert_eq!(kind.as_str(), expected);
         }
+    }
+}
+
+#[cfg(test)]
+mod nested_validation_tests {
+    use super::*;
+
+    #[test]
+    fn validation_retains_every_nested_run_path() {
+        let body = Actions(vec![Cmd::ReturnRun(Box::new(Cmd::Execute {
+            operations: vec![ExecuteOp::As(sand_commands::Selector::self_())],
+            run: Box::new(Cmd::Execute {
+                operations: vec![],
+                run: Box::new(Cmd::Raw("say invalid".into())),
+            }),
+        }))]);
+        let error = body.lower(&"test:nested".parse().unwrap()).unwrap_err();
+        assert!(error.to_string().contains("actions[0].run.run.operations"));
     }
 }
 

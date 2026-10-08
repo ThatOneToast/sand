@@ -51,13 +51,13 @@ traversal.stamina.add(10).into_iter().flat_map(|command| {
             traversal.stamina.matches(..100).unwrap(),
         ])
         .run(command)
-}).collect::<Vec<_>>();
+}).collect::<Actions>();
 
 traversal.regen.start(Ticks::seconds(2)).into_iter().flat_map(|command| {
     TypedExecute::as_players()
         .when(traversal.regen.elapsed())
         .run(command)
-}).collect::<Vec<_>>();
+}).collect::<Actions>();
 ```
 
 The first statement acts on expiry only while stamina is below its cap. The

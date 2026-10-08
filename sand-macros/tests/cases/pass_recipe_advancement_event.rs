@@ -72,7 +72,7 @@ fn main() {
                 let guard_fn = guard.expect("guard must be registered");
                 let condition = guard_fn().expect("guard should return Some");
                 let guard_cmds =
-                    sand_core::execute_when::unless(condition).then_one("return 0");
+                    actions_support::emitted(sand_core::execute_when::unless(condition).then_one("return 0"));
                 assert!(
                     guard_cmds
                         .iter()

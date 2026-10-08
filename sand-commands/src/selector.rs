@@ -1546,6 +1546,12 @@ fn validate_range(value: &str, field: &'static str, allow_float: bool) -> Comman
         let invalid =
             || CommandError::new("Selector", field, format!("invalid range bound `{part}`"));
         let n = if allow_float {
+            let decimal = part.strip_prefix('-').unwrap_or(part);
+            if !decimal.bytes().all(|c| c.is_ascii_digit() || c == b'.')
+                || decimal.bytes().filter(|c| *c == b'.').count() > 1
+            {
+                return Err(invalid());
+            }
             let n = part.parse::<f64>().map_err(|_| invalid())?;
             validate::finite(n, "Selector", field)?;
             n
@@ -1634,7 +1640,7 @@ fn validate_snbt_compound(value: &str) -> CommandResult<()> {
     let mut delimiters = Vec::new();
     let mut quote = None;
     let mut escaped = false;
-    for character in value.chars() {
+    for (offset, character) in value.char_indices() {
         if let Some(delimiter) = quote {
             if escaped {
                 escaped = false;
@@ -1648,7 +1654,15 @@ fn validate_snbt_compound(value: &str) -> CommandResult<()> {
         match character {
             '\'' | '"' => quote = Some(character),
             '{' | '[' => delimiters.push(character),
-            '}' if delimiters.pop() == Some('{') => {}
+            '}' if delimiters.pop() == Some('{') => {
+                if delimiters.is_empty() && offset + character.len_utf8() != value.len() {
+                    return Err(CommandError::new(
+                        "Selector",
+                        "nbt",
+                        "SNBT selector filter must contain exactly one complete compound",
+                    ));
+                }
+            }
             ']' if delimiters.pop() == Some('[') => {}
             '}' | ']' => {
                 return Err(CommandError::new(
@@ -1778,7 +1792,7 @@ impl fmt::Display for TargetRange {
 /// Deliberately distinct from [`TargetRange`]: Minecraft scoreboard scores
 /// are always 32-bit integers, so `scores={obj=1.5..3.2}` is not legal
 /// vanilla syntax even though the same `min..max` grammar shape is used for
-/// `distance`/`level` (which *are* floating-point). Using an `i32`-based
+/// `distance` and rotation (which allow fractional bounds). Using an `i32`-based
 /// type here at the API boundary makes a fractional score range a compile
 /// error instead of a malformed-selector diagnostic discovered at
 /// `try_build` time.
@@ -1788,8 +1802,8 @@ impl fmt::Display for TargetRange {
     aliases = ["sand::cmd::ScoreRange", "sand::prelude::cmd::ScoreRange"],
     module = "sand::command",
     summary = "A typed integer range for `scores={...}` selector entries (see [#200](https://github.com/ThatOneToast/sand/issues/200)).",
-    context = "A typed integer range for `scores={...}` selector entries (see [#200](https://github.com/ThatOneToast/sand/issues/200)). Deliberately distinct from [`TargetRange`]: Minecraft scoreboard scores are always 32-bit integers, so `scores={obj=1.5..3.2}` is not legal vanilla syntax even though the same `min..max` grammar shape is used for `distance`/`level` (which *are* floating-point). Using an `i32`-based type here at the API boundary makes a fractional score range a compile error instead of a malformed-selector diagnostic discovered at `try_build` time.",
-    minecraft = "Deliberately distinct from [`TargetRange`]: Minecraft scoreboard scores are always 32-bit integers, so `scores={obj=1.5..3.2}` is not legal vanilla syntax even though the same `min..max` grammar shape is used for `distance`/`level` (which *are* floating-point). Using an `i32`-based type here at the API boundary makes a fractional score range a compile error instead of a malformed-selector diagnostic discovered at `try_build` time.",
+    context = "A typed integer range for `scores={...}` selector entries (see [#200](https://github.com/ThatOneToast/sand/issues/200)). Deliberately distinct from [`TargetRange`]: Minecraft scoreboard scores are always 32-bit integers, so `scores={obj=1.5..3.2}` is not legal vanilla syntax even though the same `min..max` grammar shape is used for `distance` and rotation (which allow fractional bounds). Using an `i32`-based type here at the API boundary makes a fractional score range a compile error instead of a malformed-selector diagnostic discovered at `try_build` time.",
+    minecraft = "Deliberately distinct from [`TargetRange`]: Minecraft scoreboard scores are always 32-bit integers, so `scores={obj=1.5..3.2}` is not legal vanilla syntax even though the same `min..max` grammar shape is used for `distance` and rotation (which allow fractional bounds). Using an `i32`-based type here at the API boundary makes a fractional score range a compile error instead of a malformed-selector diagnostic discovered at `try_build` time.",
     use_when = ["Constructing Minecraft commands through Sand's typed command model"],
     avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
     example = "use sand::command::ScoreRange;",

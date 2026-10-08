@@ -48,7 +48,7 @@ fn main() {
                 sand_core::EventDispatch::Advancement { guard, .. } => {
                     let guard = guard.expect("typed advancement guard should be registered");
                     let condition = guard().expect("guard should return a condition");
-                    let commands = sand_core::execute_when::unless(condition).then_one("return 0");
+                    let commands = actions_support::emitted(sand_core::execute_when::unless(condition).then_one("return 0"));
                     assert!(commands
                         .iter()
                         .any(|cmd| cmd.contains("score @s mana matches ..99")));

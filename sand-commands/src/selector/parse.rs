@@ -575,3 +575,59 @@ mod default_namespace_tests {
         );
     }
 }
+
+#[cfg(test)]
+mod compound_and_decimal_tests {
+    use super::*;
+    use crate::ScoreHolder;
+    #[test]
+    fn floating_ranges_use_brigadier_decimal_grammar() {
+        for text in [
+            "@s[distance=.5..1.25]",
+            "@s[x_rotation=-90.5..90.5]",
+            "@s[y_rotation=..180]",
+        ] {
+            ScoreHolder::compat(text.into())
+                .validate_single(&CommandProfile::unprofiled())
+                .unwrap();
+        }
+        for text in [
+            "@s[distance=1e3]",
+            "@s[x_rotation=-1E2]",
+            "@s[y_rotation=0..1e3]",
+            "@s[distance=+1.5]",
+        ] {
+            assert!(
+                ScoreHolder::compat(text.into())
+                    .validate_single(&CommandProfile::unprofiled())
+                    .is_err(),
+                "{text}"
+            );
+        }
+    }
+
+    #[test]
+    fn nbt_filter_consumes_exactly_one_compound() {
+        for text in [
+            "@s[nbt={}{ }]",
+            "@s[nbt={}{}]",
+            "@s[nbt=!{}{}]",
+            "@s[nbt={} {}]",
+        ] {
+            assert!(
+                ScoreHolder::compat(text.into())
+                    .validate_single(&CommandProfile::unprofiled())
+                    .is_err(),
+                "{text}"
+            );
+        }
+        for text in [
+            "@s[nbt={nested:{},values:[{}]}]",
+            r#"@s[nbt={text:"{}{}",nested:{}}]"#,
+        ] {
+            ScoreHolder::compat(text.into())
+                .validate_single(&CommandProfile::unprofiled())
+                .unwrap();
+        }
+    }
+}

@@ -44,7 +44,7 @@ fn tick_commands() -> sand_core::cmd::Actions {
     ];
 
     // Cap mana at 100 via condition
-    let over_max = MANA.of("@a").gte(101);
+    let over_max = MANA.of("@s").gte(101);
     let cap = TypedExecute::as_players()
         .when(over_max)
         .run(MANA.set("@s", 100));

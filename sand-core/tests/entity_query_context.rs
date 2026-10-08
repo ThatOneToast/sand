@@ -63,10 +63,14 @@ fn nested_relationship_traversal_retains_original_context() {
     // Drain the generated helper functions and confirm the scoped tag/
     // untag pair wraps the relation traversal, and that the relation
     // traversal refers back to the *tagged* entity, not `@s`.
-    let generated = sand_core::function::drain_dyn_fns()
-        .into_iter()
-        .map(|(path, body)| (path, emitted(body)))
-        .collect::<Vec<_>>();
+    let mut generated = Vec::new();
+    loop {
+        let batch = sand_core::function::drain_dyn_fns();
+        if batch.is_empty() {
+            break;
+        }
+        generated.extend(batch.into_iter().map(|(path, body)| (path, emitted(body))));
+    }
     let outer_fn = generated
         .iter()
         .find(|(path, _)| outer.ends_with(path))
@@ -137,10 +141,14 @@ fn passengers_relation_is_many_cardinality_and_iterates_via_each() {
 
     let cmds = emitted(cmds);
     assert_eq!(cmds.len(), 1);
-    let generated = sand_core::function::drain_dyn_fns()
-        .into_iter()
-        .map(|(path, body)| (path, emitted(body)))
-        .collect::<Vec<_>>();
+    let mut generated = Vec::new();
+    loop {
+        let batch = sand_core::function::drain_dyn_fns();
+        if batch.is_empty() {
+            break;
+        }
+        generated.extend(batch.into_iter().map(|(path, body)| (path, emitted(body))));
+    }
     let outer_fn = generated
         .iter()
         .find(|(path, _)| cmds[0].ends_with(path))

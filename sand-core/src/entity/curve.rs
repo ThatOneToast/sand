@@ -965,11 +965,7 @@ impl CurveInput {
 impl StatCurve {
     pub(crate) fn bound_state(field: impl NumericStateField, holder: &'static str) -> Self {
         let mut input = CurveInput::typed(field);
-        input.holder = Some(if holder == "@s" {
-            sand_commands::ScoreHolder::self_()
-        } else {
-            sand_commands::ScoreHolder::fake(holder)
-        });
+        input.holder = Some(sand_commands::__private::score_holder_compat(holder.into()));
         Self {
             kind: CurveKind::Input(input),
         }

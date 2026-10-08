@@ -234,6 +234,10 @@ pub enum Cmd {
     /// `function <id>`
     Function(String),
 
+    /// An owned anonymous function whose resource is registered during export.
+    /// Keeping the body here makes cached actions independent of registry lifetime.
+    AnonymousFunction { prefix: String, body: Actions },
+
     /// Return immediately with the result of one nested command.
     ReturnRun(Box<Cmd>),
 
@@ -292,6 +296,10 @@ impl Cmd {
             Self::Raw(s) => s.clone(),
 
             Self::Function(id) => format!("function {id}"),
+            Self::AnonymousFunction { prefix, body } => {
+                let path = crate::function::register_dyn_fn_dedup(prefix, body.clone());
+                format!("function {}:{path}", crate::function::SAND_LOCAL_NS)
+            }
             Self::ReturnRun(command) => {
                 let rendered = command.try_render().map_err(|mut error| {
                     error.field = format!("run.{}", error.field);

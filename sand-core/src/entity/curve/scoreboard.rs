@@ -828,6 +828,32 @@ mod tests {
     }
 
     #[test]
+    fn bound_single_selector_sources_keep_canonical_holder_semantics() {
+        use crate::entity::EntityStateField;
+        let input = FixedScore::__new("game", "combat", "power", 100, 125, None);
+        for holder in ["@s", "@p", "@r"] {
+            let expression = StatCurve::from(input.bind_to(holder, false));
+            let lowered = expression
+                .lower_scoreboard("result", "game:calculate", FixedPoint::default())
+                .unwrap();
+            let owner = "game:calculate".parse().unwrap();
+            let working = ScoreHolder::fake("#scratch");
+            let output = render_lowered_curve(
+                NumericContext::new(&owner, &working).unwrap(),
+                "numeric/calculate",
+                &lowered,
+            )
+            .unwrap();
+            assert!(
+                output
+                    .commands
+                    .iter()
+                    .any(|line| line.ends_with(&format!("= {holder} {}", input.objective())))
+            );
+        }
+    }
+
+    #[test]
     fn invalid_bound_source_is_rejected_before_command_emission() {
         use crate::entity::EntityStateField;
         let input = FixedScore::__new("game", "combat", "power", 100, 125, None);

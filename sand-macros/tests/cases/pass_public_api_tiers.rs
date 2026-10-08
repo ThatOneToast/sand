@@ -1,3 +1,4 @@
+mod actions_support;
 use sand_core::prelude::*;
 use sand_core::advanced::state::{Cooldown, ScoreVar};
 use sand_core::StorageField;
@@ -59,11 +60,11 @@ fn main() {
     let field: StorageField<PlayerStats, i32> = PlayerStats::mana();
     assert_eq!(field.storage(), "example:players");
 
-    assert!(load().iter().any(|cmd| cmd.contains("scoreboard objectives add")));
-    assert!(spend_mana()
+    assert!(actions_support::emitted(load()).iter().any(|cmd| cmd.contains("scoreboard objectives add")));
+    assert!(actions_support::emitted(spend_mana())
         .iter()
         .any(|cmd| cmd == "function other_pack:bridge"));
-    assert!(on_ate_apple()
+    assert!(actions_support::emitted(on_ate_apple())
         .iter()
         .any(|cmd| cmd.contains("scoreboard players add")));
 }

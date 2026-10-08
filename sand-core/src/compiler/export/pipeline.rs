@@ -70,7 +70,10 @@ static EXPORT_PANIC_HOOK_LOCK: Mutex<()> = Mutex::new(());
 /// [`std::panic::resume_unwind`] — this boundary never silently swallows an
 /// unrelated panic or lets export continue with partial/wrong output for
 /// one.
-fn invoke_event_handler_body(desc: &crate::function::EventDescriptor) -> ExportResult<Vec<String>> {
+fn invoke_event_handler_body(
+    desc: &crate::function::EventDescriptor,
+    namespace: &str,
+) -> ExportResult<Vec<String>> {
     let _guard = EXPORT_PANIC_HOOK_LOCK
         .lock()
         .unwrap_or_else(|poisoned| poisoned.into_inner());
@@ -96,7 +99,9 @@ fn invoke_event_handler_body(desc: &crate::function::EventDescriptor) -> ExportR
     }));
 
     match result {
-        Ok(commands) => Ok(commands),
+        Ok(commands) => commands.lower(&sand_components::ResourceLocation::new(
+            namespace, desc.path,
+        )?),
         Err(payload) => {
             match payload.downcast::<crate::participant::diagnostic::MissingParticipantPanic>() {
                 Ok(panic) => Err(participant_accessor_panic_export_error(desc.path, &panic)),
@@ -211,7 +216,9 @@ pub(crate) fn try_export_components_impl(
     // ── FunctionDescriptors ───────────────────────────────────────────────────
     for desc in inventory::iter::<FunctionDescriptor>() {
         function_contexts.insert(format!("{namespace}:{}", desc.path), desc.context);
-        let commands = (desc.make)();
+        let commands = (desc.make)().lower(&sand_components::ResourceLocation::new(
+            namespace, desc.path,
+        )?)?;
         records.push(ComponentRecord {
             namespace: namespace.to_string(),
             dir: "function".to_string(),
@@ -353,11 +360,11 @@ pub(crate) fn try_export_components_impl(
     for desc in inventory::iter::<EventDescriptor>() {
         // Always emit the handler function body first. Routed through
         // `invoke_event_handler_body` (#280 item 2) rather than calling
-        // `(desc.make)()` directly, so a `MissingParticipantPanic` raised by
+        // `(desc.make)().lower(&sand_components::ResourceLocation::new(namespace, desc.path)?)?` directly, so a `MissingParticipantPanic` raised by
         // an infallible participant accessor inside this handler's body
         // becomes a structured `SAND-EVENT-PARTICIPANT` diagnostic instead
         // of an unhandled panic.
-        let commands = invoke_event_handler_body(desc)?;
+        let commands = invoke_event_handler_body(desc, namespace)?;
 
         match &desc.dispatch {
             // ── Advancement-backed ────────────────────────────────────────────
@@ -890,7 +897,9 @@ pub(crate) fn try_export_components_impl(
 
     // ── ArmorEventDescriptors (legacy #[armor_event]) ─────────────────────────
     for desc in inventory::iter::<ArmorEventDescriptor>() {
-        let commands = (desc.make)();
+        let commands = (desc.make)().lower(&sand_components::ResourceLocation::new(
+            namespace, desc.path,
+        )?)?;
         records.push(ComponentRecord {
             namespace: namespace.to_string(),
             dir: "function".to_string(),
@@ -2182,7 +2191,14 @@ pub(crate) fn try_export_components_impl(
                 system.id
             )));
         }
-        let body = (system.make)();
+        let body = (system.make)()
+            .lower(&sand_components::ResourceLocation::new(
+                namespace,
+                "__sand_system",
+            )?)
+            .map_err(|error| {
+                lifecycle_export_error(format!("State system `{}`: {error}", system.id))
+            })?;
         if let Some((every, existing)) = system_ids.get(system.id) {
             if *every != system.every || existing != &body {
                 return Err(lifecycle_export_error(format!(
@@ -2565,7 +2581,7 @@ pub(crate) fn try_export_components_impl(
     // Must run AFTER every desc.make() call so branches registered by event
     // bodies, schedule bodies, armor handlers, etc. are all captured.
     // The loop handles chains: draining can trigger further registrations.
-    drain_dynamic_functions_into(&mut records, namespace);
+    drain_dynamic_functions_into(&mut records, namespace)?;
 
     // ── Dialog callback dispatcher ────────────────────────────────────────────
     // Must run after ComponentFactory and other make() calls so callbacks

@@ -89,13 +89,13 @@ mod tests {
         let descriptor = inventory::iter::<FunctionDescriptor>()
             .find(|d| d.path == path)
             .unwrap_or_else(|| panic!("{path} descriptor not registered"));
-        (descriptor.make)()
+        crate::test_support::emitted((descriptor.make)())
     }
 
     #[test]
     fn golden_load_commands_and_tag() {
         assert_eq!(
-            golden_load(),
+            crate::test_support::emitted(golden_load()),
             vec![
                 "scoreboard objectives add golden_mana dummy",
                 "scoreboard objectives add golden_casting dummy",
@@ -112,9 +112,12 @@ mod tests {
 
     #[test]
     fn golden_tick_commands_and_tag() {
-        assert_eq!(commands_for("golden_tick"), golden_tick());
         assert_eq!(
-            golden_tick(),
+            commands_for("golden_tick"),
+            crate::test_support::emitted(golden_tick())
+        );
+        assert_eq!(
+            crate::test_support::emitted(golden_tick()),
             vec![
                 "execute as @a if score @s golden_dash matches 1.. run scoreboard players remove @s golden_dash 1",
                 "execute as @a if score @s golden_mana matches 25.. if score @s golden_dash matches 0 if score @s golden_casting matches 0 run title @s actionbar {\"bold\":true,\"color\":\"aqua\",\"text\":\"Dash ready\"}",
@@ -142,7 +145,7 @@ mod tests {
     #[test]
     fn golden_text_output() {
         assert_eq!(
-            golden_text(),
+            crate::test_support::emitted(golden_text()),
             vec![
                 "tellraw @a {\"color\":\"gold\",\"text\":\"Hello\"}",
                 "title @s times 10 70 20",
@@ -155,7 +158,7 @@ mod tests {
     #[test]
     fn golden_storage_output() {
         assert_eq!(
-            golden_storage(),
+            crate::test_support::emitted(golden_storage()),
             vec![
                 "data modify storage golden:settings players.self.mana set value 100",
                 "data modify storage golden:settings players.self.mana.enabled set value 1b",
@@ -166,7 +169,7 @@ mod tests {
     #[test]
     fn golden_raw_interop_is_explicit() {
         assert_eq!(
-            golden_interop(),
+            crate::test_support::emitted(golden_interop()),
             vec!["function other_pack:api/do_special_thing"]
         );
     }

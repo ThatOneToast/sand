@@ -1,3 +1,4 @@
+mod actions_support;
 // Canonical recipe: advancement-backed event with a typed guard and a rewarded
 // #[function] that applies a status effect. Exercises the full
 // AdvancementEvent → Event<T> → #[on_event] pipeline.
@@ -49,7 +50,7 @@ pub fn on_ate_chorus_fruit(event: Event<AteChorusFruitEvent>) {
 }
 
 fn main() {
-    let commands = on_ate_chorus_fruit();
+    let commands = actions_support::emitted(on_ate_chorus_fruit());
     assert!(
         commands
             .iter()

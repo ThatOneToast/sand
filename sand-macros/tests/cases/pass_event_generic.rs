@@ -1,3 +1,4 @@
+mod actions_support;
 use sand_core::event::trigger::ConsumeItemTrigger;
 use sand_core::prelude::*;
 use sand_core::advanced::state::ScoreVar;
@@ -33,7 +34,7 @@ pub fn on_ate_golden_apple(event: Event<AteGoldenAppleEvent>) {
 }
 
 fn main() {
-    let commands = on_ate_golden_apple();
+    let commands = actions_support::emitted(on_ate_golden_apple());
     assert!(commands.iter().any(|cmd| cmd.contains("scoreboard players add")));
     assert!(commands
         .iter()

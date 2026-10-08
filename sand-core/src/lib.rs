@@ -497,9 +497,9 @@ pub use serde_json;
 #[macro_export]
 macro_rules! mcfunction {
     ($($cmd:expr);* $(;)?) => {{
-        let mut _commands: Vec<String> = Vec::new();
+        let mut _commands = $crate::ir::Actions::default();
         $(
-            _commands.extend($crate::IntoCommands::into_commands($cmd));
+            _commands.extend([$crate::IntoCommands::into_commands($cmd)]);
         )*
         _commands
     }};

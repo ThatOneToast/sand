@@ -67,7 +67,7 @@ sand_core::inventory::submit! {
     EventDescriptor {
         path: "conflicting_handler_a",
         id_override: None,
-        make: handler_a_body,
+        make: || sand::component::IntoCommands::into_commands(handler_a_body()),
         dispatch: EventDispatch::Custom {
             make_trigger: no_trigger,
             make_condition: no_condition,
@@ -87,7 +87,7 @@ sand_core::inventory::submit! {
     EventDescriptor {
         path: "conflicting_handler_b",
         id_override: None,
-        make: handler_b_body,
+        make: || sand::component::IntoCommands::into_commands(handler_b_body()),
         dispatch: EventDispatch::Custom {
             make_trigger: no_trigger,
             make_condition: no_condition,

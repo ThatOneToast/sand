@@ -9,7 +9,10 @@ use super::records::ComponentRecord;
 ///
 /// Loops until the registry is empty so that branches registered *by* other
 /// branches (nested mcfunction! blocks) are also captured.
-pub(crate) fn drain_dynamic_functions_into(records: &mut Vec<ComponentRecord>, namespace: &str) {
+pub(crate) fn drain_dynamic_functions_into(
+    records: &mut Vec<ComponentRecord>,
+    namespace: &str,
+) -> super::records::ExportResult<()> {
     loop {
         let drained = crate::drain_dyn_fns();
         if drained.is_empty() {
@@ -19,13 +22,16 @@ pub(crate) fn drain_dynamic_functions_into(records: &mut Vec<ComponentRecord>, n
             records.push(ComponentRecord {
                 namespace: namespace.to_string(),
                 dir: "function".to_string(),
-                path,
+                path: path.clone(),
                 ext: "mcfunction".to_string(),
                 content_type: "text".to_string(),
-                content: commands.join("\n"),
+                content: commands
+                    .lower(&sand_components::ResourceLocation::new(namespace, &path)?)?
+                    .join("\n"),
             });
         }
     }
+    Ok(())
 }
 
 /// Replace every `__sand_local:<path>` sentinel in an mcfunction content string

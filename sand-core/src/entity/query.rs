@@ -1,5 +1,9 @@
 //! Target query capabilities and lowering into typed execution-scoped contexts.
 
+use crate::{
+    IntoCommands,
+    ir::{Actions, Cmd, ConditionIr, ExecuteOp},
+};
 use sand_commands::Selector;
 use sand_commands::TargetArgument;
 use sand_commands::selector::{AnyTarget, PlayersOnly, Target};
@@ -56,7 +60,7 @@ impl QueryableStateScope for crate::entity::state::PlayerStateScope {
 pub trait StateQuerySpec: 'static {
     type Item;
 
-    fn each(body: impl FnOnce(Self::Item) -> Vec<String>) -> Vec<String>;
+    fn each<R: IntoCommands>(body: impl FnOnce(Self::Item) -> R) -> Actions;
 
     /// Run a query body against the current Minecraft executor.
     ///
@@ -65,7 +69,7 @@ pub trait StateQuerySpec: 'static {
     /// required and forbidden component-presence predicates. This is the
     /// canonical bridge for event handlers, whose dispatcher has already
     /// selected and bound the event owner as `@s`.
-    fn current(body: impl FnOnce(Self::Item) -> Vec<String>) -> Vec<String>;
+    fn current<R: IntoCommands>(body: impl FnOnce(Self::Item) -> R) -> Actions;
 }
 
 /// Proof emitted only for concrete State, StateBundle, and StateQuery
@@ -91,7 +95,7 @@ where
 {
     type Item = T::Bound;
 
-    fn each(body: impl FnOnce(Self::Item) -> Vec<String>) -> Vec<String> {
+    fn each<R: IntoCommands>(body: impl FnOnce(Self::Item) -> R) -> Actions {
         lower_state_query_each(
             <T::Scope as QueryableStateScope>::QUERY_SCOPE.selector(),
             T::presence_requirements(),
@@ -101,7 +105,7 @@ where
         )
     }
 
-    fn current(body: impl FnOnce(Self::Item) -> Vec<String>) -> Vec<String> {
+    fn current<R: IntoCommands>(body: impl FnOnce(Self::Item) -> R) -> Actions {
         lower_state_query_current(
             None,
             T::presence_requirements(),
@@ -132,7 +136,7 @@ where
     minecraft = "Direct State queries test the component's existing presence/version objective. Bundle queries require every flattened component marker, while composed StateQuery declarations retain their required, optional, and forbidden rules. No additional storage, lifecycle, or component marker is created.",
     use_when = ["Iterating owners that possess one scoped State component", "Requiring every component in a StateBundle", "Applying a query to an event dispatcher’s already-current executor"],
     avoid_when = ["Combining optional or forbidden components; derive StateQuery for composition", "Accessing global State; use the generated global method"],
-    example = "use sand::prelude::*;\n\n#[derive(State)]\n#[state(namespace = \"rpg\", scope = entity)]\nstruct Health {\n    #[state(default = 20)]\n    current: Score,\n}\n\nfn regenerate(query: Health) -> Vec<String> {\n    query.each(|health| health.current.add(1))\n}",
+    example = "use sand::prelude::*;\n\n#[derive(State)]\n#[state(namespace = \"rpg\", scope = entity)]\nstruct Health {\n    #[state(default = 20)]\n    current: Score,\n}\n\nfn regenerate(query: Health) -> Actions {\n    query.each(|health| health.current.add(1))\n}",
 )]
 pub trait StateQueryOperations: StateQuerySpec + Sized {
     /// Iterate over owners matching this query and expose its concrete bound item.
@@ -156,9 +160,9 @@ pub trait StateQueryOperations: StateQuerySpec + Sized {
         avoid_when = ["An event dispatcher already established the executor; use current", "Querying global singleton State"],
         params(body = "Receives the concrete holder-bound query item and returns the commands to emit for each match."),
         returns = "The generated outer-scan command, or no commands when the body emits nothing.",
-        example = "use sand::prelude::*;\n\n#[derive(State)]\n#[state(namespace = \"rpg\", scope = living)]\nstruct Health {\n    #[state(default = 20)]\n    current: Score,\n}\n\nfn regenerate(query: Health) -> Vec<String> {\n    query.each(|health| health.current.add(1))\n}",
+        example = "use sand::prelude::*;\n\n#[derive(State)]\n#[state(namespace = \"rpg\", scope = living)]\nstruct Health {\n    #[state(default = 20)]\n    current: Score,\n}\n\nfn regenerate(query: Health) -> Actions {\n    query.each(|health| health.current.add(1))\n}",
     )]
-    fn each(&self, body: impl FnOnce(Self::Item) -> Vec<String>) -> Vec<String> {
+    fn each<R: IntoCommands>(&self, body: impl FnOnce(Self::Item) -> R) -> Actions {
         <Self as StateQuerySpec>::each(body)
     }
 
@@ -182,9 +186,9 @@ pub trait StateQueryOperations: StateQuerySpec + Sized {
         avoid_when = ["The system must discover matching owners; use each", "Querying global singleton State"],
         params(body = "Receives the concrete holder-bound query item for `@s` and returns commands to guard and emit."),
         returns = "The body commands guarded by this query's presence predicates for the current executor.",
-        example = "use sand::prelude::*;\n\n#[derive(State)]\n#[state(namespace = \"rpg\", scope = player)]\nstruct Health {\n    #[state(default = 20)]\n    current: Score,\n}\n\nfn heal_current(query: Health) -> Vec<String> {\n    query.current(|health| health.current.add(1))\n}",
+        example = "use sand::prelude::*;\n\n#[derive(State)]\n#[state(namespace = \"rpg\", scope = player)]\nstruct Health {\n    #[state(default = 20)]\n    current: Score,\n}\n\nfn heal_current(query: Health) -> Actions {\n    query.current(|health| health.current.add(1))\n}",
     )]
-    fn current(&self, body: impl FnOnce(Self::Item) -> Vec<String>) -> Vec<String> {
+    fn current<R: IntoCommands>(&self, body: impl FnOnce(Self::Item) -> R) -> Actions {
         <Self as StateQuerySpec>::current(body)
     }
 }
@@ -199,20 +203,20 @@ pub fn assert_system_query_parameter<Q: SystemQueryParameter>() {}
 /// Lower an authored `query.each(...)` call without fabricating a value of the
 /// author's schema type in the generated export adapter.
 #[doc(hidden)]
-pub fn lower_system_query_each<Q, F>(body: F) -> Vec<String>
+pub fn lower_system_query_each<Q, F, R: IntoCommands>(body: F) -> Actions
 where
     Q: SystemQueryParameter,
-    F: FnOnce(<Q as StateQuerySpec>::Item) -> Vec<String>,
+    F: FnOnce(<Q as StateQuerySpec>::Item) -> R,
 {
     <Q as StateQuerySpec>::each(body)
 }
 
 /// Lower an authored `query.current(...)` call against the current executor.
 #[doc(hidden)]
-pub fn lower_system_query_current<Q, F>(body: F) -> Vec<String>
+pub fn lower_system_query_current<Q, F, R: IntoCommands>(body: F) -> Actions
 where
     Q: SystemQueryParameter,
-    F: FnOnce(<Q as StateQuerySpec>::Item) -> Vec<String>,
+    F: FnOnce(<Q as StateQuerySpec>::Item) -> R,
 {
     <Q as StateQuerySpec>::current(body)
 }
@@ -220,13 +224,13 @@ where
 /// Canonical lowering shared by generated State, StateBundle, and StateQuery
 /// implementations.
 #[doc(hidden)]
-pub fn lower_state_query_each<Item>(
+pub fn lower_state_query_each<Item, R: IntoCommands>(
     mut selector: Selector,
     mut requirements: Vec<(String, u32)>,
     mut forbidden: Vec<(String, u32)>,
     item: Item,
-    body: impl FnOnce(Item) -> Vec<String>,
-) -> Vec<String> {
+    body: impl FnOnce(Item) -> R,
+) -> Actions {
     requirements.sort();
     requirements.dedup();
     forbidden.sort();
@@ -242,58 +246,76 @@ pub fn lower_state_query_each<Item>(
             .expect("State queries contain unique presence filters");
     }
 
-    let inner = guard_state_query_commands(body(item), None, &[], &forbidden);
-    if inner.is_empty() {
-        return Vec::new();
+    let inner = guard_state_query_commands(body(item).into_commands(), None, &[], &forbidden);
+    if inner.0.is_empty() {
+        return Actions::default();
     }
     let path = register_dyn_fn_dedup("sand/entity_query", inner);
-    vec![format!(
-        "execute as {selector} at @s run function __sand_local:{path}"
-    )]
+    Actions(vec![Cmd::Execute {
+        operations: vec![ExecuteOp::As(selector), ExecuteOp::At(Selector::self_())],
+        run: Box::new(Cmd::Function(format!("__sand_local:{path}"))),
+    }])
 }
 
 /// Canonical current-executor lowering shared by every generated State query.
 #[doc(hidden)]
-pub fn lower_state_query_current<Item>(
+pub fn lower_state_query_current<Item, R: IntoCommands>(
     context: Option<Selector>,
     mut requirements: Vec<(String, u32)>,
     mut forbidden: Vec<(String, u32)>,
     item: Item,
-    body: impl FnOnce(Item) -> Vec<String>,
-) -> Vec<String> {
+    body: impl FnOnce(Item) -> R,
+) -> Actions {
     requirements.sort();
     requirements.dedup();
     forbidden.sort();
     forbidden.dedup();
-    guard_state_query_commands(body(item), context.as_ref(), &requirements, &forbidden)
+    guard_state_query_commands(
+        body(item).into_commands(),
+        context.as_ref(),
+        &requirements,
+        &forbidden,
+    )
 }
 
 fn guard_state_query_commands(
-    commands: Vec<String>,
+    commands: Actions,
     context: Option<&Selector>,
     requirements: &[(String, u32)],
     forbidden: &[(String, u32)],
-) -> Vec<String> {
-    commands
-        .into_iter()
-        .map(|command| {
-            let mut guards = requirements
-                .iter()
-                .map(|(objective, version)| format!("if score @s {objective} matches {version}"))
-                .collect::<Vec<_>>();
-            if let Some(selector) = context {
-                guards.insert(0, format!("if entity {selector}"));
-            }
-            guards.extend(forbidden.iter().map(|(objective, version)| {
-                format!("unless score @s {objective} matches {version}")
-            }));
-            if guards.is_empty() {
-                command
-            } else {
-                format!("execute {} run {command}", guards.join(" "))
-            }
-        })
-        .collect()
+) -> Actions {
+    let score = |objective: &str, version: u32| ConditionIr::ScoreMatches {
+        holder: sand_commands::ScoreHolder::self_(),
+        objective: objective.to_owned(),
+        range: version.to_string(),
+    };
+    let mut guards = Vec::new();
+    if let Some(selector) = context {
+        guards.push(ExecuteOp::If(ConditionIr::Entity(selector.clone())));
+    }
+    guards.extend(
+        requirements
+            .iter()
+            .map(|(objective, version)| ExecuteOp::If(score(objective, *version))),
+    );
+    guards.extend(
+        forbidden
+            .iter()
+            .map(|(objective, version)| ExecuteOp::Unless(score(objective, *version))),
+    );
+    if guards.is_empty() {
+        return commands;
+    }
+    Actions(
+        commands
+            .0
+            .into_iter()
+            .map(|command| Cmd::Execute {
+                operations: guards.clone(),
+                run: Box::new(command),
+            })
+            .collect(),
+    )
 }
 
 /// Adds query execution and typed-state filtering to the canonical [`Target`]
@@ -329,7 +351,7 @@ pub trait TargetExecution: Sized {
 
     /// Runs `body` with `@s` bound to each matching target.
     #[sand_macros::api(registry = sand_api_contract, path = "sand::entity::TargetExecution::each", aliases = ["sand::prelude::TargetExecution::each"], module = "sand::entity", summary = "Runs a generated command body once for each matching target.", context = "Iteration is a capability of the canonical Target representation; the callback receives EntityContext rather than another target wrapper.", minecraft = "Lowers to execute as <target> at @s run function <generated>.", use_when = ["Applying commands to every entity or player selected by a Target"], avoid_when = ["Passing the target directly to one command is sufficient"], params(body = "The command-producing callback evaluated with a bound EntityContext."), returns = "The generated execute command, or an empty list for an empty body.", example = "use sand::prelude::*; let tag = EntityTag::new(\"ready\").unwrap(); let commands = Target::players().each(|player| vec![player.identity().add_tag(&tag).unwrap()]);")]
-    fn each(self, body: impl FnOnce(&EntityContext<Self::Kind>) -> Vec<String>) -> Vec<String>;
+    fn each<R: IntoCommands>(self, body: impl FnOnce(&EntityContext<Self::Kind>) -> R) -> Actions;
 }
 
 impl<A> TargetExecution for Target<AnyTarget, A> {
@@ -345,7 +367,7 @@ impl<A> TargetExecution for Target<AnyTarget, A> {
         )
     }
 
-    fn each(self, body: impl FnOnce(&EntityContext<Self::Kind>) -> Vec<String>) -> Vec<String> {
+    fn each<R: IntoCommands>(self, body: impl FnOnce(&EntityContext<Self::Kind>) -> R) -> Actions {
         lower_each(self.into_target_selector(), body)
     }
 }
@@ -363,25 +385,26 @@ impl<A> TargetExecution for Target<PlayersOnly, A> {
         )
     }
 
-    fn each(self, body: impl FnOnce(&EntityContext<Self::Kind>) -> Vec<String>) -> Vec<String> {
+    fn each<R: IntoCommands>(self, body: impl FnOnce(&EntityContext<Self::Kind>) -> R) -> Actions {
         lower_each(self.into_target_selector(), body)
     }
 }
 
 // ── Shared lowering ────────────────────────────────────────────────────────────
 
-fn lower_each<K: crate::entity::kind::EntityKind>(
+fn lower_each<K: crate::entity::kind::EntityKind, R: IntoCommands>(
     selector: Selector,
-    body: impl FnOnce(&EntityContext<K>) -> Vec<String>,
-) -> Vec<String> {
-    let inner = body(&EntityContext::new());
-    if inner.is_empty() {
-        return Vec::new();
+    body: impl FnOnce(&EntityContext<K>) -> R,
+) -> Actions {
+    let inner = body(&EntityContext::new()).into_commands();
+    if inner.0.is_empty() {
+        return Actions::default();
     }
     let path = register_dyn_fn_dedup("sand/entity_query", inner);
-    vec![format!(
-        "execute as {selector} at @s run function __sand_local:{path}"
-    )]
+    Actions(vec![Cmd::Execute {
+        operations: vec![ExecuteOp::As(selector), ExecuteOp::At(Selector::self_())],
+        run: Box::new(Cmd::Function(format!("__sand_local:{path}"))),
+    }])
 }
 
 #[cfg(test)]
@@ -399,10 +422,13 @@ mod tests {
         let selector = Selector::all_entities()
             .entity_type(crate::entity::ZombieKind::entity_type())
             .tag("archetype_member");
-        let commands =
-            lower_state_query_each(selector, vec![("component".into(), 2)], vec![], (), |_| {
-                vec!["say member".into()]
-            });
+        let commands = crate::ir::test_support::emitted(lower_state_query_each(
+            selector,
+            vec![("component".into(), 2)],
+            vec![],
+            (),
+            |_| vec!["say member".to_owned()],
+        ));
         assert!(commands[0].starts_with(
             "execute as @e[type=minecraft:zombie,tag=archetype_member,scores={component=2}] at @s run function "
         ));
@@ -410,13 +436,13 @@ mod tests {
 
     #[test]
     fn current_query_checks_membership_without_changing_executor() {
-        let commands = lower_state_query_current(
+        let commands = crate::ir::test_support::emitted(lower_state_query_current(
             Some(Selector::self_().tag("archetype_member")),
             vec![("component".into(), 2)],
             vec![],
             (),
-            |_| vec!["say first".into(), "say second".into()],
-        );
+            |_| vec!["say first".to_owned(), "say second".to_owned()],
+        ));
         assert_eq!(
             commands,
             [
@@ -427,13 +453,31 @@ mod tests {
     }
 
     #[test]
+    fn presence_guards_preserve_nested_action_validation() {
+        let commands =
+            lower_state_query_current(None, vec![("component".into(), 2)], vec![], (), |_| {
+                Actions(vec![Cmd::Execute {
+                    operations: vec![],
+                    run: Box::new(Cmd::Raw("say invalid".into())),
+                }])
+            });
+        let owner = "test:optional_state".parse().unwrap();
+        let error = commands.lower(&owner).unwrap_err().to_string();
+        assert!(error.contains("test:optional_state"), "{error}");
+        assert!(error.contains("actions[0]"), "{error}");
+        assert!(error.contains("SAND-COMMAND-EXECUTE-EMPTY"), "{error}");
+    }
+
+    #[test]
     fn entities_each_lowers_to_execute_as_at_run_function() {
-        let cmds = Target::entities()
-            .entity_type_raw("minecraft:zombie")
-            .tag("hostile")
-            .within_blocks(15.0)
-            .nearest()
-            .each(|entity| vec![entity.add_tag(&tag("observed"))]);
+        let cmds = crate::ir::test_support::emitted(
+            Target::entities()
+                .entity_type_raw("minecraft:zombie")
+                .tag("hostile")
+                .within_blocks(15.0)
+                .nearest()
+                .each(|entity| vec![entity.add_tag(&tag("observed"))]),
+        );
 
         assert_eq!(cmds.len(), 1);
         assert!(cmds[0].starts_with(
@@ -443,18 +487,23 @@ mod tests {
 
     #[test]
     fn empty_each_body_emits_no_commands() {
-        let cmds = Target::entities().each(|_| Vec::new());
+        let cmds =
+            crate::ir::test_support::emitted(Target::entities().each(|_| Vec::<String>::new()));
         assert!(cmds.is_empty());
     }
 
     #[test]
     fn structurally_identical_bodies_dedup_to_the_same_function() {
-        let a = Target::entities()
-            .tag("a")
-            .each(|e| vec![e.add_tag(&tag("x"))]);
-        let b = Target::entities()
-            .tag("b")
-            .each(|e| vec![e.add_tag(&tag("x"))]);
+        let a = crate::ir::test_support::emitted(
+            Target::entities()
+                .tag("a")
+                .each(|e| vec![e.add_tag(&tag("x"))]),
+        );
+        let b = crate::ir::test_support::emitted(
+            Target::entities()
+                .tag("b")
+                .each(|e| vec![e.add_tag(&tag("x"))]),
+        );
         let fn_a = a[0].rsplit("function ").next().unwrap();
         let fn_b = b[0].rsplit("function ").next().unwrap();
         assert_eq!(fn_a, fn_b);
@@ -462,10 +511,12 @@ mod tests {
 
     #[test]
     fn players_each_lowers_with_player_selector() {
-        let cmds = Target::players()
-            .tag("ready")
-            .nearest()
-            .each(|p| vec![p.add_tag(&tag("chosen"))]);
+        let cmds = crate::ir::test_support::emitted(
+            Target::players()
+                .tag("ready")
+                .nearest()
+                .each(|p| vec![p.add_tag(&tag("chosen"))]),
+        );
         assert_eq!(cmds.len(), 1);
         assert!(cmds[0].starts_with(
             "execute as @a[tag=ready,sort=nearest,limit=1] at @s run function __sand_local:sand/entity_query/"
@@ -476,13 +527,15 @@ mod tests {
     fn typed_state_predicates_merge_into_one_score_map() {
         let level = EntityScore::<i32>::new("rpg", "mob", "level", 1, None);
         let sick = EntityFlag::new("rpg", "mob", "sick", false);
-        let commands = Target::entities()
-            .entity_type_raw("minecraft:zombie")
-            .state(level.matches(10..=20).unwrap())
-            .unwrap()
-            .state(sick.is_enabled())
-            .unwrap()
-            .each(|entity| vec![entity.add_tag(&tag("matched"))]);
+        let commands = crate::ir::test_support::emitted(
+            Target::entities()
+                .entity_type_raw("minecraft:zombie")
+                .state(level.matches(10..=20).unwrap())
+                .unwrap()
+                .state(sick.is_enabled())
+                .unwrap()
+                .each(|entity| vec![entity.add_tag(&tag("matched"))]),
+        );
         assert!(commands[0].contains("scores={"));
         assert!(commands[0].contains(&format!("{}=10..20", level.objective())));
         assert!(commands[0].contains(&format!("{}=1", sick.objective())));

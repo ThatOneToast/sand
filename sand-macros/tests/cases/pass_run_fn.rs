@@ -1,3 +1,4 @@
+mod actions_support;
 use sand_macros::{function, run_fn};
 use sand_core::cmd::{self, Execute, Target};
 
@@ -11,7 +12,7 @@ fn my_fn() {
 }
 
 fn main() {
-    let cmds = my_fn();
+    let cmds = actions_support::emitted(my_fn());
     assert_eq!(cmds.len(), 1);
     assert!(cmds[0].starts_with("execute as @a run function hello_world:greet"));
 }

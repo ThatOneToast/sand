@@ -57,13 +57,13 @@ mod tests {
         let descriptor = inventory::iter::<FunctionDescriptor>()
             .find(|d| d.path == path)
             .unwrap_or_else(|| panic!("{path} descriptor not registered"));
-        (descriptor.make)()
+        crate::test_support::emitted((descriptor.make)())
     }
 
     #[test]
     fn arcane_load_commands() {
         assert_eq!(
-            arcane_load(),
+            crate::test_support::emitted(arcane_load()),
             vec![
                 "scoreboard objectives add arcane_mana dummy",
                 "scoreboard objectives add arcane_dash dummy",
@@ -75,7 +75,7 @@ mod tests {
     #[test]
     fn arcane_tick_commands() {
         assert_eq!(
-            arcane_tick(),
+            crate::test_support::emitted(arcane_tick()),
             vec![
                 "execute as @a if score @s arcane_dash matches 1.. run scoreboard players remove @s arcane_dash 1",
                 "execute as @a if score @s arcane_mana matches 25.. if score @s arcane_dash matches 0 run title @s actionbar {\"bold\":true,\"color\":\"aqua\",\"text\":\"Dash ready\"}",

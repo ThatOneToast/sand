@@ -75,7 +75,7 @@ sand_core::inventory::submit! {
     EventDescriptor {
         path: "on_cycle_a",
         id_override: None,
-        make: on_cycle_a_body,
+        make: || sand::component::IntoCommands::into_commands(on_cycle_a_body()),
         dispatch: EventDispatch::Custom {
             make_trigger: no_trigger,
             make_condition: no_condition,

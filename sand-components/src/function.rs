@@ -71,9 +71,9 @@ impl FunctionRef for &FunctionId {
     }
 }
 
-impl<F> FunctionRef for F
+impl<F, Body> FunctionRef for F
 where
-    F: Fn() -> Vec<String> + Copy + 'static,
+    F: Fn() -> Body + Copy + 'static,
 {
     fn function_id(self) -> FunctionId {
         let path = registered_path_for_function_value(self).unwrap_or_else(|| {

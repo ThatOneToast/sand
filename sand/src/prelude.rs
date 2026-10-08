@@ -61,6 +61,7 @@ pub use crate::{
     api, armor_event, custom_item, datapack_component, function, mcfunction, on_event, run_fn,
     schedule, state_lifecycle, system,
 };
+pub use sand_core::cmd::Actions;
 
 // The `cmd` module itself, so `cmd::say(...)` works from the prelude.
 pub use crate::cmd;

@@ -6,6 +6,9 @@
 //! `FunctionDescriptor` iteration, *before* event `make()` bodies ran.
 //! Branches registered by events were silently dropped.
 
+#[path = "support/actions.rs"]
+mod actions;
+use actions::emitted;
 use sand_core::execute_when::{if_, unless, when};
 use sand_core::state::{Flag, ScoreVar};
 
@@ -40,6 +43,9 @@ fn simulate_event_body_if_else() -> Vec<String> {
 /// Drain the registry and return all registered branches.
 fn drain_branches() -> Vec<(String, Vec<String>)> {
     sand_core::drain_dyn_fns()
+        .into_iter()
+        .map(|(path, body)| (path, emitted(body)))
+        .collect()
 }
 
 use std::sync::{Mutex, OnceLock};

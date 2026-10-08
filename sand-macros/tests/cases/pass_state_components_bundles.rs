@@ -80,9 +80,9 @@ fn main() {
     let _: Vec<String> = BossCombat::detach(entity);
     let _: Vec<String> = Boss::attach(entity);
     let _ = Boss::is_attached(entity);
-    let _: Vec<String> = Combatants::each(|combatant| {
-        let mut commands = combatant.combat.attack.damage.add(1);
-        commands.extend(combatant.boss(|_| vec!["say boss".into()]));
+    let _: sand::command::Actions = Combatants::each(|combatant| {
+        let mut commands = sand::component::IntoCommands::into_commands(combatant.combat.attack.damage.add(1));
+        commands.extend(combatant.boss(|_| sand::mcfunction![cmd::say("boss")]));
         commands
     });
     let _: EntityArchetype<ZombieKind> = EntityArchetype::new(

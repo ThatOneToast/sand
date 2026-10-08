@@ -54,8 +54,7 @@ fn traversal() -> TraversalBound {
 }
 
 fn grapple_range() -> NbtRef<i32> {
-    Nbt::storage(ResourceLocation::new("trail", "data").unwrap())
-        .typed_path("config.grapple_range")
+    Nbt::storage(ResourceLocation::new("trail", "data").unwrap()).typed_path("config.grapple_range")
 }
 // ANCHOR_END: state
 
@@ -471,9 +470,19 @@ pub fn __sand_export(namespace: &str, mc_version: &str) {
 mod tests {
     use super::*;
 
+    fn emitted(actions: Actions) -> Vec<String> {
+        use sand::registration::{ComponentContent, DatapackComponent};
+        let function =
+            sand::component::McFunction::new("test:body".parse().unwrap()).commands(actions);
+        let ComponentContent::Text(content) = function.try_content().unwrap() else {
+            panic!("a function must export text");
+        };
+        content.lines().map(str::to_owned).collect()
+    }
+
     #[test]
     fn load_seeds_storage() {
-        let cmds = load();
+        let cmds = emitted(load());
         assert!(
             cmds.iter().any(|c| c.contains("storage trail:data")),
             "seeds storage: {cmds:?}"
@@ -482,7 +491,7 @@ mod tests {
 
     #[test]
     fn tick_regenerates_and_warns() {
-        let cmds = tick();
+        let cmds = emitted(tick());
         assert!(
             cmds.iter().any(|c| c.contains("Grapple ready")),
             "readiness actionbar: {cmds:?}"
@@ -495,7 +504,7 @@ mod tests {
 
     #[test]
     fn grapple_execute_pays_stamina_and_plays_vfx() {
-        let cmds = grapple_execute();
+        let cmds = emitted(grapple_execute());
         assert!(
             cmds.iter().any(|c| c.contains("scoreboard players remove")),
             "pays stamina: {cmds:?}"

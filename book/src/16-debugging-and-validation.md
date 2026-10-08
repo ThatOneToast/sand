@@ -9,12 +9,19 @@ doesn't compile or doesn't behave as expected in-game.
 
 Trailforge's `#[cfg(test)] mod tests` block doesn't spin up a Minecraft
 server — it calls the same functions `sand build` calls, and asserts on the
-`Vec<String>` of `.mcfunction` command lines they return:
+exported `.mcfunction` text. Annotated functions return `Actions`; lower those
+through `McFunction::try_content` before asserting on command output:
 
 ```rust,ignore
 #[test]
 fn tick_regenerates_and_warns() {
-    let cmds = tick();
+    use sand::registration::{ComponentContent, DatapackComponent};
+    let function = sand::component::McFunction::new("test:tick".parse().unwrap())
+        .commands(tick());
+    let ComponentContent::Text(content) = function.try_content().unwrap() else {
+        panic!("a function must export text");
+    };
+    let cmds: Vec<_> = content.lines().collect();
     assert!(
         cmds.iter().any(|c| c.contains("Grapple ready")),
         "readiness actionbar: {cmds:?}"
@@ -27,7 +34,7 @@ fn tick_regenerates_and_warns() {
 ```
 
 Because every `#[datapack_component]`/`#[function]`-annotated function is an
-ordinary Rust function that *returns* its generated commands, this works
+ordinary Rust function that returns authored actions, this works
 with nothing beyond `cargo test` — no server, no world, no network. This is
 the fastest feedback loop available: a broken condition, a wrong selector,
 or a typo'd literal shows up as a failing assertion in milliseconds, not as

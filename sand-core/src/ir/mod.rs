@@ -17,6 +17,93 @@
 
 pub use sand_commands::{ConditionIr, ExecuteOp, ExecuteStoreTarget};
 
+/// An ordered sequence of authored operations awaiting compiler lowering.
+///
+/// Sand function macros collect these values at build time. They describe
+/// Minecraft runtime work; constructing or combining them does not execute it.
+/// Keep them intact when composing gameplay helpers so validation retains the
+/// structured operations before the exporter emits command text.
+#[derive(Debug, Clone, Default)]
+#[must_use = "authored actions must be returned or collected into a Sand function"]
+#[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::command::Actions",
+    aliases = ["sand::cmd::Actions", "sand::prelude::Actions", "sand::prelude::cmd::Actions"],
+    module = "sand::command",
+    summary = "An ordered sequence of authored operations awaiting compiler lowering.",
+    context = "Function macros collect these build-time values into Minecraft runtime bodies. Gameplay helpers can return Actions without exposing command strings or compiler IR variants.",
+    minecraft = "The exporter validates and lowers each operation in authored order before emitting mcfunction resources.",
+    use_when = ["Returning composed gameplay operations from a Rust helper"],
+    avoid_when = ["Representing an operation that has already executed in Minecraft"],
+    example = "use sand::command::Actions; fn empty() -> Actions { Actions::default() }",
+)]
+pub struct Actions(pub(crate) Vec<Cmd>);
+
+impl<A: crate::IntoCommands> Extend<A> for Actions {
+    fn extend<T: IntoIterator<Item = A>>(&mut self, actions: T) {
+        for action in actions {
+            self.0.extend(action.into_commands().0);
+        }
+    }
+}
+
+impl IntoIterator for Actions {
+    type Item = Actions;
+    type IntoIter = std::vec::IntoIter<Actions>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.0
+            .into_iter()
+            .map(|node| Actions(vec![node]))
+            .collect::<Vec<_>>()
+            .into_iter()
+    }
+}
+
+impl FromIterator<Actions> for Actions {
+    fn from_iter<T: IntoIterator<Item = Actions>>(actions: T) -> Self {
+        let mut body = Self::default();
+        body.extend(actions);
+        body
+    }
+}
+
+impl Actions {
+    pub(crate) fn identity(&self) -> String {
+        // Retain variant distinctions: raw and typed nodes may render the same
+        // text while requiring different validation. This identity contains no
+        // process-local handles or source provenance.
+        format!("{:?}", self.0)
+    }
+
+    // Preserve the canonical component error (including resource ownership) at
+    // this export boundary, as DatapackComponent::try_content requires.
+    #[allow(clippy::result_large_err)]
+    pub(crate) fn lower(
+        &self,
+        location: &sand_components::ResourceLocation,
+    ) -> sand_components::error::Result<Vec<String>> {
+        self.0
+            .iter()
+            .enumerate()
+            .map(|(index, command)| {
+                command.try_render().map_err(|error| {
+                    sand_components::SandError::ComponentValidation {
+                        location: location.clone(),
+                        kind: "function".into(),
+                        field: format!("actions[{index}].{}", error.field),
+                        message: error.to_string(),
+                    }
+                })
+            })
+            .collect()
+    }
+
+    pub(crate) fn render(self) -> Vec<String> {
+        self.0.into_iter().map(|command| command.render()).collect()
+    }
+}
+
 // ── ScoreOpKind ───────────────────────────────────────────────────────────────
 
 /// Vanilla scoreboard player operation symbol.
@@ -429,5 +516,22 @@ mod tests {
         for (kind, expected) in ops {
             assert_eq!(kind.as_str(), expected);
         }
+    }
+}
+
+#[cfg(test)]
+pub(crate) mod test_support {
+    pub(crate) fn emitted(actions: impl crate::IntoCommands) -> Vec<String> {
+        actions
+            .into_commands()
+            .lower(&"test:body".parse().unwrap())
+            .unwrap()
+    }
+
+    pub(crate) fn drain_emitted() -> Vec<(String, Vec<String>)> {
+        crate::function::drain_dyn_fns()
+            .into_iter()
+            .map(|(path, body)| (path, emitted(body)))
+            .collect()
     }
 }

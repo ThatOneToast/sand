@@ -174,7 +174,7 @@ impl From<Condition> for Conditional {
 /// Reset the branch counter. For use in unit tests only — keeps paths stable.
 #[cfg(test)]
 fn reset_branch_counter_for_tests() {
-    crate::drain_dyn_fns();
+    crate::ir::test_support::drain_emitted();
 }
 
 /// Register commands as an anonymous branch function and return its path.
@@ -614,10 +614,11 @@ impl IfThenBuilder {
 }
 
 impl crate::components::mc_function::IntoCommands for IfThenBuilder {
-    fn into_commands(self) -> Vec<String> {
+    fn into_commands(self) -> crate::ir::Actions {
         let then_ref = register_branch(self.then_cmds);
         self.cond
             .execute_commands(false, &format!("function {then_ref}"))
+            .into_commands()
     }
 }
 
@@ -738,7 +739,7 @@ mod tests {
     // view — no cross-test lock is needed, just a per-call reset so
     // assertions on generated branch paths start from a clean slate.
     fn reset_dynamic_branch_registry_for_test() {
-        let _ = crate::drain_dyn_fns();
+        let _ = crate::ir::test_support::drain_emitted();
         reset_branch_counter_for_tests();
     }
 
@@ -1062,7 +1063,8 @@ mod tests {
         let cmds = mcfunction![
             MANA2.define();
             when(MANA2.of("@s").gte(25)).then_one("say enough mana");
-        ];
+        ]
+        .render();
         assert_eq!(cmds[0], "scoreboard objectives add mana2 dummy");
         assert!(
             cmds[1].contains("if score @s mana2 matches 25.."),
@@ -1079,7 +1081,8 @@ mod tests {
         reset_dynamic_branch_registry_for_test();
         let cmds = if_(CASTING.of("@s").is_true())
             .then_all(["say already casting"])
-            .into_commands();
+            .into_commands()
+            .render();
         assert_eq!(cmds.len(), 1, "if_ with no else: one parent command");
         assert!(
             cmds[0].contains("execute if score @s casting matches 1"),
@@ -1119,7 +1122,7 @@ mod tests {
             .then_all(["say active"])
             .else_all(["say inactive"]);
 
-        let registered = crate::drain_dyn_fns();
+        let registered = crate::ir::test_support::drain_emitted();
         assert_eq!(
             registered.len(),
             4,
@@ -1210,7 +1213,7 @@ mod tests {
             assert!(setup.contains(&"scoreboard objectives add __sand_tmp dummy".to_string()));
         }
 
-        assert!(crate::drain_dyn_fns().is_empty());
+        assert!(crate::ir::test_support::drain_emitted().is_empty());
         assert!(crate::state::score::drain_internal_score_setup().is_empty());
     }
 
@@ -1224,7 +1227,7 @@ mod tests {
         .then_all(["say yes"])
         .else_all(["say no"]);
 
-        let registered = crate::drain_dyn_fns();
+        let registered = crate::ir::test_support::drain_emitted();
         let dispatcher_path = cmds[0]
             .strip_prefix("function __sand_local:")
             .expect("parent calls the dispatcher");
@@ -1282,7 +1285,7 @@ mod tests {
     fn branch_is_registered_in_dyn_fn_registry() {
         reset_dynamic_branch_registry_for_test();
         let _cmds = when(MANA.of("@s").gte(10)).then_all(["say registered"]);
-        let fns = crate::drain_dyn_fns();
+        let fns = crate::ir::test_support::drain_emitted();
         assert!(
             fns.iter().any(|(path, cmds)| {
                 path.contains("sand/branches/") && cmds.contains(&"say registered".to_string())
@@ -1315,7 +1318,7 @@ mod tests {
         }
 
         reset_dynamic_branch_registry_for_test();
-        let fns = crate::drain_dyn_fns();
+        let fns = crate::ir::test_support::drain_emitted();
         assert!(
             fns.is_empty(),
             "expected empty registry after reset, got: {fns:?}"
@@ -1341,7 +1344,7 @@ mod tests {
         let dispatcher_path = commands[2]
             .strip_prefix("function __sand_local:")
             .expect("setup is followed by one dispatcher call");
-        let registered = crate::drain_dyn_fns();
+        let registered = crate::ir::test_support::drain_emitted();
         let dispatcher = registered
             .iter()
             .find(|(path, _)| path == dispatcher_path)

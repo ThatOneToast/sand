@@ -28,7 +28,7 @@ fn wildcard_write_pack_body() -> Vec<String> {
 }
 
 sand_core::inventory::submit! {
-    FunctionDescriptor { context: sand::advanced::compiler::ExecutionContext::Server, path: "wildcard_write", make: wildcard_write_pack_body }
+    FunctionDescriptor { context: sand::advanced::compiler::ExecutionContext::Server, path: "wildcard_write", make: || sand::component::IntoCommands::into_commands(wildcard_write_pack_body()) }
 }
 
 #[test]

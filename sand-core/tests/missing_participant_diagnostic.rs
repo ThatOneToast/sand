@@ -52,7 +52,7 @@ sand_core::inventory::submit! {
     EventDescriptor {
         path: "invalid_advancement",
         id_override: None,
-        make: invalid_advancement_body,
+        make: || sand::component::IntoCommands::into_commands(invalid_advancement_body()),
         dispatch: EventDispatch::Advancement {
             make_trigger: adv_trigger,
             revoke: adv_revoke,
@@ -114,7 +114,7 @@ sand_core::inventory::submit! {
     EventDescriptor {
         path: "invalid_sand",
         id_override: None,
-        make: invalid_sand_body,
+        make: || sand::component::IntoCommands::into_commands(invalid_sand_body()),
         dispatch: EventDispatch::Custom {
             make_trigger: no_trigger,
             make_condition: no_condition,

@@ -123,14 +123,14 @@ mod tests {
 
     #[test]
     fn load_registers_all_objectives() {
-        let cmds = load_state();
+        let cmds = crate::test_support::emitted(load_state());
         assert_eq!(cmds.len(), 5);
         assert!(cmds[0].contains("mana"), "got: {}", cmds[0]);
     }
 
     #[test]
     fn init_player_uses_nil_checks() {
-        let cmds = init_player();
+        let cmds = crate::test_support::emitted(init_player());
         for cmd in &cmds {
             assert!(
                 cmd.contains("unless score @s") && cmd.contains("matches -2147483648.."),
@@ -141,7 +141,7 @@ mod tests {
 
     #[test]
     fn tick_state_includes_all_ticks() {
-        let cmds = tick_state();
+        let cmds = crate::test_support::emitted(tick_state());
         assert!(cmds.iter().any(|c| c.contains("blink_tm")), "timer tick");
         assert!(cmds.iter().any(|c| c.contains("dash")), "cooldown tick");
     }
@@ -154,13 +154,13 @@ mod tests {
 
     #[test]
     fn score_ops_count() {
-        let cmds = score_ops();
+        let cmds = crate::test_support::emitted(score_ops());
         assert_eq!(cmds.len(), 7);
     }
 
     #[test]
     fn guard_cmds_count() {
-        let cmds = guard_cmds();
+        let cmds = crate::test_support::emitted(guard_cmds());
         assert_eq!(cmds.len(), 4);
     }
 }

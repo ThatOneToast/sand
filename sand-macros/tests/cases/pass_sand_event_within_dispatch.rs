@@ -1,5 +1,6 @@
 #![allow(refining_impl_trait)]
 
+mod actions_support;
 use sand_core::events::{PlayerSneakEvent, SandEvent, SandEventDispatch, TickWindow};
 use sand_core::prelude::*;
 use sand_macros::on_event;
@@ -68,7 +69,7 @@ fn on_bounded_after_any(_event: BoundedAfterAnyChild) {
 }
 
 fn main() {
-    assert!(!on_bounded().is_empty());
-    assert!(!on_bounded_with_while().is_empty());
-    assert!(!on_bounded_after_any().is_empty());
+    assert!(!actions_support::emitted(on_bounded()).is_empty());
+    assert!(!actions_support::emitted(on_bounded_with_while()).is_empty());
+    assert!(!actions_support::emitted(on_bounded_after_any()).is_empty());
 }

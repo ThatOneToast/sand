@@ -1,5 +1,8 @@
 //! Composition coverage for the focused `EntityContext` capability façade.
 
+#[path = "support/actions.rs"]
+mod actions;
+use actions::emitted;
 use std::sync::Mutex;
 
 use sand_commands::Target;
@@ -13,7 +16,7 @@ fn target_each_composes_multiple_capability_families() {
     let _guard = DYN_FN_REGISTRY_LOCK
         .lock()
         .unwrap_or_else(std::sync::PoisonError::into_inner);
-    let commands = Target::players().each(|player| {
+    let commands = emitted(Target::players().each(|player| {
         let helmet = player.equipment().slot(EquipmentSlot::Head).unwrap();
         let hotbar = player.inventory().hotbar(0).unwrap();
         vec![
@@ -23,10 +26,13 @@ fn target_each_composes_multiple_capability_families() {
             player.living().clear_effects(),
             player.mounts().dismount().unwrap(),
         ]
-    });
+    }));
 
     assert_eq!(commands.len(), 1);
-    let generated = sand_core::function::drain_dyn_fns();
+    let generated = sand_core::function::drain_dyn_fns()
+        .into_iter()
+        .map(|(path, body)| (path, emitted(body)))
+        .collect::<Vec<_>>();
     let body = generated
         .iter()
         .find(|(path, _)| commands[0].ends_with(path))
@@ -49,7 +55,7 @@ fn scoped_capabilities_keep_the_bound_selector_across_relationship_traversal() {
         .lock()
         .unwrap_or_else(std::sync::PoisonError::into_inner);
     let zombie = EntityContext::<ZombieKind>::default();
-    let commands = EntityScope::bind(&zombie, |bound| {
+    let commands = emitted(EntityScope::bind(&zombie, |bound| {
         bound
             .owner()
             .if_player(|owner| {
@@ -60,12 +66,15 @@ fn scoped_capabilities_keep_the_bound_selector_across_relationship_traversal() {
                 ]
             })
             .unwrap()
-    });
+    }));
 
     let scoped_tag = commands[0]
         .strip_prefix("tag @s add ")
         .expect("bind starts by tagging @s");
-    let generated = sand_core::function::drain_dyn_fns();
+    let generated = sand_core::function::drain_dyn_fns()
+        .into_iter()
+        .map(|(path, body)| (path, emitted(body)))
+        .collect::<Vec<_>>();
     let relation_call = &commands[1];
     let body = generated
         .iter()
@@ -118,13 +127,16 @@ fn repeated_capability_bodies_deduplicate_deterministically() {
         })
     };
 
-    let first = build("first");
-    let second = build("second");
+    let first = emitted(build("first"));
+    let second = emitted(build("second"));
     let first_path = first[0].rsplit("function ").next().unwrap();
     let second_path = second[0].rsplit("function ").next().unwrap();
     assert_eq!(first_path, second_path);
 
-    let generated = sand_core::function::drain_dyn_fns();
+    let generated = sand_core::function::drain_dyn_fns()
+        .into_iter()
+        .map(|(path, body)| (path, emitted(body)))
+        .collect::<Vec<_>>();
     assert_eq!(
         generated
             .iter()

@@ -103,7 +103,7 @@ sand_core::inventory::submit! {
     EventDescriptor {
         path: "on_parent",
         id_override: None,
-        make: on_parent_body,
+        make: || sand::component::IntoCommands::into_commands(on_parent_body()),
         dispatch: EventDispatch::Custom {
             make_trigger: no_trigger,
             make_condition: no_condition,
@@ -145,7 +145,7 @@ sand_core::inventory::submit! {
     EventDescriptor {
         path: "on_single_cond_child",
         id_override: None,
-        make: on_single_cond_child_body,
+        make: || sand::component::IntoCommands::into_commands(on_single_cond_child_body()),
         dispatch: EventDispatch::Custom {
             make_trigger: no_trigger,
             make_condition: no_condition,
@@ -184,7 +184,7 @@ sand_core::inventory::submit! {
     EventDescriptor {
         path: "on_unconditional_child",
         id_override: None,
-        make: on_unconditional_child_body,
+        make: || sand::component::IntoCommands::into_commands(on_unconditional_child_body()),
         dispatch: EventDispatch::Custom {
             make_trigger: no_trigger,
             make_condition: no_condition,
@@ -227,7 +227,7 @@ sand_core::inventory::submit! {
     EventDescriptor {
         path: "on_or_cond_child",
         id_override: None,
-        make: on_or_cond_child_body,
+        make: || sand::component::IntoCommands::into_commands(on_or_cond_child_body()),
         dispatch: EventDispatch::Custom {
             make_trigger: no_trigger,
             make_condition: no_condition,
@@ -280,7 +280,7 @@ sand_core::inventory::submit! {
     EventDescriptor {
         path: "on_distinct_a",
         id_override: None,
-        make: on_distinct_a_body,
+        make: || sand::component::IntoCommands::into_commands(on_distinct_a_body()),
         dispatch: EventDispatch::Custom {
             make_trigger: no_trigger,
             make_condition: no_condition,
@@ -299,7 +299,7 @@ sand_core::inventory::submit! {
     EventDescriptor {
         path: "on_distinct_b",
         id_override: None,
-        make: on_distinct_b_body,
+        make: || sand::component::IntoCommands::into_commands(on_distinct_b_body()),
         dispatch: EventDispatch::Custom {
             make_trigger: no_trigger,
             make_condition: no_condition,
@@ -366,7 +366,7 @@ sand_core::inventory::submit! {
     EventDescriptor {
         path: "on_orphan_child",
         id_override: None,
-        make: on_orphan_child_body,
+        make: || sand::component::IntoCommands::into_commands(on_orphan_child_body()),
         dispatch: EventDispatch::Custom {
             make_trigger: no_trigger,
             make_condition: no_condition,

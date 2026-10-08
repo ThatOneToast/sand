@@ -8,7 +8,7 @@ sand_core::inventory::submit! {
     EventDescriptor {
         path: "boolean_handler",
         id_override: None,
-        make: empty_handler,
+        make: || sand::component::IntoCommands::into_commands(empty_handler()),
         dispatch: EventDispatch::Tracked(TrackedTransition::new(
             "conflicting_tracker",
             TrackedSource::BooleanCondition {
@@ -24,7 +24,7 @@ sand_core::inventory::submit! {
     EventDescriptor {
         path: "score_handler",
         id_override: None,
-        make: empty_handler,
+        make: || sand::component::IntoCommands::into_commands(empty_handler()),
         dispatch: EventDispatch::Tracked(TrackedTransition::new(
             "conflicting_tracker",
             TrackedSource::Score {

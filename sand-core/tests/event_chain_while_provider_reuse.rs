@@ -69,7 +69,7 @@ sand_core::inventory::submit! {
     EventDescriptor {
         path: "on_sneaking_direct",
         id_override: None,
-        make: sneaking_body,
+        make: || sand::component::IntoCommands::into_commands(sneaking_body()),
         dispatch: EventDispatch::Custom {
             make_trigger: no_trigger,
             make_condition: sneaking_condition,
@@ -89,7 +89,7 @@ sand_core::inventory::submit! {
     EventDescriptor {
         path: "on_child",
         id_override: None,
-        make: child_body,
+        make: || sand::component::IntoCommands::into_commands(child_body()),
         dispatch: EventDispatch::Custom {
             make_trigger: no_trigger,
             make_condition: no_condition,

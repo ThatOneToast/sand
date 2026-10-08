@@ -59,7 +59,7 @@ sand_core::inventory::submit! {
     EventDescriptor {
         path: "on_child_of_advancement_parent",
         id_override: None,
-        make: on_child_body,
+        make: || sand::component::IntoCommands::into_commands(on_child_body()),
         dispatch: EventDispatch::Custom {
             make_trigger: no_trigger,
             make_condition: no_condition,

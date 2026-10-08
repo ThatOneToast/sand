@@ -10,13 +10,13 @@ pub(crate) const SAND_LOCAL_NS: &str = "__sand_local";
 /// # Fields
 /// - `path` — the resource location *path* component (e.g. `"hello_world"`,
 ///   `"utils/tick"`). The namespace is applied by the caller at build time.
-/// - `make` — a zero-argument factory function that returns the list of
-///   command strings for this function. Using a factory enables both static
-///   string literals and dynamic [`crate::Command`] builder values.
+/// - `make` — a zero-argument factory that returns authored [`crate::cmd::Actions`].
+///   The exporter validates and lowers this body when collecting the function,
+///   retaining structured operations through gameplay composition.
 pub struct FunctionDescriptor {
     pub path: &'static str,
     pub context: crate::advanced::compiler::ExecutionContext,
-    pub make: fn() -> Vec<String>,
+    pub make: fn() -> crate::ir::Actions,
 }
 
 inventory::collect!(FunctionDescriptor);
@@ -402,7 +402,7 @@ impl TrackedTransition {
 pub struct EventDescriptor {
     pub path: &'static str,
     pub id_override: Option<&'static str>,
-    pub make: fn() -> Vec<String>,
+    pub make: fn() -> crate::ir::Actions,
     pub dispatch: EventDispatch,
 }
 inventory::collect!(EventDescriptor);
@@ -448,8 +448,8 @@ pub struct ScheduleDescriptor {
     pub total_ticks: u32,
     /// Execute the body every N ticks. `1` = every tick (default).
     pub every: u32,
-    /// Factory that returns the command strings for the body function.
-    pub make: fn() -> Vec<String>,
+    /// Factory that returns the authored actions for the body function.
+    pub make: fn() -> crate::ir::Actions,
 }
 inventory::collect!(ScheduleDescriptor);
 
@@ -461,7 +461,7 @@ pub struct StateSystemDescriptor {
     /// Global tick cadence. One runs every server tick.
     pub every: u32,
     /// Builds structured commands for the system body.
-    pub make: fn() -> Vec<String>,
+    pub make: fn() -> crate::ir::Actions,
 }
 inventory::collect!(StateSystemDescriptor);
 
@@ -534,8 +534,8 @@ pub enum ArmorEventKind {
 pub struct ArmorEventDescriptor {
     /// Function path (no namespace), e.g. `"on_boots_equip"`.
     pub path: &'static str,
-    /// Factory that returns the mcfunction commands.
-    pub make: fn() -> Vec<String>,
+    /// Factory that returns the authored actions for the handler.
+    pub make: fn() -> crate::ir::Actions,
     /// Which slot to watch.
     pub slot: ArmorSlot,
     /// Equip or Unequip.
@@ -575,7 +575,7 @@ inventory::collect!(ArmorEventDescriptor);
 
 use std::cell::{Cell, RefCell};
 
-type DynFnEntry = (String, Vec<String>);
+type DynFnEntry = (String, crate::ir::Actions);
 
 thread_local! {
     static REGISTRY: RefCell<Vec<DynFnEntry>> = const { RefCell::new(Vec::new()) };
@@ -618,11 +618,12 @@ pub(crate) fn take_internal_score_temp_request() -> bool {
 /// Register an anonymous function body at runtime.
 ///
 /// Called by anonymous `run_fn!` blocks that capture local variables.
-/// The `commands` are the pre-computed mcfunction lines.
-pub fn register_dyn_fn(path: String, commands: Vec<String>) {
+/// The `commands` retain authored operations until export lowering.
+pub fn register_dyn_fn(path: String, commands: impl crate::IntoCommands) {
+    let commands = commands.into_commands();
     REGISTRY.with_borrow_mut(|registry| {
         if !registry.iter().any(|(existing_path, existing_commands)| {
-            existing_path == &path && existing_commands == &commands
+            existing_path == &path && existing_commands.identity() == commands.identity()
         }) {
             registry.push((path, commands));
         }
@@ -631,17 +632,18 @@ pub fn register_dyn_fn(path: String, commands: Vec<String>) {
 
 /// Register a generated helper function, reusing an existing helper with an
 /// identical body when context semantics allow it.
-pub fn register_dyn_fn_dedup(prefix: &str, commands: Vec<String>) -> String {
+pub fn register_dyn_fn_dedup(prefix: &str, commands: impl crate::IntoCommands) -> String {
+    let commands = commands.into_commands();
     REGISTRY.with_borrow_mut(|registry| {
         if let Some((path, _)) = registry.iter().find(|(path, existing_commands)| {
-            path.starts_with(prefix) && existing_commands == &commands
+            path.starts_with(prefix) && existing_commands.identity() == commands.identity()
         }) {
             return path.clone();
         }
 
         let path = format!("{prefix}/{}", stable_commands_key(&commands));
         if !registry.iter().any(|(existing_path, existing_commands)| {
-            existing_path == &path && existing_commands == &commands
+            existing_path == &path && existing_commands.identity() == commands.identity()
         }) {
             registry.push((path.clone(), commands));
         }
@@ -656,13 +658,13 @@ pub fn register_dyn_fn_dedup(prefix: &str, commands: Vec<String>) -> String {
 /// for one export, so all `register_dyn_fn` calls made during that export
 /// (which runs synchronously on this thread) are guaranteed to have
 /// completed. Never observes or clears another thread's registrations.
-pub fn drain_dyn_fns() -> Vec<(String, Vec<String>)> {
+pub fn drain_dyn_fns() -> Vec<(String, crate::ir::Actions)> {
     REGISTRY.with_borrow_mut(std::mem::take)
 }
 
-fn stable_commands_key(commands: &[String]) -> String {
+fn stable_commands_key(commands: &crate::ir::Actions) -> String {
     let mut h: u32 = 2_166_136_261;
-    for command in commands {
+    for command in [commands.identity()] {
         for b in command.bytes().chain(std::iter::once(0)) {
             h ^= b as u32;
             h = h.wrapping_mul(16_777_619);
@@ -677,35 +679,35 @@ mod dyn_fn_registry_tests {
 
     #[test]
     fn drain_returns_empty_when_nothing_registered() {
-        let _ = drain_dyn_fns(); // clear any leftover state from this thread
-        assert!(drain_dyn_fns().is_empty());
+        let _ = crate::ir::test_support::drain_emitted(); // clear any leftover state from this thread
+        assert!(crate::ir::test_support::drain_emitted().is_empty());
     }
 
     #[test]
     fn register_dyn_fn_dedup_reuses_path_for_identical_body() {
-        let _ = drain_dyn_fns();
+        let _ = crate::ir::test_support::drain_emitted();
         let a = register_dyn_fn_dedup("sand/test_prefix", vec!["say a".to_string()]);
         let b = register_dyn_fn_dedup("sand/test_prefix", vec!["say a".to_string()]);
         assert_eq!(a, b);
-        let drained = drain_dyn_fns();
+        let drained = crate::ir::test_support::drain_emitted();
         assert_eq!(drained.len(), 1);
     }
 
     #[test]
     fn register_dyn_fn_dedup_distinguishes_different_bodies() {
-        let _ = drain_dyn_fns();
+        let _ = crate::ir::test_support::drain_emitted();
         let a = register_dyn_fn_dedup("sand/test_prefix", vec!["say a".to_string()]);
         let b = register_dyn_fn_dedup("sand/test_prefix", vec!["say b".to_string()]);
         assert_ne!(a, b);
-        let drained = drain_dyn_fns();
+        let drained = crate::ir::test_support::drain_emitted();
         assert_eq!(drained.len(), 2);
     }
 
     #[test]
     fn register_dyn_fn_dedup_path_is_deterministic_across_calls() {
-        let _ = drain_dyn_fns();
+        let _ = crate::ir::test_support::drain_emitted();
         let first = register_dyn_fn_dedup("sand/test_prefix", vec!["say hello".to_string()]);
-        let _ = drain_dyn_fns();
+        let _ = crate::ir::test_support::drain_emitted();
         let second = register_dyn_fn_dedup("sand/test_prefix", vec!["say hello".to_string()]);
         assert_eq!(
             first, second,
@@ -715,11 +717,11 @@ mod dyn_fn_registry_tests {
 
     #[test]
     fn drain_empties_the_registry_so_a_second_drain_is_empty() {
-        let _ = drain_dyn_fns();
+        let _ = crate::ir::test_support::drain_emitted();
         register_dyn_fn_dedup("sand/test_prefix", vec!["say once".to_string()]);
-        let first_drain = drain_dyn_fns();
+        let first_drain = crate::ir::test_support::drain_emitted();
         assert_eq!(first_drain.len(), 1);
-        let second_drain = drain_dyn_fns();
+        let second_drain = crate::ir::test_support::drain_emitted();
         assert!(
             second_drain.is_empty(),
             "a second drain must not re-observe already-drained entries"
@@ -732,19 +734,19 @@ mod dyn_fn_registry_tests {
         // registering/draining concurrently never observe or clear each
         // other's entries, because the registry is thread-local rather
         // than a single process-global Mutex.
-        let _ = drain_dyn_fns();
+        let _ = crate::ir::test_support::drain_emitted();
         register_dyn_fn_dedup("sand/main_thread", vec!["say main".to_string()]);
 
         let handle = std::thread::spawn(|| {
             // A fresh thread starts with an empty thread-local registry —
             // it must not see the main thread's "say main" entry.
-            let initial = drain_dyn_fns();
+            let initial = crate::ir::test_support::drain_emitted();
             assert!(
                 initial.is_empty(),
                 "a new thread must not observe another thread's registrations"
             );
             register_dyn_fn_dedup("sand/other_thread", vec!["say other".to_string()]);
-            drain_dyn_fns()
+            crate::ir::test_support::drain_emitted()
         });
         let other_thread_drain = handle.join().unwrap();
         assert_eq!(other_thread_drain.len(), 1);
@@ -752,17 +754,17 @@ mod dyn_fn_registry_tests {
 
         // The main thread's own registration must still be there, untouched
         // by the other thread's register/drain calls.
-        let main_thread_drain = drain_dyn_fns();
+        let main_thread_drain = crate::ir::test_support::drain_emitted();
         assert_eq!(main_thread_drain.len(), 1);
         assert_eq!(main_thread_drain[0].1, vec!["say main".to_string()]);
     }
 
     #[test]
     fn register_dyn_fn_deduplicates_identical_path_and_body() {
-        let _ = drain_dyn_fns();
+        let _ = crate::ir::test_support::drain_emitted();
         register_dyn_fn("sand/exact_path".to_string(), vec!["say x".to_string()]);
         register_dyn_fn("sand/exact_path".to_string(), vec!["say x".to_string()]);
-        let drained = drain_dyn_fns();
+        let drained = crate::ir::test_support::drain_emitted();
         assert_eq!(drained.len(), 1);
     }
 }

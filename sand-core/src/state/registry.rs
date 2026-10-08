@@ -734,7 +734,7 @@ mod tests {
         .unwrap();
         assert_eq!(output.entity_tick_commands.len(), 1);
         assert!(output.entity_tick_commands[0].contains("@e[scores={presence=1}]"));
-        let callbacks = crate::function::drain_dyn_fns();
+        let callbacks = crate::ir::test_support::drain_emitted();
         assert_eq!(callbacks.len(), 1);
         assert_eq!(
             callbacks[0].1,

@@ -6204,6 +6204,32 @@ mod tests {
 /// Bound component access comes from the generated `Seeker::on` method.
 /// Player archetypes support attachment and selection, but not summoning.
 pub trait ArchetypeOperations: concrete::Declaration {
+    /// Return the provenance tag for externally spawned entities of this declaration.
+    ///
+    /// Give this tag to external summons when configuration enables
+    /// [`Adoption::external`]. The canonical adoption scan then initializes them;
+    /// the tag alone does not attach State or establish archetype membership.
+    /// Its identity follows the declaration, so callers need not repeat its ID.
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::entity::ArchetypeOperations::external_adoption_tag",
+        aliases = ["sand::prelude::ArchetypeOperations::external_adoption_tag"],
+        module = "sand::entity",
+        summary = "Obtain a concrete archetype's external-spawn provenance tag.",
+        context = "Uses the derived declaration's canonical identity. Configure Adoption::external and tag externally spawned entities to enroll them in its adoption scan.",
+        minecraft = "The generated adoption selector requires this provenance tag and excludes already initialized entities. The tag itself does not initialize State.",
+        use_when = ["Integrating an external spawner with a concrete archetype"],
+        avoid_when = ["Spawning directly with the concrete archetype's summon operation"],
+        example = "use sand::prelude::*; // Seeker::external_adoption_tag();",
+        returns = "The typed provenance tag consumed by the canonical external adoption scan.",
+    )]
+    #[must_use]
+    fn external_adoption_tag() -> crate::entity::property::EntityTag {
+        crate::entity::property::EntityTag::generated(external_tag(
+            &Self::archetype_id().to_string(),
+        ))
+    }
+
     /// Summon one entity at a typed position and initialize its declared composition.
     #[sand_macros::api(
     registry = sand_api_contract,

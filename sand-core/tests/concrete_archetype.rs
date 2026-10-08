@@ -29,7 +29,7 @@ pub struct Seeker {
 
 impl Seeker {
     fn configure(archetype: EntityArchetype<ZombieKind>) -> EntityArchetype<ZombieKind> {
-        archetype.derive(
+        archetype.adopt(Adoption::external()).derive(
             Combat::health,
             StatCurve::linear(StatCurve::state(Progression::level), 2.0, 18.0),
         )
@@ -126,4 +126,28 @@ fn lifecycle_calls_guard_membership_before_invoking_callbacks_or_cleanup() {
     // The same membership bit gates both entry and exit; independently attached
     // State cannot enter cleanup without membership, and repeat attachment cannot
     // rerun the native initializer or callback.
+}
+
+#[test]
+fn concrete_external_adoption_tag_matches_exported_scan_and_cleanup() {
+    let tag = Seeker::external_adoption_tag();
+    assert_ne!(tag, Guard::external_adoption_tag());
+    assert_eq!(tag, Seeker::external_adoption_tag());
+    let export = sand::advanced::try_export_components_json("concrete", "26.2").unwrap();
+    let records: Vec<serde_json::Value> = serde_json::from_str(&export).unwrap();
+    let scan = format!(",tag={}]", tag.as_str());
+    assert!(
+        records
+            .iter()
+            .any(|record| record["content"].as_str().is_some_and(|body| body
+                .contains("execute as @e[type=minecraft:zombie,tag=!")
+                && body.contains(&scan)
+                && body.contains("/initialize")))
+    );
+    let cleanup = format!("tag @s remove {}", tag.as_str());
+    assert!(records.iter().any(|record| {
+        record["content"]
+            .as_str()
+            .is_some_and(|body| body.lines().any(|line| line == cleanup))
+    }));
 }

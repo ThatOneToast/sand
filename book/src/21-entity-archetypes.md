@@ -96,6 +96,11 @@ identity and composition in every behavior implementation.
 callback. Declare and register archetypes through `#[derive(Archetype)]`;
 the former factory attribute and builder attach/summon endpoints are removed.
 
+External spawners can obtain `Seeker::external_adoption_tag()` without repeating
+the declaration ID. Give that tag to externally spawned entities when using
+`Adoption::external()`; the adoption scan initializes their State. The provenance
+tag alone does not establish archetype membership.
+
 The adoption scan remains constrained to `minecraft:zombie`. A Sand-owned
 marker makes initialization idempotent. Scans see loaded chunks only, while
 scoreboard state survives unloading and reconciliation resumes after load.

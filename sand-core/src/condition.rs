@@ -216,6 +216,43 @@ impl Condition {
         }
     }
 
+    pub(crate) fn guard_actions(
+        &self,
+        negated: bool,
+        prefix: &[sand_commands::ExecuteOp],
+        actions: crate::ir::Actions,
+    ) -> crate::ir::Actions {
+        let operands = self.score_operands();
+        let plans = self.to_ir_plans(negated);
+        let mut output = crate::ir::Actions::default();
+        for action in actions.0 {
+            let action = if operands.is_empty() {
+                action
+            } else {
+                crate::ir::Cmd::WithScoreOperands {
+                    operands: operands.clone(),
+                    run: Box::new(action),
+                }
+            };
+            for clauses in &plans {
+                let operations: Vec<_> = prefix
+                    .iter()
+                    .cloned()
+                    .chain(clauses.iter().cloned().map(ExecuteClause::into_operation))
+                    .collect();
+                output.0.push(if operations.is_empty() {
+                    action.clone()
+                } else {
+                    crate::ir::Cmd::Execute {
+                        operations,
+                        run: Box::new(action.clone()),
+                    }
+                });
+            }
+        }
+        output
+    }
+
     pub(crate) fn kind(&self) -> &ConditionKind {
         &self.kind
     }
@@ -664,6 +701,10 @@ impl Condition {
                 range: range.render(),
             }),
             ConditionKind::ScoreCompare { left, op, right } => {
+                // Export-time consumers (events, guards, and graph dispatch) lower
+                // cached Conditions directly rather than retaining Actions.
+                left.register_owned_setup();
+                right.register_owned_setup();
                 let op = match op {
                     ScoreCompareOp::Eq => ScoreCmp::Eq,
                     ScoreCompareOp::Gt => ScoreCmp::Gt,

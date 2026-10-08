@@ -157,30 +157,11 @@ impl Conditional {
 
     fn execute_actions(&self, negated: bool, actions: Actions) -> Actions {
         let mut output = Actions::default();
-        let operands = self.condition.score_operands();
         for action in actions.0 {
-            let action = if operands.is_empty() {
-                action
-            } else {
-                crate::ir::Cmd::WithScoreOperands {
-                    operands: operands.clone(),
-                    run: Box::new(action),
-                }
-            };
             output.extend([self.setup.clone()]);
-            for clauses in self.condition.to_ir_plans(negated) {
-                output.0.push(if clauses.is_empty() {
-                    action.clone()
-                } else {
-                    crate::ir::Cmd::Execute {
-                        operations: clauses
-                            .into_iter()
-                            .map(|clause| clause.into_operation())
-                            .collect(),
-                        run: Box::new(action.clone()),
-                    }
-                });
-            }
+            output.extend([self
+                .condition
+                .guard_actions(negated, &[], Actions(vec![action]))]);
         }
         output
     }

@@ -937,6 +937,20 @@ mod tests {
             .unwrap_err();
         assert!(error.to_string().contains("macro arguments"));
         assert!(error.to_string().contains("FunctionMacroArgs::call_with"));
+        for command in [
+            "$minecraft:return $(result)",
+            "$minecraft:execute as @s run return $(result)",
+            "$execute as @s run minecraft:return $(result)",
+        ] {
+            let actions = EntityScope::bind(&context, |_| crate::mcfunction![command]);
+            let error = actions
+                .lower(&"test:namespaced_macro_scope".parse().unwrap())
+                .unwrap_err();
+            assert!(
+                error.to_string().contains("macro arguments"),
+                "{command}: {error}"
+            );
+        }
     }
 
     #[test]

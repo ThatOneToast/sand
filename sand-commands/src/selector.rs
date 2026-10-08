@@ -1376,7 +1376,7 @@ impl Validate for Selector {
                     ("scores", None)
                 }
                 SelectorArg::Nbt(v) => {
-                    validate_snbt_compound(v)?;
+                    validate_snbt_compound(v.strip_prefix('!').unwrap_or(v))?;
                     ("nbt", None)
                 }
                 SelectorArg::Predicate(v) => {

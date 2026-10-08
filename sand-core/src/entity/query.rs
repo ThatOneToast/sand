@@ -10,7 +10,6 @@ use sand_commands::selector::{AnyTarget, PlayersOnly, Target};
 
 use crate::entity::context::EntityContext;
 use crate::entity::kind::{AnyEntity, PlayerKind};
-use crate::function::register_dyn_fn_dedup;
 
 /// Owner category used by generated State query implementations.
 #[doc(hidden)]
@@ -250,10 +249,12 @@ pub fn lower_state_query_each<Item, R: IntoCommands>(
     if inner.0.is_empty() {
         return Actions::default();
     }
-    let path = register_dyn_fn_dedup("sand/entity_query", inner);
     Actions(vec![Cmd::Execute {
         operations: vec![ExecuteOp::As(selector), ExecuteOp::At(Selector::self_())],
-        run: Box::new(Cmd::Function(format!("__sand_local:{path}"))),
+        run: Box::new(Cmd::AnonymousFunction {
+            prefix: "sand/entity_query".into(),
+            body: inner,
+        }),
     }])
 }
 
@@ -400,10 +401,12 @@ fn lower_each<K: crate::entity::kind::EntityKind, R: IntoCommands>(
     if inner.0.is_empty() {
         return Actions::default();
     }
-    let path = register_dyn_fn_dedup("sand/entity_query", inner);
     Actions(vec![Cmd::Execute {
         operations: vec![ExecuteOp::As(selector), ExecuteOp::At(Selector::self_())],
-        run: Box::new(Cmd::Function(format!("__sand_local:{path}"))),
+        run: Box::new(Cmd::AnonymousFunction {
+            prefix: "sand/entity_query".into(),
+            body: inner,
+        }),
     }])
 }
 

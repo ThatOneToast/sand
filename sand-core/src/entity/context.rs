@@ -883,8 +883,10 @@ impl EntityScope {
         )]);
         // A return inside the callback must return from its helper, not skip
         // cleanup in the function that owns the temporary binding.
-        let path = crate::function::register_dyn_fn_dedup("sand/entity_scope", body_cmds);
-        cmds.extend([Actions(vec![Cmd::Function(format!("__sand_local:{path}"))])]);
+        cmds.0.push(Cmd::AnonymousFunction {
+            prefix: "sand/entity_scope".into(),
+            body: body_cmds,
+        });
         cmds.extend([sand_commands::builtins::tag_remove(
             Selector::all_entities().tag(&tag),
             tag,
@@ -977,15 +979,13 @@ mod tests {
             })
         });
         let _ = crate::ir::test_support::emitted(commands);
-        let generated = crate::function::drain_dyn_fns();
-        let errors = generated
-            .into_iter()
-            .filter_map(|(path, body)| {
-                let owner = sand_components::ResourceLocation::new("game", path).unwrap();
-                body.lower(&owner).err().map(|error| error.to_string())
-            })
-            .collect::<Vec<_>>();
-        assert_eq!(errors.len(), 1);
+        let error = crate::compiler::export::functions::drain_dynamic_functions_into(
+            &mut Vec::new(),
+            "game",
+        )
+        .unwrap_err()
+        .to_string();
+        let errors = [error];
         assert!(
             errors[0].contains("game:sand/entity_relation/owner/"),
             "{}",

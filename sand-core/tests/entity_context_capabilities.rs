@@ -29,10 +29,14 @@ fn target_each_composes_multiple_capability_families() {
     }));
 
     assert_eq!(commands.len(), 1);
-    let generated = sand_core::function::drain_dyn_fns()
-        .into_iter()
-        .map(|(path, body)| (path, emitted(body)))
-        .collect::<Vec<_>>();
+    let mut generated = Vec::new();
+    loop {
+        let batch = sand_core::function::drain_dyn_fns();
+        if batch.is_empty() {
+            break;
+        }
+        generated.extend(batch.into_iter().map(|(path, body)| (path, emitted(body))));
+    }
     let body = generated
         .iter()
         .find(|(path, _)| commands[0].ends_with(path))
@@ -68,10 +72,14 @@ fn scoped_capabilities_keep_the_bound_selector_across_relationship_traversal() {
     let scoped_tag = commands[0]
         .strip_prefix("tag @s add ")
         .expect("bind starts by tagging @s");
-    let generated = sand_core::function::drain_dyn_fns()
-        .into_iter()
-        .map(|(path, body)| (path, emitted(body)))
-        .collect::<Vec<_>>();
+    let mut generated = Vec::new();
+    loop {
+        let batch = sand_core::function::drain_dyn_fns();
+        if batch.is_empty() {
+            break;
+        }
+        generated.extend(batch.into_iter().map(|(path, body)| (path, emitted(body))));
+    }
     let scope_body = generated
         .iter()
         .find(|(path, _)| commands[1].ends_with(path))
@@ -134,10 +142,14 @@ fn repeated_capability_bodies_deduplicate_deterministically() {
     let second_path = second[0].rsplit("function ").next().unwrap();
     assert_eq!(first_path, second_path);
 
-    let generated = sand_core::function::drain_dyn_fns()
-        .into_iter()
-        .map(|(path, body)| (path, emitted(body)))
-        .collect::<Vec<_>>();
+    let mut generated = Vec::new();
+    loop {
+        let batch = sand_core::function::drain_dyn_fns();
+        if batch.is_empty() {
+            break;
+        }
+        generated.extend(batch.into_iter().map(|(path, body)| (path, emitted(body))));
+    }
     assert_eq!(
         generated
             .iter()

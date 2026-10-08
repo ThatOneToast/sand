@@ -7,7 +7,6 @@ use sand_commands::selector::{Many, One};
 use crate::IntoCommands;
 use crate::entity::context::EntityContext;
 use crate::entity::kind::{AnyEntity, EntityKind, PlayerKind};
-use crate::function::register_dyn_fn_dedup;
 use crate::ir::{Actions, Cmd, ConditionIr, ExecuteOp};
 use sand_commands::Selector;
 
@@ -147,7 +146,6 @@ impl<A> RelationTraversal<A> {
             return Actions::default();
         }
         let prefix = format!("sand/entity_relation/{}", self.relation.keyword());
-        let path = register_dyn_fn_dedup(&prefix, inner);
         let mut operations = vec![ExecuteOp::On(self.relation.keyword().into())];
         if player_only {
             operations.push(ExecuteOp::If(ConditionIr::Entity(
@@ -157,7 +155,10 @@ impl<A> RelationTraversal<A> {
         }
         Actions(vec![Cmd::Execute {
             operations,
-            run: Box::new(Cmd::Function(format!("__sand_local:{path}"))),
+            run: Box::new(Cmd::AnonymousFunction {
+                prefix,
+                body: inner,
+            }),
         }])
     }
 }

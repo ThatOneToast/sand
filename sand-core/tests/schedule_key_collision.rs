@@ -22,7 +22,7 @@ macro_rules! schedule {
                 path: $path,
                 total_ticks: $total,
                 every: $every,
-                make: body,
+                make: || sand::component::IntoCommands::into_commands(body()),
             }
         }
     };

@@ -74,7 +74,7 @@ sand_core::inventory::submit! {
     EventDescriptor {
         path: "on_legacy_a",
         id_override: None,
-        make: on_legacy_a_body,
+        make: || sand::component::IntoCommands::into_commands(on_legacy_a_body()),
         dispatch: EventDispatch::Custom {
             make_trigger: no_trigger,
             make_condition: legacy_parent_condition,
@@ -93,7 +93,7 @@ sand_core::inventory::submit! {
     EventDescriptor {
         path: "on_legacy_b",
         id_override: None,
-        make: on_legacy_b_body,
+        make: || sand::component::IntoCommands::into_commands(on_legacy_b_body()),
         dispatch: EventDispatch::Custom {
             make_trigger: no_trigger,
             make_condition: legacy_parent_condition,
@@ -132,7 +132,7 @@ sand_core::inventory::submit! {
     EventDescriptor {
         path: "on_legacy_child",
         id_override: None,
-        make: on_legacy_child_body,
+        make: || sand::component::IntoCommands::into_commands(on_legacy_child_body()),
         dispatch: EventDispatch::Custom {
             make_trigger: no_trigger,
             make_condition: no_condition_none,
@@ -190,7 +190,7 @@ sand_core::inventory::submit! {
     EventDescriptor {
         path: "on_legacy_orphan_child",
         id_override: None,
-        make: on_legacy_orphan_child_body,
+        make: || sand::component::IntoCommands::into_commands(on_legacy_orphan_child_body()),
         dispatch: EventDispatch::Custom {
             make_trigger: no_trigger,
             make_condition: no_condition_none,
@@ -230,7 +230,7 @@ sand_core::inventory::submit! {
     EventDescriptor {
         path: "on_legacy_no_child",
         id_override: None,
-        make: on_legacy_no_child_body,
+        make: || sand::component::IntoCommands::into_commands(on_legacy_no_child_body()),
         dispatch: EventDispatch::Custom {
             make_trigger: no_trigger,
             make_condition: legacy_no_child_condition,

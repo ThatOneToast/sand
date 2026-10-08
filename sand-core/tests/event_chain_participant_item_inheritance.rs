@@ -51,7 +51,7 @@ macro_rules! submit_handler {
                 EventDescriptor {
                     path: $path,
                     id_override: None,
-                    make: body,
+                    make: || sand::component::IntoCommands::into_commands(body()),
                     dispatch: EventDispatch::Custom {
                         make_trigger: no_trigger,
                         make_condition: no_condition,

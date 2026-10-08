@@ -63,7 +63,7 @@ sand_core::inventory::submit! {
     EventDescriptor {
         path: "on_parent_while_sneaking",
         id_override: None,
-        make: child_body,
+        make: || sand::component::IntoCommands::into_commands(child_body()),
         dispatch: EventDispatch::Custom {
             make_trigger: no_trigger,
             make_condition: no_condition,

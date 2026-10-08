@@ -20,7 +20,7 @@ fn empty_body() -> Vec<String> {
 sand_core::inventory::submit! {
     ArmorEventDescriptor {
         path: "on_ambiguous_colon_equip",
-        make: empty_body,
+        make: || sand::component::IntoCommands::into_commands(empty_body()),
         slot: ArmorSlot::Chest,
         kind: ArmorEventKind::Equip,
         item_id: Some("a:b_c"),
@@ -30,7 +30,7 @@ sand_core::inventory::submit! {
 sand_core::inventory::submit! {
     ArmorEventDescriptor {
         path: "on_ambiguous_underscore_equip",
-        make: empty_body,
+        make: || sand::component::IntoCommands::into_commands(empty_body()),
         slot: ArmorSlot::Chest,
         kind: ArmorEventKind::Equip,
         item_id: Some("a_b:c"),
@@ -44,7 +44,7 @@ sand_core::inventory::submit! {
 sand_core::inventory::submit! {
     ArmorEventDescriptor {
         path: "on_collision_fixture_a_equip",
-        make: empty_body,
+        make: || sand::component::IntoCommands::into_commands(empty_body()),
         slot: ArmorSlot::Head,
         kind: ArmorEventKind::Equip,
         item_id: Some("minecraft:leather_helmet"),
@@ -54,7 +54,7 @@ sand_core::inventory::submit! {
 sand_core::inventory::submit! {
     ArmorEventDescriptor {
         path: "on_collision_fixture_a_unequip",
-        make: empty_body,
+        make: || sand::component::IntoCommands::into_commands(empty_body()),
         slot: ArmorSlot::Head,
         kind: ArmorEventKind::Unequip,
         item_id: Some("minecraft:leather_helmet"),
@@ -64,7 +64,7 @@ sand_core::inventory::submit! {
 sand_core::inventory::submit! {
     ArmorEventDescriptor {
         path: "on_collision_fixture_b_equip",
-        make: empty_body,
+        make: || sand::component::IntoCommands::into_commands(empty_body()),
         slot: ArmorSlot::Head,
         kind: ArmorEventKind::Equip,
         item_id: Some("minecraft:leather_helmet"),
@@ -74,7 +74,7 @@ sand_core::inventory::submit! {
 sand_core::inventory::submit! {
     ArmorEventDescriptor {
         path: "on_collision_fixture_b_unequip",
-        make: empty_body,
+        make: || sand::component::IntoCommands::into_commands(empty_body()),
         slot: ArmorSlot::Head,
         kind: ArmorEventKind::Unequip,
         item_id: Some("minecraft:leather_helmet"),
@@ -87,7 +87,7 @@ sand_core::inventory::submit! {
 sand_core::inventory::submit! {
     ArmorEventDescriptor {
         path: "on_any_feet_equip",
-        make: empty_body,
+        make: || sand::component::IntoCommands::into_commands(empty_body()),
         slot: ArmorSlot::Feet,
         kind: ArmorEventKind::Equip,
         item_id: None,
@@ -101,7 +101,7 @@ sand_core::inventory::submit! {
 sand_core::inventory::submit! {
     ArmorEventDescriptor {
         path: "on_any_feet_equip_second_handler",
-        make: empty_body,
+        make: || sand::component::IntoCommands::into_commands(empty_body()),
         slot: ArmorSlot::Feet,
         kind: ArmorEventKind::Equip,
         item_id: None,

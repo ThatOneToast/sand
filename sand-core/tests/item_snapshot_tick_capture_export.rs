@@ -73,7 +73,7 @@ sand_core::inventory::submit! {
     EventDescriptor {
         path: "on_held_item_check",
         id_override: None,
-        make: body,
+        make: || sand::component::IntoCommands::into_commands(body()),
         dispatch: EventDispatch::Custom {
             make_trigger: no_trigger,
             make_condition: no_condition,

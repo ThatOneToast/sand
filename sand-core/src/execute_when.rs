@@ -57,11 +57,9 @@
 //!     .else_all([attribute_base_set(...), HAS_CELLS.enable("@s")]);
 //! // → function <ns>:sand/branches/3
 //! //
-//! // Dispatcher sand/branches/3 (paths and holder abbreviated):
-//! //   scoreboard players set #sand_if_… __sand_tmp 0
-//! //   execute if score @s has_cells matches 1 run scoreboard players set #sand_if_… __sand_tmp 1
-//! //   execute if score #sand_if_… __sand_tmp matches 1 run function <ns>:sand/branches/2
-//! //   execute if score #sand_if_… __sand_tmp matches 0 run function <ns>:sand/branches/1
+//! // Dispatcher sand/branches/3 (paths abbreviated):
+//! //   execute if score @s has_cells matches 1 run return run function <ns>:sand/branches/0
+//! //   return run function <ns>:sand/branches/1
 //! ```
 //!
 //! # Example

@@ -55,6 +55,7 @@ pub(super) fn selector(value: &str) -> Option<Selector> {
             "y_rotation" => SelectorArg::YRotation(value.into()),
             "gamemode" => SelectorArg::Gamemode(value.into()),
             "scores" => SelectorArg::Scores(value.strip_prefix('{')?.strip_suffix('}')?.into()),
+            "advancements" => SelectorArg::Advancements(advancements(value)?),
             "nbt" => SelectorArg::Nbt(value.into()),
             "predicate" => SelectorArg::Predicate(value.into()),
             "x" => SelectorArg::X(value.parse().ok()?),
@@ -67,6 +68,41 @@ pub(super) fn selector(value: &str) -> Option<Selector> {
         });
     }
     Some(selector)
+}
+
+fn advancements(value: &str) -> Option<std::collections::BTreeMap<String, AdvancementMatch>> {
+    let inner = value.strip_prefix('{')?.strip_suffix('}')?.trim();
+    let mut filters = std::collections::BTreeMap::new();
+    if inner.is_empty() {
+        return Some(filters);
+    }
+    for entry in split_arguments(inner)? {
+        let (name, progress) = entry.split_once('=')?;
+        let name = name.trim();
+        validate::resource_location_shape(name, "Selector", "advancements").ok()?;
+        let progress = progress.trim();
+        let progress = if let Some(criteria) = progress.strip_prefix('{') {
+            let criteria = criteria.strip_suffix('}')?.trim();
+            let mut matches = std::collections::BTreeMap::new();
+            if !criteria.is_empty() {
+                for criterion in split_arguments(criteria)? {
+                    let (name, done) = criterion.rsplit_once('=')?;
+                    let name = parse_name(name.trim())?;
+                    let done = done.trim().parse::<bool>().ok()?;
+                    if matches.insert(name, done).is_some() {
+                        return None;
+                    }
+                }
+            }
+            AdvancementMatch::Criteria(matches)
+        } else {
+            AdvancementMatch::Complete(progress.parse().ok()?)
+        };
+        if filters.insert(name.into(), progress).is_some() {
+            return None;
+        }
+    }
+    Some(filters)
 }
 
 /// Decode a complete Brigadier string into the canonical literal name.
@@ -290,6 +326,50 @@ mod nbt_tests {
             "@e[nbt=!!{NoAI:1b},limit=1]",
             "@e[nbt=!1b,limit=1]",
             "@e[nbt=!{NoAI:1b,limit=1]",
+        ] {
+            assert!(
+                ScoreHolder::compat(text.into())
+                    .validate_single(&CommandProfile::unprofiled())
+                    .is_err(),
+                "{text}"
+            );
+        }
+    }
+}
+
+#[cfg(test)]
+mod advancement_tests {
+    use super::*;
+    use crate::ScoreHolder;
+
+    #[test]
+    fn advancement_completion_and_criterion_filters_are_single_holder_sources() {
+        for text in [
+            "@a[advancements={minecraft:story/mine_stone=true},limit=1]",
+            "@a[advancements={minecraft:story/mine_stone=false},limit=1]",
+            "@e[advancements={minecraft:story/mine_stone={get_stone=true}},limit=1]",
+            r#"@a[advancements={game:quest={"criterion = one"=false,other=true}},limit=1]"#,
+            "@a[advancements={},limit=1]",
+            "@a[advancements={game:quest={}},limit=1]",
+        ] {
+            let parsed = selector(text).unwrap();
+            parsed.validate(&CommandProfile::unprofiled()).unwrap();
+            assert_eq!(parsed.to_string(), text);
+            ScoreHolder::compat(text.into())
+                .validate_single(&CommandProfile::unprofiled())
+                .unwrap();
+        }
+    }
+
+    #[test]
+    fn invalid_advancement_filters_cannot_bypass_validation() {
+        for text in [
+            "@a[advancements={game:quest=maybe},limit=1]",
+            "@a[advancements={game:quest={one=1}},limit=1]",
+            "@a[advancements={game:quest=true,game:quest=false},limit=1]",
+            "@a[advancements={game:quest={one=true,one=false}},limit=1]",
+            "@a[advancements={game:quest={one=true},limit=1]",
+            "@a[advancements={bad id=true},limit=1]",
         ] {
             assert!(
                 ScoreHolder::compat(text.into())

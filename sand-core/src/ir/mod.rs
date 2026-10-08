@@ -74,6 +74,14 @@ impl FromIterator<Actions> for Actions {
 }
 
 impl Actions {
+    pub(crate) fn has_macro_lines(&self) -> bool {
+        self.0.iter().any(Cmd::has_macro_line)
+    }
+
+    pub(crate) fn may_return_from_frame(&self) -> bool {
+        self.0.iter().any(Cmd::may_return_from_frame)
+    }
+
     pub(crate) fn identity(&self) -> String {
         // Retain variant distinctions: raw and typed nodes may render the same
         // text while requiring different validation. This identity contains no
@@ -313,6 +321,31 @@ impl Cmd {
         }
     }
 
+    fn has_macro_line(&self) -> bool {
+        match self {
+            Self::Raw(text) => text.lines().any(|line| line.trim_start().starts_with('$')),
+            Self::Execute { run, .. } | Self::ReturnRun(run) => run.has_macro_line(),
+            _ => false,
+        }
+    }
+
+    fn may_return_from_frame(&self) -> bool {
+        match self {
+            Self::ReturnRun(_) => true,
+            Self::Execute { run, .. } => run.may_return_from_frame(),
+            // Raw commands are an escape hatch. Be conservative when their
+            // command verb is itself substituted, or a return appears in text.
+            Self::Raw(text) => text.lines().any(|line| {
+                let line = line.trim_start();
+                let line = line.strip_prefix('$').unwrap_or(line);
+                line.split_whitespace().any(|word| word == "return")
+                    || line.starts_with("$(")
+                    || line.contains("run $(")
+            }),
+            _ => false,
+        }
+    }
+
     /// Render this command after typed validation against Sand's 26+ command baseline.
     pub fn try_render(&self) -> sand_commands::CommandResult<String> {
         let rendered = match self {
@@ -320,6 +353,13 @@ impl Cmd {
 
             Self::Function(id) => format!("function {id}"),
             Self::AnonymousFunction { prefix, body } => {
+                if body.has_macro_lines() {
+                    return Err(sand_commands::CommandError::new(
+                        "anonymous function",
+                        "macro arguments",
+                        "macro lines cannot move into a helper without an argument source; keep them in the argument-bearing function or call an explicit function with FunctionMacroArgs::call_with; scoped macro bodies cannot return early",
+                    ));
+                }
                 let path = crate::function::register_dyn_fn_dedup(prefix, body.clone());
                 format!("function {}:{path}", crate::function::SAND_LOCAL_NS)
             }

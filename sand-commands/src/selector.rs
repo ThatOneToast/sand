@@ -695,6 +695,7 @@ enum SelectorArg {
     YRotation(String),
     Gamemode(String),
     Scores(String),
+    Advancements(std::collections::BTreeMap<String, AdvancementMatch>),
     Nbt(String),
     Predicate(String),
     X(f64),
@@ -703,6 +704,31 @@ enum SelectorArg {
     Dx(f64),
     Dy(f64),
     Dz(f64),
+}
+
+/// Canonical advancement completion or per-criterion requirements.
+#[derive(Debug, Clone)]
+enum AdvancementMatch {
+    Complete(bool),
+    Criteria(std::collections::BTreeMap<String, bool>),
+}
+
+impl fmt::Display for AdvancementMatch {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Complete(value) => write!(f, "{value}"),
+            Self::Criteria(criteria) => {
+                write!(f, "{{")?;
+                for (index, (name, done)) in criteria.iter().enumerate() {
+                    if index != 0 {
+                        write!(f, ",")?;
+                    }
+                    write!(f, "{}={done}", render_name(name))?;
+                }
+                write!(f, "}}")
+            }
+        }
+    }
 }
 
 /// Brigadier permits a small ASCII alphabet outside quoted strings.
@@ -751,6 +777,16 @@ impl fmt::Display for SelectorArg {
             Self::YRotation(v) => write!(f, "y_rotation={v}"),
             Self::Gamemode(v) => write!(f, "gamemode={v}"),
             Self::Scores(v) => write!(f, "scores={{{v}}}"),
+            Self::Advancements(filters) => {
+                write!(f, "advancements={{")?;
+                for (index, (name, progress)) in filters.iter().enumerate() {
+                    if index != 0 {
+                        write!(f, ",")?;
+                    }
+                    write!(f, "{name}={progress}")?;
+                }
+                write!(f, "}}")
+            }
             Self::Nbt(v) => write!(f, "nbt={v}"),
             Self::Predicate(v) => write!(f, "predicate={v}"),
             Self::X(v) => write!(f, "x={v}"),
@@ -1374,6 +1410,17 @@ impl Validate for Selector {
                 SelectorArg::Scores(v) => {
                     validate_scores(v)?;
                     ("scores", None)
+                }
+                SelectorArg::Advancements(filters) => {
+                    for (name, progress) in filters {
+                        validate::resource_location_shape(name, "Selector", "advancements")?;
+                        if let AdvancementMatch::Criteria(criteria) = progress {
+                            for name in criteria.keys() {
+                                validate_name(name)?;
+                            }
+                        }
+                    }
+                    ("advancements", None)
                 }
                 SelectorArg::Nbt(v) => {
                     validate_snbt_compound(v.strip_prefix('!').unwrap_or(v))?;

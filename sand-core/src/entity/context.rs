@@ -850,6 +850,10 @@ impl EntityScope {
         returns = "The ordered values produced to tag the entity currently bound to `@s` with a unique, collision-safe temporary tag, run `body` with a [`ScopedEntityRef`] that can reach that entity again by tag (even after `@s` has changed via relation traversal inside `body`), then remove the tag.",
         example = "use sand::prelude::*;\nlet ctx: EntityContext<AnyEntity> = EntityContext::default();\nlet tag = EntityTag::new(\"shot_by_owner\").unwrap();\nlet cmds = EntityScope::bind(&ctx, |arrow_ref| {\narrow_ref.owner().if_player(|owner| vec![owner.identity().add_tag(&tag).unwrap()])\n});",
     )]
+    /// Macro lines without early returns remain in the argument-bearing
+    /// caller, between binding and cleanup. Combining macro lines with an
+    /// early return requires an explicitly argument-bearing function call;
+    /// export rejects that combination instead of dropping macro arguments.
     #[track_caller]
     pub fn bind<K: EntityKind, R: IntoCommands>(
         _ctx: &EntityContext<K>,
@@ -881,12 +885,18 @@ impl EntityScope {
             Selector::self_(),
             tag.clone(),
         )]);
-        // A return inside the callback must return from its helper, not skip
-        // cleanup in the function that owns the temporary binding.
-        cmds.0.push(Cmd::AnonymousFunction {
-            prefix: "sand/entity_scope".into(),
-            body: body_cmds,
-        });
+        // Macro substitutions belong to the argument-bearing caller. A
+        // straight-line macro scope can stay there while preserving cleanup.
+        // Other bodies use a helper to isolate early returns; unsupported
+        // macro/return combinations receive an export diagnostic in that node.
+        if body_cmds.has_macro_lines() && !body_cmds.may_return_from_frame() {
+            cmds.extend([body_cmds]);
+        } else {
+            cmds.0.push(Cmd::AnonymousFunction {
+                prefix: "sand/entity_scope".into(),
+                body: body_cmds,
+            });
+        }
         cmds.extend([sand_commands::builtins::tag_remove(
             Selector::all_entities().tag(&tag),
             tag,
@@ -911,6 +921,22 @@ mod tests {
 
     fn tag(value: &str) -> EntityTag {
         EntityTag::new(value).unwrap()
+    }
+
+    #[test]
+    fn scoped_macro_return_requires_an_explicit_argument_source() {
+        let context = EntityContext::<AnyEntity>::default();
+        let actions = EntityScope::bind(&context, |_| {
+            crate::mcfunction![
+                crate::cmd::macro_line("say $(name)");
+                "return fail";
+            ]
+        });
+        let error = actions
+            .lower(&"test:macro_scope".parse().unwrap())
+            .unwrap_err();
+        assert!(error.to_string().contains("macro arguments"));
+        assert!(error.to_string().contains("FunctionMacroArgs::call_with"));
     }
 
     #[test]

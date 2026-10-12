@@ -252,23 +252,33 @@ mod tests {
     }
 
     #[test]
-    fn run_fn_anonymous_resolves_pack_namespace_without_panicking() {
+    fn run_fn_anonymous_exports_its_call_and_owned_body() {
         let _guard = test_support::dyn_fn_test_lock();
-        let _ = sand_core::drain_dyn_fns(); // clear any leftover state from this thread
-
-        let cmds = crate::test_support::emitted(execute_anonymous_example());
-        assert_eq!(cmds.len(), 1);
-        assert!(
-            cmds[0].starts_with("execute as @a run function hello_world:__anon/fn_"),
-            "{cmds:?}"
-        );
-
-        let drained = sand_core::drain_dyn_fns();
-        assert_eq!(drained.len(), 1);
-        assert!(drained[0].0.starts_with("__anon/fn_"), "{drained:?}");
+        let json = sand_core::try_export_components_json("hello_world").unwrap();
+        let records: Vec<serde_json::Value> = serde_json::from_str(&json).unwrap();
+        let caller = records
+            .iter()
+            .find(|record| {
+                record["dir"] == "function" && record["path"] == "execute_anonymous_example"
+            })
+            .unwrap()["content"]
+            .as_str()
+            .unwrap();
+        let target = caller
+            .trim()
+            .strip_prefix("execute as @a run function hello_world:")
+            .expect("anonymous call must resolve in the export namespace");
+        let helper = records
+            .iter()
+            .find(|record| {
+                record["dir"] == "function"
+                    && record["namespace"] == "hello_world"
+                    && record["path"] == target
+            })
+            .expect("anonymous call must have an exported function resource");
         assert_eq!(
-            crate::test_support::emitted(drained[0].1.clone()),
-            vec!["say Welcome from the anonymous inline function!"]
+            helper["content"].as_str().unwrap().trim(),
+            "say Welcome from the anonymous inline function!"
         );
     }
 

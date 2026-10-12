@@ -104,6 +104,32 @@ fit a Minecraft signed 32-bit score; overflow or an invalid divisor aborts the
 assignment and preserves the destination. Collect the returned actions in a
 function, query, or system: ordinary Rust `if` still cannot inspect live State.
 
+Numeric entity data, including living-entity health, can also feed an assignment:
+
+```rust
+#[derive(State)]
+#[state(namespace = "example", scope = player)]
+pub struct Snapshot {
+    #[state(scale = 100)]
+    pub health: FixedScore,
+}
+
+#[function]
+fn capture_health() {
+    Target::players().each(|player| {
+        Snapshot::on(*player).health.set(player.living().health())
+    });
+}
+```
+
+`EntityData` fields with a numeric Rust marker convert to `StatCurve`, so the
+same reads compose with arithmetic. Minecraft samples finite native values
+at the expression's working precision and floors the scaled command result;
+the usual destination rounding then applies. Missing reads abort without
+changing State. Results at either signed 32-bit extreme also abort, because
+an exact boundary cannot be distinguished from a clipped native result.
+Native reads are not yet observed dependencies for cached archetype derivations.
+
 Attaching is safe to repeat. Sand only fills in missing values and publishes
 the version marker after everything else succeeds. Detaching runs cleanup and
 removes that component's own values, leaving other components alone. Bundles

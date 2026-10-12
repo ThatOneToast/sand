@@ -724,6 +724,25 @@ mod tests {
     }
 
     #[test]
+    fn checked_macro_lines_keep_typed_slot_validation() {
+        let args = FunctionMacroArgs::new(["item"]).unwrap();
+        let invalid = sand_commands::Inventory::of(sand_commands::Target::self_())
+            .set(sand_commands::ItemSlot::AnyHotbar, "minecraft:stone");
+        for command in [invalid.clone(), format!("execute as @a run {invalid}")] {
+            let error = args.line(command).unwrap_err();
+            assert!(
+                error.to_string().contains("SAND-INVENTORY-WILDCARD-WRITE"),
+                "{error}"
+            );
+        }
+        let valid = sand_commands::Inventory::of(sand_commands::Target::self_())
+            .set(sand_commands::ItemSlot::MainHand, "minecraft:stone");
+        assert_eq!(args.line(&valid).unwrap(), format!("${valid}"));
+        // Unknown macro grammar still uses the explicit text interoperability path.
+        assert_eq!(args.line("give @s $(item)").unwrap(), "$give @s $(item)");
+    }
+
+    #[test]
     fn macro_line_prepends_dollar() {
         assert_eq!(macro_line("say hello"), "$say hello");
         assert_eq!(

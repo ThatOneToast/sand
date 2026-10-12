@@ -11,6 +11,20 @@ pub use sand_version::CommandProfile;
 /// validation; unknown, macro, and modded commands remain verbatim.
 pub fn validate_collected_line(line: &str, profile: &CommandProfile) -> CommandResult<String> {
     validate_line_integrity(line)?;
+    // Macro syntax remains opaque, but a known typed origin still carries
+    // invariants independent of runtime substitution (for example slot kind).
+    let mut command = line.trim_start();
+    loop {
+        validate_registered_origins(command, profile)?;
+        let Some(inner) = collected_command_body(command) else {
+            break;
+        };
+        command = inner.trim_start();
+    }
+    validate_standalone_line(line, profile)
+}
+
+fn validate_registered_origins(line: &str, profile: &CommandProfile) -> CommandResult<()> {
     crate::nbt::validate_registered_line(line, profile)?;
     crate::blocks::validate_registered_line(line, profile)?;
     crate::inventory::validate_registered_line(line, profile)?;
@@ -19,7 +33,16 @@ pub fn validate_collected_line(line: &str, profile: &CommandProfile) -> CommandR
     crate::display::validate_registered_line(line, profile)?;
     crate::text::validate_registered_line(line, profile)?;
     crate::effect::validate_registered_line(line, profile)?;
-    validate_standalone_line(line, profile)
+    Ok(())
+}
+
+/// Locate one known executable body, including the body of a macro line.
+/// Quoted data and arguments are never interpreted as command positions.
+#[doc(hidden)]
+pub fn collected_command_body(line: &str) -> Option<&str> {
+    line.strip_prefix('$')
+        .or_else(|| collected_execute_command(line))
+        .or_else(|| collected_return_command(line))
 }
 
 /// Validate line integrity and supported syntax without consulting Rust's

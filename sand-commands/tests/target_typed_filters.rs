@@ -70,16 +70,40 @@ fn entity_filters_render_on_one_value() {
 fn player_only_filters_stay_on_player_targets() {
     let target = Target::players()
         .gamemode(GameMode::Survival)
-        .not_gamemode(GameMode::Spectator)
         .level_range(10.0, 30.0)
         .within_blocks(24.0)
         .tag("ready");
 
     assert_eq!(
         target.to_string(),
-        "@a[gamemode=survival,gamemode=!spectator,level=10..30,distance=..24,tag=ready]"
+        "@a[gamemode=survival,level=10..30,distance=..24,tag=ready]"
     );
+    target.try_build().unwrap();
     takes_many_players(target);
+}
+
+#[test]
+fn gamemode_filters_follow_vanilla_exclusivity() {
+    let negatives = Target::players()
+        .not_gamemode(GameMode::Creative)
+        .not_gamemode(GameMode::Spectator);
+    assert_eq!(
+        negatives.try_build().unwrap(),
+        "@a[gamemode=!creative,gamemode=!spectator]"
+    );
+    for invalid in [
+        Target::players()
+            .gamemode(GameMode::Survival)
+            .not_gamemode(GameMode::Spectator),
+        Target::players()
+            .not_gamemode(GameMode::Spectator)
+            .gamemode(GameMode::Survival),
+        Target::players()
+            .gamemode(GameMode::Survival)
+            .gamemode(GameMode::Creative),
+    ] {
+        assert!(invalid.try_build().is_err());
+    }
 }
 
 #[test]

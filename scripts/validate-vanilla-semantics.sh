@@ -14,6 +14,7 @@ PACK="$1"
 OUTPUT="${2:-$REPO_ROOT/target/vanilla-reload/semantic-26.2}"
 
 npm ci --prefix "$CLIENT_ROOT" --no-audit --no-fund
+npm test --prefix "$CLIENT_ROOT"
 
 exec "$SCRIPT_DIR/validate-vanilla-reload.sh" \
     --version 26.2 \

@@ -1538,6 +1538,19 @@ impl RenderCommand for Selector {
     }
 }
 
+fn parse_decimal(value: &str) -> Option<f64> {
+    let decimal = value.strip_prefix('-').unwrap_or(value);
+    if !decimal.bytes().all(|c| c.is_ascii_digit() || c == b'.')
+        || decimal.bytes().filter(|c| *c == b'.').count() > 1
+    {
+        return None;
+    }
+    value
+        .parse::<f64>()
+        .ok()
+        .filter(|number| number.is_finite())
+}
+
 fn validate_range(value: &str, field: &'static str, allow_float: bool) -> CommandResult<()> {
     validate::non_empty(value, "Selector", field)?;
     let parse = |part: &str| -> CommandResult<Option<f64>> {
@@ -1547,15 +1560,7 @@ fn validate_range(value: &str, field: &'static str, allow_float: bool) -> Comman
         let invalid =
             || CommandError::new("Selector", field, format!("invalid range bound `{part}`"));
         let n = if allow_float {
-            let decimal = part.strip_prefix('-').unwrap_or(part);
-            if !decimal.bytes().all(|c| c.is_ascii_digit() || c == b'.')
-                || decimal.bytes().filter(|c| *c == b'.').count() > 1
-            {
-                return Err(invalid());
-            }
-            let n = part.parse::<f64>().map_err(|_| invalid())?;
-            validate::finite(n, "Selector", field)?;
-            n
+            parse_decimal(part).ok_or_else(invalid)?
         } else {
             if !part
                 .strip_prefix('-')

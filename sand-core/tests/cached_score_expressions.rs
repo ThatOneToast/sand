@@ -9,6 +9,7 @@ static INCREMENT: ScoreConst = ScoreConst::new("cached_increment", 7);
 static THRESHOLD: ScoreConst = ScoreConst::new("cached_threshold", 12);
 static EXEC_THRESHOLD: ScoreConst = ScoreConst::new("cached_execute", 23);
 static DIRECT_CONSTANT: ScoreConst = ScoreConst::new("cached_direct", 31);
+static CONSUMER_CONSTANT: ScoreConst = ScoreConst::new("cached_consumer", 37);
 static TICK_THRESHOLD: ScoreConst = ScoreConst::new("cached_tick", 29);
 static TICK: OnceLock<sand_core::events::TickEventDispatch> = OnceLock::new();
 static BODY: OnceLock<Actions> = OnceLock::new();
@@ -33,6 +34,22 @@ fn body() -> Actions {
             SOURCE.of("@s").safe_divide(DIRECT_CONSTANT.ref_(), 0);
             SOURCE.of("@s").clamp_score(INCREMENT.ref_(), DIRECT_CONSTANT.ref_());
             direct;
+            when(SOURCE.of("@s").gte(0)).then(SOURCE.of("@s").assign(CONSUMER_CONSTANT.ref_()));
+            when(SOURCE.of("@s").gte(0)).then_one(SOURCE.of("@s").mul_score(CONSUMER_CONSTANT.ref_()));
+            unless(SOURCE.of("@s").lt(0)).then(SOURCE.of("@s").assign(CONSUMER_CONSTANT.ref_()));
+            unless(SOURCE.of("@s").lt(0)).then_one(SOURCE.of("@s").mul_score(CONSUMER_CONSTANT.ref_()));
+            when(SOURCE.of("@s").gte(0))
+                .and_then(SOURCE.of("@s").assign(CONSUMER_CONSTANT.ref_()))
+                .then(SOURCE.of("@s").scale_percent(50));
+            unless(SOURCE.of("@s").lt(0))
+                .and_then(SOURCE.of("@s").assign(CONSUMER_CONSTANT.ref_()))
+                .then(SOURCE.of("@s").scale_percent(50));
+            sand::command::TypedExecute::as_players()
+                .when(SOURCE.of("@s").gte(0))
+                .run(SOURCE.of("@s").assign(CONSUMER_CONSTANT.ref_()));
+            sand::command::TypedExecute::as_players()
+                .unless(SOURCE.of("@s").lt(0))
+                .run(SOURCE.of("@s").set_percent(CONSUMER_CONSTANT.ref_(), 75));
             sand::command::TypedExecute::as_players()
                 .when(SOURCE.of("@s").gte_score(EXEC_THRESHOLD.ref_()))
                 .run("say cached typed execute");
@@ -125,7 +142,7 @@ fn prebuilt_score_expressions_replay_setup_on_every_export() {
             .count(),
         1
     );
-    for value in [7, 12, 23, 29, 31, 75, 50, 100, 1000] {
+    for value in [7, 12, 23, 29, 31, 37, 75, 50, 100, 1000] {
         assert_eq!(
             setup
                 .lines()
@@ -143,6 +160,23 @@ fn prebuilt_score_expressions_replay_setup_on_every_export() {
         .join("\n");
     assert!(
         functions.contains("scoreboard players operation @s __sand_tmp += #sand_cached_increment_")
+    );
+    let grouped = records
+        .iter()
+        .filter(|record| record["dir"] == "function")
+        .filter_map(|record| record["content"].as_str())
+        .find(|body| {
+            body.lines().count() == 3
+                && body.starts_with(
+                    "scoreboard players operation @s cached_value = #sand_cached_consumer_",
+                )
+                && body.contains(" *= ")
+                && body.contains(" /= ")
+        })
+        .expect("typed execute retains a multi-action percentage operation in one helper");
+    assert!(
+        !grouped.contains("execute "),
+        "the condition belongs to the call, not each action"
     );
     assert!(functions.contains("say computed direct"));
     assert!(functions.contains("say computed nested"));

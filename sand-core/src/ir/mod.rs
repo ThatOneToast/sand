@@ -71,6 +71,18 @@ impl FromIterator<Actions> for Actions {
 }
 
 impl Actions {
+    /// Keep an authored operation atomic under a single condition evaluation.
+    pub(crate) fn into_single_action(self, prefix: &str) -> Self {
+        if self.0.len() <= 1 {
+            self
+        } else {
+            Self(vec![Cmd::AnonymousFunction {
+                prefix: prefix.into(),
+                body: self,
+            }])
+        }
+    }
+
     pub(crate) fn has_macro_lines(&self) -> bool {
         self.0.iter().any(Cmd::has_macro_line)
     }

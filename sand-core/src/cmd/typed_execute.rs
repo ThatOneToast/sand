@@ -25,10 +25,9 @@
 //!     .run("say ok");
 //! ```
 
-use std::fmt;
-
 use sand_commands::{Execute, Selector};
 
+use crate::IntoCommands;
 use crate::condition::Condition;
 
 // ── ConditionedExecute ────────────────────────────────────────────────────────
@@ -86,8 +85,9 @@ impl ConditionedExecute {
     /// Returns owned actions for each expanded plan. Conditions and their
     /// score setup remain intact when the result is cached across exports.
     ///
-    /// Accepts any `Display` value — raw `&str`, owned `String`, or any
-    /// command builder.
+    /// Accepts [`IntoCommands`] values, including owned actions, typed command
+    /// builders, and explicit raw text. Multiple actions share one condition
+    /// evaluation through an owned helper.
     #[sand_macros::api(
         registry = sand_api_contract,
         path = "sand::command::ConditionedExecute::run",
@@ -95,20 +95,19 @@ impl ConditionedExecute {
         module = "sand::command",
         kind = "method",
         summary = "Finalize the execute chain. Returns owned actions for each expanded plan, retaining score setup across exports.",
-        context = "Finalize the execute chain. Returns owned actions for each expanded plan, retaining score setup across exports. Accepts any `Display` value — raw `&str`, owned `String`, or any command builder.",
+        context = "Finalize the execute chain. Returns owned actions for each expanded plan, retaining score setup across exports. Accepts IntoCommands values and retains multiple actions in one helper so the condition is evaluated once.",
         minecraft = "Returns owned actions for each expanded plan, retaining score setup across exports.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
-        params(cmd = "The displayable command to run under each expanded condition plan."),
+        params(cmd = "The authored actions or command value to run under each expanded condition plan."),
         returns = "Returns owned actions for each expanded plan, retaining score setup across exports.",
-        example = "use std::fmt;\nuse sand::prelude::*;\n\nfn demonstrate(conditioned_execute_value: sand::command::ConditionedExecute, cmd: impl fmt::Display)  {\n    let values = conditioned_execute_value.run(cmd);\n}",
+        example = "use sand::prelude::*;\n\nfn demonstrate(conditioned_execute_value: sand::command::ConditionedExecute, cmd: impl sand::IntoCommands)  {\n    let values = conditioned_execute_value.run(cmd);\n}",
     )]
-    pub fn run(self, cmd: impl fmt::Display) -> crate::ir::Actions {
-        use crate::IntoCommands;
+    pub fn run(self, cmd: impl IntoCommands) -> crate::ir::Actions {
         self.cond.guard_actions(
             self.negated,
             self.prefix.operations(),
-            cmd.to_string().into_commands(),
+            cmd.into_commands().into_single_action("sand/branches"),
         )
     }
 }

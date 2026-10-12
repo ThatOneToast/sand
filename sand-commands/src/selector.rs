@@ -1617,11 +1617,16 @@ fn validate_range(value: &str, field: &'static str, allow_float: bool) -> Comman
 }
 
 fn validate_optional_token(value: &str, field: &'static str) -> CommandResult<()> {
-    if value.chars().any(|c| c.is_whitespace() || c.is_control()) {
+    if !value
+        .chars()
+        .all(|c| c.is_ascii_alphanumeric() || matches!(c, '_' | '-' | '.' | '+'))
+    {
         Err(CommandError::new(
             "Selector",
             field,
-            format!("must not contain whitespace or control characters, got `{value}`"),
+            format!(
+                "must be an unquoted selector token using letters, digits, _, -, ., or +, got `{value}`"
+            ),
         ))
     } else {
         Ok(())

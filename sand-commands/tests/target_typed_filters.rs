@@ -44,11 +44,9 @@ fn entity_filters_render_on_one_value() {
     let target = Target::entities()
         .tag("elite")
         .not_tag("friendly")
-        .team("red")
         .not_team("blue")
-        .name("Boss")
         .not_name("Decoy")
-        .entity_type_raw("minecraft:zombie")
+        .entity_type_raw("#minecraft:skeletons")
         .not_entity_type_raw("minecraft:cow")
         .excluding_players()
         .distance_range(2.0, 16.0)
@@ -62,7 +60,7 @@ fn entity_filters_render_on_one_value() {
 
     assert_eq!(
         target.to_string(),
-        "@e[tag=elite,tag=!friendly,team=red,team=!blue,name=Boss,name=!Decoy,type=minecraft:zombie,type=!minecraft:cow,type=!minecraft:player,distance=2..16,x=0,y=64,z=0,dx=8,dy=4,dz=8,predicate=demo:is_hostile,predicate=!demo:is_friendly]"
+        "@e[tag=elite,tag=!friendly,team=!blue,name=!Decoy,type=#minecraft:skeletons,type=!minecraft:cow,type=!minecraft:player,distance=2..16,x=0,y=64,z=0,dx=8,dy=4,dz=8,predicate=demo:is_hostile,predicate=!demo:is_friendly]"
     );
 }
 
@@ -221,9 +219,14 @@ fn positive_name_filters_are_unique_including_literal_named_targets() {
     let exclusions = Target::named_player("Steve")
         .not_name("Alex")
         .not_name("Herobrine");
+    assert!(exclusions.try_build().is_err());
     assert_eq!(
-        exclusions.try_build().unwrap(),
-        "@a[name=Steve,name=!Alex,name=!Herobrine,limit=1]"
+        Target::entities()
+            .not_name("Alex")
+            .not_name("Herobrine")
+            .try_build()
+            .unwrap(),
+        "@e[name=!Alex,name=!Herobrine]"
     );
 }
 

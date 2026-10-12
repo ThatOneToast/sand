@@ -251,6 +251,12 @@ pub enum Cmd {
     /// Opaque passthrough. Sand does not inspect, rewrite, or version-check it.
     Raw(String),
 
+    /// Legacy typed command text retaining its validation origin across exports.
+    RetainedCommand {
+        text: String,
+        origins: sand_commands::export_registry::RetainedCommandOrigins,
+    },
+
     /// `function <id>`
     Function(String),
 
@@ -314,7 +320,9 @@ fn raw_command_may_return(line: &str) -> bool {
 impl Cmd {
     fn has_macro_line(&self) -> bool {
         match self {
-            Self::Raw(text) => text.lines().any(|line| line.trim_start().starts_with('$')),
+            Self::Raw(text) | Self::RetainedCommand { text, .. } => {
+                text.lines().any(|line| line.trim_start().starts_with('$'))
+            }
             Self::Execute { run, .. }
             | Self::ReturnRun(run)
             | Self::WithScoreOperands { run, .. } => run.has_macro_line(),
@@ -330,7 +338,9 @@ impl Cmd {
             }
             // Inspect command positions through the canonical execute parser;
             // quoted arguments and ordinary words such as `say return` are data.
-            Self::Raw(text) => text.lines().any(raw_command_may_return),
+            Self::Raw(text) | Self::RetainedCommand { text, .. } => {
+                text.lines().any(raw_command_may_return)
+            }
             _ => false,
         }
     }
@@ -339,6 +349,10 @@ impl Cmd {
     pub fn try_render(&self) -> sand_commands::CommandResult<String> {
         let rendered = match self {
             Self::Raw(s) => s.clone(),
+            Self::RetainedCommand { text, origins } => {
+                origins.replay();
+                text.clone()
+            }
 
             Self::Function(id) => format!("function {id}"),
             Self::AnonymousFunction { prefix, body } => {

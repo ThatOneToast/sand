@@ -8,6 +8,7 @@ fn body() -> Actions {
     BODY.get_or_init(|| {
         let shared = when(sand_core::state::Flag::new("cached_ready").of("@s").is_true()).then_all(["say shared across depths"]);
         mcfunction![
+        sand_commands::Inventory::of(Target::current_player()).give("minecraft:stone");
         shared.clone();
         unless(sand_core::state::Flag::new("cached_ready").of("@s").is_true()).then_all(shared);
         when(sand_core::state::Flag::new("cached_ready").of("@s").is_true()).then_all(["say cached when"]);

@@ -42,45 +42,93 @@ impl Parser<'_> {
         Some(value)
     }
 
-    fn escape(&mut self) -> bool {
-        match self.character() {
-            Some('\'' | '"' | '\\' | 'b' | 's' | 't' | 'n' | 'f' | 'r') => true,
-            Some('x') => self.hex_escape(2).is_some(),
-            // Preserve Java UTF-16 escape units without decoding into Rust chars.
-            Some('u') => self.hex_escape(4).is_some(),
-            Some('U') => self.hex_escape(8).is_some_and(|value| value <= 0x10FFFF),
-            Some('N') => {
+    fn escape(&mut self) -> Option<u32> {
+        match self.character()? {
+            c @ ('\'' | '"' | '\\') => Some(c as u32),
+            'b' => Some(8),
+            's' => Some(32),
+            't' => Some(9),
+            'n' => Some(10),
+            'f' => Some(12),
+            'r' => Some(13),
+            'x' => self.hex_escape(2),
+            'u' => self.hex_escape(4),
+            'U' => self.hex_escape(8).filter(|value| *value <= 0x10FFFF),
+            'N' => {
                 if self.character() != Some('{') {
-                    return false;
+                    return None;
                 }
-                let Some(end) = self.rest.find('}') else {
-                    return false;
-                };
-                let valid = named_character(&self.rest[..end]);
+                let end = self.rest.find('}')?;
+                let point = named_character(&self.rest[..end]);
                 self.rest = &self.rest[end + 1..];
-                valid
+                point
             }
-            _ => false,
+            _ => None,
         }
     }
 
-    fn quoted(&mut self) -> bool {
-        let Some(quote @ ('\'' | '"')) = self.character() else {
-            return false;
+    fn quoted_units(&mut self) -> Option<Vec<u16>> {
+        let quote @ ('\'' | '"') = self.character()? else {
+            return None;
         };
+        let mut units = Vec::new();
         while let Some(character) = self.character() {
             if character.is_control() {
-                return false;
+                return None;
             }
-            if character == '\\' {
-                if !self.escape() {
-                    return false;
-                }
-            } else if character == quote {
-                return true;
+            if character == quote {
+                return Some(units);
+            }
+            let point = if character == '\\' {
+                self.escape()?
+            } else {
+                character as u32
+            };
+            if point <= 0xffff {
+                units.push(point as u16);
+            } else {
+                units.push(0xd800 + ((point - 0x10000) >> 10) as u16);
+                units.push(0xdc00 + ((point - 0x10000) & 0x3ff) as u16);
             }
         }
-        false
+        None
+    }
+
+    fn quoted(&mut self) -> bool {
+        self.quoted_units().is_some()
+    }
+
+    fn boolean(&mut self, depth: usize) -> bool {
+        if depth >= 64 {
+            return false;
+        }
+        self.whitespace();
+        let token = self.token().to_owned();
+        if token == "bool" && self.take('(') {
+            self.boolean(depth + 1) && self.take(')')
+        } else {
+            token.eq_ignore_ascii_case("true")
+                || token.eq_ignore_ascii_case("false")
+                || integer(&token, 32).is_some()
+                || float(&token)
+        }
+    }
+
+    fn uuid(&mut self) -> bool {
+        self.whitespace();
+        let units = if self.rest.starts_with(['\'', '"']) {
+            let Some(units) = self.quoted_units() else {
+                return false;
+            };
+            units
+        } else {
+            let token = self.token();
+            if !token.starts_with(|c: char| c.is_ascii_alphabetic() || c == '_') {
+                return false;
+            }
+            token.encode_utf16().collect()
+        };
+        valid_uuid(&units) && self.take(')')
     }
 
     fn token(&mut self) -> &str {
@@ -170,7 +218,16 @@ impl Parser<'_> {
                 }
             }
             Some('\'' | '"') => self.quoted(),
-            Some(_) => scalar(self.token()),
+            Some(_) => {
+                let token = self.token().to_owned();
+                if token == "bool" && self.take('(') {
+                    self.boolean(depth + 1) && self.take(')')
+                } else if token == "uuid" && self.take('(') {
+                    self.uuid()
+                } else {
+                    scalar(&token)
+                }
+            }
             None => false,
         }
     }
@@ -179,10 +236,17 @@ impl Parser<'_> {
 // Java's name lookup uses canonical names, historical control names, and
 // block-based names for algorithmic ranges. Unicode's loose name matching
 // alone accepts spellings that Minecraft rejects (for example S_N_O_W_M_A_N).
-fn named_character(name: &str) -> bool {
+fn named_character(name: &str) -> Option<u32> {
     let name = name.trim_matches(' ').to_ascii_uppercase();
-    if super::java_names::CONTROL_NAMES.contains(&name.as_str()) {
-        return true;
+    if let Some(index) = super::java_names::CONTROL_NAMES
+        .iter()
+        .position(|entry| *entry == name)
+    {
+        return Some(if index < 32 {
+            index as u32
+        } else {
+            index as u32 + 95
+        });
     }
     if let Some((block, hexadecimal)) = name.rsplit_once(' ')
         && let Ok(point) = u32::from_str_radix(hexadecimal, 16)
@@ -191,18 +255,47 @@ fn named_character(name: &str) -> bool {
             .iter()
             .any(|(prefix, first, last)| block == *prefix && (*first..=*last).contains(&point))
     {
-        return true;
+        return Some(point);
     }
-    let Some(character) = unicode_names2::character(&name) else {
-        return false;
-    };
+    let character = unicode_names2::character(&name)?;
     if super::java_names::BLOCK_NAMES
         .iter()
         .any(|(_, first, last)| (*first..=*last).contains(&(character as u32)))
     {
+        return None;
+    }
+    unicode_names2::name(character)
+        .is_some_and(|canonical| canonical.to_string() == name)
+        .then_some(character as u32)
+}
+
+// Match UUID.fromString's accepted short groups, optional plus signs, and
+// Character.digit UTF-16 hexadecimal parsing, including its signed-long bound.
+fn valid_uuid(units: &[u16]) -> bool {
+    if units.len() > 36 {
         return false;
     }
-    unicode_names2::name(character).is_some_and(|canonical| canonical.to_string() == name)
+    let parts: Vec<_> = units.split(|unit| *unit == u16::from(b'-')).collect();
+    parts.len() == 5
+        && parts.iter().all(|part| {
+            let part = part.strip_prefix(&[u16::from(b'+')]).unwrap_or(part);
+            if part.is_empty() {
+                return false;
+            }
+            part.iter()
+                .try_fold(0_i64, |value, unit| {
+                    let digit =
+                        super::java_names::HEX_DIGITS
+                            .iter()
+                            .find_map(|(first, last, start)| {
+                                (*first..=*last)
+                                    .contains(unit)
+                                    .then(|| u32::from(unit - first) + u32::from(*start))
+                            })?;
+                    value.checked_mul(16)?.checked_add(i64::from(digit))
+                })
+                .is_some()
+        })
 }
 
 // Numeric digit groups allow repeated separators only between digits.
@@ -317,6 +410,56 @@ fn scalar(token: &str) -> bool {
 #[cfg(test)]
 mod tests {
     use crate::{CommandProfile, ScoreHolder};
+
+    #[test]
+    fn conversion_literals_match_vanilla_26_2() {
+        for value in [
+            "bool(1)",
+            "bool(false)",
+            "bool(TRUE)",
+            "bool(bool(-1))",
+            "bool(0xFF)",
+            "bool ( 1 )",
+            "bool(1.5)",
+            r#"uuid("١-１-Ｆ-1-1")"#,
+            r#"uuid("\N{DIGIT ONE}-1-1-1-1")"#,
+            r#"uuid("00000000-0000-0000-0000-000000000000")"#,
+            r#"uuid("1-1-1-1-1")"#,
+            r#"uuid("+1-1-1-1-1")"#,
+            r#"uuid("fffffffff-1-1-1-1")"#,
+            r#"uuid("\u0031-1-1-1-1")"#,
+            "uuid(abcdef-1-1-1-1)",
+        ] {
+            let selector = format!("@s[nbt={{value:{value}}}]");
+            ScoreHolder::compat(selector.clone())
+                .validate_single(&CommandProfile::unprofiled())
+                .unwrap_or_else(|error| panic!("{selector}: {error}"));
+        }
+        for value in [
+            r#"bool("true")"#,
+            "bool(1,2)",
+            "BOOL(1)",
+            "bool(NaN)",
+            "bool({})",
+            "bool()",
+            "bool(true",
+            "uuid(1)",
+            "uuid(1-1-1-1-1)",
+            r#"uuid("00000000000000000000000000000000")"#,
+            r#"uuid("8000000000000000-1-1-1-1")"#,
+            r#"uuid("1-1-1-1-1", "1-1-1-1-1")"#,
+            r#"uuid("\uD800-1-1-1-1")"#,
+            "[I;bool(true)]",
+        ] {
+            let selector = format!("@s[nbt={{value:{value}}}]");
+            assert!(
+                ScoreHolder::compat(selector.clone())
+                    .validate_single(&CommandProfile::unprofiled())
+                    .is_err(),
+                "{selector}"
+            );
+        }
+    }
 
     #[test]
     fn modern_numeric_literals_match_vanilla_26_2() {

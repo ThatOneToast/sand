@@ -6,7 +6,7 @@ use std::collections::BTreeMap;
 struct Machine(
     BTreeMap<String, i32>,
     BTreeMap<String, Vec<String>>,
-    Option<bool>,
+    Option<(bool, i32)>,
     BTreeMap<String, f64>,
     BTreeMap<String, Vec<f64>>,
     BTreeMap<String, String>,
@@ -26,12 +26,12 @@ impl Machine {
         match command[0] {
             "return" => {
                 let success = match command[1] {
-                    "fail" => false,
+                    "fail" => (false, 0),
                     "run" => {
                         assert_eq!(command[2], "function");
-                        self.call(command[3])
+                        self.call_result(command[3])
                     }
-                    _ => true,
+                    number => (true, number.parse().unwrap()),
                 };
                 self.2 = Some(success);
                 false
@@ -55,8 +55,7 @@ impl Machine {
                     assert_eq!(command[i], "run");
                     let inner = &command[i + 1..];
                     let (success, result) = if inner[0] == "function" {
-                        let success = self.call(inner[1]);
-                        (success, i32::from(success))
+                        self.call_result(inner[1])
                     } else if inner[0] == "data" {
                         assert_eq!(inner[1], "get");
                         let key = format!("{} {} {}", inner[2], inner[3], inner[4]);
@@ -117,6 +116,14 @@ impl Machine {
                         i += 5;
                         continue;
                     }
+                    if command[i + 1] == "function" {
+                        let (success, result) = self.call_result(command[i + 2]);
+                        i += 3;
+                        if (success && result != 0) == negate {
+                            return true;
+                        }
+                        continue;
+                    }
                     assert_eq!(command[i + 1], "score");
                     let left = self
                         .0
@@ -138,7 +145,9 @@ impl Machine {
                         let matched = match command[i + 4] {
                             "=" => left == right,
                             ">" => left > right,
+                            ">=" => left >= right,
                             "<" => left < right,
+                            "<=" => left <= right,
                             other => panic!("unsupported comparison {other}"),
                         };
                         i += 7;
@@ -227,6 +236,9 @@ impl Machine {
         }
     }
     fn call(&mut self, function: &str) -> bool {
+        self.call_result(function).0
+    }
+    fn call_result(&mut self, function: &str) -> (bool, i32) {
         let commands = self
             .1
             .get(function)
@@ -234,7 +246,7 @@ impl Machine {
             .clone();
         let parent_return = self.2.take();
         let completed = self.execute(&commands);
-        let success = self.2.take().unwrap_or(completed);
+        let success = self.2.take().unwrap_or((completed, i32::from(completed)));
         self.2 = parent_return;
         success
     }
@@ -601,4 +613,248 @@ fn native_numeric_read_quantizes_and_preserves_destination_on_failed_read() {
             .to_string()
             .contains("change observation is not supported")
     );
+}
+
+#[test]
+fn runtime_numeric_comparisons_match_full_range_integer_oracle() {
+    use crate::condition::ScoreCompareOp;
+    use crate::ir::{Actions, Cmd, NumericComparison};
+    let owner = "test:comparison".parse().unwrap();
+    for op in [
+        ScoreCompareOp::Eq,
+        ScoreCompareOp::Gt,
+        ScoreCompareOp::Gte,
+        ScoreCompareOp::Lt,
+        ScoreCompareOp::Lte,
+    ] {
+        let _scope = crate::function::ExportFunctionRegistryScope::enter();
+        let body = Actions(vec![Cmd::NumericComparison(Box::new(NumericComparison {
+            left: crate::entity::StatCurve::input_raw("left"),
+            op,
+            right: crate::entity::StatCurve::input_raw("right"),
+        }))])
+        .lower(&owner)
+        .unwrap();
+        let mut machine = Machine::default();
+        machine.1.insert("test:comparison".into(), body);
+        for left in [i32::MIN, -1, 0, 1, i32::MAX] {
+            for right in [i32::MIN, -1, 0, 1, i32::MAX] {
+                machine.0.insert("@s left".into(), left);
+                machine.0.insert("@s right".into(), right);
+                let expected = match op {
+                    ScoreCompareOp::Eq => left == right,
+                    ScoreCompareOp::Gt => left > right,
+                    ScoreCompareOp::Gte => left >= right,
+                    ScoreCompareOp::Lt => left < right,
+                    ScoreCompareOp::Lte => left <= right,
+                };
+                assert_eq!(
+                    machine.call_result("test:comparison"),
+                    (true, i32::from(expected)),
+                    "{left} {op:?} {right}"
+                );
+            }
+        }
+        machine.0.remove("@s right");
+        assert_eq!(machine.call_result("test:comparison"), (false, 0));
+        for keyword in ["if", "unless"] {
+            machine.0.insert("@s selected".into(), 0);
+            machine.run(&[
+                "execute",
+                keyword,
+                "function",
+                "test:comparison",
+                "run",
+                "scoreboard",
+                "players",
+                "set",
+                "@s",
+                "selected",
+                "1",
+            ]);
+            assert_eq!(
+                machine.get("@s", "selected"),
+                i32::from(keyword == "unless")
+            );
+        }
+    }
+}
+
+#[test]
+fn numeric_conditions_compare_integer_constants_without_rescaling_full_range_scores() {
+    use crate::condition::ScoreCompareOp;
+    use crate::entity::StatCurve;
+    use crate::ir::{Actions, Cmd, NumericComparison};
+    for constant in [i32::MIN, -1, 0, 1, i32::MAX] {
+        for constant_on_left in [false, true] {
+            for op in [
+                ScoreCompareOp::Eq,
+                ScoreCompareOp::Gt,
+                ScoreCompareOp::Gte,
+                ScoreCompareOp::Lt,
+                ScoreCompareOp::Lte,
+            ] {
+                let _scope = crate::function::ExportFunctionRegistryScope::enter();
+                let source = StatCurve::input_raw("source");
+                let literal = StatCurve::constant(f64::from(constant));
+                let (left, right) = if constant_on_left {
+                    (literal, source)
+                } else {
+                    (source, literal)
+                };
+                let body = Actions(vec![Cmd::NumericComparison(Box::new(NumericComparison {
+                    left,
+                    op,
+                    right,
+                }))])
+                .lower(&"test:constant_comparison".parse().unwrap())
+                .unwrap();
+                let mut machine = Machine::default();
+                machine.1.insert("test:constant_comparison".into(), body);
+                for source in [i32::MIN, -1, 0, 1, i32::MAX] {
+                    machine.0.insert("@s source".into(), source);
+                    let (left, right) = if constant_on_left {
+                        (constant, source)
+                    } else {
+                        (source, constant)
+                    };
+                    let expected = match op {
+                        ScoreCompareOp::Eq => left == right,
+                        ScoreCompareOp::Gt => left > right,
+                        ScoreCompareOp::Gte => left >= right,
+                        ScoreCompareOp::Lt => left < right,
+                        ScoreCompareOp::Lte => left <= right,
+                    };
+                    assert_eq!(
+                        machine.call_result("test:constant_comparison"),
+                        (true, i32::from(expected)),
+                        "{left} {op:?} {right}"
+                    );
+                }
+            }
+        }
+    }
+}
+
+#[test]
+fn numeric_conditions_compare_full_range_integer_constants() {
+    use crate::condition::ScoreCompareOp;
+    use crate::entity::StatCurve;
+    use crate::ir::{Actions, Cmd, NumericComparison};
+    for (left, right) in [(i32::MIN, i32::MAX), (i32::MAX, i32::MIN)] {
+        let _scope = crate::function::ExportFunctionRegistryScope::enter();
+        let body = Actions(vec![Cmd::NumericComparison(Box::new(NumericComparison {
+            left: StatCurve::constant(f64::from(left)),
+            op: ScoreCompareOp::Lt,
+            right: StatCurve::constant(f64::from(right)),
+        }))])
+        .lower(&"test:literal_comparison".parse().unwrap())
+        .unwrap();
+        let mut machine = Machine::default();
+        machine.1.insert("test:literal_comparison".into(), body);
+        assert_eq!(
+            machine.call_result("test:literal_comparison"),
+            (true, i32::from(left < right)),
+        );
+    }
+}
+
+#[test]
+fn numeric_conditions_keep_fractional_constant_thresholds() {
+    use crate::condition::ScoreCompareOp;
+    use crate::entity::StatCurve;
+    use crate::ir::{Actions, Cmd, NumericComparison};
+    for threshold in [-0.5, 0.5] {
+        let _scope = crate::function::ExportFunctionRegistryScope::enter();
+        let body = Actions(vec![Cmd::NumericComparison(Box::new(NumericComparison {
+            left: StatCurve::input_raw("source"),
+            op: ScoreCompareOp::Gt,
+            right: StatCurve::constant(threshold),
+        }))])
+        .lower(&"test:fractional_threshold".parse().unwrap())
+        .unwrap();
+        let mut machine = Machine::default();
+        machine.1.insert("test:fractional_threshold".into(), body);
+        for value in [-1, 0, 1] {
+            machine.0.insert("@s source".into(), value);
+            assert_eq!(
+                machine.call_result("test:fractional_threshold"),
+                (true, i32::from(f64::from(value) > threshold)),
+            );
+        }
+    }
+}
+
+#[test]
+fn numeric_conditions_use_native_precision_and_fail_without_stale_results() {
+    use crate::condition::ScoreCompareOp;
+    use crate::entity::{EntityContext, PlayerKind, StatCurve};
+    use crate::ir::{Actions, Cmd, NumericComparison};
+    let _scope = crate::function::ExportFunctionRegistryScope::enter();
+    let body = Actions(vec![Cmd::NumericComparison(Box::new(NumericComparison {
+        left: StatCurve::from(EntityContext::<PlayerKind>::default().living().health()),
+        op: ScoreCompareOp::Gte,
+        right: StatCurve::constant(2.755),
+    }))])
+    .lower(&"test:native_comparison".parse().unwrap())
+    .unwrap();
+    let mut machine = Machine::default();
+    machine.1.insert("test:native_comparison".into(), body);
+    for (value, expected) in [
+        (Some(2.755), (true, 1)),
+        (Some(f64::NAN), (false, 0)),
+        (Some(f64::INFINITY), (false, 0)),
+        (Some(f64::NEG_INFINITY), (false, 0)),
+        (Some(-0.0), (true, 0)),
+        (Some(2.7549), (true, 0)),
+        (None, (false, 0)),
+        (Some(1.0e20), (false, 0)),
+        (Some(3.0), (true, 1)),
+    ] {
+        if let Some(value) = value {
+            machine.3.insert("entity @s Health".into(), value);
+        } else {
+            machine.3.remove("entity @s Health");
+        }
+        assert_eq!(machine.call_result("test:native_comparison"), expected);
+    }
+}
+
+#[test]
+fn numeric_conditions_share_scale_conversion_and_checked_arithmetic() {
+    use crate::condition::ScoreCompareOp;
+    use crate::entity::{EntityStateField, FixedScore, StatCurve};
+    use crate::ir::{Actions, Cmd, NumericComparison};
+    let left = FixedScore::__new("test", "comparison", "left", 100, 0, None);
+    let right = FixedScore::__new("test", "comparison", "right", 1000, 0, None);
+    for arithmetic in [false, true] {
+        let _scope = crate::function::ExportFunctionRegistryScope::enter();
+        let source = StatCurve::from(left.bind_to("@s", false));
+        let source = if arithmetic {
+            StatCurve::add([source, StatCurve::constant(0.5)])
+        } else {
+            source
+        };
+        let body = Actions(vec![Cmd::NumericComparison(Box::new(NumericComparison {
+            left: source,
+            op: ScoreCompareOp::Eq,
+            right: StatCurve::from(right.bind_to("@s", false)),
+        }))])
+        .lower(&"test:scaled_comparison".parse().unwrap())
+        .unwrap();
+        let mut machine = Machine::default();
+        machine.1.insert("test:scaled_comparison".into(), body);
+        machine.0.insert(format!("@s {}", left.objective()), 125);
+        machine.0.insert(
+            format!("@s {}", right.objective()),
+            if arithmetic { 1750 } else { 1250 },
+        );
+        assert_eq!(machine.call_result("test:scaled_comparison"), (true, 1));
+        machine.0.insert(format!("@s {}", right.objective()), 1200);
+        assert_eq!(machine.call_result("test:scaled_comparison"), (true, 0));
+        machine
+            .0
+            .insert(format!("@s {}", left.objective()), i32::MAX);
+        assert_eq!(machine.call_result("test:scaled_comparison"), (false, 0));
+    }
 }

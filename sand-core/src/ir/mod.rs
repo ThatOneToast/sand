@@ -19,6 +19,9 @@ pub use sand_commands::{ConditionIr, ExecuteOp, ExecuteStoreTarget};
 mod numeric;
 #[doc(hidden)]
 pub use numeric::NumericWrite;
+mod numeric_condition;
+#[doc(hidden)]
+pub use numeric_condition::NumericComparison;
 
 /// An ordered sequence of authored operations awaiting compiler lowering.
 ///
@@ -275,6 +278,15 @@ pub enum Cmd {
         run: Box<Cmd>,
     },
 
+    /// Retain condition-owned helper and constant requirements until export.
+    WithConditionResources {
+        condition: crate::condition::Condition,
+        run: Box<Cmd>,
+    },
+
+    /// Return a constant from the current function frame.
+    Return(i32),
+
     /// Return immediately with the result of one nested command.
     ReturnRun(Box<Cmd>),
 
@@ -299,6 +311,10 @@ pub enum Cmd {
     /// A gameplay numeric assignment awaiting destination-aware lowering.
     #[doc(hidden)]
     NumericWrite(Box<NumericWrite>),
+
+    /// Evaluate a numeric comparison in its compiler-owned condition helper.
+    #[doc(hidden)]
+    NumericComparison(Box<NumericComparison>),
 
     /// `# <text>` — a comment line (not a real Minecraft command, but emitted in .mcfunction files).
     Comment(String),
@@ -337,6 +353,11 @@ impl Cmd {
     ) -> sand_commands::CommandResult<Vec<Self>> {
         Ok(match self {
             Self::NumericWrite(write) => return write.lower(owner),
+            Self::NumericComparison(comparison) => return comparison.lower(owner),
+            Self::WithConditionResources { condition, run } => {
+                condition.register_owned_resources();
+                return run.lower_for_export(owner);
+            }
             Self::WithScoreOperands { operands, run } => {
                 for operand in operands {
                     operand.register_owned_setup();
@@ -380,17 +401,18 @@ impl Cmd {
             }
             Self::Execute { run, .. }
             | Self::ReturnRun(run)
-            | Self::WithScoreOperands { run, .. } => run.has_macro_line(),
+            | Self::WithScoreOperands { run, .. }
+            | Self::WithConditionResources { run, .. } => run.has_macro_line(),
             _ => false,
         }
     }
 
     fn may_return_from_frame(&self) -> bool {
         match self {
-            Self::ReturnRun(_) => true,
-            Self::Execute { run, .. } | Self::WithScoreOperands { run, .. } => {
-                run.may_return_from_frame()
-            }
+            Self::Return(_) | Self::ReturnRun(_) => true,
+            Self::Execute { run, .. }
+            | Self::WithScoreOperands { run, .. }
+            | Self::WithConditionResources { run, .. } => run.may_return_from_frame(),
             // Inspect command positions through the canonical execute parser;
             // quoted arguments and ordinary words such as `say return` are data.
             Self::Raw(text) | Self::RetainedCommand { text, .. } => {
@@ -407,6 +429,11 @@ impl Cmd {
             Self::RetainedCommand { text, origins } => {
                 origins.replay();
                 text.clone()
+            }
+            Self::Return(value) => sand_commands::return_cmd(*value),
+            Self::WithConditionResources { condition, run } => {
+                condition.register_owned_resources();
+                run.try_render()?
             }
 
             Self::Function(id) => format!("function {id}"),
@@ -469,9 +496,9 @@ impl Cmd {
                 format!("execute {operation_text} run {run_text}")
             }
 
-            Self::NumericWrite(_) => {
+            Self::NumericWrite(_) | Self::NumericComparison(_) => {
                 return Err(sand_commands::CommandError::new(
-                    "numeric assignment",
+                    "numeric action",
                     "value",
                     "numeric actions require function export lowering",
                 ));

@@ -32,7 +32,7 @@ use crate::events::{
 
 /// A resolved persistent-state requirement. This is a dependency for graph
 /// validation and condition lowering, never an occurrence-producing edge.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct PersistentDependency {
     pub type_id: TypeId,
     pub type_name: &'static str,
@@ -49,7 +49,7 @@ pub struct PersistentDependency {
 /// edge/staged-child consumer reuses the same [`Condition`] shape as
 /// `persistent`, rather than re-deriving the objective name at each lowering
 /// site.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct BoundedDependency {
     pub type_id: TypeId,
     pub type_name: &'static str,
@@ -168,7 +168,7 @@ impl OccurrenceDependency {
 }
 
 /// A node's own detection mechanism.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum NodeOrigin {
     /// Detected independently via `SandEventDispatch::tick()` (or a
     /// normalized legacy `TickCondition`) — registered to `minecraft:tick`.

@@ -260,7 +260,7 @@ impl TickScope {
 /// independently firing occurrence detector. The condition is evaluated at a
 /// chained child's dispatch boundary under the inherited player `@s` and
 /// position. It does not run the provider event's detector or lifecycle.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct PersistentEventCondition {
     pub(crate) scope: TickScope,
     pub(crate) condition: crate::condition::Condition,
@@ -1092,7 +1092,7 @@ impl TickExecutionPlans {
 ///     }
 /// }
 /// ```
-#[derive(Debug, Clone, PartialEq, Eq, Default)]
+#[derive(Debug, Clone, PartialEq, Default)]
 pub struct TickEventDispatch {
     /// The execution scope handlers are dispatched under.
     pub(crate) scope: TickScope,

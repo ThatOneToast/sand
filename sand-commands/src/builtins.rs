@@ -1550,8 +1550,8 @@ pub fn try_kick(player: impl Into<String>, reason: Option<&str>) -> CommandResul
 /// `return fail` — stop the current function and return a failure value.
 ///
 /// In Sand's Minecraft 26+ baseline, `return fail` terminates the current `.mcfunction`
-/// and signals to callers that the function failed (return value −1).
-/// Equivalent to the Java API `return -1` for `execute … run function`.
+/// and reports command failure with a result of zero. A numeric `return -1`
+/// instead reports a successful return with a nonzero result.
 ///
 /// Use inside branch functions to halt that branch without affecting the parent.
 pub fn return_fail() -> String {

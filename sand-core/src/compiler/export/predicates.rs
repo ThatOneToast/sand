@@ -51,7 +51,8 @@ pub(crate) fn collect_sand_player_state_predicates(
                 collect_sand_player_state_predicates(condition, predicates);
             }
         }
-        ConditionKind::Score { .. }
+        ConditionKind::NumericCompare(_)
+        | ConditionKind::Score { .. }
         | ConditionKind::ScoreCompare { .. }
         | ConditionKind::Flag { .. }
         | ConditionKind::Entity(_)

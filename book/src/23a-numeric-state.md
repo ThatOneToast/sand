@@ -101,6 +101,38 @@ mark both the field and its component dirty. Archetype derivations and native
 property reconciliation therefore see the change without hand-written
 objective names.
 
+## Comparing runtime values
+
+Use `StatCurve` to compare numeric State, native numeric reads, constants, and
+computed expressions. Its `eq`, `gt`, `gte`, `lt`, and `lte` methods produce a
+normal `Condition`, so the result composes with `and`, `or`, and negation and
+works in conditional actions, event guards, and state-flow transitions.
+
+```rust,ignore
+Target::players().each(|player| {
+    let stats = Stats::on(*player);
+    let health = StatCurve::from(player.living().health());
+    let can_heal = health.lt(stats.health)
+        .and(StatCurve::from(stats.heal_amount).gt(0));
+    when(can_heal).then_all(stats.health.set(
+        StatCurve::add([health, StatCurve::from(stats.heal_amount)]),
+    ))
+})
+```
+
+The operands retain their owner and storage scale. Two direct score sources
+with the same scale compare in their stored units, preserving the full signed
+32-bit range. A direct source compared with a constant exactly representable
+at that source's scale also retains that scale; two whole-number constants
+compare as integers. Other comparisons use the canonical curve evaluator with its
+default scale of 1,000 and rounding policy; comparisons therefore have the
+same precision and intermediate overflow limits as numeric expressions.
+
+A missing source, failed read, division by zero, or intermediate overflow makes
+the numeric condition false. Its negation is consequently true; a failed
+comparison never reuses a previous evaluation's result. Conditions and their
+actions can be constructed before export and reused across repeated exports.
+
 ## Derivations infer their destination
 
 An archetype derivation takes any numeric State field. The target chooses the

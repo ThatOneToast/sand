@@ -139,13 +139,14 @@ impl ScoreRange {
     avoid_when = ["The decision can be made once while generating the datapack", "A dedicated typed helper already performs the complete operation"],
     example = "let ready = MANA.of(\"@s\").gte(25).and(CASTING.of(\"@s\").is_false());"
 )]
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct Condition {
     kind: ConditionKind,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq)]
 pub(crate) enum ConditionKind {
+    NumericCompare(Box<crate::ir::NumericComparison>),
     /// `if score <selector> <objective> matches <range>`
     Score {
         selector: String,
@@ -205,6 +206,51 @@ pub(crate) enum ConditionKind {
 }
 
 impl Condition {
+    pub(crate) fn numeric_compare(
+        left: crate::entity::StatCurve,
+        op: ScoreCompareOp,
+        right: crate::entity::StatCurve,
+    ) -> Self {
+        Self {
+            kind: ConditionKind::NumericCompare(Box::new(crate::ir::NumericComparison {
+                left,
+                op,
+                right,
+            })),
+        }
+    }
+
+    pub(crate) fn register_owned_resources(&self) {
+        // Replay ownership without expanding boolean alternatives into plans.
+        match &self.kind {
+            ConditionKind::NumericCompare(comparison) => {
+                comparison.register();
+            }
+            ConditionKind::ScoreCompare { left, right, .. } => {
+                left.register_owned_setup();
+                right.register_owned_setup();
+            }
+            ConditionKind::Not(inner) => inner.register_owned_resources(),
+            ConditionKind::All(conditions) | ConditionKind::Any(conditions) => {
+                for condition in conditions {
+                    condition.register_owned_resources();
+                }
+            }
+            _ => {}
+        }
+    }
+
+    fn has_numeric_comparison(&self) -> bool {
+        match &self.kind {
+            ConditionKind::NumericCompare(_) => true,
+            ConditionKind::Not(inner) => inner.has_numeric_comparison(),
+            ConditionKind::All(conditions) | ConditionKind::Any(conditions) => {
+                conditions.iter().any(Self::has_numeric_comparison)
+            }
+            _ => false,
+        }
+    }
+
     pub(crate) fn score_operands(&self) -> Vec<crate::state::score::ScoreOperand> {
         match &self.kind {
             ConditionKind::ScoreCompare { left, right, .. } => vec![left.clone(), right.clone()],
@@ -224,9 +270,15 @@ impl Condition {
     ) -> crate::ir::Actions {
         let operands = self.score_operands();
         let plans = self.to_ir_plans(negated);
+        let has_numeric_comparison = self.has_numeric_comparison();
         let mut output = crate::ir::Actions::default();
         for action in actions.0 {
-            let action = if operands.is_empty() {
+            let action = if has_numeric_comparison {
+                crate::ir::Cmd::WithConditionResources {
+                    condition: self.clone(),
+                    run: Box::new(action),
+                }
+            } else if operands.is_empty() {
                 action
             } else {
                 crate::ir::Cmd::WithScoreOperands {
@@ -691,6 +743,9 @@ impl Condition {
 
         let clause = |condition| vec![vec![ExecuteClause { negated, condition }]];
         match &self.kind {
+            ConditionKind::NumericCompare(comparison) => {
+                clause(ConditionIr::Function(comparison.register()))
+            }
             ConditionKind::Score {
                 selector,
                 objective,

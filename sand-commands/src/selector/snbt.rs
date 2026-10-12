@@ -113,16 +113,13 @@ impl Parser<'_> {
                     self.whitespace();
                     let valid = if let Some(kind) = array_type {
                         let token = self.token();
-                        match kind {
-                            b'B' => token
-                                .strip_suffix(['b', 'B'])
-                                .is_some_and(|v| v.parse::<i8>().is_ok()),
-                            b'I' => token.parse::<i32>().is_ok(),
-                            b'L' => token
-                                .strip_suffix(['l', 'L'])
-                                .is_some_and(|v| v.parse::<i64>().is_ok()),
-                            _ => false,
-                        }
+                        let max_bits = match kind {
+                            b'B' => 8,
+                            b'I' => 32,
+                            b'L' => 64,
+                            _ => unreachable!(),
+                        };
+                        decimal_integer(token, max_bits).is_some_and(|bits| bits <= max_bits)
                     } else {
                         self.value(depth + 1)
                     };
@@ -147,6 +144,34 @@ impl Parser<'_> {
     }
 }
 
+// Decimal integer subset of current SNBT. Array context supplies the type
+// for unsuffixed values and allows explicitly smaller integer element types.
+fn decimal_integer(token: &str, implied_bits: u8) -> Option<u8> {
+    let (digits, bits) = match token.as_bytes().last()? {
+        b'b' | b'B' => (&token[..token.len() - 1], 8),
+        b's' | b'S' => (&token[..token.len() - 1], 16),
+        b'i' | b'I' => (&token[..token.len() - 1], 32),
+        b'l' | b'L' => (&token[..token.len() - 1], 64),
+        _ => (token, implied_bits),
+    };
+    let unsigned = digits.strip_prefix(['-', '+']).unwrap_or(digits);
+    if unsigned.is_empty() || !unsigned.bytes().all(|c| c.is_ascii_digit()) {
+        return None;
+    }
+    if unsigned.len() > 1 && unsigned.starts_with('0') && unsigned.bytes().any(|c| c != b'0') {
+        return None;
+    }
+    let number = digits.parse::<i64>().ok()?;
+    let valid = match bits {
+        8 => i8::try_from(number).is_ok(),
+        16 => i16::try_from(number).is_ok(),
+        32 => i32::try_from(number).is_ok(),
+        64 => true,
+        _ => false,
+    };
+    valid.then_some(bits)
+}
+
 fn scalar(token: &str) -> bool {
     if token.is_empty() {
         return false;
@@ -156,21 +181,17 @@ fn scalar(token: &str) -> bool {
     if token.starts_with(|c: char| c.is_ascii_alphabetic() || c == '_') {
         return true;
     }
+    if decimal_integer(token, 32).is_some() {
+        return true;
+    }
     match token.as_bytes().last().copied() {
-        Some(b'b' | b'B') => token[..token.len() - 1].parse::<i8>().is_ok(),
-        Some(b's' | b'S') => token[..token.len() - 1].parse::<i16>().is_ok(),
-        Some(b'l' | b'L') => token[..token.len() - 1].parse::<i64>().is_ok(),
         Some(b'f' | b'F') => token[..token.len() - 1]
             .parse::<f32>()
             .is_ok_and(f32::is_finite),
         Some(b'd' | b'D') => token[..token.len() - 1]
             .parse::<f64>()
             .is_ok_and(f64::is_finite),
-        _ => {
-            token.parse::<i32>().is_ok()
-                || (token.contains(['.', 'e', 'E'])
-                    && token.parse::<f64>().is_ok_and(f64::is_finite))
-        }
+        _ => token.contains(['.', 'e', 'E']) && token.parse::<f64>().is_ok_and(f64::is_finite),
     }
 }
 
@@ -191,8 +212,11 @@ mod tests {
             "{a:[1,,2]}",
             "{a:{b:}}",
             "{a:[B;128b]}",
-            "{a:[I;1b]}",
-            "{a:[L;1]}",
+            "{a:[B;1s]}",
+            "{a:[I;1L]}",
+            "{a:[B;128]}",
+            "{a:01}",
+            "{a:[I;01]}",
             "{a:'bad\\q'}",
             "{a:0xZZ}",
         ] {
@@ -208,6 +232,7 @@ mod tests {
         }
         for nbt in [
             "{}",
+            "{bytes:[B;1,2,-128,127],ints:[I;1b,2s,3,4i],longs:[L;1,2b,3s,4i,5L]}",
             "{NoAI:1b}",
             "{name:'Boss, Mob',nested:{a:true},list:[1,2]}",
             "{bytes:[B;-128b,127B],ints:[I;-2147483648,2147483647],longs:[L;1L]}",

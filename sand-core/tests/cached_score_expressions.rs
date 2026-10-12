@@ -8,6 +8,7 @@ static SOURCE: ScoreVar = ScoreVar::new("cached_value");
 static INCREMENT: ScoreConst = ScoreConst::new("cached_increment", 7);
 static THRESHOLD: ScoreConst = ScoreConst::new("cached_threshold", 12);
 static EXEC_THRESHOLD: ScoreConst = ScoreConst::new("cached_execute", 23);
+static DIRECT_CONSTANT: ScoreConst = ScoreConst::new("cached_direct", 31);
 static TICK_THRESHOLD: ScoreConst = ScoreConst::new("cached_tick", 29);
 static TICK: OnceLock<sand_core::events::TickEventDispatch> = OnceLock::new();
 static BODY: OnceLock<Actions> = OnceLock::new();
@@ -25,6 +26,12 @@ fn body() -> Actions {
         let nested = unless(SOURCE.of("@s").expr().plus(INCREMENT.ref_()).eq(0))
             .then_all(["say computed nested"]);
         mcfunction![
+            SOURCE.of("@s").mul_score(DIRECT_CONSTANT.ref_());
+            SOURCE.of("@s").set_percent(DIRECT_CONSTANT.ref_(), 75);
+            SOURCE.of("@s").scale_percent(50);
+            SOURCE.of("@s").set_ratio(DIRECT_CONSTANT.ref_(), DIRECT_CONSTANT.ref_(), 1000);
+            SOURCE.of("@s").safe_divide(DIRECT_CONSTANT.ref_(), 0);
+            SOURCE.of("@s").clamp_score(INCREMENT.ref_(), DIRECT_CONSTANT.ref_());
             direct;
             sand::command::TypedExecute::as_players()
                 .when(SOURCE.of("@s").gte_score(EXEC_THRESHOLD.ref_()))
@@ -118,7 +125,7 @@ fn prebuilt_score_expressions_replay_setup_on_every_export() {
             .count(),
         1
     );
-    for value in [7, 12, 23, 29] {
+    for value in [7, 12, 23, 29, 31, 75, 50, 100, 1000] {
         assert_eq!(
             setup
                 .lines()

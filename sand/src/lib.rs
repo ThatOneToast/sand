@@ -677,9 +677,9 @@ pub mod __private {
         event_dispatch_advancement, event_dispatch_chain, event_dispatch_tick,
         event_dispatch_tick_condition, event_dispatch_tracked, fixed_score_new,
         lower_state_query_current, lower_state_query_each, lower_system_query_current,
-        lower_system_query_each, player_sneaking_tracked_source, resolve_state_objective,
-        state_attach_commands, state_attached_condition, state_bundle_trees_overlap,
-        state_detach_commands, state_presence_predicate,
+        lower_system_query_each, owned_anonymous_function, player_sneaking_tracked_source,
+        resolve_state_objective, state_attach_commands, state_attached_condition,
+        state_bundle_trees_overlap, state_detach_commands, state_presence_predicate,
     };
     pub use sand_core::entity::*;
     pub use sand_core::*;

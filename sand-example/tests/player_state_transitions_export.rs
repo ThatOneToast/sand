@@ -42,16 +42,21 @@ fn load_commands(records: &[serde_json::Value]) -> &str {
 
 #[test]
 fn player_state_transitions_export_deterministically() {
-    assert!(!on_start_sprinting().is_empty());
-    assert!(!on_start_sprinting_second_handler().is_empty());
-    assert!(!on_stop_sprinting().is_empty());
-    assert!(!on_enter_creative().is_empty());
-    assert!(!on_exit_creative().is_empty());
-    assert!(!on_health_changed().is_empty());
-    assert!(!on_low_health().is_empty());
-    assert!(!on_recovered_health().is_empty());
-    assert!(!on_speed_start().is_empty());
-    assert!(!on_speed_stop().is_empty());
+    assert!(on_start_sprinting().into_iter().next().is_some());
+    assert!(
+        on_start_sprinting_second_handler()
+            .into_iter()
+            .next()
+            .is_some()
+    );
+    assert!(on_stop_sprinting().into_iter().next().is_some());
+    assert!(on_enter_creative().into_iter().next().is_some());
+    assert!(on_exit_creative().into_iter().next().is_some());
+    assert!(on_health_changed().into_iter().next().is_some());
+    assert!(on_low_health().into_iter().next().is_some());
+    assert!(on_recovered_health().into_iter().next().is_some());
+    assert!(on_speed_start().into_iter().next().is_some());
+    assert!(on_speed_stop().into_iter().next().is_some());
 
     let first = sand_core::try_export_components_json("playerstatepack").unwrap();
     let second = sand_core::try_export_components_json("playerstatepack").unwrap();

@@ -20,7 +20,7 @@
 //! - **`#[custom_item]`** — reads a `CustomItem`-returning function and generates a typed
 //!   struct with `BASE`, `PREDICATE`, `CUSTOM_DATA_KEY` constants and an `item()` method.
 //! - **`run_fn!`** — defines an inline function and returns the
-//!   `cmd::function(...)` call to invoke it.
+//!   owned `Actions` that invoke it and retain its body.
 //!
 //! # Example
 //!
@@ -563,8 +563,8 @@ pub fn state_lifecycle(attr: TokenStream, item: TokenStream) -> TokenStream {
 /// A free tick system has exactly one simply named query parameter. Write
 /// command-producing expressions as statements. The outer system body is
 /// declarative and returns nothing; an `each` or `current` closure returns the
-/// `Vec<String>` produced by typed State operations (or explicitly builds and
-/// returns one when it combines several operations). The query parameter name
+/// actions produced by typed State operations. Use `Actions` to collect several
+/// operations in one callback. The query parameter name
 /// is a reusable marker: each direct `each` or `current` operation borrows it
 /// and accepts a fresh `FnOnce` closure, so a system can issue several operations.
 /// Its name cannot be shadowed inside the system body because it identifies the typed
@@ -578,7 +578,7 @@ pub fn state_lifecycle(attr: TokenStream, item: TokenStream) -> TokenStream {
 /// qualified by the declared query type, so a macro-generated binding of
 /// another type before one of those calls is a compile error rather than a
 /// different export-time query. A helper or macro that returns an independently
-/// queried command vector remains an opaque command and does not join the
+/// queried action collection remains an opaque operation and does not join the
 /// declared query's shared outer scan.
 /// Other uses of the query value are rejected because the generated export
 /// adapter has a query type but intentionally fabricates no runtime marker.
@@ -728,7 +728,7 @@ fn state_system_body(function: &ItemFn) -> syn::Result<(syn::Ident, syn::Type, s
     if !matches!(function.sig.output, syn::ReturnType::Default) {
         return Err(syn::Error::new_spanned(
             &function.sig.output,
-            "[SAND-SYSTEM-RETURN] systems do not declare a Rust return type; write command-producing expressions as statements and return Vec<String> only from query closures",
+            "[SAND-SYSTEM-RETURN] systems do not declare a Rust return type; write command-producing expressions as statements and return Actions only from query closures",
         ));
     }
     if function.sig.inputs.len() != 1 {
@@ -1008,12 +1008,12 @@ impl Fold for StateSystemQueryLowering {
         if call.method == "each" {
             syn::parse_quote_spanned! {call.method.span()=>
                 #(#attrs)*
-                ::sand::__private::lower_system_query_each::<#query_ty, _>(#arguments)
+                ::sand::__private::lower_system_query_each::<#query_ty, _, _>(#arguments)
             }
         } else {
             syn::parse_quote_spanned! {call.method.span()=>
                 #(#attrs)*
-                ::sand::__private::lower_system_query_current::<#query_ty, _>(#arguments)
+                ::sand::__private::lower_system_query_current::<#query_ty, _, _>(#arguments)
             }
         }
     }
@@ -1222,7 +1222,7 @@ fn expand_state_system_function(
         #(#registration_attrs)*
         #(#factory_lint_attrs)*
         #[doc(hidden)]
-        fn #factory() -> Vec<String> {
+        fn #factory() -> ::sand::command::Actions {
             let _: ::std::marker::PhantomData<#query_ty> = ::std::marker::PhantomData;
             #body
         }
@@ -1280,7 +1280,7 @@ fn expand_state_system_impl(
                 if !matches!(method.sig.output, syn::ReturnType::Default) {
                     return Err(syn::Error::new_spanned(
                         &method.sig.output,
-                        "[SAND-SYSTEM-RETURN] event systems do not declare a Rust return type; write command-producing expressions as statements and return Vec<String> only from query closures",
+                        "[SAND-SYSTEM-RETURN] event systems do not declare a Rust return type; write command-producing expressions as statements and return Actions only from query closures",
                     ));
                 }
                 let expected_ty: syn::Type = match event_attr.meta {
@@ -1412,13 +1412,13 @@ fn expand_state_system_impl(
                     #[doc(hidden)]
                     #[allow(non_camel_case_types)]
                     trait #body_trait {
-                        fn make(__sand_event: #lifted_event_ty) -> Vec<String>;
+                        fn make(__sand_event: #lifted_event_ty) -> ::sand::command::Actions;
                     }
 
                     #(#registration_attrs)*
                     impl #body_trait for #self_ty {
                         #(#body_lint_attrs)*
-                        fn make(#event_argument) -> Vec<String> {
+                        fn make(#event_argument) -> ::sand::command::Actions {
                             #query_assertion
                             #event_body
                         }
@@ -1473,13 +1473,13 @@ fn expand_state_system_impl(
                 #[doc(hidden)]
                 #[allow(non_camel_case_types)]
                 trait #body_trait {
-                    fn make() -> Vec<String>;
+                    fn make() -> ::sand::command::Actions;
                 }
 
                 #(#registration_attrs)*
                 impl #body_trait for #self_ty {
                     #(#body_lint_attrs)*
-                    fn make() -> Vec<String> {
+                    fn make() -> ::sand::command::Actions {
                         ::sand::__private::assert_system_query_parameter::<#query_ty>();
                         #body
                     }
@@ -1487,7 +1487,7 @@ fn expand_state_system_impl(
 
                 #(#registration_attrs)*
                 #[doc(hidden)]
-                fn #factory() -> Vec<String> {
+                fn #factory() -> ::sand::command::Actions {
                     <#self_ty as #body_trait>::make()
                 }
                 #(#registration_attrs)*
@@ -1507,14 +1507,15 @@ fn expand_state_system_impl(
 // ── Body transformation ───────────────────────────────────────────────────────
 
 /// Convert a `#[function]` / `#[datapack_component(Tick|Load|Tag)]` block into the
-/// `Vec<String>` construction the build pipeline expects.
+/// structured `Actions` collection the build pipeline expects.
 ///
 /// All expressions — with or without a trailing `;` — and macro invocations are
 /// routed through [`IntoCommands::into_commands`](::sand::__private::IntoCommands),
 /// which accepts:
 ///
 /// - `String` / `&str` → single command
-/// - `Vec<String>` → extends with all commands (call a helper fn directly)
+/// - `Actions` → retains structured operations returned by gameplay helpers
+/// - `Vec<String>` → collects existing command text at the raw interoperability boundary
 /// - typed command builders from `sand_core::cmd` / `sand_commands`
 /// - `mcfunction![…]` → extends with all commands the macro produces for
 ///   advanced command collection
@@ -1525,7 +1526,7 @@ fn expand_state_system_impl(
 /// ```rust,ignore
 /// #[function]
 /// pub fn load() {
-///     init_scoreboards();       // fn returning Vec<String> — commands extended
+///     init_scoreboards();       // fn returning Actions — operations collected
 ///     cmd::say("pack loaded");  // typed command expression
 ///     cmd::raw("function other_pack:api/run"); // explicit escape hatch
 /// }
@@ -1553,7 +1554,7 @@ fn command_body_expr(expr: &syn::Expr) -> syn::Result<proc_macro2::TokenStream> 
         )),
         _ => Ok(quote! {
             __cmds.extend(
-                ::sand::__private::IntoCommands::into_commands(#expr)
+                [::sand::__private::IntoCommands::into_commands(#expr)]
             );
         }),
     }
@@ -1590,13 +1591,13 @@ fn build_cmd_body(block: &syn::Block) -> syn::Result<proc_macro2::TokenStream> {
                 });
             }
             // Every macro invocation goes through IntoCommands so that
-            // `mcfunction![…]` (returns Vec<String>) extends the list and
+            // `mcfunction![…]` (returns Actions) extends the list and
             // single-command macros still work.
             syn::Stmt::Macro(mac) => {
                 let inner = &mac.mac;
                 pieces.push(quote! {
                     __cmds.extend(
-                        ::sand::__private::IntoCommands::into_commands(#inner)
+                        [::sand::__private::IntoCommands::into_commands(#inner)]
                     );
                 });
             }
@@ -1604,8 +1605,7 @@ fn build_cmd_body(block: &syn::Block) -> syn::Result<proc_macro2::TokenStream> {
     }
 
     Ok(quote! {
-        let mut __cmds: ::std::vec::Vec<::std::string::String> =
-            ::std::vec::Vec::new();
+        let mut __cmds = ::sand::command::Actions::default();
         #(#pieces)*
         __cmds
     })
@@ -1838,13 +1838,13 @@ fn expand_function(
 
     Ok(quote! {
         #(#attrs)*
-        #vis fn #fn_name() -> ::std::vec::Vec<::std::string::String> {
+        #vis fn #fn_name() -> ::sand::command::Actions {
             #body
         }
 
         #[doc(hidden)]
         #[allow(dead_code)]
-        fn #factory_ident() -> ::std::vec::Vec<::std::string::String> {
+        fn #factory_ident() -> ::sand::command::Actions {
             #fn_name()
         }
 
@@ -2090,13 +2090,13 @@ fn expand_component_tag(func: ItemFn, tag: &str) -> syn::Result<proc_macro2::Tok
 
     Ok(quote! {
         #(#attrs)*
-        #vis fn #fn_name() -> ::std::vec::Vec<::std::string::String> {
+        #vis fn #fn_name() -> ::sand::command::Actions {
             #body
         }
 
         #[doc(hidden)]
         #[allow(dead_code)]
-        fn #fn_make_ident() -> ::std::vec::Vec<::std::string::String> {
+        fn #fn_make_ident() -> ::sand::command::Actions {
             #fn_name()
         }
 
@@ -2586,14 +2586,14 @@ fn expand_event_with_path(
     // generated zero-argument Minecraft function.
     let preamble = quote! {
         #(#fn_attrs)*
-        #vis fn #fn_name() -> ::std::vec::Vec<::std::string::String> {
+        #vis fn #fn_name() -> ::sand::command::Actions {
             let #event_binding_pattern = #event_binding_tokens;
             #(#event_binding_uses)*
             #body
         }
 
         #[doc(hidden)]
-        fn #fn_make_ident() -> ::std::vec::Vec<::std::string::String> {
+        fn #fn_make_ident() -> ::sand::command::Actions {
             #fn_name()
         }
     };
@@ -3165,13 +3165,13 @@ fn expand_event_with_path(
 
 // ── run_fn! ───────────────────────────────────────────────────────────────────
 
-/// Returns a `cmd::function(...)` call and optionally registers an inline body
+/// Returns owned `Actions` for a function call and optionally retains an inline body
 /// as a named `.mcfunction` file.
 ///
 /// # Named with body — define + call inline
 ///
 /// The body is registered as a named datapack function and the macro expands
-/// to the `cmd::function(...)` call in one step:
+/// to an owned function-call action in one step:
 ///
 /// ```rust,ignore
 /// use sand_macros::{function, run_fn};
@@ -3183,7 +3183,7 @@ fn expand_event_with_path(
 /// fn my_fn() {
 ///     Execute::new()
 ///         .as_(Target::players())
-///         .run(run_fn!("hello_world:greet" {
+///         .run_actions(run_fn!("hello_world:greet" {
 ///             cmd::say("Welcome!");
 ///             VISITS.add(Target::self_(), 1);
 ///         }));
@@ -3192,30 +3192,29 @@ fn expand_event_with_path(
 ///
 /// # Anonymous with body — one-off inline function
 ///
-/// When no name is given, the namespace is read from `sand.toml` and a unique
-/// function name is generated automatically. Perfect for one-off inline
-/// functions that don't need to be referenced elsewhere:
+/// When no name is given, the body is owned by the returned actions and a
+/// content-derived helper is emitted in each export's namespace. Captured values
+/// remain available when actions are cached and reused across exports:
 ///
 /// ```rust,ignore
 /// Execute::new()
 ///     .as_(Target::players())
-///     .run(run_fn!({
+///     .run_actions(run_fn!({
 ///         cmd::say("One-off greeting!");
 ///     }));
 /// ```
 ///
-/// # Without body — shorthand for `cmd::function(...)`
+/// # Without body — an owned call to an existing function
 ///
 /// ```rust,ignore
 /// Execute::new()
 ///     .as_(Target::players())
-///     .run(run_fn!("hello_world:on_player_join"))
+///     .run_actions(run_fn!("hello_world:on_player_join"))
 /// ```
 ///
 /// The name string must be a valid resource location: either a full
 /// `namespace:path`, or a bare `path`, which is resolved against the pack's
-/// `[pack].namespace` from `sand.toml` at compile time — the same mechanism
-/// the anonymous form above uses to pick a namespace. Namespace must match
+/// `[pack].namespace` from `sand.toml` at compile time. Namespace must match
 /// `[a-z0-9_.-]+`, path must match `[a-z0-9_./-]+`. Invalid strings, and a
 /// bare `path` with no resolvable `sand.toml` namespace, are rejected at
 /// compile time — never at runtime.
@@ -3457,13 +3456,13 @@ fn expand_armor_event(attr: ArmorEventAttr, func: ItemFn) -> syn::Result<proc_ma
 
     Ok(quote! {
         #(#attrs)*
-        #vis fn #fn_name() -> ::std::vec::Vec<::std::string::String> {
+        #vis fn #fn_name() -> ::sand::command::Actions {
             #body
         }
 
         #[doc(hidden)]
         #[allow(dead_code)]
-        fn #factory_ident() -> ::std::vec::Vec<::std::string::String> {
+        fn #factory_ident() -> ::sand::command::Actions {
             #fn_name()
         }
 
@@ -3506,9 +3505,6 @@ fn read_sand_namespace() -> Option<String> {
     None
 }
 
-/// Global counter for generating unique anonymous function names.
-static ANON_COUNTER: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
-
 /// Validates a `[pack].namespace` value read from `sand.toml` against the
 /// same character rules `ResourceLocation` enforces, so a malformed config
 /// value is reported at macro-expansion time instead of reaching an
@@ -3534,8 +3530,8 @@ fn expand_run_fn(input: TokenStream) -> syn::Result<proc_macro2::TokenStream> {
     let RunFnInput { name, body } = syn::parse::<RunFnInput>(input)?;
 
     // Resolve the full (namespace, path) resource location. A path-only
-    // named input (no `:`) is resolved against the pack namespace exactly
-    // like the anonymous form below, rather than being handed to
+    // named input (no `:`) is resolved against the pack namespace rather than
+    // being handed to
     // `ResourceLocation`'s runtime parser — that parser requires
     // `namespace:path` and would panic on a bare path.
     let (ns_val, path_val, span) = match &name {
@@ -3560,32 +3556,23 @@ fn expand_run_fn(input: TokenStream) -> syn::Result<proc_macro2::TokenStream> {
                 }
             }
         }
-        None => {
-            // Anonymous: read namespace from sand.toml, generate unique path.
-            let ns = read_sand_namespace().ok_or_else(|| {
-                syn::Error::new(
-                    proc_macro2::Span::call_site(),
-                    "could not read [pack].namespace from sand.toml; \
-                     provide an explicit name or ensure sand.toml exists",
-                )
-            })?;
-            validate_pack_namespace(&ns, proc_macro2::Span::call_site())?;
-            let id = ANON_COUNTER.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
-            let anon_path = format!("__anon/fn_{id}");
-            (ns, anon_path, proc_macro2::Span::call_site())
-        }
+        None => (
+            String::new(),
+            "__anon/function".to_string(),
+            proc_macro2::Span::call_site(),
+        ),
     };
 
     let path_part = path_val.as_str();
     let ns_lit = LitStr::new(&ns_val, span);
     let full_path_lit = LitStr::new(&path_val, span);
     let fn_call = quote! {
-        ::sand::__private::cmd::function(
+        ::sand::component::IntoCommands::into_commands(::sand::__private::cmd::function(
             ::sand::__private::FunctionId::custom(
                 ::sand::__private::ResourceLocation::new(#ns_lit, #full_path_lit)
                     .expect("run_fn! validates namespace/path syntax at compile time")
             )
-        )
+        ))
     };
 
     if let Some(block) = body {
@@ -3601,7 +3588,7 @@ fn expand_run_fn(input: TokenStream) -> syn::Result<proc_macro2::TokenStream> {
             );
             Ok(quote! {
                 {
-                    fn #fn_ident() -> ::std::vec::Vec<::std::string::String> {
+                    fn #fn_ident() -> ::sand::command::Actions {
                         #cmd_body
                     }
 
@@ -3617,17 +3604,14 @@ fn expand_run_fn(input: TokenStream) -> syn::Result<proc_macro2::TokenStream> {
                 }
             })
         } else {
-            // Anonymous run_fn!({ ... }) — body is evaluated immediately so local
-            // variable captures work. Registered via runtime registry instead of
-            // inventory, so the component builder picks it up after user fns run.
+            // Capture now, register during each export. Cached actions own the
+            // body instead of depending on an ambient registration side effect.
             Ok(quote! {
                 {
-                    ::sand::__private::register_dyn_fn(
+                    ::sand::__private::owned_anonymous_function(
                         #path_lit.to_string(),
                         { #cmd_body },
-                    );
-
-                    #fn_call
+                    )
                 }
             })
         }
@@ -3782,13 +3766,13 @@ fn expand_schedule(func: ItemFn, attr: ScheduleAttr) -> syn::Result<proc_macro2:
 
     Ok(quote! {
         #(#attrs)*
-        #vis fn #fn_name() -> ::std::vec::Vec<::std::string::String> {
+        #vis fn #fn_name() -> ::sand::command::Actions {
             #body
         }
 
         #[doc(hidden)]
         #[allow(dead_code)]
-        fn #fn_make_ident() -> ::std::vec::Vec<::std::string::String> {
+        fn #fn_make_ident() -> ::sand::command::Actions {
             #fn_name()
         }
 

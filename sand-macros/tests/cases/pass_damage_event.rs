@@ -1,3 +1,4 @@
+mod actions_support;
 use sand_core::prelude::*;
 use sand_macros::on_event;
 
@@ -27,7 +28,7 @@ pub fn on_hurt(event: DamageEvent<HurtEvent>) {
 }
 
 fn main() {
-    let commands = on_hurt();
+    let commands = actions_support::emitted(on_hurt());
     assert_eq!(
         commands,
         vec![

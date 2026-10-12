@@ -1,3 +1,4 @@
+mod actions_support;
 // Canonical recipe: advancement-backed event with a typed guard and a rewarded
 // #[function] that applies a status effect. Exercises the full
 // AdvancementEvent → Event<T> → #[on_event] pipeline.
@@ -49,7 +50,7 @@ pub fn on_ate_chorus_fruit(event: Event<AteChorusFruitEvent>) {
 }
 
 fn main() {
-    let commands = on_ate_chorus_fruit();
+    let commands = actions_support::emitted(on_ate_chorus_fruit());
     assert!(
         commands
             .iter()
@@ -71,7 +72,7 @@ fn main() {
                 let guard_fn = guard.expect("guard must be registered");
                 let condition = guard_fn().expect("guard should return Some");
                 let guard_cmds =
-                    sand_core::execute_when::unless(condition).then_one("return 0");
+                    actions_support::emitted(sand_core::execute_when::unless(condition).then_one("return 0"));
                 assert!(
                     guard_cmds
                         .iter()

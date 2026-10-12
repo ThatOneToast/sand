@@ -11,6 +11,20 @@ pub use sand_version::CommandProfile;
 /// validation; unknown, macro, and modded commands remain verbatim.
 pub fn validate_collected_line(line: &str, profile: &CommandProfile) -> CommandResult<String> {
     validate_line_integrity(line)?;
+    // Macro syntax remains opaque, but a known typed origin still carries
+    // invariants independent of runtime substitution (for example slot kind).
+    let mut command = line.trim_start();
+    loop {
+        validate_registered_origins(command, profile)?;
+        let Some(inner) = collected_command_body(command) else {
+            break;
+        };
+        command = inner.trim_start();
+    }
+    validate_standalone_line(line, profile)
+}
+
+fn validate_registered_origins(line: &str, profile: &CommandProfile) -> CommandResult<()> {
     crate::nbt::validate_registered_line(line, profile)?;
     crate::blocks::validate_registered_line(line, profile)?;
     crate::inventory::validate_registered_line(line, profile)?;
@@ -19,7 +33,16 @@ pub fn validate_collected_line(line: &str, profile: &CommandProfile) -> CommandR
     crate::display::validate_registered_line(line, profile)?;
     crate::text::validate_registered_line(line, profile)?;
     crate::effect::validate_registered_line(line, profile)?;
-    validate_standalone_line(line, profile)
+    Ok(())
+}
+
+/// Locate one known executable body, including the body of a macro line.
+/// Quoted data and arguments are never interpreted as command positions.
+#[doc(hidden)]
+pub fn collected_command_body(line: &str) -> Option<&str> {
+    line.strip_prefix('$')
+        .or_else(|| collected_execute_command(line))
+        .or_else(|| collected_return_command(line))
 }
 
 /// Validate line integrity and supported syntax without consulting Rust's
@@ -148,6 +171,11 @@ fn validate_known_command(
         "function" => validate_function_command(tokens),
         "scoreboard" => validate_scoreboard_command(tokens),
         "execute" => validate_execute_command(line, tokens, profile),
+        "return" if token_is(tokens, 1, "run") => {
+            required_token(tokens, 2, "return", "command")?;
+            validate_collected_line(&line[tokens[2].start..], profile)?;
+            Ok(())
+        }
         "kill" | "tellraw" => validate_selector_at(tokens, 1),
         _ => Ok(()),
     }
@@ -239,6 +267,15 @@ pub fn collected_execute_command(line: &str) -> Option<&str> {
     let tokens = tokenize_top_level(line)?;
     let index = execute_run_index(&tokens)?;
     Some(&line[tokens.get(index + 1)?.start..])
+}
+
+/// Locate a collected `return run` command's executable tail.
+#[doc(hidden)]
+pub fn collected_return_command(line: &str) -> Option<&str> {
+    let tokens = tokenize_top_level(line)?;
+    (token_is(&tokens, 0, "return") && token_is(&tokens, 1, "run"))
+        .then(|| tokens.get(2).map(|token| &line[token.start..]))
+        .flatten()
 }
 
 // Recognize operation boundaries, not arbitrary tokens named `run`: holders,
@@ -407,7 +444,8 @@ fn validate_single_score_holder(
     } else {
         None
     };
-    if matches!(holder, "@a" | "@e")
+    if limit.is_some_and(|limit| limit != 1)
+        || matches!(holder, "@a" | "@e")
         || ((holder.starts_with("@a[") || holder.starts_with("@e[")) && limit != Some(1))
     {
         return Err(CommandError::new(
@@ -423,7 +461,9 @@ fn validate_single_score_holder(
 
 pub(crate) fn validate_selector_token(token: &str) -> CommandResult<Option<&str>> {
     let bytes = token.as_bytes();
-    if bytes.len() < 2 || bytes[0] != b'@' || !matches!(bytes[1], b'a' | b'e' | b'p' | b's' | b'r')
+    if bytes.len() < 2
+        || bytes[0] != b'@'
+        || !matches!(bytes[1], b'a' | b'e' | b'p' | b's' | b'r' | b'n')
     {
         return Err(CommandError::new(
             "Selector",
@@ -748,5 +788,36 @@ mod tests {
         assert_eq!(tokens[0].text, "tellraw");
         assert_eq!(tokens[1].text, "@a");
         assert_eq!(tokens[2].text, &line[tokens[2].start..]);
+    }
+}
+
+#[cfg(test)]
+mod nearest_entity_tests {
+    use super::*;
+
+    #[test]
+    fn collected_numeric_sources_honor_nearest_entity_and_explicit_limits() {
+        let profile = CommandProfile::unprofiled();
+        for holder in [
+            "@n",
+            "@n[type=minecraft:zombie]",
+            "@p[limit=1]",
+            "@r[limit=1]",
+        ] {
+            validate_collected_line(
+                &format!("execute if score {holder} value matches 1 run say yes"),
+                &profile,
+            )
+            .unwrap();
+        }
+        for holder in ["@n[limit=2]", "@p[limit=2]", "@r[limit=2]"] {
+            assert!(
+                validate_collected_line(
+                    &format!("execute if score {holder} value matches 1 run say yes"),
+                    &profile
+                )
+                .is_err()
+            );
+        }
     }
 }

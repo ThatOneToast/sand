@@ -228,26 +228,34 @@ fn weapon_handler_branches_on_snapshot_presence() {
         .expect("audit_on_hurt_entity/body function must exist");
 
     let targets = branch_targets(&records, body);
-    let reachable = targets.join("\n");
-    assert!(
-        reachable.contains("execute if data storage sand:__participants")
-            && reachable.contains("__sand_tmp matches 1 run function")
-            && reachable.contains("__sand_tmp matches 0 run function"),
-        "both present/absent branch dispatches must be generated: {reachable}"
-    );
-    assert!(
-        targets
+    let dispatcher = targets
+        .iter()
+        .find(|body| body.starts_with("execute if data storage sand:__participants"))
+        .expect("presence dispatcher must be reachable from the handler");
+    let lines: Vec<_> = dispatcher.lines().collect();
+    assert_eq!(lines.len(), 2, "dispatcher must select exactly one arm");
+    let (condition, present) = lines[0]
+        .split_once(" run return run function paudit:")
+        .expect("present branch must return from the dispatcher before fallback");
+    assert!(condition.ends_with("{present:1b}"), "{condition}");
+    let absent = lines[1]
+        .strip_prefix("return run function paudit:")
+        .expect("absent branch must be the unconditional fallback");
+    assert_ne!(present, absent, "each arm must have its own body");
+    let branch_body = |path: &str| {
+        records
             .iter()
-            .any(|t| t.contains("state.weapon_present set value 1b")
-                && t.contains("state.weapon_item set from storage")),
-        "present branch must write weapon_present=1b and copy the item snapshot: {targets:?}"
-    );
-    assert!(
-        targets
-            .iter()
-            .any(|t| t.contains("state.weapon_present set value 0b")),
-        "absent branch must write weapon_present=0b: {targets:?}"
-    );
+            .find(|record| record["dir"] == "function" && record["path"] == path)
+            .and_then(|record| record["content"].as_str())
+            .expect("selected branch resource must exist")
+    };
+    let present = branch_body(present);
+    assert!(present.contains("state.weapon_present set value 1b"));
+    assert!(present.contains("state.weapon_item set from storage"));
+    assert!(!present.contains("state.weapon_present set value 0b"));
+    let absent = branch_body(absent);
+    assert!(absent.contains("state.weapon_present set value 0b"));
+    assert!(!absent.contains("state.weapon_item set from storage"));
 }
 
 #[test]

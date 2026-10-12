@@ -4319,7 +4319,7 @@ mod tests {
                     || entry.canonical_path.starts_with("sand::advanced::")
             })
             .collect::<Vec<_>>();
-        assert_eq!(entries.len(), 322);
+        assert_eq!(entries.len(), 320);
     }
 
     #[test]

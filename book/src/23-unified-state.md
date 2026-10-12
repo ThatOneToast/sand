@@ -234,16 +234,16 @@ impl CombatSystems {
 ```
 
 System and query closures run in Rust while Sand builds the datapack. Their
-result is an ordered `Vec<String>` of Minecraft commands, not an in-memory
-mutation of an entity. A single typed State operation already returns that
-vector. To combine operations, collect or extend their vectors and return the
-combined value from the closure:
+result describes Minecraft runtime work. Query methods return `Actions`, an
+ordered collection retained until export validation and lowering. Return a
+single State operation directly, or use `mcfunction!` to combine operations:
 
 ```rust
 query.each(|fighter| {
-    let mut commands = fighter.combat.attack.damage.add(1);
-    commands.extend(fighter.status(|status| status.poison_time.tick()));
-    commands
+    mcfunction![
+        fighter.combat.attack.damage.add(1);
+        fighter.status(|status| status.poison_time.tick());
+    ]
 });
 ```
 

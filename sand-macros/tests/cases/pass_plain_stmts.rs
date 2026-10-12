@@ -1,3 +1,4 @@
+mod actions_support;
 use sand_macros::function;
 use sand_core::cmd::{self, Target};
 
@@ -12,7 +13,7 @@ fn greet() {
 }
 
 fn main() {
-    let cmds = greet();
+    let cmds = actions_support::emitted(greet());
     assert_eq!(cmds.len(), 2);
     assert!(cmds[0].contains("say"));
     assert!(cmds[1].contains("tellraw"));

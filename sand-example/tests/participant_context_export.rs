@@ -22,8 +22,8 @@ fn function<'a>(records: &'a [serde_json::Value], path: &str) -> &'a str {
 
 #[test]
 fn combat_participant_plans_export_deterministically_and_wrap_the_body() {
-    assert!(!on_hurt_by_entity().is_empty());
-    assert!(!on_hurt_entity().is_empty());
+    assert!(on_hurt_by_entity().into_iter().next().is_some());
+    assert!(on_hurt_entity().into_iter().next().is_some());
 
     let first = sand_core::try_export_components_json("participantpack").unwrap();
     let second = sand_core::try_export_components_json("participantpack").unwrap();

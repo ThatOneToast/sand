@@ -1,5 +1,9 @@
 //! Entity/player selector (`@a`, `@e`, `@s`, etc.) with a typed builder API.
 
+mod java_names;
+mod parse;
+mod snbt;
+
 use std::fmt;
 use std::marker::PhantomData;
 
@@ -66,6 +70,8 @@ enum TargetBase {
     AllEntities,
     #[doc = "Selects the nearest player form of the target base Minecraft command value."]
     NearestPlayer,
+    /// Nearest entity, including non-player entities (`@n`).
+    NearestEntity,
     #[doc = "Selects the self  form of the target base Minecraft command value."]
     Self_,
     #[doc = "Selects the random player form of the target base Minecraft command value."]
@@ -693,6 +699,7 @@ enum SelectorArg {
     YRotation(String),
     Gamemode(String),
     Scores(String),
+    Advancements(std::collections::BTreeMap<String, AdvancementMatch>),
     Nbt(String),
     Predicate(String),
     X(f64),
@@ -703,6 +710,58 @@ enum SelectorArg {
     Dz(f64),
 }
 
+/// Canonical advancement completion or per-criterion requirements.
+#[derive(Debug, Clone)]
+enum AdvancementMatch {
+    Complete(bool),
+    Criteria(std::collections::BTreeMap<String, bool>),
+}
+
+impl fmt::Display for AdvancementMatch {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Complete(value) => write!(f, "{value}"),
+            Self::Criteria(criteria) => {
+                write!(f, "{{")?;
+                for (index, (name, done)) in criteria.iter().enumerate() {
+                    if index != 0 {
+                        write!(f, ",")?;
+                    }
+                    write!(f, "{}={done}", render_name(name))?;
+                }
+                write!(f, "}}")
+            }
+        }
+    }
+}
+
+/// Brigadier permits a small ASCII alphabet outside quoted strings.
+fn unquoted_name_character(value: char) -> bool {
+    value.is_ascii_alphanumeric() || matches!(value, '_' | '-' | '.' | '+')
+}
+
+/// Encode a literal entity name, keeping selector punctuation inside quotes.
+fn render_name(value: &str) -> String {
+    if !value.is_empty() && value.chars().all(unquoted_name_character) {
+        value.into()
+    } else {
+        format!("\"{}\"", value.replace('\\', "\\\\").replace('"', "\\\""))
+    }
+}
+
+/// Whitespace is legal in a quoted name; control characters cannot be commands.
+fn validate_name(value: &str) -> CommandResult<()> {
+    if value.chars().any(char::is_control) {
+        Err(CommandError::new(
+            "Selector",
+            "name",
+            "entity names cannot contain control characters",
+        ))
+    } else {
+        Ok(())
+    }
+}
+
 impl fmt::Display for SelectorArg {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
@@ -710,8 +769,8 @@ impl fmt::Display for SelectorArg {
             Self::NotTag(v) => write!(f, "tag=!{v}"),
             Self::Team(v) => write!(f, "team={v}"),
             Self::NotTeam(v) => write!(f, "team=!{v}"),
-            Self::Name(v) => write!(f, "name={v}"),
-            Self::NotName(v) => write!(f, "name=!{v}"),
+            Self::Name(v) => write!(f, "name={}", render_name(v)),
+            Self::NotName(v) => write!(f, "name=!{}", render_name(v)),
             Self::Type(v) => write!(f, "type={v}"),
             Self::NotType(v) => write!(f, "type=!{v}"),
             Self::Limit(v) => write!(f, "limit={v}"),
@@ -722,6 +781,16 @@ impl fmt::Display for SelectorArg {
             Self::YRotation(v) => write!(f, "y_rotation={v}"),
             Self::Gamemode(v) => write!(f, "gamemode={v}"),
             Self::Scores(v) => write!(f, "scores={{{v}}}"),
+            Self::Advancements(filters) => {
+                write!(f, "advancements={{")?;
+                for (index, (name, progress)) in filters.iter().enumerate() {
+                    if index != 0 {
+                        write!(f, ",")?;
+                    }
+                    write!(f, "{name}={progress}")?;
+                }
+                write!(f, "}}")
+            }
             Self::Nbt(v) => write!(f, "nbt={v}"),
             Self::Predicate(v) => write!(f, "predicate={v}"),
             Self::X(v) => write!(f, "x={v}"),
@@ -737,6 +806,18 @@ impl fmt::Display for SelectorArg {
 // ── Constructor methods ───────────────────────────────────────────────────────
 
 impl Selector {
+    pub(crate) fn parse_compat(value: &str) -> Option<Self> {
+        parse::selector(value)
+    }
+
+    pub(crate) fn nearest_entity() -> Self {
+        Self {
+            base: TargetBase::NearestEntity,
+            args: vec![],
+            player_only: false,
+        }
+    }
+
     /// `@a` — all players currently connected to the server.
     pub fn all_players() -> Self {
         Self {
@@ -847,13 +928,13 @@ impl Selector {
         self
     }
 
-    /// `name=<name>` — select only entities with the exact display name.
+    /// Select entities with this literal display name; quote and escape it as needed.
     pub fn name(mut self, name: impl Into<String>) -> Self {
         self.args.push(SelectorArg::Name(name.into()));
         self
     }
 
-    /// `name=!<name>` — select only entities WITHOUT the given display name.
+    /// Exclude this literal display name; quote and escape it as needed.
     pub fn not_name(mut self, name: impl Into<String>) -> Self {
         self.args.push(SelectorArg::NotName(name.into()));
         self
@@ -1120,6 +1201,7 @@ impl fmt::Display for Selector {
             TargetBase::AllPlayers => "@a",
             TargetBase::AllEntities => "@e",
             TargetBase::NearestPlayer => "@p",
+            TargetBase::NearestEntity => "@n",
             TargetBase::Self_ => "@s",
             TargetBase::RandomPlayer => "@r",
             TargetBase::Player(n) if self.args.is_empty() => return write!(f, "{n}"),
@@ -1165,18 +1247,21 @@ impl fmt::Display for Selector {
 
 impl Selector {
     pub(crate) fn is_statically_single(&self) -> bool {
-        matches!(self.base, TargetBase::RawSingle(_))
-            || matches!(
-                self.base,
-                TargetBase::NearestPlayer
-                    | TargetBase::Self_
-                    | TargetBase::RandomPlayer
-                    | TargetBase::Player(_)
-            )
-            || self
-                .args
-                .iter()
-                .any(|arg| matches!(arg, SelectorArg::Limit(1)))
+        if let Some(limit) = self.args.iter().find_map(|arg| match arg {
+            SelectorArg::Limit(limit) => Some(*limit),
+            _ => None,
+        }) {
+            return limit == 1;
+        }
+        matches!(
+            self.base,
+            TargetBase::RawSingle(_)
+                | TargetBase::NearestPlayer
+                | TargetBase::NearestEntity
+                | TargetBase::Self_
+                | TargetBase::RandomPlayer
+                | TargetBase::Player(_)
+        )
     }
 
     /// Whether this retained low-level selector is unambiguously player-only.
@@ -1219,69 +1304,109 @@ impl Validate for Selector {
 
         let mut singleton_keys = std::collections::BTreeSet::new();
         let mut positive_name = matches!(self.base, TargetBase::Player(_));
-        let mut positive_type = false;
+        let mut concrete_type = false;
+        let mut excluded_type = false;
+        let mut type_tags = std::collections::BTreeSet::new();
+        let mut positive_team = false;
+        let mut negative_team = false;
+        let mut negative_name = false;
+        let mut negative_gamemode = false;
         for arg in &self.args {
             let (key, value): (&str, Option<&str>) = match arg {
                 SelectorArg::Tag(v) | SelectorArg::NotTag(v) => {
                     validate_optional_token(v, "tag")?;
                     ("tag*", None)
                 }
-                SelectorArg::Team(v) | SelectorArg::NotTeam(v) => {
+                SelectorArg::Team(v) => {
+                    if positive_team || negative_team {
+                        return Err(CommandError::new(
+                            "Selector",
+                            "team",
+                            "a positive `team` filter must be the only team filter",
+                        ));
+                    }
+                    positive_team = true;
+                    validate_optional_token(v, "team")?;
+                    ("team*", None)
+                }
+                SelectorArg::NotTeam(v) => {
+                    if positive_team {
+                        return Err(CommandError::new(
+                            "Selector",
+                            "team",
+                            "a positive `team` filter must be the only team filter",
+                        ));
+                    }
+                    negative_team = true;
                     validate_optional_token(v, "team")?;
                     ("team*", None)
                 }
                 SelectorArg::Name(v) => {
+                    if positive_name || negative_name {
+                        return Err(CommandError::new(
+                            "Selector",
+                            "name",
+                            "a positive `name` filter must be the only name filter",
+                        ));
+                    }
+                    positive_name = true;
+                    validate_name(v)?;
+                    ("name+", None)
+                }
+                SelectorArg::NotName(v) => {
                     if positive_name {
                         return Err(CommandError::new(
                             "Selector",
                             "name",
-                            "duplicate positive `name` arguments are contradictory",
+                            "a positive `name` filter must be the only name filter",
                         ));
                     }
-                    positive_name = true;
-                    validate::no_whitespace_or_control(v, "Selector", "name")?;
-                    ("name+", None)
-                }
-                SelectorArg::NotName(v) => {
-                    validate::no_whitespace_or_control(v, "Selector", "name")?;
+                    negative_name = true;
+                    validate_name(v)?;
                     ("name-", None)
                 }
-                SelectorArg::Type(v) => {
-                    if positive_type {
+                SelectorArg::Type(v) | SelectorArg::NotType(v) => {
+                    let negative = matches!(arg, SelectorArg::NotType(_));
+                    let tag = v.strip_prefix('#');
+                    let allowed = if let Some(tag) = tag {
+                        !concrete_type && type_tags.insert(tag)
+                    } else if negative {
+                        !concrete_type
+                    } else {
+                        !concrete_type && !excluded_type && type_tags.is_empty()
+                    };
+                    if !allowed {
                         return Err(CommandError::new(
                             "Selector",
                             "type",
-                            "duplicate positive `type` arguments are contradictory",
+                            "a concrete positive type must stand alone; type tags may occur only once regardless of negation",
                         ));
                     }
-                    positive_type = true;
-                    validate::resource_location_shape(
-                        v.strip_prefix('#').unwrap_or(v),
-                        "Selector",
-                        "type",
-                    )?;
-                    ("type+", None)
-                }
-                SelectorArg::NotType(v) => {
-                    validate::resource_location_shape(
-                        v.strip_prefix('#').unwrap_or(v),
-                        "Selector",
-                        "type",
-                    )?;
-                    ("type-", None)
+                    if tag.is_none() {
+                        if negative {
+                            excluded_type = true;
+                        } else {
+                            concrete_type = true;
+                        }
+                    }
+                    validate::resource_location_shape(tag.unwrap_or(v), "Selector", "type")?;
+                    ("type*", None)
                 }
                 SelectorArg::Limit(v) => {
                     if !matches!(
                         self.base,
                         TargetBase::AllPlayers
                             | TargetBase::AllEntities
+                            | TargetBase::NearestPlayer
+                            | TargetBase::NearestEntity
+                            | TargetBase::RandomPlayer
                             | TargetBase::Raw(_)
                             | TargetBase::RawSingle(_)
                     ) {
                         return Err(CommandError::new(
                             "Selector",
                             "limit",
-                            "`limit` is only applicable to `@a` and `@e` selector bases",
+                            "`limit` is only applicable to `@a`, `@e`, `@p`, `@r`, and `@n` selector bases",
                         ));
                     }
                     if *v <= 0 {
@@ -1298,13 +1423,16 @@ impl Validate for Selector {
                         self.base,
                         TargetBase::AllPlayers
                             | TargetBase::AllEntities
+                            | TargetBase::NearestPlayer
+                            | TargetBase::NearestEntity
+                            | TargetBase::RandomPlayer
                             | TargetBase::Raw(_)
                             | TargetBase::RawSingle(_)
                     ) {
                         return Err(CommandError::new(
                             "Selector",
                             "sort",
-                            "`sort` is only applicable to `@a` and `@e` selector bases",
+                            "`sort` is only applicable to `@a`, `@e`, `@p`, `@r`, and `@n` selector bases",
                         ));
                     }
                     ("sort", None)
@@ -1336,15 +1464,45 @@ impl Validate for Selector {
                             format!("unknown vanilla gamemode `{v}`"),
                         ));
                     }
-                    ("gamemode", None)
+                    if v.starts_with('!') {
+                        if singleton_keys.contains("gamemode") {
+                            return Err(CommandError::new(
+                                "Selector",
+                                "gamemode",
+                                "positive and negative gamemode filters cannot be combined",
+                            ));
+                        }
+                        negative_gamemode = true;
+                        ("gamemode-", None)
+                    } else {
+                        if negative_gamemode {
+                            return Err(CommandError::new(
+                                "Selector",
+                                "gamemode",
+                                "positive and negative gamemode filters cannot be combined",
+                            ));
+                        }
+                        ("gamemode", None)
+                    }
                 }
                 SelectorArg::Scores(v) => {
                     validate_scores(v)?;
                     ("scores", None)
                 }
+                SelectorArg::Advancements(filters) => {
+                    for (name, progress) in filters {
+                        validate::resource_location_shape(name, "Selector", "advancements")?;
+                        if let AdvancementMatch::Criteria(criteria) = progress {
+                            for name in criteria.keys() {
+                                validate_name(name)?;
+                            }
+                        }
+                    }
+                    ("advancements", None)
+                }
                 SelectorArg::Nbt(v) => {
-                    validate_snbt_compound(v)?;
-                    ("nbt", None)
+                    validate_snbt_compound(v.strip_prefix('!').unwrap_or(v))?;
+                    ("nbt*", None)
                 }
                 SelectorArg::Predicate(v) => {
                     validate::resource_location_shape(
@@ -1352,7 +1510,7 @@ impl Validate for Selector {
                         "Selector",
                         "predicate",
                     )?;
-                    ("predicate", None)
+                    ("predicate*", None)
                 }
                 SelectorArg::X(v) => {
                     validate::finite(*v, "Selector", "x")?;
@@ -1404,23 +1562,40 @@ impl RenderCommand for Selector {
     }
 }
 
+fn parse_decimal(value: &str) -> Option<f64> {
+    let decimal = value.strip_prefix('-').unwrap_or(value);
+    if !decimal.bytes().all(|c| c.is_ascii_digit() || c == b'.')
+        || decimal.bytes().filter(|c| *c == b'.').count() > 1
+    {
+        return None;
+    }
+    value
+        .parse::<f64>()
+        .ok()
+        .filter(|number| number.is_finite())
+}
+
 fn validate_range(value: &str, field: &'static str, allow_float: bool) -> CommandResult<()> {
     validate::non_empty(value, "Selector", field)?;
     let parse = |part: &str| -> CommandResult<Option<f64>> {
         if part.is_empty() {
             return Ok(None);
         }
-        let n = part.parse::<f64>().map_err(|_| {
-            CommandError::new("Selector", field, format!("invalid range bound `{part}`"))
-        })?;
-        validate::finite(n, "Selector", field)?;
-        if !allow_float && n.fract() != 0.0 {
-            return Err(CommandError::new(
-                "Selector",
-                field,
-                "range requires integer bounds",
-            ));
-        }
+        let invalid =
+            || CommandError::new("Selector", field, format!("invalid range bound `{part}`"));
+        let n = if allow_float {
+            parse_decimal(part).ok_or_else(invalid)?
+        } else {
+            if !part
+                .strip_prefix('-')
+                .unwrap_or(part)
+                .bytes()
+                .all(|c| c.is_ascii_digit())
+            {
+                return Err(invalid());
+            }
+            f64::from(part.parse::<i32>().map_err(|_| invalid())?)
+        };
         Ok(Some(n))
     };
     let (min, max) = if let Some((a, b)) = value.split_once("..") {
@@ -1465,11 +1640,16 @@ fn validate_range(value: &str, field: &'static str, allow_float: bool) -> Comman
 }
 
 fn validate_optional_token(value: &str, field: &'static str) -> CommandResult<()> {
-    if value.chars().any(|c| c.is_whitespace() || c.is_control()) {
+    if !value
+        .chars()
+        .all(|c| c.is_ascii_alphanumeric() || matches!(c, '_' | '-' | '.' | '+'))
+    {
         Err(CommandError::new(
             "Selector",
             field,
-            format!("must not contain whitespace or control characters, got `{value}`"),
+            format!(
+                "must be an unquoted selector token using letters, digits, _, -, ., or +, got `{value}`"
+            ),
         ))
     } else {
         Ok(())
@@ -1495,7 +1675,7 @@ fn validate_snbt_compound(value: &str) -> CommandResult<()> {
     let mut delimiters = Vec::new();
     let mut quote = None;
     let mut escaped = false;
-    for character in value.chars() {
+    for (offset, character) in value.char_indices() {
         if let Some(delimiter) = quote {
             if escaped {
                 escaped = false;
@@ -1509,7 +1689,15 @@ fn validate_snbt_compound(value: &str) -> CommandResult<()> {
         match character {
             '\'' | '"' => quote = Some(character),
             '{' | '[' => delimiters.push(character),
-            '}' if delimiters.pop() == Some('{') => {}
+            '}' if delimiters.pop() == Some('{') => {
+                if delimiters.is_empty() && offset + character.len_utf8() != value.len() {
+                    return Err(CommandError::new(
+                        "Selector",
+                        "nbt",
+                        "SNBT selector filter must contain exactly one complete compound",
+                    ));
+                }
+            }
             ']' if delimiters.pop() == Some('[') => {}
             '}' | ']' => {
                 return Err(CommandError::new(
@@ -1532,7 +1720,9 @@ fn validate_snbt_compound(value: &str) -> CommandResult<()> {
 }
 
 fn validate_scores(value: &str) -> CommandResult<()> {
-    validate::non_empty(value, "Selector", "scores")?;
+    if value.trim().is_empty() {
+        return Ok(());
+    }
     let mut objectives = std::collections::BTreeSet::new();
     for entry in value.split(',') {
         let Some((objective, range)) = entry.split_once('=') else {
@@ -1542,14 +1732,12 @@ fn validate_scores(value: &str) -> CommandResult<()> {
                 format!("expected `objective=range`, got `{entry}`"),
             ));
         };
-        validate::no_whitespace_or_control(objective, "Selector", "scores.objective")?;
-        if objective.len() > 16 {
-            return Err(CommandError::new(
-                "Selector",
-                "scores.objective",
-                format!("objective `{objective}` exceeds 16 characters"),
-            ));
-        }
+        let objective = objective.trim();
+        let range = range.trim();
+        let _ = crate::ObjectiveName::try_dynamic(objective).map_err(|mut error| {
+            error.field = format!("scores.objective.{}", error.field);
+            error
+        })?;
         if !objectives.insert(objective) {
             return Err(CommandError::new(
                 "Selector",
@@ -1637,7 +1825,7 @@ impl fmt::Display for TargetRange {
 /// Deliberately distinct from [`TargetRange`]: Minecraft scoreboard scores
 /// are always 32-bit integers, so `scores={obj=1.5..3.2}` is not legal
 /// vanilla syntax even though the same `min..max` grammar shape is used for
-/// `distance`/`level` (which *are* floating-point). Using an `i32`-based
+/// `distance` and rotation (which allow fractional bounds). Using an `i32`-based
 /// type here at the API boundary makes a fractional score range a compile
 /// error instead of a malformed-selector diagnostic discovered at
 /// `try_build` time.
@@ -1647,8 +1835,8 @@ impl fmt::Display for TargetRange {
     aliases = ["sand::cmd::ScoreRange", "sand::prelude::cmd::ScoreRange"],
     module = "sand::command",
     summary = "A typed integer range for `scores={...}` selector entries (see [#200](https://github.com/ThatOneToast/sand/issues/200)).",
-    context = "A typed integer range for `scores={...}` selector entries (see [#200](https://github.com/ThatOneToast/sand/issues/200)). Deliberately distinct from [`TargetRange`]: Minecraft scoreboard scores are always 32-bit integers, so `scores={obj=1.5..3.2}` is not legal vanilla syntax even though the same `min..max` grammar shape is used for `distance`/`level` (which *are* floating-point). Using an `i32`-based type here at the API boundary makes a fractional score range a compile error instead of a malformed-selector diagnostic discovered at `try_build` time.",
-    minecraft = "Deliberately distinct from [`TargetRange`]: Minecraft scoreboard scores are always 32-bit integers, so `scores={obj=1.5..3.2}` is not legal vanilla syntax even though the same `min..max` grammar shape is used for `distance`/`level` (which *are* floating-point). Using an `i32`-based type here at the API boundary makes a fractional score range a compile error instead of a malformed-selector diagnostic discovered at `try_build` time.",
+    context = "A typed integer range for `scores={...}` selector entries (see [#200](https://github.com/ThatOneToast/sand/issues/200)). Deliberately distinct from [`TargetRange`]: Minecraft scoreboard scores are always 32-bit integers, so `scores={obj=1.5..3.2}` is not legal vanilla syntax even though the same `min..max` grammar shape is used for `distance` and rotation (which allow fractional bounds). Using an `i32`-based type here at the API boundary makes a fractional score range a compile error instead of a malformed-selector diagnostic discovered at `try_build` time.",
+    minecraft = "Deliberately distinct from [`TargetRange`]: Minecraft scoreboard scores are always 32-bit integers, so `scores={obj=1.5..3.2}` is not legal vanilla syntax even though the same `min..max` grammar shape is used for `distance` and rotation (which allow fractional bounds). Using an `i32`-based type here at the API boundary makes a fractional score range a compile error instead of a malformed-selector diagnostic discovered at `try_build` time.",
     use_when = ["Constructing Minecraft commands through Sand's typed command model"],
     avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
     example = "use sand::command::ScoreRange;",

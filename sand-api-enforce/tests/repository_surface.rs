@@ -22,7 +22,7 @@ fn checked_repository_surface_baseline_is_complete_and_partitioned() {
     assert_eq!(kinds["field"], 709);
     assert_eq!(kinds["variant"], 5_787);
     assert_eq!(kinds["enum"], 166);
-    assert_eq!(kinds["trait"], 42);
+    assert_eq!(kinds["trait"], 41);
     assert_eq!(kinds["trait_method"], 86);
     assert_eq!(kinds["attribute_macro"], 9);
     assert_eq!(kinds["derive_macro"], 7);

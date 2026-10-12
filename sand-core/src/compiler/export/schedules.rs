@@ -201,7 +201,11 @@ pub(crate) fn emit_schedule_records_with(
             path: desc.path.to_string(),
             ext: "mcfunction".to_string(),
             content_type: "text".to_string(),
-            content: (desc.make)().join("\n"),
+            content: (desc.make)()
+                .lower(&sand_components::ResourceLocation::new(
+                    namespace, desc.path,
+                )?)?
+                .join("\n"),
         });
 
         let mut start_cmds = vec![format!(
@@ -456,13 +460,13 @@ mod tests {
             path: "alpha",
             total_ticks: 20,
             every: 1,
-            make: body,
+            make: || crate::IntoCommands::into_commands(body()),
         };
         let b = crate::function::ScheduleDescriptor {
             path: "beta",
             total_ticks: 20,
             every: 1,
-            make: body,
+            make: || crate::IntoCommands::into_commands(body()),
         };
         let mut records: Vec<ComponentRecord> = Vec::new();
         let mut tag_map: BTreeMap<String, Vec<String>> = BTreeMap::new();
@@ -490,13 +494,13 @@ mod tests {
             path: "alpha",
             total_ticks: 20,
             every: 1,
-            make: body,
+            make: || crate::IntoCommands::into_commands(body()),
         };
         let b = crate::function::ScheduleDescriptor {
             path: "beta",
             total_ticks: 20,
             every: 1,
-            make: body,
+            make: || crate::IntoCommands::into_commands(body()),
         };
         let mut records: Vec<ComponentRecord> = Vec::new();
         let mut tag_map: BTreeMap<String, Vec<String>> = BTreeMap::new();

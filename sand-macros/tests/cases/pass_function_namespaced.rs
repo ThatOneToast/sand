@@ -1,3 +1,4 @@
+mod actions_support;
 use sand_macros::function;
 use sand_core::mcfunction;
 
@@ -9,7 +10,7 @@ fn run() {
 }
 
 fn main() {
-    let cmds = run();
+    let cmds = actions_support::emitted(run());
     assert_eq!(cmds.len(), 1);
     assert_eq!(cmds[0], "say namespaced");
 }

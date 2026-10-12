@@ -21,9 +21,13 @@ use std::marker::PhantomData;
 
 use sand_components::ResourceLocation;
 
-use crate::entity::curve::{
-    FixedPoint, LoweredCurve, LoweredCurveOperation, OverflowPolicy, RoundingPolicy, StatCurve,
+use crate::component::ComponentRecord;
+#[cfg(test)]
+use crate::entity::curve::LoweredCurveOperation;
+use crate::entity::curve::scoreboard::{
+    NumericContext, append_scale_conversion, render_lowered_curve,
 };
+use crate::entity::curve::{FixedPoint, OverflowPolicy, RoundingPolicy, StatCurve};
 use crate::entity::diagnostic::EntityDiagnostic;
 use crate::entity::kind::{KnownEntityKind, MutableLivingEntityKind, SafeEntityDataWriteKind};
 use crate::entity::property::{
@@ -2313,7 +2317,7 @@ fn compile_definition_with_claims(
     let mut functions = BTreeSet::new();
     let load_path = format!("{root}/load");
     functions.insert(load_path.clone());
-    records.push(function_record(
+    records.push(ComponentRecord::function(
         definition.id.namespace(),
         &load_path,
         objectives
@@ -2329,7 +2333,7 @@ fn compile_definition_with_claims(
     dedup_commands(&mut component_attach);
     let provision_path = format!("{root}/provision");
     functions.insert(provision_path.clone());
-    records.push(function_record(
+    records.push(ComponentRecord::function(
         definition.id.namespace(),
         &provision_path,
         component_attach,
@@ -2437,7 +2441,7 @@ fn compile_definition_with_claims(
             commands.push(format!("scoreboard players set @s {output} 0"));
         }
         functions.insert(refresh_path.clone());
-        records.push(function_record(
+        records.push(ComponentRecord::function(
             definition.id.namespace(),
             &refresh_path,
             commands,
@@ -2465,7 +2469,7 @@ fn compile_definition_with_claims(
     initialize_commands.push(format!("tag @s add {marker}"));
     let initialize_path = format!("{root}/initialize");
     functions.insert(initialize_path.clone());
-    records.push(function_record(
+    records.push(ComponentRecord::function(
         definition.id.namespace(),
         &initialize_path,
         initialize_commands,
@@ -2479,7 +2483,7 @@ fn compile_definition_with_claims(
         for migration in migrations {
             let step = format!("{root}/migrate/{}_{}", migration.from, migration.to);
             functions.insert(step.clone());
-            records.push(function_record(
+            records.push(ComponentRecord::function(
                 definition.id.namespace(),
                 &step,
                 vec![
@@ -2497,7 +2501,7 @@ fn compile_definition_with_claims(
             ));
         }
         functions.insert(migration_path.clone());
-        records.push(function_record(
+        records.push(ComponentRecord::function(
             definition.id.namespace(),
             &migration_path,
             commands,
@@ -2530,7 +2534,7 @@ fn compile_definition_with_claims(
         let mut commands = dirty_distribution_commands(&fields, claims, &mut objectives);
         commands.extend(dirty_acknowledgement_commands(&fields, &marker));
         commands.extend(repair_refresh_commands);
-        records.push(function_record(
+        records.push(ComponentRecord::function(
             definition.id.namespace(),
             &repair_path,
             commands,
@@ -2621,7 +2625,7 @@ fn compile_definition_with_claims(
         claims,
         &mut objectives,
     ));
-    records.push(function_record(
+    records.push(ComponentRecord::function(
         definition.id.namespace(),
         &reconcile_path,
         reconcile_commands,
@@ -2701,7 +2705,7 @@ fn compile_definition_with_claims(
     dedup_commands(&mut cleanup_commands);
     cleanup_commands.push(format!("tag @s remove {marker}"));
     cleanup_commands.push(format!("tag @s remove {external_marker}"));
-    records.push(function_record(
+    records.push(ComponentRecord::function(
         definition.id.namespace(),
         &cleanup_path,
         cleanup_commands,
@@ -2792,7 +2796,7 @@ fn compile_definition_with_claims(
                 definition.id.namespace()
             )
         };
-        records.push(function_record(
+        records.push(ComponentRecord::function(
             definition.id.namespace(),
             &scan_path,
             vec![scan_command],
@@ -2830,7 +2834,7 @@ fn compile_definition_with_claims(
                 ),
             ]
         };
-        records.push(function_record(
+        records.push(ComponentRecord::function(
             definition.id.namespace(),
             &coordinator_path,
             commands,
@@ -2864,7 +2868,7 @@ fn compile_definition_with_claims(
     if needs_reconcile_scan {
         let path = format!("{root}/reconcile_scan");
         functions.insert(path.clone());
-        records.push(function_record(
+        records.push(ComponentRecord::function(
             definition.id.namespace(),
             &path,
             vec![format!(
@@ -2890,7 +2894,7 @@ fn compile_definition_with_claims(
             }
             let coordinator = format!("{root}/reconcile_tick");
             functions.insert(coordinator.clone());
-            records.push(function_record(
+            records.push(ComponentRecord::function(
                 definition.id.namespace(),
                 &coordinator,
                 vec![
@@ -2985,7 +2989,7 @@ fn compile_transitions(
         let action_path = format!("{root}/transition/{index}");
         let action_commands = lower_action(definition, &rule.action, index)?;
         functions.push(action_path.clone());
-        records.push(function_record(
+        records.push(ComponentRecord::function(
             definition.id.namespace(),
             &action_path,
             action_commands,
@@ -3141,7 +3145,7 @@ fn compile_transitions(
     } else {
         let path = format!("{root}/transitions");
         functions.push(path.clone());
-        records.push(function_record(
+        records.push(ComponentRecord::function(
             definition.id.namespace(),
             &path,
             check_commands,
@@ -3223,6 +3227,9 @@ fn compile_derivations(
     let mut graph = DependencyGraph::new();
     let mut targets = BTreeSet::new();
     for derivation in &definition.derivations {
+        derivation
+            .curve
+            .validate_entity_inputs(&id, &derivation.name)?;
         let target = derivation.target.objective();
         fields.resolve_reference(
             definition,
@@ -3237,8 +3244,12 @@ fn compile_derivations(
             });
         }
         graph.add_node(target.clone());
+        let references = derivation.curve.field_references();
         for input in derivation.curve.inputs() {
-            graph.add_dependency(input, target.clone());
+            let objective = references
+                .get(&input)
+                .map_or(input.clone(), |field| field.objective.clone());
+            graph.add_dependency(objective, target.clone());
         }
     }
     let order = graph.topological_order(&definition.id.to_string())?;
@@ -3302,7 +3313,11 @@ fn compile_derivations(
         )?;
         objectives.extend(lowered.scratch_objectives().iter().cloned());
         let path = format!("{root}/derive/{index}");
-        let rendered = render_lowered_curve(definition, &path, &lowered)?;
+        let rendered = render_lowered_curve(
+            NumericContext::new(&definition.id, &sand_commands::ScoreHolder::self_())?,
+            &path,
+            &lowered,
+        )?;
         objectives.extend(rendered.objectives);
         functions.push(path.clone());
         functions.extend(rendered.functions);
@@ -3311,7 +3326,7 @@ fn compile_derivations(
         if derivation.fixed.scale() != derivation.target_scale {
             let mut conversion_objectives = BTreeSet::new();
             append_scale_conversion(
-                definition,
+                NumericContext::new(&definition.id, &sand_commands::ScoreHolder::self_())?,
                 &mut conversion_objectives,
                 &mut commands,
                 &target,
@@ -3328,7 +3343,11 @@ fn compile_derivations(
             derivation.target.descriptor().bounds,
         );
         commands.push(format!("scoreboard players set @s {target_dirty} 1"));
-        records.push(function_record(definition.id.namespace(), &path, commands));
+        records.push(ComponentRecord::function(
+            definition.id.namespace(),
+            &path,
+            commands,
+        ));
         initialize_commands.push(format!("function {}:{path}", definition.id.namespace()));
         refresh_commands.push(format!(
             "execute if score @s {derivation_dirty} matches 1 run function {}:{path}",
@@ -3342,7 +3361,7 @@ fn compile_derivations(
     } else {
         let path = format!("{root}/derive_refresh");
         functions.push(path.clone());
-        records.push(function_record(
+        records.push(ComponentRecord::function(
             definition.id.namespace(),
             &path,
             refresh_commands,
@@ -3378,707 +3397,6 @@ fn append_destination_bounds(
         }
     }
 }
-struct RenderedCurve {
-    commands: Vec<String>,
-    records: Vec<crate::component::ComponentRecord>,
-    functions: Vec<String>,
-    objectives: Vec<String>,
-}
-
-fn render_lowered_curve(
-    definition: &ArchetypeDefinition,
-    path: &str,
-    lowered: &LoweredCurve,
-) -> Result<RenderedCurve, EntityDiagnostic> {
-    let mut commands = Vec::new();
-    let mut records = Vec::new();
-    let mut functions = Vec::new();
-    let mut objectives = BTreeSet::new();
-    for (index, operation) in lowered.operations().iter().enumerate() {
-        match operation {
-            LoweredCurveOperation::SetConstant { destination, value } => {
-                commands.push(format!(
-                    "scoreboard players set @s {destination} {}",
-                    scoreboard_value(definition, lowered.target_objective(), value.units())?
-                ));
-            }
-            LoweredCurveOperation::Copy {
-                destination,
-                source,
-            } => commands.push(format!(
-                "scoreboard players operation @s {destination} = @s {source}"
-            )),
-            LoweredCurveOperation::ScoreToFixed {
-                destination,
-                source,
-                source_scale,
-                target_scale,
-                rounding,
-                overflow,
-            } => {
-                require_scoreboard_overflow(definition, lowered, *overflow)?;
-                commands.push(format!(
-                    "scoreboard players operation @s {destination} = @s {source}"
-                ));
-                append_scale_conversion(
-                    definition,
-                    &mut objectives,
-                    &mut commands,
-                    destination,
-                    *source_scale,
-                    *target_scale,
-                    *rounding,
-                    index,
-                )?;
-            }
-            LoweredCurveOperation::Add {
-                destination,
-                source,
-                overflow,
-            } => {
-                require_scoreboard_overflow(definition, lowered, *overflow)?;
-                commands.push(format!(
-                    "scoreboard players operation @s {destination} += @s {source}"
-                ));
-            }
-            LoweredCurveOperation::MultiplyFixed {
-                destination,
-                factor,
-                scale,
-                rounding,
-                overflow,
-            } => {
-                require_scoreboard_overflow(definition, lowered, *overflow)?;
-                commands.push(format!(
-                    "scoreboard players operation @s {destination} *= @s {factor}"
-                ));
-                append_scaled_division(
-                    definition,
-                    &mut objectives,
-                    &mut commands,
-                    destination,
-                    *scale,
-                    *rounding,
-                    index,
-                )?;
-            }
-            LoweredCurveOperation::RatioFixed {
-                destination,
-                numerator,
-                denominator,
-                scale,
-                rounding,
-                overflow,
-            } => {
-                require_scoreboard_overflow(definition, lowered, *overflow)?;
-                commands.push(format!(
-                    "scoreboard players operation @s {destination} = @s {numerator}"
-                ));
-                let constant = constant_objective(definition, "curve_scale", *scale)?;
-                objectives.insert(constant.clone());
-                commands.push(format!("scoreboard players set #value {constant} {scale}"));
-                commands.push(format!(
-                    "scoreboard players operation @s {destination} *= #value {constant}"
-                ));
-                append_score_division(
-                    definition,
-                    &mut objectives,
-                    &mut commands,
-                    destination,
-                    denominator,
-                    *rounding,
-                    index,
-                )?;
-            }
-            LoweredCurveOperation::Clamp {
-                destination,
-                minimum,
-                maximum,
-            } => {
-                let minimum =
-                    scoreboard_value(definition, lowered.target_objective(), minimum.units())?;
-                let maximum =
-                    scoreboard_value(definition, lowered.target_objective(), maximum.units())?;
-                commands.push(format!(
-                    "execute if score @s {destination} matches ..{minimum} run scoreboard players set @s {destination} {minimum}"
-                ));
-                commands.push(format!(
-                    "execute if score @s {destination} matches {maximum}.. run scoreboard players set @s {destination} {maximum}"
-                ));
-            }
-            LoweredCurveOperation::SelectStepped {
-                destination,
-                input,
-                bands,
-                below,
-            } => {
-                let mut boundaries = Vec::new();
-                let mut values = vec![scoreboard_value(
-                    definition,
-                    lowered.target_objective(),
-                    below.units(),
-                )?];
-                for (minimum, value) in bands {
-                    boundaries.push(scoreboard_value(
-                        definition,
-                        lowered.target_objective(),
-                        minimum.units(),
-                    )?);
-                    values.push(scoreboard_value(
-                        definition,
-                        lowered.target_objective(),
-                        value.units(),
-                    )?);
-                }
-                let base = format!("{path}/select_{index}");
-                build_threshold_tree(
-                    definition,
-                    &base,
-                    input,
-                    destination,
-                    &boundaries,
-                    &values,
-                    &mut records,
-                    &mut functions,
-                );
-                commands.push(format!("function {}:{base}", definition.id.namespace()));
-            }
-            LoweredCurveOperation::SelectPiecewise {
-                destination,
-                input,
-                branches,
-                fallback,
-            } => {
-                let mut boundaries = Vec::new();
-                let mut values = Vec::new();
-                for (maximum, source) in branches {
-                    boundaries.push(scoreboard_value(
-                        definition,
-                        lowered.target_objective(),
-                        maximum.units(),
-                    )?);
-                    values.push(source.clone());
-                }
-                values.push(fallback.clone());
-                let base = format!("{path}/piecewise_{index}");
-                build_piecewise_tree(
-                    definition,
-                    &base,
-                    input,
-                    destination,
-                    &boundaries,
-                    &values,
-                    &mut records,
-                    &mut functions,
-                );
-                commands.push(format!("function {}:{base}", definition.id.namespace()));
-            }
-            LoweredCurveOperation::LookupTable {
-                destination,
-                input,
-                entries,
-                fallback,
-            } => {
-                let mut encoded = Vec::new();
-                for (key, value) in entries {
-                    encoded.push((
-                        scoreboard_value(definition, lowered.target_objective(), *key)?,
-                        scoreboard_value(definition, lowered.target_objective(), value.units())?,
-                    ));
-                }
-                let fallback =
-                    scoreboard_value(definition, lowered.target_objective(), fallback.units())?;
-                let base = format!("{path}/lookup_{index}");
-                build_exact_tree(
-                    definition,
-                    &base,
-                    input,
-                    destination,
-                    &encoded,
-                    fallback,
-                    &mut records,
-                    &mut functions,
-                );
-                commands.push(format!("function {}:{base}", definition.id.namespace()));
-            }
-            LoweredCurveOperation::SelectEnum {
-                destination,
-                input,
-                entries,
-                fallback,
-            } => {
-                let mut encoded = Vec::new();
-                for (encoding, value) in entries {
-                    encoded.push((
-                        *encoding,
-                        scoreboard_value(definition, lowered.target_objective(), value.units())?,
-                    ));
-                }
-                let fallback =
-                    scoreboard_value(definition, lowered.target_objective(), fallback.units())?;
-                let base = format!("{path}/enum_{index}");
-                build_exact_tree(
-                    definition,
-                    &base,
-                    input,
-                    destination,
-                    &encoded,
-                    fallback,
-                    &mut records,
-                    &mut functions,
-                );
-                commands.push(format!("function {}:{base}", definition.id.namespace()));
-            }
-            LoweredCurveOperation::SelectFlag {
-                destination,
-                input,
-                disabled,
-                enabled,
-            } => {
-                commands.push(format!(
-                    "execute if score @s {input} matches 0 run scoreboard players set @s {destination} {}",
-                    scoreboard_value(definition, lowered.target_objective(), disabled.units())?
-                ));
-                commands.push(format!(
-                    "execute unless score @s {input} matches 0 run scoreboard players set @s {destination} {}",
-                    scoreboard_value(definition, lowered.target_objective(), enabled.units())?
-                ));
-            }
-            LoweredCurveOperation::Custom {
-                destination,
-                callback,
-                inputs: _,
-            } => {
-                let callback = callback.parse::<FunctionId>().map_err(|error| {
-                    EntityDiagnostic::InvalidRawExtension {
-                        archetype: definition.id.to_string(),
-                        extension: lowered.target_objective().into(),
-                        detail: format!(
-                            "custom curve callback must be a canonical function ID: {error}"
-                        ),
-                    }
-                })?;
-                commands.push(format!(
-                    "execute store result score @s {destination} run function {callback}"
-                ));
-            }
-        }
-    }
-    Ok(RenderedCurve {
-        commands,
-        records,
-        functions,
-        objectives: objectives.into_iter().collect(),
-    })
-}
-
-#[allow(clippy::too_many_arguments)]
-fn build_exact_tree(
-    definition: &ArchetypeDefinition,
-    path: &str,
-    input: &str,
-    destination: &str,
-    entries: &[(i32, i32)],
-    fallback: i32,
-    records: &mut Vec<crate::component::ComponentRecord>,
-    functions: &mut Vec<String>,
-) {
-    functions.push(path.to_owned());
-    let commands = if entries.len() <= 1 {
-        let mut commands = vec![format!(
-            "scoreboard players set @s {destination} {fallback}"
-        )];
-        if let Some((key, value)) = entries.first() {
-            commands.push(format!(
-                "execute if score @s {input} matches {key} run scoreboard players set @s {destination} {value}"
-            ));
-        }
-        commands
-    } else {
-        let middle = entries.len() / 2;
-        let (key, value) = entries[middle];
-        let left = format!("{path}/l");
-        let right = format!("{path}/r");
-        build_exact_tree(
-            definition,
-            &left,
-            input,
-            destination,
-            &entries[..middle],
-            fallback,
-            records,
-            functions,
-        );
-        build_exact_tree(
-            definition,
-            &right,
-            input,
-            destination,
-            &entries[middle + 1..],
-            fallback,
-            records,
-            functions,
-        );
-        let mut commands = Vec::new();
-        if key > i32::MIN {
-            commands.push(format!(
-                "execute if score @s {input} matches ..{} run function {}:{left}",
-                key - 1,
-                definition.id.namespace()
-            ));
-        }
-        commands.push(format!(
-            "execute if score @s {input} matches {key} run scoreboard players set @s {destination} {value}"
-        ));
-        if key < i32::MAX {
-            commands.push(format!(
-                "execute if score @s {input} matches {}.. run function {}:{right}",
-                key + 1,
-                definition.id.namespace()
-            ));
-        }
-        commands
-    };
-    records.push(function_record(definition.id.namespace(), path, commands));
-}
-
-#[allow(clippy::too_many_arguments)]
-fn build_threshold_tree(
-    definition: &ArchetypeDefinition,
-    path: &str,
-    input: &str,
-    destination: &str,
-    boundaries: &[i32],
-    values: &[i32],
-    records: &mut Vec<crate::component::ComponentRecord>,
-    functions: &mut Vec<String>,
-) {
-    functions.push(path.to_owned());
-    let commands = if boundaries.is_empty() {
-        vec![format!(
-            "scoreboard players set @s {destination} {}",
-            values[0]
-        )]
-    } else {
-        let middle = boundaries.len() / 2;
-        let boundary = boundaries[middle];
-        let left = format!("{path}/l");
-        let right = format!("{path}/r");
-        build_threshold_tree(
-            definition,
-            &left,
-            input,
-            destination,
-            &boundaries[..middle],
-            &values[..middle + 1],
-            records,
-            functions,
-        );
-        build_threshold_tree(
-            definition,
-            &right,
-            input,
-            destination,
-            &boundaries[middle + 1..],
-            &values[middle + 1..],
-            records,
-            functions,
-        );
-        let mut commands = Vec::new();
-        if boundary > i32::MIN {
-            commands.push(format!(
-                "execute if score @s {input} matches ..{} run function {}:{left}",
-                boundary - 1,
-                definition.id.namespace()
-            ));
-        }
-        commands.push(format!(
-            "execute if score @s {input} matches {boundary}.. run function {}:{right}",
-            definition.id.namespace()
-        ));
-        commands
-    };
-    records.push(function_record(definition.id.namespace(), path, commands));
-}
-
-#[allow(clippy::too_many_arguments)]
-fn build_piecewise_tree(
-    definition: &ArchetypeDefinition,
-    path: &str,
-    input: &str,
-    destination: &str,
-    boundaries: &[i32],
-    values: &[String],
-    records: &mut Vec<crate::component::ComponentRecord>,
-    functions: &mut Vec<String>,
-) {
-    functions.push(path.to_owned());
-    let commands = if boundaries.is_empty() {
-        vec![format!(
-            "scoreboard players operation @s {destination} = @s {}",
-            values[0]
-        )]
-    } else {
-        let middle = boundaries.len() / 2;
-        let boundary = boundaries[middle];
-        let left = format!("{path}/l");
-        let right = format!("{path}/r");
-        build_piecewise_tree(
-            definition,
-            &left,
-            input,
-            destination,
-            &boundaries[..middle],
-            &values[..middle + 1],
-            records,
-            functions,
-        );
-        build_piecewise_tree(
-            definition,
-            &right,
-            input,
-            destination,
-            &boundaries[middle + 1..],
-            &values[middle + 1..],
-            records,
-            functions,
-        );
-        let mut commands = vec![format!(
-            "execute if score @s {input} matches ..{boundary} run function {}:{left}",
-            definition.id.namespace()
-        )];
-        if boundary < i32::MAX {
-            commands.push(format!(
-                "execute if score @s {input} matches {}.. run function {}:{right}",
-                boundary + 1,
-                definition.id.namespace()
-            ));
-        }
-        commands
-    };
-    records.push(function_record(definition.id.namespace(), path, commands));
-}
-
-fn scoreboard_value(
-    definition: &ArchetypeDefinition,
-    derivation: &str,
-    value: i64,
-) -> Result<i32, EntityDiagnostic> {
-    i32::try_from(value).map_err(|_| EntityDiagnostic::FixedPointOverflow {
-        archetype: definition.id.to_string(),
-        derivation: derivation.into(),
-        detail: format!("fixed-point unit `{value}` does not fit a Minecraft score"),
-    })
-}
-
-fn require_scoreboard_overflow(
-    definition: &ArchetypeDefinition,
-    lowered: &LoweredCurve,
-    overflow: OverflowPolicy,
-) -> Result<(), EntityDiagnostic> {
-    if overflow == OverflowPolicy::Error {
-        Ok(())
-    } else {
-        Err(EntityDiagnostic::UnsupportedProfile {
-            archetype: definition.id.to_string(),
-            property: lowered.target_objective().into(),
-            profile: "vanilla-scoreboard".into(),
-            reason: "runtime saturating arithmetic is not reliably representable".into(),
-        })
-    }
-}
-
-fn append_scaled_division(
-    definition: &ArchetypeDefinition,
-    objectives: &mut BTreeSet<String>,
-    commands: &mut Vec<String>,
-    destination: &str,
-    divisor: i64,
-    rounding: RoundingPolicy,
-    index: usize,
-) -> Result<(), EntityDiagnostic> {
-    let objective = constant_objective(definition, &format!("curve_divisor_{index}"), divisor)?;
-    objectives.insert(objective.clone());
-    commands.push(format!(
-        "scoreboard players set #value {objective} {divisor}"
-    ));
-    append_score_division(
-        definition,
-        objectives,
-        commands,
-        destination,
-        &format!("#value {objective}"),
-        rounding,
-        index,
-    )
-}
-
-#[allow(clippy::too_many_arguments)] // Lowering keeps each scoreboard operand explicit.
-fn append_scale_conversion(
-    definition: &ArchetypeDefinition,
-    objectives: &mut BTreeSet<String>,
-    commands: &mut Vec<String>,
-    destination: &str,
-    source_scale: i64,
-    target_scale: i64,
-    rounding: RoundingPolicy,
-    index: usize,
-) -> Result<(), EntityDiagnostic> {
-    debug_assert!(source_scale > 0 && target_scale > 0);
-    let common = gcd(source_scale, target_scale);
-    let multiplier = target_scale / common;
-    let divisor = source_scale / common;
-
-    if multiplier != 1 {
-        let objective = constant_objective(
-            definition,
-            &format!("curve_rescale_multiplier_{index}"),
-            multiplier,
-        )?;
-        objectives.insert(objective.clone());
-        commands.push(format!(
-            "scoreboard players set #value {objective} {multiplier}"
-        ));
-        commands.push(format!(
-            "scoreboard players operation @s {destination} *= #value {objective}"
-        ));
-    }
-    if divisor != 1 {
-        append_scaled_division(
-            definition,
-            objectives,
-            commands,
-            destination,
-            divisor,
-            rounding,
-            index,
-        )?;
-    }
-    Ok(())
-}
-
-fn gcd(mut left: i64, mut right: i64) -> i64 {
-    while right != 0 {
-        let remainder = left % right;
-        left = right;
-        right = remainder;
-    }
-    left.abs()
-}
-
-fn append_score_division(
-    definition: &ArchetypeDefinition,
-    objectives: &mut BTreeSet<String>,
-    commands: &mut Vec<String>,
-    destination: &str,
-    divisor: &str,
-    rounding: RoundingPolicy,
-    index: usize,
-) -> Result<(), EntityDiagnostic> {
-    let divisor = if divisor.starts_with("#value ") {
-        divisor.to_owned()
-    } else {
-        format!("@s {divisor}")
-    };
-    if divisor.starts_with("@s ") {
-        commands.push(format!(
-            "execute unless score {divisor} matches 1.. run return fail"
-        ));
-    }
-    let scratch = |role: &str| {
-        sand_commands::ObjectiveName::logical(format!(
-            "{}.division.{index}.{destination}.{role}",
-            definition.id
-        ))
-        .as_str()
-        .to_string()
-    };
-    let original = scratch("original");
-    let product = scratch("product");
-    let remainder = scratch("remainder");
-    objectives.extend([original.clone(), product.clone(), remainder.clone()]);
-    commands.push(format!(
-        "scoreboard players operation @s {original} = @s {destination}"
-    ));
-    commands.push(format!(
-        "scoreboard players operation @s {destination} /= {divisor}"
-    ));
-    commands.push(format!(
-        "scoreboard players operation @s {product} = @s {destination}"
-    ));
-    commands.push(format!(
-        "scoreboard players operation @s {product} *= {divisor}"
-    ));
-    commands.push(format!(
-        "scoreboard players operation @s {remainder} = @s {original}"
-    ));
-    commands.push(format!(
-        "scoreboard players operation @s {remainder} -= @s {product}"
-    ));
-    match rounding {
-        RoundingPolicy::Floor => {}
-        RoundingPolicy::TowardZero => commands.push(format!(
-            "execute if score @s {original} matches ..-1 if score @s {remainder} matches 1.. run scoreboard players add @s {destination} 1"
-        )),
-        RoundingPolicy::Ceiling => commands.push(format!(
-            "execute if score @s {remainder} matches 1.. run scoreboard players add @s {destination} 1"
-        )),
-        RoundingPolicy::NearestTiesAwayFromZero | RoundingPolicy::NearestTiesToEven => {
-            let half = scratch("half_divisor");
-            let divisor_parity = scratch("divisor_parity");
-            let two = constant_objective(definition, "curve_two", 2)?;
-            objectives.extend([half.clone(), divisor_parity.clone(), two.clone()]);
-            commands.push(format!("scoreboard players set #value {two} 2"));
-            commands.push(format!(
-                "scoreboard players operation @s {half} = {divisor}"
-            ));
-            commands.push(format!(
-                "scoreboard players operation @s {half} /= #value {two}"
-            ));
-            commands.push(format!(
-                "scoreboard players operation @s {divisor_parity} = {divisor}"
-            ));
-            commands.push(format!(
-                "scoreboard players operation @s {divisor_parity} %= #value {two}"
-            ));
-            commands.push(format!(
-                "execute if score @s {remainder} > @s {half} run scoreboard players add @s {destination} 1"
-            ));
-            if rounding == RoundingPolicy::NearestTiesAwayFromZero {
-                commands.push(format!(
-                    "execute if score @s {original} matches 0.. if score @s {remainder} = @s {half} if score @s {divisor_parity} matches 0 run scoreboard players add @s {destination} 1"
-                ));
-            } else {
-                let parity = scratch("parity");
-                objectives.insert(parity.clone());
-                commands.push(format!(
-                    "scoreboard players operation @s {parity} = @s {destination}"
-                ));
-                commands.push(format!(
-                    "scoreboard players operation @s {parity} %= #value {two}"
-                ));
-                commands.push(format!(
-                    "execute if score @s {remainder} = @s {half} if score @s {divisor_parity} matches 0 unless score @s {parity} matches 0 run scoreboard players add @s {destination} 1"
-                ));
-            }
-        }
-    }
-    Ok(())
-}
-
-fn constant_objective(
-    definition: &ArchetypeDefinition,
-    role: &str,
-    value: i64,
-) -> Result<String, EntityDiagnostic> {
-    scoreboard_value(definition, role, value)?;
-    Ok(
-        sand_commands::ObjectiveName::logical(format!("{}.{}.{}", definition.id, role, value))
-            .as_str()
-            .to_string(),
-    )
-}
-
 fn compile_property(
     definition: &ArchetypeDefinition,
     fields: &ArchetypeFields,
@@ -4411,7 +3729,11 @@ fn compile_property(
         }
     };
 
-    records.push(function_record(definition.id.namespace(), &path, commands));
+    records.push(ComponentRecord::function(
+        definition.id.namespace(),
+        &path,
+        commands,
+    ));
     let writable = ownership.claims_write_ownership();
     let initialize_function = writable.then(|| function.clone());
     let observation_interval = match property {
@@ -4507,7 +3829,7 @@ fn lower_attribute(
                     format!("data remove storage {storage} {args}"),
                     format!("data remove storage {storage} args"),
                 ],
-                records: vec![function_record(
+                records: vec![ComponentRecord::function(
                     definition.id.namespace(),
                     &helper,
                     vec![format!(
@@ -4572,7 +3894,7 @@ fn lower_attribute_modifier(
                     format!("data remove storage {storage} {args}"),
                     format!("data remove storage {storage} args"),
                 ],
-                records: vec![function_record(
+                records: vec![ComponentRecord::function(
                     definition.id.namespace(),
                     &helper,
                     vec![format!(
@@ -4744,7 +4066,7 @@ fn lower_health(
     ));
     Ok(NativeLowering {
         commands,
-        records: vec![function_record(
+        records: vec![ComponentRecord::function(
             definition.id.namespace(),
             &helper,
             vec!["$attribute @s minecraft:max_health base set $(value)".into()],
@@ -4843,7 +4165,7 @@ fn lower_name(
         ));
         Ok(NativeLowering {
             commands: setup,
-            records: vec![function_record(
+            records: vec![ComponentRecord::function(
                 definition.id.namespace(),
                 &helper,
                 vec![format!(
@@ -5079,21 +4401,6 @@ fn validate_definition(definition: &ArchetypeDefinition) -> Result<(), EntityDia
         });
     }
     Ok(())
-}
-
-fn function_record(
-    namespace: &str,
-    path: &str,
-    commands: Vec<String>,
-) -> crate::component::ComponentRecord {
-    crate::component::ComponentRecord {
-        namespace: namespace.to_string(),
-        dir: "function".into(),
-        path: path.to_string(),
-        ext: "mcfunction".into(),
-        content_type: "text".into(),
-        content: commands.join("\n"),
-    }
 }
 
 fn initialized_tag(id: &str) -> String {
@@ -5980,6 +5287,51 @@ mod tests {
         );
         assert!(ratio.contains(&format!("*= @s {}", HEALTH.objective())));
         assert!(ratio.contains("matches 1.. run scoreboard players operation"));
+    }
+
+    #[test]
+    fn bound_current_sources_preserve_derivation_output_and_cycle_detection() {
+        let base = EntityArchetype::<ZombieKind>::new(
+            ResourceLocation::new("rpg", "bound_inputs").unwrap(),
+        )
+        .components::<MobState>();
+        let unbound = base
+            .clone()
+            .derive(HEALTH, StatCurve::state(LEVEL))
+            .definition();
+        let bound = base
+            .clone()
+            .derive(HEALTH, StatCurve::from(LEVEL.bind()))
+            .definition();
+        assert_eq!(
+            compile_definition(&unbound, &profile()).unwrap().records,
+            compile_definition(&bound, &profile()).unwrap().records
+        );
+        let cycle = base
+            .derive(HEALTH, StatCurve::from(LEVEL.bind()))
+            .derive(LEVEL, StatCurve::from(HEALTH.bind()))
+            .definition();
+        let error = compile_definition(&cycle, &profile())
+            .unwrap_err()
+            .to_string();
+        assert!(error.contains("cycle"), "{error}");
+        assert!(error.contains(&LEVEL.objective()), "{error}");
+        assert!(error.contains(&HEALTH.objective()), "{error}");
+    }
+
+    #[test]
+    fn archetype_derivations_reject_unobserved_cross_holder_sources() {
+        let definition = EntityArchetype::<ZombieKind>::new(
+            ResourceLocation::new("rpg", "foreign_input").unwrap(),
+        )
+        .components::<MobState>()
+        .derive(HEALTH, StatCurve::from(LEVEL.bind_to("#global", false)))
+        .definition();
+        let error = compile_definition(&definition, &profile())
+            .unwrap_err()
+            .to_string();
+        assert!(error.contains("#global"), "{error}");
+        assert!(error.contains("cross-holder change observation"), "{error}");
     }
 
     #[test]

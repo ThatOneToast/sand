@@ -22,7 +22,7 @@ fn strict_event(event @ _: Pulse) {
 
 #[system]
 fn free(query: Health) {
-    query.each(|_health| Vec::new());
+    query.each(|_health| sand::command::Actions::default());
 }
 
 struct Systems;
@@ -31,13 +31,13 @@ struct Systems;
 impl Systems {
     #[tick]
     fn tick(query: Health) {
-        query.each(|_health| Vec::new());
+        query.each(|_health| sand::command::Actions::default());
     }
 
     #[event(Pulse)]
     #[expect(unused_mut)]
     fn event(_event: Pulse, mut query: Health) {
-        query.current(|_health| Vec::new());
+        query.current(|_health| sand::command::Actions::default());
     }
 }
 

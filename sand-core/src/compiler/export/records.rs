@@ -30,6 +30,19 @@ pub struct ComponentRecord {
     pub content: String,
 }
 
+impl ComponentRecord {
+    pub(crate) fn function(namespace: &str, path: &str, commands: Vec<String>) -> Self {
+        Self {
+            namespace: namespace.to_string(),
+            dir: "function".into(),
+            path: path.to_string(),
+            ext: "mcfunction".into(),
+            content_type: "text".into(),
+            content: commands.join("\n"),
+        }
+    }
+}
+
 /// Error returned by [`try_export_components`](super::try_export_components) when a registered component fails
 /// validation or serialization.
 pub type ExportResult<T> = std::result::Result<T, ComponentExportError>;

@@ -1,7 +1,7 @@
 error[E0277]: global State is a singleton resource and cannot be used as an entity query
   --> tests/cases/fail_global_state_query.rs:11:11
    |
-11 |     query.each(|_| Vec::new());
+11 |     query.each(|_| sand::command::Actions::default());
    |           ^^^^ use the generated `global()` accessor for global State
    |
    = help: the trait `sand::__private::QueryableStateScope` is not implemented for `sand::__private::GlobalStateScope`
@@ -69,7 +69,7 @@ help: the trait `sand::__private::GeneratedSystemQueryParameter` is not implemen
 note: required by a bound in `sand::__private::lower_system_query_each`
   --> $WORKSPACE/sand-core/src/entity/query.rs
    |
-   | pub fn lower_system_query_each<Q, F>(body: F) -> Vec<String>
+   | pub fn lower_system_query_each<Q, F, R: IntoCommands>(body: F) -> Actions
    |        ----------------------- required by a bound in this function
    | where
    |     Q: SystemQueryParameter,

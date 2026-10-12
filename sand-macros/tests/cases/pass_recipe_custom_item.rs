@@ -1,3 +1,4 @@
+mod actions_support;
 // Canonical recipe: typed CustomItem with food/consumable properties used
 // inside a #[function]. Demonstrates public item-building API and cmd::give.
 use sand_core::prelude::*;
@@ -38,7 +39,7 @@ fn main() {
         "consumable component missing: {snbt}"
     );
 
-    let kit_cmds = give_starter_kit();
+    let kit_cmds = actions_support::emitted(give_starter_kit());
     assert!(
         kit_cmds
             .iter()

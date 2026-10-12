@@ -1,3 +1,4 @@
+mod actions_support;
 use sand_core::mcfunction;
 use sand_macros::function;
 
@@ -11,7 +12,7 @@ fn tick() {
 }
 
 fn main() {
-    let cmds = tick();
+    let cmds = actions_support::emitted(tick());
     assert_eq!(cmds.len(), 3);
     assert!(cmds[0].contains("scoreboard"));
 }

@@ -1,3 +1,4 @@
+mod actions_support;
 use sand_core::prelude::*;
 use sand_macros::function;
 
@@ -15,5 +16,5 @@ fn boss_warning() {
 }
 
 fn main() {
-    assert!(boss_warning().iter().any(|line| line.starts_with("bossbar")));
+    assert!(actions_support::emitted(boss_warning()).iter().any(|line| line.starts_with("bossbar")));
 }

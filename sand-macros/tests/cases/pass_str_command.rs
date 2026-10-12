@@ -1,3 +1,4 @@
+mod actions_support;
 use sand_macros::function;
 
 // A bare &str expression should work as a raw command string.
@@ -7,7 +8,7 @@ fn my_func() {
 }
 
 fn main() {
-    let cmds = my_func();
+    let cmds = actions_support::emitted(my_func());
     assert_eq!(cmds.len(), 1);
     assert_eq!(cmds[0], "say hello");
 }

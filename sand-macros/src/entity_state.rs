@@ -1411,23 +1411,17 @@ pub(crate) fn derive_query(input: DeriveInput) -> syn::Result<proc_macro2::Token
                 contracts.push(contract);
                 optional_methods.push(quote! {
                     #docs
-                    pub fn #field_ident(
+                    pub fn #field_ident<R: ::sand::component::IntoCommands>(
                         &self,
-                        body: impl FnOnce(<#ty as ::sand::__private::StateBundleMember>::Bound) -> Vec<String>,
-                    ) -> Vec<String> {
-                        let requirements = <#ty as ::sand::__private::StateBundleMember>::presence_requirements();
-                        let commands = body(<#ty as ::sand::__private::StateBundleMember>::bind_member("@s"));
-                        commands
-                            .into_iter()
-                            .map(|command| {
-                                let guards = requirements
-                                    .iter()
-                                    .map(|(objective, version)| format!("if score @s {objective} matches {version}"))
-                                    .collect::<Vec<_>>()
-                                    .join(" ");
-                                format!("execute {guards} run {command}")
-                            })
-                            .collect()
+                        body: impl FnOnce(<#ty as ::sand::__private::StateBundleMember>::Bound) -> R,
+                    ) -> ::sand::command::Actions {
+                        ::sand::__private::lower_state_query_current(
+                            None,
+                            <#ty as ::sand::__private::StateBundleMember>::presence_requirements(),
+                            Vec::new(),
+                            <#ty as ::sand::__private::StateBundleMember>::bind_member("@s"),
+                            body,
+                        )
                     }
                 });
             }
@@ -1552,7 +1546,7 @@ pub(crate) fn derive_query(input: DeriveInput) -> syn::Result<proc_macro2::Token
 
         impl #ident {
             #each_docs
-            pub fn each(body: impl FnOnce(#item_ident) -> Vec<String>) -> Vec<String> {
+            pub fn each<R: ::sand::component::IntoCommands>(body: impl FnOnce(#item_ident) -> R) -> ::sand::command::Actions {
                 let mut requirements: Vec<(String, u32)> = Vec::new();
                 #(#required)*
                 let mut forbidden: Vec<(String, u32)> = Vec::new();
@@ -1568,7 +1562,7 @@ pub(crate) fn derive_query(input: DeriveInput) -> syn::Result<proc_macro2::Token
 
 
             #current_docs
-            pub fn current(body: impl FnOnce(#item_ident) -> Vec<String>) -> Vec<String> {
+            pub fn current<R: ::sand::component::IntoCommands>(body: impl FnOnce(#item_ident) -> R) -> ::sand::command::Actions {
                 let mut requirements: Vec<(String, u32)> = Vec::new();
                 #(#required)*
                 let mut forbidden: Vec<(String, u32)> = Vec::new();
@@ -1586,12 +1580,12 @@ pub(crate) fn derive_query(input: DeriveInput) -> syn::Result<proc_macro2::Token
         impl ::sand::__private::StateQuerySpec for #ident {
             type Item = #item_ident;
 
-            fn each(body: impl FnOnce(Self::Item) -> Vec<String>) -> Vec<String> {
+            fn each<R: ::sand::component::IntoCommands>(body: impl FnOnce(Self::Item) -> R) -> ::sand::command::Actions {
                 Self::each(body)
             }
 
 
-            fn current(body: impl FnOnce(Self::Item) -> Vec<String>) -> Vec<String> {
+            fn current<R: ::sand::component::IntoCommands>(body: impl FnOnce(Self::Item) -> R) -> ::sand::command::Actions {
                 Self::current(body)
             }
         }

@@ -1,3 +1,4 @@
+mod actions_support;
 use sand_core::prelude::*;
 use sand_core::advanced::state::{Cooldown, ScoreVar};
 use sand_core::StorageVar;
@@ -42,9 +43,9 @@ pub fn cast_dash() {
 }
 
 fn main() {
-    assert!(load().iter().any(|cmd| cmd.contains("scoreboard objectives add")));
-    assert!(tick().iter().any(|cmd| cmd.contains("title @s actionbar")));
-    assert!(cast_dash()
+    assert!(actions_support::emitted(load()).iter().any(|cmd| cmd.contains("scoreboard objectives add")));
+    assert!(actions_support::emitted(tick()).iter().any(|cmd| cmd.contains("title @s actionbar")));
+    assert!(actions_support::emitted(cast_dash())
         .iter()
         .any(|cmd| cmd == "function other_pack:api/after_dash"));
 }

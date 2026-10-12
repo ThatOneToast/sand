@@ -109,7 +109,7 @@ mod tests {
 
     #[test]
     fn lvl_load_defines_souls_and_cooldown_objectives() {
-        let cmds = lvl_load();
+        let cmds = crate::test_support::emitted(lvl_load());
         assert!(
             cmds.iter().any(|c| c.contains("lvl_souls")),
             "load should define souls objective: {cmds:?}"
@@ -122,7 +122,7 @@ mod tests {
 
     #[test]
     fn lvl_tick_decrements_cooldown() {
-        let cmds = lvl_tick();
+        let cmds = crate::test_support::emitted(lvl_tick());
         assert!(
             cmds.iter().any(|c| c.contains("lvl_reward_cd")),
             "tick should decrement burst-collapse cooldown: {cmds:?}"
@@ -158,7 +158,7 @@ mod tests {
 
     #[test]
     fn lvl_grant_reward_commands_add_soul_and_start_cooldown() {
-        let cmds = lvl_grant_reward();
+        let cmds = crate::test_support::emitted(lvl_grant_reward());
         assert!(
             cmds.iter().any(|c| c.contains("lvl_souls")),
             "reward should add to souls scoreboard: {cmds:?}"
@@ -178,7 +178,7 @@ mod tests {
         let _guard = dyn_fn_test_lock();
         let _ = drain_dyn_fns();
 
-        let cmds = on_level_up();
+        let cmds = crate::test_support::emitted(on_level_up());
 
         // when(...).then_all([...]) emits a branch reference, not inline commands.
         let branch_cmds: Vec<_> = cmds
@@ -194,7 +194,9 @@ mod tests {
         assert!(
             branches
                 .iter()
-                .any(|(_, cmds)| cmds.iter().any(|c| c.contains("lvl_grant_reward"))),
+                .any(|(_, cmds)| crate::test_support::emitted(cmds.clone())
+                    .iter()
+                    .any(|c| c.contains("lvl_grant_reward"))),
             "branch should call lvl_grant_reward: {branches:?}"
         );
     }
@@ -204,7 +206,7 @@ mod tests {
         let _guard = dyn_fn_test_lock();
         let _ = drain_dyn_fns();
 
-        let cmds = on_level_up();
+        let cmds = crate::test_support::emitted(on_level_up());
         let init_idx = cmds
             .iter()
             .position(|c| {

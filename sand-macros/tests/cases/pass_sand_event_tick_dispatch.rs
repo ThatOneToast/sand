@@ -1,3 +1,4 @@
+mod actions_support;
 // Canonical typed SandEvent: structured tick dispatch via SandEventDispatch::tick(),
 // built from Sand's typed Condition/ScoreVar IR (not a hand-formatted string), plus
 // owned lifecycle setup (objectives + post-observation sync).
@@ -41,7 +42,7 @@ pub fn on_player_jump(event: PlayerJumpEvent) {
 }
 
 fn main() {
-    let commands = on_player_jump();
+    let commands = actions_support::emitted(on_player_jump());
     assert!(commands.iter().any(|cmd| cmd.contains("say jumped!")));
 
     let mut found = false;

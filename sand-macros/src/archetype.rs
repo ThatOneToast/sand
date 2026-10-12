@@ -266,13 +266,13 @@ pub(crate) fn derive(input: DeriveInput) -> syn::Result<proc_macro2::TokenStream
         impl ::sand::__private::GeneratedSystemQueryParameter for #owner {}
         impl ::sand::__private::StateQuerySpec for #owner {
             type Item = #bound;
-            fn each(body: impl FnOnce(Self::Item) -> Vec<String>) -> Vec<String> {
+            fn each<R: ::sand::component::IntoCommands>(body: impl FnOnce(Self::Item) -> R) -> ::sand::command::Actions {
                 ::sand::__private::lower_state_query_each(
                     ::sand::__private::entity::archetype::concrete::selection::<#kind>(&Self::__sand_archetype_id(), ::sand::__private::entity::archetype::concrete::Selector::all_entities()),
                     Self::__sand_archetype_requirements(), Vec::new(), Self::on(Default::default()), body,
                 )
             }
-            fn current(body: impl FnOnce(Self::Item) -> Vec<String>) -> Vec<String> {
+            fn current<R: ::sand::component::IntoCommands>(body: impl FnOnce(Self::Item) -> R) -> ::sand::command::Actions {
                 ::sand::__private::lower_state_query_current(
                     Some(::sand::__private::entity::archetype::concrete::selection::<#kind>(&Self::__sand_archetype_id(), ::sand::__private::entity::archetype::concrete::Selector::self_())),
                     Self::__sand_archetype_requirements(), Vec::new(), Self::on(Default::default()), body,

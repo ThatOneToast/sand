@@ -1,3 +1,4 @@
+mod actions_support;
 use sand_core::DatapackComponent;
 use sand_core::prelude::*;
 use sand_macros::{datapack_component, function};
@@ -42,7 +43,7 @@ fn main() {
     );
     assert_eq!(json["actions"][1]["action"]["dialog"], "__sand_local:rules");
     assert_eq!(
-        open_welcome_menu(),
+        actions_support::emitted(open_welcome_menu()),
         vec!["dialog show @s __sand_local:welcome"]
     );
 }

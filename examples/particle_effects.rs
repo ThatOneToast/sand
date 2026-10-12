@@ -194,7 +194,7 @@ pub fn rotating_ring_tick() {
         Execute::new()
             .as_(Target::players())
             .at(Target::self_())
-            .run(run_fn!({
+            .run_actions(run_fn!({
                 for cmd in &ParticleBuilder::new(Particle::dust_hex(0xFF4400, 1.0))
                     .speed(0.0)
                     .circle(1.5, 1.0, 24)

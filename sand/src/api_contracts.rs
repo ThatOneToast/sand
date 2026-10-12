@@ -303,7 +303,7 @@ register! {
     kind: Macro,
     signature: "run_fn!(...)",
     summary: "Creates a generated Sand function for an inline command sequence.",
-    context: "The macro gives a local sequence of command expressions a stable generated function identity so it can be scheduled, called, or registered without manually declaring a separate item.",
+    context: "The macro returns owned Actions for a function call. Captured anonymous bodies stay with the actions and are registered during every export. Use ExecuteExt::run_actions to apply execute modifiers without losing the body.",
     minecraft: "Exports the inline sequence as a generated .mcfunction and references it from the surrounding Sand output.",
     use_when: ["A command sequence needs a function reference but does not justify a named Rust function"],
     avoid_when: ["The sequence is part of the current function body or should be reusable by name"],

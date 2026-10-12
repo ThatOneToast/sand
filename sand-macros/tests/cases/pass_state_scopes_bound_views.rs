@@ -1,3 +1,4 @@
+mod actions_support;
 use sand::prelude::*;
 
 #[derive(State)]
@@ -85,5 +86,5 @@ fn main() {
     let _: Vec<String> = GlobalStateBundle::detach_global();
 
     let query = PlayersWithState::each(|item| item.state.health.add(1));
-    assert!(query[0].starts_with("execute as @a["));
+    assert!(actions_support::emitted(query)[0].starts_with("execute as @a["));
 }

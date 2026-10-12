@@ -21,6 +21,8 @@
 //! underlying registry must be safe for anyone else who uses it the same
 //! way `if_present` does).
 
+#[path = "support/actions.rs"]
+mod actions;
 use sand_core::condition::Condition;
 use sand_core::entity::EntityContext;
 use sand_core::entity::kind::PlayerKind;
@@ -42,19 +44,15 @@ impl SandEvent for OnAttackerRelationCheck {
         // The exact pattern that triggered the original bug: a
         // multi-command relation body wrapped via `if_present`, which
         // registers a dynamic function from inside `SandEvent::setup()`.
-        let commands = ctx
-            .attacker()
-            .if_present(|attacker| {
-                vec![
-                    "scoreboard players set @s p10_attacker_seen 1".to_string(),
-                    attacker
-                        .add_tag(&sand_core::entity::EntityTag::new("p10_seen_attacker").unwrap()),
-                ]
-            })
-            .expect("relation lowering succeeds");
+        let commands = ctx.attacker().if_present(|attacker| {
+            vec![
+                "scoreboard players set @s p10_attacker_seen 1".to_string(),
+                attacker.add_tag(&sand_core::entity::EntityTag::new("p10_seen_attacker").unwrap()),
+            ]
+        });
         EventSetup {
             objectives: vec!["scoreboard objectives add p10_trigger dummy".into()],
-            pre_observation: commands,
+            pre_observation: actions::emitted(commands),
             post_observation: vec!["scoreboard players set @s p10_trigger 0".into()],
         }
     }

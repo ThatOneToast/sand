@@ -1,3 +1,4 @@
+mod actions_support;
 use sand_core::event::trigger::UsingItemTrigger;
 use sand_core::prelude::*;
 use sand_core::advanced::state::{Cooldown, Flag, ScoreVar};
@@ -42,7 +43,7 @@ fn main() {
                     let guard = guard.expect("Event<T> guard must be typed Condition guard");
                     let condition = guard().expect("dash wand guard should be present");
                     let commands =
-                        sand_core::execute_when::unless(condition).then_one("return 0");
+                        actions_support::emitted(sand_core::execute_when::unless(condition).then_one("return 0"));
                     assert!(commands
                         .iter()
                         .any(|cmd| cmd.contains("score @s mana matches 25..")));

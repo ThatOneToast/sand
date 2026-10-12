@@ -17,15 +17,16 @@
 //!    available for compatibility and for advanced/modded selector syntax
 //!    Sand cannot yet type-check.
 
+use std::cell::RefCell;
 use std::collections::BTreeMap;
 use std::marker::PhantomData;
 use std::ops::RangeBounds;
-use std::sync::{Mutex, OnceLock};
 
 #[cfg(test)]
 use crate::condition::ConditionKind;
 use crate::condition::{Condition, ScoreCompareOp, ScoreRange};
 use crate::execute_when::Conditional;
+use crate::ir::{Actions, Cmd, ScoreOpKind, ScorePlayersOp};
 
 #[sand_macros::api(
     registry = sand_api_contract,
@@ -46,6 +47,25 @@ module = "sand::advanced::state",
 pub struct ScoreOperand {
     pub(crate) selector: String,
     pub(crate) objective: String,
+    setup: Option<ScoreOperandSetup>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+enum ScoreOperandSetup {
+    Constant(i32),
+    ExpressionTemporary,
+}
+
+impl ScoreOperand {
+    pub(crate) fn register_owned_setup(&self) {
+        match self.setup {
+            Some(ScoreOperandSetup::Constant(value)) => {
+                register_constant(&self.objective, &self.selector, value);
+            }
+            Some(ScoreOperandSetup::ExpressionTemporary) => request_expression_temp(),
+            None => {}
+        }
+    }
 }
 use crate::state::storage::StorageField;
 
@@ -274,6 +294,7 @@ impl<T> ScoreConst<T> {
         ScoreOperand {
             selector: holder,
             objective,
+            setup: Some(ScoreOperandSetup::Constant(self.value)),
         }
     }
 }
@@ -288,24 +309,31 @@ fn constant_holder(name: &str) -> String {
     format!("#sand_{prefix}_{:06x}", fnv1a(name) & 0xFF_FFFF)
 }
 
-fn constants_registry() -> &'static Mutex<BTreeMap<(String, String), i32>> {
-    static REGISTRY: OnceLock<Mutex<BTreeMap<(String, String), i32>>> = OnceLock::new();
-    REGISTRY.get_or_init(|| Mutex::new(BTreeMap::new()))
+type ConstantEntries = BTreeMap<(String, String), i32>;
+
+fn constants_registry() -> &'static std::thread::LocalKey<RefCell<ConstantEntries>> {
+    thread_local! {
+        static CONSTANTS: RefCell<ConstantEntries> = const { RefCell::new(BTreeMap::new()) };
+    }
+    &CONSTANTS
+}
+
+pub(crate) fn clear_constant_setup() {
+    constants_registry().with_borrow_mut(BTreeMap::clear);
 }
 
 fn register_constant(objective: &str, holder: &str, value: i32) {
-    let mut registry = constants_registry()
-        .lock()
-        .expect("score constant registry poisoned");
-    let key = (objective.to_string(), holder.to_string());
-    if let Some(existing) = registry.insert(key.clone(), value)
-        && existing != value
-    {
-        panic!(
-            "conflicting Sand score constant `{}` in objective `{}`: {existing} versus {value}",
-            holder, objective
-        );
-    }
+    constants_registry().with_borrow_mut(|registry| {
+        let key = (objective.to_string(), holder.to_string());
+        if let Some(existing) = registry.get(&key) {
+            assert_eq!(
+                *existing, value,
+                "conflicting Sand score constant `{holder}` in objective `{objective}`"
+            );
+        } else {
+            registry.insert(key, value);
+        }
+    });
 }
 
 fn score_constant_operand(prefix: &str, value: i32) -> ScoreOperand {
@@ -315,6 +343,7 @@ fn score_constant_operand(prefix: &str, value: i32) -> ScoreOperand {
     ScoreOperand {
         selector: holder,
         objective,
+        setup: Some(ScoreOperandSetup::Constant(value)),
     }
 }
 
@@ -325,29 +354,39 @@ fn score_set_command(target: &ScoreOperand, value: i32) -> String {
     )
 }
 
-fn score_operation_command(
+fn score_operation_actions(
     target: &ScoreOperand,
     op: ScoreOperation,
     source: &ScoreOperand,
-) -> String {
-    format!(
-        "scoreboard players operation {} {} {} {} {}",
-        target.selector,
-        target.objective,
-        op.as_str(),
-        source.selector,
-        source.objective
-    )
+) -> Actions {
+    let op = match op {
+        ScoreOperation::Assign => ScoreOpKind::Assign,
+        ScoreOperation::Add => ScoreOpKind::Add,
+        ScoreOperation::Sub => ScoreOpKind::Sub,
+        ScoreOperation::Mul => ScoreOpKind::Mul,
+        ScoreOperation::Div => ScoreOpKind::Div,
+        ScoreOperation::Mod => ScoreOpKind::Mod,
+        ScoreOperation::Min => ScoreOpKind::Min,
+        ScoreOperation::Max => ScoreOpKind::Max,
+        ScoreOperation::Swap => ScoreOpKind::Swap,
+    };
+    Actions(vec![Cmd::WithScoreOperands {
+        operands: vec![target.clone(), source.clone()],
+        run: Box::new(Cmd::ScorePlayers(ScorePlayersOp::Operation {
+            target: target.selector.clone(),
+            target_obj: target.objective.clone(),
+            op,
+            source: source.selector.clone(),
+            source_obj: source.objective.clone(),
+        })),
+    }])
 }
 
 /// Drain constant setup commands after all user command factories have run.
 /// This is consumed by the export pipeline, not by user code.
 #[doc(hidden)]
 pub fn drain_constant_setup() -> Vec<String> {
-    let mut registry = constants_registry()
-        .lock()
-        .expect("score constant registry poisoned");
-    let entries = std::mem::take(&mut *registry);
+    let entries = constants_registry().with_borrow_mut(std::mem::take);
     let mut objectives = entries
         .keys()
         .map(|(objective, _)| objective.clone())
@@ -1322,16 +1361,20 @@ impl<'a, T> ScoreRef<'a, T> {
         ScoreOperand {
             selector: self.selector.clone(),
             objective: self.obj(),
+            setup: None,
         }
     }
 
-    fn operation<O: Into<ScoreOperand>>(self, op: ScoreOperation, other: O) -> String {
+    fn operation<O: Into<ScoreOperand>>(self, op: ScoreOperation, other: O) -> Actions {
         let left = self.operand();
         let right = other.into();
-        score_operation_command(&left, op, &right)
+        score_operation_actions(&left, op, &right)
     }
 
     /// Assign this score from another score entry (`=`).
+    ///
+    /// Score-operand operations return owned [`Actions`], retaining constants
+    /// and other compiler-managed setup when cached or exported repeatedly.
     #[sand_macros::api(
         registry = sand_api_contract,
         path = "sand::advanced::state::ScoreRef::assign",
@@ -1344,10 +1387,10 @@ impl<'a, T> ScoreRef<'a, T> {
         use_when = ["Working with typed gameplay state or composing state transitions"],
         avoid_when = ["Manually reproducing metadata generated by #[derive(State)]"],
         params(other = "`other` is used to assign this score from another score entry (`=`)."),
-        returns = "The string value produced to assign this score from another score entry (`=`).",
+        returns = "Owned Actions retaining operand setup, produced to assign this score from another score entry (`=`).",
         example = "use sand::advanced::state::*;\n\nfn demonstrate<'a, T: 'static, O : Into < sand::advanced::state::ScoreOperand > + 'static>(score_ref_value: sand::advanced::state::ScoreRef < 'a , T >, other: O)  {\n    let assign = score_ref_value.assign::<O>(other);\n}",
     )]
-    pub fn assign<O: Into<ScoreOperand>>(self, other: O) -> String {
+    pub fn assign<O: Into<ScoreOperand>>(self, other: O) -> Actions {
         self.operation(ScoreOperation::Assign, other)
     }
 
@@ -1364,10 +1407,10 @@ impl<'a, T> ScoreRef<'a, T> {
         use_when = ["Working with typed gameplay state or composing state transitions"],
         avoid_when = ["Manually reproducing metadata generated by #[derive(State)]"],
         params(other = "`other` provides the other added when building another score entry (`+=`)."),
-        returns = "The string value produced to add another score entry (`+=`).",
+        returns = "Owned Actions retaining operand setup, produced to add another score entry (`+=`).",
         example = "use sand::advanced::state::*;\n\nfn demonstrate<'a, T: 'static, O : Into < sand::advanced::state::ScoreOperand > + 'static>(score_ref_value: sand::advanced::state::ScoreRef < 'a , T >, other: O)  {\n    let add_score = score_ref_value.add_score::<O>(other);\n}",
     )]
-    pub fn add_score<O: Into<ScoreOperand>>(self, other: O) -> String {
+    pub fn add_score<O: Into<ScoreOperand>>(self, other: O) -> Actions {
         self.operation(ScoreOperation::Add, other)
     }
 
@@ -1384,10 +1427,10 @@ impl<'a, T> ScoreRef<'a, T> {
         use_when = ["Working with typed gameplay state or composing state transitions"],
         avoid_when = ["Manually reproducing metadata generated by #[derive(State)]"],
         params(other = "`other` is used to subtract another score entry (`-=`)."),
-        returns = "The string value produced to subtract another score entry (`-=`).",
+        returns = "Owned Actions retaining operand setup, produced to subtract another score entry (`-=`).",
         example = "use sand::advanced::state::*;\n\nfn demonstrate<'a, T: 'static, O : Into < sand::advanced::state::ScoreOperand > + 'static>(score_ref_value: sand::advanced::state::ScoreRef < 'a , T >, other: O)  {\n    let sub_score = score_ref_value.sub_score::<O>(other);\n}",
     )]
-    pub fn sub_score<O: Into<ScoreOperand>>(self, other: O) -> String {
+    pub fn sub_score<O: Into<ScoreOperand>>(self, other: O) -> Actions {
         self.operation(ScoreOperation::Sub, other)
     }
 
@@ -1404,10 +1447,10 @@ impl<'a, T> ScoreRef<'a, T> {
         use_when = ["Working with typed gameplay state or composing state transitions"],
         avoid_when = ["Manually reproducing metadata generated by #[derive(State)]"],
         params(other = "`other` is used to multiply by another score entry (`*=`)."),
-        returns = "The string value produced to multiply by another score entry (`*=`).",
+        returns = "Owned Actions retaining operand setup, produced to multiply by another score entry (`*=`).",
         example = "use sand::advanced::state::*;\n\nfn demonstrate<'a, T: 'static, O : Into < sand::advanced::state::ScoreOperand > + 'static>(score_ref_value: sand::advanced::state::ScoreRef < 'a , T >, other: O)  {\n    let mul_score = score_ref_value.mul_score::<O>(other);\n}",
     )]
-    pub fn mul_score<O: Into<ScoreOperand>>(self, other: O) -> String {
+    pub fn mul_score<O: Into<ScoreOperand>>(self, other: O) -> Actions {
         self.operation(ScoreOperation::Mul, other)
     }
 
@@ -1425,10 +1468,10 @@ impl<'a, T> ScoreRef<'a, T> {
         use_when = ["Working with typed gameplay state or composing state transitions"],
         avoid_when = ["Manually reproducing metadata generated by #[derive(State)]"],
         params(other = "`other` is used to divide by another score entry (`/=`). Scoreboard math is integer-only; division by zero remains a vanilla runtime error."),
-        returns = "The string value produced to divide by another score entry (`/=`). Scoreboard math is integer-only; division by zero remains a vanilla runtime error.",
+        returns = "Owned Actions retaining operand setup, produced to divide by another score entry (`/=`). Scoreboard math is integer-only; division by zero remains a vanilla runtime error.",
         example = "use sand::advanced::state::*;\n\nfn demonstrate<'a, T: 'static, O : Into < sand::advanced::state::ScoreOperand > + 'static>(score_ref_value: sand::advanced::state::ScoreRef < 'a , T >, other: O)  {\n    let div_score = score_ref_value.div_score::<O>(other);\n}",
     )]
-    pub fn div_score<O: Into<ScoreOperand>>(self, other: O) -> String {
+    pub fn div_score<O: Into<ScoreOperand>>(self, other: O) -> Actions {
         self.operation(ScoreOperation::Div, other)
     }
 
@@ -1446,10 +1489,10 @@ impl<'a, T> ScoreRef<'a, T> {
         use_when = ["Working with typed gameplay state or composing state transitions"],
         avoid_when = ["Manually reproducing metadata generated by #[derive(State)]"],
         params(other = "`other` is used to modulo another score entry (`%=`). Modulo by zero remains a vanilla runtime error."),
-        returns = "The string value produced to modulo another score entry (`%=`). Modulo by zero remains a vanilla runtime error.",
+        returns = "Owned Actions retaining operand setup, produced to modulo another score entry (`%=`). Modulo by zero remains a vanilla runtime error.",
         example = "use sand::advanced::state::*;\n\nfn demonstrate<'a, T: 'static, O : Into < sand::advanced::state::ScoreOperand > + 'static>(score_ref_value: sand::advanced::state::ScoreRef < 'a , T >, other: O)  {\n    let mod_score = score_ref_value.mod_score::<O>(other);\n}",
     )]
-    pub fn mod_score<O: Into<ScoreOperand>>(self, other: O) -> String {
+    pub fn mod_score<O: Into<ScoreOperand>>(self, other: O) -> Actions {
         self.operation(ScoreOperation::Mod, other)
     }
 
@@ -1466,10 +1509,10 @@ impl<'a, T> ScoreRef<'a, T> {
         use_when = ["Working with typed gameplay state or composing state transitions"],
         avoid_when = ["Manually reproducing metadata generated by #[derive(State)]"],
         params(other = "`other` is used to keep the minimum of this and another score entry (`<`)."),
-        returns = "The string value produced to keep the minimum of this and another score entry (`<`).",
+        returns = "Owned Actions retaining operand setup, produced to keep the minimum of this and another score entry (`<`).",
         example = "use sand::advanced::state::*;\n\nfn demonstrate<'a, T: 'static, O : Into < sand::advanced::state::ScoreOperand > + 'static>(score_ref_value: sand::advanced::state::ScoreRef < 'a , T >, other: O)  {\n    let min_score = score_ref_value.min_score::<O>(other);\n}",
     )]
-    pub fn min_score<O: Into<ScoreOperand>>(self, other: O) -> String {
+    pub fn min_score<O: Into<ScoreOperand>>(self, other: O) -> Actions {
         self.operation(ScoreOperation::Min, other)
     }
 
@@ -1486,10 +1529,10 @@ impl<'a, T> ScoreRef<'a, T> {
         use_when = ["Working with typed gameplay state or composing state transitions"],
         avoid_when = ["Manually reproducing metadata generated by #[derive(State)]"],
         params(other = "`other` is used to keep the maximum of this and another score entry (`>`)."),
-        returns = "The string value produced to keep the maximum of this and another score entry (`>`).",
+        returns = "Owned Actions retaining operand setup, produced to keep the maximum of this and another score entry (`>`).",
         example = "use sand::advanced::state::*;\n\nfn demonstrate<'a, T: 'static, O : Into < sand::advanced::state::ScoreOperand > + 'static>(score_ref_value: sand::advanced::state::ScoreRef < 'a , T >, other: O)  {\n    let max_score = score_ref_value.max_score::<O>(other);\n}",
     )]
-    pub fn max_score<O: Into<ScoreOperand>>(self, other: O) -> String {
+    pub fn max_score<O: Into<ScoreOperand>>(self, other: O) -> Actions {
         self.operation(ScoreOperation::Max, other)
     }
 
@@ -1506,48 +1549,50 @@ impl<'a, T> ScoreRef<'a, T> {
         use_when = ["Working with typed gameplay state or composing state transitions"],
         avoid_when = ["Manually reproducing metadata generated by #[derive(State)]"],
         params(other = "`other` is used to swap this score entry with another (`><`)."),
-        returns = "The string value produced to swap this score entry with another (`><`).",
+        returns = "Owned Actions retaining operand setup, produced to swap this score entry with another (`><`).",
         example = "use sand::advanced::state::*;\n\nfn demonstrate<'a, T: 'static, O : Into < sand::advanced::state::ScoreOperand > + 'static>(score_ref_value: sand::advanced::state::ScoreRef < 'a , T >, other: O)  {\n    let swap = score_ref_value.swap::<O>(other);\n}",
     )]
-    pub fn swap<O: Into<ScoreOperand>>(self, other: O) -> String {
+    pub fn swap<O: Into<ScoreOperand>>(self, other: O) -> Actions {
         self.operation(ScoreOperation::Swap, other)
     }
 
     /// Set this score to `value * percent / 100`.
     ///
-    /// Scoreboard math is integer-only, so the final division truncates toward
-    /// zero. Sand registers the generated percentage constants automatically.
+    /// Scoreboard math is integer-only, so the final division rounds toward
+    /// negative infinity. Sand registers the generated percentage constants automatically.
     #[sand_macros::api(
         registry = sand_api_contract,
         path = "sand::advanced::state::ScoreRef::set_percent",
         aliases = [],
         module = "sand::advanced::state",
         kind = "method",
-        summary = "Set this score to `value * percent / 100`. Scoreboard math is integer-only, so the final division truncates toward zero. Sand registers the generated percentage constants automatically.",
-        context = "Set this score to `value * percent / 100`. Scoreboard math is integer-only, so the final division truncates toward zero. Sand registers the generated percentage constants automatically. This declaration provides the typed scoreboard or lifecycle primitives used directly and by #[derive(State)]; generated schema registration remains private.",
-        minecraft = "Scoreboard math is integer-only, so the final division truncates toward zero. Sand registers the generated percentage constants automatically.",
+        summary = "Set this score to `value * percent / 100`. Scoreboard math is integer-only, so the final division rounds toward negative infinity. Sand registers the generated percentage constants automatically.",
+        context = "Set this score to `value * percent / 100`. Scoreboard math is integer-only, so the final division rounds toward negative infinity. Sand registers the generated percentage constants automatically. This declaration provides the typed scoreboard or lifecycle primitives used directly and by #[derive(State)]; generated schema registration remains private.",
+        minecraft = "Scoreboard math is integer-only, so the final division rounds toward negative infinity. Sand registers the generated percentage constants automatically.",
         use_when = ["Working with typed gameplay state or composing state transitions"],
         avoid_when = ["Manually reproducing metadata generated by #[derive(State)]"],
-        params(value = "`value` provides the value being applied or compared used to set this score to `value * percent / 100`. Scoreboard math is integer-only, so the final division truncates toward zero. Sand registers the generated percentage constants automatically.", percent = "`percent` provides the percent applied when setting this score to `value * percent / 100`. Scoreboard math is integer-only, so the final division truncates toward zero. Sand registers the generated percentage constants automatically."),
-        returns = "The ordered values produced to set this score to `value * percent / 100`. Scoreboard math is integer-only, so the final division truncates toward zero. Sand registers the generated percentage constants automatically.",
+        params(value = "`value` provides the value being applied or compared used to set this score to `value * percent / 100`. Scoreboard math is integer-only, so the final division rounds toward negative infinity. Sand registers the generated percentage constants automatically.", percent = "`percent` provides the percent applied when setting this score to `value * percent / 100`. Scoreboard math is integer-only, so the final division rounds toward negative infinity. Sand registers the generated percentage constants automatically."),
+        returns = "Owned Actions retaining operand setup, produced to set this score to `value * percent / 100`. Scoreboard math is integer-only, so the final division rounds toward negative infinity. Sand registers the generated percentage constants automatically.",
         example = "use sand::advanced::state::*;\n\nfn demonstrate<'a, T: 'static, O : Into < sand::advanced::state::ScoreOperand > + 'static>(score_ref_value: sand::advanced::state::ScoreRef < 'a , T >, value: O, percent: i32)  {\n    let values = score_ref_value.set_percent::<O>(value, percent);\n}",
     )]
-    pub fn set_percent<O: Into<ScoreOperand>>(self, value: O, percent: i32) -> Vec<String> {
+    pub fn set_percent<O: Into<ScoreOperand>>(self, value: O, percent: i32) -> Actions {
         let target = self.operand();
         let value = value.into();
         let percent = score_constant_operand("score_percent", percent);
         let hundred = score_constant_operand("score_percent_denominator", 100);
-        vec![
-            score_operation_command(&target, ScoreOperation::Assign, &value),
-            score_operation_command(&target, ScoreOperation::Mul, &percent),
-            score_operation_command(&target, ScoreOperation::Div, &hundred),
+        [
+            score_operation_actions(&target, ScoreOperation::Assign, &value),
+            score_operation_actions(&target, ScoreOperation::Mul, &percent),
+            score_operation_actions(&target, ScoreOperation::Div, &hundred),
         ]
+        .into_iter()
+        .collect()
     }
 
     /// Scale this score in place by `percent / 100`.
     ///
-    /// Scoreboard math is integer-only, so the final division truncates toward
-    /// zero. Use [`ScoreRef::set_percent`] when the source and destination are
+    /// Scoreboard math is integer-only, so the final division rounds toward
+    /// negative infinity. Use [`ScoreRef::set_percent`] when the source and destination are
     /// different scores.
     #[sand_macros::api(
         registry = sand_api_contract,
@@ -1555,23 +1600,25 @@ impl<'a, T> ScoreRef<'a, T> {
         aliases = [],
         module = "sand::advanced::state",
         kind = "method",
-        summary = "Scale this score in place by `percent / 100`. Scoreboard math is integer-only, so the final division truncates toward zero. Use [`ScoreRef::set_percent`] when the source and destination are different scores.",
-        context = "Scale this score in place by `percent / 100`. Scoreboard math is integer-only, so the final division truncates toward zero. Use [`ScoreRef::set_percent`] when the source and destination are different scores. This declaration provides the typed scoreboard or lifecycle primitives used directly and by #[derive(State)]; generated schema registration remains private.",
-        minecraft = "Scoreboard math is integer-only, so the final division truncates toward zero. Use [`ScoreRef::set_percent`] when the source and destination are different scores.",
+        summary = "Scale this score in place by `percent / 100`. Scoreboard math is integer-only, so the final division rounds toward negative infinity. Use [`ScoreRef::set_percent`] when the source and destination are different scores.",
+        context = "Scale this score in place by `percent / 100`. Scoreboard math is integer-only, so the final division rounds toward negative infinity. Use [`ScoreRef::set_percent`] when the source and destination are different scores. This declaration provides the typed scoreboard or lifecycle primitives used directly and by #[derive(State)]; generated schema registration remains private.",
+        minecraft = "Scoreboard math is integer-only, so the final division rounds toward negative infinity. Use [`ScoreRef::set_percent`] when the source and destination are different scores.",
         use_when = ["Working with typed gameplay state or composing state transitions"],
         avoid_when = ["Manually reproducing metadata generated by #[derive(State)]"],
-        params(percent = "`percent` is used to scale this score in place by `percent / 100`. Scoreboard math is integer-only, so the final division truncates toward zero. Use [`ScoreRef::set_percent`] when the source and destination are different scores."),
-        returns = "The ordered values produced to scale this score in place by `percent / 100`. Scoreboard math is integer-only, so the final division truncates toward zero. Use [`ScoreRef::set_percent`] when the source and destination are different scores.",
+        params(percent = "`percent` is used to scale this score in place by `percent / 100`. Scoreboard math is integer-only, so the final division rounds toward negative infinity. Use [`ScoreRef::set_percent`] when the source and destination are different scores."),
+        returns = "Owned Actions retaining operand setup, produced to scale this score in place by `percent / 100`. Scoreboard math is integer-only, so the final division rounds toward negative infinity. Use [`ScoreRef::set_percent`] when the source and destination are different scores.",
         example = "use sand::advanced::state::*;\n\nfn demonstrate<'a, T: 'static>(score_ref_value: sand::advanced::state::ScoreRef < 'a , T >, percent: i32)  {\n    let values = score_ref_value.scale_percent(percent);\n}",
     )]
-    pub fn scale_percent(self, percent: i32) -> Vec<String> {
+    pub fn scale_percent(self, percent: i32) -> Actions {
         let target = self.operand();
         let percent = score_constant_operand("score_percent", percent);
         let hundred = score_constant_operand("score_percent_denominator", 100);
-        vec![
-            score_operation_command(&target, ScoreOperation::Mul, &percent),
-            score_operation_command(&target, ScoreOperation::Div, &hundred),
+        [
+            score_operation_actions(&target, ScoreOperation::Mul, &percent),
+            score_operation_actions(&target, ScoreOperation::Div, &hundred),
         ]
+        .into_iter()
+        .collect()
     }
 
     /// Set this score to `current * scale / max`.
@@ -1590,7 +1637,7 @@ impl<'a, T> ScoreRef<'a, T> {
         use_when = ["Working with typed gameplay state or composing state transitions"],
         avoid_when = ["Manually reproducing metadata generated by #[derive(State)]"],
         params(current = "`current` provides the current applied when setting this score to `current * scale / max`. This emits the direct vanilla operations and does not hide division by zero. Use [`ScoreRef::safe_divide`] when `max` may be zero.", max = "This emits the direct vanilla operations and does not hide division by zero. Use [`ScoreRef::safe_divide`] when `max` may be zero.", scale = "`scale` provides the scale applied when setting this score to `current * scale / max`. This emits the direct vanilla operations and does not hide division by zero. Use [`ScoreRef::safe_divide`] when `max` may be zero."),
-        returns = "The ordered values produced to set this score to `current * scale / max`. This emits the direct vanilla operations and does not hide division by zero. Use [`ScoreRef::safe_divide`] when `max` may be zero.",
+        returns = "Owned Actions retaining operand setup, produced to set this score to `current * scale / max`. This emits the direct vanilla operations and does not hide division by zero. Use [`ScoreRef::safe_divide`] when `max` may be zero.",
         example = "use sand::advanced::state::*;\n\nfn demonstrate<'a, T: 'static, N : Into < sand::advanced::state::ScoreOperand > + 'static, D : Into < sand::advanced::state::ScoreOperand > + 'static>(score_ref_value: sand::advanced::state::ScoreRef < 'a , T >, current: N, max: D, scale: i32)  {\n    let values = score_ref_value.set_ratio::<N, D>(current, max, scale);\n}",
     )]
     pub fn set_ratio<N: Into<ScoreOperand>, D: Into<ScoreOperand>>(
@@ -1598,16 +1645,18 @@ impl<'a, T> ScoreRef<'a, T> {
         current: N,
         max: D,
         scale: i32,
-    ) -> Vec<String> {
+    ) -> Actions {
         let target = self.operand();
         let current = current.into();
         let max = max.into();
         let scale = score_constant_operand("score_ratio_scale", scale);
-        vec![
-            score_operation_command(&target, ScoreOperation::Assign, &current),
-            score_operation_command(&target, ScoreOperation::Mul, &scale),
-            score_operation_command(&target, ScoreOperation::Div, &max),
+        [
+            score_operation_actions(&target, ScoreOperation::Assign, &current),
+            score_operation_actions(&target, ScoreOperation::Mul, &scale),
+            score_operation_actions(&target, ScoreOperation::Div, &max),
         ]
+        .into_iter()
+        .collect()
     }
 
     /// Divide this score by another score only when the divisor is non-zero.
@@ -1627,26 +1676,32 @@ impl<'a, T> ScoreRef<'a, T> {
         use_when = ["Working with typed gameplay state or composing state transitions"],
         avoid_when = ["Manually reproducing metadata generated by #[derive(State)]"],
         params(divisor = "`divisor` is used to divide this score by another score only when the divisor is non-zero.", fallback = "If the divisor is zero, the target is set to `fallback` instead. This keeps generated output explicit about the branch that avoids vanilla's division-by-zero runtime failure."),
-        returns = "The ordered values produced to divide this score by another score only when the divisor is non-zero.",
+        returns = "Owned Actions retaining operand setup, produced to divide this score by another score only when the divisor is non-zero.",
         example = "use sand::advanced::state::*;\n\nfn demonstrate<'a, T: 'static, O : Into < sand::advanced::state::ScoreOperand > + 'static>(score_ref_value: sand::advanced::state::ScoreRef < 'a , T >, divisor: O, fallback: i32)  {\n    let values = score_ref_value.safe_divide::<O>(divisor, fallback);\n}",
     )]
-    pub fn safe_divide<O: Into<ScoreOperand>>(self, divisor: O, fallback: i32) -> Vec<String> {
+    pub fn safe_divide<O: Into<ScoreOperand>>(self, divisor: O, fallback: i32) -> Actions {
         let target = self.operand();
         let divisor = divisor.into();
-        vec![
-            format!(
-                "execute unless score {} {} matches 0 run {}",
-                divisor.selector,
-                divisor.objective,
-                score_operation_command(&target, ScoreOperation::Div, &divisor)
-            ),
-            format!(
-                "execute if score {} {} matches 0 run {}",
-                divisor.selector,
-                divisor.objective,
-                score_set_command(&target, fallback)
-            ),
-        ]
+        let zero = Condition::score(
+            divisor.selector.clone(),
+            divisor.objective.clone(),
+            ScoreRange::Eq(0),
+        );
+        let divide = zero.guard_actions(
+            true,
+            &[],
+            score_operation_actions(&target, ScoreOperation::Div, &divisor),
+        );
+        let fallback = zero.guard_actions(
+            false,
+            &[],
+            Actions(vec![Cmd::ScorePlayers(ScorePlayersOp::Set {
+                selector: target.selector.clone(),
+                objective: target.objective.clone(),
+                value: fallback,
+            })]),
+        );
+        [divide, fallback].into_iter().collect()
     }
 
     /// Clamp this score between two other score entries.
@@ -1665,21 +1720,23 @@ impl<'a, T> ScoreRef<'a, T> {
         use_when = ["Working with typed gameplay state or composing state transitions"],
         avoid_when = ["Manually reproducing metadata generated by #[derive(State)]"],
         params(min = "The first command enforces the lower bound with vanilla's `>` operation (`max`), and the second enforces the upper bound with `<` (`min`).", max = "The first command enforces the lower bound with vanilla's `>` operation (`max`), and the second enforces the upper bound with `<` (`min`)."),
-        returns = "The ordered values produced to clamp this score between two other score entries.",
+        returns = "Owned Actions retaining operand setup, produced to clamp this score between two other score entries.",
         example = "use sand::advanced::state::*;\n\nfn demonstrate<'a, T: 'static, L : Into < sand::advanced::state::ScoreOperand > + 'static, U : Into < sand::advanced::state::ScoreOperand > + 'static>(score_ref_value: sand::advanced::state::ScoreRef < 'a , T >, min: L, max: U)  {\n    let values = score_ref_value.clamp_score::<L, U>(min, max);\n}",
     )]
     pub fn clamp_score<L: Into<ScoreOperand>, U: Into<ScoreOperand>>(
         self,
         min: L,
         max: U,
-    ) -> Vec<String> {
+    ) -> Actions {
         let target = self.operand();
         let min = min.into();
         let max = max.into();
-        vec![
-            score_operation_command(&target, ScoreOperation::Max, &min),
-            score_operation_command(&target, ScoreOperation::Min, &max),
+        [
+            score_operation_actions(&target, ScoreOperation::Max, &min),
+            score_operation_actions(&target, ScoreOperation::Min, &max),
         ]
+        .into_iter()
+        .collect()
     }
 
     /// Add `amount` and then clamp to the literal `[min, max]` range.
@@ -2464,11 +2521,13 @@ impl<T> ScoreExpr<T> {
     }
 
     fn lowered(self, condition: Condition) -> Conditional {
-        request_expression_temp();
         let temp = ScoreOperand {
             selector: self.base.selector.clone(),
             objective: SCORE_EXPRESSION_TEMP_OBJECTIVE.to_string(),
+            setup: Some(ScoreOperandSetup::ExpressionTemporary),
         };
+        let mut operands = vec![temp.clone(), self.base.clone()];
+        operands.extend(self.steps.iter().map(|(_, operand)| operand.clone()));
         let mut setup = vec![format!(
             "scoreboard players operation {} {} = {} {}",
             temp.selector, temp.objective, self.base.selector, self.base.objective
@@ -2483,6 +2542,11 @@ impl<T> ScoreExpr<T> {
                 right.objective
             )
         }));
+        let mut setup = crate::IntoCommands::into_commands(setup);
+        setup.0[0] = crate::ir::Cmd::WithScoreOperands {
+            operands,
+            run: Box::new(setup.0[0].clone()),
+        };
         Conditional::with_setup(setup, condition)
     }
 
@@ -2490,6 +2554,7 @@ impl<T> ScoreExpr<T> {
         ScoreOperand {
             selector: self.base.selector.clone(),
             objective: SCORE_EXPRESSION_TEMP_OBJECTIVE.to_string(),
+            setup: Some(ScoreOperandSetup::ExpressionTemporary),
         }
     }
 
@@ -3124,17 +3189,78 @@ mod tests {
             .zip(["=", "+=", "-=", "*=", "/=", "%=", "<", ">", "><"])
         {
             assert_eq!(
-                command,
-                &format!("scoreboard players operation @s mana {operator} @p other")
+                crate::ir::test_support::emitted(command.clone()),
+                vec![format!(
+                    "scoreboard players operation @s mana {operator} @p other"
+                )]
             );
         }
+    }
+
+    #[test]
+    fn retained_constants_are_isolated_between_export_threads() {
+        let operand = ScoreConst::<i32>::new("concurrent retained", 37).ref_();
+        clear_constant_setup();
+        let barrier = std::sync::Barrier::new(2);
+        let outputs = std::thread::scope(|scope| {
+            let threads: Vec<_> = (0..2)
+                .map(|_| {
+                    let operand = &operand;
+                    let barrier = &barrier;
+                    scope.spawn(move || {
+                        let _scope = crate::function::ExportFunctionRegistryScope::enter();
+                        operand.register_owned_setup();
+                        barrier.wait();
+                        drain_internal_score_setup()
+                    })
+                })
+                .collect();
+            threads
+                .into_iter()
+                .map(|thread| thread.join().unwrap())
+                .collect::<Vec<_>>()
+        });
+        let expected = vec![
+            "scoreboard objectives add sand_consts dummy".to_string(),
+            format!("scoreboard players set {} sand_consts 37", operand.selector),
+        ];
+        assert_eq!(outputs, vec![expected.clone(), expected]);
+    }
+
+    #[test]
+    fn score_constant_setup_cannot_leak_across_export_scopes() {
+        let operand = ScoreConst::<i32>::new("failed export constant", 41).ref_();
+        {
+            let _scope = crate::function::ExportFunctionRegistryScope::enter();
+            assert!(
+                drain_constant_setup().is_empty(),
+                "entry clears unrelated authoring state"
+            );
+            operand.register_owned_setup();
+            // Simulate an export leaving before the initializer drain.
+        }
+        let _scope = crate::function::ExportFunctionRegistryScope::enter();
+        assert!(
+            drain_constant_setup().is_empty(),
+            "abandoned export state must not leak"
+        );
+        operand.register_owned_setup();
+        assert!(
+            drain_constant_setup()
+                .iter()
+                .any(|line| line.ends_with(" sand_consts 41"))
+        );
     }
 
     #[test]
     fn constants_register_setup_and_support_negative_values() {
         let constant = ScoreConst::<i32>::new("negative scale", -2);
         let command = MANA.of("@s").mul_score(constant.ref_());
-        assert!(command.contains("#sand_negative"));
+        assert!(
+            crate::ir::test_support::emitted(command)
+                .join("\n")
+                .contains("#sand_negative")
+        );
         let setup = drain_internal_score_setup();
         assert!(
             setup
@@ -3148,6 +3274,7 @@ mod tests {
     fn set_percent_generates_integer_math_pipeline() {
         static DAMAGE: ScoreVar<i32> = ScoreVar::new("damage");
         let cmds = MANA.of("@s").set_percent(DAMAGE.of("@s"), 150);
+        let cmds = crate::ir::test_support::emitted(cmds);
 
         assert_eq!(cmds.len(), 3);
         assert_eq!(cmds[0], "scoreboard players operation @s mana = @s damage");
@@ -3168,6 +3295,7 @@ mod tests {
     #[test]
     fn scale_percent_updates_target_in_place() {
         let cmds = MANA.of("@s").scale_percent(75);
+        let cmds = crate::ir::test_support::emitted(cmds);
 
         assert_eq!(cmds.len(), 2);
         assert!(
@@ -3191,6 +3319,7 @@ mod tests {
         let cmds = MANA
             .of("@s")
             .set_ratio(HEALTH.of("@s"), MAX_HEALTH.of("@s"), 100);
+        let cmds = crate::ir::test_support::emitted(cmds);
 
         assert_eq!(cmds.len(), 3);
         assert_eq!(cmds[0], "scoreboard players operation @s mana = @s health");
@@ -3211,6 +3340,7 @@ mod tests {
         static MAX_HEALTH: ScoreVar<i32> = ScoreVar::new("max_health");
 
         let cmds = MANA.of("@s").safe_divide(MAX_HEALTH.of("@s"), 0);
+        let cmds = crate::ir::test_support::emitted(cmds);
 
         assert_eq!(
             cmds,
@@ -3224,6 +3354,7 @@ mod tests {
     #[test]
     fn safe_divide_supports_same_target_and_divisor() {
         let cmds = MANA.of("@s").safe_divide(MANA.of("@s"), 42);
+        let cmds = crate::ir::test_support::emitted(cmds);
 
         assert_eq!(
             cmds,
@@ -3242,6 +3373,7 @@ mod tests {
         let cmds = MANA
             .of("@s")
             .clamp_score(MIN_MANA.of("@s"), MAX_MANA.of("@s"));
+        let cmds = crate::ir::test_support::emitted(cmds);
 
         assert_eq!(
             cmds,

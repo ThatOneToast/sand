@@ -1,3 +1,4 @@
+mod actions_support;
 use sand_core::mcfunction;
 use sand_macros::function;
 
@@ -10,7 +11,7 @@ fn hello_world() {
 
 fn main() {
     // Function is callable and returns commands.
-    let cmds = hello_world();
+    let cmds = actions_support::emitted(hello_world());
     assert_eq!(cmds.len(), 1);
     assert_eq!(cmds[0], "say hello world");
 
@@ -18,7 +19,7 @@ fn main() {
     let mut found = false;
     for d in inventory::iter::<sand_core::FunctionDescriptor>() {
         if d.path == "hello_world" {
-            let commands = (d.make)();
+            let commands = actions_support::emitted((d.make)());
             assert_eq!(commands[0], "say hello world");
             found = true;
         }

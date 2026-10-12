@@ -17,7 +17,13 @@
 //!     .nearest()
 //!     .each(|entity| vec![entity.identity().add_tag(&EntityTag::new("observed").unwrap()).unwrap()]);
 //!
-//! assert!(cmds[0].starts_with("execute as @e["));
+//! use sand_core::McFunction;
+//! use sand_core::component::{DatapackComponent, ComponentContent};
+//! let function = McFunction::new("example:observe".parse().unwrap()).commands(cmds);
+//! let ComponentContent::Text(output) = function.try_content().unwrap() else {
+//!     panic!("functions emit text");
+//! };
+//! assert!(output.starts_with("execute as @e["));
 //! ```
 //!
 //! # Concepts

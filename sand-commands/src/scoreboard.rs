@@ -274,9 +274,9 @@ impl ScoreHolder {
             "@a" => Self::entity(Selector::all_players()),
             "@e" => Self::entity(Selector::all_entities()),
             "*" => Self::all(),
-            value if value.starts_with('@') => {
-                ScoreHolder(ScoreHolderKind::Compat(value.to_string()))
-            }
+            value if value.starts_with('@') => Selector::parse_compat(value)
+                .map(Self::entity)
+                .unwrap_or_else(|| ScoreHolder(ScoreHolderKind::Compat(value.to_string()))),
             _ => Self::fake(value),
         }
     }

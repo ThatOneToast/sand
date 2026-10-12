@@ -1,5 +1,8 @@
 //! Composition coverage for the focused `EntityContext` capability façade.
 
+#[path = "support/actions.rs"]
+mod actions;
+use actions::emitted;
 use std::sync::Mutex;
 
 use sand_commands::Target;
@@ -13,7 +16,7 @@ fn target_each_composes_multiple_capability_families() {
     let _guard = DYN_FN_REGISTRY_LOCK
         .lock()
         .unwrap_or_else(std::sync::PoisonError::into_inner);
-    let commands = Target::players().each(|player| {
+    let commands = emitted(Target::players().each(|player| {
         let helmet = player.equipment().slot(EquipmentSlot::Head).unwrap();
         let hotbar = player.inventory().hotbar(0).unwrap();
         vec![
@@ -23,10 +26,17 @@ fn target_each_composes_multiple_capability_families() {
             player.living().clear_effects(),
             player.mounts().dismount().unwrap(),
         ]
-    });
+    }));
 
     assert_eq!(commands.len(), 1);
-    let generated = sand_core::function::drain_dyn_fns();
+    let mut generated = Vec::new();
+    loop {
+        let batch = sand_core::function::drain_dyn_fns();
+        if batch.is_empty() {
+            break;
+        }
+        generated.extend(batch.into_iter().map(|(path, body)| (path, emitted(body))));
+    }
     let body = generated
         .iter()
         .find(|(path, _)| commands[0].ends_with(path))
@@ -49,24 +59,32 @@ fn scoped_capabilities_keep_the_bound_selector_across_relationship_traversal() {
         .lock()
         .unwrap_or_else(std::sync::PoisonError::into_inner);
     let zombie = EntityContext::<ZombieKind>::default();
-    let commands = EntityScope::bind(&zombie, |bound| {
-        bound
-            .owner()
-            .if_player(|owner| {
-                vec![
-                    owner.living().clear_effects(),
-                    bound.transform().teleport_to(Target::self_()).unwrap(),
-                    bound.data().field::<i32>("Air").set(300).to_string(),
-                ]
-            })
-            .unwrap()
-    });
+    let commands = emitted(EntityScope::bind(&zombie, |bound| {
+        bound.owner().if_player(|owner| {
+            vec![
+                owner.living().clear_effects(),
+                bound.transform().teleport_to(Target::self_()).unwrap(),
+                bound.data().field::<i32>("Air").set(300).to_string(),
+            ]
+        })
+    }));
 
     let scoped_tag = commands[0]
         .strip_prefix("tag @s add ")
         .expect("bind starts by tagging @s");
-    let generated = sand_core::function::drain_dyn_fns();
-    let relation_call = &commands[1];
+    let mut generated = Vec::new();
+    loop {
+        let batch = sand_core::function::drain_dyn_fns();
+        if batch.is_empty() {
+            break;
+        }
+        generated.extend(batch.into_iter().map(|(path, body)| (path, emitted(body))));
+    }
+    let scope_body = generated
+        .iter()
+        .find(|(path, _)| commands[1].ends_with(path))
+        .expect("scope body is isolated so early returns cannot skip cleanup");
+    let relation_call = &scope_body.1[0];
     let body = generated
         .iter()
         .find(|(path, _)| relation_call.ends_with(path))
@@ -118,13 +136,20 @@ fn repeated_capability_bodies_deduplicate_deterministically() {
         })
     };
 
-    let first = build("first");
-    let second = build("second");
+    let first = emitted(build("first"));
+    let second = emitted(build("second"));
     let first_path = first[0].rsplit("function ").next().unwrap();
     let second_path = second[0].rsplit("function ").next().unwrap();
     assert_eq!(first_path, second_path);
 
-    let generated = sand_core::function::drain_dyn_fns();
+    let mut generated = Vec::new();
+    loop {
+        let batch = sand_core::function::drain_dyn_fns();
+        if batch.is_empty() {
+            break;
+        }
+        generated.extend(batch.into_iter().map(|(path, body)| (path, emitted(body))));
+    }
     assert_eq!(
         generated
             .iter()

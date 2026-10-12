@@ -14,8 +14,8 @@ kind function_like_macro=1
 kind macro=3
 kind method=2410
 kind module=30
-kind struct=460
-kind trait=42
+kind struct=461
+kind trait=41
 kind trait_method=86
 kind type_alias=6
 kind variant=928
@@ -23,9 +23,9 @@ origin generator:generated_effect_registry_enums=95
 origin generator:generated_event_markers=25
 origin generator:generated_registry_ids=154
 origin source=4635
-advanced-source module=sand::advanced state=enforced tier=advanced provider=source precedence=100 recursive=true active=true items=322 contracted=322 aliases=- features=-
+advanced-source module=sand::advanced state=enforced tier=advanced provider=source precedence=100 recursive=true active=true items=320 contracted=320 aliases=- features=-
 build-source module=sand::build state=enforced tier=ordinary provider=source precedence=100 recursive=true active=true items=164 contracted=164 aliases=- features=-
-command-source module=sand::command state=enforced tier=ordinary provider=source precedence=50 recursive=true active=true items=724 contracted=724 aliases=sand::cmd,sand::prelude features=-
+command-source module=sand::command state=enforced tier=ordinary provider=source precedence=50 recursive=true active=true items=726 contracted=726 aliases=sand::cmd,sand::prelude features=-
 component-source module=sand::component state=enforced tier=ordinary provider=source precedence=50 recursive=true active=true items=1513 contracted=1513 aliases=sand::prelude features=-
 condition-source module=sand::condition state=enforced tier=ordinary provider=source precedence=50 recursive=true active=true items=12 contracted=12 aliases=sand::prelude features=-
 data-source module=sand::data state=enforced tier=ordinary provider=source precedence=100 recursive=true active=true items=152 contracted=152 aliases=sand::prelude features=-

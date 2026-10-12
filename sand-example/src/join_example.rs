@@ -131,7 +131,7 @@ mod tests {
 
     #[test]
     fn on_player_join_commands() {
-        let cmds = on_player_join();
+        let cmds = crate::test_support::emitted(on_player_join());
         assert!(
             cmds.iter()
                 .any(|c| c.contains("scoreboard players add @s join_count"))

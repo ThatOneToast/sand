@@ -5,6 +5,9 @@
 //! command text is produced, and must render byte-identically to its raw
 //! compatibility counterpart for equivalent valid input.
 
+#[path = "support/actions.rs"]
+mod action_support;
+
 use sand_commands::{ScoreHolder, Target};
 use sand_core::execute_when::when;
 use sand_core::state::{Cooldown, Flag, Ticks, Timer};
@@ -53,7 +56,7 @@ fn flag_typed_fake_player_holder_is_supported() {
 fn flag_typed_single_entity_selector_is_supported_for_conditions() {
     let cond = CASTING.try_of(single_entity()).unwrap().is_true();
     assert_eq!(
-        when(cond).then_one("say ok"),
+        action_support::emitted(when(cond).then_one("say ok")),
         vec!["execute if score @e[limit=1] casting matches 1 run say ok"]
     );
 }
@@ -193,12 +196,12 @@ fn timer_accepts_raw_single_target_after_score_holder_conversion() {
 fn timer_conditions_generate_the_expected_commands() {
     let expired = BLINK.try_expired(ScoreHolder::self_()).unwrap();
     assert_eq!(
-        when(expired).then_one("say ok"),
+        action_support::emitted(when(expired).then_one("say ok")),
         vec!["execute if score @s blink_t matches 0 run say ok"]
     );
     let active = BLINK.try_active(ScoreHolder::self_()).unwrap();
     assert_eq!(
-        when(active).then_one("say ok"),
+        action_support::emitted(when(active).then_one("say ok")),
         vec!["execute if score @s blink_t matches 1.. run say ok"]
     );
 }
@@ -270,12 +273,12 @@ fn cooldown_typed_holders_cover_player_fake_and_single_entity() {
 fn cooldown_conditions_generate_the_expected_commands() {
     let ready = DASH.try_ready(ScoreHolder::self_()).unwrap();
     assert_eq!(
-        when(ready.clone()).then_one("say ok"),
+        action_support::emitted(when(ready.clone()).then_one("say ok")),
         vec!["execute if score @s dash_cd matches 0 run say ok"]
     );
     let active = DASH.try_active(ScoreHolder::self_()).unwrap();
     assert_eq!(
-        when(active).then_one("say ok"),
+        action_support::emitted(when(active).then_one("say ok")),
         vec!["execute if score @s dash_cd matches 1.. run say ok"]
     );
     let expired = DASH.try_expired(ScoreHolder::self_()).unwrap();

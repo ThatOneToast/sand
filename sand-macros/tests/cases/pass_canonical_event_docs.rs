@@ -1,5 +1,6 @@
 #![allow(refining_impl_trait)]
 
+mod actions_support;
 // Compile contract for the canonical public event documentation (#116):
 // AdvancementEvent + Event<T>, typed SandEvent dispatch/lifecycle, a generic
 // SandEvent family subscribed through a unit adapter, same-cycle single- and
@@ -167,12 +168,12 @@ pub fn on_jump_and_elevator(_event: JumpedAndUsedElevator) {
 }
 
 fn main() {
-    assert!(!on_ate().is_empty());
-    assert!(!on_join().is_empty());
-    assert!(!on_sneak_start().is_empty());
-    assert!(!on_jump().is_empty());
-    assert!(!on_elevator_up().is_empty());
-    assert!(!on_elevator_jump().is_empty());
-    assert!(!on_jump_or_elevator().is_empty());
-    assert!(!on_jump_and_elevator().is_empty());
+    assert!(!actions_support::emitted(on_ate()).is_empty());
+    assert!(!actions_support::emitted(on_join()).is_empty());
+    assert!(!actions_support::emitted(on_sneak_start()).is_empty());
+    assert!(!actions_support::emitted(on_jump()).is_empty());
+    assert!(!actions_support::emitted(on_elevator_up()).is_empty());
+    assert!(!actions_support::emitted(on_elevator_jump()).is_empty());
+    assert!(!actions_support::emitted(on_jump_or_elevator()).is_empty());
+    assert!(!actions_support::emitted(on_jump_and_elevator()).is_empty());
 }

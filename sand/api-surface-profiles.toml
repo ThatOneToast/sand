@@ -2,6 +2,8 @@
 # Selection uses the resolved `minecraft_version` embedded in both provider
 # catalogs, never an environment-variable guess. Adding a version requires a
 # separately reviewed deterministic baseline.
+# Owned-action consolidation removes IntoStateCommands and its method (-2),
+# and adds ExecuteExt::run_actions (+1); every source scope remains enforced.
 schema_version = 1
 
 # Explicit source-only profile used solely when sand-core code generation has

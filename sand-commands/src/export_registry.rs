@@ -42,7 +42,11 @@
 //! panics*. Cleanup is by `Drop`, never by a call at the end of the happy
 //! path.
 //!
-//! # Adding a tenth family
+//! Cached actions retain a snapshot of only their own typed command origins at
+//! collection time. Replaying that snapshot installs those nodes in the active
+//! export layer; it never makes the ambient layer visible to an export.
+//!
+//! # Adding a command family
 //!
 //! Declare a zero-sized marker type, implement this module's crate-private
 //! `RegistryFamily` trait for it, and route all state access through
@@ -149,11 +153,84 @@ where
 pub(crate) fn register_line<F, N>(line: &str, node: N)
 where
     F: RegistryFamily<State = BTreeMap<String, N>>,
-    N: 'static,
+    N: Clone
+        + std::fmt::Debug
+        + Send
+        + Sync
+        + std::panic::RefUnwindSafe
+        + std::panic::UnwindSafe
+        + 'static,
 {
     with_state::<F, _>(|state| {
-        state.insert(line.to_owned(), node);
+        state.insert(line.to_owned(), node.clone());
     });
+    let owned_line = line.to_owned();
+    let retained = RetainedNode {
+        identity: format!("{}:{node:?}", std::any::type_name::<F>()),
+        replay: std::sync::Arc::new(move || {
+            register_line::<F, N>(&owned_line, node.clone());
+        }),
+    };
+    with_state::<RetainedLines, _>(|state| {
+        state
+            .entry(line.to_owned())
+            .or_default()
+            .insert(std::any::type_name::<F>(), retained);
+    });
+}
+
+#[derive(Clone)]
+struct RetainedNode {
+    identity: String,
+    replay:
+        std::sync::Arc<dyn Fn() + Send + Sync + std::panic::RefUnwindSafe + std::panic::UnwindSafe>,
+}
+impl std::fmt::Debug for RetainedNode {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        self.identity.fmt(f)
+    }
+}
+struct RetainedLines;
+impl RegistryFamily for RetainedLines {
+    type State = BTreeMap<String, BTreeMap<&'static str, RetainedNode>>;
+}
+
+/// Owned typed validation origins for a collected legacy command string.
+/// Only origins explicitly captured with this command cross export boundaries.
+#[doc(hidden)]
+#[derive(Debug, Clone)]
+pub struct RetainedCommandOrigins(Vec<RetainedNode>);
+
+impl RetainedCommandOrigins {
+    /// Capture the active scope's origins, including nested executable tails.
+    pub fn capture(text: &str) -> Option<Self> {
+        let mut nodes = Vec::new();
+        for line in text.lines() {
+            let mut command = line.trim();
+            loop {
+                read_state::<RetainedLines, _>(|state| {
+                    if let Some(origins) = state.and_then(|state| state.get(command)) {
+                        nodes.extend(origins.values().cloned());
+                    }
+                });
+                if let Some(inner) = crate::render::collected_execute_command(command)
+                    .or_else(|| crate::render::collected_return_command(command))
+                {
+                    command = inner.trim();
+                } else {
+                    break;
+                }
+            }
+        }
+        (!nodes.is_empty()).then_some(Self(nodes))
+    }
+
+    /// Install only this command's owned origins into the current export scope.
+    pub fn replay(&self) {
+        for node in &self.0 {
+            (node.replay)();
+        }
+    }
 }
 
 /// Recover the typed node this scope rendered as `line`, if any.
@@ -306,6 +383,25 @@ mod tests {
     struct BetaFamily;
     impl RegistryFamily for BetaFamily {
         type State = BTreeMap<String, u32>;
+    }
+
+    #[test]
+    fn retained_origins_cross_threads_without_inheriting_ambient_state() {
+        register_line::<AlphaFamily, _>("typed inner", 42);
+        register_line::<BetaFamily, _>("unrelated", 99);
+        let retained =
+            RetainedCommandOrigins::capture("execute as @a run return run typed inner").unwrap();
+        std::thread::spawn(move || {
+            for _ in 0..2 {
+                let _scope = ExportRegistryGuard::enter().unwrap();
+                assert!(RetainedCommandOrigins::capture("typed inner").is_none());
+                retained.replay();
+                assert_eq!(lookup_line::<AlphaFamily, u32>("typed inner"), Some(42));
+                assert_eq!(lookup_line::<BetaFamily, u32>("unrelated"), None);
+            }
+        })
+        .join()
+        .unwrap();
     }
 
     #[test]

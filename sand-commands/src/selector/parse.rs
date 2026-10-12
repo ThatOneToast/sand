@@ -484,8 +484,13 @@ mod empty_scores_and_team_tests {
     #[test]
     fn empty_scores_and_repeated_negative_teams_are_valid() {
         for text in [
+            "@s[name=!Boss,name=!Decoy]",
+            "@s[type=!minecraft:cow,type=!minecraft:zombie]",
+            "@s[type=#minecraft:skeletons,type=!minecraft:cow]",
+            "@s[type=!minecraft:cow,type=#minecraft:skeletons]",
+            "@s[type=#minecraft:skeletons,type=#minecraft:undead]",
             "@s[scores={}]",
-            "@s[team=red,team=!blue,team=!green]",
+            "@s[team=!blue,team=!green]",
             "@s[team=]",
         ] {
             ScoreHolder::compat(text.into())
@@ -497,6 +502,14 @@ mod empty_scores_and_team_tests {
     #[test]
     fn duplicate_positive_teams_and_malformed_score_entries_are_rejected() {
         for text in [
+            "@s[team=red,team=!blue]",
+            "@s[team=!blue,team=red]",
+            "@s[name=Boss,name=!Decoy]",
+            "@s[name=!Decoy,name=Boss]",
+            "@s[type=minecraft:zombie,type=!minecraft:cow]",
+            "@s[type=!minecraft:cow,type=minecraft:zombie]",
+            "@s[type=!#minecraft:skeletons,type=#minecraft:skeletons]",
+            "@s[type=#minecraft:skeletons,type=#minecraft:skeletons]",
             "@s[team=red,team=blue]",
             "@s[team=,team=red]",
             "@s[scores={broken}]",

@@ -101,7 +101,7 @@ impl ConditionedExecute {
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
         params(cmd = "The authored actions or command value to run under each expanded condition plan."),
         returns = "Returns owned actions for each expanded plan, retaining score setup across exports.",
-        example = "use sand::prelude::*;\n\nfn demonstrate(conditioned_execute_value: sand::command::ConditionedExecute, cmd: impl sand::IntoCommands)  {\n    let values = conditioned_execute_value.run(cmd);\n}",
+        example = "use sand::prelude::*;\n\nfn demonstrate(conditioned_execute_value: sand::command::ConditionedExecute, cmd: impl sand::component::IntoCommands)  {\n    let values = conditioned_execute_value.run(cmd);\n}",
     )]
     pub fn run(self, cmd: impl IntoCommands) -> crate::ir::Actions {
         self.cond.guard_actions(

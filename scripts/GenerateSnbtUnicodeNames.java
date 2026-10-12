@@ -38,6 +38,15 @@ class GenerateSnbtUnicodeNames {
                 start = point;
             }
         }
+        System.out.println("];\npub(super) const HEX_DIGITS: &[(u16, u16, u8)] = &[");
+        for (int first = 0; first <= 0xffff; first++) {
+            int digit = Character.digit((char) first, 16);
+            if (digit < 0) continue;
+            int last = first;
+            while (last < 0xffff && Character.digit((char) (last + 1), 16) == digit + last + 1 - first) last++;
+            System.out.printf("    (0x%X, 0x%X, %d),%n", first, last, digit);
+            first = last;
+        }
         System.out.println("];");
     }
 }

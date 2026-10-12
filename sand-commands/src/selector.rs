@@ -1,5 +1,6 @@
 //! Entity/player selector (`@a`, `@e`, `@s`, etc.) with a typed builder API.
 
+mod java_names;
 mod parse;
 mod snbt;
 

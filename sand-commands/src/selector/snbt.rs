@@ -26,25 +26,57 @@ impl Parser<'_> {
         }
     }
 
+    fn character(&mut self) -> Option<char> {
+        let character = self.rest.chars().next()?;
+        self.rest = &self.rest[character.len_utf8()..];
+        Some(character)
+    }
+
+    fn hex_escape(&mut self, digits: usize) -> Option<u32> {
+        let value = self.rest.get(..digits)?;
+        if !value.bytes().all(|byte| byte.is_ascii_hexdigit()) {
+            return None;
+        }
+        let value = u32::from_str_radix(value, 16).ok()?;
+        self.rest = &self.rest[digits..];
+        Some(value)
+    }
+
+    fn escape(&mut self) -> bool {
+        match self.character() {
+            Some('\'' | '"' | '\\' | 'b' | 's' | 't' | 'n' | 'f' | 'r') => true,
+            Some('x') => self.hex_escape(2).is_some(),
+            // Preserve Java UTF-16 escape units without decoding into Rust chars.
+            Some('u') => self.hex_escape(4).is_some(),
+            Some('U') => self.hex_escape(8).is_some_and(|value| value <= 0x10FFFF),
+            Some('N') => {
+                if self.character() != Some('{') {
+                    return false;
+                }
+                let Some(end) = self.rest.find('}') else {
+                    return false;
+                };
+                let valid = named_character(&self.rest[..end]);
+                self.rest = &self.rest[end + 1..];
+                valid
+            }
+            _ => false,
+        }
+    }
+
     fn quoted(&mut self) -> bool {
-        let Some(quote @ ('\'' | '"')) = self.rest.chars().next() else {
+        let Some(quote @ ('\'' | '"')) = self.character() else {
             return false;
         };
-        self.rest = &self.rest[1..];
-        let mut escaped = false;
-        for (index, character) in self.rest.char_indices() {
+        while let Some(character) = self.character() {
             if character.is_control() {
                 return false;
             }
-            if escaped {
-                if character != quote && character != '\\' {
+            if character == '\\' {
+                if !self.escape() {
                     return false;
                 }
-                escaped = false;
-            } else if character == '\\' {
-                escaped = true;
             } else if character == quote {
-                self.rest = &self.rest[index + 1..];
                 return true;
             }
         }
@@ -144,6 +176,35 @@ impl Parser<'_> {
     }
 }
 
+// Java's name lookup uses canonical names, historical control names, and
+// block-based names for algorithmic ranges. Unicode's loose name matching
+// alone accepts spellings that Minecraft rejects (for example S_N_O_W_M_A_N).
+fn named_character(name: &str) -> bool {
+    let name = name.trim_matches(' ').to_ascii_uppercase();
+    if super::java_names::CONTROL_NAMES.contains(&name.as_str()) {
+        return true;
+    }
+    if let Some((block, hexadecimal)) = name.rsplit_once(' ')
+        && let Ok(point) = u32::from_str_radix(hexadecimal, 16)
+        && name == format!("{block} {point:X}")
+        && super::java_names::BLOCK_NAMES
+            .iter()
+            .any(|(prefix, first, last)| block == *prefix && (*first..=*last).contains(&point))
+    {
+        return true;
+    }
+    let Some(character) = unicode_names2::character(&name) else {
+        return false;
+    };
+    if super::java_names::BLOCK_NAMES
+        .iter()
+        .any(|(_, first, last)| (*first..=*last).contains(&(character as u32)))
+    {
+        return false;
+    }
+    unicode_names2::name(character).is_some_and(|canonical| canonical.to_string() == name)
+}
+
 // Decimal integer subset of current SNBT. Array context supplies the type
 // for unsuffixed values and allows explicitly smaller integer element types.
 fn decimal_integer(token: &str, implied_bits: u8) -> Option<u8> {
@@ -198,6 +259,52 @@ fn scalar(token: &str) -> bool {
 #[cfg(test)]
 mod tests {
     use crate::{CommandProfile, ScoreHolder};
+
+    #[test]
+    fn current_snbt_escapes_are_checked_without_decoding_selector_structure() {
+        for value in [
+            r"line\nnext",
+            r"\b\s\t\n\f\r",
+            r"\x42\u2603\U0001F600",
+            r"\uD83D\uDE00",
+            r"\N{Snowman}",
+            r"\N{BACKSPACE}\N{NULL}\N{LINE FEED (LF)}",
+            r"\N{CJK UNIFIED IDEOGRAPHS 4E00}\N{HANGUL SYLLABLES AC00}",
+            r"\uD800\U0000DC00",
+            r"\N{LATIN CAPITAL LETTER A}",
+            r"\x7d\u005d,limit=20",
+            r"quote\'backslash\\",
+        ] {
+            let text = format!("@s[nbt={{name:'{value}'}}]");
+            ScoreHolder::compat(text.clone())
+                .validate_single(&CommandProfile::unprofiled())
+                .unwrap_or_else(|error| panic!("{text}: {error}"));
+        }
+        for value in [
+            r"\q",
+            r"\x4",
+            r"\xGG",
+            r"\u123",
+            r"\uZZZZ",
+            r"\U00110000",
+            r"\N{}",
+            r"\N{NOT A CHARACTER}",
+            r"\N{S_N_O_W_M_A_N}",
+            r"\N{LINE FEED}",
+            r"\N{CJK UNIFIED IDEOGRAPH-4E00}",
+            r"\N{HANGUL SYLLABLE GA}",
+            r"\N{SNOWMAN",
+            r"\N SNOWMAN",
+        ] {
+            let text = format!("@s[nbt={{name:'{value}'}}]");
+            assert!(
+                ScoreHolder::compat(text.clone())
+                    .validate_single(&CommandProfile::unprofiled())
+                    .is_err(),
+                "{text}"
+            );
+        }
+    }
 
     #[test]
     fn compatibility_nbt_requires_complete_key_value_grammar() {

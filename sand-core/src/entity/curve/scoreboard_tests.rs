@@ -8,11 +8,20 @@ struct Machine(
     BTreeMap<String, Vec<String>>,
     Option<bool>,
     BTreeMap<String, f64>,
+    BTreeMap<String, Vec<f64>>,
+    BTreeMap<String, String>,
 );
 impl Machine {
     fn get(&self, holder: &str, objective: &str) -> i32 {
         self.0[&format!("{holder} {objective}")]
     }
+    fn native_value(&self, key: &str) -> Option<f64> {
+        self.3.get(key).copied().or_else(|| {
+            key.strip_suffix("[0]")
+                .and_then(|list| self.4.get(list)?.first().copied())
+        })
+    }
+
     fn run(&mut self, command: &[&str]) -> bool {
         match command[0] {
             "return" => {
@@ -50,15 +59,19 @@ impl Machine {
                         (success, i32::from(success))
                     } else if inner[0] == "data" {
                         assert_eq!(inner[1], "get");
-                        let value = self
-                            .3
-                            .get(&format!("{} {} {}", inner[2], inner[3], inner[4]));
-                        (
-                            value.is_some(),
-                            value.map_or(0, |value| {
-                                (value * inner[5].parse::<f64>().unwrap()).floor() as i32
-                            }),
-                        )
+                        let key = format!("{} {} {}", inner[2], inner[3], inner[4]);
+                        if inner.len() == 5 {
+                            let list = self.4.get(&key);
+                            (list.is_some(), list.map_or(0, |values| values.len() as i32))
+                        } else {
+                            let value = self.native_value(&key);
+                            (
+                                value.is_some(),
+                                value.map_or(0, |value| {
+                                    (value * inner[5].parse::<f64>().unwrap()).floor() as i32
+                                }),
+                            )
+                        }
                     } else {
                         assert_eq!(&inner[..3], &["scoreboard", "players", "operation"]);
                         let present = self.0.contains_key(&format!("{} {}", inner[6], inner[7]));
@@ -88,6 +101,22 @@ impl Machine {
                 while command[i] != "run" {
                     let negate = command[i] == "unless";
                     assert!(matches!(command[i], "if" | "unless"));
+                    if command[i + 1] == "data" {
+                        assert_eq!(command[i + 2], "storage");
+                        let (path, predicate) = command[i + 4].split_once('{').unwrap();
+                        let expected = predicate
+                            .strip_prefix("text:\"")
+                            .unwrap()
+                            .strip_suffix("\"}")
+                            .unwrap();
+                        let key = format!("storage {} {path}.text", command[i + 3]);
+                        let matched = self.5.get(&key).is_some_and(|text| text == expected);
+                        if matched == negate {
+                            return true;
+                        }
+                        i += 5;
+                        continue;
+                    }
                     assert_eq!(command[i + 1], "score");
                     let left = self
                         .0
@@ -120,6 +149,41 @@ impl Machine {
                     }
                 }
                 self.run(&command[i + 1..])
+            }
+            "data" => {
+                assert_eq!(&command[1..3], &["modify", "storage"]);
+                let key = format!("storage {} {}", command[3], command[4]);
+                match &command[5..7] {
+                    ["set", "value"] => {
+                        assert_eq!(command[7], "{values:[]}");
+                        self.4.insert(format!("{key}.values"), Vec::new());
+                        self.5.remove(&format!("{key}.text"));
+                    }
+                    ["append", "from"] => {
+                        let source = format!("{} {} {}", command[7], command[8], command[9]);
+                        let values = if let Some(value) = self.native_value(&source) {
+                            vec![value]
+                        } else {
+                            self.4.get(&source).cloned().unwrap_or_default()
+                        };
+                        self.4.get_mut(&key).unwrap().extend(values);
+                    }
+                    ["set", "string"] => {
+                        let source = format!("{} {} {}", command[7], command[8], command[9]);
+                        if let Some(value) = self.native_value(&source) {
+                            self.5.insert(
+                                key,
+                                if value.is_nan() {
+                                    "NaNd".into()
+                                } else {
+                                    format!("{value}d")
+                                },
+                            );
+                        }
+                    }
+                    other => panic!("unsupported data mutation {other:?}"),
+                }
+                true
             }
             "scoreboard" => {
                 assert_eq!(command[1], "players");
@@ -495,13 +559,23 @@ fn native_numeric_read_quantizes_and_preserves_destination_on_failed_read() {
         (1.2345, 1234),
         (-1.2345, -1235),
         (0.0, 0),
+        (-0.0, 0),
+        (f64::MIN_POSITIVE, 0),
+        (f64::from_bits(1), 0),
     ] {
         machine.3.insert("entity @s Health".into(), value);
         assert!(machine.execute(&rendered.commands));
         assert_eq!(machine.get("#scratch", "result"), expected);
     }
     machine.0.insert("#scratch result".into(), 123);
-    for value in [None, Some(1.0e20), Some(-1.0e20)] {
+    for value in [
+        None,
+        Some(1.0e20),
+        Some(-1.0e20),
+        Some(f64::NAN),
+        Some(f64::INFINITY),
+        Some(f64::NEG_INFINITY),
+    ] {
         if let Some(value) = value {
             machine.3.insert("entity @s Health".into(), value);
         } else {
@@ -510,6 +584,15 @@ fn native_numeric_read_quantizes_and_preserves_destination_on_failed_read() {
         assert!(!machine.execute(&rendered.commands));
         assert_eq!(machine.get("#scratch", "result"), 123);
     }
+    machine.3.remove("entity @s Health");
+    for values in [vec![], vec![1.0, 2.0]] {
+        machine.4.insert("entity @s Health".into(), values);
+        assert!(!machine.execute(&rendered.commands));
+        assert_eq!(machine.get("#scratch", "result"), 123);
+    }
+    let text = rendered.commands.join("\n");
+    assert!(text.contains("NaNf") && text.contains("NaNd"));
+    assert_eq!(text.matches("from entity @s Health").count(), 1);
     let error = curve
         .validate_entity_inputs("test:mob", "health")
         .unwrap_err();

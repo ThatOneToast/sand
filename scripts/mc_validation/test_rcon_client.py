@@ -17,6 +17,7 @@ import socket
 import struct
 import threading
 import unittest
+from unittest.mock import patch
 
 import rcon_client
 
@@ -61,6 +62,23 @@ def _fake_server(sock: socket.socket, password: str, responses: dict[str, str]) 
 
 
 class RconClientTests(unittest.TestCase):
+    def test_run_commands_propagates_timeout_and_reads_real_responses(self):
+        client_sock, server_sock = socket.socketpair()
+        thread = threading.Thread(
+            target=_fake_server, args=(server_sock, "secret", {"list": "players"}), daemon=True,
+        )
+        thread.start()
+        try:
+            with patch.object(rcon_client.socket, "create_connection", return_value=client_sock) as connect:
+                self.assertEqual(
+                    rcon_client.run_commands("localhost", 25575, "secret", ["list"], timeout=60),
+                    ["players"],
+                )
+                connect.assert_called_once_with(("localhost", 25575), timeout=60)
+        finally:
+            client_sock.close()
+            thread.join(timeout=2)
+
     def _run_with_fake_server(self, password_used: str, password_expected: str, commands, responses):
         client_sock, server_sock = socket.socketpair()
         thread = threading.Thread(

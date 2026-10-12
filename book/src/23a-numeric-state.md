@@ -128,6 +128,15 @@ There is no `hundredths()` helper, output-encoding switch, or matching
 deterministic entity-scoped scratch objectives, and emits integer scoreboard
 operations. Scratch objectives are compiler-owned and are not State fields.
 
+Identical runtime assignments share their generated helper and scratch storage.
+Distinct assignments keep separate scratch objectives so a custom curve's
+runtime function can invoke another assignment without overwriting the outer
+calculation's intermediates. Objective count therefore grows with the number
+and complexity of distinct assignments. Updating a pack does not currently
+remove obsolete scratch objectives from an existing world's scoreboard data.
+Lifetime-aware pooling and a migration policy are tracked in
+[#407](https://github.com/ThatOneToast/sand/issues/407).
+
 ## Rounding
 
 The canonical policy is **nearest, with exact halves away from zero**:
@@ -200,3 +209,9 @@ State field types. Ordinary State and archetype code should start with
 advanced controls only when a deliberately different intermediate precision
 is part of the gameplay contract, and still let the destination State field
 choose what is stored.
+
+Native numeric reads snapshot one source value before conversion, so random
+selectors are resolved once. Missing or multiple NBT matches, NaN, infinity,
+and out-of-range results abort the assignment and preserve its destination.
+The snapshot retains the NBT type so NaN cannot silently become scoreboard zero;
+finite zero and values smaller than the selected precision remain valid.

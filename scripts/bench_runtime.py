@@ -145,20 +145,27 @@ def measure_sample(sand: Path, project: Path, sample: int, timeout: float, outpu
         end = block + 255
         probes = [(block, block), (end, block), (block, end), (end, end), (block + 128, block + 128)]
         generation_started = time.monotonic()
+        deadline = generation_started + timeout
         run_commands(
             "127.0.0.1", port, password,
             [f"execute in minecraft:overworld run forceload add {block} {block} {end} {end}"],
+            timeout=timeout,
         )
-        deadline = time.monotonic() + timeout
         while True:
-            responses = run_commands(
-                "127.0.0.1", port, password,
-                [f"execute in minecraft:overworld if loaded {x} 80 {z} run time query gametime" for x, z in probes],
-            )
-            if all(loaded(response) for response in responses):
-                break
+            responses = []
+            for x, z in probes:
+                remaining = deadline - time.monotonic()
+                if remaining <= 0:
+                    raise TimeoutError("timed out waiting for forced chunks to finish loading")
+                responses.extend(run_commands(
+                    "127.0.0.1", port, password,
+                    [f"execute in minecraft:overworld if loaded {x} 80 {z} run time query gametime"],
+                    timeout=remaining,
+                ))
             if time.monotonic() >= deadline:
                 raise TimeoutError("timed out waiting for forced chunks to finish loading")
+            if all(loaded(response) for response in responses):
+                break
             time.sleep(0.1)
         generation_seconds = time.monotonic() - generation_started
         run_commands(

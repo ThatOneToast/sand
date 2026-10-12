@@ -70,7 +70,9 @@ impl NumericWrite {
                 objective: self.objective.to_string(),
                 value: crate::entity::state::encode_fixed(value, self.scale, self.bounds),
             })];
-            self.append_bounds_and_dirty(&mut commands, &destination, owner)?;
+            let mut objectives = BTreeSet::new();
+            self.append_bounds_and_dirty(&mut commands, &destination, owner, &mut objectives)?;
+            crate::function::request_numeric_objectives(objectives)?;
             return Ok(bind_destination(commands, selector));
         }
 
@@ -121,10 +123,6 @@ impl NumericWrite {
         )
         .map_err(|error| numeric_error(error, owner))?;
 
-        self.value
-            .validate_generated_objectives(&objectives)
-            .map_err(|error| numeric_error(error, owner))?;
-
         // Preserve arithmetic precision until the final destination conversion.
         let mut body = crate::IntoCommands::into_commands(commands);
         let mut commit = vec![Cmd::ScorePlayers(ScorePlayersOp::Operation {
@@ -134,7 +132,10 @@ impl NumericWrite {
             source: working.to_string(),
             source_obj: result.to_string(),
         })];
-        self.append_bounds_and_dirty(&mut commit, &destination, owner)?;
+        self.append_bounds_and_dirty(&mut commit, &destination, &resource, &mut objectives)?;
+        self.value
+            .validate_generated_objectives(&objectives)
+            .map_err(|error| numeric_error(error, owner))?;
         body.0.extend(bind_destination(commit, selector));
         for record in rendered.records {
             crate::function::register_dyn_fn(record.path, record.content);
@@ -152,6 +153,7 @@ impl NumericWrite {
         commands: &mut Vec<Cmd>,
         holder: &ScoreHolder,
         owner: &ResourceLocation,
+        objectives: &mut BTreeSet<ObjectiveName>,
     ) -> CommandResult<()> {
         if let Some((min, max)) = self.bounds {
             if holder
@@ -168,7 +170,7 @@ impl NumericWrite {
                         "{owner}.numeric_bound.{}.{value}",
                         self.objective
                     ));
-                    crate::function::request_numeric_objectives([bound.clone()])?;
+                    objectives.insert(bound.clone());
                     commands.push(Cmd::ScorePlayers(ScorePlayersOp::Set {
                         selector: "#value".into(),
                         objective: bound.to_string(),
@@ -429,6 +431,35 @@ mod tests {
                 }
             }
         }
+    }
+
+    #[test]
+    fn bounded_wildcard_assignment_reuses_one_helper_across_callers() {
+        let _scope = ExportFunctionRegistryScope::enter();
+        let field = FixedScore::__new("test", "combat", "shared_target", 100, 0, Some((0, 500)));
+        let action = field.bind_to("*", true).set(field.bind());
+        for path in ["first", "second"] {
+            crate::function::register_dyn_fn(path.into(), action.clone());
+        }
+        let mut records = Vec::new();
+        crate::compiler::export::functions::drain_dynamic_functions_into(&mut records, "test")
+            .unwrap();
+        crate::compiler::export::records::validate_unique_output_identities(&records).unwrap();
+        let caller = |path| {
+            &records
+                .iter()
+                .find(|record| record.path == path)
+                .unwrap()
+                .content
+        };
+        assert_eq!(caller("first"), caller("second"));
+        assert_eq!(
+            records
+                .iter()
+                .filter(|record| record.path.starts_with("sand/numeric/"))
+                .count(),
+            1
+        );
     }
 
     #[test]

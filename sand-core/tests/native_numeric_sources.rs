@@ -34,7 +34,7 @@ fn native_reads_are_owned_scaled_and_repeat_export_stable() {
         .filter(|record| record["dir"] == "function")
         .collect();
     for path in ["Health", "Air"] {
-        let expected = format!("run data get entity @s {path} 1000");
+        let expected = format!("append from entity @s {path}");
         let body = functions
             .iter()
             .find_map(|record| {
@@ -48,6 +48,9 @@ fn native_reads_are_owned_scaled_and_repeat_export_stable() {
             1,
             "native source is read once"
         );
+        assert!(body.contains("run data get storage native_numeric:"));
+        assert!(body.contains("values[0] 1000"));
+        assert!(body.contains("NaNf") && body.contains("NaNd"));
         assert!(body.contains("execute store success score @s "));
         assert!(body.contains(" store result score @s "));
         assert!(body.contains("matches 1 run return fail"));

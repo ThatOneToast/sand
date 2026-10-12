@@ -98,8 +98,60 @@ pub(crate) fn render_lowered_curve(
                     context.owner
                 ));
                 objectives.insert(success.clone());
-                let reference =
+                // Snapshot the source once, preserving both NBT type and selector
+                // identity. A list retains cardinality: `set from` would silently
+                // pick the last match of a multi-valued source path.
+                let native =
                     sand_commands::NbtRef::<f64>::__from_parts(target.clone(), path.clone());
+                let snapshot_target = sand_commands::DataTarget::storage(context.owner.to_string());
+                let snapshot = sand_commands::NbtRef::<sand_commands::NbtValue>::__from_parts(
+                    snapshot_target.clone(),
+                    sand_commands::NbtPath::new(format!("native_{destination}")),
+                );
+                let values = snapshot.field("values");
+                let reference = values.index(0);
+                let render = |command: Cmd| {
+                    command
+                        .try_render()
+                        .map_err(|error| EntityDiagnostic::InvalidRawExtension {
+                            archetype: context.owner.to_string(),
+                            extension: "native numeric read".into(),
+                            detail: error.to_string(),
+                        })
+                };
+                commands.push(render(Cmd::Data(
+                    snapshot.set(
+                        sand_commands::NbtCompound::new()
+                            .field("values", sand_commands::NbtValue::List(Vec::new())),
+                    ),
+                ))?);
+                commands.push(render(Cmd::Data(values.append_from(&native)))?);
+                commands.push(render(Cmd::Execute {
+                    operations: vec![ExecuteOp::StoreResult(ExecuteStoreTarget::Score {
+                        holder: holder.clone(),
+                        objective: success.to_string(),
+                    })],
+                    run: Box::new(Cmd::Data(values.get())),
+                })?);
+                commands.push(format!(
+                    "execute unless score {holder} {success} matches 1 run return fail"
+                ));
+                commands.push(render(Cmd::Data(
+                    snapshot.field("text").set_string_from(&reference),
+                ))?);
+                // Numeric data-get maps NaN to zero. Minecraft's string-source
+                // conversion preserves its float/double spelling, unlike the
+                // score result, so reject these before committing any value.
+                for spelling in ["NaNf", "NaNd"] {
+                    let predicate = sand_commands::NbtCompound::new().field("text", spelling);
+                    commands.push(render(Cmd::Execute {
+                        operations: vec![ExecuteOp::If(sand_commands::ConditionIr::Data {
+                            target: snapshot_target.clone(),
+                            path: format!("{}{predicate}", snapshot.path_value()),
+                        })],
+                        run: Box::new(Cmd::Raw(sand_commands::return_fail())),
+                    })?);
+                }
                 let command = Cmd::Execute {
                     operations: vec![
                         ExecuteOp::StoreSuccess(ExecuteStoreTarget::Score {

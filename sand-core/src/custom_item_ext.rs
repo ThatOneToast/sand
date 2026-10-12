@@ -19,7 +19,7 @@
 //!     vec![
 //!         item.on_use_fn(
 //!             ResourceLocation::new("my_pack", "items/shockwave/on_use"),
-//!             my_pack::on_shockwave_use, // fn() -> Vec<String>
+//!             my_pack::on_shockwave_use, // fn() -> Actions
 //!         )
 //!     ]
 //! }

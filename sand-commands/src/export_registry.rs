@@ -213,9 +213,7 @@ impl RetainedCommandOrigins {
                         nodes.extend(origins.values().cloned());
                     }
                 });
-                if let Some(inner) = crate::render::collected_execute_command(command)
-                    .or_else(|| crate::render::collected_return_command(command))
-                {
+                if let Some(inner) = crate::render::collected_command_body(command) {
                     command = inner.trim();
                 } else {
                     break;

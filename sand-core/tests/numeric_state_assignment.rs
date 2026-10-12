@@ -162,10 +162,9 @@ fn runtime_assignments_provision_scratch_before_lifecycle_and_export_stably() {
     assert!(initializer.contains("scoreboard objectives add sand_consts dummy"));
 
     *COLLIDING_OBJECTIVE.lock().unwrap() = Some(scratch.clone());
-    let error = sand_core::try_export_components_json("numeric")
-        .unwrap_err()
-        .to_string();
+    let result = sand_core::try_export_components_json("numeric");
     *COLLIDING_OBJECTIVE.lock().unwrap() = None;
+    let error = result.unwrap_err().to_string();
     assert!(error.contains(&scratch), "{error}");
     assert!(
         error.contains("collides with generated numeric storage"),

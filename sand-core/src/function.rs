@@ -397,7 +397,7 @@ impl TrackedTransition {
 /// # Fields
 /// - `path` — function resource location path (no namespace), e.g. `"on_join"`
 /// - `id_override` — optional full advancement ID override (advancement dispatch only)
-/// - `make` — factory that returns the `Vec<String>` of mcfunction commands
+/// - `make` — factory that returns owned [`Actions`](crate::ir::Actions) for export
 /// - `dispatch` — advancement, special generated system, tick poll, or tracked transition
 pub struct EventDescriptor {
     pub path: &'static str,

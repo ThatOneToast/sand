@@ -60,7 +60,12 @@ pub(super) fn selector(value: &str) -> Option<Selector> {
             "gamemode" => SelectorArg::Gamemode(value.into()),
             "scores" => SelectorArg::Scores(value.strip_prefix('{')?.strip_suffix('}')?.into()),
             "advancements" => SelectorArg::Advancements(advancements(value)?),
-            "nbt" => SelectorArg::Nbt(value.into()),
+            "nbt" => {
+                if !super::snbt::supported_compound(negated.unwrap_or(value)) {
+                    return None;
+                }
+                SelectorArg::Nbt(value.into())
+            }
             "predicate" => SelectorArg::Predicate(negated.map_or_else(
                 || resource_location(value),
                 |v| format!("!{}", resource_location(v)),

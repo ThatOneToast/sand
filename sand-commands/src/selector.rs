@@ -1,6 +1,7 @@
 //! Entity/player selector (`@a`, `@e`, `@s`, etc.) with a typed builder API.
 
 mod parse;
+mod snbt;
 
 use std::fmt;
 use std::marker::PhantomData;

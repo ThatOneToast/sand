@@ -209,3 +209,9 @@ State field types. Ordinary State and archetype code should start with
 advanced controls only when a deliberately different intermediate precision
 is part of the gameplay contract, and still let the destination State field
 choose what is stored.
+
+Native numeric reads snapshot one source value before conversion, so random
+selectors are resolved once. Missing or multiple NBT matches, NaN, infinity,
+and out-of-range results abort the assignment and preserve its destination.
+The snapshot retains the NBT type so NaN cannot silently become scoreboard zero;
+finite zero and values smaller than the selected precision remain valid.

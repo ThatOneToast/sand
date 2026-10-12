@@ -7,7 +7,12 @@ static BODY: OnceLock<Actions> = OnceLock::new();
 fn body() -> Actions {
     BODY.get_or_init(|| {
         let shared = when(sand_core::state::Flag::new("cached_ready").of("@s").is_true()).then_all(["say shared across depths"]);
+        let greeting = String::from("cached anonymous function");
         mcfunction![
+        run_fn!({ cmd::say(greeting); });
+        Execute::new().as_(Target::players()).run_actions(run_fn!({
+            cmd::say("cached executed anonymous function");
+        }));
         sand_commands::Inventory::of(Target::current_player()).give("minecraft:stone");
         shared.clone();
         unless(sand_core::state::Flag::new("cached_ready").of("@s").is_true()).then_all(shared);
@@ -45,6 +50,14 @@ fn prebuilt_and_reused_scopes_export_all_owned_helpers() {
     let first = sand_core::try_export_components_json("cached").unwrap();
     let second = sand_core::try_export_components_json("cached").unwrap();
     assert_eq!(first, second);
+    std::thread::scope(|scope| {
+        let workers: Vec<_> = (0..4)
+            .map(|_| scope.spawn(|| sand_core::try_export_components_json("cached").unwrap()))
+            .collect();
+        for worker in workers {
+            assert_eq!(first, worker.join().unwrap());
+        }
+    });
     let records: Vec<serde_json::Value> = serde_json::from_str(&first).unwrap();
     let functions: std::collections::BTreeMap<_, _> = records
         .iter()
@@ -77,6 +90,8 @@ fn prebuilt_and_reused_scopes_export_all_owned_helpers() {
             .any(|body| body.contains("say retained body"))
     );
     for message in [
+        "cached anonymous function",
+        "cached executed anonymous function",
         "cached when",
         "cached unless",
         "cached if",

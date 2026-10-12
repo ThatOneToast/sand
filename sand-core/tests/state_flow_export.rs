@@ -28,11 +28,42 @@ impl TypedGameState for BossPhase {
 
 static PHASE: GameState<BossPhase> = GameState::with_default_score("boss_phase", 0);
 
+static THRESHOLD: sand_core::state::ScoreConst =
+    sand_core::state::ScoreConst::new("flow_threshold", 43);
+static FLOW_GUARD: sand_core::state::ScoreConst =
+    sand_core::state::ScoreConst::new("flow_guard", 47);
+static FLOW_HOOK: sand_core::state::ScoreConst = sand_core::state::ScoreConst::new("flow_hook", 53);
+static SOURCE: sand_core::state::ScoreVar = sand_core::state::ScoreVar::new("flow_value");
+static CACHED: std::sync::OnceLock<sand::command::Actions> = std::sync::OnceLock::new();
+
+fn cached_transition() -> sand::command::Actions {
+    CACHED
+        .get_or_init(|| {
+            PHASE
+                .of("@s")
+                .transition()
+                .from(BossPhase::Idle)
+                .when(SOURCE.of("@s").gte_score(THRESHOLD.ref_()))
+                .to(BossPhase::Fighting)
+        })
+        .clone()
+}
+sand_core::inventory::submit! {
+    sand_core::FunctionDescriptor {
+        context: sand::advanced::compiler::ExecutionContext::Server,
+        path: "cached_transition",
+        make: cached_transition,
+    }
+}
+
 fn register_boss_flow() {
     StateFlow::players(&PHASE)
         .named("boss")
         .transition(BossPhase::Fighting, BossPhase::Enraged)
-        .when(Condition::entity(Target::self_().tag("low_health")))
+        .when(
+            Condition::entity(Target::self_().tag("low_health"))
+                .and(SOURCE.of("@s").gte_score(FLOW_GUARD.ref_())),
+        )
         .priority(100)
         .done()
         .transition(BossPhase::Fighting, BossPhase::Defeated)
@@ -42,6 +73,10 @@ fn register_boss_flow() {
         .on_exit(BossPhase::Fighting, "function flowpack:stop_fighting")
         .on_enter(BossPhase::Enraged, "function flowpack:start_enrage")
         .on_tick(BossPhase::Enraged, "function flowpack:enraged_tick")
+        .on_tick(
+            BossPhase::Defeated,
+            SOURCE.of("@s").assign(FLOW_HOOK.ref_()),
+        )
         .on_tick_every(
             BossPhase::Enraged,
             Ticks::new(5),
@@ -70,8 +105,18 @@ fn functions(records: &[serde_json::Value]) -> Vec<(&str, &str)> {
 
 #[test]
 fn unified_flow_exports_one_ordered_lifecycle() {
+    let _cached = cached_transition();
     let first = export();
     let records: Vec<serde_json::Value> = serde_json::from_str(&first).unwrap();
+    let setup = records
+        .iter()
+        .find(|record| record["path"] == "__sand_score_init")
+        .unwrap()["content"]
+        .as_str()
+        .unwrap();
+    for value in [43, 47, 53] {
+        assert!(setup.contains(&format!(" sand_consts {value}")), "{setup}");
+    }
     let functions = functions(&records);
     let (_, root) = functions
         .iter()

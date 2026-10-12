@@ -28,7 +28,7 @@
 //!
 //! // ── Macro function: initialize named player's data ───────────────────────
 //! // Called with a vars compound {"player": "<name>"}
-//! fn init_player_fn() -> Vec<String> {
+//! fn init_player_fn() -> sand_core::cmd::Actions {
 //!     let p = macro_var("player");  // → "$(player)"
 //!     mcfunction![
 //!         macro_line(PLAYERS.get_or_insert(format!("{p}.kills"),  0_i32));
@@ -37,7 +37,7 @@
 //! }
 //!
 //! // ── Caller: store the player name, then invoke the macro function ────────
-//! fn on_player_join() -> Vec<String> {
+//! fn on_player_join() -> sand_core::cmd::Actions {
 //!     mcfunction![
 //!         TEMP.insert("vars.player", "Steve");
 //!         function_with("my_pack:init_player", DataTarget::storage(TEMP.id()), "vars");

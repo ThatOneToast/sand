@@ -697,7 +697,7 @@ pub(crate) fn take_internal_score_temp_request() -> bool {
 
 /// Register an anonymous function body at runtime.
 ///
-/// Called by anonymous `run_fn!` blocks that capture local variables.
+/// Used by export lowering to register a helper in the active export.
 /// The `commands` retain authored operations until export lowering.
 pub fn register_dyn_fn(path: String, commands: impl crate::IntoCommands) {
     let commands = commands.into_commands();

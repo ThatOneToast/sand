@@ -140,6 +140,27 @@ impl ConditionedExecute {
 ///     .run("say enough");
 /// ```
 pub trait ExecuteExt: Sized {
+    /// Run owned actions under this execute chain without rendering them early.
+    ///
+    /// Multi-action bodies share one helper, so selectors and conditions are
+    /// evaluated once. Captured anonymous functions and scoreboard setup remain
+    /// available when the result is cached and exported again.
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::command::ExecuteExt::run_actions",
+        aliases = ["sand::cmd::ExecuteExt::run_actions", "sand::prelude::ExecuteExt::run_actions", "sand::prelude::cmd::ExecuteExt::run_actions"],
+        module = "sand::command",
+        summary = "Run owned actions under an execute chain.",
+        context = "Retains action bodies and resource requirements until export. Multiple actions share one helper and one execute-chain evaluation.",
+        minecraft = "Emits a typed execute chain with one command or a generated function call.",
+        use_when = ["Running captured functions or semantic actions under execute modifiers"],
+        avoid_when = ["The current execution context already matches the action's needs"],
+        params(actions = "The owned actions, command builder, or explicit command text to execute."),
+        returns = "Owned Actions retaining the execution chain and nested body.",
+        example = "use sand::prelude::*; let actions = TypedExecute::as_players().run_actions(mcfunction![\"say first\"; \"say second\"]);",
+    )]
+    fn run_actions(self, actions: impl IntoCommands) -> crate::ir::Actions;
+
     /// Attach a typed condition — returns a [`ConditionedExecute`] whose
     /// [`run`](ConditionedExecute::run) produces [`Actions`](crate::cmd::Actions).
     #[sand_macros::api(
@@ -177,6 +198,14 @@ pub trait ExecuteExt: Sized {
 }
 
 impl ExecuteExt for Execute {
+    fn run_actions(self, actions: impl IntoCommands) -> crate::ir::Actions {
+        Condition::all([]).guard_actions(
+            false,
+            self.operations(),
+            actions.into_commands().into_single_action("sand/execute"),
+        )
+    }
+
     fn when(self, cond: Condition) -> ConditionedExecute {
         ConditionedExecute {
             prefix: self,
@@ -202,7 +231,7 @@ impl ExecuteExt for Execute {
     aliases = ["sand::cmd::TypedExecute", "sand::prelude::TypedExecute", "sand::prelude::cmd::TypedExecute"],
     module = "sand::command",
     summary = "Convenience constructors for common `execute` patterns.",
-    context = "Convenience constructors for common `execute` patterns. Each method returns a bare [`Execute`] so you can chain standard sub-commands before calling [`when`](ExecuteExt::when) or terminating with [`Execute::run`].",
+    context = "Convenience constructors for common `execute` patterns. Each method returns a bare [`Execute`] so you can chain standard sub-commands before calling [`when`](ExecuteExt::when) or [`run_actions`](ExecuteExt::run_actions).",
     minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
     use_when = ["Constructing Minecraft commands through Sand's typed command model"],
     avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
@@ -211,7 +240,7 @@ impl ExecuteExt for Execute {
 /// Convenience constructors for common `execute` patterns.
 ///
 /// Each method returns a bare [`Execute`] so you can chain standard sub-commands
-/// before calling [`when`](ExecuteExt::when) or terminating with [`Execute::run`].
+/// before calling [`when`](ExecuteExt::when) or [`run_actions`](ExecuteExt::run_actions).
 pub struct TypedExecute;
 
 impl TypedExecute {

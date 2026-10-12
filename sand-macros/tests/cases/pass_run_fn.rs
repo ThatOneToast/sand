@@ -1,12 +1,12 @@
 mod actions_support;
 use sand_macros::{function, run_fn};
-use sand_core::cmd::{self, Execute, Target};
+use sand_core::cmd::{self, Execute, ExecuteExt, Target};
 
 #[function]
 fn my_fn() {
     Execute::new()
         .as_(Target::all_players())
-        .run(run_fn!("hello_world:greet" {
+        .run_actions(run_fn!("hello_world:greet" {
             cmd::say("Welcome!");
         }));
 }

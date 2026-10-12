@@ -2,6 +2,8 @@
 # Selection uses the resolved `minecraft_version` embedded in both provider
 # catalogs, never an environment-variable guess. Adding a version requires a
 # separately reviewed deterministic baseline.
+# Owned-action consolidation removes IntoStateCommands and its method (-2),
+# and adds ExecuteExt::run_actions (+1); every source scope remains enforced.
 schema_version = 1
 
 # Explicit source-only profile used solely when sand-core code generation has
@@ -10,12 +12,12 @@ schema_version = 1
 # select this ratchet.
 [[profile]]
 minecraft_version = "placeholder-codegen"
-static_surface_items = 4910
+static_surface_items = 4909
 pending_item_ceiling = 0
 baseline = "api-surface-baseline-placeholder.txt"
 
 [[profile]]
 minecraft_version = "26.2"
-static_surface_items = 11010
+static_surface_items = 11009
 pending_item_ceiling = 0
 baseline = "api-surface-baseline.txt"

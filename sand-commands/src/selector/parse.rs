@@ -707,3 +707,31 @@ mod coordinate_tests {
         }
     }
 }
+
+#[cfg(test)]
+mod tag_team_token_tests {
+    use crate::{CommandProfile, RenderCommand, ScoreHolder, Selector};
+
+    #[test]
+    fn tag_and_team_require_complete_unquoted_tokens() {
+        for key in ["tag", "team"] {
+            for value in ["!!ready", "rpg:ready", "\"ready\"", "ready!", "ready/other"] {
+                let selector = format!("@s[{key}={value}]");
+                assert!(
+                    ScoreHolder::compat(selector.clone())
+                        .validate_single(&CommandProfile::unprofiled())
+                        .is_err(),
+                    "{selector}"
+                );
+            }
+            for value in ["", "!", "ready", "!ready", "a+b", "rpg.ready_1-2"] {
+                let selector = format!("@s[{key}={value}]");
+                ScoreHolder::compat(selector.clone())
+                    .validate_single(&CommandProfile::unprofiled())
+                    .unwrap_or_else(|error| panic!("{selector}: {error}"));
+            }
+        }
+        assert!(Selector::self_().not_tag("!ready").try_build().is_err());
+        assert!(Selector::self_().not_team("!red").try_build().is_err());
+    }
+}

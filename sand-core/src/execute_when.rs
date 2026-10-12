@@ -208,7 +208,7 @@ fn branch(commands: impl IntoCommands) -> Actions {
 pub struct WhenBuilder {
     cond: Conditional,
     /// Commands accumulated via `.and_then(...)` — when non-empty, `.then()` creates a branch.
-    staged: Vec<String>,
+    staged: Actions,
 }
 
 impl WhenBuilder {
@@ -232,61 +232,59 @@ impl WhenBuilder {
         minecraft = "Stores the rendered command for an anonymous function later invoked by one execute if command.",
         use_when = ["Building a grouped branch incrementally"],
         avoid_when = ["Each command must re-test the condition", "The complete command collection is already available"],
-        params(cmd = "The displayable Minecraft command to append to the staged branch."),
-        returns = "The builder with the rendered command appended.",
+        params(cmd = "The authored actions or command value to append to the staged branch."),
+        returns = "The builder retaining the appended actions.",
         example = "when(condition).and_then(\"say first\").then(\"say second\")"
     )]
-    pub fn and_then(mut self, cmd: impl std::fmt::Display) -> WhenBuilder {
-        self.staged.push(cmd.to_string());
+    pub fn and_then(mut self, cmd: impl IntoCommands) -> WhenBuilder {
+        self.staged.extend([cmd]);
         self
     }
 
     /// Finish the chain.
     ///
-    /// - With no prior `.and_then(...)`: emits a single `execute if … run <cmd>` line.
-    /// - With prior `.and_then(...)` calls: creates a grouped branch function.
+    /// A single action stays inline. Multiple actions, including any staged
+    /// through `.and_then(...)`, share one condition evaluation in an owned helper.
     #[sand_macros::api(
         registry = sand_api_contract,
         path = "sand::execute_when::WhenBuilder::then",
         summary = "Finishes a positive branch as either one direct command or one grouped helper call.",
-        context = "The presence of previously staged commands selects grouped one-time evaluation; an otherwise empty builder keeps the direct single-command form.",
+        context = "One action stays inline; multiple authored or staged actions share one condition evaluation in an owned helper.",
         minecraft = "Emits setup commands followed by execute if ... run, targeting either the supplied command or a generated function.",
         use_when = ["Finishing an incrementally staged branch", "Letting the builder choose direct versus grouped output"],
         avoid_when = ["A helper function must be generated even for one command", "Every command must re-test the condition"],
-        params(cmd = "The final displayable Minecraft command in the branch."),
+        params(cmd = "The final authored actions or command value in the branch."),
         returns = "The complete command lines to emit in the parent function.",
         example = "when(condition).then(\"say ready\")"
     )]
-    pub fn then(self, cmd: impl std::fmt::Display) -> Actions {
+    pub fn then(self, cmd: impl IntoCommands) -> Actions {
         let mut all_cmds = self.staged;
-        all_cmds.push(cmd.to_string());
-        let actions = if all_cmds.len() == 1 {
-            all_cmds.into_commands()
-        } else {
-            branch(all_cmds)
-        };
+        all_cmds.extend([cmd]);
+        let actions = all_cmds.into_single_action("sand/branches");
         self.cond.execute_actions(false, actions)
     }
 
-    /// Always emit a single `execute if … run <cmd>` line (no branch function).
+    /// Run an authored operation under one positive condition evaluation.
     ///
-    /// Use when you want one command wrapped in the condition, with no grouping.
+    /// A single action stays inline; a multi-action value uses an owned helper.
     /// The returned actions retain score setup requirements when cached or reused.
     #[sand_macros::api(
         registry = sand_api_contract,
         path = "sand::execute_when::WhenBuilder::then_one",
-        summary = "Wraps one command directly in a positive execute condition.",
-        context = "The explicit single-command operation avoids registering an anonymous branch function.",
+        summary = "Runs an authored operation under one positive condition evaluation.",
+        context = "A single action stays inline; multiple actions use an owned helper and share one condition evaluation.",
         minecraft = "Emits setup commands followed by one execute if ... run <command> line.",
         use_when = ["Running exactly one command when a condition succeeds"],
-        avoid_when = ["Several commands must share one condition evaluation", "A named or generated helper function is required"],
-        params(cmd = "The displayable Minecraft command to run on success."),
+        avoid_when = ["Every command intentionally needs a fresh condition check", "A named or generated helper function is required"],
+        params(cmd = "The authored actions or command value to run on success."),
         returns = "Owned actions retaining setup requirements and the conditional command until export.",
         example = "when(condition).then_one(\"say ready\")"
     )]
-    pub fn then_one(self, cmd: impl std::fmt::Display) -> Actions {
-        self.cond
-            .execute_actions(false, cmd.to_string().into_commands())
+    pub fn then_one(self, cmd: impl IntoCommands) -> Actions {
+        self.cond.execute_actions(
+            false,
+            cmd.into_commands().into_single_action("sand/branches"),
+        )
     }
 
     /// Collect all commands into a branch function, always (even for one command).
@@ -362,7 +360,7 @@ impl WhenBuilder {
 pub struct UnlessBuilder {
     cond: Conditional,
     /// Commands accumulated via `.and_then(...)`.
-    staged: Vec<String>,
+    staged: Actions,
 }
 
 impl UnlessBuilder {
@@ -377,59 +375,58 @@ impl UnlessBuilder {
         minecraft = "Stores the rendered command for an anonymous function later invoked by one execute unless command.",
         use_when = ["Building a grouped negative branch incrementally"],
         avoid_when = ["Each command must re-test the condition", "The complete command collection is already available"],
-        params(cmd = "The displayable Minecraft command to append to the staged branch."),
-        returns = "The builder with the rendered command appended.",
+        params(cmd = "The authored actions or command value to append to the staged branch."),
+        returns = "The builder retaining the appended actions.",
         example = "unless(condition).and_then(\"say first\").then(\"say second\")"
     )]
-    pub fn and_then(mut self, cmd: impl std::fmt::Display) -> UnlessBuilder {
-        self.staged.push(cmd.to_string());
+    pub fn and_then(mut self, cmd: impl IntoCommands) -> UnlessBuilder {
+        self.staged.extend([cmd]);
         self
     }
 
     /// Finish the chain.
     ///
-    /// - With no prior `.and_then(...)`: emits a single `execute unless … run <cmd>` line.
-    /// - With prior `.and_then(...)` calls: creates a grouped branch function.
+    /// A single action stays inline. Multiple actions, including any staged
+    /// through `.and_then(...)`, share one condition evaluation in an owned helper.
     #[sand_macros::api(
         registry = sand_api_contract,
         path = "sand::execute_when::UnlessBuilder::then",
         summary = "Finishes a negative branch as either one direct command or one grouped helper call.",
-        context = "Previously staged commands select grouped one-time evaluation; an otherwise empty builder keeps the direct single-command form.",
+        context = "One action stays inline; multiple authored or staged actions share one condition evaluation in an owned helper.",
         minecraft = "Emits setup commands followed by execute unless ... run, targeting either the supplied command or a generated function.",
         use_when = ["Finishing an incrementally staged negative branch", "Letting the builder choose direct versus grouped output"],
         avoid_when = ["A helper function must be generated even for one command", "Every command must re-test the condition"],
-        params(cmd = "The final displayable Minecraft command in the branch."),
+        params(cmd = "The final authored actions or command value in the branch."),
         returns = "The complete command lines to emit in the parent function.",
         example = "unless(condition).then(\"say unavailable\")"
     )]
-    pub fn then(self, cmd: impl std::fmt::Display) -> Actions {
+    pub fn then(self, cmd: impl IntoCommands) -> Actions {
         let mut all_cmds = self.staged;
-        all_cmds.push(cmd.to_string());
-        let actions = if all_cmds.len() == 1 {
-            all_cmds.into_commands()
-        } else {
-            branch(all_cmds)
-        };
+        all_cmds.extend([cmd]);
+        let actions = all_cmds.into_single_action("sand/branches");
         self.cond.execute_actions(true, actions)
     }
 
-    /// Always emit a single `execute unless … run <cmd>` line (no branch function).
+    /// Run an authored operation under one negative condition evaluation.
+    /// A single action stays inline; a multi-action value uses an owned helper.
     /// The returned actions retain score setup requirements when cached or reused.
     #[sand_macros::api(
         registry = sand_api_contract,
         path = "sand::execute_when::UnlessBuilder::then_one",
-        summary = "Wraps one command directly in a negative execute condition.",
-        context = "The explicit single-command operation avoids registering an anonymous branch function.",
+        summary = "Runs an authored operation under one negative condition evaluation.",
+        context = "A single action stays inline; multiple actions use an owned helper and share one condition evaluation.",
         minecraft = "Emits setup commands followed by one execute unless ... run <command> line.",
         use_when = ["Running exactly one command when a condition fails"],
-        avoid_when = ["Several commands must share one condition evaluation", "A named or generated helper function is required"],
-        params(cmd = "The displayable Minecraft command to run when the condition fails."),
+        avoid_when = ["Every command intentionally needs a fresh condition check", "A named or generated helper function is required"],
+        params(cmd = "The authored actions or command value to run when the condition fails."),
         returns = "Owned actions retaining setup requirements and the conditional command until export.",
         example = "unless(condition).then_one(\"say unavailable\")"
     )]
-    pub fn then_one(self, cmd: impl std::fmt::Display) -> Actions {
-        self.cond
-            .execute_actions(true, cmd.to_string().into_commands())
+    pub fn then_one(self, cmd: impl IntoCommands) -> Actions {
+        self.cond.execute_actions(
+            true,
+            cmd.into_commands().into_single_action("sand/branches"),
+        )
     }
 
     /// Collect all commands into a branch function called once under `unless`.
@@ -615,7 +612,7 @@ impl crate::components::mc_function::IntoCommands for IfThenBuilder {
 pub fn when(cond: impl Into<Conditional>) -> WhenBuilder {
     WhenBuilder {
         cond: cond.into(),
-        staged: Vec::new(),
+        staged: Actions::default(),
     }
 }
 
@@ -648,7 +645,7 @@ pub fn when(cond: impl Into<Conditional>) -> WhenBuilder {
 pub fn unless(cond: impl Into<Conditional>) -> UnlessBuilder {
     UnlessBuilder {
         cond: cond.into(),
-        staged: Vec::new(),
+        staged: Actions::default(),
     }
 }
 

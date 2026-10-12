@@ -2920,7 +2920,19 @@ fn compile_definition_with_claims(
         }
     }
 
-    merge_derivation_objectives(&id, &mut objectives, derivation_objectives)?;
+    merge_derivation_objectives(&id, &mut objectives, derivation_objectives.clone())?;
+    crate::function::reserve_generated_objectives(
+        derivation_objectives,
+        Some(
+            ResourceLocation::new(definition.id.namespace(), &load_path)
+                .expect("validated archetype load path"),
+        ),
+    )
+    .map_err(|error| EntityDiagnostic::InvalidRawExtension {
+        archetype: id.clone(),
+        extension: "derivation storage".into(),
+        detail: error.to_string(),
+    })?;
 
     // Property/derivation compilation can add objectives after the load
     // record is first reserved. Materialize the complete sorted set last.
@@ -5401,6 +5413,46 @@ mod tests {
         )
         .unwrap();
         assert_eq!(generated, BTreeSet::from([result.to_string()]));
+    }
+
+    #[test]
+    fn derivation_ownership_survives_pack_wide_validation() {
+        let _scope = crate::function::ExportFunctionRegistryScope::enter();
+        let definition = EntityArchetype::<ZombieKind>::new(
+            ResourceLocation::new("rpg", "owned_derivation").unwrap(),
+        )
+        .components::<MobState>()
+        .derive(HEALTH, StatCurve::state(LEVEL))
+        .definition();
+        let compiled = compile_definition(&definition, &profile()).unwrap();
+        crate::compiler::export::records::validate_objective_definitions(&compiled.records)
+            .unwrap();
+        let result = sand_commands::ObjectiveName::logical("rpg:owned_derivation.derive.0.result");
+        // A standalone ScoreVar uses the emitted token as its authored name.
+        let name = Box::leak(result.to_string().into_boxed_str());
+        let score = crate::state::ScoreVar::<i32>::new(name);
+        let authored = ComponentRecord::function("other", "load", vec![score.define()]);
+        for reverse in [false, true] {
+            let mut records = compiled.records.clone();
+            records.push(authored.clone());
+            if reverse {
+                records.reverse();
+            }
+            let error = crate::compiler::export::records::validate_objective_definitions(&records)
+                .unwrap_err()
+                .to_string();
+            assert!(error.contains(result.as_str()), "{error}");
+            assert!(error.contains(result.logical_name()), "{error}");
+        }
+        // A distinct archetype's logical storage cannot claim the same token.
+        let alias = sand_commands::ObjectiveName::logical(result.to_string());
+        let error = crate::function::reserve_generated_objectives(
+            [alias],
+            Some(ResourceLocation::new("other", "archetype/load").unwrap()),
+        )
+        .unwrap_err()
+        .to_string();
+        assert!(error.contains("collides between"), "{error}");
     }
 
     #[test]

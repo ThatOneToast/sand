@@ -1692,6 +1692,15 @@ impl StatCurve {
         fixed: FixedPoint,
     ) -> Result<LoweredCurve, EntityDiagnostic> {
         self.validate(fixed, scratch_prefix, target_objective)?;
+        for input in self.input_objectives() {
+            let _ = sand_commands::ObjectiveName::try_dynamic(&input).map_err(|error| {
+                EntityDiagnostic::InvalidRawExtension {
+                    archetype: scratch_prefix.into(),
+                    extension: target_objective.into(),
+                    detail: format!("invalid numeric input objective `{input}`: {error}"),
+                }
+            })?;
+        }
         if target_objective.trim().is_empty() || scratch_prefix.trim().is_empty() {
             return Err(EntityDiagnostic::InvalidRawExtension {
                 archetype: scratch_prefix.into(),
@@ -1707,6 +1716,7 @@ impl StatCurve {
             operations: Vec::new(),
         };
         let result = builder.lower(self)?;
+        self.validate_generated_objectives(&builder.scratch_objectives)?;
         builder.operations.push(LoweredCurveOperation::Copy {
             destination: target_objective.into(),
             source: result,
@@ -1744,6 +1754,31 @@ impl StatCurve {
         let mut inputs = BTreeSet::new();
         self.collect_inputs(&mut inputs);
         inputs
+    }
+
+    pub(crate) fn input_objectives(&self) -> BTreeSet<String> {
+        let mut objectives = BTreeSet::new();
+        self.visit_inputs(&mut |input| {
+            objectives.insert(input.objective.clone());
+        });
+        objectives
+    }
+
+    pub(crate) fn validate_generated_objectives(
+        &self,
+        generated: &BTreeSet<sand_commands::ObjectiveName>,
+    ) -> Result<(), EntityDiagnostic> {
+        let inputs = self.input_objectives();
+        for objective in generated {
+            if inputs.contains(objective.as_str()) {
+                return Err(EntityDiagnostic::ResourceCollision {
+                    resource: format!("scoreboard objective {objective}"),
+                    first: format!("numeric input `{objective}`"),
+                    second: objective.logical_name().into(),
+                });
+            }
+        }
+        Ok(())
     }
 
     /// Typed State fields referenced by this curve, keyed by input identity.

@@ -578,7 +578,7 @@ pub fn state_lifecycle(attr: TokenStream, item: TokenStream) -> TokenStream {
 /// qualified by the declared query type, so a macro-generated binding of
 /// another type before one of those calls is a compile error rather than a
 /// different export-time query. A helper or macro that returns an independently
-/// queried command vector remains an opaque command and does not join the
+/// queried action collection remains an opaque operation and does not join the
 /// declared query's shared outer scan.
 /// Other uses of the query value are rejected because the generated export
 /// adapter has a query type but intentionally fabricates no runtime marker.
@@ -728,7 +728,7 @@ fn state_system_body(function: &ItemFn) -> syn::Result<(syn::Ident, syn::Type, s
     if !matches!(function.sig.output, syn::ReturnType::Default) {
         return Err(syn::Error::new_spanned(
             &function.sig.output,
-            "[SAND-SYSTEM-RETURN] systems do not declare a Rust return type; write command-producing expressions as statements and return Vec<String> only from query closures",
+            "[SAND-SYSTEM-RETURN] systems do not declare a Rust return type; write command-producing expressions as statements and return Actions only from query closures",
         ));
     }
     if function.sig.inputs.len() != 1 {
@@ -1280,7 +1280,7 @@ fn expand_state_system_impl(
                 if !matches!(method.sig.output, syn::ReturnType::Default) {
                     return Err(syn::Error::new_spanned(
                         &method.sig.output,
-                        "[SAND-SYSTEM-RETURN] event systems do not declare a Rust return type; write command-producing expressions as statements and return Vec<String> only from query closures",
+                        "[SAND-SYSTEM-RETURN] event systems do not declare a Rust return type; write command-producing expressions as statements and return Actions only from query closures",
                     ));
                 }
                 let expected_ty: syn::Type = match event_attr.meta {

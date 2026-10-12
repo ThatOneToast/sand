@@ -121,6 +121,10 @@ impl NumericWrite {
         )
         .map_err(|error| numeric_error(error, owner))?;
 
+        self.value
+            .validate_generated_objectives(&objectives)
+            .map_err(|error| numeric_error(error, owner))?;
+
         // Preserve arithmetic precision until the final destination conversion.
         let mut body = crate::IntoCommands::into_commands(commands);
         let mut commit = vec![Cmd::ScorePlayers(ScorePlayersOp::Operation {
@@ -428,6 +432,66 @@ mod tests {
     }
 
     #[test]
+    fn raw_numeric_inputs_are_validated_before_helper_emission() {
+        for input in [
+            "",
+            "bad objective",
+            "overlong_objective_name",
+            "bad\nobjective",
+        ] {
+            for curve in [
+                StatCurve::input_raw(input),
+                StatCurve::lookup_raw(input, [(1, 2.0)], 0.0),
+                StatCurve::flag_mapping_raw(input, 0.0, 1.0),
+            ] {
+                let _scope = ExportFunctionRegistryScope::enter();
+                let error = assignment(curve)
+                    .lower(&"game:raw_input".parse().unwrap())
+                    .unwrap_err()
+                    .to_string();
+                assert!(error.contains("invalid numeric input objective"), "{error}");
+                assert!(error.contains("game:raw_input"), "{error}");
+                assert!(crate::function::drain_dyn_fns().is_empty());
+                assert!(crate::function::generated_objective_owners().is_empty());
+            }
+        }
+    }
+
+    #[test]
+    fn generated_storage_cannot_alias_undeclared_curve_inputs() {
+        let scratch = ObjectiveName::logical("game:raw_input.curve.0");
+        let generated = BTreeSet::from([scratch.clone()]);
+        for curve in [
+            StatCurve::input_raw(scratch.as_str()),
+            StatCurve::lookup_raw(scratch.as_str(), [(1, 2.0)], 0.0),
+            StatCurve::flag_mapping_raw(scratch.as_str(), 0.0, 1.0),
+            StatCurve::add([
+                StatCurve::constant(1.0),
+                StatCurve::input_raw(scratch.as_str()),
+            ]),
+        ] {
+            let lowering_error = curve
+                .lower_scoreboard("result", "game:raw_input", FixedPoint::default())
+                .unwrap_err()
+                .to_string();
+            assert!(
+                lowering_error.contains(scratch.as_str()),
+                "{lowering_error}"
+            );
+            let error = curve
+                .validate_generated_objectives(&generated)
+                .unwrap_err()
+                .to_string();
+            assert!(error.contains(scratch.as_str()), "{error}");
+            assert!(error.contains(scratch.logical_name()), "{error}");
+            assert!(error.contains("numeric input"), "{error}");
+        }
+        StatCurve::input_raw("external")
+            .validate_generated_objectives(&generated)
+            .unwrap();
+    }
+
+    #[test]
     fn logical_objective_collisions_are_rejected_and_export_scoped() {
         let emitted;
         {
@@ -442,7 +506,7 @@ mod tests {
             assert!(error.to_string().contains("collides between"));
         }
         let _scope = ExportFunctionRegistryScope::enter();
-        assert!(crate::function::numeric_objective_owners().is_empty());
+        assert!(crate::function::generated_objective_owners().is_empty());
         crate::function::request_numeric_objectives([ObjectiveName::logical(emitted)]).unwrap();
     }
 

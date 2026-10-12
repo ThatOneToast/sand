@@ -1759,7 +1759,9 @@ impl StatCurve {
     pub(crate) fn input_objectives(&self) -> BTreeSet<String> {
         let mut objectives = BTreeSet::new();
         self.visit_inputs(&mut |input| {
-            objectives.insert(input.objective.clone());
+            if let CurveInput::Score { objective, .. } = input {
+                objectives.insert(objective.clone());
+            }
         });
         objectives
     }

@@ -45,7 +45,12 @@ pub(super) fn selector(value: &str) -> Option<Selector> {
                 || SelectorArg::Type(entity_type(value)),
                 |v| SelectorArg::NotType(entity_type(v)),
             ),
-            "limit" => SelectorArg::Limit(value.parse().ok()?),
+            "limit" => {
+                if !value.bytes().all(|byte| byte.is_ascii_digit()) {
+                    return None;
+                }
+                SelectorArg::Limit(value.parse().ok()?)
+            }
             "sort" => SelectorArg::Sort(match value {
                 "nearest" => SortOrder::Nearest,
                 "furthest" => SortOrder::Furthest,
@@ -70,12 +75,12 @@ pub(super) fn selector(value: &str) -> Option<Selector> {
                 || resource_location(value),
                 |v| format!("!{}", resource_location(v)),
             )),
-            "x" => SelectorArg::X(value.parse().ok()?),
-            "y" => SelectorArg::Y(value.parse().ok()?),
-            "z" => SelectorArg::Z(value.parse().ok()?),
-            "dx" => SelectorArg::Dx(value.parse().ok()?),
-            "dy" => SelectorArg::Dy(value.parse().ok()?),
-            "dz" => SelectorArg::Dz(value.parse().ok()?),
+            "x" => SelectorArg::X(parse_decimal(value)?),
+            "y" => SelectorArg::Y(parse_decimal(value)?),
+            "z" => SelectorArg::Z(parse_decimal(value)?),
+            "dx" => SelectorArg::Dx(parse_decimal(value)?),
+            "dy" => SelectorArg::Dy(parse_decimal(value)?),
+            "dz" => SelectorArg::Dz(parse_decimal(value)?),
             _ => return None,
         });
     }
@@ -664,6 +669,41 @@ mod score_objective_tests {
             ScoreHolder::compat(text)
                 .validate_single(&CommandProfile::unprofiled())
                 .unwrap();
+        }
+    }
+}
+
+#[cfg(test)]
+mod coordinate_tests {
+    use crate::{CommandProfile, ScoreHolder};
+
+    #[test]
+    fn coordinates_require_brigadier_decimal_input() {
+        for value in ["+1", "-1", "1e3", "1.0", "0"] {
+            let text = format!("@e[limit={value}]");
+            assert!(
+                ScoreHolder::compat(text.clone())
+                    .validate_single(&CommandProfile::unprofiled())
+                    .is_err(),
+                "{text}"
+            );
+        }
+        for key in ["x", "y", "z", "dx", "dy", "dz"] {
+            for value in ["1e3", "+1", "NaN", "inf", "1.2.3", "--1", "-", "."] {
+                let text = format!("@e[{key}={value},limit=1]");
+                assert!(
+                    ScoreHolder::compat(text.clone())
+                        .validate_single(&CommandProfile::unprofiled())
+                        .is_err(),
+                    "{text}"
+                );
+            }
+            for value in ["0", "-1", ".25", "-.5", "1.", "1000"] {
+                let text = format!("@e[{key}={value},limit=1]");
+                ScoreHolder::compat(text.clone())
+                    .validate_single(&CommandProfile::unprofiled())
+                    .unwrap_or_else(|error| panic!("{text}: {error}"));
+            }
         }
     }
 }

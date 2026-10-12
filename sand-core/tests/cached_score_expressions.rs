@@ -87,6 +87,16 @@ fn prebuilt_score_expressions_replay_setup_on_every_export() {
             sand_core::try_export_components_json("cached_scores").unwrap()
         );
     }
+    std::thread::scope(|scope| {
+        let workers: Vec<_> = (0..4)
+            .map(|_| {
+                scope.spawn(|| sand_core::try_export_components_json("cached_scores").unwrap())
+            })
+            .collect();
+        for worker in workers {
+            assert_eq!(first, worker.join().unwrap());
+        }
+    });
     let records: Vec<serde_json::Value> = serde_json::from_str(&first).unwrap();
     let setup = records
         .iter()

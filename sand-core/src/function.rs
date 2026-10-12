@@ -587,7 +587,7 @@ thread_local! {
 /// Clears function-adjacent thread-local export state on entry and every exit.
 ///
 /// The export pipeline can fail after consuming score setup but before draining
-/// dynamic functions. Keeping both registries behind one scope prevents a later
+/// dynamic functions. Keeping these registries behind one scope prevents a later
 /// export on the same thread from inheriting only half of that failed export.
 pub(crate) struct ExportFunctionRegistryScope;
 
@@ -607,6 +607,7 @@ impl Drop for ExportFunctionRegistryScope {
 fn clear_function_export_state() {
     REGISTRY.with_borrow_mut(Vec::clear);
     INTERNAL_SCORE_TEMP_REQUESTED.set(false);
+    crate::state::score::clear_constant_setup();
     INTERNAL_NUMERIC_OBJECTIVES.with_borrow_mut(|objectives| objectives.clear());
     NUMERIC_OBJECTIVE_OWNERS.with_borrow_mut(|owners| owners.clear());
 }

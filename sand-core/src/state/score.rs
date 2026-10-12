@@ -17,10 +17,10 @@
 //!    available for compatibility and for advanced/modded selector syntax
 //!    Sand cannot yet type-check.
 
+use std::cell::RefCell;
 use std::collections::BTreeMap;
 use std::marker::PhantomData;
 use std::ops::RangeBounds;
-use std::sync::{Mutex, OnceLock};
 
 #[cfg(test)]
 use crate::condition::ConditionKind;
@@ -308,24 +308,31 @@ fn constant_holder(name: &str) -> String {
     format!("#sand_{prefix}_{:06x}", fnv1a(name) & 0xFF_FFFF)
 }
 
-fn constants_registry() -> &'static Mutex<BTreeMap<(String, String), i32>> {
-    static REGISTRY: OnceLock<Mutex<BTreeMap<(String, String), i32>>> = OnceLock::new();
-    REGISTRY.get_or_init(|| Mutex::new(BTreeMap::new()))
+type ConstantEntries = BTreeMap<(String, String), i32>;
+
+fn constants_registry() -> &'static std::thread::LocalKey<RefCell<ConstantEntries>> {
+    thread_local! {
+        static CONSTANTS: RefCell<ConstantEntries> = const { RefCell::new(BTreeMap::new()) };
+    }
+    &CONSTANTS
+}
+
+pub(crate) fn clear_constant_setup() {
+    constants_registry().with_borrow_mut(BTreeMap::clear);
 }
 
 fn register_constant(objective: &str, holder: &str, value: i32) {
-    let mut registry = constants_registry()
-        .lock()
-        .expect("score constant registry poisoned");
-    let key = (objective.to_string(), holder.to_string());
-    if let Some(existing) = registry.insert(key.clone(), value)
-        && existing != value
-    {
-        panic!(
-            "conflicting Sand score constant `{}` in objective `{}`: {existing} versus {value}",
-            holder, objective
-        );
-    }
+    constants_registry().with_borrow_mut(|registry| {
+        let key = (objective.to_string(), holder.to_string());
+        if let Some(existing) = registry.get(&key) {
+            assert_eq!(
+                *existing, value,
+                "conflicting Sand score constant `{holder}` in objective `{objective}`"
+            );
+        } else {
+            registry.insert(key, value);
+        }
+    });
 }
 
 fn score_constant_operand(prefix: &str, value: i32) -> ScoreOperand {
@@ -365,10 +372,7 @@ fn score_operation_command(
 /// This is consumed by the export pipeline, not by user code.
 #[doc(hidden)]
 pub fn drain_constant_setup() -> Vec<String> {
-    let mut registry = constants_registry()
-        .lock()
-        .expect("score constant registry poisoned");
-    let entries = std::mem::take(&mut *registry);
+    let entries = constants_registry().with_borrow_mut(std::mem::take);
     let mut objectives = entries
         .keys()
         .map(|(objective, _)| objective.clone())
@@ -3163,6 +3167,61 @@ mod tests {
                 &format!("scoreboard players operation @s mana {operator} @p other")
             );
         }
+    }
+
+    #[test]
+    fn retained_constants_are_isolated_between_export_threads() {
+        let operand = ScoreConst::<i32>::new("concurrent retained", 37).ref_();
+        clear_constant_setup();
+        let barrier = std::sync::Barrier::new(2);
+        let outputs = std::thread::scope(|scope| {
+            let threads: Vec<_> = (0..2)
+                .map(|_| {
+                    let operand = &operand;
+                    let barrier = &barrier;
+                    scope.spawn(move || {
+                        let _scope = crate::function::ExportFunctionRegistryScope::enter();
+                        operand.register_owned_setup();
+                        barrier.wait();
+                        drain_internal_score_setup()
+                    })
+                })
+                .collect();
+            threads
+                .into_iter()
+                .map(|thread| thread.join().unwrap())
+                .collect::<Vec<_>>()
+        });
+        let expected = vec![
+            "scoreboard objectives add sand_consts dummy".to_string(),
+            format!("scoreboard players set {} sand_consts 37", operand.selector),
+        ];
+        assert_eq!(outputs, vec![expected.clone(), expected]);
+    }
+
+    #[test]
+    fn score_constant_setup_cannot_leak_across_export_scopes() {
+        let operand = ScoreConst::<i32>::new("failed export constant", 41).ref_();
+        {
+            let _scope = crate::function::ExportFunctionRegistryScope::enter();
+            assert!(
+                drain_constant_setup().is_empty(),
+                "entry clears unrelated authoring state"
+            );
+            operand.register_owned_setup();
+            // Simulate an export leaving before the initializer drain.
+        }
+        let _scope = crate::function::ExportFunctionRegistryScope::enter();
+        assert!(
+            drain_constant_setup().is_empty(),
+            "abandoned export state must not leak"
+        );
+        operand.register_owned_setup();
+        assert!(
+            drain_constant_setup()
+                .iter()
+                .any(|line| line.ends_with(" sand_consts 41"))
+        );
     }
 
     #[test]

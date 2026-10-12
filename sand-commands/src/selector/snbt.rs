@@ -151,7 +151,7 @@ impl Parser<'_> {
                             b'L' => 64,
                             _ => unreachable!(),
                         };
-                        decimal_integer(token, max_bits).is_some_and(|bits| bits <= max_bits)
+                        integer(token, max_bits).is_some_and(|bits| bits <= max_bits)
                     } else {
                         self.value(depth + 1)
                     };
@@ -205,60 +205,199 @@ fn named_character(name: &str) -> bool {
     unicode_names2::name(character).is_some_and(|canonical| canonical.to_string() == name)
 }
 
-// Decimal integer subset of current SNBT. Array context supplies the type
-// for unsuffixed values and allows explicitly smaller integer element types.
-fn decimal_integer(token: &str, implied_bits: u8) -> Option<u8> {
-    let (digits, bits) = match token.as_bytes().last()? {
-        b'b' | b'B' => (&token[..token.len() - 1], 8),
-        b's' | b'S' => (&token[..token.len() - 1], 16),
-        b'i' | b'I' => (&token[..token.len() - 1], 32),
-        b'l' | b'L' => (&token[..token.len() - 1], 64),
-        _ => (token, implied_bits),
-    };
-    let unsigned = digits.strip_prefix(['-', '+']).unwrap_or(digits);
-    if unsigned.is_empty() || !unsigned.bytes().all(|c| c.is_ascii_digit()) {
+// Numeric digit groups allow repeated separators only between digits.
+fn digits(text: &str, radix: u32) -> Option<String> {
+    if text.is_empty() || text.starts_with('_') || text.ends_with('_') {
         return None;
     }
-    if unsigned.len() > 1 && unsigned.starts_with('0') && unsigned.bytes().any(|c| c != b'0') {
+    text.chars()
+        .all(|c| c == '_' || c.is_digit(radix))
+        .then(|| text.replace('_', ""))
+}
+
+// Array context supplies the type for unsuffixed values and permits widening
+// explicitly smaller integer types. Binary/hex default to unsigned parsing;
+// the resulting NBT value is still stored in the corresponding signed type.
+fn integer(token: &str, implied_bits: u8) -> Option<u8> {
+    let negative = token.starts_with('-');
+    let number = token.strip_prefix(['-', '+']).unwrap_or(token);
+    let (number, radix) = if let Some(number) = number
+        .strip_prefix("0x")
+        .or_else(|| number.strip_prefix("0X"))
+    {
+        (number, 16)
+    } else if let Some(number) = number
+        .strip_prefix("0b")
+        .or_else(|| number.strip_prefix("0B"))
+    {
+        (number, 2)
+    } else {
+        (number, 10)
+    };
+    // Greedy hexadecimal digits include b/B: 0xFFb is an int, not a byte.
+    let end = number
+        .find(|c: char| c != '_' && !c.is_digit(radix))
+        .unwrap_or(number.len());
+    let magnitude = digits(&number[..end], radix)?;
+    if radix == 10 && magnitude.len() > 1 && magnitude.starts_with('0') {
         return None;
     }
-    let number = digits.parse::<i64>().ok()?;
-    let valid = match bits {
-        8 => i8::try_from(number).is_ok(),
-        16 => i16::try_from(number).is_ok(),
-        32 => i32::try_from(number).is_ok(),
-        64 => true,
-        _ => false,
+    let suffix = number[end..].to_ascii_lowercase();
+    let (bits, signed) = match suffix.as_str() {
+        "" => (implied_bits, radix == 10),
+        "b" => (8, radix == 10),
+        "s" => (16, radix == 10),
+        "i" => (32, radix == 10),
+        "l" => (64, radix == 10),
+        "sb" => (8, true),
+        "ss" => (16, true),
+        "si" => (32, true),
+        "sl" => (64, true),
+        "ub" => (8, false),
+        "us" => (16, false),
+        "ui" => (32, false),
+        "ul" => (64, false),
+        _ => return None,
     };
-    valid.then_some(bits)
+    if negative && !signed {
+        return None;
+    }
+    let magnitude = u64::from_str_radix(&magnitude, radix).ok()?;
+    let bound = if signed {
+        (1_u64 << (bits - 1)) - u64::from(!negative)
+    } else {
+        u64::MAX >> (64 - bits)
+    };
+    (magnitude <= bound).then_some(bits)
+}
+
+fn float(token: &str) -> bool {
+    let suffix = token.as_bytes().last().copied();
+    let explicit = matches!(suffix, Some(b'f' | b'F' | b'd' | b'D'));
+    let number = if explicit {
+        &token[..token.len() - 1]
+    } else {
+        token
+    };
+    let unsigned = number.strip_prefix(['-', '+']).unwrap_or(number);
+    let (mantissa, exponent) = unsigned
+        .split_once(['e', 'E'])
+        .map_or((unsigned, None), |(m, e)| (m, Some(e)));
+    if exponent.is_some_and(|e| digits(e.strip_prefix(['-', '+']).unwrap_or(e), 10).is_none()) {
+        return false;
+    }
+    let valid = if let Some((whole, fraction)) = mantissa.split_once('.') {
+        (!whole.is_empty() || !fraction.is_empty())
+            && (whole.is_empty() || digits(whole, 10).is_some())
+            && (fraction.is_empty() || digits(fraction, 10).is_some())
+    } else {
+        (explicit || exponent.is_some()) && digits(mantissa, 10).is_some()
+    };
+    if !valid {
+        return false;
+    }
+    let normalized = number.replace('_', "");
+    if matches!(suffix, Some(b'f' | b'F')) {
+        normalized.parse::<f32>().is_ok_and(f32::is_finite)
+    } else {
+        normalized.parse::<f64>().is_ok_and(f64::is_finite)
+    }
 }
 
 fn scalar(token: &str) -> bool {
     if token.is_empty() {
         return false;
     }
-    // Plain identifiers are strings/booleans. Numeric-looking tokens must be
-    // a supported decimal number, never an unchecked malformed numeric literal.
-    if token.starts_with(|c: char| c.is_ascii_alphabetic() || c == '_') {
-        return true;
-    }
-    if decimal_integer(token, 32).is_some() {
-        return true;
-    }
-    match token.as_bytes().last().copied() {
-        Some(b'f' | b'F') => token[..token.len() - 1]
-            .parse::<f32>()
-            .is_ok_and(f32::is_finite),
-        Some(b'd' | b'D') => token[..token.len() - 1]
-            .parse::<f64>()
-            .is_ok_and(f64::is_finite),
-        _ => token.contains(['.', 'e', 'E']) && token.parse::<f64>().is_ok_and(f64::is_finite),
-    }
+    // Numeric-looking tokens cannot fall back to unquoted strings.
+    token.starts_with(|c: char| c.is_ascii_alphabetic() || c == '_')
+        || integer(token, 32).is_some()
+        || float(token)
 }
 
 #[cfg(test)]
 mod tests {
     use crate::{CommandProfile, ScoreHolder};
+
+    #[test]
+    fn modern_numeric_literals_match_vanilla_26_2() {
+        // These cases were checked with Mojang's 26.2 TagParser.parseCompoundFully.
+        for value in [
+            "0xCAFE",
+            "0XFF",
+            "0xFFb",
+            "0xFFub",
+            "0b10_01",
+            "0xAB_CD",
+            "1__0",
+            "1_2.3_4__5f",
+            "1_2e3_4",
+            "240ub",
+            "-16sb",
+            "0xFFFFFFFF",
+            "0xfffffffffffffffful",
+            "-0x80sb",
+            "+0x1",
+            "-0b1sb",
+            "+1ub",
+            "1UB",
+            "0xffs",
+            "-128sb",
+            "255ub",
+            "01.0",
+            "01f",
+            "01e2",
+            "1.e2",
+            ".1",
+            "1.",
+            "1e2f",
+            "[B;0xff,255ub,-128sb]",
+            "[I;0xffub,0xffffus,0xffffffff]",
+            "[L;0xffffffffffffffff,0b111ui]",
+        ] {
+            let text = format!("@s[nbt={{value:{value}}}]");
+            ScoreHolder::compat(text.clone())
+                .validate_single(&CommandProfile::unprofiled())
+                .unwrap_or_else(|error| panic!("{text}: {error}"));
+        }
+        for value in [
+            "0x",
+            "0b2",
+            "0x100000000",
+            "0xffffffffffffffffsl",
+            "-0x1",
+            "-0b1",
+            "-1ub",
+            "128sb",
+            "256ub",
+            "0x80sb",
+            "00",
+            "0_0",
+            "01",
+            "1_f",
+            "1_.0",
+            "1._0",
+            "1e_2",
+            "1e2_",
+            "1e2b",
+            "0x_FF",
+            "0xff_",
+            "1e1000",
+            "1e100f",
+            "1.0.0",
+            "1e2e3",
+            "[B;0x100]",
+            "[I;0x1ul]",
+            "[L;18446744073709551616ul]",
+        ] {
+            let text = format!("@s[nbt={{value:{value}}}]");
+            assert!(
+                ScoreHolder::compat(text.clone())
+                    .validate_single(&CommandProfile::unprofiled())
+                    .is_err(),
+                "{text}"
+            );
+        }
+    }
 
     #[test]
     fn current_snbt_escapes_are_checked_without_decoding_selector_structure() {

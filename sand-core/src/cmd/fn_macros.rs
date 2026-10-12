@@ -28,7 +28,7 @@
 //!
 //! // ── Macro function: initialize named player's data ───────────────────────
 //! // Called with a vars compound {"player": "<name>"}
-//! fn init_player_fn() -> Vec<String> {
+//! fn init_player_fn() -> sand_core::cmd::Actions {
 //!     let p = macro_var("player");  // → "$(player)"
 //!     mcfunction![
 //!         macro_line(PLAYERS.get_or_insert(format!("{p}.kills"),  0_i32));
@@ -37,7 +37,7 @@
 //! }
 //!
 //! // ── Caller: store the player name, then invoke the macro function ────────
-//! fn on_player_join() -> Vec<String> {
+//! fn on_player_join() -> sand_core::cmd::Actions {
 //!     mcfunction![
 //!         TEMP.insert("vars.player", "Steve");
 //!         function_with("my_pack:init_player", DataTarget::storage(TEMP.id()), "vars");
@@ -721,6 +721,25 @@ mod tests {
         assert!(undeclared.message.contains("undeclared"), "{undeclared}");
         assert!(args.line("say $(player").is_err());
         assert!(args.line("say $(bad-name)").is_err());
+    }
+
+    #[test]
+    fn checked_macro_lines_keep_typed_slot_validation() {
+        let args = FunctionMacroArgs::new(["item"]).unwrap();
+        let invalid = sand_commands::Inventory::of(sand_commands::Target::self_())
+            .set(sand_commands::ItemSlot::AnyHotbar, "minecraft:stone");
+        for command in [invalid.clone(), format!("execute as @a run {invalid}")] {
+            let error = args.line(command).unwrap_err();
+            assert!(
+                error.to_string().contains("SAND-INVENTORY-WILDCARD-WRITE"),
+                "{error}"
+            );
+        }
+        let valid = sand_commands::Inventory::of(sand_commands::Target::self_())
+            .set(sand_commands::ItemSlot::MainHand, "minecraft:stone");
+        assert_eq!(args.line(&valid).unwrap(), format!("${valid}"));
+        // Unknown macro grammar still uses the explicit text interoperability path.
+        assert_eq!(args.line("give @s $(item)").unwrap(), "$give @s $(item)");
     }
 
     #[test]

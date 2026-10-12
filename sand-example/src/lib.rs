@@ -66,10 +66,10 @@ pub fn tick() {
 /// Demonstrates `run_fn!` — calls an inline function via execute.
 #[function]
 pub fn execute_example() {
-    use sand_core::cmd::{self, Execute, Target};
+    use sand_core::cmd::{self, Execute, ExecuteExt, Target};
     Execute::new()
         .as_(Target::all_players())
-        .run(run_fn!("hello_world:greet_inline" {
+        .run_actions(run_fn!("hello_world:greet_inline" {
             cmd::raw("say Welcome from the inline function!");
         }));
 }
@@ -80,24 +80,24 @@ pub fn execute_example() {
 /// panic and produces the expected fully-namespaced function ID.
 #[function]
 pub fn execute_path_only_example() {
-    use sand_core::cmd::{self, Execute, Target};
+    use sand_core::cmd::{self, Execute, ExecuteExt, Target};
     Execute::new()
         .as_(Target::all_players())
-        .run(run_fn!("helpers/path_only_greet" {
+        .run_actions(run_fn!("helpers/path_only_greet" {
             cmd::raw("say Welcome from the path-only inline function!");
         }));
 }
 
-/// Demonstrates the **anonymous** `run_fn!({ ... })` form, which resolves
-/// its namespace from `sand.toml` the same way the path-only named form
-/// above does, but generates a unique `__anon/fn_N` path instead of taking
-/// one explicitly.
+/// Demonstrates the **anonymous** `run_fn!({ ... })` form, which retains
+/// its captured body and emits a content-derived helper in the export namespace.
 #[function]
 pub fn execute_anonymous_example() {
-    use sand_core::cmd::{self, Execute, Target};
-    Execute::new().as_(Target::all_players()).run(run_fn!({
-        cmd::raw("say Welcome from the anonymous inline function!");
-    }));
+    use sand_core::cmd::{self, Execute, ExecuteExt, Target};
+    Execute::new()
+        .as_(Target::all_players())
+        .run_actions(run_fn!({
+            cmd::raw("say Welcome from the anonymous inline function!");
+        }));
 }
 
 // ── Components ───────────────────────────────────────────────────────────────

@@ -20,7 +20,7 @@
 //! - **`#[custom_item]`** — reads a `CustomItem`-returning function and generates a typed
 //!   struct with `BASE`, `PREDICATE`, `CUSTOM_DATA_KEY` constants and an `item()` method.
 //! - **`run_fn!`** — defines an inline function and returns the
-//!   `cmd::function(...)` call to invoke it.
+//!   owned `Actions` that invoke it and retain its body.
 //!
 //! # Example
 //!
@@ -3165,13 +3165,13 @@ fn expand_event_with_path(
 
 // ── run_fn! ───────────────────────────────────────────────────────────────────
 
-/// Returns a `cmd::function(...)` call and optionally registers an inline body
+/// Returns owned `Actions` for a function call and optionally retains an inline body
 /// as a named `.mcfunction` file.
 ///
 /// # Named with body — define + call inline
 ///
 /// The body is registered as a named datapack function and the macro expands
-/// to the `cmd::function(...)` call in one step:
+/// to an owned function-call action in one step:
 ///
 /// ```rust,ignore
 /// use sand_macros::{function, run_fn};
@@ -3183,7 +3183,7 @@ fn expand_event_with_path(
 /// fn my_fn() {
 ///     Execute::new()
 ///         .as_(Target::players())
-///         .run(run_fn!("hello_world:greet" {
+///         .run_actions(run_fn!("hello_world:greet" {
 ///             cmd::say("Welcome!");
 ///             VISITS.add(Target::self_(), 1);
 ///         }));
@@ -3192,30 +3192,29 @@ fn expand_event_with_path(
 ///
 /// # Anonymous with body — one-off inline function
 ///
-/// When no name is given, the namespace is read from `sand.toml` and a unique
-/// function name is generated automatically. Perfect for one-off inline
-/// functions that don't need to be referenced elsewhere:
+/// When no name is given, the body is owned by the returned actions and a
+/// content-derived helper is emitted in each export's namespace. Captured values
+/// remain available when actions are cached and reused across exports:
 ///
 /// ```rust,ignore
 /// Execute::new()
 ///     .as_(Target::players())
-///     .run(run_fn!({
+///     .run_actions(run_fn!({
 ///         cmd::say("One-off greeting!");
 ///     }));
 /// ```
 ///
-/// # Without body — shorthand for `cmd::function(...)`
+/// # Without body — an owned call to an existing function
 ///
 /// ```rust,ignore
 /// Execute::new()
 ///     .as_(Target::players())
-///     .run(run_fn!("hello_world:on_player_join"))
+///     .run_actions(run_fn!("hello_world:on_player_join"))
 /// ```
 ///
 /// The name string must be a valid resource location: either a full
 /// `namespace:path`, or a bare `path`, which is resolved against the pack's
-/// `[pack].namespace` from `sand.toml` at compile time — the same mechanism
-/// the anonymous form above uses to pick a namespace. Namespace must match
+/// `[pack].namespace` from `sand.toml` at compile time. Namespace must match
 /// `[a-z0-9_.-]+`, path must match `[a-z0-9_./-]+`. Invalid strings, and a
 /// bare `path` with no resolvable `sand.toml` namespace, are rejected at
 /// compile time — never at runtime.
@@ -3506,9 +3505,6 @@ fn read_sand_namespace() -> Option<String> {
     None
 }
 
-/// Global counter for generating unique anonymous function names.
-static ANON_COUNTER: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
-
 /// Validates a `[pack].namespace` value read from `sand.toml` against the
 /// same character rules `ResourceLocation` enforces, so a malformed config
 /// value is reported at macro-expansion time instead of reaching an
@@ -3534,8 +3530,8 @@ fn expand_run_fn(input: TokenStream) -> syn::Result<proc_macro2::TokenStream> {
     let RunFnInput { name, body } = syn::parse::<RunFnInput>(input)?;
 
     // Resolve the full (namespace, path) resource location. A path-only
-    // named input (no `:`) is resolved against the pack namespace exactly
-    // like the anonymous form below, rather than being handed to
+    // named input (no `:`) is resolved against the pack namespace rather than
+    // being handed to
     // `ResourceLocation`'s runtime parser — that parser requires
     // `namespace:path` and would panic on a bare path.
     let (ns_val, path_val, span) = match &name {
@@ -3560,32 +3556,23 @@ fn expand_run_fn(input: TokenStream) -> syn::Result<proc_macro2::TokenStream> {
                 }
             }
         }
-        None => {
-            // Anonymous: read namespace from sand.toml, generate unique path.
-            let ns = read_sand_namespace().ok_or_else(|| {
-                syn::Error::new(
-                    proc_macro2::Span::call_site(),
-                    "could not read [pack].namespace from sand.toml; \
-                     provide an explicit name or ensure sand.toml exists",
-                )
-            })?;
-            validate_pack_namespace(&ns, proc_macro2::Span::call_site())?;
-            let id = ANON_COUNTER.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
-            let anon_path = format!("__anon/fn_{id}");
-            (ns, anon_path, proc_macro2::Span::call_site())
-        }
+        None => (
+            String::new(),
+            "__anon/function".to_string(),
+            proc_macro2::Span::call_site(),
+        ),
     };
 
     let path_part = path_val.as_str();
     let ns_lit = LitStr::new(&ns_val, span);
     let full_path_lit = LitStr::new(&path_val, span);
     let fn_call = quote! {
-        ::sand::__private::cmd::function(
+        ::sand::component::IntoCommands::into_commands(::sand::__private::cmd::function(
             ::sand::__private::FunctionId::custom(
                 ::sand::__private::ResourceLocation::new(#ns_lit, #full_path_lit)
                     .expect("run_fn! validates namespace/path syntax at compile time")
             )
-        )
+        ))
     };
 
     if let Some(block) = body {
@@ -3617,17 +3604,14 @@ fn expand_run_fn(input: TokenStream) -> syn::Result<proc_macro2::TokenStream> {
                 }
             })
         } else {
-            // Anonymous run_fn!({ ... }) — body is evaluated immediately so local
-            // variable captures work. Registered via runtime registry instead of
-            // inventory, so the component builder picks it up after user fns run.
+            // Capture now, register during each export. Cached actions own the
+            // body instead of depending on an ambient registration side effect.
             Ok(quote! {
                 {
-                    ::sand::__private::register_dyn_fn(
+                    ::sand::__private::owned_anonymous_function(
                         #path_lit.to_string(),
                         { #cmd_body },
-                    );
-
-                    #fn_call
+                    )
                 }
             })
         }

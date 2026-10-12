@@ -1732,6 +1732,8 @@ fn validate_scores(value: &str) -> CommandResult<()> {
                 format!("expected `objective=range`, got `{entry}`"),
             ));
         };
+        let objective = objective.trim();
+        let range = range.trim();
         let _ = crate::ObjectiveName::try_dynamic(objective).map_err(|mut error| {
             error.field = format!("scores.objective.{}", error.field);
             error

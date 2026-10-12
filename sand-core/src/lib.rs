@@ -611,6 +611,14 @@ impl sand_commands::resource::RegistryReference<sand_commands::resource::SoundEv
 /// author-facing API surface.
 #[doc(hidden)]
 pub mod __private {
+    /// Macro bridge that retains a captured inline function body until export.
+    pub fn owned_anonymous_function(
+        prefix: String,
+        body: crate::ir::Actions,
+    ) -> crate::ir::Actions {
+        crate::ir::Actions(vec![crate::ir::Cmd::AnonymousFunction { prefix, body }])
+    }
+
     #[doc(hidden)]
     pub use crate::entity::query::{
         GeneratedSystemQueryParameter, QueryableStateScope, StateQueryScope, StateQuerySpec,

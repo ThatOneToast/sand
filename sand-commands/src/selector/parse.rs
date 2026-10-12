@@ -490,6 +490,8 @@ mod empty_scores_and_team_tests {
             "@s[type=!minecraft:cow,type=#minecraft:skeletons]",
             "@s[type=#minecraft:skeletons,type=#minecraft:undead]",
             "@s[scores={}]",
+            "@s[scores={mana=1, health=2}]",
+            "@s[scores={ mana = 1 , health = 2 }]",
             "@s[team=!blue,team=!green]",
             "@s[team=]",
         ] {
@@ -513,6 +515,8 @@ mod empty_scores_and_team_tests {
             "@s[team=red,team=blue]",
             "@s[team=,team=red]",
             "@s[scores={broken}]",
+            "@s[scores={mana=1 .. 2}]",
+            "@s[scores={mana=1, mana=2}]",
             "@s[scores={points=}]",
             "@s[scores={points=1,}]",
         ] {

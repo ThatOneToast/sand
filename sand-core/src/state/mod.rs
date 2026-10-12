@@ -18,7 +18,7 @@ pub mod typed_state;
 
 pub use cooldown::Cooldown;
 pub use flag::{Flag, FlagRef};
-pub use flow::{FlowTransitionBuilder, IntoStateCommands, StateFlow, StateTransitionBuilder};
+pub use flow::{FlowTransitionBuilder, StateFlow, StateTransitionBuilder};
 pub use lifecycle::{
     StateCleanup, StateInit, StateLifecycle, StateMigrate, StateProvision, StateReconcile,
     StateTick,

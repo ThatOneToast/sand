@@ -1,0 +1,5 @@
+error: [SAND-SYSTEM-RETURN] event systems do not declare a Rust return type; write command-producing expressions as statements and return Actions only from query closures
+ --> tests/cases/fail_system_event_return_type.rs:9:31
+  |
+9 |     fn invalid(_event: Pulse) -> Actions {
+  |                               ^^^^^^^^^^

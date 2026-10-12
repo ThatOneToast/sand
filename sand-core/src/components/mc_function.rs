@@ -9,7 +9,7 @@ use crate::resource_location::ResourceLocation;
     path = "sand::component::IntoCommands",
     module = "sand::component",
     summary = "Collects typed operations and explicit command text into authored actions.",
-    context = "Function macros, query callbacks, and McFunction share this collection protocol. Actions retain structured nodes; strings are accepted as raw interoperability input.",
+    context = "Function macros, query callbacks, and McFunction share this collection protocol. Actions retain structured nodes; legacy typed strings retain their registered validation origin when collected; other strings are interoperability input.",
     minecraft = "The exporter validates and lowers collected actions into ordered mcfunction lines.",
     use_when = ["Accepting a gameplay helper result or command in an action-collecting API"],
     avoid_when = ["Inspecting rendered command text before export validation"],
@@ -122,7 +122,14 @@ impl IntoCommands for Actions {
 
 impl IntoCommands for String {
     fn into_commands(self) -> Actions {
-        Actions(vec![Cmd::Raw(self)])
+        let origins = sand_commands::export_registry::RetainedCommandOrigins::capture(&self);
+        Actions(vec![match origins {
+            Some(origins) => Cmd::RetainedCommand {
+                text: self,
+                origins,
+            },
+            None => Cmd::Raw(self),
+        }])
     }
 }
 
@@ -140,7 +147,7 @@ impl IntoCommands for McFunction {
 
 impl IntoCommands for Vec<String> {
     fn into_commands(self) -> Actions {
-        Actions(self.into_iter().map(Cmd::Raw).collect())
+        self.into_iter().map(IntoCommands::into_commands).collect()
     }
 }
 
@@ -152,7 +159,7 @@ impl IntoCommands for Vec<&str> {
 
 impl IntoCommands for sand_commands::RawCommand {
     fn into_commands(self) -> Actions {
-        self.into_inner().into_commands()
+        Actions(vec![Cmd::Raw(self.into_inner())])
     }
 }
 
@@ -231,5 +238,23 @@ mod action_export_tests {
         assert!(error.contains("game:invalid"), "{error}");
         assert!(error.contains("actions[1].operations"), "{error}");
         assert!(error.contains("SAND-COMMAND-EXECUTE-EMPTY"), "{error}");
+    }
+}
+
+#[cfg(test)]
+mod retained_origin_tests {
+    use super::*;
+    #[test]
+    fn explicit_raw_bypasses_typed_origin_capture() {
+        let line = sand_commands::Inventory::of(sand_commands::Target::self_())
+            .set(sand_commands::ItemSlot::AnyHotbar, "minecraft:stone");
+        assert!(matches!(
+            line.clone().into_commands().0[0],
+            Cmd::RetainedCommand { .. }
+        ));
+        assert!(matches!(
+            sand_commands::RawCommand::new(line).into_commands().0[0],
+            Cmd::Raw(_)
+        ));
     }
 }

@@ -148,6 +148,11 @@ fn validate_known_command(
         "function" => validate_function_command(tokens),
         "scoreboard" => validate_scoreboard_command(tokens),
         "execute" => validate_execute_command(line, tokens, profile),
+        "return" if token_is(tokens, 1, "run") => {
+            required_token(tokens, 2, "return", "command")?;
+            validate_collected_line(&line[tokens[2].start..], profile)?;
+            Ok(())
+        }
         "kill" | "tellraw" => validate_selector_at(tokens, 1),
         _ => Ok(()),
     }
@@ -239,6 +244,15 @@ pub fn collected_execute_command(line: &str) -> Option<&str> {
     let tokens = tokenize_top_level(line)?;
     let index = execute_run_index(&tokens)?;
     Some(&line[tokens.get(index + 1)?.start..])
+}
+
+/// Locate a collected `return run` command's executable tail.
+#[doc(hidden)]
+pub fn collected_return_command(line: &str) -> Option<&str> {
+    let tokens = tokenize_top_level(line)?;
+    (token_is(&tokens, 0, "return") && token_is(&tokens, 1, "run"))
+        .then(|| tokens.get(2).map(|token| &line[token.start..]))
+        .flatten()
 }
 
 // Recognize operation boundaries, not arbitrary tokens named `run`: holders,

@@ -1304,8 +1304,12 @@ impl Validate for Selector {
 
         let mut singleton_keys = std::collections::BTreeSet::new();
         let mut positive_name = matches!(self.base, TargetBase::Player(_));
-        let mut positive_type = false;
+        let mut concrete_type = false;
+        let mut excluded_type = false;
+        let mut type_tags = std::collections::BTreeSet::new();
         let mut positive_team = false;
+        let mut negative_team = false;
+        let mut negative_name = false;
         let mut negative_gamemode = false;
         for arg in &self.args {
             let (key, value): (&str, Option<&str>) = match arg {
@@ -1314,11 +1318,11 @@ impl Validate for Selector {
                     ("tag*", None)
                 }
                 SelectorArg::Team(v) => {
-                    if positive_team {
+                    if positive_team || negative_team {
                         return Err(CommandError::new(
                             "Selector",
                             "team",
-                            "duplicate positive `team` arguments are contradictory",
+                            "a positive `team` filter must be the only team filter",
                         ));
                     }
                     positive_team = true;
@@ -1326,15 +1330,23 @@ impl Validate for Selector {
                     ("team*", None)
                 }
                 SelectorArg::NotTeam(v) => {
+                    if positive_team {
+                        return Err(CommandError::new(
+                            "Selector",
+                            "team",
+                            "a positive `team` filter must be the only team filter",
+                        ));
+                    }
+                    negative_team = true;
                     validate_optional_token(v, "team")?;
                     ("team*", None)
                 }
                 SelectorArg::Name(v) => {
-                    if positive_name {
+                    if positive_name || negative_name {
                         return Err(CommandError::new(
                             "Selector",
                             "name",
-                            "duplicate positive `name` arguments are contradictory",
+                            "a positive `name` filter must be the only name filter",
                         ));
                     }
                     positive_name = true;
@@ -1342,32 +1354,43 @@ impl Validate for Selector {
                     ("name+", None)
                 }
                 SelectorArg::NotName(v) => {
+                    if positive_name {
+                        return Err(CommandError::new(
+                            "Selector",
+                            "name",
+                            "a positive `name` filter must be the only name filter",
+                        ));
+                    }
+                    negative_name = true;
                     validate_name(v)?;
                     ("name-", None)
                 }
-                SelectorArg::Type(v) => {
-                    if positive_type {
+                SelectorArg::Type(v) | SelectorArg::NotType(v) => {
+                    let negative = matches!(arg, SelectorArg::NotType(_));
+                    let tag = v.strip_prefix('#');
+                    let allowed = if let Some(tag) = tag {
+                        !concrete_type && type_tags.insert(tag)
+                    } else if negative {
+                        !concrete_type
+                    } else {
+                        !concrete_type && !excluded_type && type_tags.is_empty()
+                    };
+                    if !allowed {
                         return Err(CommandError::new(
                             "Selector",
                             "type",
-                            "duplicate positive `type` arguments are contradictory",
+                            "a concrete positive type must stand alone; type tags may occur only once regardless of negation",
                         ));
                     }
-                    positive_type = true;
-                    validate::resource_location_shape(
-                        v.strip_prefix('#').unwrap_or(v),
-                        "Selector",
-                        "type",
-                    )?;
-                    ("type+", None)
-                }
-                SelectorArg::NotType(v) => {
-                    validate::resource_location_shape(
-                        v.strip_prefix('#').unwrap_or(v),
-                        "Selector",
-                        "type",
-                    )?;
-                    ("type-", None)
+                    if tag.is_none() {
+                        if negative {
+                            excluded_type = true;
+                        } else {
+                            concrete_type = true;
+                        }
+                    }
+                    validate::resource_location_shape(tag.unwrap_or(v), "Selector", "type")?;
+                    ("type*", None)
                 }
                 SelectorArg::Limit(v) => {
                     if !matches!(

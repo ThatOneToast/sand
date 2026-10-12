@@ -1539,30 +1539,39 @@ impl FixedScoreAccessor {
         }
     }
 
-    /// Assign a decimal value using the field's deterministic encoding.
+    /// Assign a logical number from a constant, bound State field, or [`super::StatCurve`].
+    ///
+    /// Direct reads retain their source scale; compound expressions use the
+    /// default fixed-point precision (1,000 units per logical unit). The result
+    /// converts to this field's scale before bounds and dirty tracking. Runtime
+    /// overflow or an invalid divisor aborts the assignment without changing
+    /// this field. Intermediate values must fit a Minecraft i32 score.
+    /// Constants retain deterministic rounding and saturation. Return or collect
+    /// these actions in a Sand function; constructing them does not read or write
+    /// Minecraft state in Rust.
     #[sand_macros::api(
         registry = sand_api_contract,
         path = "sand::entity::FixedScoreAccessor::set",
         aliases = ["sand::prelude::FixedScoreAccessor::set"],
         module = "sand::entity",
         kind = "method",
-        summary = "Assign a decimal value using the field's deterministic encoding.",
-        context = "Assign a decimal value using the field's deterministic encoding. This declaration belongs to Sand's typed entity model. Semantic definitions are public; selector rendering, validation bookkeeping, and compiler lowering remain internal.",
+        summary = "Assign a logical numeric source using the field's deterministic encoding.",
+        context = "Accepts constants, bound numeric State fields, and StatCurve expressions. Export provisions scratch storage and preserves the field on runtime arithmetic failure.",
         minecraft = "Sand validates this definition and lowers it to entity-scoped selectors, scoreboards, NBT operations, and generated lifecycle functions as required.",
         use_when = ["Defining or using typed entity behavior in a Sand datapack"],
         avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
-        params(value = "`value` provides the value being applied or compared used to assign a decimal value using the field's deterministic encoding."),
-        returns = "The ordered values produced to assign a decimal value using the field's deterministic encoding.",
+        params(value = "A logical numeric constant, bound State accessor, or composed StatCurve expression."),
+        returns = "Structured assignment actions retaining the source expression until export.",
         example = "use sand::prelude::*;\n\nfn demonstrate(fixed_score_accessor_value: sand::entity::FixedScoreAccessor, value: f64)  {\n    let values = fixed_score_accessor_value.set(value);\n}",
     )]
-    #[must_use]
-    pub fn set(self, value: f64) -> Vec<String> {
-        mutation(
+    #[must_use = "collect these assignment actions in a Sand function"]
+    pub fn set(self, value: impl Into<super::StatCurve>) -> crate::ir::Actions {
+        numeric_assignment(
             self.field,
             self.holder,
             self.track_dirty,
-            "set",
-            self.field.encode(value),
+            self.field.scale,
+            value.into(),
         )
     }
 
@@ -1919,24 +1928,38 @@ impl<T: 'static> EntityScoreAccessor<T> {
         }
     }
 
-    /// Assign a value, marking the source dirty for archetype-bound state.
+    /// Assign a logical number from a constant, bound State field, or [`super::StatCurve`].
+    ///
+    /// Direct reads retain their source scale; compound expressions use the
+    /// default fixed-point precision (1,000 units per logical unit). The result
+    /// rounds to this field's stored units before bounds and dirty tracking.
+    /// Runtime overflow or an invalid divisor aborts the assignment without
+    /// changing this field. Intermediate values must fit a Minecraft i32 score.
+    /// The returned actions describe Minecraft work and must be collected into
+    /// a Sand function; Rust does not inspect the live source value.
     #[sand_macros::api(
         registry = sand_api_contract,
         path = "sand::entity::EntityScoreAccessor::set",
         module = "sand::entity",
         kind = "method",
-        summary = "Assign a value, marking the source dirty for archetype-bound state.",
-        context = "Assign a value, marking the source dirty for archetype-bound state. This declaration belongs to Sand's typed entity model. Semantic definitions are public; selector rendering, validation bookkeeping, and compiler lowering remain internal.",
+        summary = "Assign a logical numeric source, marking archetype State dirty.",
+        context = "Accepts constants, bound numeric State fields, and StatCurve expressions. Successful writes apply bounds and State reconciliation tracking; runtime arithmetic failure preserves the field.",
         minecraft = "Sand validates this definition and lowers it to entity-scoped selectors, scoreboards, NBT operations, and generated lifecycle functions as required.",
         use_when = ["Defining or using typed entity behavior in a Sand datapack"],
         avoid_when = ["Inspecting generated objectives, functions, or compiler lowering plans"],
-        params(value = "`value` provides the value being applied or compared used to assign a value, marking the source dirty for archetype-bound state."),
-        returns = "The ordered values produced to assign a value, marking the source dirty for archetype-bound state.",
+        params(value = "A logical numeric constant, bound State accessor, or composed StatCurve expression."),
+        returns = "Structured assignment actions retaining the source expression until export.",
         example = "use sand::prelude::*;\n\nfn demonstrate<T : 'static>(entity_score_accessor_value: sand::entity::EntityScoreAccessor < T >, value: i32)  {\n    let values = entity_score_accessor_value.set(value);\n}",
     )]
-    #[must_use]
-    pub fn set(self, value: i32) -> Vec<String> {
-        mutation(self.field, self.holder, self.track_dirty, "set", value)
+    #[must_use = "collect these assignment actions in a Sand function"]
+    pub fn set(self, value: impl Into<super::StatCurve>) -> crate::ir::Actions {
+        numeric_assignment(
+            self.field,
+            self.holder,
+            self.track_dirty,
+            self.field.numeric_scale(),
+            value.into(),
+        )
     }
 
     /// Add a value, marking the source dirty for archetype-bound state.
@@ -3292,6 +3315,34 @@ fn validate_enum_encodings(
     Ok(())
 }
 
+fn numeric_assignment<F: EntityStateField + ComponentDirtyField>(
+    field: F,
+    holder: &'static str,
+    track_dirty: bool,
+    scale: i32,
+    value: super::StatCurve,
+) -> crate::ir::Actions {
+    let dirty = if track_dirty {
+        vec![
+            sand_commands::ObjectiveName::logical(field.dirty_objective()),
+            sand_commands::ObjectiveName::logical(field.component_dirty_objective()),
+        ]
+    } else {
+        Vec::new()
+    };
+    crate::ir::Actions(vec![crate::ir::Cmd::NumericWrite(Box::new(
+        crate::ir::NumericWrite {
+            value,
+            holder: sand_commands::__private::score_holder_compat(holder.into()),
+            objective: sand_commands::ObjectiveName::logical(field.objective()),
+            scale,
+            fixed: super::FixedPoint::default(),
+            bounds: field.descriptor().bounds,
+            dirty,
+        },
+    ))])
+}
+
 fn mutation<F: EntityStateField + ComponentDirtyField>(
     field: F,
     holder: &str,
@@ -3584,7 +3635,7 @@ fn numeric_gcd(mut left: i32, mut right: i32) -> i32 {
     left.abs()
 }
 
-fn encode_fixed(value: f64, scale: i32, bounds: Option<(i32, i32)>) -> i32 {
+pub(crate) fn encode_fixed(value: f64, scale: i32, bounds: Option<(i32, i32)>) -> i32 {
     let scaled = value * f64::from(scale);
     let encoded = if scaled.is_nan() {
         0
@@ -3738,7 +3789,7 @@ mod tests {
     #[test]
     fn write_marks_field_and_component_reconciliation_dirty() {
         let field = EntityScore::<i32>::new("rpg", "mob", "level", 1, Some((1, 100)));
-        let commands = field.bind().set(10);
+        let commands = crate::ir::test_support::emitted(field.bind().set(10));
         assert_eq!(
             commands,
             vec![
@@ -3770,15 +3821,15 @@ mod tests {
         assert_eq!(bound.get().scale(), 10);
         assert!(bound.get().command().contains(&field.objective()));
         assert_eq!(
-            bound.set(1.25)[0],
+            crate::ir::test_support::emitted(bound.set(1.25))[0],
             format!("scoreboard players set @s {} 13", field.objective())
         );
         assert_eq!(
-            bound.set(-1.25)[0],
+            crate::ir::test_support::emitted(bound.set(-1.25))[0],
             format!("scoreboard players set @s {} -13", field.objective())
         );
         assert_eq!(
-            bound.set(f64::INFINITY)[0],
+            crate::ir::test_support::emitted(bound.set(f64::INFINITY))[0],
             format!("scoreboard players set @s {} 20", field.objective())
         );
 

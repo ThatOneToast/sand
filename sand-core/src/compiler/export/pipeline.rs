@@ -2605,8 +2605,8 @@ pub(crate) fn try_export_components_impl(
     drain_dialog_callbacks_into(&mut records, &mut tag_map, namespace);
 
     // ── Compiler-managed score constants / expression temporaries ───────────
-    // Owned actions can register score requirements while helper bodies lower.
-    // Drain after every factory and helper, before load tags are finalized.
+    // Structured helper lowering can allocate numeric working objectives.
+    // Finish every factory and dynamic helper before draining initialization.
     let score_setup = crate::state::score::drain_internal_score_setup();
     if !score_setup.is_empty() {
         let path = "__sand_score_init";
@@ -2621,6 +2621,8 @@ pub(crate) fn try_export_components_impl(
         tag_map
             .entry("minecraft:load".to_string())
             .or_default()
+            // Lowering happens late, but these objectives must exist before
+            // any generated lifecycle function can execute numeric actions.
             .insert(0, format!("{namespace}:{path}"));
     }
 

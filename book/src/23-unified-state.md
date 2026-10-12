@@ -80,6 +80,30 @@ let movement = Movement::on(EntityContext::<PlayerKind>::default());
 movement.speed.add(0.10);
 ```
 
+Both `Score` and `FixedScore` assignments accept a constant, another bound
+numeric State field, or a composed `StatCurve`. These describe reads and writes
+that happen in Minecraft when the function runs:
+
+```rust
+#[system(tick, every = 20)]
+fn boost(query: Movement) {
+    query.each(|movement| {
+        movement.speed.set(StatCurve::add([
+            StatCurve::from(movement.speed),
+            StatCurve::constant(0.25),
+        ]))
+    });
+}
+```
+
+A direct field-to-field assignment retains the source's scale until the final
+conversion. Compound expressions use the default precision of 1,000 units per
+logical unit. The result is rounded to the destination scale, bounded, and
+marked for reconciliation. Runtime arithmetic requires each intermediate to
+fit a Minecraft signed 32-bit score; overflow or an invalid divisor aborts the
+assignment and preserves the destination. Collect the returned actions in a
+function, query, or system: ordinary Rust `if` still cannot inspect live State.
+
 Attaching is safe to repeat. Sand only fills in missing values and publishes
 the version marker after everything else succeeds. Detaching runs cleanup and
 removes that component's own values, leaving other components alone. Bundles

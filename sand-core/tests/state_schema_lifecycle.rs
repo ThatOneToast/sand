@@ -817,7 +817,10 @@ fn player_bundle_lifecycle_preserves_explicit_observation_suppression() {
 #[test]
 fn global_bundle_uses_each_components_deterministic_singleton_holder() {
     let bundle = GlobalResourcesBundle::global();
-    assert_eq!(bundle.state.wave.set(7), GlobalState::global().wave.set(7));
+    assert_eq!(
+        emitted(bundle.state.wave.set(7)),
+        emitted(GlobalState::global().wave.set(7))
+    );
     assert_eq!(
         bundle.options.enabled.enable(),
         GlobalOptions::global().enabled.enable()
@@ -864,7 +867,7 @@ fn bound_views_emit_complete_scope_aware_command_vectors() {
     let player = PlayerState::on(EntityContext::<PlayerKind>::default());
     let mana = PlayerState::mana.objective();
     assert_eq!(
-        player.mana.set(25),
+        emitted(player.mana.set(25)),
         vec![
             format!("scoreboard players set @s {mana} 25"),
             format!(
@@ -1073,7 +1076,7 @@ fn player_and_global_commands_reference_only_provisioned_objectives() {
     let player = PlayerState::on(EntityContext::<PlayerKind>::default());
     let global = GlobalState::global();
     let commands = [
-        player.mana.set(25),
+        emitted(player.mana.set(25)),
         player.enabled.enable(),
         player.enabled.disable(),
         player.timer.start(Ticks::new(5)),

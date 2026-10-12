@@ -1,4 +1,7 @@
 //! Concrete declarations reuse State and archetype lifecycle resources.
+#[path = "support/actions.rs"]
+mod actions;
+use actions::emitted;
 use sand::prelude::*;
 
 #[derive(State)]
@@ -81,8 +84,11 @@ fn concrete_declarations_export_the_canonical_composition_and_queries() {
     // Both archetypes expose the same physical component objective and dirty
     // marker; provisioning the same objective from several lifecycle helpers
     // does not create separate State storage.
-    assert_eq!(seeker.combat.health.set(7), guard.combat.health.set(7));
-    assert!(seeker.combat.health.set(7)[0].contains(&Combat::health.objective()));
+    assert_eq!(
+        emitted(seeker.combat.health.set(7)),
+        emitted(guard.combat.health.set(7))
+    );
+    assert!(emitted(seeker.combat.health.set(7))[0].contains(&Combat::health.objective()));
     assert!(seeker.combat.health.add(1)[0].contains("scoreboard players add @s"));
     assert!(seeker.growth.progression.level.add(1)[0].contains("scoreboard players add @s"));
     let _: EntityContext<ZombieKind> = seeker.entity();

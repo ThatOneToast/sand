@@ -580,6 +580,8 @@ type DynFnEntry = (String, crate::ir::Actions);
 thread_local! {
     static REGISTRY: RefCell<Vec<DynFnEntry>> = const { RefCell::new(Vec::new()) };
     static INTERNAL_SCORE_TEMP_REQUESTED: Cell<bool> = const { Cell::new(false) };
+    static INTERNAL_NUMERIC_OBJECTIVES: RefCell<std::collections::BTreeSet<String>> = const { RefCell::new(std::collections::BTreeSet::new()) };
+    static GENERATED_OBJECTIVE_OWNERS: RefCell<std::collections::BTreeMap<String, GeneratedObjectiveOwner>> = const { RefCell::new(std::collections::BTreeMap::new()) };
 }
 
 /// Clears function-adjacent thread-local export state on entry and every exit.
@@ -606,6 +608,83 @@ fn clear_function_export_state() {
     REGISTRY.with_borrow_mut(Vec::clear);
     INTERNAL_SCORE_TEMP_REQUESTED.set(false);
     crate::state::score::clear_constant_setup();
+    INTERNAL_NUMERIC_OBJECTIVES.with_borrow_mut(|objectives| objectives.clear());
+    GENERATED_OBJECTIVE_OWNERS.with_borrow_mut(|owners| owners.clear());
+}
+
+/// Logical storage identity and the function allowed to declare it.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(crate) struct GeneratedObjectiveOwner {
+    pub(crate) logical: String,
+    // None means the export-owned __sand_score_init function.
+    pub(crate) initializer: Option<sand_components::ResourceLocation>,
+}
+
+pub(crate) fn reserve_generated_objectives(
+    objectives: impl IntoIterator<Item = sand_commands::ObjectiveName>,
+    initializer: Option<sand_components::ResourceLocation>,
+) -> sand_commands::CommandResult<()> {
+    let pending: Vec<_> = objectives
+        .into_iter()
+        .map(|objective| {
+            (
+                objective.to_string(),
+                GeneratedObjectiveOwner {
+                    logical: objective.logical_name().to_owned(),
+                    initializer: initializer.clone(),
+                },
+            )
+        })
+        .collect();
+    GENERATED_OBJECTIVE_OWNERS.with_borrow_mut(|owners| {
+        let mut combined = owners.clone();
+        for (name, owner) in pending {
+            if let Some(existing) = combined.get(&name) {
+                if existing != &owner {
+                    return Err(sand_commands::CommandError::new(
+                        "numeric storage",
+                        "objectives",
+                        format!(
+                            "generated objective `{name}` collides between `{}` and `{}`",
+                            existing.logical, owner.logical
+                        ),
+                    ));
+                }
+            } else {
+                combined.insert(name, owner);
+            }
+        }
+        *owners = combined;
+        Ok(())
+    })
+}
+
+pub(crate) fn request_numeric_objectives(
+    objectives: impl IntoIterator<Item = sand_commands::ObjectiveName>,
+) -> sand_commands::CommandResult<()> {
+    let objectives: Vec<_> = objectives.into_iter().collect();
+    reserve_generated_objectives(objectives.iter().cloned(), None)?;
+    INTERNAL_NUMERIC_OBJECTIVES.with_borrow_mut(|registered| {
+        registered.extend(
+            objectives
+                .into_iter()
+                .map(|objective| objective.to_string()),
+        );
+    });
+    Ok(())
+}
+
+pub(crate) fn generated_objective_owners()
+-> std::collections::BTreeMap<String, GeneratedObjectiveOwner> {
+    GENERATED_OBJECTIVE_OWNERS.with_borrow(Clone::clone)
+}
+
+pub(crate) fn take_numeric_objectives() -> std::collections::BTreeSet<String> {
+    INTERNAL_NUMERIC_OBJECTIVES.with_borrow_mut(std::mem::take)
+}
+
+pub(crate) fn generated_function_path(prefix: &str, actions: &crate::ir::Actions) -> String {
+    format!("{prefix}/{}", stable_commands_key(actions))
 }
 
 pub(crate) fn request_internal_score_temp() {
@@ -642,7 +721,7 @@ pub fn register_dyn_fn_dedup(prefix: &str, commands: impl crate::IntoCommands) -
             return path.clone();
         }
 
-        let path = format!("{prefix}/{}", stable_commands_key(&commands));
+        let path = generated_function_path(prefix, &commands);
         if !registry.iter().any(|(existing_path, existing_commands)| {
             existing_path == &path && existing_commands.identity() == commands.identity()
         }) {

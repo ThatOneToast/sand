@@ -41,9 +41,11 @@ def _read_packet(sock: socket.socket) -> tuple[int, int, str]:
     return request_id, packet_type, payload
 
 
-def run_commands(host: str, port: int, password: str, commands: list[str]) -> list[str]:
-    """Authenticate and run `commands` in order, returning each response."""
-    sock = socket.create_connection((host, port), timeout=10)
+def run_commands(
+    host: str, port: int, password: str, commands: list[str], *, timeout: float = 10,
+) -> list[str]:
+    """Authenticate and run commands with the supplied socket-operation timeout."""
+    sock = socket.create_connection((host, port), timeout=timeout)
     try:
         _packet(sock, 1, 3, password)  # SERVERDATA_AUTH
         request_id, _packet_type, _payload = _read_packet(sock)

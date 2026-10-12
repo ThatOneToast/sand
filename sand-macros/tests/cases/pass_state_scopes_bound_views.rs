@@ -65,13 +65,13 @@ fn main() {
     assert_eq!(PlayerState::speed.descriptor().default, 125);
 
     let entity = GenericState::on(EntityContext::<AnyEntity>::default());
-    let _: Vec<String> = entity.value.set(1);
+    let _: Actions = entity.value.set(1);
 
     let living = LivingState::on(EntityContext::<ZombieKind>::default());
     let _: Vec<String> = living.age.tick();
 
     let global = GlobalState::global();
-    let _: Vec<String> = global.value.set(2);
+    let _: Actions = global.value.set(2);
 
     let player_context = EntityContext::<PlayerKind>::default();
     let _: PlayerBundleBound = PlayerBundle::on(player_context);

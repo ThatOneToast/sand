@@ -153,10 +153,11 @@ pub enum ItemLocation {
     PlayerMainHand,
     /// The player's offhand stack (`equipment.offhand` on supported Minecraft versions).
     PlayerOffHand,
-    /// A player armor slot. Only `Head`/`Chest`/`Legs`/`Feet` are
-    /// constructible — `Mainhand`/`Offhand` have their own dedicated
-    /// variants above, and `Body` does not apply to players. Construct via
-    /// [`ItemLocation::player_equipment`], which enforces this.
+    /// A player equipment slot. Prefer [`ItemLocation::player_equipment`],
+    /// which accepts only armor; hands have dedicated variants above.
+    /// Directly constructed hand slots read the same paths as those variants.
+    /// A directly constructed `Body` reads `equipment.body` without panicking,
+    /// but that compound is absent on players and item operations reject it.
     PlayerEquipment(EquipmentSlot),
     /// A player hotbar slot by validated index.
     PlayerHotbar(HotbarIndex),
@@ -166,6 +167,8 @@ pub enum ItemLocation {
     /// An equipment slot on a non-player living entity (`equipment.<slot>`),
     /// addressed by a typed target rather than assumed to be the
     /// executing player. Construct via [`ItemLocation::entity_equipment`].
+    /// Direct construction with `Body` permits an NBT read of `equipment.body`,
+    /// whose availability is entity-dependent; item operations still reject it.
     EntityEquipment {
         entity: Selector,
         slot: EquipmentSlot,
@@ -381,9 +384,7 @@ impl ItemLocation {
     }
 
     pub(crate) fn writable_nbt(&self) -> NbtRef<UntypedNbt> {
-        let (target, path) = self
-            .nbt_parts()
-            .expect("constructible ItemLocation variants always have NBT addressing");
+        let (target, path) = self.nbt_parts();
         NbtRef::__from_parts(target, NbtPath::new(path))
     }
 
@@ -571,8 +572,8 @@ impl ItemLocation {
         }
     }
 
-    fn nbt_parts(&self) -> Result<(DataTarget, String), ItemLocationError> {
-        Ok(match self {
+    fn nbt_parts(&self) -> (DataTarget, String) {
+        match self {
             Self::PlayerMainHand => (
                 DataTarget::entity(Selector::self_()),
                 "SelectedItem".to_string(),
@@ -583,7 +584,11 @@ impl ItemLocation {
             ),
             Self::PlayerEquipment(slot) => (
                 DataTarget::entity(Selector::self_()),
-                entity_equipment_path(*slot)?,
+                match slot {
+                    EquipmentSlot::Mainhand => "SelectedItem",
+                    _ => equipment_nbt_path(*slot),
+                }
+                .to_string(),
             ),
             Self::PlayerHotbar(index) => (
                 DataTarget::entity(Selector::self_()),
@@ -595,7 +600,7 @@ impl ItemLocation {
             ),
             Self::EntityEquipment { entity, slot } => (
                 DataTarget::entity(entity.clone()),
-                entity_equipment_path(*slot)?,
+                equipment_nbt_path(*slot).to_string(),
             ),
             Self::BlockContainer { position, slot } => (
                 DataTarget::block(position.clone()),
@@ -611,7 +616,7 @@ impl ItemLocation {
                 DataTarget::entity(entity.clone()),
                 format!("EnderItems[{{Slot:{}b}}]", slot.get()),
             ),
-        })
+        }
     }
 }
 
@@ -855,16 +860,6 @@ fn equipment_nbt_path(slot: EquipmentSlot) -> &'static str {
         EquipmentSlot::Offhand => "equipment.offhand",
         EquipmentSlot::Body => "equipment.body",
     }
-}
-
-fn entity_equipment_path(slot: EquipmentSlot) -> Result<String, ItemLocationError> {
-    if slot == EquipmentSlot::Body {
-        return Err(ItemLocationError::UnsupportedLocation {
-            location: "EntityEquipment(Body)".to_string(),
-            reason: "the Body equipment slot's backing NBT tag is not verified for this phase",
-        });
-    }
-    Ok(equipment_nbt_path(slot).to_string())
 }
 
 /// A validated, actionable diagnostic for [`ItemLocation`] construction or
@@ -1200,6 +1195,55 @@ mod tests {
         for (slot, expected) in cases {
             let location = ItemLocation::player_equipment(slot).unwrap();
             assert_eq!(location.nbt().as_str(), expected, "{slot:?}");
+        }
+    }
+
+    #[test]
+    fn directly_constructed_equipment_has_non_panicking_nbt_reads() {
+        let destination = sand_commands::Nbt::storage_raw("test:equipment").path("item");
+        for (location, path) in [
+            (
+                ItemLocation::PlayerEquipment(EquipmentSlot::Mainhand),
+                "SelectedItem",
+            ),
+            (
+                ItemLocation::PlayerEquipment(EquipmentSlot::Offhand),
+                "equipment.offhand",
+            ),
+            (
+                ItemLocation::PlayerEquipment(EquipmentSlot::Body),
+                "equipment.body",
+            ),
+            (
+                ItemLocation::EntityEquipment {
+                    entity: Selector::self_(),
+                    slot: EquipmentSlot::Body,
+                },
+                "equipment.body",
+            ),
+        ] {
+            assert_eq!(
+                location.nbt().get().to_string(),
+                format!("data get entity @s {path}")
+            );
+            assert_eq!(
+                location.exists().execute_commands(false, "say present"),
+                vec![format!("execute if data entity @s {path} run say present")]
+            );
+            assert_eq!(
+                location.copy_to(&destination).to_string(),
+                format!("data modify storage test:equipment item set from entity @s {path}")
+            );
+        }
+        for location in [
+            ItemLocation::PlayerEquipment(EquipmentSlot::Body),
+            ItemLocation::EntityEquipment {
+                entity: Selector::self_(),
+                slot: EquipmentSlot::Body,
+            },
+        ] {
+            assert!(location.clear().is_err());
+            assert!(location.matches_raw("*").is_err());
         }
     }
 

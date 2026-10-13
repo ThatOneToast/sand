@@ -41,7 +41,29 @@ identity, transform, living, and equipment capabilities:
 `raw_path(...)` is deliberately conspicuous: use it only for unsupported or
 third-party NBT layouts, and never to bypass a State/native-property binding.
 Archetype health, attribute, equipment, and other property bindings remain the
-owners of synchronization and lifecycle behavior; capability calls do not
-create objectives, tags, scans, or reconciliation functions.
+owners of synchronization and lifecycle behavior. Obtaining a handle creates
+no gameplay State or background scans. Compiled queries can own private helper
+functions, predicates, and temporary numeric scores; they do not install
+watchers or take over archetype property ownership.
 
 All of these APIs target Sand's supported Minecraft 26.x+ command model.
+
+## Effect presence
+
+Use `living().has_effect` to compose an immediate native effect query with
+inventory, numeric, or State Conditions:
+
+```rust,ignore
+Target::players().each(|player| {
+    let speedy = player.living().has_effect(EffectId::Speed);
+    when(speedy.and(player.inventory().contains(vanilla::Item::Diamond)))
+        .then_all([player.living().clear_effect(EffectId::Slowness)])
+});
+```
+
+This reuses Sand's typed effect identifier and entity predicate model. Equivalent
+queries share a predicate resource, and cached actions retain it on every export.
+The owner is selected once. A missing entity or absent effect makes the query
+false; negation also matches missing entities. This creates no polling loop or
+persistent observation State. Use `give_effect`, `clear_effect`, and
+`clear_effects` for native effect mutations.

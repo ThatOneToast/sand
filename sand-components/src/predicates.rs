@@ -551,6 +551,10 @@ impl DistancePredicate {
 
 /// Checks a single active status effect on an entity.
 ///
+/// An empty predicate still requires the effect to be present when associated
+/// with an effect ID through [`EntityPredicate::effect`]. Additional constraints
+/// narrow its amplifier, remaining duration, and display flags.
+///
 /// # Example
 /// ```rust
 /// use sand_components::predicates::EffectPredicate;
@@ -590,11 +594,11 @@ impl EffectPredicate {
         kind = "method",
         registry = sand_api_contract,
         path = "sand::predicate::EffectPredicate::new",
-        summary = "Creates an unconstrained EffectPredicate.",
+        summary = "Creates an unconstrained EffectPredicate for effect-presence checks.",
         context = "Builder methods add only the EffectPredicate requirements relevant to the surrounding condition.",
         minecraft = "Serializes an empty predicate object until constraints are added.",
         use_when = ["Building a typed predicate incrementally"],
-        avoid_when = ["No constraints will be added"],
+        avoid_when = ["Testing unrelated entity properties; use EntityPredicate"],
         returns = "An empty EffectPredicate builder.",
         example = "EffectPredicate::new()",
     )]

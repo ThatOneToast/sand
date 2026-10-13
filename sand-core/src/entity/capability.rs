@@ -451,6 +451,32 @@ impl<K: LivingEntityKind> LivingEntity<K> {
         sand_commands::__private::try_damage_one(self.selector.clone(), amount, kind)
     }
 
+    /// Tests whether this living entity currently has an active effect.
+    ///
+    /// The returned condition composes with numeric, inventory, and State
+    /// conditions. Sand owns the shared typed predicate resource and selects
+    /// the owner once per evaluation. A missing owner makes the condition false;
+    /// negating it therefore also matches missing owners. This reads Minecraft's
+    /// native effect state and creates no watcher or persistent tracking scores.
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::entity::LivingEntity::has_effect",
+        aliases = ["sand::prelude::LivingEntity::has_effect"],
+        module = "sand::entity",
+        kind = "method",
+        summary = "Tests native status-effect presence as a composable Condition.",
+        context = "Uses the canonical EffectId, EntityPredicate, and owned predicate-resource lowering; cached conditions retain their resources across exports.",
+        minecraft = "Selects one owner and evaluates a typed entity-properties predicate against that entity's active effects.",
+        use_when = ["Guarding gameplay on whether a living entity has an active effect"],
+        avoid_when = ["Applying an effect; use give_effect", "Observing changes over time; this is an immediate query"],
+        params(effect = "The typed status effect whose presence is required."),
+        returns = "A Condition; false when the owner or effect is absent.",
+        example = "use sand::prelude::*; Target::players().each(|player| when(player.living().has_effect(EffectId::Speed)).then_all([player.living().clear_effect(EffectId::Slowness)]));",
+    )]
+    pub fn has_effect(&self, effect: impl Into<EffectId>) -> crate::condition::Condition {
+        crate::condition::Condition::effect_presence(self.selector.clone(), effect.into())
+    }
+
     #[sand_macros::api(
         registry = sand_api_contract,
         path = "sand::entity::LivingEntity::give_effect",

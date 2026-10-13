@@ -148,6 +148,7 @@ pub struct Condition {
 pub(crate) enum ConditionKind {
     NumericCompare(Box<crate::ir::NumericComparison>),
     ItemMatch(Box<crate::ir::ItemMatch>),
+    EffectPresence(Box<crate::ir::EffectPresence>),
     /// `if score <selector> <objective> matches <range>`
     Score {
         selector: String,
@@ -221,6 +222,18 @@ impl Condition {
         }
     }
 
+    pub(crate) fn effect_presence(
+        target: sand_commands::Selector,
+        effect: sand_components::EffectId,
+    ) -> Self {
+        Self {
+            kind: ConditionKind::EffectPresence(Box::new(crate::ir::EffectPresence {
+                target,
+                effect,
+            })),
+        }
+    }
+
     pub(crate) fn item_matches(
         location: crate::item::ItemLocation,
         predicate: sand_components::ItemPredicate,
@@ -242,6 +255,9 @@ impl Condition {
             ConditionKind::ItemMatch(query) => {
                 query.register();
             }
+            ConditionKind::EffectPresence(query) => {
+                query.register();
+            }
             ConditionKind::ScoreCompare { left, right, .. } => {
                 left.register_owned_setup();
                 right.register_owned_setup();
@@ -258,7 +274,9 @@ impl Condition {
 
     fn has_owned_resources(&self) -> bool {
         match &self.kind {
-            ConditionKind::NumericCompare(_) | ConditionKind::ItemMatch(_) => true,
+            ConditionKind::NumericCompare(_)
+            | ConditionKind::ItemMatch(_)
+            | ConditionKind::EffectPresence(_) => true,
             ConditionKind::Not(inner) => inner.has_owned_resources(),
             ConditionKind::All(conditions) | ConditionKind::Any(conditions) => {
                 conditions.iter().any(Self::has_owned_resources)
@@ -763,6 +781,7 @@ impl Condition {
                 clause(ConditionIr::Function(comparison.register()))
             }
             ConditionKind::ItemMatch(query) => clause(ConditionIr::Function(query.register())),
+            ConditionKind::EffectPresence(query) => clause(ConditionIr::Function(query.register())),
             ConditionKind::Score {
                 selector,
                 objective,

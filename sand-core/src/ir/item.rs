@@ -81,3 +81,93 @@ impl ItemMutation {
         Ok(crate::IntoCommands::into_commands(line).0)
     }
 }
+
+/// Owned slot predicate retained through condition composition and export.
+#[doc(hidden)]
+#[derive(Debug, Clone, PartialEq)]
+pub struct ItemMatch {
+    pub(crate) location: ItemLocation,
+    pub(crate) predicate: sand_components::ItemPredicate,
+}
+
+impl ItemMatch {
+    pub(crate) fn register(&self) -> String {
+        let path = crate::function::register_dyn_fn_dedup(
+            "sand/conditions/items",
+            Actions(vec![Cmd::ItemMatch(Box::new(self.clone()))]),
+        );
+        format!("{}:{path}", crate::function::SAND_LOCAL_NS)
+    }
+
+    pub(super) fn lower(&self, owner: &ResourceLocation) -> CommandResult<Vec<Cmd>> {
+        use sand_commands::inventory::ItemCommandLocation;
+        use sand_commands::{ConditionIr, ExecuteOp};
+        let item = lower_item_predicate(&self.predicate, owner)?;
+        let target = self.location.item_target_slot().map_err(|error| {
+            CommandError::new("inventory match", "location", format!("{owner}: {error}"))
+        })?;
+        let condition = match target {
+            ItemCommandLocation::Entity { target, slot } => {
+                ConditionIr::ItemsEntity { target, slot, item }
+            }
+            ItemCommandLocation::Block { position, slot } => ConditionIr::ItemsBlock {
+                position,
+                slot,
+                item,
+            },
+        };
+        Ok(vec![
+            Cmd::Execute {
+                operations: vec![ExecuteOp::If(condition)],
+                run: Box::new(Cmd::Return(1)),
+            },
+            Cmd::Return(0),
+        ])
+    }
+}
+
+pub(crate) fn lower_item_predicate(
+    predicate: &sand_components::ItemPredicate,
+    owner: &ResourceLocation,
+) -> CommandResult<String> {
+    let error =
+        |detail| CommandError::new("inventory predicate", "item", format!("{owner}: {detail}"));
+    let lowered =
+        sand_components::predicates::lower_item_predicate_for_command(predicate).map_err(error)?;
+    if lowered.requires_components {
+        crate::function::require_generated_feature(
+            owner,
+            sand_version::ComponentFeature::ItemComponents,
+        );
+    }
+    let mut items = lowered.items.unwrap_or_default();
+    items.sort_by_key(ToString::to_string);
+    items.dedup();
+    let base = match items.as_slice() {
+        [] => "*".to_owned(),
+        [item] => item.to_string(),
+        _ => {
+            let identity = items
+                .iter()
+                .map(ToString::to_string)
+                .collect::<Vec<_>>()
+                .join("\n");
+            let path = crate::function::generated_resource_path("sand/items", &identity);
+            let location = ResourceLocation::new(owner.namespace(), &path)
+                .map_err(|e| error(e.to_string()))?;
+            let mut tag =
+                sand_components::TypedTag::<sand_components::ItemId>::new(location.clone().into())
+                    .replace(true);
+            for item in items {
+                tag = tag.entry(item);
+            }
+            crate::function::register_generated_component(tag);
+            format!("#{location}")
+        }
+    };
+    Ok(if lowered.constraints.is_empty() {
+        base
+    } else {
+        format!("{base}[{}]", lowered.constraints.join(","))
+    })
+}

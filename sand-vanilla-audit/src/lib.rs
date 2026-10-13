@@ -104,6 +104,27 @@ pub fn audit_inventory_actions() {
     });
 }
 
+/// Parser coverage for typed predicates and their compiler-owned item tags.
+/// The reload harness parses these helpers; it does not simulate player inventory.
+#[function]
+pub fn audit_inventory_predicates() {
+    Target::players().each(|player| {
+        let predicate = ItemPredicate::id(item_id("diamond"))
+            .item(item_id("emerald"))
+            .count_min(2)
+            .custom_data_key("audit_reward");
+        let inventory = player.inventory();
+        mcfunction![
+            when(inventory.offhand().matches(&predicate).unwrap())
+                .then_all(["say typed slot predicate"]);
+            when(inventory.contains(&predicate))
+                .then_all(["say typed inventory predicate"]);
+            when(inventory.count(predicate).gte(3))
+                .then_all(["say typed inventory count"]);
+        ]
+    });
+}
+
 #[function]
 pub fn semantic_placed_reward() {
     cmd::raw("advancement revoke @s only sand_audit:semantic_placed_block");

@@ -64,7 +64,7 @@ use std::fmt;
 /// let raw = RawJson::new(json!({ "type": "mymod:custom" }));
 /// assert_eq!(raw.as_value()["type"], "mymod:custom");
 /// ```
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct RawJson(Value);
 
 impl RawJson {

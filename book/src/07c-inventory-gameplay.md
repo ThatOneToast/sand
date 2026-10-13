@@ -54,8 +54,10 @@ let actions = mcfunction![
 
 Counting does not remove items. It includes player inventory, the player
 crafting grid, and the cursor stack. Open-container and ender-chest contents are
-excluded. This API currently matches the base item ID, regardless of components;
-it does not distinguish a custom item from other stacks of the same base item.
+excluded. A typed item ID matches its base identity. An `ItemPredicate` can narrow the
+match to custom data, components, or a count range on each individual stack.
+Matching stack quantities are then summed; a stack-count filter is not a filter
+on the aggregate inventory count.
 An empty match is zero. A missing or non-player owner fails the numeric read,
 so State does not receive a stale value.
 
@@ -79,7 +81,7 @@ runtime block at arbitrary coordinates.
 
 `ender_chest(index)` supports observation through the existing NBT view, but
 slot writes reject it because vanilla has no corresponding item-command slot.
-There is no atomic move/transfer guarantee. Removal, custom-item count matching,
+There is no atomic move/transfer guarantee. Removal
 and inventory-change observation remain separate capability work; use only the
 operations documented here as supported gameplay actions.
 
@@ -115,6 +117,29 @@ let actions = when(has_diamonds).then_all(["say Ready to trade"]);
 ```
 
 Presence has the same coverage as `count`: inventory, crafting grid, and cursor,
-excluding open-container slots and ender chests. Components do not restrict the
-match. The check is non-mutating. An absent or non-player target makes it false;
+excluding open-container slots and ender chests. Item IDs match their base identity; `ItemPredicate` adds per-stack constraints. The check is non-mutating. An absent or non-player target makes it false;
 its negation is true in those cases too. The owner must select a single player.
+
+## Typed stack matching
+
+Use the same predicate for a slot match, a whole-inventory count, and presence:
+
+```rust,ignore
+let wand = CustomItem::new("minecraft:stick").custom_data("my_pack:wand");
+let identity = wand.item_predicate()?;
+let equipped = inventory.offhand().matches(&identity)?;
+let count = inventory.count(&identity);
+let present = inventory.contains(&identity);
+```
+
+The custom-data match is partial, so unrelated keys do not break recognition.
+Several item IDs in one predicate form a union. Sand owns the necessary item tag
+and queries the selected owner once; repeated IDs do not multiply the count.
+These conditions and values retain their resources through cached gameplay
+functions and repeated exports.
+
+`matches_raw` is the explicit native-syntax escape hatch. Whole raw predicate
+JSON cannot be translated safely to every native item argument and is rejected
+by typed inventory queries. Component/sub-predicate escape hatches still retain
+supported exact/partial semantics; their raw payloads remain the author's
+responsibility. Component filters require a verified item-component profile.

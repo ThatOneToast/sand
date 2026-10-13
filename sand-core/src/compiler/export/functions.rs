@@ -1,41 +1,82 @@
-//! Dynamic function collection phase of the export pipeline.
+//! Collection of resources owned by lowered gameplay actions and conditions.
 //!
 //! Drains anonymous/branch functions registered while user factories ran and
 //! resolves the `__sand_local` namespace sentinel to the real pack namespace.
 
 use super::records::ComponentRecord;
 
-/// Drain all dynamically-registered branch/anonymous functions into `records`.
+/// Drain resources owned by gameplay IR into the validated record stream.
 ///
-/// Loops until the registry is empty so that branches registered *by* other
-/// branches (nested mcfunction! blocks) are also captured.
-pub(crate) fn drain_dynamic_functions_into(
+/// Loops until the registry is empty so that resources registered by other
+/// resources are captured. Generated components use the normal profile-aware
+/// validation and nested-resource expansion boundary.
+pub(crate) fn drain_generated_resources_into(
     records: &mut Vec<ComponentRecord>,
     namespace: &str,
+    ctx: Option<&super::ExportCtx<'_>>,
 ) -> super::records::ExportResult<()> {
     let mut emitted = std::collections::BTreeSet::new();
+    let mut emitted_components = Vec::new();
     loop {
-        let drained = crate::drain_dyn_fns();
+        let drained = crate::function::drain_generated_resources();
         if drained.is_empty() {
             break;
         }
-        for (path, commands) in drained {
-            // Lowering a parent can re-register a helper drained in an earlier
-            // batch. Deduplicate only the same owned body; distinct bodies at
-            // one path still reach validation and the output collision guard.
-            if !emitted.insert((path.clone(), commands.identity())) {
-                continue;
+        for resource in drained {
+            match resource {
+                crate::function::GeneratedResource::Function(path, commands) => {
+                    // A parent may replay an already-drained helper. Distinct
+                    // bodies at one path still reach the collision guard.
+                    if !emitted.insert((path.clone(), commands.identity())) {
+                        continue;
+                    }
+                    records.push(ComponentRecord::function(
+                        namespace,
+                        &path,
+                        commands
+                            .lower(&sand_components::ResourceLocation::new(namespace, &path)?)?,
+                    ));
+                }
+                crate::function::GeneratedResource::Component(component) => {
+                    // Keep the typed component until this profile-aware boundary.
+                    let record = super::records::component_to_record(&*component, ctx)?;
+                    let owner = format!("generated resource {}:{}", record.namespace, record.path);
+                    let expanded = super::records::expand_with_nested(
+                        vec![super::records::RegisteredComponent {
+                            owner,
+                            component,
+                            record,
+                        }],
+                        ctx,
+                    )?;
+                    for mut record in expanded {
+                        // Numeric helpers can lower before their namespace is
+                        // resolved; slot helpers lower with the final owner.
+                        // Compare their shared resources by exported identity.
+                        if record.namespace == crate::function::SAND_LOCAL_NS {
+                            record.namespace = namespace.to_owned();
+                        }
+                        record.content = resolve_local_refs(&record.content, namespace);
+                        if !emitted_components.contains(&record) {
+                            emitted_components.push(record.clone());
+                            records.push(record);
+                        }
+                    }
+                }
+                crate::function::GeneratedResource::Requirement { owner, feature } => {
+                    if let Some(ctx) = ctx
+                        && !ctx.caps.supports(feature)
+                    {
+                        return Err(sand_components::error::version_gating_error(
+                            &owner.to_string(),
+                            "generated gameplay resource",
+                            feature,
+                            ctx.requested_version,
+                            ctx.is_fallback,
+                        ));
+                    }
+                }
             }
-            records.push(ComponentRecord {
-                namespace: namespace.to_string(),
-                dir: "function".to_string(),
-                path: path.clone(),
-                ext: "mcfunction".to_string(),
-                content_type: "text".to_string(),
-                content: commands
-                    .lower(&sand_components::ResourceLocation::new(namespace, &path)?)?
-                    .join("\n"),
-            });
         }
     }
     Ok(())
@@ -56,6 +97,85 @@ pub(crate) fn resolve_local_refs(content: &str, namespace: &str) -> String {
 mod tests {
     use super::*;
 
+    fn tag(path: &str, item: &str) -> sand_components::TypedTag<sand_components::ItemId> {
+        sand_components::TypedTag::new(
+            sand_components::ResourceLocation::new("test", path)
+                .unwrap()
+                .into(),
+        )
+        .entry(sand_components::ItemId::minecraft(item).unwrap())
+    }
+
+    #[test]
+    fn repeated_owned_components_deduplicate_but_conflicts_reach_output_validation() {
+        let _scope = crate::function::ExportFunctionRegistryScope::enter();
+        crate::function::register_generated_component(tag("shared", "diamond"));
+        crate::function::register_generated_component(tag("shared", "diamond"));
+        crate::function::register_generated_component(tag("shared", "emerald"));
+        let mut records = Vec::new();
+        drain_generated_resources_into(&mut records, "test", None).unwrap();
+        assert_eq!(records.len(), 2);
+        let error = super::super::records::validate_unique_output_identities(&records).unwrap_err();
+        assert!(
+            error
+                .to_string()
+                .contains("duplicate datapack output identity")
+        );
+    }
+
+    #[test]
+    fn owned_component_expansion_retains_nested_resources() {
+        struct Parent(sand_components::ResourceLocation);
+        impl sand_components::DatapackComponent for Parent {
+            fn resource_location(&self) -> &sand_components::ResourceLocation {
+                &self.0
+            }
+            fn to_json(&self) -> serde_json::Value {
+                serde_json::json!({"nested": "test:child"})
+            }
+            fn component_dir(&self) -> &'static str {
+                "test_parent"
+            }
+            fn nested_components(&self) -> Vec<Box<dyn sand_components::DatapackComponent>> {
+                vec![Box::new(tag("child", "diamond"))]
+            }
+        }
+        let _scope = crate::function::ExportFunctionRegistryScope::enter();
+        crate::function::register_generated_component(Parent("test:parent".parse().unwrap()));
+        let mut records = Vec::new();
+        drain_generated_resources_into(&mut records, "test", None).unwrap();
+        assert_eq!(records.len(), 2);
+        assert!(
+            records
+                .iter()
+                .any(|record| record.dir == "tags/item" && record.path == "child")
+        );
+    }
+
+    #[test]
+    fn generated_requirements_use_the_export_profile_and_scope_cleanup() {
+        let caps = sand_version::VersionCaps::all_disabled();
+        let ctx = super::super::ExportCtx {
+            caps: &caps,
+            requested_version: "999.0",
+            is_fallback: true,
+        };
+        {
+            let _scope = crate::function::ExportFunctionRegistryScope::enter();
+            crate::function::require_generated_feature(
+                &"test:query".parse().unwrap(),
+                sand_version::ComponentFeature::ItemComponents,
+            );
+            crate::function::register_generated_component(tag("pending", "diamond"));
+            let error =
+                drain_generated_resources_into(&mut Vec::new(), "test", Some(&ctx)).unwrap_err();
+            assert!(error.to_string().contains("999.0"));
+        }
+        let mut records = Vec::new();
+        drain_generated_resources_into(&mut records, "test", None).unwrap();
+        assert!(records.is_empty());
+    }
+
     #[test]
     fn same_path_with_different_ir_still_validates_each_body() {
         let _scope = crate::function::ExportFunctionRegistryScope::enter();
@@ -67,7 +187,7 @@ mod tests {
                 run: Box::new(crate::ir::Cmd::Raw("say invalid".into())),
             }]),
         );
-        let error = drain_dynamic_functions_into(&mut Vec::new(), "test").unwrap_err();
+        let error = drain_generated_resources_into(&mut Vec::new(), "test", None).unwrap_err();
         assert!(error.to_string().contains("SAND-COMMAND-EXECUTE-EMPTY"));
     }
 }

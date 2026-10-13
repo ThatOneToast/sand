@@ -266,8 +266,12 @@ mod tests {
             // The numeric operation is not encountered until a dynamic helper
             // is lowered. Initialization must be collected after this phase.
             let mut records = Vec::new();
-            crate::compiler::export::functions::drain_dynamic_functions_into(&mut records, "test")
-                .unwrap();
+            crate::compiler::export::functions::drain_generated_resources_into(
+                &mut records,
+                "test",
+                None,
+            )
+            .unwrap();
             let setup = crate::state::score::drain_internal_score_setup();
             assert!(!setup.is_empty());
             let numeric = records
@@ -323,8 +327,12 @@ mod tests {
             };
             crate::function::register_dyn_fn("outer".into(), body);
             let mut records = Vec::new();
-            crate::compiler::export::functions::drain_dynamic_functions_into(&mut records, "test")
-                .unwrap();
+            crate::compiler::export::functions::drain_generated_resources_into(
+                &mut records,
+                "test",
+                None,
+            )
+            .unwrap();
             let all = records
                 .iter()
                 .map(|record| record.content.as_str())
@@ -382,9 +390,10 @@ mod tests {
                 };
                 crate::function::register_dyn_fn("outer".into(), actions);
                 let mut records = Vec::new();
-                crate::compiler::export::functions::drain_dynamic_functions_into(
+                crate::compiler::export::functions::drain_generated_resources_into(
                     &mut records,
                     "test",
+                    None,
                 )
                 .unwrap();
                 let all = records
@@ -442,8 +451,12 @@ mod tests {
             crate::function::register_dyn_fn(path.into(), action.clone());
         }
         let mut records = Vec::new();
-        crate::compiler::export::functions::drain_dynamic_functions_into(&mut records, "test")
-            .unwrap();
+        crate::compiler::export::functions::drain_generated_resources_into(
+            &mut records,
+            "test",
+            None,
+        )
+        .unwrap();
         crate::compiler::export::records::validate_unique_output_identities(&records).unwrap();
         let caller = |path| {
             &records

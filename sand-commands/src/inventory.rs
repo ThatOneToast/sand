@@ -53,7 +53,8 @@
 //! (`minecraft:diamond_sword[custom_name='"Foo"']`). The validated path
 //! checks only the leading `namespace:path` item ID for resource-location
 //! shape; any trailing `[...]`/`{...}` component/NBT payload is an
-//! intentional raw escape hatch and is not re-parsed. `modify`'s modifier
+//! intentional raw escape hatch and is not re-parsed. Clear predicates also
+//! accept `#namespace:tag` or `*` as their base. `modify`'s modifier
 //! argument is validated the same way, with an optional leading `#` for
 //! item-modifier tags.
 
@@ -231,12 +232,14 @@ impl InventoryCommandNode {
                 Ok(())
             }
             Self::Replace(command) => command.validate(profile),
-            Self::ClearItem { item } => validate_item_str(item, "Inventory::clear_item", "item"),
+            Self::ClearItem { item } => {
+                validate_item_predicate_str(item, "Inventory::clear_item", "item")
+            }
             Self::ClearItemCount { item, .. } => {
                 // A count of `0` is meaningful here — vanilla `clear` with an
                 // explicit `0` count reports the matching stack count without
                 // removing anything, so it is not rejected (see module docs).
-                validate_item_str(item, "Inventory::clear_item_count", "item")
+                validate_item_predicate_str(item, "Inventory::clear_item_count", "item")
             }
             Self::Modify { slot, modifier } => {
                 validate_write_slot(slot, profile, "Inventory::modify", "slot")?;
@@ -329,6 +332,23 @@ fn validate_item_str(item: &str, helper: &'static str, field: &'static str) -> C
     validate::non_empty(item, helper, field)?;
     let id_part = item.find(['[', '{']).map_or(item, |i| &item[..i]);
     validate::resource_location_shape(id_part, helper, field)?;
+    Ok(())
+}
+
+/// Validate the base of Minecraft's item predicate argument. Unlike a stack
+/// payload, a predicate may name a tag or match every item with `*`.
+/// Component constraints retain the same explicit raw boundary as stack input.
+fn validate_item_predicate_str(
+    item: &str,
+    helper: &'static str,
+    field: &'static str,
+) -> CommandResult<()> {
+    validate::non_empty(item, helper, field)?;
+    let base = item.find('[').map_or(item, |i| &item[..i]);
+    if base == "*" {
+        return Ok(());
+    }
+    validate::resource_location_shape(base.strip_prefix('#').unwrap_or(base), helper, field)?;
     Ok(())
 }
 
@@ -710,15 +730,15 @@ impl Inventory {
         line
     }
 
-    /// Fallible [`Inventory::clear_item`] — validates the item ID shape.
+    /// Fallible [`Inventory::clear_item`] — validates the item ID, tag, or wildcard base.
     #[sand_macros::api(
         registry = sand_api_contract,
         path = "sand::command::Inventory::try_clear_item",
         aliases = ["sand::cmd::Inventory::try_clear_item", "sand::prelude::Inventory::try_clear_item", "sand::prelude::cmd::Inventory::try_clear_item"],
         module = "sand::command",
         kind = "method",
-        summary = "Fallible [`Inventory::clear_item`] — validates the item ID shape.",
-        context = "Fallible [`Inventory::clear_item`] — validates the item ID shape. This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
+        summary = "Fallible [`Inventory::clear_item`] — validates the item ID, tag, or wildcard base.",
+        context = "Fallible [`Inventory::clear_item`] — validates the item ID, tag, or wildcard base. This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
         minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
@@ -728,7 +748,7 @@ impl Inventory {
     )]
     pub fn try_clear_item(&self, item: impl Into<String>) -> CommandResult<String> {
         let item = item.into();
-        validate_item_str(&item, "Inventory::try_clear_item", "item")?;
+        validate_item_predicate_str(&item, "Inventory::try_clear_item", "item")?;
         Ok(self.clear_item(item))
     }
 
@@ -759,15 +779,15 @@ impl Inventory {
         line
     }
 
-    /// Fallible [`Inventory::clear_item_count`] — validates the item ID shape.
+    /// Fallible [`Inventory::clear_item_count`] — validates the item ID, tag, or wildcard base.
     #[sand_macros::api(
         registry = sand_api_contract,
         path = "sand::command::Inventory::try_clear_item_count",
         aliases = ["sand::cmd::Inventory::try_clear_item_count", "sand::prelude::Inventory::try_clear_item_count", "sand::prelude::cmd::Inventory::try_clear_item_count"],
         module = "sand::command",
         kind = "method",
-        summary = "Fallible [`Inventory::clear_item_count`] — validates the item ID shape.",
-        context = "Fallible [`Inventory::clear_item_count`] — validates the item ID shape. This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
+        summary = "Fallible [`Inventory::clear_item_count`] — validates the item ID, tag, or wildcard base.",
+        context = "Fallible [`Inventory::clear_item_count`] — validates the item ID, tag, or wildcard base. This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
         minecraft = "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
         use_when = ["Constructing Minecraft commands through Sand's typed command model"],
         avoid_when = ["Passing unvalidated command fragments when a typed builder or validated try_* entry point exists"],
@@ -781,7 +801,7 @@ impl Inventory {
         count: u32,
     ) -> CommandResult<String> {
         let item = item.into();
-        validate_item_str(&item, "Inventory::try_clear_item_count", "item")?;
+        validate_item_predicate_str(&item, "Inventory::try_clear_item_count", "item")?;
         Ok(self.clear_item_count(item, count))
     }
 
@@ -1150,6 +1170,31 @@ mod tests {
     fn try_give_count_rejects_zero() {
         assert!(inv().try_give_count("minecraft:diamond", 0).is_err());
         assert!(inv().try_give_count("minecraft:diamond", 1).is_ok());
+    }
+
+    #[test]
+    fn clear_accepts_predicate_bases_without_allowing_them_as_stacks() {
+        for predicate in [
+            "*",
+            "*[minecraft:count={min:2}]",
+            "#pack:rewards",
+            "#pack:rewards[minecraft:custom_data~{reward:1b}]",
+        ] {
+            assert!(inv().try_clear_item(predicate).is_ok());
+            assert!(inv().try_clear_item_count(predicate, 0).is_ok());
+            assert!(
+                InventoryCommandNode::ClearItemCount {
+                    item: predicate.into(),
+                    count: 0
+                }
+                .validate(&CommandProfile::unprofiled())
+                .is_ok()
+            );
+            assert!(inv().try_give(predicate).is_err());
+        }
+        for predicate in ["", "#", "#Invalid:tag", "**", "#pack:bad tag"] {
+            assert!(inv().try_clear_item_count(predicate, 0).is_err());
+        }
     }
 
     #[test]

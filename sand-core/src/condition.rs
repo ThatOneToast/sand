@@ -147,6 +147,7 @@ pub struct Condition {
 #[derive(Debug, Clone, PartialEq)]
 pub(crate) enum ConditionKind {
     NumericCompare(Box<crate::ir::NumericComparison>),
+    ItemMatch(Box<crate::ir::ItemMatch>),
     /// `if score <selector> <objective> matches <range>`
     Score {
         selector: String,
@@ -220,11 +221,26 @@ impl Condition {
         }
     }
 
+    pub(crate) fn item_matches(
+        location: crate::item::ItemLocation,
+        predicate: sand_components::ItemPredicate,
+    ) -> Self {
+        Self {
+            kind: ConditionKind::ItemMatch(Box::new(crate::ir::ItemMatch {
+                location,
+                predicate,
+            })),
+        }
+    }
+
     pub(crate) fn register_owned_resources(&self) {
         // Replay ownership without expanding boolean alternatives into plans.
         match &self.kind {
             ConditionKind::NumericCompare(comparison) => {
                 comparison.register();
+            }
+            ConditionKind::ItemMatch(query) => {
+                query.register();
             }
             ConditionKind::ScoreCompare { left, right, .. } => {
                 left.register_owned_setup();
@@ -240,12 +256,12 @@ impl Condition {
         }
     }
 
-    fn has_numeric_comparison(&self) -> bool {
+    fn has_owned_resources(&self) -> bool {
         match &self.kind {
-            ConditionKind::NumericCompare(_) => true,
-            ConditionKind::Not(inner) => inner.has_numeric_comparison(),
+            ConditionKind::NumericCompare(_) | ConditionKind::ItemMatch(_) => true,
+            ConditionKind::Not(inner) => inner.has_owned_resources(),
             ConditionKind::All(conditions) | ConditionKind::Any(conditions) => {
-                conditions.iter().any(Self::has_numeric_comparison)
+                conditions.iter().any(Self::has_owned_resources)
             }
             _ => false,
         }
@@ -270,10 +286,10 @@ impl Condition {
     ) -> crate::ir::Actions {
         let operands = self.score_operands();
         let plans = self.to_ir_plans(negated);
-        let has_numeric_comparison = self.has_numeric_comparison();
+        let has_owned_resources = self.has_owned_resources();
         let mut output = crate::ir::Actions::default();
         for action in actions.0 {
-            let action = if has_numeric_comparison {
+            let action = if has_owned_resources {
                 crate::ir::Cmd::WithConditionResources {
                     condition: self.clone(),
                     run: Box::new(action),
@@ -746,6 +762,7 @@ impl Condition {
             ConditionKind::NumericCompare(comparison) => {
                 clause(ConditionIr::Function(comparison.register()))
             }
+            ConditionKind::ItemMatch(query) => clause(ConditionIr::Function(query.register())),
             ConditionKind::Score {
                 selector,
                 objective,

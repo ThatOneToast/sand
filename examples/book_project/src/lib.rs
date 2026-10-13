@@ -466,6 +466,23 @@ mod tests {
         content.lines().map(str::to_owned).collect()
     }
 
+    fn exported_functions() -> std::collections::BTreeMap<String, String> {
+        let records: Vec<serde_json::Value> = serde_json::from_str(
+            &sand::advanced::try_export_components_json("trail", "26.2").unwrap(),
+        )
+        .unwrap();
+        records
+            .into_iter()
+            .filter(|record| record["dir"] == "function")
+            .map(|record| {
+                (
+                    record["path"].as_str().unwrap().to_owned(),
+                    record["content"].as_str().unwrap().to_owned(),
+                )
+            })
+            .collect()
+    }
+
     #[test]
     fn load_seeds_storage() {
         let cmds = emitted(load());
@@ -498,19 +515,8 @@ mod tests {
                     && command.contains("You feel steady again.")),
             "recovery feedback: {recovery:?}"
         );
-        let records: Vec<serde_json::Value> = serde_json::from_str(
-            &sand::advanced::try_export_components_json("trail", "26.2").unwrap(),
-        )
-        .unwrap();
-        let function = |path: &str| {
-            records
-                .iter()
-                .find(|r| r["dir"] == "function" && r["path"] == path)
-                .unwrap_or_else(|| panic!("missing function {path}"))["content"]
-                .as_str()
-                .unwrap()
-        };
-        let regen = function("tick")
+        let functions = exported_functions();
+        let regen = functions["tick"]
             .lines()
             .filter(|line| line.contains("matches ..99"))
             .collect::<Vec<_>>();
@@ -520,7 +526,7 @@ mod tests {
             "regen must evaluate its guard once: {regen:?}"
         );
         let helper = regen[0].split_once(" run function trail:").unwrap().1;
-        let body = function(helper);
+        let body = &functions[helper];
         assert!(body.lines().any(|line| line.starts_with("scoreboard players add @s ") && line.ends_with(" 10")), "{body}");
         assert!(
             body.lines().any(
@@ -538,9 +544,22 @@ mod tests {
     #[test]
     fn grapple_execute_pays_stamina_and_plays_vfx() {
         let cmds = emitted(grapple_execute());
+        let functions = exported_functions();
+        let entry = &functions["grapple/execute"];
+        let helper = entry
+            .lines()
+            .next()
+            .unwrap()
+            .strip_prefix("function trail:")
+            .expect("owned stamina mutation");
+        let body = &functions[helper];
         assert!(
-            cmds.iter().any(|c| c.contains("scoreboard players remove")),
-            "pays stamina: {cmds:?}"
+            body.lines().any(|line| line
+                == format!(
+                    "scoreboard players remove @s {} 30",
+                    Traversal::stamina.objective()
+                )),
+            "pays stamina through a reachable helper: {body}"
         );
         assert!(
             cmds.iter().any(|c| c.contains("particle")),

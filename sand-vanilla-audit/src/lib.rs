@@ -1,5 +1,6 @@
 //! Small deterministic datapack used only by vanilla load/reload validation.
 
+use sand::vanilla;
 use sand_core::advanced::state::ScoreVar;
 use sand_core::event::vanilla::{OnDeath, OnRespawn, PlayerStartsSneaking, PlayerStopsSneaking};
 use sand_core::events::{EventSetup, PlayerSneakEvent, SandEvent, SandEventDispatch, TickWindow};
@@ -788,4 +789,31 @@ pub fn audit_living_effect_presence() {
     Target::players().each(|player| {
         when(player.living().has_effect(EffectId::Speed)).then_all(["say speed effect present"])
     });
+}
+
+/// Exercise block, container, and data actions in a disposable runtime audit world.
+#[function]
+pub fn audit_runtime_world_blocks() {
+    let world = WorldContext::current();
+    world.in_dimension(
+        "minecraft:the_nether".parse::<sand::registry::DimensionId>().unwrap(),
+        |world| {
+            let chest = world.block(BlockPos::absolute(4, 80, 4));
+            let slot = chest.inventory().slot(0).unwrap();
+            let name = chest.data().typed_path::<String>(NbtPath::root("CustomName"));
+            mcfunction![
+                chest.replace(vanilla::Block::Chest);
+                when(chest.matches(vanilla::Block::Chest)).then_all(mcfunction![
+                    slot.set(ItemStack::new(vanilla::Item::Diamond.into()).count(3)).unwrap();
+                    name.set("Sand world audit");
+                ]);
+                world.block(BlockPos::absolute(5, 80, 4)).replace(vanilla::Block::GoldBlock);
+                world.block(BlockPos::absolute(6, 80, 4)).destroy();
+                world.block(BlockPos::here()).replace(vanilla::Block::EmeraldBlock);
+            ]
+        },
+    );
+    when(!world.block(BlockPos::absolute(1_000_000, 80, 1_000_000)).matches(vanilla::Block::Air))
+        .then_all(["say __SAND_WORLD_UNLOADED_FALSE__"]);
+    world.block(BlockPos::here()).replace(vanilla::Block::Stone);
 }

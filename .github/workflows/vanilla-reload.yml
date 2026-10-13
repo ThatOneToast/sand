@@ -7,9 +7,13 @@ on:
       - "examples/book_project/**"
       - "sand-cli/**"
       - "sand-core/src/build/**"
+      - "sand-core/src/world.rs"
+      - "sand-core/src/ir/block.rs"
+      - "sand-commands/src/blocks.rs"
       - "sand-vanilla-audit/**"
       - "scripts/bench_runtime.py"
       - "scripts/validate_worldbuild_profiles.py"
+      - "scripts/validate_world_gameplay.py"
       - "scripts/validate-vanilla-reload.sh"
       - "scripts/vanilla_reload_harness.py"
   workflow_dispatch:
@@ -103,6 +107,15 @@ jobs:
             --version "${{ matrix.version }}" \
             --pack sand-vanilla-audit/dist/sand_audit \
             --output "target/vanilla-reload/${{ matrix.version }}"
+
+      - name: Validate runtime world and block gameplay
+        if: matrix.target == 'latest'
+        run: |
+          python3 scripts/validate_world_gameplay.py \
+            --version "${{ matrix.version }}" \
+            --jar "$HOME/.sand/cache/${{ matrix.version }}/server.jar" \
+            --pack sand-vanilla-audit/dist/sand_audit \
+            --output "target/vanilla-reload/${{ matrix.version }}/world-gameplay"
 
       - name: Validate dev to release world-build profile switching
         if: matrix.target == 'latest'

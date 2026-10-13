@@ -78,6 +78,7 @@ pub mod resource_ref;
 pub mod state;
 pub mod version;
 pub mod vfx;
+pub mod world;
 
 // ── Re-export the sand-components crate itself ────────────────────────────────
 
@@ -718,6 +719,12 @@ pub mod __private {
         bounds: Option<(i32, i32)>,
     ) -> crate::entity::FixedScore {
         crate::entity::FixedScore::__new(namespace, schema, name, scale, default, bounds)
+    }
+}
+
+impl From<generated::Block> for sand_commands::BlockState {
+    fn from(block: generated::Block) -> Self {
+        sand_commands::BlockState::of(block.resource_location())
     }
 }
 

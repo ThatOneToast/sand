@@ -2,7 +2,7 @@
 # Selection uses the resolved `minecraft_version` embedded in both provider
 # catalogs, never an environment-variable guess. Adding a version requires a
 # separately reviewed deterministic baseline.
-# Native attribute-base reads add one method in entity-source;
+# Runtime world/block capabilities add eleven items in world-source;
 # every source scope remains enforced.
 schema_version = 1
 
@@ -12,12 +12,12 @@ schema_version = 1
 # select this ratchet.
 [[profile]]
 minecraft_version = "placeholder-codegen"
-static_surface_items = 4922
+static_surface_items = 4933
 pending_item_ceiling = 0
 baseline = "api-surface-baseline-placeholder.txt"
 
 [[profile]]
 minecraft_version = "26.2"
-static_surface_items = 11022
+static_surface_items = 11033
 pending_item_ceiling = 0
 baseline = "api-surface-baseline.txt"

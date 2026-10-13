@@ -32,6 +32,8 @@
 - [23. Unified State Components, Bundles, Queries, And Systems](23-unified-state.md)
   - [Numeric State: Scales, Rounding, And Arithmetic](23a-numeric-state.md)
 
+- [Runtime World And Block Gameplay](23b-runtime-world-blocks.md)
+
 # Typed World & Server Configuration
 
 - [24. What Ships In The Datapack vs. What's Local To Your Dev Server](23-world-vs-server.md)

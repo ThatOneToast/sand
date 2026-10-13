@@ -358,9 +358,20 @@ fn state_query_lowers_required_optional_and_forbidden_presence_at_runtime() {
     assert!(invocation[0].contains("execute as @e[scores={"));
     assert!(invocation[0].contains(" at @s run function "));
 
-    let generated = sand_core::drain_dyn_fns()
-        .into_iter()
-        .map(|(_, commands)| emitted(commands).join("\n"))
+    let mut helpers = std::collections::BTreeMap::new();
+    loop {
+        let pending = sand_core::drain_dyn_fns();
+        if pending.is_empty() {
+            break;
+        }
+        helpers.extend(
+            pending
+                .into_iter()
+                .map(|(path, commands)| (path, emitted(commands).join("\n"))),
+        );
+    }
+    let generated = helpers
+        .values()
         .find(|content| content.contains("say optional marker"))
         .expect("query callback should be emitted as a generated function");
     let forbidden =
@@ -374,7 +385,15 @@ fn state_query_lowers_required_optional_and_forbidden_presence_at_runtime() {
         "if score @s {} matches {} run say optional marker",
         optional[0].0, optional[0].1
     )));
-    assert!(generated.contains(&charge));
+    assert!(
+        helpers.iter().any(|(path, body)| {
+            generated.contains(&format!("function __sand_local:{path}"))
+                && body
+                    .lines()
+                    .any(|line| line == format!("scoreboard players add @s {charge} 1"))
+        }),
+        "the query callback must reach the charge mutation: {helpers:?}"
+    );
 }
 
 #[test]

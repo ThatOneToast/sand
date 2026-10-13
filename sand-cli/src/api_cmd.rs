@@ -1734,8 +1734,20 @@ fn erase_hidden_target_state(mut value: String) -> String {
             };
             let generic = &value[generic_start..generic_end];
             let is_hidden_state = if owner.contains("Target") {
-                (generic.contains("AnyTarget") || generic.contains("PlayersOnly"))
-                    && (generic.contains("One") || generic.contains("Many"))
+                let arguments: Vec<_> = generic[1..generic.len() - 1]
+                    .split(',')
+                    .map(|argument| argument.rsplit("::").next().unwrap().trim())
+                    .collect();
+                // Target's cardinality defaults to Many when omitted. Match
+                // complete marker names so unrelated generic types survive.
+                match arguments.as_slice() {
+                    [category] => matches!(*category, "AnyTarget" | "PlayersOnly"),
+                    [category, cardinality] => {
+                        matches!(*category, "AnyTarget" | "PlayersOnly")
+                            && matches!(*cardinality, "One" | "Many")
+                    }
+                    _ => false,
+                }
             } else {
                 generic.contains("One") || generic.contains("Many")
             };
@@ -3409,6 +3421,41 @@ mod tests {
             "std::result::Result<serde_json::Value, Error>"
         );
         assert_eq!(explicit_method_arguments("<'a, G, N>"), "::<G, N>");
+    }
+
+    #[test]
+    fn hidden_target_state_supports_default_cardinality_without_erasing_other_types() {
+        for category in ["PlayersOnly", "AnyTarget"] {
+            let source =
+                format!("sand_commands::selector::Target<sand_commands::selector::{category}>");
+            assert_eq!(
+                normalize_shape_paths(&source, Some("sand_core::world::WorldContext::players")),
+                "sand::command::Target"
+            );
+        }
+        assert_eq!(
+            erase_hidden_target_state("sand::command::Target<MyPlayersOnly, Many>".into()),
+            "sand::command::Target<MyPlayersOnly, Many>"
+        );
+        for path in [
+            "sand::world::WorldContext::players",
+            "sand::world::WorldContext::entities",
+        ] {
+            let entry = generated_catalog()
+                .entries
+                .iter()
+                .find(|entry| entry.canonical_path == path)
+                .unwrap();
+            assert_eq!(
+                entry
+                    .return_type
+                    .as_ref()
+                    .unwrap()
+                    .split_whitespace()
+                    .collect::<String>(),
+                "sand::command::Target"
+            );
+        }
     }
 
     fn generated_catalog() -> &'static ApiCatalog {

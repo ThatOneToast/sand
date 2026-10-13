@@ -108,10 +108,16 @@ impl Machine {
                                 }),
                             )
                         }
+                    } else if inner.starts_with(&["scoreboard", "players", "get"]) {
+                        let value = self.0.get(&format!("{} {}", inner[3], inner[4])).copied();
+                        (value.is_some(), value.unwrap_or(0))
                     } else {
                         assert_eq!(&inner[..3], &["scoreboard", "players", "operation"]);
-                        let present = self.0.contains_key(&format!("{} {}", inner[6], inner[7]));
-                        let success = present && self.run(inner);
+                        // Vanilla scoreboard operations create missing source scores as zero.
+                        self.0
+                            .entry(format!("{} {}", inner[6], inner[7]))
+                            .or_insert(0);
+                        let success = self.run(inner);
                         (
                             success,
                             if success {
@@ -455,6 +461,7 @@ fn missing_numeric_source_aborts_without_committing_or_reusing_scratch() {
     machine.0.insert("@s result".into(), 123);
     assert!(!machine.execute(&output.commands));
     assert_eq!(machine.get("@s", "result"), 123);
+    assert!(!machine.0.contains_key(&format!("@s {}", input.objective())));
     machine.0.insert(format!("@s {}", input.objective()), 2);
     assert!(machine.execute(&output.commands));
     assert_eq!(machine.get("@s", "result"), 2000);
@@ -485,9 +492,11 @@ fn unbound_inputs_keep_the_caller_when_scratch_uses_a_fake_holder() {
             .unwrap();
         let output = render_lowered_curve(context, "caller", &lowered).unwrap();
         assert!(
-            output.commands.iter().any(|line| line
-                .contains("run scoreboard players operation #value ")
-                && line.ends_with("= @s mana")),
+            output
+                .commands
+                .iter()
+                .any(|line| line.contains("store result score #value ")
+                    && line.ends_with("run scoreboard players get @s mana")),
             "{curve:?}"
         );
         assert!(
@@ -528,7 +537,10 @@ fn random_source_is_resolved_once_for_read_and_success() {
             .commands
             .iter()
             .any(|line| line.starts_with("execute store success score ")
-                && line.ends_with(&format!("= @r {}", field.objective())))
+                && line.ends_with(&format!(
+                    "run scoreboard players get @r {}",
+                    field.objective()
+                )))
     );
 }
 

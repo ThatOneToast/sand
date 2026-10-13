@@ -869,6 +869,7 @@ fn capture_discrete_input(
 }
 
 /// Capture one scoreboard read and its success in the same Minecraft command.
+/// `get` preserves an absent source; scoreboard assignment would create it as zero.
 /// A nondeterministic selector must never be re-evaluated by a separate guard.
 fn append_score_read(
     context: NumericContext<'_>,
@@ -886,7 +887,7 @@ fn append_score_read(
     ));
     objectives.insert(success.clone());
     commands.push(format!("scoreboard players set {holder} {destination} 0"));
-    commands.push(format!("execute store success score {holder} {success} run scoreboard players operation {holder} {destination} = {source_holder} {source}"));
+    commands.push(format!("execute store success score {holder} {success} store result score {holder} {destination} run scoreboard players get {source_holder} {source}"));
     commands.push(format!(
         "execute unless score {holder} {success} matches 1 run return fail"
     ));
@@ -1284,14 +1285,20 @@ mod tests {
         .unwrap();
         for holder in ["#left", "#right"] {
             assert!(output.commands.iter().any(|line| {
-                line.contains("run scoreboard players operation #scratch ")
-                    && line.ends_with(&format!("= {holder} {}", input.objective()))
+                line.contains("store result score #scratch ")
+                    && line.ends_with(&format!(
+                        "run scoreboard players get {holder} {}",
+                        input.objective()
+                    ))
             }));
         }
         for (index, command) in output.commands.iter().enumerate() {
-            if command.contains("= #left ") || command.contains("= #right ") {
-                let copy = command.split_once("run ").unwrap().1;
-                let destination = copy.split_whitespace().nth(4).unwrap();
+            if command.contains("get #left ") || command.contains("get #right ") {
+                let copy = command
+                    .split_once("store result score #scratch ")
+                    .unwrap()
+                    .1;
+                let destination = copy.split_whitespace().next().unwrap();
                 assert_eq!(
                     output.commands[index - 1],
                     format!("scoreboard players set #scratch {destination} 0"),
@@ -1346,12 +1353,10 @@ mod tests {
                 &lowered,
             )
             .unwrap();
-            assert!(
-                output
-                    .commands
-                    .iter()
-                    .any(|line| line.ends_with(&format!("= {holder} {}", input.objective())))
-            );
+            assert!(output.commands.iter().any(|line| line.ends_with(&format!(
+                "run scoreboard players get {holder} {}",
+                input.objective()
+            ))));
         }
     }
 

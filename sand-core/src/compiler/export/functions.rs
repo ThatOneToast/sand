@@ -222,4 +222,91 @@ mod tests {
         let error = drain_generated_resources_into(&mut Vec::new(), "test", None).unwrap_err();
         assert!(error.to_string().contains("SAND-COMMAND-EXECUTE-EMPTY"));
     }
+
+    #[test]
+    fn observation_samples_retain_canonical_resources_across_exports() {
+        use crate::transition::observation::{
+            Observation, ObservationHandler, ObservationSource, resolve,
+        };
+        use crate::{TransitionKind, condition::Condition, entity::StatCurve};
+        use sand_commands::{DataTarget, Selector};
+        use sand_components::{EffectId, ItemId, ItemPredicate};
+        let items = ItemPredicate::id(ItemId::minecraft("diamond").unwrap())
+            .item(ItemId::minecraft("emerald").unwrap());
+        let observations = [
+            (
+                "effect",
+                ObservationSource::Boolean(Condition::effect_presence(
+                    Selector::self_(),
+                    EffectId::Speed,
+                )),
+                TransitionKind::BecameTrue,
+            ),
+            (
+                "inventory",
+                ObservationSource::Numeric(StatCurve::inventory_count(Selector::self_(), items)),
+                TransitionKind::ScoreChanged,
+            ),
+            (
+                "health",
+                ObservationSource::Numeric(StatCurve::native_nbt(
+                    DataTarget::entity(Selector::self_()),
+                    "Health".into(),
+                )),
+                TransitionKind::ScoreDecreased,
+            ),
+        ]
+        .into_iter()
+        .map(|(id, source, kind)| ObservationHandler {
+            tracker_id: id.into(),
+            description: id.into(),
+            observation: Observation {
+                source,
+                declarations: Default::default(),
+            },
+            kind,
+            path: format!("handlers/{id}"),
+        })
+        .collect::<Vec<_>>();
+        let export = |namespace: &str| {
+            let _scope = crate::function::ExportFunctionRegistryScope::enter();
+            let plan = resolve(namespace, &observations).unwrap();
+            assert_eq!(plan.tick_commands.len(), 3);
+            let mut records = plan
+                .functions
+                .into_iter()
+                .map(|function| {
+                    ComponentRecord::function(namespace, &function.path, function.commands)
+                })
+                .collect::<Vec<_>>();
+            drain_generated_resources_into(&mut records, namespace, None).unwrap();
+            for record in &mut records {
+                record.content = resolve_local_refs(&record.content, namespace);
+            }
+            super::super::records::validate_unique_output_identities(&records).unwrap();
+            assert_eq!(records.iter().filter(|r| r.dir == "predicate").count(), 1);
+            assert_eq!(records.iter().filter(|r| r.dir == "tags/item").count(), 1);
+            assert_eq!(
+                records
+                    .iter()
+                    .map(|r| r.content.matches("from entity @s Health").count())
+                    .sum::<usize>(),
+                1,
+                "native health must be snapshotted exactly once before numeric conversion"
+            );
+            assert!(
+                records
+                    .iter()
+                    .any(|r| r.content.contains("clear @s") && r.content.contains(" 0"))
+            );
+            assert!(records.iter().all(|r| r.namespace == namespace));
+            assert!(records.iter().all(|r| !r.content.contains("__sand_local:")));
+            records
+        };
+        let first = export("first");
+        assert_eq!(first, export("first"));
+        let second = export("second");
+        assert!(second.iter().all(|r| !r.content.contains("first:")));
+        assert_eq!(second, export("second"));
+    }
 }

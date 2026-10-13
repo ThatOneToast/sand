@@ -116,7 +116,22 @@ fn player_state_transitions_export_deterministically() {
         .iter()
         .find(|(_, content)| content.contains("on_health_changed"))
         .unwrap_or_else(|| panic!("no tracker references on_health_changed"));
-    assert!(health_tracker.1.contains("sand_health"));
+    let sample_path = health_tracker
+        .1
+        .lines()
+        .find_map(|line| {
+            line.strip_prefix("function playerstatepack:")
+                .filter(|path| path.starts_with("sand/numeric/"))
+        })
+        .expect("health tracker must invoke the canonical numeric sample");
+    let sample = function(&records, sample_path);
+    assert_eq!(
+        sample
+            .matches("run scoreboard players get @s sand_health")
+            .count(),
+        1,
+        "health must be sampled once through its referenced numeric helper"
+    );
 
     let low_health_tracker = trackers
         .iter()

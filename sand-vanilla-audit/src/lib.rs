@@ -380,6 +380,33 @@ pub fn stops_sneaking(event: sand_core::event::Event<PlayerStopsSneaking>) {
     cmd::raw("say audit stopped sneaking")
 }
 
+// The disposable-server observation audit drives these shared samplers as
+// isolated tagged entities; it does not claim live-player health replication.
+#[on_event]
+pub fn audit_health_changed(_: sand_core::events::PlayerHealthChangedEvent) {
+    cmd::raw("scoreboard players add @s sand_obs_change 1")
+}
+
+#[on_event]
+pub fn audit_health_lost(_: sand_core::events::PlayerHealthLostEvent) {
+    cmd::raw("scoreboard players add @s sand_obs_lost 1")
+}
+
+#[on_event]
+pub fn audit_health_gained(_: sand_core::events::PlayerHealthGainedEvent) {
+    cmd::raw("scoreboard players add @s sand_obs_gain 1")
+}
+
+#[on_event]
+pub fn audit_health_low(_: sand_core::event::Event<sand_core::events::PlayerLowHealthEvent<6>>) {
+    cmd::raw("scoreboard players add @s sand_obs_low 1")
+}
+
+#[on_event]
+pub fn audit_health_recovered(_: sand_core::event::Event<sand_core::events::PlayerRecoveredHealthEvent<6>>) {
+    cmd::raw("scoreboard players add @s sand_obs_back 1")
+}
+
 #[datapack_component]
 pub fn audit_advancement() -> Advancement {
     Advancement::new("sand_audit:first_tick".parse().unwrap())

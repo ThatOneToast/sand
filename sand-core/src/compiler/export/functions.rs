@@ -15,6 +15,7 @@ pub(crate) fn drain_generated_resources_into(
     namespace: &str,
     ctx: Option<&super::ExportCtx<'_>>,
 ) -> super::records::ExportResult<()> {
+    let generated_start = records.len();
     let mut emitted = std::collections::BTreeSet::new();
     let mut emitted_components = Vec::new();
     loop {
@@ -79,6 +80,19 @@ pub(crate) fn drain_generated_resources_into(
             }
         }
     }
+    // Cold construction and cached replay can discover owned helpers in a
+    // different order. Canonicalize only this generated batch, preserving the
+    // registration order of authored records (including schedule bodies).
+    // Contents and tag-member order are untouched; collisions still reach the
+    // exporter's normal output-identity validation.
+    records[generated_start..].sort_by(|left, right| {
+        (&left.namespace, &left.dir, &left.path, &left.ext).cmp(&(
+            &right.namespace,
+            &right.dir,
+            &right.path,
+            &right.ext,
+        ))
+    });
     Ok(())
 }
 
@@ -104,6 +118,24 @@ mod tests {
                 .into(),
         )
         .entry(sand_components::ItemId::minecraft(item).unwrap())
+    }
+
+    #[test]
+    fn owned_resources_sort_without_reordering_preexisting_records() {
+        let _scope = crate::function::ExportFunctionRegistryScope::enter();
+        crate::register_dyn_fn("owned/z".into(), "say z");
+        crate::register_dyn_fn("owned/a".into(), "say a");
+        let mut records = vec![
+            ComponentRecord::function("test", "authored/z", vec!["say first".into()]),
+            ComponentRecord::function("test", "authored/a", vec!["say second".into()]),
+        ];
+        drain_generated_resources_into(&mut records, "test", None).unwrap();
+        assert_eq!(
+            records.iter().map(|r| r.path.as_str()).collect::<Vec<_>>(),
+            ["authored/z", "authored/a", "owned/a", "owned/z"]
+        );
+        assert_eq!(records[0].content, "say first");
+        assert_eq!(records[1].content, "say second");
     }
 
     #[test]

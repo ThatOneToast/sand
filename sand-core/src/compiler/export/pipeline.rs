@@ -2714,18 +2714,6 @@ pub(crate) fn try_export_components_impl(
     );
     validate_function_records(&mut records, &command_profile)?;
 
-    // Authored Actions may be initialized during the first export and replayed
-    // from a cache afterward. Resource registration order can differ even when
-    // every output is identical. Canonicalize the file list after collision and
-    // command validation; command order and tag member order remain untouched.
-    records.sort_by(|left, right| {
-        (&left.namespace, &left.dir, &left.path, &left.ext).cmp(&(
-            &right.namespace,
-            &right.dir,
-            &right.path,
-            &right.ext,
-        ))
-    });
     Ok(records)
 }
 

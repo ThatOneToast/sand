@@ -36,9 +36,8 @@ pub(crate) struct ObservationHandler {
     pub path: String,
 }
 
-impl From<&TransitionHandler> for ObservationHandler {
-    fn from(handler: &TransitionHandler) -> Self {
-        let transition = handler.transition;
+impl From<crate::TrackedTransition> for crate::events::OwnedObservationDispatch {
+    fn from(transition: crate::TrackedTransition) -> Self {
         let mut declarations = BTreeMap::new();
         let source = match transition.source {
             TrackedSource::BooleanCondition { condition, .. } => {
@@ -75,6 +74,17 @@ impl From<&TransitionHandler> for ObservationHandler {
                 declarations,
             },
             kind: transition.kind,
+        }
+    }
+}
+
+impl From<&TransitionHandler> for ObservationHandler {
+    fn from(handler: &TransitionHandler) -> Self {
+        Self {
+            tracker_id: handler.transition.tracker_id.clone(),
+            description: handler.transition.description.clone(),
+            observation: handler.transition.observation.clone(),
+            kind: handler.transition.kind,
             path: handler.path.clone(),
         }
     }
@@ -264,13 +274,28 @@ pub(crate) fn resolve(
             }
         };
         plan.tick_commands
-            .push(format!("function {namespace}:{path}"));
+            .push(format!("execute at @s run function {namespace}:{path}"));
         plan.functions.push(GeneratedTransitionFunction {
             tracker_id,
             source: description,
             path,
             commands,
         });
+    }
+    // Sample all observations for one player before advancing to the next.
+    // The lifecycle owns the single player scan; this coordinator also fixes
+    // dimension, position and rotation before each source, including after a
+    // preceding handler teleports the player.
+    if plan.tick_commands.len() > 1 {
+        let path = "__sand_observation_tick".to_owned();
+        plan.functions.push(GeneratedTransitionFunction {
+            tracker_id: "shared player observations".into(),
+            source: "deterministic per-player observation sequence".into(),
+            path: path.clone(),
+            commands: std::mem::take(&mut plan.tick_commands),
+        });
+        plan.tick_commands
+            .push(format!("function {namespace}:{path}"));
     }
     let objectives = plan
         .private_objectives
@@ -455,5 +480,44 @@ mod tests {
                 && commands[4].contains("players operation")
         );
         assert!(commands[5].starts_with("execute if score @s") && commands[5].ends_with(" 1"));
+    }
+    #[test]
+    fn distinct_sources_share_one_player_scan_with_current_player_position() {
+        let plan = resolve(
+            "pack",
+            &[
+                handler(
+                    "one",
+                    "one",
+                    ObservationSource::Boolean(Condition::raw("entity @s[tag=one]")),
+                    TransitionKind::BecameTrue,
+                ),
+                handler(
+                    "two",
+                    "two",
+                    ObservationSource::Boolean(Condition::raw("entity @s[tag=two]")),
+                    TransitionKind::BecameFalse,
+                ),
+            ],
+        )
+        .unwrap();
+        assert_eq!(
+            plan.tick_commands,
+            ["function pack:__sand_observation_tick"]
+        );
+        let sequence = plan
+            .functions
+            .iter()
+            .find(|f| f.path == "__sand_observation_tick")
+            .unwrap();
+        let calls = plan
+            .functions
+            .iter()
+            .filter(|f| f.path.starts_with("__sand_transition/"))
+            .map(|f| format!("execute at @s run function pack:{}", f.path))
+            .collect::<Vec<_>>();
+        assert_eq!(sequence.commands, calls);
+        assert_eq!(sequence.commands.len(), 2);
+        assert!(!sequence.commands.join("\n").contains("@a"));
     }
 }

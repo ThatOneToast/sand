@@ -169,6 +169,10 @@
 //! [`SandEventDispatch::TickCondition`] — both lower into the same internal
 //! representation as [`SandEventDispatch::tick()`].
 
+pub(crate) mod observation;
+pub use observation::ObservationEventDispatch;
+pub(crate) use observation::OwnedObservationDispatch;
+
 /// Event dependency graph construction for same-cycle chained dispatch (#240).
 ///
 /// The graph is exporter wiring. Authors compose public `SandEventDispatch`
@@ -1623,7 +1627,7 @@ pub(crate) enum EventDispatchRepresentation {
     TickCondition(String),
     Tick(TickEventDispatch),
     Chain(ChainEventDispatch),
-    Tracked(crate::TrackedTransition),
+    Tracked(OwnedObservationDispatch),
 }
 
 #[sand_macros::api(
@@ -1675,7 +1679,7 @@ pub(crate) enum NormalizedEventDispatch {
     /// subscription instead, mirroring how advancement-backed parents were
     /// unsupported before their own dedicated integration (#240 Phase 6).
     /// Tracked graph-parent bridging is tracked as follow-up scope.
-    Tracked(crate::TrackedTransition),
+    Tracked(OwnedObservationDispatch),
 }
 
 impl SandEventDispatch {
@@ -1895,7 +1899,7 @@ impl SandEventDispatch {
     }
 
     pub(crate) fn tracked(transition: crate::TrackedTransition) -> Self {
-        Self(EventDispatchRepresentation::Tracked(transition))
+        Self(EventDispatchRepresentation::Tracked(transition.into()))
     }
 
     pub(crate) fn into_advancement(self) -> Option<crate::AdvancementTrigger> {
@@ -1926,7 +1930,7 @@ impl SandEventDispatch {
         }
     }
 
-    pub(crate) fn into_tracked(self) -> Option<crate::TrackedTransition> {
+    pub(crate) fn into_tracked(self) -> Option<OwnedObservationDispatch> {
         match self.0 {
             EventDispatchRepresentation::Tracked(transition) => Some(transition),
             _ => None,

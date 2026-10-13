@@ -488,7 +488,7 @@ pub(crate) enum CustomDispatchBackend {
     /// Reusable tracked-transition dispatch (#49) — shares the same
     /// generated provider backend as built-in `EventDispatch::Tracked`
     /// handlers, but reachable for arbitrary/generic `SandEvent` types.
-    Tracked(crate::TrackedTransition),
+    Tracked(crate::events::OwnedObservationDispatch),
 }
 
 /// Resolve which dispatch backend a custom `SandEvent` uses, enforcing the
@@ -506,7 +506,7 @@ pub(crate) fn resolve_custom_dispatch_backend(
     condition: Option<String>,
     tick: Option<crate::events::TickEventDispatch>,
     chain: Option<crate::events::ChainEventDispatch>,
-    tracked: Option<crate::TrackedTransition>,
+    tracked: Option<crate::events::OwnedObservationDispatch>,
     handler_path: &str,
 ) -> CustomDispatchBackend {
     let some_count = [

@@ -209,13 +209,13 @@ pub enum EventDispatch {
         /// `SandEventDispatch::chain::<Parent>()`. Mutually exclusive with
         /// the other factories — exactly one returns `Some`.
         make_chain: fn() -> Option<crate::events::ChainEventDispatch>,
-        /// Returns `Some(TrackedTransition)` when using
-        /// Sand's compiler-owned tracked dispatch. Mutually exclusive with the
+        /// Returns `Some(OwnedObservationDispatch)` when using
+        /// Sand's compiler-owned observation dispatch. Mutually exclusive with the
         /// other factories — exactly one returns `Some`. Generic `SandEvent`
         /// types (e.g. `EffectStarted<Speed>`) reach the shared transition
         /// provider backend through this factory rather than macro-level
         /// name matching, so distinct monomorphizations dispatch correctly.
-        make_tracked: fn() -> Option<TrackedTransition>,
+        make_tracked: fn() -> Option<crate::events::OwnedObservationDispatch>,
         /// This event's declared participant observations
         /// (`SandEvent::participants`, #230). For structured tick-lifecycle
         /// dispatch (`make_tick` resolved `Some`), the export pipeline

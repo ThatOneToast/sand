@@ -43,7 +43,7 @@ macro_rules! submit_chain_handler {
             fn tick() -> Option<TickEventDispatch> {
                 None
             }
-            fn tracked() -> Option<sand_core::TrackedTransition> {
+            fn tracked() -> Option<sand_core::__private::OwnedObservationDispatch> {
                 None
             }
             fn type_id() -> TypeId {

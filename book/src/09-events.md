@@ -222,10 +222,12 @@ Tracked transition events such as health changed/lost/gained and the
 low-health/recovered pair use Sand's shared observation planner. Identical canonical
 sources share one sample and one retained baseline per player, even when
 several handlers or event identities consume them. The existing player
-lifecycle owns the tick scan; each event does not add another scan.
+lifecycle owns one shared observation scan, anchored at each player's position
+and dimension. It runs the source groups in order for that player before moving
+to the next player; this is not a cross-player snapshot.
 
-For each source, the planner samples before dispatching its handlers. Those
-handlers see the same sample and previous value, and the baseline advances
+For each source, the planner samples before dispatching its handlers. All
+transition comparisons use the same sample and previous value, and the baseline advances
 only after their dispatch. Source groups run sequentially in deterministic
 compiler order; a handler mutation can be visible to a later group in that
 tick. The
@@ -241,8 +243,58 @@ Hidden names include the pack namespace and sample definition. Adding another
 consumer does not change a sample's stored identity. Changing its definition
 establishes a new baseline.
 
-This backend currently serves existing per-player tracked events at their tick
-cadence. General custom subscriptions, selectable cadence/entity/region scopes,
-and integration with State dirty dependencies remain future work. State flows
+Custom player subscriptions use the same backend. Selectable cadence,
+entity/region scopes, and integration with State dirty dependencies remain future work. State flows
 continue to share lifecycle assembly and collision checking; they have not
 been converted into generic polling observations.
+
+
+## Custom player observations
+
+Use `SandEventDispatch::observe_players` when a custom event should react to a
+change in a typed value. Its closure runs while the datapack is exported and
+receives the player context in which the source will be sampled at runtime.
+Return a `Condition` or `StatCurve`, then select the transition:
+
+```rust,ignore
+use sand::prelude::*;
+
+struct DiamondsIncreased;
+impl SandEvent for DiamondsIncreased {
+    fn dispatch() -> impl Into<SandEventDispatch> {
+        SandEventDispatch::observe_players(|player| {
+            player.inventory().count(vanilla::Item::Diamond)
+        }).increased()
+    }
+}
+
+#[on_event]
+fn diamonds_increased(event: DiamondsIncreased) {
+    cmd::tellraw(event.player(), Text::new("You gained diamonds!"));
+}
+```
+
+Custom `SandEvent` handlers use the marker directly as their parameter, as
+shown above. `Event<T>` remains the advancement-backed handler form.
+
+A numeric source offers `changed()`, `increased()`, and `decreased()`.
+A boolean source offers `became_true()` and `became_false()`. For example,
+`player.living().has_effect(EffectId::Speed)` can detect when speed becomes
+active; `StatCurve::from(player.living().health())` observes native health at
+Sand's fixed-point precision, independently of the built-in integer health
+scoreboard events. Typed State values and numeric expressions are accepted too.
+
+These subscriptions currently sample each player every tick. They do not add
+another player scan, and identical sources share the same sample even across
+distinct event types. The first successful sample is silent. Handler context is
+the observed player; source values are not passed as an old/new payload. Read
+current state using that context when the handler needs it.
+
+Use an advancement-backed event when vanilla provides the occurrence directly.
+Use `SandEventDispatch::tick().as_players().when(...)` for repeated execution
+while a condition holds. Observation events detect transitions; they currently
+cannot be same-cycle chain/compose parents. They do not yet replace State's
+optimized dirty tracking or offer selectable cadence and non-player scopes.
+For changes already known through Sand-owned State writes, prefer an existing
+State flow or dirty system when it expresses the behavior; this first
+subscription backend samples State values just like external values.

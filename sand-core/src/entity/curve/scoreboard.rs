@@ -83,6 +83,69 @@ pub(crate) fn render_lowered_curve(
             } => commands.push(format!(
                 "scoreboard players operation {holder} {destination} = {holder} {source}"
             )),
+            LoweredCurveOperation::InventoryCountToFixed {
+                destination,
+                target,
+                item,
+                scale,
+                rounding,
+                overflow,
+            } => {
+                require_scoreboard_overflow(context, lowered, *overflow)?;
+                let error =
+                    |error: sand_commands::CommandError| EntityDiagnostic::InvalidRawExtension {
+                        archetype: context.owner.to_string(),
+                        extension: "inventory count".into(),
+                        detail: error.to_string(),
+                    };
+                sand_commands::ScoreHolder::entity(target.clone())
+                    .validate_single(&sand_commands::CommandProfile::unprofiled())
+                    .map_err(error)?;
+                // Resolve the selection once. The helper changes @s, so use
+                // private fake-player storage before copying into caller state.
+                let count =
+                    ObjectiveName::logical(format!("{}.inventory.{index}.count", context.owner));
+                let valid =
+                    ObjectiveName::logical(format!("{}.inventory.{index}.valid", context.owner));
+                objectives.extend([count.clone(), valid.clone()]);
+                let helper_path = format!("{path}/inventory_{index}");
+                let count_command =
+                    sand_commands::Inventory::of(sand_commands::Target::current_player())
+                        .try_clear_item_count(item.to_string(), 0)
+                        .map_err(error)?;
+                let helper = vec![
+                    "execute unless entity @s[type=minecraft:player] run return fail".to_owned(),
+                    format!("scoreboard players set #inventory {valid} 1"),
+                    format!("execute store result score #inventory {count} run {count_command}"),
+                ];
+                records.push(ComponentRecord::function(
+                    context.owner.namespace(),
+                    &helper_path,
+                    helper,
+                ));
+                functions.push(helper_path.clone());
+                commands.push(format!("scoreboard players set #inventory {valid} 0"));
+                commands.push(format!(
+                    "execute as {target} run function {}:{helper_path}",
+                    context.owner.namespace()
+                ));
+                commands.push(format!(
+                    "execute unless score #inventory {valid} matches 1 run return fail"
+                ));
+                commands.push(format!(
+                    "scoreboard players operation {holder} {destination} = #inventory {count}"
+                ));
+                append_scale_conversion(
+                    context,
+                    &mut objectives,
+                    &mut commands,
+                    destination,
+                    1,
+                    *scale,
+                    *rounding,
+                    index,
+                )?;
+            }
             LoweredCurveOperation::NbtToFixed {
                 destination,
                 target,
